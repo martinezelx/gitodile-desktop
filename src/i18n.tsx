@@ -132,6 +132,7 @@ export interface Translations {
   identitySave: string;
   identitySaving: string;
   identitySaved: string;
+  identityModify: string;
   identityCouldntSave: string;
 
   settingsStartupTitle: string;
@@ -271,6 +272,7 @@ const en: Translations = {
   identitySave: "Save",
   identitySaving: "Saving…",
   identitySaved: "Saved.",
+  identityModify: "Edit identity",
   identityCouldntSave: "Couldn't save that.",
 
   settingsStartupTitle: "Startup",
@@ -419,6 +421,7 @@ const es: Translations = {
   identitySave: "Guardar",
   identitySaving: "Guardando…",
   identitySaved: "Guardado.",
+  identityModify: "Modificar identidad",
   identityCouldntSave: "No se pudo guardar eso.",
 
   settingsStartupTitle: "Inicio",

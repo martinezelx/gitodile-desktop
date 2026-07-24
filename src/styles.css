@@ -1,5 +1,5 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
@@ -225,14 +225,13 @@ button { font: inherit; }
   background: var(--surface-panel);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: width var(--duration-normal), padding var(--duration-normal);
+  transition: none;
 }
 .app-shell--collapsed .sidebar { width: 76px; padding-left: var(--space-2); padding-right: var(--space-2); }
 
 .sidebar-header {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin-bottom: 32px; min-height: 38px;
-  transition: flex-direction var(--duration-normal);
 }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .brand > div:last-child { display: grid; gap: 2px; overflow: hidden; }
@@ -259,13 +258,13 @@ nav { display: grid; gap: 6px; }
   display: flex; align-items: center; width: 100%; height: 44px;
   padding: 0 12px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary);
   background: transparent; text-align: left; cursor: pointer; white-space: nowrap;
-  transition: background var(--duration-fast), color var(--duration-fast), width var(--duration-normal), padding var(--duration-normal);
+  transition: background var(--duration-fast), color var(--duration-fast);
 }
 .nav-item__icon { display: flex; width: 18px; height: 18px; flex-shrink: 0; }
 .nav-item__icon svg { width: 100%; height: 100%; }
 .nav-item__label {
   overflow: hidden; opacity: 1; max-width: 160px; margin-left: 10px;
-  transition: opacity var(--duration-fast), max-width var(--duration-normal), margin-left var(--duration-normal);
+  transition: opacity var(--duration-fast);
 }
 .nav-item:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); }
 .nav-item--active { color: var(--text-primary); background: var(--surface-active); font-weight: 600; }
@@ -276,6 +275,7 @@ nav { display: grid; gap: 6px; }
 .app-shell--collapsed .nav-item__label { opacity: 0; max-width: 0; margin-left: 0; }
 
 .workspace { flex: 1; min-width: 0; padding: 28px 36px 40px 24px; display: flex; flex-direction: column; overflow-y: auto; }
+.compact-nav { display: none; }
 .topbar { margin-bottom: 40px; }
 h1, h2, h3, p { margin-top: 0; }
 h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
@@ -413,9 +413,42 @@ button:focus-visible, .about-dialog:focus-visible, .palette-dialog:focus-visible
   .window-control { width: 38px; }
   .sidebar { display: none; }
   .workspace { padding: 20px; }
+  .compact-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    padding: var(--space-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--surface-panel);
+    box-shadow: var(--shadow-sm);
+  }
+  .compact-nav__item {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-weight: 600;
+  }
+  .compact-nav__item svg { width: 18px; height: 18px; }
+  .compact-nav__item--active { background: var(--surface-active); color: var(--text-primary); }
   .empty-state__actions { flex-direction: column; width: 100%; }
   .segmented-control { flex-direction: column; }
   .identity-fields { grid-template-columns: 1fr; }
   .settings-row { align-items: flex-start; flex-direction: column; }
   .settings-row__actions { width: 100%; }
+}
+
+@media (pointer: coarse) {
+  .toggle-switch { width: 52px; height: 44px; padding: 6px; }
+  .toggle-switch__knob { width: 30px; height: 30px; }
+  .toggle-switch--on .toggle-switch__knob { transform: translateX(10px); }
 }

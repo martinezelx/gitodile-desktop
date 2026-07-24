@@ -1,14 +1,14 @@
 ---
 id: 003
 title: Expand Settings with Git identity, startup, safety, and language controls
-status: active
+status: done
 priority: normal
 type: feature
 areas:
   - rust
   - frontend
 created: 2026-07-24
-completed:
+completed: 2026-07-24
 ---
 
 # Goal
@@ -71,7 +71,7 @@ The user asked to add a Language setting to this same task: GitOdrile should sup
 - [x] With the startup toggle on, relaunching auto-opens the last project if it's still valid; if it isn't, the app falls back to the normal empty state without an error toast.
 - [x] With the safety toggle on (default), closing a project asks for confirmation first; with it off, closing is immediate.
 - [x] The required frontend and Rust checks pass.
-- [ ] Visually verified in the real desktop app: saving identity, the startup auto-reopen (including the stale-path fallback), and the close confirmation.
+- [x] Visually verified in the real desktop app: saving identity, the startup auto-reopen (including the stale-path fallback), and the close confirmation (validated by user confirmation on 2026-07-24).
 - [x] Every React-owned user-facing string (including `title`/`aria-label` attributes, not just visible text) is routed through the translation dictionary — no leftover hardcoded English literal outside it (verified by grepping `src/main.tsx` for capitalized multi-word literals after the change: none left outside `i18n.tsx`, brand name, and version numbers).
 - [x] On first launch with no stored preference, the app renders in Spanish when the OS locale is Spanish and in English for unsupported locales. Both browser fallback and native Tauri locale resolution have been verified.
 - [x] Settings → Language shows System/English/Español, and choosing one immediately re-renders the app in that language and persists across restarts, overriding auto-detection.
@@ -80,7 +80,7 @@ The user asked to add a Language setting to this same task: GitOdrile should sup
 - [x] Git identity copy describes authorship accurately and does not imply cryptographic commit signing.
 - [x] Asynchronous open/install/identity feedback is announced through alert/status live regions.
 - [x] The required frontend checks (`npm run typecheck`, `npm run test`, `npm run build`) pass with the language feature included.
-- [ ] Visually verified in the real desktop app: the close-confirmation dialog's translated, name-interpolated body with a real open project.
+- [x] Visually verified in the real desktop app: the close-confirmation dialog's translated, name-interpolated body with a real open project (validated by user confirmation on 2026-07-24).
 
 # Relevant files
 
@@ -126,6 +126,8 @@ The user asked to add a Language setting to this same task: GitOdrile should sup
 - `src/main.tsx`: `SettingsPanel` gained three sections — "Git identity" (two text inputs pre-filled from `get_git_identity`, Save button, inline save/error message), "Startup" (`ToggleSwitch` for "Reopen last project on launch"), and "Safety" (`ToggleSwitch` for "Confirm before closing a project"). Added a small reusable `ToggleSwitch` component (`role="switch"`, click toggles a boolean) styled in `src/styles.css` (`.toggle-switch`).
 - `App`: persists the opened project's path to `localStorage` (`gitodrile-last-project-path`) on every successful `open_repository`; a one-time effect on mount auto-calls `open_repository` with that stored path when the reopen-last-project toggle is on, clearing the stored path silently (no error toast) if it fails. "Close project" (Overview button and command palette) now goes through `requestCloseProject`, which opens a confirmation dialog (same visual pattern as the existing About dialog, with Escape/focus handling) when the safety toggle is on, or closes immediately when it's off; closing also clears the stored last-project path so a disabled/declined reopen doesn't linger.
 - `src/styles.css`: added `.identity-fields`/`.text-field` (two-column on desktop, single column under 800px), `.toggle-switch` (+`--on` state), `.settings-section__footer`, and `.dialog-actions`.
+- Follow-up UI hardening from the Impeccable audit: modals now trap Tab/Shift+Tab, close with Escape, and return focus to their invoker; the command palette exposes its active option with `aria-activedescendant` and keeps Tab in its single-input interaction model. At narrow widths, visible Overview/Settings navigation replaces the hidden sidebar, and coarse-pointer toggle switches meet a 44px target height. The global font stack now follows `DESIGN.md`'s system-font direction; sidebar-collapse transitions no longer animate layout properties.
+- Git identity now enters a protected read-only state after a successful save (or when a complete global identity already exists). The user can deliberately choose “Edit identity” / “Modificar identidad” to unlock the two fields; incomplete identities and save failures remain editable.
 
 # Validation
 
@@ -136,7 +138,7 @@ The user asked to add a Language setting to this same task: GitOdrile should sup
 - `npm run test` — pass (no test files yet, same as before this task).
 - `npm run build` — pass.
 - Verified in the browser preview (`npm run dev`, outside Tauri): all four new sections render with the expected copy; toggling "Reopen last project on launch" flips `aria-checked` and persists `gitodrile-reopen-last-project`/`gitodrile-confirm-close-project` in `localStorage`; saving Git identity without a Tauri backend fails gracefully with "Couldn't save that." (no crash, no console error) — the same graceful-outside-Tauri pattern as the existing Install Git button.
-- Identity, startup auto-reopen, stale-path fallback, and close confirmation still need a real desktop verification; the language-specific verification is recorded below.
+- Identity, startup auto-reopen, stale-path fallback, and close confirmation were validated by user confirmation on 2026-07-24; the language-specific verification is recorded below.
 
 ## Language validation
 
@@ -148,4 +150,5 @@ The user asked to add a Language setting to this same task: GitOdrile should sup
 - `npm run build` — pass.
 - Verified in the browser preview (`npm run dev`, outside Tauri, so via the `navigator.language` fallback rather than `tauri-plugin-os`): the app auto-rendered in Spanish on first load (this machine's browser locale); every Settings section, the empty-state Overview, and the About dialog rendered fully translated; switching Settings → Language to English re-rendered every string immediately (no reload) and persisted `gitodrile-language: "en"` in `localStorage`, surviving a manual reload; switching back to Spanish (via `localStorage` + reload, to double-check without relying on the same click path) also rendered correctly.
 - Verified in the real Tauri desktop app: choosing Language → System resolved the native Windows locale to Spanish and immediately translated visible text and accessible names.
-- **Not yet done:** saving identity and startup/close behavior in the real desktop app, including the translated `closeConfirmBodyNamed` body with an open project.
+- Real desktop verification of saving identity and startup/close behavior, including the translated `closeConfirmBodyNamed` body with an open project, was validated by user confirmation on 2026-07-24.
+- Follow-up UI hardening validation: `pnpm run typecheck`, `pnpm run test` (4 passed), and `pnpm run build` passed. Browser-preview verification covered the command palette, 1280px settings layout, and 800px compact navigation; real-Tauri verification remains outstanding.

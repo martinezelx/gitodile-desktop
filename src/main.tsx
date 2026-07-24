@@ -65,6 +65,76 @@ type GitUpdateLaunchResult = {
 };
 type GitIdentity = { name: string | null; email: string | null };
 
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => !element.hasAttribute("hidden"));
+}
+
+function useModalFocus<T extends HTMLElement>(
+  isOpen: boolean,
+  dialogRef: React.RefObject<T | null>,
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>,
+): void {
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusDialog = (): void => {
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+      (getFocusableElements(dialog)[0] ?? dialog).focus();
+    };
+    const animationFrame = window.requestAnimationFrame(focusDialog);
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+      const focusable = getFocusableElements(dialog);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocusedRef.current?.focus();
+    };
+  }, [dialogRef, isOpen, setIsOpen]);
+}
+
 const THEME_STORAGE_KEY = "gitodrile-theme";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
 const LAST_PROJECT_PATH_STORAGE_KEY = "gitodrile-last-project-path";
@@ -210,6 +280,8 @@ function CommandPalette({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === "Escape") {
       onClose();
+    } else if (event.key === "Tab") {
+      event.preventDefault();
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
       setSelectedIndex((index) => Math.min(index + 1, filtered.length - 1));
@@ -240,6 +312,7 @@ function CommandPalette({
             role="combobox"
             aria-expanded="true"
             aria-controls="palette-list"
+            aria-activedescendant={filtered[selectedIndex] ? `palette-option-${filtered[selectedIndex].id}` : undefined}
             aria-autocomplete="list"
             placeholder={t.palettePlaceholder}
             value={query}
@@ -255,6 +328,7 @@ function CommandPalette({
           {filtered.map((command, index) => (
             <li
               key={command.id}
+              id={`palette-option-${command.id}`}
               role="option"
               aria-selected={index === selectedIndex}
               className="palette-item"
@@ -363,6 +437,8 @@ function SettingsPanel({
   const [emailInput, setEmailInput] = useState("");
   const [identityMessage, setIdentityMessage] = useState<string | null>(null);
   const [isSavingIdentity, setIsSavingIdentity] = useState(false);
+  const [isEditingIdentity, setIsEditingIdentity] = useState(true);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [isStartingGitInstallation, setIsStartingGitInstallation] = useState(false);
   const [isStartingGitUpdate, setIsStartingGitUpdate] = useState(false);
 
@@ -371,6 +447,7 @@ function SettingsPanel({
       .then((result) => {
         setNameInput(result.name ?? "");
         setEmailInput(result.email ?? "");
+        setIsEditingIdentity(!(result.name?.trim() && result.email?.trim()));
       })
       .catch(() => undefined);
   }, []);
@@ -381,6 +458,7 @@ function SettingsPanel({
     try {
       await invoke("set_git_identity", { name: nameInput, email: emailInput });
       setIdentityMessage(t.identitySaved);
+      setIsEditingIdentity(false);
     } catch (error) {
       setIdentityMessage(localizeAppError(error, t, t.identityCouldntSave));
     } finally {
@@ -585,7 +663,9 @@ function SettingsPanel({
             <span>{t.identityNameLabel}</span>
             <input
               type="text"
+              ref={nameInputRef}
               value={nameInput}
+              disabled={!isEditingIdentity}
               onChange={(event) => setNameInput(event.target.value)}
               placeholder={t.identityNamePlaceholder}
             />
@@ -595,6 +675,7 @@ function SettingsPanel({
             <input
               type="email"
               value={emailInput}
+              disabled={!isEditingIdentity}
               onChange={(event) => setEmailInput(event.target.value)}
               placeholder={t.identityEmailPlaceholder}
             />
@@ -602,14 +683,28 @@ function SettingsPanel({
         </div>
         <div className="settings-section__footer">
           {identityMessage && <p className="settings-row__hint" role="status">{identityMessage}</p>}
-          <button
-            className="primary-button"
-            type="button"
-            disabled={isSavingIdentity}
-            onClick={() => void handleSaveIdentity()}
-          >
-            {isSavingIdentity ? t.identitySaving : t.identitySave}
-          </button>
+          {isEditingIdentity ? (
+            <button
+              className="primary-button"
+              type="button"
+              disabled={isSavingIdentity}
+              onClick={() => void handleSaveIdentity()}
+            >
+              {isSavingIdentity ? t.identitySaving : t.identitySave}
+            </button>
+          ) : (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setIdentityMessage(null);
+                setIsEditingIdentity(true);
+                window.requestAnimationFrame(() => nameInputRef.current?.focus());
+              }}
+            >
+              {t.identityModify}
+            </button>
+          )}
         </div>
       </section>
 
@@ -713,6 +808,21 @@ function App(): React.JSX.Element {
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const aboutDialogRef = useRef<HTMLDivElement>(null);
   const closeConfirmDialogRef = useRef<HTMLDivElement>(null);
+  const paletteTriggerRef = useRef<HTMLButtonElement>(null);
+  const palettePreviouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useModalFocus(isAboutOpen, aboutDialogRef, setIsAboutOpen);
+  useModalFocus(isCloseConfirmOpen, closeConfirmDialogRef, setIsCloseConfirmOpen);
+
+  const openPalette = (): void => {
+    palettePreviouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setIsPaletteOpen(true);
+  };
+
+  const closePalette = (): void => {
+    setIsPaletteOpen(false);
+    (palettePreviouslyFocusedRef.current ?? paletteTriggerRef.current)?.focus();
+  };
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
@@ -805,42 +915,10 @@ function App(): React.JSX.Element {
   };
 
   useEffect(() => {
-    if (!isAboutOpen) {
-      return undefined;
-    }
-
-    aboutDialogRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        setIsAboutOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isAboutOpen]);
-
-  useEffect(() => {
-    if (!isCloseConfirmOpen) {
-      return undefined;
-    }
-
-    closeConfirmDialogRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        setIsCloseConfirmOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isCloseConfirmOpen]);
-
-  useEffect(() => {
     const handleShortcut = (event: KeyboardEvent): void => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setIsPaletteOpen(true);
+        openPalette();
       }
     };
 
@@ -890,9 +968,10 @@ function App(): React.JSX.Element {
           <button
             className="command-trigger"
             type="button"
+            ref={paletteTriggerRef}
             aria-label={t.titlebarOpenCommandPalette}
             title={t.titlebarJumpToHint}
-            onClick={() => setIsPaletteOpen(true)}
+            onClick={openPalette}
           >
             <span aria-hidden="true">{SEARCH_ICON}</span>
             <span>{t.titlebarJumpTo}</span>
@@ -998,6 +1077,26 @@ function App(): React.JSX.Element {
         </aside>
 
         <section className="workspace">
+          <nav className="compact-nav" aria-label={t.navApplicationAriaLabel}>
+            <button
+              className={`compact-nav__item${view === "overview" ? " compact-nav__item--active" : ""}`}
+              type="button"
+              aria-current={view === "overview" ? "page" : undefined}
+              onClick={() => setView("overview")}
+            >
+              <span aria-hidden="true">{NAV_ICONS.overview}</span>
+              {t.navOverview}
+            </button>
+            <button
+              className={`compact-nav__item${view === "settings" ? " compact-nav__item--active" : ""}`}
+              type="button"
+              aria-current={view === "settings" ? "page" : undefined}
+              onClick={() => setView("settings")}
+            >
+              <span aria-hidden="true">{NAV_ICONS.settings}</span>
+              {t.navSettings}
+            </button>
+          </nav>
           <header className="topbar">
             <h1>{view === "overview" ? t.navOverview : t.navSettings}</h1>
           </header>
@@ -1030,7 +1129,7 @@ function App(): React.JSX.Element {
         </section>
       </main>
 
-      <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} commands={commands} />
+      <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
 
       {isAboutOpen && (
         <div className="about-backdrop" role="presentation" onMouseDown={() => setIsAboutOpen(false)}>
