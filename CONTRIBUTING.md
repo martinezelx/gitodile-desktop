@@ -5,8 +5,8 @@ GitOdrile is at an early stage. Contributions should preserve the product's cent
 ## Setup
 
 ```bash
-npm install
-npm run tauri dev
+pnpm install --frozen-lockfile
+pnpm run tauri dev
 ```
 
 ## Before opening a pull request

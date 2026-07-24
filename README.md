@@ -22,6 +22,7 @@ GitOdrile is an early-stage cross-platform desktop application for Windows, macO
 - Vite
 - CSS variables and a small internal component system
 - System Git initially, wrapped behind a Rust service boundary
+- pnpm
 
 ## Early MVP
 
@@ -37,15 +38,16 @@ GitOdrile is an early-stage cross-platform desktop application for Windows, macO
 
 ## Getting started
 
-GitOdrile uses **npm** as its supported package manager. The committed
-`package-lock.json` keeps JavaScript dependencies reproducible; use npm rather
-than mixing package managers in the same checkout.
+GitOdrile uses **pnpm 11.17.0** as its supported package manager. The committed
+`pnpm-lock.yaml` keeps JavaScript dependencies reproducible; do not mix package
+managers in the same checkout.
 
 ### Requirements
 
 All platforms need:
 
-- [Node.js](https://nodejs.org/) 20 or later (the LTS release is recommended).
+- [Node.js](https://nodejs.org/) 24 or later (the LTS release is recommended).
+- pnpm 11.17.0, available through Corepack (`corepack enable`).
 - [Rust stable](https://www.rust-lang.org/tools/install), including `cargo`,
   `clippy`, and `rustfmt`. The repository selects the stable toolchain in
   `rust-toolchain.toml`.
@@ -75,7 +77,7 @@ Then restart the terminal and confirm the installation:
 
 ```powershell
 node --version
-npm --version
+pnpm --version
 rustc --version
 cargo --version
 git --version
@@ -90,13 +92,13 @@ new terminal.
 From the project root:
 
 ```bash
-npm install
+pnpm install
 ```
 
 For a clean, reproducible install in CI or after cloning, use:
 
 ```bash
-npm ci
+pnpm install --frozen-lockfile
 ```
 
 ### Run the application
@@ -104,13 +106,13 @@ npm ci
 Start the full desktop application, including Vite and the Tauri shell:
 
 ```bash
-npm run tauri dev
+pnpm run tauri dev
 ```
 
 To run only the web interface in a browser during UI work:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Vite serves the interface at `http://localhost:1420` while it is running.
@@ -120,9 +122,9 @@ Vite serves the interface at `http://localhost:1420` while it is running.
 Run these checks before opening a pull request:
 
 ```bash
-npm run typecheck
-npm run test
-npm run build
+pnpm run typecheck
+pnpm run test
+pnpm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 ```
@@ -130,7 +132,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -
 Create a production desktop bundle with:
 
 ```bash
-npm run tauri -- build
+pnpm run tauri -- build
 ```
 
 The frontend checks currently pass even when no test files exist; add tests as

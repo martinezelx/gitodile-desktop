@@ -192,9 +192,9 @@ While coding:
 Before finishing:
 
 ```bash
-npm run typecheck
-npm run test
-npm run build
+pnpm run typecheck
+pnpm run test
+pnpm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 ```
