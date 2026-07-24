@@ -111,8 +111,16 @@ export interface Translations {
   gitWindowsGuidanceOpened: string;
   gitMacosGuidanceOpened: string;
   gitLinuxGuidanceOpened: string;
+  gitUpdateNotChecked: string;
+  gitUpdateCheck: string;
+  gitUpdateChecking: string;
+  gitUpdateUpToDate: string;
+  gitUpdateCheckerUnavailable: string;
+  gitUpdateCheckFailed: string;
+  gitUpdateCheckTimedOut: string;
+  gitUpdateStarting: string;
   gitUpdateLaunched: string;
-  gitOpenedDownloadPage: string;
+  gitUpdateAlreadyStarting: string;
   gitCouldntStart: string;
 
   settingsIdentityTitle: string;
@@ -241,8 +249,16 @@ const en: Translations = {
   gitMacosGuidanceOpened: "The official macOS installation options were opened. Choose the method that fits your Mac.",
   gitLinuxGuidanceOpened:
     "The official Linux instructions were opened. Use the package manager for your distribution.",
+  gitUpdateNotChecked: "Updates haven't been checked. Checking may contact the Windows package source.",
+  gitUpdateCheck: "Check for updates",
+  gitUpdateChecking: "Checking for a Git update…",
+  gitUpdateUpToDate: "Git is up to date.",
+  gitUpdateCheckerUnavailable: "Git updates can't be checked automatically on this system.",
+  gitUpdateCheckFailed: "Couldn't check for a Git update. Try again later.",
+  gitUpdateCheckTimedOut: "The update check took too long and was stopped.",
+  gitUpdateStarting: "Starting…",
   gitUpdateLaunched: "Update launched — this can take a moment to appear. Reopen GitOdrile once it finishes.",
-  gitOpenedDownloadPage: "Opened the official download page in your browser.",
+  gitUpdateAlreadyStarting: "The Git update is already starting.",
   gitCouldntStart: "Couldn't start that.",
 
   settingsIdentityTitle: "Git identity",
@@ -379,9 +395,18 @@ const es: Translations = {
     "Se abrieron las opciones oficiales de instalación para macOS. Elige el método apropiado para tu Mac.",
   gitLinuxGuidanceOpened:
     "Se abrieron las instrucciones oficiales para Linux. Usa el gestor de paquetes de tu distribución.",
+  gitUpdateNotChecked:
+    "Aún no se han buscado actualizaciones. La comprobación puede contactar con la fuente de paquetes de Windows.",
+  gitUpdateCheck: "Buscar actualizaciones",
+  gitUpdateChecking: "Buscando una actualización de Git…",
+  gitUpdateUpToDate: "Git está actualizado.",
+  gitUpdateCheckerUnavailable: "No se pueden comprobar automáticamente las actualizaciones de Git en este sistema.",
+  gitUpdateCheckFailed: "No se pudo buscar una actualización de Git. Inténtalo de nuevo más tarde.",
+  gitUpdateCheckTimedOut: "La comprobación tardó demasiado y se detuvo.",
+  gitUpdateStarting: "Iniciando…",
   gitUpdateLaunched:
     "Actualización iniciada — puede tardar un momento en aparecer. Vuelve a abrir GitOdrile cuando termine.",
-  gitOpenedDownloadPage: "Se abrió la página oficial de descarga en tu navegador.",
+  gitUpdateAlreadyStarting: "La actualización de Git ya se está iniciando.",
   gitCouldntStart: "No se pudo iniciar eso.",
 
   settingsIdentityTitle: "Identidad de Git",

@@ -4,9 +4,13 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+#[cfg(target_os = "windows")]
+use std::process::Stdio;
 
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -320,11 +324,26 @@ fn git_diagnostics() -> GitDiagnostics {
     git_diagnostics_from_attempt(attempt)
 }
 
-const GIT_DOWNLOAD_URL: &str = "https://git-scm.com/downloads";
 const GIT_WINDOWS_DOWNLOAD_URL: &str = "https://git-scm.com/download/win";
 const GIT_MACOS_DOWNLOAD_URL: &str = "https://git-scm.com/download/mac";
 const GIT_LINUX_DOWNLOAD_URL: &str = "https://git-scm.com/download/linux";
 static INSTALL_STARTING: AtomicBool = AtomicBool::new(false);
+static UPDATE_CHECK_RUNNING: AtomicBool = AtomicBool::new(false);
+static UPDATE_STARTING: AtomicBool = AtomicBool::new(false);
+static UPDATE_CACHE: Mutex<Option<CachedGitUpdate>> = Mutex::new(None);
+#[cfg(target_os = "windows")]
+const UPDATE_CHECK_TIMEOUT: Duration = Duration::from_secs(20);
+const UPDATE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+#[cfg(any(target_os = "windows", test))]
+const GIT_UPDATE_CHECK_ARGS: [&str; 7] = [
+    "list",
+    "--id",
+    "Git.Git",
+    "-e",
+    "--upgrade-available",
+    "--accept-source-agreements",
+    "--disable-interactivity",
+];
 
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -441,51 +460,6 @@ fn spawn_git_installer() -> InstallSpawnResult {
     }
 }
 
-#[derive(serde::Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct WingetActionResult {
-    /// True once winget has been launched (install or upgrade) and is
-    /// running on its own; the app doesn't track completion.
-    started: bool,
-    /// Set when there's no in-app path available, so the frontend should
-    /// open this URL in the user's browser instead.
-    fallback_url: Option<String>,
-}
-
-/// Spawns (never awaits) a winget subcommand. Deliberately not silenced with
-/// CREATE_NO_WINDOW: installing/updating software should stay visible
-/// (winget's progress, any UAC prompt), unlike the quick read-only git
-/// subcommands elsewhere in this file.
-fn spawn_winget(args: &[&str]) -> WingetActionResult {
-    #[cfg(target_os = "windows")]
-    {
-        // GitOdrile itself may or may not have its own console (hidden in
-        // release, visible in debug — see main.rs), so relying on console
-        // inheritance would make winget's window show up inconsistently, or
-        // not at all, instead of a dedicated window every time.
-        let mut command = Command::new("winget");
-        command.args(args).creation_flags(CREATE_NEW_CONSOLE);
-        match command.spawn() {
-            Ok(_) => WingetActionResult {
-                started: true,
-                fallback_url: None,
-            },
-            Err(_) => WingetActionResult {
-                started: false,
-                fallback_url: Some(GIT_DOWNLOAD_URL.to_string()),
-            },
-        }
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = args;
-        WingetActionResult {
-            started: false,
-            fallback_url: Some(GIT_DOWNLOAD_URL.to_string()),
-        }
-    }
-}
-
 #[tauri::command]
 fn install_git() -> GitInstallationResult {
     if INSTALL_STARTING.swap(true, Ordering::AcqRel) {
@@ -506,58 +480,206 @@ fn install_git() -> GitInstallationResult {
     result
 }
 
-#[tauri::command]
-fn update_git() -> WingetActionResult {
-    spawn_winget(&[
-        "upgrade",
-        "--id",
-        "Git.Git",
-        "-e",
-        "--accept-package-agreements",
-        "--accept-source-agreements",
-    ])
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct GitUpdateLaunchResult {
+    outcome: GitUpdateLaunchOutcome,
 }
 
-#[derive(serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum GitUpdateLaunchOutcome {
+    Started,
+    AlreadyStarting,
+    Unavailable,
+    Failed,
+}
+
+#[cfg(target_os = "windows")]
+fn spawn_git_update() -> GitUpdateLaunchOutcome {
+    let mut command = Command::new("winget");
+    command
+        .args([
+            "upgrade",
+            "--id",
+            "Git.Git",
+            "-e",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+        ])
+        .creation_flags(CREATE_NEW_CONSOLE);
+    match command.spawn() {
+        Ok(_) => GitUpdateLaunchOutcome::Started,
+        Err(error) if error.kind() == ErrorKind::NotFound => GitUpdateLaunchOutcome::Unavailable,
+        Err(_) => GitUpdateLaunchOutcome::Failed,
+    }
+}
+
+#[tauri::command]
+fn update_git() -> GitUpdateLaunchResult {
+    if UPDATE_STARTING.swap(true, Ordering::AcqRel) {
+        return GitUpdateLaunchResult {
+            outcome: GitUpdateLaunchOutcome::AlreadyStarting,
+        };
+    }
+
+    #[cfg(target_os = "windows")]
+    let outcome = spawn_git_update();
+    #[cfg(not(target_os = "windows"))]
+    let outcome = GitUpdateLaunchOutcome::Unavailable;
+
+    UPDATE_STARTING.store(false, Ordering::Release);
+    if outcome == GitUpdateLaunchOutcome::Started {
+        if let Ok(mut cache) = UPDATE_CACHE.lock() {
+            *cache = None;
+        }
+    }
+    GitUpdateLaunchResult { outcome }
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct GitUpdateStatus {
-    /// False if the check itself couldn't run (e.g. no winget on this
-    /// machine/platform) — distinct from "checked and no update found".
-    checked: bool,
-    update_available: bool,
+    state: GitUpdateState,
+    cached: bool,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum GitUpdateState {
+    Checking,
+    Unavailable,
+    UpToDate,
+    UpdateAvailable,
+    Failed,
+    TimedOut,
+}
+
+#[derive(Clone, Copy)]
+struct CachedGitUpdate {
+    checked_at: Instant,
+    state: GitUpdateState,
+}
+
+#[allow(dead_code)]
+enum UpdateCheckAttempt {
+    Unavailable,
+    FailedToStart,
+    TimedOut,
+    Completed { success: bool, output: String },
+}
+
+fn update_status_from_attempt(attempt: UpdateCheckAttempt) -> GitUpdateStatus {
+    let state = match attempt {
+        UpdateCheckAttempt::Unavailable => GitUpdateState::Unavailable,
+        UpdateCheckAttempt::FailedToStart => GitUpdateState::Failed,
+        UpdateCheckAttempt::TimedOut => GitUpdateState::TimedOut,
+        UpdateCheckAttempt::Completed { output, .. } if output.contains("Git.Git") => {
+            GitUpdateState::UpdateAvailable
+        }
+        UpdateCheckAttempt::Completed { success: true, .. } => GitUpdateState::UpToDate,
+        UpdateCheckAttempt::Completed { success: false, .. } => GitUpdateState::Failed,
+    };
+    GitUpdateStatus {
+        state,
+        cached: false,
+    }
+}
+
+fn cached_update_status(now: Instant) -> Option<GitUpdateStatus> {
+    let cache = UPDATE_CACHE.lock().ok()?;
+    let cached = cache.as_ref()?;
+    if now.duration_since(cached.checked_at) >= UPDATE_CACHE_TTL {
+        return None;
+    }
+    Some(GitUpdateStatus {
+        state: cached.state,
+        cached: true,
+    })
+}
+
+fn cache_update_status(status: GitUpdateStatus, now: Instant) {
+    if !matches!(
+        status.state,
+        GitUpdateState::UpToDate | GitUpdateState::UpdateAvailable
+    ) {
+        return;
+    }
+    if let Ok(mut cache) = UPDATE_CACHE.lock() {
+        *cache = Some(CachedGitUpdate {
+            checked_at: now,
+            state: status.state,
+        });
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn run_winget_update_check(timeout: Duration) -> UpdateCheckAttempt {
+    let mut command = Command::new("winget");
+    command
+        .args(GIT_UPDATE_CHECK_ARGS)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW);
+
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            return UpdateCheckAttempt::Unavailable;
+        }
+        Err(_) => return UpdateCheckAttempt::FailedToStart,
+    };
+    let started_at = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => match child.wait_with_output() {
+                Ok(output) => {
+                    let text = format!(
+                        "{}\n{}",
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                    return UpdateCheckAttempt::Completed {
+                        success: output.status.success(),
+                        output: text,
+                    };
+                }
+                Err(_) => return UpdateCheckAttempt::FailedToStart,
+            },
+            Ok(None) if started_at.elapsed() < timeout => {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return UpdateCheckAttempt::TimedOut;
+            }
+            Err(_) => return UpdateCheckAttempt::FailedToStart,
+        }
+    }
 }
 
 #[tauri::command]
 fn check_git_update() -> GitUpdateStatus {
-    #[cfg(target_os = "windows")]
-    {
-        let mut command = Command::new("winget");
-        command.args(["upgrade", "--accept-source-agreements"]);
-        command.creation_flags(CREATE_NO_WINDOW);
+    let now = Instant::now();
+    if let Some(cached) = cached_update_status(now) {
+        return cached;
+    }
+    if UPDATE_CHECK_RUNNING.swap(true, Ordering::AcqRel) {
+        return GitUpdateStatus {
+            state: GitUpdateState::Checking,
+            cached: false,
+        };
+    }
 
-        match command.output() {
-            // winget's `upgrade` (no --id) lists every package with a pending
-            // update. Checking whether "Git.Git" appears in that listing is a
-            // simple, version/locale-tolerant way to answer "is there an
-            // update for Git specifically" without parsing winget's table
-            // output column-by-column.
-            Ok(output) => GitUpdateStatus {
-                checked: true,
-                update_available: git_stdout(&output).contains("Git.Git"),
-            },
-            Err(_) => GitUpdateStatus {
-                checked: false,
-                update_available: false,
-            },
-        }
-    }
+    #[cfg(target_os = "windows")]
+    let status = update_status_from_attempt(run_winget_update_check(UPDATE_CHECK_TIMEOUT));
     #[cfg(not(target_os = "windows"))]
-    {
-        GitUpdateStatus {
-            checked: false,
-            update_available: false,
-        }
-    }
+    let status = update_status_from_attempt(UpdateCheckAttempt::Unavailable);
+
+    UPDATE_CHECK_RUNNING.store(false, Ordering::Release);
+    cache_update_status(status, now);
+    status
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -931,6 +1053,62 @@ mod tests {
             )
             .outcome,
             GitInstallationOutcome::Failed
+        );
+    }
+
+    #[test]
+    fn update_check_targets_only_git_and_disables_prompts() {
+        assert_eq!(
+            GIT_UPDATE_CHECK_ARGS,
+            [
+                "list",
+                "--id",
+                "Git.Git",
+                "-e",
+                "--upgrade-available",
+                "--accept-source-agreements",
+                "--disable-interactivity",
+            ]
+        );
+    }
+
+    #[test]
+    fn update_check_states_are_mapped_without_contacting_package_sources() {
+        assert_eq!(
+            update_status_from_attempt(UpdateCheckAttempt::Unavailable).state,
+            GitUpdateState::Unavailable
+        );
+        assert_eq!(
+            update_status_from_attempt(UpdateCheckAttempt::FailedToStart).state,
+            GitUpdateState::Failed
+        );
+        assert_eq!(
+            update_status_from_attempt(UpdateCheckAttempt::TimedOut).state,
+            GitUpdateState::TimedOut
+        );
+        assert_eq!(
+            update_status_from_attempt(UpdateCheckAttempt::Completed {
+                success: true,
+                output: "Git Git.Git 2.50.0 2.51.0 winget".to_string(),
+            })
+            .state,
+            GitUpdateState::UpdateAvailable
+        );
+        assert_eq!(
+            update_status_from_attempt(UpdateCheckAttempt::Completed {
+                success: true,
+                output: "No packages found.".to_string(),
+            })
+            .state,
+            GitUpdateState::UpToDate
+        );
+        assert_eq!(
+            update_status_from_attempt(UpdateCheckAttempt::Completed {
+                success: false,
+                output: "Source query failed.".to_string(),
+            })
+            .state,
+            GitUpdateState::Failed
         );
     }
 

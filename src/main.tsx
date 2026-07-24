@@ -51,13 +51,18 @@ type GitDiagnostics = {
   state: "available" | "missing" | "unusable" | "check_failed";
   version: string | null;
 };
-type WingetActionResult = { started: boolean; fallbackUrl: string | null };
 type GitInstallationResult = {
   outcome: "started" | "guidance" | "already_starting" | "failed";
   platform: "windows" | "macos" | "linux" | "unsupported";
   guidanceUrl: string | null;
 };
-type GitUpdateStatus = { checked: boolean; updateAvailable: boolean };
+type GitUpdateStatus = {
+  state: "checking" | "unavailable" | "up_to_date" | "update_available" | "failed" | "timed_out";
+  cached: boolean;
+};
+type GitUpdateLaunchResult = {
+  outcome: "started" | "already_starting" | "unavailable" | "failed";
+};
 type GitIdentity = { name: string | null; email: string | null };
 
 const THEME_STORAGE_KEY = "gitodrile-theme";
@@ -329,6 +334,8 @@ function SettingsPanel({
   onOpenAbout,
   gitDiagnostics,
   gitUpdateStatus,
+  onCheckGitUpdate,
+  isCheckingGitUpdate,
   onRefreshGitDiagnostics,
   isRefreshingGitDiagnostics,
   reopenLastProject,
@@ -341,6 +348,8 @@ function SettingsPanel({
   onOpenAbout: () => void;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
+  onCheckGitUpdate: () => Promise<void>;
+  isCheckingGitUpdate: boolean;
   onRefreshGitDiagnostics: () => Promise<void>;
   isRefreshingGitDiagnostics: boolean;
   reopenLastProject: boolean;
@@ -355,6 +364,7 @@ function SettingsPanel({
   const [identityMessage, setIdentityMessage] = useState<string | null>(null);
   const [isSavingIdentity, setIsSavingIdentity] = useState(false);
   const [isStartingGitInstallation, setIsStartingGitInstallation] = useState(false);
+  const [isStartingGitUpdate, setIsStartingGitUpdate] = useState(false);
 
   useEffect(() => {
     invoke<GitIdentity>("get_git_identity")
@@ -415,16 +425,27 @@ function SettingsPanel({
 
   const handleUpdateGit = async (): Promise<void> => {
     setGitActionMessage(null);
+    setIsStartingGitUpdate(true);
     try {
-      const result = await invoke<WingetActionResult>("update_git");
-      if (result.fallbackUrl) {
-        await openUrl(result.fallbackUrl);
-        setGitActionMessage(t.gitOpenedDownloadPage);
-      } else {
-        setGitActionMessage(t.gitUpdateLaunched);
+      const result = await invoke<GitUpdateLaunchResult>("update_git");
+      switch (result.outcome) {
+        case "started":
+          setGitActionMessage(t.gitUpdateLaunched);
+          break;
+        case "already_starting":
+          setGitActionMessage(t.gitUpdateAlreadyStarting);
+          break;
+        case "unavailable":
+          setGitActionMessage(t.gitUpdateCheckerUnavailable);
+          break;
+        case "failed":
+          setGitActionMessage(t.gitCouldntStart);
+          break;
       }
     } catch {
       setGitActionMessage(t.gitCouldntStart);
+    } finally {
+      setIsStartingGitUpdate(false);
     }
   };
 
@@ -471,12 +492,32 @@ function SettingsPanel({
             <strong>{t.settingsGeneralGitLabel}</strong>
             {gitDiagnostics === null && <p>{t.settingsGeneralChecking}</p>}
             {gitDiagnostics?.state === "available" && (
-              <p>
-                {gitDiagnostics.version}
-                {gitUpdateStatus?.updateAvailable && (
+              <>
+                <p>
+                  {gitDiagnostics.version}
+                  {gitUpdateStatus?.state === "update_available" && (
                   <span className="settings-row__badge">{t.settingsGeneralUpdateAvailable}</span>
+                  )}
+                </p>
+                {gitUpdateStatus === null && <p className="settings-row__hint">{t.gitUpdateNotChecked}</p>}
+                {(isCheckingGitUpdate || gitUpdateStatus?.state === "checking") && (
+                  <p className="settings-row__hint" role="status">{t.gitUpdateChecking}</p>
                 )}
-              </p>
+                {gitUpdateStatus?.state === "up_to_date" && (
+                  <p className="settings-row__hint" role="status">{t.gitUpdateUpToDate}</p>
+                )}
+                {gitUpdateStatus?.state === "unavailable" && (
+                  <p className="settings-row__hint settings-row__warning" role="status">
+                    {t.gitUpdateCheckerUnavailable}
+                  </p>
+                )}
+                {gitUpdateStatus?.state === "failed" && (
+                  <p className="settings-row__hint settings-row__warning" role="status">{t.gitUpdateCheckFailed}</p>
+                )}
+                {gitUpdateStatus?.state === "timed_out" && (
+                  <p className="settings-row__hint settings-row__warning" role="status">{t.gitUpdateCheckTimedOut}</p>
+                )}
+              </>
             )}
             {gitDiagnostics?.state === "missing" && (
               <p className="settings-row__warning">{t.settingsGeneralGitMissing}</p>
@@ -510,12 +551,27 @@ function SettingsPanel({
                 {isRefreshingGitDiagnostics ? t.settingsGeneralChecking : t.settingsGeneralCheckAgain}
               </button>
             )}
+            {gitDiagnostics?.state === "available" && (
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={isCheckingGitUpdate}
+                onClick={() => void onCheckGitUpdate()}
+              >
+                {isCheckingGitUpdate ? t.gitUpdateChecking : t.gitUpdateCheck}
+              </button>
+            )}
+            {gitDiagnostics?.state === "available" && gitUpdateStatus?.state === "update_available" && (
+              <button
+                className="primary-button"
+                type="button"
+                disabled={isStartingGitUpdate}
+                onClick={() => void handleUpdateGit()}
+              >
+                {isStartingGitUpdate ? t.gitUpdateStarting : t.settingsGeneralUpdate}
+              </button>
+            )}
           </div>
-          {gitDiagnostics?.state === "available" && gitUpdateStatus?.updateAvailable && (
-            <button className="secondary-button" type="button" onClick={() => void handleUpdateGit()}>
-              {t.settingsGeneralUpdate}
-            </button>
-          )}
         </div>
       </section>
 
@@ -647,6 +703,7 @@ function App(): React.JSX.Element {
   const [gitDiagnostics, setGitDiagnostics] = useState<GitDiagnostics | null>(null);
   const [isRefreshingGitDiagnostics, setIsRefreshingGitDiagnostics] = useState(false);
   const [gitUpdateStatus, setGitUpdateStatus] = useState<GitUpdateStatus | null>(null);
+  const [isCheckingGitUpdate, setIsCheckingGitUpdate] = useState(false);
   const [reopenLastProject, setReopenLastProject] = useState(() =>
     readStoredBoolean(REOPEN_LAST_PROJECT_STORAGE_KEY, false),
   );
@@ -672,7 +729,11 @@ function App(): React.JSX.Element {
   const refreshGitDiagnostics = async (): Promise<void> => {
     setIsRefreshingGitDiagnostics(true);
     try {
-      setGitDiagnostics(await invoke<GitDiagnostics>("git_diagnostics"));
+      const result = await invoke<GitDiagnostics>("git_diagnostics");
+      setGitDiagnostics(result);
+      if (result.state !== "available") {
+        setGitUpdateStatus(null);
+      }
     } catch {
       setGitDiagnostics({ state: "check_failed", version: null });
     } finally {
@@ -684,14 +745,17 @@ function App(): React.JSX.Element {
     void refreshGitDiagnostics();
   }, []);
 
-  useEffect(() => {
-    if (gitDiagnostics?.state !== "available") {
-      return;
+  const checkGitUpdate = async (): Promise<void> => {
+    setIsCheckingGitUpdate(true);
+    setGitUpdateStatus({ state: "checking", cached: false });
+    try {
+      setGitUpdateStatus(await invoke<GitUpdateStatus>("check_git_update"));
+    } catch {
+      setGitUpdateStatus({ state: "failed", cached: false });
+    } finally {
+      setIsCheckingGitUpdate(false);
     }
-    invoke<GitUpdateStatus>("check_git_update")
-      .then(setGitUpdateStatus)
-      .catch(() => setGitUpdateStatus({ checked: false, updateAvailable: false }));
-  }, [gitDiagnostics?.state]);
+  };
 
   const handleOpenProject = async (): Promise<void> => {
     setOpenError(null);
@@ -953,6 +1017,8 @@ function App(): React.JSX.Element {
               onOpenAbout={() => setIsAboutOpen(true)}
               gitDiagnostics={gitDiagnostics}
               gitUpdateStatus={gitUpdateStatus}
+              onCheckGitUpdate={checkGitUpdate}
+              isCheckingGitUpdate={isCheckingGitUpdate}
               onRefreshGitDiagnostics={refreshGitDiagnostics}
               isRefreshingGitDiagnostics={isRefreshingGitDiagnostics}
               reopenLastProject={reopenLastProject}
