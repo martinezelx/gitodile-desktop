@@ -7,9 +7,10 @@ GitOdrile uses a web frontend inside a Tauri desktop shell, with Rust responsibl
 ```text
 React UI
   -> typed frontend service layer
-    -> Tauri commands
-      -> Rust application services
-        -> Git process adapter / filesystem / OS integration
+    -> typed Tauri commands
+      -> thin Tauri adapters
+        -> Rust application and domain services
+          -> Git process adapter / filesystem / OS integration
 ```
 
 ## Architectural objectives
@@ -53,7 +54,12 @@ User actions should first produce an operation plan.
 
 ```ts
 type OperationPlan = {
-  kind: "read" | "local-mutation" | "history-mutation" | "remote-mutation";
+  kind:
+    | "read"
+    | "local-mutation"
+    | "history-mutation"
+    | "remote-mutation"
+    | "destructive";
   summary: string;
   steps: OperationStep[];
   risks: Risk[];
@@ -63,6 +69,11 @@ type OperationPlan = {
 ```
 
 The frontend may render a friendly explanation from this structure. Rust remains responsible for validating the repository state immediately before execution.
+
+`destructive` is an additional risk classification, not permission to discard
+data. A destructive plan requires explicit confirmation and a recovery strategy
+when one is feasible. History and remote mutations may also require confirmation
+even when they are not destructive.
 
 ## Git command runner
 
@@ -78,6 +89,20 @@ The initial adapter should:
 - record diagnostics at a safe verbosity level.
 
 Prefer stable machine-readable formats such as porcelain output. Parsing must have fixtures covering Git versions and edge cases.
+
+System Git remains the initial and compatibility-oriented backend. The proposed
+hybrid direction is documented separately in
+[`adr/0001-adopt-a-progressive-hybrid-git-backend.md`](adr/0001-adopt-a-progressive-hybrid-git-backend.md);
+do not treat that proposal as an accepted migration.
+
+## Engineering references
+
+For complex desktop Git behavior, GitButler may be studied as an engineering
+reference using the process in [`../AGENTS.md`](../AGENTS.md): start from a
+specific GitOdrile problem, understand the reason behind the relevant pattern,
+and reimplement only the smallest appropriate principle. Its mature monorepo,
+workflow abstractions, cloud services, and accumulated crate structure are not
+the target architecture for GitOdrile's MVP.
 
 ## Repository identity
 

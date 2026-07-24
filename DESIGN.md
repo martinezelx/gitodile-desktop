@@ -1,5 +1,9 @@
 # GitOdrile Design Direction
 
+This document owns GitOdrile's visual and interaction direction. See
+[`docs/PRODUCT_STRATEGY.md`](docs/PRODUCT_STRATEGY.md) for the product thesis,
+audience, positioning, and detailed competitive context.
+
 ## Design goal
 
 GitOdrile should make a complex technical system feel calm, understandable, and safe. The interface must be modern and distinctive without sacrificing readability or looking like a decorative concept app.

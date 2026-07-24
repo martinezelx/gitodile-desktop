@@ -84,11 +84,38 @@ This includes:
 - keyboard-first workflows where useful;
 - platform-aware shortcuts;
 - native folder and file interactions;
-- careful window behavior;
-- low resource use;
+- deliberate windows, menus, dialogs, and context menus;
+- fast startup and low idle resource use;
+- fluid file and history lists;
+- progress and cancellation for long operations;
+- robust behavior with large repositories;
 - high-quality loading, empty, success, warning, and error states;
 - restrained animation and translucency;
 - consistent Windows, macOS, and Linux behavior with deliberate platform fallbacks.
+
+## Safety and recovery as differentiation
+
+Safety is a product capability, not only an implementation constraint. Every
+operation should be classified as read-only, local mutation, history mutation,
+remote mutation, or destructive. Before an operation runs, the user should be
+able to understand:
+
+- which local files may change;
+- whether a saved version or recovery reference will be created;
+- whether history will be rewritten;
+- whether a remote or another person's workflow may be affected;
+- what can be recovered if the result is not what they expected.
+
+History-changing, remote-changing, and destructive actions require a clear
+plan. GitOdrile should prefer reversible operations, create a recovery reference
+when feasible, and require explicit confirmation before data can be discarded.
+It must never silently resolve conflicts, remove untracked files, bypass hooks
+or signing, or force-push.
+
+The recovery experience should make protected states and available recovery
+paths visible in human language. Exact refs, reflog entries, and Git commands
+remain available as technical evidence, but they are not the mental model users
+must learn before they can recover their work.
 
 ## GitButler as a strategic reference
 
@@ -118,6 +145,35 @@ However, GitOdrile must not become a visual or functional copy. The fundamental 
 - GitOdrile primarily helps users work safely before they understand Git deeply.
 
 GitButler is a benchmark for ambition and execution quality, not a specification.
+
+### How to learn from GitButler
+
+GitButler's public repository is a valuable engineering reference when
+GitOdrile faces a concrete problem involving:
+
+- Tauri boundaries and Rust application services;
+- repository modeling and filesystem watching;
+- asynchronous work, cancellation, and error handling;
+- undo, recovery, and conflict state;
+- large-repository performance;
+- frontend/backend communication;
+- packaging, updates, and native desktop behavior;
+- integration tests built around temporary repositories.
+
+Research should follow a bounded process:
+
+1. Define the concrete GitOdrile problem.
+2. Locate the smallest relevant GitButler behavior or subsystem.
+3. Understand why its architecture exists, including the complexity it has
+   accumulated.
+4. Extract the useful principle.
+5. Reimplement the smallest independent version appropriate for GitOdrile.
+
+GitOdrile should not copy GitButler's monorepo shape, cloud infrastructure,
+advanced branch abstractions, source code, visual assets, branding, or product
+language. Any reuse beyond high-level ideas requires an explicit license check.
+The MVP should remain substantially smaller and should not introduce
+abstractions before real behavior needs them.
 
 ## Competitive landscape
 
@@ -270,6 +326,17 @@ GitOdrile must therefore provide value beyond editor source-control panels:
 
 Tools such as lazygit are popular with experienced developers. They are not direct beginner competitors, but they establish a high expectation for speed and keyboard efficiency.
 
+### Other alternatives and changing workflows
+
+SmartGit, Sublime Merge, GitAhead, Git Cola, GitLens, and Git integrations in
+editors remain useful secondary references. AI coding agents also increasingly
+create branches, commits, and worktrees on behalf of users. They compete for the
+same workflow even when they are not standalone Git clients.
+
+GitOdrile should complement these tools by making repository state,
+consequences, and recovery understandable. It must not perform autonomous
+repository changes merely to match agent-driven workflows.
+
 ## Competitive priorities
 
 The products to study most closely are:
@@ -304,6 +371,26 @@ Before adding a feature, ask:
 7. Are we solving a user problem, or merely exposing another Git command?
 
 If the feature fails these questions, it should be redesigned, deferred, or excluded.
+
+## Business model and monetization context
+
+The MVP must work locally without an account, subscription, or cloud service.
+GitOdrile should not assume that GitButler's funding or future collaboration
+model is appropriate for this product.
+
+Possible paid value may later include:
+
+- optional AI explanations and conflict assistance;
+- advanced recovery and guided diagnostics;
+- multiple provider and account management;
+- team onboarding and shared safety policies;
+- collaboration features;
+- a Pro subscription or paid desktop license.
+
+These are hypotheses, not MVP commitments. Core local Git workflows, truthful
+consequences, and basic recovery must not be weakened to manufacture a cloud
+dependency. Any AI feature must be optional and transparent about the exact
+repository data it transmits.
 
 ## Strategic summary
 

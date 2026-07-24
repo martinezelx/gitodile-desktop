@@ -2,6 +2,10 @@
 
 This file is the primary operating guide for AI coding agents working on GitOdrile.
 
+Read [`docs/PRODUCT_STRATEGY.md`](docs/PRODUCT_STRATEGY.md) for the durable
+product thesis, audience, positioning, and competitive context. Keep this file
+focused on rules agents can apply while making changes.
+
 ## Mission
 
 Build a cross-platform desktop Git client that makes version control understandable and safe for beginners, non-developers, students, AI-assisted builders, designers, and developers who prefer a calmer workflow.
@@ -96,6 +100,23 @@ Initial strategy:
 
 Longer-term options may include `gitoxide`, `git2-rs`, or a hybrid implementation. Do not migrate away from system Git without an ADR explaining compatibility, credential, performance, and maintenance trade-offs.
 
+### External references
+
+GitButler is the primary product and engineering reference for complex desktop
+Git problems, not a specification for GitOdrile. When a task involves repository
+watching, asynchronous work, conflicts, recovery, large repositories, packaging,
+updates, or Tauri/Rust boundaries:
+
+1. Define the concrete GitOdrile problem first.
+2. Study the smallest relevant part of GitButler's public implementation.
+3. Identify the reason for its design and extract the reusable principle.
+4. Implement the smallest independent solution appropriate for GitOdrile.
+
+Do not copy its monorepo structure, advanced workflow model, source code, visual
+assets, branding, or product language. Check applicable licenses before adapting
+any protected material, and record significant architectural conclusions in an
+ADR.
+
 ### Architecture boundaries
 
 Keep these concerns separated:
@@ -176,7 +197,8 @@ In summary:
 
 Before coding:
 
-1. Read `README.md`, this file, `DESIGN.md`, and relevant files under `docs/`.
+1. Read `README.md`, this file, `DESIGN.md`,
+   `docs/PRODUCT_STRATEGY.md`, and relevant files under `docs/`.
 2. Inspect the existing implementation before proposing architectural changes.
 3. Identify platform-specific implications.
 4. State assumptions in the PR or commit description.

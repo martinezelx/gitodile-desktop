@@ -138,7 +138,9 @@ pnpm run tauri -- build
 The frontend checks currently pass even when no test files exist; add tests as
 features are implemented.
 
-The initial code is intentionally small. Read `AGENTS.md`, `DESIGN.md`, and `docs/ARCHITECTURE.md` before implementing features.
+The initial code is intentionally small. Read the
+[product strategy](docs/PRODUCT_STRATEGY.md), `AGENTS.md`, `DESIGN.md`, and
+`docs/ARCHITECTURE.md` before making product or implementation decisions.
 
 ## Local work management
 

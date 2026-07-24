@@ -7,6 +7,7 @@ This roadmap is directional rather than a promise.
 - Validate product language with beginners and AI-assisted builders.
 - Establish design tokens and application shell.
 - Implement secure Git process runner.
+- Establish operation classification, preview, and recovery-plan contracts.
 - Add repository diagnostics.
 - Create temporary-repository integration test helpers.
 
@@ -18,23 +19,25 @@ This roadmap is directional rather than a promise.
 - Stage/unstage behavior hidden behind a coherent save-version flow.
 - Create saved versions.
 - History timeline.
-- Basic restore/revert flow.
+- Create recovery references before risky local or history operations.
+- Basic reversible restore flow.
 
 ## Phase 2 — Remote workflow
 
-- GitHub authentication onboarding.
 - Clone repositories.
 - Fetch and remote-status explanation.
 - Publish changes.
 - Safe integration of remote changes.
 - Clear ahead/behind/diverged states.
+- Provider-neutral remote contracts, with GitHub authentication as the first
+  provider-specific onboarding where useful.
+- Explicit previews for operations that affect a remote or teammates.
 
 ## Phase 3 — Safety and conflicts
 
-- Automatic recovery references.
 - Recovery center.
 - Guided merge-conflict resolution.
-- Operation previews.
+- Recovery lifecycle, cleanup, and diagnostics.
 - Improved diagnostics for hooks, signing, and credentials.
 
 ## Phase 4 — Progressive power
