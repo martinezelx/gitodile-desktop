@@ -246,15 +246,8 @@ const NAV_ICONS = {
 
 const SEARCH_ICON = <Search />;
 
-// Temporary placeholder mark until a custom GitOdrile mascot exists.
-// Crocodile line art from OpenMoji (openmoji.org), CC BY-SA 4.0.
 const CROCODILE_MARK = (
-  <svg viewBox="0 0 72 72" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.6">
-    <line x1="29" x2="33" y1="52" y2="52" />
-    <path d="M46,52c0,0,17,2,19,0v-1c0,0,3-3,1-4s-5,0-5,0s-2.9167-1.3333-6.4583-4.6667C54.5417,42.3333,53,41,51,43c0,0-2-3-8-3s-24,1-24,1 s-6-1,0-3s11-2,12,0c0,0-2.6667-8.4167-17.3333-5.2083C13.6667,32.7917,1,36,8,48c0,0,2,4,8,4" />
-    <path d="M23,47c0,0-4.8121,4-3.406,5S23,55,23,55h4l-3.0324-3c0,0,2.0324-1,3.0324-3s0-3.2403,0-3.2403" />
-    <path d="M40,47c0,0-4.8121,4-3.406,5S40,55,40,55h4l-3.0324-3c0,0,2.0324-1,3.0324-3s0-3.2403,0-3.2403" />
-  </svg>
+  <span className="gitodrile-mark" aria-hidden="true" />
 );
 
 type Command = { id: string; label: string; hint?: string; action: () => void };
@@ -1429,7 +1422,7 @@ function App(): React.JSX.Element {
         <div className="window-titlebar__actions">
           <TitlebarMenu onOpenAbout={() => setIsAboutOpen(true)} />
           <button
-            className="titlebar-icon-button"
+            className="titlebar-command-button"
             type="button"
             ref={paletteTriggerRef}
             aria-label={t.titlebarOpenCommandPalette}
@@ -1437,27 +1430,30 @@ function App(): React.JSX.Element {
             onClick={openPalette}
           >
             {SEARCH_ICON}
+            <span className="titlebar-command-button__label">{t.titlebarJumpTo}</span>
           </button>
-          <button
-            className="titlebar-icon-button"
-            type="button"
-            disabled={!canGoBack}
-            title={t.titlebarGoBack}
-            aria-label={t.titlebarGoBack}
-            onClick={goBack}
-          >
-            <ChevronLeft aria-hidden="true" />
-          </button>
-          <button
-            className="titlebar-icon-button"
-            type="button"
-            disabled={!canGoForward}
-            title={t.titlebarGoForward}
-            aria-label={t.titlebarGoForward}
-            onClick={goForward}
-          >
-            <ChevronRight aria-hidden="true" />
-          </button>
+          <div className="titlebar-history-controls">
+            <button
+              className="titlebar-icon-button"
+              type="button"
+              disabled={!canGoBack}
+              title={t.titlebarGoBack}
+              aria-label={t.titlebarGoBack}
+              onClick={goBack}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </button>
+            <button
+              className="titlebar-icon-button"
+              type="button"
+              disabled={!canGoForward}
+              title={t.titlebarGoForward}
+              aria-label={t.titlebarGoForward}
+              onClick={goForward}
+            >
+              <ChevronRight aria-hidden="true" />
+            </button>
+          </div>
           <span className="titlebar-badge" aria-label={t.alphaBadgeAriaLabel}>{t.alphaBadge}</span>
         </div>
 
@@ -1501,7 +1497,7 @@ function App(): React.JSX.Element {
             <div className="brand">
               <div className="brand-mark" aria-hidden="true">{CROCODILE_MARK}</div>
               {!isSidebarCollapsed && (
-                <div>
+                <div className="brand-copy">
                   <strong>GitOdrile</strong>
                   <span>{t.brandTagline}</span>
                 </div>
@@ -1532,14 +1528,17 @@ function App(): React.JSX.Element {
             <button className="nav-item" type="button" disabled title={t.navChangesTitle}>
               <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.changes}</span>
               <span className="nav-item__label">{t.navChanges}</span>
+              <span className="nav-item__availability">{t.navComingSoon}</span>
             </button>
             <button className="nav-item" type="button" disabled title={t.navHistoryTitle}>
               <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.history}</span>
               <span className="nav-item__label">{t.navHistory}</span>
+              <span className="nav-item__availability">{t.navComingSoon}</span>
             </button>
             <button className="nav-item" type="button" disabled title={t.navRecoveryTitle}>
               <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.recovery}</span>
               <span className="nav-item__label">{t.navRecovery}</span>
+              <span className="nav-item__availability">{t.navComingSoon}</span>
             </button>
           </nav>
 

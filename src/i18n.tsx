@@ -52,6 +52,7 @@ export interface Translations {
   navHistoryTitle: string;
   navRecovery: string;
   navRecoveryTitle: string;
+  navComingSoon: string;
   navSettings: string;
 
   paletteAriaLabel: string;
@@ -245,6 +246,7 @@ const en: Translations = {
   navHistoryTitle: "History — Coming soon",
   navRecovery: "Recovery",
   navRecoveryTitle: "Recovery — Coming soon",
+  navComingSoon: "Soon",
   navSettings: "Settings",
 
   paletteAriaLabel: "Command palette",
@@ -445,6 +447,7 @@ const es: Translations = {
   navHistoryTitle: "Historial — Próximamente",
   navRecovery: "Recuperación",
   navRecoveryTitle: "Recuperación — Próximamente",
+  navComingSoon: "Próximamente",
   navSettings: "Configuración",
 
   paletteAriaLabel: "Paleta de comandos",

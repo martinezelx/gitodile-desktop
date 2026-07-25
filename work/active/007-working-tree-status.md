@@ -202,10 +202,12 @@ index/working-tree split as the primary concept.
   project changes, never when no project is open, and a failed refresh keeps
   the last known status rather than blanking the card.
 - **Action layout changed.** "Check for changes" became the card's enabled
-  primary action, "Review changes" stays disabled with "Coming soon" until the
-  Changes screen exists, and "Open another project" moved into the project
-  menu next to "Close project" — which is where task 001's specification
-  already allowed it. Three buttons in the card was one too many.
+  primary action, while "Review changes" remains visibly disabled and marked
+  “Coming soon” until its screen exists. "Open another project" moved into the
+  project menu next to "Close project" — which is where task 001's
+  specification already allowed it. The sidebar uses the same visible
+  availability signal, so the roadmap stays honest without making unavailable
+  actions look clickable.
 - A visually-hidden `role="status"` announces the finished summary, so a
   refresh is reported without moving focus.
 - **Review pass before commit** found three defects, all fixed:

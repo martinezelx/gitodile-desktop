@@ -35,11 +35,11 @@ Blur/translucency is not the default depth mechanism for GitOdrile chrome. Reser
 
 The main desktop window should broadly support:
 
-1. **Top bar** — implemented as a custom titlebar with three zones (left/center/right), not a traditional File/Edit/View menu bar, which reads as legacy Win32/desktop-app chrome:
-   - left: brand, draggable;
-   - center: a command-palette trigger (`Ctrl`/`Cmd`+`K`), the app's substitute for a menu bar — every action gets a command instead of a menu item;
+1. **Top bar** — implemented as a custom titlebar rather than a traditional File/Edit/View menu bar, which reads as legacy Win32/desktop-app chrome:
+   - left: the command-palette trigger (`Ctrl`/`Cmd`+`K`) and a compact overflow menu. The palette is a labeled rounded control, making it the visual entry point for app-wide actions instead of another anonymous icon.
+   - contextual history: Back/Forward stay together with the command controls. They remain visibly disabled until there is history to traverse, then become available without moving the surrounding chrome.
+   - center: the remaining native drag region, including double-click maximize/restore.
    - right: window controls (minimize/maximize/close), styled as small rounded buttons inset from the edge rather than full-height square hit targets, so they read as part of the same rounded-corner system as the rest of the UI instead of bolted-on OS chrome.
-   - The remaining left/right space stays a native drag region so the window is still movable/double-click-maximizable without a menu bar occupying it.
 
 2. **Navigation rail or sidebar**
    - Overview;
@@ -93,15 +93,19 @@ Colors should be defined semantically rather than by component:
 - `--text-primary`
 - `--text-secondary`
 - `--border-subtle`
+- `--accent-brand` / `--accent-brand-contrast` (the fixed lime brand mark and primary CTA)
+- `--brand-mark-foreground` (theme-aware crocodile color used only inside the lime brand tile)
 - `--accent-primary`
 - `--accent-primary-contrast` (text/icon color placed on top of `--accent-primary`)
 - `--status-success`
 - `--status-warning`
 - `--status-danger`
+- `--status-danger-contrast` (icon/text placed on a danger fill)
 - `--diff-added`
 - `--diff-removed`
 - `--overlay` (modal/backdrop scrim)
 - `--surface-hover` / `--surface-active` (neutral interactive-state tints, used for any hover/pressed/selected state instead of one-off `rgba(...)` values)
+- `--focus-ring` (the visible keyboard focus color, distinct enough against every focusable surface)
 - `--shadow-sm` / `--shadow-md` / `--shadow-lg` (elevation; theme-aware, see below)
 
 Do not hard-code product colors throughout components.
@@ -118,36 +122,41 @@ Brand identity (mark + name) appears in exactly one visible place at a time, nev
 
 ### Honest affordances
 
-A control that does nothing yet must not look fully interactive. Navigation entries for screens that don't exist yet (e.g. Changes, History, Recovery before their flows are built) are rendered `disabled` with reduced opacity and a "Coming soon" tooltip, rather than looking clickable and silently failing. Replace the disabled state with a real view as soon as the screen exists — don't leave it disabled out of habit.
+A control that does nothing yet must not look fully interactive. Navigation entries for screens that don't exist yet (e.g. Changes, History, Recovery before their flows are built) are rendered `disabled` with reduced opacity and a visible “Coming soon” status, rather than looking clickable and silently failing. An upcoming primary-card action may remain visible when it makes the planned next step clear, but it must be disabled and honestly marked as unavailable. Replace the disabled state with a real view as soon as the screen exists — don't leave it disabled out of habit.
 
 ### Theming: light and dark
 
-The brand accent is a green (`--accent-primary`), but the same hex value cannot serve both themes: a light, saturated green reads well on a near-black surface but fails WCAG AA contrast on a white one. Each theme gets its own value for every color token, tuned to the same hue family so the brand stays recognizable across themes.
+The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and primary CTA, always paired with its dark contrast color; it is never used as standalone text on a light surface. Semantic green (`--accent-primary`) is deliberately darker in light mode and lighter in dark mode so it can carry small labels, focus, status, and future diff markers accessibly. Each theme gets its own values while retaining the same warm stone/lime family.
 
 | Token | Dark value | Light value |
 |---|---|---|
-| `--surface-app` | `#10160f` | `#f6f8f3` |
-| `--surface-panel` | `#17201a` | `#ffffff` |
-| `--surface-raised` | `#1c2620` | `#ffffff` |
-| `--surface-code` | `#151d17` | `#eef2ea` |
-| `--text-primary` | `#eef3ea` | `#16210f` |
-| `--text-secondary` | `#a3ad9d` | `#5c6b53` |
-| `--border-subtle` | `rgba(255, 255, 255, 0.08)` | `rgba(20, 30, 16, 0.1)` |
-| `--accent-primary` | `#6fce7d` | `#2f8f4c` |
-| `--accent-primary-contrast` | `#0d2110` | `#f2fff5` |
-| `--status-success` | `#6fce7d` | `#2f8f4c` |
+| `--surface-app` | `#0a0a0a` | `#faf8f5` |
+| `--surface-panel` | `#1a1a1a` | `#ffffff` |
+| `--surface-raised` | `#242424` | `#ffffff` |
+| `--surface-code` | `#1a1a1a` | `#f5f5f4` |
+| `--text-primary` | `#fafafa` | `#1c1917` |
+| `--text-secondary` | `#a1a1aa` | `#6f6a64` |
+| `--border-subtle` | `#27272a` | `#e7e5e4` |
+| `--accent-brand` | `#8bc53f` | `#8bc53f` |
+| `--accent-brand-contrast` | `#14170f` | `#14170f` |
+| `--brand-mark-foreground` | `#14170f` | `#faf8f5` |
+| `--accent-primary` | `#9bd65a` | `#4f751e` |
+| `--accent-primary-contrast` | `#0a0a0a` | `#14170f` |
+| `--status-success` | `#9bd65a` | `#4f751e` |
 | `--status-warning` | `#e8b339` | `#8a5b00` |
 | `--status-danger` | `#ff6b5b` | `#b3261e` |
-| `--diff-added` | `#6fce7d` | `#2f8f4c` |
+| `--status-danger-contrast` | `#14170f` | `#fff7f5` |
+| `--diff-added` | `#9bd65a` | `#4f751e` |
 | `--diff-removed` | `#ff6b5b` | `#b3261e` |
-| `--overlay` | `rgba(4, 8, 6, 0.68)` | `rgba(16, 22, 15, 0.4)` |
-| `--surface-hover` | `rgba(255, 255, 255, 0.06)` | `rgba(20, 30, 16, 0.05)` |
-| `--surface-active` | `rgba(111, 206, 125, 0.16)` | `rgba(47, 143, 76, 0.14)` |
-| `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.22)` | `0 2px 8px rgba(20,30,16,0.08)` |
-| `--shadow-md` | `0 8px 20px rgba(0,0,0,0.3)` | `0 8px 20px rgba(20,30,16,0.1)` |
-| `--shadow-lg` | `0 24px 80px rgba(0,0,0,0.45)` | `0 24px 60px rgba(20,30,16,0.16)` |
+| `--overlay` | `rgba(0, 0, 0, 0.68)` | `rgba(28, 25, 23, 0.4)` |
+| `--surface-hover` | `rgba(255, 255, 255, 0.06)` | `rgba(28, 25, 23, 0.05)` |
+| `--surface-active` | `rgba(155, 214, 90, 0.14)` | `rgba(107, 155, 46, 0.12)` |
+| `--focus-ring` | `#9bd65a` | `#4f751e` |
+| `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.22)` | `0 2px 8px rgba(28,25,23,0.06)` |
+| `--shadow-md` | `0 8px 20px rgba(0,0,0,0.3)` | `0 8px 20px rgba(28,25,23,0.08)` |
+| `--shadow-lg` | `0 24px 80px rgba(0,0,0,0.45)` | `0 24px 60px rgba(28,25,23,0.14)` |
 
-`--surface-active` is accent-tinted rather than neutral gray — this is what gives the active nav item and selected segmented-control option their "friendly card" warmth instead of a flat gray highlight.
+`--surface-active` is accent-tinted rather than neutral gray in both themes — this is what gives the active nav item and selected segmented-control option their "friendly card" warmth instead of a flat gray highlight.
 
 Every text/surface pairing above must hold at least a 4.5:1 contrast ratio (WCAG AA for body text); accent-on-surface pairings used only for large text, icons, or borders may use the AA large-text threshold (3:1) instead.
 
@@ -185,7 +194,19 @@ The mascot may appear in:
 
 Do not place the mascot in every panel or use it to trivialize serious errors.
 
-**Placeholder mark:** until a custom mascot is designed, the app icon and every in-UI brand mark (sidebar, titlebar, About dialog) use a crocodile line-art glyph from [OpenMoji](https://openmoji.org) (CC BY-SA 4.0 — free for commercial use with attribution; source kept at `src-tauri/icons/source.svg`). It's a stand-in, not the final mascot: replace every instance of it together when the real one ships, don't let it linger in some spots after others move on.
+**Application mark:** the compact GitOdrile mark is a rounded, geometric
+crocodile head with two attentive eyes, two small snout details, and a calm
+smile. Its facial details are transparent cutouts rather than white decoration,
+so the single-color SVG in `src/assets/gitodrile-mark.svg` can inherit any
+foreground/background pairing. The native app icon places the dark mark on the
+fixed brand-lime rounded tile (`#8bc53f`); its eye, snout, and smile cutouts
+reveal that lime beneath. Keep this compact mark consistent in the sidebar,
+compact titlebar, About dialog, and packaged application icons.
+
+Inside the application, the crocodile is dark (`#14170f`) in dark mode and
+warm pearl (`#faf8f5`) in light mode. This theme-aware treatment belongs only
+to the decorative brand lockup; primary actions continue to use
+`--accent-brand-contrast` for accessible text and icon contrast.
 
 ## Typography
 
