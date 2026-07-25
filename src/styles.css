@@ -39,6 +39,7 @@
   --brand-mark-foreground: #faf8f5;
   --accent-primary: #4f751e;
   --accent-primary-contrast: #14170f;
+  --accent-primary-fill: #9bd65a;
   --status-success: #4f751e;
   --status-warning: #8a5b00;
   --status-danger: #b3261e;
@@ -68,6 +69,7 @@
     --brand-mark-foreground: #14170f;
     --accent-primary: #9bd65a;
     --accent-primary-contrast: #0a0a0a;
+    --accent-primary-fill: #9bd65a;
     --status-success: #9bd65a;
     --status-warning: #e8b339;
     --status-danger: #ff6b5b;
@@ -97,6 +99,7 @@
   --brand-mark-foreground: #faf8f5;
   --accent-primary: #4f751e;
   --accent-primary-contrast: #14170f;
+  --accent-primary-fill: #9bd65a;
   --status-success: #4f751e;
   --status-warning: #8a5b00;
   --status-danger: #b3261e;
@@ -125,6 +128,7 @@
   --brand-mark-foreground: #14170f;
   --accent-primary: #9bd65a;
   --accent-primary-contrast: #0a0a0a;
+  --accent-primary-fill: #9bd65a;
   --status-success: #9bd65a;
   --status-warning: #e8b339;
   --status-danger: #ff6b5b;
@@ -742,8 +746,8 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   display: block; width: 16px; height: 16px; border-radius: 50%; background: var(--text-secondary);
   transition: transform var(--duration-fast), background var(--duration-fast);
 }
-.toggle-switch--on { background: var(--accent-primary); border-color: transparent; }
-.toggle-switch--on .toggle-switch__knob { background: var(--accent-primary-contrast); transform: translateX(16px); }
+.toggle-switch--on { background: var(--accent-primary-fill); border-color: transparent; }
+.toggle-switch--on .toggle-switch__knob { background: var(--surface-panel); transform: translateX(16px); }
 
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 

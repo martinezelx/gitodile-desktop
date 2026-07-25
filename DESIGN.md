@@ -97,6 +97,7 @@ Colors should be defined semantically rather than by component:
 - `--brand-mark-foreground` (theme-aware crocodile color used only inside the lime brand tile)
 - `--accent-primary`
 - `--accent-primary-contrast` (text/icon color placed on top of `--accent-primary`)
+- `--accent-primary-fill` (fixed lime fill for selected controls)
 - `--status-success`
 - `--status-warning`
 - `--status-danger`
@@ -142,6 +143,7 @@ The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and prima
 | `--brand-mark-foreground` | `#14170f` | `#faf8f5` |
 | `--accent-primary` | `#9bd65a` | `#4f751e` |
 | `--accent-primary-contrast` | `#0a0a0a` | `#14170f` |
+| `--accent-primary-fill` | `#9bd65a` | `#9bd65a` |
 | `--status-success` | `#9bd65a` | `#4f751e` |
 | `--status-warning` | `#e8b339` | `#8a5b00` |
 | `--status-danger` | `#ff6b5b` | `#b3261e` |
