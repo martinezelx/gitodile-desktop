@@ -17,22 +17,26 @@ import {
   Moon,
   Monitor,
   FolderOpen,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  GitBranch,
+  Layers3,
+  LoaderCircle,
+  Menu,
+  MoreHorizontal,
+  AlertTriangle,
+  Copy,
+  Check,
+  X,
 } from "lucide-react";
 import { LANGUAGE_NAMES, LanguageProvider, useLanguage, type Language, type LanguagePreference } from "./i18n";
+import { getRepositoryOverviewState, type RepositoryInfo } from "./repositoryOverview";
 import "./styles.css";
 
 type ThemePreference = "system" | "light" | "dark";
 type View = "overview" | "settings";
-type RepositoryInfo = {
-  name: string;
-  path: string;
-  selectedPath: string;
-  gitDir: string;
-  commonGitDir: string;
-  branch: string | null;
-  headState: "branch" | "detached" | "unborn";
-  kind: "repository" | "worktree";
-};
 type AppError = {
   code:
     | "path_missing"
@@ -348,7 +352,175 @@ function CommandPalette({
   );
 }
 
+/**
+ * Titlebar overflow menu. For now this only exposes Help → About, but the
+ * pattern (button + popover, closing on Escape/outside click) mirrors
+ * ProjectMenu so more sections can be added later without a rewrite.
+ */
+function TitlebarMenu({ onOpenAbout }: { onOpenAbout: () => void }): React.JSX.Element {
+  const { t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: MouseEvent): void => {
+      if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="titlebar-menu" ref={containerRef}>
+      <button
+        ref={triggerRef}
+        className="titlebar-icon-button"
+        type="button"
+        aria-label={t.titlebarMoreActions}
+        title={t.titlebarMoreActions}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <Menu aria-hidden="true" />
+      </button>
+      {isOpen && (
+        <div className="titlebar-menu__list" role="menu" aria-label={t.titlebarMoreActions}>
+          <div className="titlebar-menu__heading" aria-hidden="true">{t.titlebarHelpSection}</div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setIsOpen(false);
+              onOpenAbout();
+            }}
+          >
+            {t.aboutGitOdrile}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FOLDER_ICON = <FolderOpen />;
+
+/**
+ * Infrequent project-level actions. Uses a button + popover rather than
+ * `<details>` so it closes on Escape and on an outside click, and exposes the
+ * expanded state to assistive technology.
+ */
+function ProjectMenu({ onCloseProject }: { onCloseProject: () => void }): React.JSX.Element {
+  const { t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: MouseEvent): void => {
+      if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="project-menu" ref={containerRef}>
+      <button
+        ref={triggerRef}
+        className="project-menu__trigger"
+        type="button"
+        aria-label={t.overviewProjectMenu}
+        title={t.overviewProjectMenu}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <MoreHorizontal aria-hidden="true" />
+      </button>
+      {isOpen && (
+        <div className="project-menu__list" role="menu" aria-label={t.overviewProjectMenu}>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setIsOpen(false);
+              onCloseProject();
+            }}
+          >
+            {t.overviewCloseProject}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Truncated paths stay fully available: readable on hover/AT, and copyable. */
+function ProjectPath({ path }: { path: string }): React.JSX.Element {
+  const { t } = useLanguage();
+  const [wasCopied, setWasCopied] = useState(false);
+
+  useEffect(() => {
+    if (!wasCopied) return;
+    const timer = window.setTimeout(() => setWasCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [wasCopied]);
+
+  const copyPath = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(path);
+      setWasCopied(true);
+    } catch {
+      // Clipboard access can be denied; leave the visible path as the fallback.
+    }
+  };
+
+  return (
+    <p className="project-path">
+      <span className="project-path__value" title={path}>
+        {path}
+      </span>
+      <button
+        className="project-path__copy"
+        type="button"
+        onClick={() => void copyPath()}
+        aria-label={t.overviewCopyPath}
+        title={wasCopied ? t.overviewPathCopied : t.overviewCopyPath}
+      >
+        {wasCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+      </button>
+      <span className="visually-hidden" role="status">
+        {wasCopied ? t.overviewPathCopied : ""}
+      </span>
+    </p>
+  );
+}
 
 function OverviewPanel({
   project,
@@ -366,27 +538,145 @@ function OverviewPanel({
   const { t } = useLanguage();
 
   if (project) {
+    const overview = getRepositoryOverviewState(project);
+    const projectType = t[overview.projectTypeKey];
+    const versionValue = overview.isDetached
+      ? t.overviewSpecificSavedVersion
+      : (overview.versionLine ?? t.overviewNoSavedVersions);
+    const heroStatus = isOpening ? "loading" : openError ? "error" : "success";
+    const heroHeadline = isOpening
+      ? t.overviewOpeningTitle
+      : openError
+        ? t.overviewOpenFailedTitle
+        : t[overview.headlineKey];
+    const heroMessage = isOpening
+      ? t.overviewOpeningDescription
+      : (openError ?? repositoryStatus(project, t));
+
     return (
-      <div className="project-summary">
-        <div className="project-summary__icon" aria-hidden="true">{FOLDER_ICON}</div>
-        <div className="project-summary__body">
-          <h2>
-            {project.name}
-            {project.kind === "worktree" && <span className="project-summary__badge">{t.overviewWorktreeBadge}</span>}
+      <div className="project-overview" aria-busy={isOpening}>
+        <header className="project-overview__header">
+          <div className="project-overview__identity">
+            <h1>{project.name}</h1>
+            <ul className="project-chips">
+              <li className="project-chip">
+                <Layers3 aria-hidden="true" />
+                {projectType}
+              </li>
+              <li className="project-chip project-chip--technical">
+                <GitBranch aria-hidden="true" />
+                <span className="visually-hidden">{t.overviewCurrentVersionLine}: </span>
+                {versionValue}
+              </li>
+            </ul>
+          </div>
+          <ProjectMenu onCloseProject={onCloseProject} />
+        </header>
+
+        <section
+          className={`project-hero project-hero--${heroStatus}`}
+          aria-labelledby="project-hero-heading"
+        >
+          <div className="project-hero__icon" aria-hidden="true">
+            {isOpening ? <LoaderCircle /> : openError ? <AlertTriangle /> : <CheckCircle2 />}
+          </div>
+          <div className="project-hero__content">
+            <h2 id="project-hero-heading">{heroHeadline}</h2>
+            {openError && !isOpening ? (
+              <p key="hero-error" role="alert">
+                {heroMessage}
+              </p>
+            ) : (
+              <p key="hero-message">{heroMessage}</p>
+            )}
+          </div>
+          <div className="project-hero__actions">
+            <button
+              className="primary-button project-hero__action"
+              type="button"
+              onClick={onOpenProject}
+              disabled={isOpening}
+            >
+              {isOpening ? t.overviewOpening : t.overviewOpenAnotherProject}
+            </button>
+            <button
+              className="secondary-button project-hero__action"
+              type="button"
+              disabled
+              title={t.overviewReviewChangesTitle}
+            >
+              {t.overviewReviewChanges}
+            </button>
+          </div>
+        </section>
+
+        <section className="project-facts" aria-labelledby="project-facts-heading">
+          <h2 className="project-facts__title" id="project-facts-heading">
+            {t.overviewProjectDetails}
           </h2>
-          <p className="project-summary__meta">{repositoryStatus(project, t)}</p>
-          <p className="project-summary__path">{project.path}</p>
-        </div>
-        <button className="secondary-button" type="button" onClick={onCloseProject}>
-          {t.overviewCloseProject}
-        </button>
+          <div className="project-facts__grid">
+            <article className="project-fact">
+              <h3>{t.overviewCurrentVersionLine}</h3>
+              <p className="project-fact__value project-fact__value--technical">{versionValue}</p>
+              <p>{t[overview.versionDescriptionKey]}</p>
+            </article>
+
+            <article className="project-fact">
+              <h3>{t.overviewProjectLocation}</h3>
+              <ProjectPath path={project.path} />
+              {overview.wasOpenedFromNestedFolder && (
+                <p className="project-fact__nested">
+                  {t.overviewOpenedFrom}
+                  <span title={project.selectedPath}>{project.selectedPath}</span>
+                </p>
+              )}
+            </article>
+
+            <article className="project-fact">
+              <h3>{t.overviewProjectType}</h3>
+              <p className="project-fact__value">{projectType}</p>
+              <p>{t[overview.projectTypeDescriptionKey]}</p>
+            </article>
+          </div>
+        </section>
+
+        <details className="project-technical">
+          <summary>
+            <span>{t.overviewTechnicalDetails}</span>
+            <ChevronDown aria-hidden="true" />
+          </summary>
+          <dl>
+            <div>
+              <dt>{t.overviewResolvedRoot}</dt>
+              <dd>{project.path}</dd>
+            </div>
+            {overview.wasOpenedFromNestedFolder && (
+              <div>
+                <dt>{t.overviewSelectedFolder}</dt>
+                <dd>{project.selectedPath}</dd>
+              </div>
+            )}
+            <div>
+              <dt>{t.overviewGitDirectory}</dt>
+              <dd>{project.gitDir}</dd>
+            </div>
+            {overview.isWorktree && (
+              <div>
+                <dt>{t.overviewCommonGitDirectory}</dt>
+                <dd>{project.commonGitDir}</dd>
+              </div>
+            )}
+          </dl>
+        </details>
       </div>
     );
   }
 
   return (
-    <div className="empty-state">
-      <div className="empty-state__icon" aria-hidden="true">{FOLDER_ICON}</div>
+    <div className="empty-state" aria-busy={isOpening}>
+      <div className={`empty-state__icon${isOpening ? " empty-state__icon--loading" : ""}`} aria-hidden="true">
+        {isOpening ? <LoaderCircle /> : FOLDER_ICON}
+      </div>
       <h2>{t.overviewEmptyTitle}</h2>
       <p>{t.overviewEmptyDescription}</p>
       {openError && <p className="empty-state__error" role="alert">{openError}</p>}
@@ -787,7 +1077,21 @@ function App(): React.JSX.Element {
   const { t } = useLanguage();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-  const [view, setView] = useState<View>("overview");
+  const [viewHistory, setViewHistory] = useState<View[]>(["overview"]);
+  const [viewHistoryIndex, setViewHistoryIndex] = useState(0);
+  const view = viewHistory[viewHistoryIndex];
+
+  const navigateToView = (next: View): void => {
+    if (next === view) {
+      return;
+    }
+    setViewHistory((history) => [...history.slice(0, viewHistoryIndex + 1), next]);
+    setViewHistoryIndex((index) => index + 1);
+  };
+  const goBack = (): void => setViewHistoryIndex((index) => Math.max(0, index - 1));
+  const goForward = (): void => setViewHistoryIndex((index) => Math.min(viewHistory.length - 1, index + 1));
+  const canGoBack = viewHistoryIndex > 0;
+  const canGoForward = viewHistoryIndex < viewHistory.length - 1;
   const [theme, setTheme] = useTheme();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true",
@@ -927,8 +1231,8 @@ function App(): React.JSX.Element {
   }, []);
 
   const commands: Command[] = [
-    { id: "go-overview", label: t.commandGoOverview, action: () => setView("overview") },
-    { id: "go-settings", label: t.commandGoSettings, action: () => setView("settings") },
+    { id: "go-overview", label: t.commandGoOverview, action: () => navigateToView("overview") },
+    { id: "go-settings", label: t.commandGoSettings, action: () => navigateToView("settings") },
     ...(project
       ? [{ id: "close-project", label: t.overviewCloseProject, action: requestCloseProject }]
       : [{ id: "open-project", label: t.overviewOpenProject, action: () => void handleOpenProject() }]),
@@ -953,64 +1257,77 @@ function App(): React.JSX.Element {
   return (
     <div className="app-window">
       <header className="window-titlebar">
-        <div
-          className="window-titlebar__drag window-titlebar__drag--left"
-          data-tauri-drag-region
-          onDoubleClick={() => performWindowAction(() => appWindow.toggleMaximize())}
-        >
-          <div className="window-titlebar__brand" data-tauri-drag-region>
-            <span className="window-titlebar__mark" aria-hidden="true">{CROCODILE_MARK}</span>
-            <span className="window-titlebar__name" data-tauri-drag-region>GitOdrile</span>
-          </div>
+        <div className="window-titlebar__brand" data-tauri-drag-region>
+          <span className="window-titlebar__mark" aria-hidden="true">{CROCODILE_MARK}</span>
+          <span className="window-titlebar__name" data-tauri-drag-region>GitOdrile</span>
         </div>
 
-        <div className="window-titlebar__center">
+        <div className="window-titlebar__actions">
+          <TitlebarMenu onOpenAbout={() => setIsAboutOpen(true)} />
           <button
-            className="command-trigger"
+            className="titlebar-icon-button"
             type="button"
             ref={paletteTriggerRef}
             aria-label={t.titlebarOpenCommandPalette}
             title={t.titlebarJumpToHint}
             onClick={openPalette}
           >
-            <span aria-hidden="true">{SEARCH_ICON}</span>
-            <span>{t.titlebarJumpTo}</span>
-            <kbd>Ctrl K</kbd>
+            {SEARCH_ICON}
           </button>
+          <button
+            className="titlebar-icon-button"
+            type="button"
+            disabled={!canGoBack}
+            title={t.titlebarGoBack}
+            aria-label={t.titlebarGoBack}
+            onClick={goBack}
+          >
+            <ChevronLeft aria-hidden="true" />
+          </button>
+          <button
+            className="titlebar-icon-button"
+            type="button"
+            disabled={!canGoForward}
+            title={t.titlebarGoForward}
+            aria-label={t.titlebarGoForward}
+            onClick={goForward}
+          >
+            <ChevronRight aria-hidden="true" />
+          </button>
+          <span className="titlebar-badge" aria-label={t.alphaBadgeAriaLabel}>{t.alphaBadge}</span>
         </div>
 
-        <div className="window-titlebar__right">
-          <div
-            className="window-titlebar__drag window-titlebar__drag--right"
-            data-tauri-drag-region
-            onDoubleClick={() => performWindowAction(() => appWindow.toggleMaximize())}
-          />
-          <div className="window-controls" aria-label={t.windowControls}>
-            <button
-              className="window-control"
-              type="button"
-              aria-label={t.windowMinimize}
-              onClick={() => performWindowAction(() => appWindow.minimize())}
-            >
-              <span aria-hidden="true">−</span>
-            </button>
-            <button
-              className="window-control"
-              type="button"
-              aria-label={t.windowMaximize}
-              onClick={() => performWindowAction(() => appWindow.toggleMaximize())}
-            >
-              <span className="window-control__maximize" aria-hidden="true" />
-            </button>
-            <button
-              className="window-control window-control--close"
-              type="button"
-              aria-label={t.windowClose}
-              onClick={() => performWindowAction(() => appWindow.close())}
-            >
-              <span className="window-control__close" aria-hidden="true" />
-            </button>
-          </div>
+        <div
+          className="window-titlebar__drag"
+          data-tauri-drag-region
+          onDoubleClick={() => performWindowAction(() => appWindow.toggleMaximize())}
+        />
+
+        <div className="window-controls" aria-label={t.windowControls}>
+          <button
+            className="window-control"
+            type="button"
+            aria-label={t.windowMinimize}
+            onClick={() => performWindowAction(() => appWindow.minimize())}
+          >
+            <span aria-hidden="true">−</span>
+          </button>
+          <button
+            className="window-control"
+            type="button"
+            aria-label={t.windowMaximize}
+            onClick={() => performWindowAction(() => appWindow.toggleMaximize())}
+          >
+            <span className="window-control__maximize" aria-hidden="true" />
+          </button>
+          <button
+            className="window-control window-control--close"
+            type="button"
+            aria-label={t.windowClose}
+            onClick={() => performWindowAction(() => appWindow.close())}
+          >
+            <span className="window-control__close" aria-hidden="true" />
+          </button>
         </div>
       </header>
 
@@ -1043,7 +1360,7 @@ function App(): React.JSX.Element {
               type="button"
               aria-current={view === "overview" ? "page" : undefined}
               title={t.navOverview}
-              onClick={() => setView("overview")}
+              onClick={() => navigateToView("overview")}
             >
               <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.overview}</span>
               <span className="nav-item__label">{t.navOverview}</span>
@@ -1068,7 +1385,7 @@ function App(): React.JSX.Element {
               type="button"
               aria-current={view === "settings" ? "page" : undefined}
               title={t.navSettings}
-              onClick={() => setView("settings")}
+              onClick={() => navigateToView("settings")}
             >
               <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.settings}</span>
               <span className="nav-item__label">{t.navSettings}</span>
@@ -1082,7 +1399,7 @@ function App(): React.JSX.Element {
               className={`compact-nav__item${view === "overview" ? " compact-nav__item--active" : ""}`}
               type="button"
               aria-current={view === "overview" ? "page" : undefined}
-              onClick={() => setView("overview")}
+              onClick={() => navigateToView("overview")}
             >
               <span aria-hidden="true">{NAV_ICONS.overview}</span>
               {t.navOverview}
@@ -1091,15 +1408,17 @@ function App(): React.JSX.Element {
               className={`compact-nav__item${view === "settings" ? " compact-nav__item--active" : ""}`}
               type="button"
               aria-current={view === "settings" ? "page" : undefined}
-              onClick={() => setView("settings")}
+              onClick={() => navigateToView("settings")}
             >
               <span aria-hidden="true">{NAV_ICONS.settings}</span>
               {t.navSettings}
             </button>
           </nav>
-          <header className="topbar">
-            <h1>{view === "overview" ? t.navOverview : t.navSettings}</h1>
-          </header>
+          {(view !== "overview" || !project) && (
+            <header className="topbar">
+              <h1>{view === "overview" ? t.navOverview : t.navSettings}</h1>
+            </header>
+          )}
 
           {view === "overview" ? (
             <OverviewPanel
@@ -1142,17 +1461,23 @@ function App(): React.JSX.Element {
             tabIndex={-1}
             onMouseDown={(event) => event.stopPropagation()}
           >
+            <button
+              className="about-dialog__close"
+              type="button"
+              aria-label={t.commonClose}
+              title={t.commonClose}
+              onClick={() => setIsAboutOpen(false)}
+            >
+              <X aria-hidden="true" />
+            </button>
             <div className="about-dialog__mark" aria-hidden="true">{CROCODILE_MARK}</div>
             <p className="eyebrow">{t.aboutGitOdrile}</p>
             <h2 id="about-title">{t.aboutHeading}</h2>
             <p>{t.aboutDescription}</p>
             <dl className="about-details">
               <div><dt>{t.commonVersion}</dt><dd>{APP_VERSION}</dd></div>
-              <div><dt>{t.aboutBuiltWithLabel}</dt><dd>{t.aboutBuiltWithValue}</dd></div>
             </dl>
-            <button className="primary-button" type="button" onClick={() => setIsAboutOpen(false)}>
-              {t.commonClose}
-            </button>
+            <p className="about-dialog__footer">{t.aboutFooterMadeWith}</p>
           </div>
         </div>
       )}

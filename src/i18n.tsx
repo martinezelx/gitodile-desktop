@@ -29,6 +29,12 @@ export interface Translations {
   titlebarOpenCommandPalette: string;
   titlebarJumpToHint: string;
   titlebarJumpTo: string;
+  titlebarMoreActions: string;
+  titlebarHelpSection: string;
+  titlebarGoBack: string;
+  titlebarGoForward: string;
+  alphaBadge: string;
+  alphaBadgeAriaLabel: string;
   windowMinimize: string;
   windowMaximize: string;
   windowClose: string;
@@ -58,13 +64,44 @@ export interface Translations {
   commandUseLightTheme: string;
   commandUseDarkTheme: string;
 
-  overviewWorktreeBadge: string;
   overviewRepositoryBranch: (branch: string) => string;
   overviewWorktreeBranch: (branch: string) => string;
   overviewRepositoryDetached: string;
   overviewWorktreeDetached: string;
   overviewRepositoryUnborn: (branch: string) => string;
   overviewWorktreeUnborn: (branch: string) => string;
+  overviewLocalProject: string;
+  overviewSeparateWorkspace: string;
+  overviewProjectReady: string;
+  overviewWorktreeReady: string;
+  overviewUnbornReady: string;
+  overviewDetachedReady: string;
+  overviewOpenAnotherProject: string;
+  overviewProjectMenu: string;
+  overviewCurrentVersionLine: string;
+  overviewSpecificSavedVersion: string;
+  overviewNoSavedVersions: string;
+  overviewVersionLineDescription: string;
+  overviewDetachedDescription: string;
+  overviewUnbornDescription: string;
+  overviewProjectLocation: string;
+  overviewOpenedFrom: string;
+  overviewProjectType: string;
+  overviewRepositoryTypeDescription: string;
+  overviewWorktreeTypeDescription: string;
+  overviewTechnicalDetails: string;
+  overviewResolvedRoot: string;
+  overviewSelectedFolder: string;
+  overviewGitDirectory: string;
+  overviewCommonGitDirectory: string;
+  overviewProjectDetails: string;
+  overviewCopyPath: string;
+  overviewPathCopied: string;
+  overviewOpeningTitle: string;
+  overviewOpeningDescription: string;
+  overviewOpenFailedTitle: string;
+  overviewReviewChanges: string;
+  overviewReviewChangesTitle: string;
   overviewCloseProject: string;
   overviewEmptyTitle: string;
   overviewEmptyDescription: string;
@@ -152,8 +189,7 @@ export interface Translations {
   aboutGitOdrile: string;
   aboutHeading: string;
   aboutDescription: string;
-  aboutBuiltWithLabel: string;
-  aboutBuiltWithValue: string;
+  aboutFooterMadeWith: string;
   commonClose: string;
 
   closeConfirmTitle: string;
@@ -166,6 +202,12 @@ const en: Translations = {
   titlebarOpenCommandPalette: "Open command palette",
   titlebarJumpToHint: "Jump to a view or action",
   titlebarJumpTo: "Jump to…",
+  titlebarMoreActions: "More actions",
+  titlebarHelpSection: "Help",
+  titlebarGoBack: "Go back",
+  titlebarGoForward: "Go forward",
+  alphaBadge: "alpha",
+  alphaBadgeAriaLabel: "Development version: alpha",
   windowMinimize: "Minimize window",
   windowMaximize: "Maximize or restore window",
   windowClose: "Close window",
@@ -195,13 +237,44 @@ const en: Translations = {
   commandUseLightTheme: "Use light theme",
   commandUseDarkTheme: "Use dark theme",
 
-  overviewWorktreeBadge: "Worktree",
   overviewRepositoryBranch: (branch) => `Git project on version line “${branch}”.`,
   overviewWorktreeBranch: (branch) => `Separate workspace on version line “${branch}”.`,
   overviewRepositoryDetached: "Git project opened at a specific saved version.",
   overviewWorktreeDetached: "Separate workspace opened at a specific saved version.",
   overviewRepositoryUnborn: (branch) => `New Git project on version line “${branch}”, with no saved versions yet.`,
   overviewWorktreeUnborn: (branch) => `New separate workspace on version line “${branch}”, with no saved versions yet.`,
+  overviewLocalProject: "Local project",
+  overviewSeparateWorkspace: "Separate workspace",
+  overviewProjectReady: "Your project is ready",
+  overviewWorktreeReady: "Your separate workspace is ready",
+  overviewUnbornReady: "Your new project is ready",
+  overviewDetachedReady: "A specific saved version is open",
+  overviewOpenAnotherProject: "Open another project",
+  overviewProjectMenu: "Project actions",
+  overviewCurrentVersionLine: "Current version line",
+  overviewSpecificSavedVersion: "Specific saved version",
+  overviewNoSavedVersions: "No saved versions yet",
+  overviewVersionLineDescription: "New work will stay on this version line.",
+  overviewDetachedDescription: "You are inspecting an exact point in the project history.",
+  overviewUnbornDescription: "The first saved version will start this project’s history.",
+  overviewProjectLocation: "Project location",
+  overviewOpenedFrom: "Opened from a folder inside this project",
+  overviewProjectType: "Project type",
+  overviewRepositoryTypeDescription: "A standard project stored in this folder.",
+  overviewWorktreeTypeDescription: "A linked workspace with its own files and version line.",
+  overviewTechnicalDetails: "Technical project details",
+  overviewResolvedRoot: "Project root",
+  overviewSelectedFolder: "Folder you selected",
+  overviewGitDirectory: "Git directory",
+  overviewCommonGitDirectory: "Shared Git directory",
+  overviewProjectDetails: "Project details",
+  overviewCopyPath: "Copy project path",
+  overviewPathCopied: "Path copied",
+  overviewOpeningTitle: "Opening project…",
+  overviewOpeningDescription: "GitOdrile is checking the selected folder.",
+  overviewOpenFailedTitle: "We couldn’t open that project",
+  overviewReviewChanges: "Review changes",
+  overviewReviewChangesTitle: "Review changes — Coming soon",
   overviewCloseProject: "Close project",
   overviewEmptyTitle: "No project open",
   overviewEmptyDescription:
@@ -289,11 +362,10 @@ const en: Translations = {
   settingsLanguageDescription: 'Choose GitOdrile\'s language. "System" follows your operating system\'s language.',
   languageAriaLabel: "Language",
 
-  aboutGitOdrile: "About GitOdrile",
+  aboutGitOdrile: "About",
   aboutHeading: "Git without the bite.",
-  aboutDescription: "GitOdrile is a friendly desktop Git client that turns version control into clear, safe steps.",
-  aboutBuiltWithLabel: "Built with",
-  aboutBuiltWithValue: "Tauri, React, and Rust",
+  aboutDescription: "Turns version control into clear, worry-free steps.",
+  aboutFooterMadeWith: "Made with ♥ by Luis M. Martínez.",
   commonClose: "Close",
 
   closeConfirmTitle: "Close this project?",
@@ -306,6 +378,12 @@ const es: Translations = {
   titlebarOpenCommandPalette: "Abrir la paleta de comandos",
   titlebarJumpToHint: "Ir a una vista o acción",
   titlebarJumpTo: "Ir a…",
+  titlebarMoreActions: "Más acciones",
+  titlebarHelpSection: "Ayuda",
+  titlebarGoBack: "Atrás",
+  titlebarGoForward: "Adelante",
+  alphaBadge: "alpha",
+  alphaBadgeAriaLabel: "Versión en desarrollo: alpha",
   windowMinimize: "Minimizar ventana",
   windowMaximize: "Maximizar o restaurar ventana",
   windowClose: "Cerrar ventana",
@@ -335,7 +413,6 @@ const es: Translations = {
   commandUseLightTheme: "Usar el tema claro",
   commandUseDarkTheme: "Usar el tema oscuro",
 
-  overviewWorktreeBadge: "Árbol de trabajo",
   overviewRepositoryBranch: (branch) => `Proyecto de Git en la línea de versión «${branch}».`,
   overviewWorktreeBranch: (branch) => `Espacio de trabajo separado en la línea de versión «${branch}».`,
   overviewRepositoryDetached: "Proyecto de Git abierto en una versión guardada concreta.",
@@ -344,6 +421,38 @@ const es: Translations = {
     `Proyecto de Git nuevo en la línea de versión «${branch}», todavía sin versiones guardadas.`,
   overviewWorktreeUnborn: (branch) =>
     `Espacio de trabajo separado nuevo en la línea de versión «${branch}», todavía sin versiones guardadas.`,
+  overviewLocalProject: "Proyecto local",
+  overviewSeparateWorkspace: "Espacio de trabajo separado",
+  overviewProjectReady: "Tu proyecto está listo",
+  overviewWorktreeReady: "Tu espacio de trabajo separado está listo",
+  overviewUnbornReady: "Tu nuevo proyecto está listo",
+  overviewDetachedReady: "Hay abierta una versión guardada concreta",
+  overviewOpenAnotherProject: "Abrir otro proyecto",
+  overviewProjectMenu: "Acciones del proyecto",
+  overviewCurrentVersionLine: "Línea de versión actual",
+  overviewSpecificSavedVersion: "Versión guardada concreta",
+  overviewNoSavedVersions: "Todavía no hay versiones guardadas",
+  overviewVersionLineDescription: "El trabajo nuevo permanecerá en esta línea de versión.",
+  overviewDetachedDescription: "Estás inspeccionando un punto exacto del historial del proyecto.",
+  overviewUnbornDescription: "La primera versión guardada iniciará el historial de este proyecto.",
+  overviewProjectLocation: "Ubicación del proyecto",
+  overviewOpenedFrom: "Abierto desde una carpeta dentro de este proyecto",
+  overviewProjectType: "Tipo de proyecto",
+  overviewRepositoryTypeDescription: "Un proyecto estándar guardado en esta carpeta.",
+  overviewWorktreeTypeDescription: "Un espacio enlazado con sus propios archivos y línea de versión.",
+  overviewTechnicalDetails: "Detalles técnicos del proyecto",
+  overviewResolvedRoot: "Raíz del proyecto",
+  overviewSelectedFolder: "Carpeta que seleccionaste",
+  overviewGitDirectory: "Directorio de Git",
+  overviewCommonGitDirectory: "Directorio de Git compartido",
+  overviewProjectDetails: "Detalles del proyecto",
+  overviewCopyPath: "Copiar la ruta del proyecto",
+  overviewPathCopied: "Ruta copiada",
+  overviewOpeningTitle: "Abriendo el proyecto…",
+  overviewOpeningDescription: "GitOdrile está comprobando la carpeta seleccionada.",
+  overviewOpenFailedTitle: "No hemos podido abrir ese proyecto",
+  overviewReviewChanges: "Revisar cambios",
+  overviewReviewChangesTitle: "Revisar cambios — Próximamente",
   overviewCloseProject: "Cerrar proyecto",
   overviewEmptyTitle: "No hay ningún proyecto abierto",
   overviewEmptyDescription:
@@ -438,12 +547,10 @@ const es: Translations = {
   settingsLanguageDescription: 'Elige el idioma de GitOdrile. "Sistema" usa el idioma de tu sistema operativo.',
   languageAriaLabel: "Idioma",
 
-  aboutGitOdrile: "Acerca de GitOdrile",
+  aboutGitOdrile: "Acerca de",
   aboutHeading: "Git sin mordiscos.",
-  aboutDescription:
-    "GitOdrile es un cliente de Git de escritorio amigable que convierte el control de versiones en pasos claros y seguros.",
-  aboutBuiltWithLabel: "Hecho con",
-  aboutBuiltWithValue: "Tauri, React y Rust",
+  aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
+  aboutFooterMadeWith: "Hecho con ♥ por Luis M. Martínez.",
   commonClose: "Cerrar",
 
   closeConfirmTitle: "¿Cerrar este proyecto?",

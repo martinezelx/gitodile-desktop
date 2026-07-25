@@ -232,10 +232,11 @@ fn open_repository(path: String) -> Result<RepositoryInfo, AppError> {
                 .with_remediation("Choose a folder instead of a file."),
         );
     }
-    let selected_path = display_path(repo_path.canonicalize().map_err(|_| {
+    let selected_path_buf = repo_path.canonicalize().map_err(|_| {
         AppError::new(AppErrorCode::PathUnusable, "That folder can't be resolved.")
             .with_remediation("Check the folder permissions and try again.")
-    })?);
+    })?;
+    let selected_path = display_path(selected_path_buf.clone());
 
     let is_repo = run_git(&path, &["rev-parse", "--is-inside-work-tree"])?;
     if !is_repo.status.success() {
@@ -266,7 +267,11 @@ fn open_repository(path: String) -> Result<RepositoryInfo, AppError> {
     let git_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"])?)?;
     let common_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--git-common-dir"])?)?;
     let git_dir_path = normalized_path(&root_path, &git_dir_raw);
-    let common_dir_path = normalized_path(&root_path, &common_dir_raw);
+    // `--git-common-dir` is relative to the directory passed to `git -C`,
+    // not necessarily to the worktree root. Resolving it from `root_path`
+    // misclassified a normal repository when the user selected a nested
+    // folder (for example, `src` yields `../.git`).
+    let common_dir_path = normalized_path(&selected_path_buf, &common_dir_raw);
 
     // A linked worktree has its own Git directory but shares a common Git
     // directory with the main checkout.
@@ -874,6 +879,8 @@ mod tests {
             info.selected_path,
             display_path(nested.canonicalize().unwrap())
         );
+        assert!(matches!(info.kind, RepositoryKind::Repository));
+        assert_eq!(info.git_dir, info.common_git_dir);
 
         let _ = fs::remove_dir_all(&path);
     }
