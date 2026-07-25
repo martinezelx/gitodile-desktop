@@ -26,13 +26,26 @@ import {
   LoaderCircle,
   Menu,
   MoreHorizontal,
-  AlertTriangle,
   Copy,
   Check,
   X,
+  RefreshCw,
+  // Distinct glyphs on purpose: `AlertTriangle` is an alias of `TriangleAlert`,
+  // so reusing it would leave the error and needs-attention states identical
+  // apart from colour.
+  CircleAlert,
+  TriangleAlert,
+  FileDiff,
 } from "lucide-react";
 import { LANGUAGE_NAMES, LanguageProvider, useLanguage, type Language, type LanguagePreference } from "./i18n";
-import { getRepositoryOverviewState, type RepositoryInfo } from "./repositoryOverview";
+import {
+  getRepositoryOverviewState,
+  getWorkingTreeBreakdown,
+  getWorkingTreeSummary,
+  type ChangeCategory,
+  type RepositoryInfo,
+  type WorkingTreeStatus,
+} from "./repositoryOverview";
 import "./styles.css";
 
 type ThemePreference = "system" | "light" | "dark";
@@ -423,7 +436,15 @@ const FOLDER_ICON = <FolderOpen />;
  * `<details>` so it closes on Escape and on an outside click, and exposes the
  * expanded state to assistive technology.
  */
-function ProjectMenu({ onCloseProject }: { onCloseProject: () => void }): React.JSX.Element {
+function ProjectMenu({
+  onOpenProject,
+  onCloseProject,
+  isOpening,
+}: {
+  onOpenProject: () => void;
+  onCloseProject: () => void;
+  isOpening: boolean;
+}): React.JSX.Element {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -465,6 +486,17 @@ function ProjectMenu({ onCloseProject }: { onCloseProject: () => void }): React.
       </button>
       {isOpen && (
         <div className="project-menu__list" role="menu" aria-label={t.overviewProjectMenu}>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={isOpening}
+            onClick={() => {
+              setIsOpen(false);
+              onOpenProject();
+            }}
+          >
+            {isOpening ? t.overviewOpening : t.overviewOpenAnotherProject}
+          </button>
           <button
             type="button"
             role="menuitem"
@@ -522,16 +554,57 @@ function ProjectPath({ path }: { path: string }): React.JSX.Element {
   );
 }
 
+/**
+ * Announces a *finished refresh* without moving focus. Deliberately stays empty
+ * until a check has actually run and completed: mirroring the card's headline
+ * from the first render would make a screen reader read the same status twice.
+ */
+function StatusAnnouncement({ isBusy, message }: { isBusy: boolean; message: string }): React.JSX.Element {
+  const [announcement, setAnnouncement] = useState("");
+  const wasBusyRef = useRef(false);
+
+  useEffect(() => {
+    if (isBusy) {
+      wasBusyRef.current = true;
+      setAnnouncement("");
+    } else if (wasBusyRef.current) {
+      setAnnouncement(message);
+    }
+  }, [isBusy, message]);
+
+  return (
+    <span className="visually-hidden" role="status">
+      {announcement}
+    </span>
+  );
+}
+
+const CATEGORY_LABEL_KEYS = {
+  changed: "statusCategoryChanged",
+  new: "statusCategoryNew",
+  deleted: "statusCategoryDeleted",
+  renamed: "statusCategoryRenamed",
+  conflicted: "statusCategoryConflicted",
+} as const satisfies Record<ChangeCategory, keyof ReturnType<typeof useLanguage>["t"]>;
+
 function OverviewPanel({
   project,
   openError,
   isOpening,
+  workingTree,
+  workingTreeError,
+  isCheckingChanges,
+  onCheckChanges,
   onOpenProject,
   onCloseProject,
 }: {
   project: RepositoryInfo | null;
   openError: string | null;
   isOpening: boolean;
+  workingTree: WorkingTreeStatus | null;
+  workingTreeError: string | null;
+  isCheckingChanges: boolean;
+  onCheckChanges: () => void;
   onOpenProject: () => void;
   onCloseProject: () => void;
 }): React.JSX.Element {
@@ -543,18 +616,44 @@ function OverviewPanel({
     const versionValue = overview.isDetached
       ? t.overviewSpecificSavedVersion
       : (overview.versionLine ?? t.overviewNoSavedVersions);
-    const heroStatus = isOpening ? "loading" : openError ? "error" : "success";
-    const heroHeadline = isOpening
-      ? t.overviewOpeningTitle
-      : openError
-        ? t.overviewOpenFailedTitle
-        : t[overview.headlineKey];
-    const heroMessage = isOpening
-      ? t.overviewOpeningDescription
-      : (openError ?? repositoryStatus(project, t));
+
+    // The working tree is only unknown before the first check has finished, so
+    // the card never invents a count and never blanks out a known one while a
+    // later refresh is running.
+    const summary = workingTree ? getWorkingTreeSummary(workingTree) : null;
+    const breakdown = workingTree ? getWorkingTreeBreakdown(workingTree) : [];
+    const isLoading = isOpening || (isCheckingChanges && !workingTree);
+    const errorMessage = openError ?? (workingTree ? null : workingTreeError);
+
+    let heroStatus: "loading" | "error" | "success" | "attention" | "neutral";
+    let heroHeadline: string;
+    let heroMessage: string;
+    if (isLoading) {
+      heroStatus = "loading";
+      heroHeadline = isOpening ? t.overviewOpeningTitle : t.statusCheckingTitle;
+      heroMessage = isOpening ? t.overviewOpeningDescription : t.statusCheckingMessage;
+    } else if (errorMessage) {
+      heroStatus = "error";
+      heroHeadline = openError ? t.overviewOpenFailedTitle : t.statusCheckFailedTitle;
+      heroMessage = errorMessage;
+    } else if (summary) {
+      heroStatus = summary.tone === "positive" ? "success" : summary.tone;
+      heroHeadline = t[summary.headlineKey];
+      heroMessage =
+        summary.conflicted > 0
+          ? t.statusConflictsMessage(summary.conflicted)
+          : summary.total === 0
+            ? t.statusCleanMessage
+            : t.statusChangesMessage(summary.total);
+    } else {
+      // Reached only if a check has neither finished nor failed yet.
+      heroStatus = "success";
+      heroHeadline = t[overview.headlineKey];
+      heroMessage = repositoryStatus(project, t);
+    }
 
     return (
-      <div className="project-overview" aria-busy={isOpening}>
+      <div className="project-overview" aria-busy={isOpening || isCheckingChanges}>
         <header className="project-overview__header">
           <div className="project-overview__identity">
             <h1>{project.name}</h1>
@@ -570,7 +669,7 @@ function OverviewPanel({
               </li>
             </ul>
           </div>
-          <ProjectMenu onCloseProject={onCloseProject} />
+          <ProjectMenu onOpenProject={onOpenProject} onCloseProject={onCloseProject} isOpening={isOpening} />
         </header>
 
         <section
@@ -578,26 +677,59 @@ function OverviewPanel({
           aria-labelledby="project-hero-heading"
         >
           <div className="project-hero__icon" aria-hidden="true">
-            {isOpening ? <LoaderCircle /> : openError ? <AlertTriangle /> : <CheckCircle2 />}
+            {isLoading ? (
+              <LoaderCircle />
+            ) : errorMessage ? (
+              <CircleAlert />
+            ) : heroStatus === "attention" ? (
+              <TriangleAlert />
+            ) : heroStatus === "neutral" ? (
+              <FileDiff />
+            ) : (
+              <CheckCircle2 />
+            )}
           </div>
           <div className="project-hero__content">
             <h2 id="project-hero-heading">{heroHeadline}</h2>
-            {openError && !isOpening ? (
+            {errorMessage && !isLoading ? (
               <p key="hero-error" role="alert">
                 {heroMessage}
               </p>
             ) : (
               <p key="hero-message">{heroMessage}</p>
             )}
+            {/* A refresh that fails after a successful one keeps the known
+                status visible, but must still say the numbers are stale. */}
+            {workingTree && workingTreeError && !isCheckingChanges && (
+              <p className="project-hero__note" role="alert">
+                {t.statusRefreshFailedNote}
+              </p>
+            )}
+            {breakdown.length > 0 && (
+              <ul className="status-breakdown" aria-label={t.statusBreakdownLabel}>
+                {breakdown.map((item) => (
+                  <li
+                    key={item.category}
+                    className={`status-breakdown__item${item.category === "conflicted" ? " status-breakdown__item--attention" : ""}`}
+                  >
+                    {t[CATEGORY_LABEL_KEYS[item.category]](item.count)}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="project-hero__actions">
             <button
               className="primary-button project-hero__action"
               type="button"
-              onClick={onOpenProject}
-              disabled={isOpening}
+              onClick={onCheckChanges}
+              disabled={isCheckingChanges || isOpening}
             >
-              {isOpening ? t.overviewOpening : t.overviewOpenAnotherProject}
+              <RefreshCw
+                aria-hidden="true"
+                className={isCheckingChanges ? "icon--spinning" : undefined}
+              />
+              {isCheckingChanges ? t.statusRefreshing : t.statusRefresh}
             </button>
             <button
               className="secondary-button project-hero__action"
@@ -608,6 +740,7 @@ function OverviewPanel({
               {t.overviewReviewChanges}
             </button>
           </div>
+          <StatusAnnouncement isBusy={isCheckingChanges} message={`${heroHeadline}. ${heroMessage}`} />
         </section>
 
         <section className="project-facts" aria-labelledby="project-facts-heading">
@@ -1099,6 +1232,9 @@ function App(): React.JSX.Element {
   const [project, setProject] = useState<RepositoryInfo | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
+  const [workingTree, setWorkingTree] = useState<WorkingTreeStatus | null>(null);
+  const [workingTreeError, setWorkingTreeError] = useState<string | null>(null);
+  const [isCheckingChanges, setIsCheckingChanges] = useState(false);
   const [gitDiagnostics, setGitDiagnostics] = useState<GitDiagnostics | null>(null);
   const [isRefreshingGitDiagnostics, setIsRefreshingGitDiagnostics] = useState(false);
   const [gitUpdateStatus, setGitUpdateStatus] = useState<GitUpdateStatus | null>(null);
@@ -1203,6 +1339,34 @@ function App(): React.JSX.Element {
     // Only ever run once, on launch — reopenLastProject changing later
     // shouldn't retrigger an auto-open mid-session.
   }, []);
+
+  const projectPath = project?.path ?? null;
+
+  const checkWorkingTree = async (path: string): Promise<void> => {
+    setIsCheckingChanges(true);
+    try {
+      const status = await invoke<WorkingTreeStatus>("read_working_tree_status", { path });
+      setWorkingTree(status);
+      setWorkingTreeError(null);
+    } catch (error) {
+      // Keep the last known status visible; the card reports the failure only
+      // when it has nothing truthful to show instead.
+      setWorkingTreeError(localizeAppError(error, t, t.statusCouldntCheck));
+    } finally {
+      setIsCheckingChanges(false);
+    }
+  };
+
+  // Never asks for a status when no project is open, and re-reads whenever the
+  // opened project changes.
+  useEffect(() => {
+    setWorkingTree(null);
+    setWorkingTreeError(null);
+    if (!projectPath) {
+      return;
+    }
+    void checkWorkingTree(projectPath);
+  }, [projectPath]);
 
   const closeProject = (): void => {
     setProject(null);
@@ -1425,6 +1589,10 @@ function App(): React.JSX.Element {
               project={project}
               openError={openError}
               isOpening={isOpening}
+              workingTree={workingTree}
+              workingTreeError={workingTreeError}
+              isCheckingChanges={isCheckingChanges}
+              onCheckChanges={() => projectPath && void checkWorkingTree(projectPath)}
               onOpenProject={() => void handleOpenProject()}
               onCloseProject={requestCloseProject}
             />

@@ -436,7 +436,8 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   text-align: left;
   cursor: pointer;
 }
-.project-menu__list button:hover { background: var(--surface-hover); }
+.project-menu__list button:hover:not(:disabled) { background: var(--surface-hover); }
+.project-menu__list button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Dominant status card: one message, one primary action, three variants. */
 .project-hero {
@@ -464,6 +465,41 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
 .project-hero--error .project-hero__icon { color: var(--status-danger); }
 .project-hero--error { border-color: var(--status-danger); }
 .project-hero--loading .project-hero__icon svg { animation: spin 900ms linear infinite; }
+/* Unsaved work is an ordinary, expected state — neutral, not a warning. */
+.project-hero--neutral .project-hero__icon { color: var(--text-primary); }
+.project-hero--attention .project-hero__icon { color: var(--status-warning); }
+.project-hero--attention { border-color: var(--status-warning); }
+
+/* Category counts. Text carries the meaning; the conflict tint only reinforces
+   a distinction the label already makes. */
+.status-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.status-breakdown__item {
+  padding: 3px var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.status-breakdown__item--attention { border-color: var(--status-warning); color: var(--status-warning); }
+
+.project-hero__content .project-hero__note {
+  margin-top: var(--space-2);
+  color: var(--status-warning);
+  font-size: 13px;
+}
+
+.icon--spinning { animation: spin 900ms linear infinite; }
+.project-hero__action svg { width: 16px; height: 16px; }
 .project-hero__content { min-width: 0; }
 .project-hero__content h2 {
   margin-bottom: var(--space-1);
@@ -483,7 +519,14 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   flex-wrap: wrap;
   gap: var(--space-2);
 }
-.project-hero__action { min-height: 44px; white-space: nowrap; }
+.project-hero__action {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
 
 .project-facts { display: grid; gap: var(--space-3); }
 .project-facts__title {
@@ -718,7 +761,8 @@ summary:focus-visible,
   }
   .primary-button:hover { transform: none; }
   .empty-state__icon--loading svg,
-  .project-hero--loading .project-hero__icon svg { animation: none; }
+  .project-hero--loading .project-hero__icon svg,
+  .icon--spinning { animation: none; }
 }
 
 @media (max-width: 1100px) {

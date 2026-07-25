@@ -34,6 +34,63 @@ export type RepositoryOverviewState = {
     | "overviewDetachedDescription";
 };
 
+/** Mirrors the Rust `ChangeCategory`: what happened to a file, not where Git
+ * recorded it. The index/worktree split belongs to the save-version flow. */
+export type ChangeCategory = "changed" | "new" | "deleted" | "renamed" | "conflicted";
+
+export type WorkingTreeEntry = {
+  path: string;
+  originalPath: string | null;
+  category: ChangeCategory;
+};
+
+export type WorkingTreeCounts = Record<ChangeCategory, number> & { total: number };
+
+export type WorkingTreeStatus = {
+  isClean: boolean;
+  counts: WorkingTreeCounts;
+  entries: WorkingTreeEntry[];
+  /** The entry list is capped for very large statuses; `counts` never is. */
+  truncated: boolean;
+  /** Captured from `--branch` but not presented until the remote work exists. */
+  upstream: {
+    branch: string | null;
+    upstream: string | null;
+    ahead: number;
+    behind: number;
+  };
+};
+
+export type WorkingTreeSummary = {
+  /** Conflicts need attention; a clean tree is a finished state, not an empty one. */
+  tone: "positive" | "attention" | "neutral";
+  headlineKey: "statusCleanTitle" | "statusChangesTitle" | "statusConflictsTitle";
+  total: number;
+  conflicted: number;
+};
+
+/** Category counts worth showing, in a fixed reading order, zeroes omitted. */
+const BREAKDOWN_ORDER: ChangeCategory[] = ["conflicted", "changed", "new", "deleted", "renamed"];
+
+export function getWorkingTreeSummary(status: WorkingTreeStatus): WorkingTreeSummary {
+  const conflicted = status.counts.conflicted;
+  if (conflicted > 0) {
+    return { tone: "attention", headlineKey: "statusConflictsTitle", total: status.counts.total, conflicted };
+  }
+  if (status.counts.total === 0) {
+    return { tone: "positive", headlineKey: "statusCleanTitle", total: 0, conflicted: 0 };
+  }
+  return { tone: "neutral", headlineKey: "statusChangesTitle", total: status.counts.total, conflicted: 0 };
+}
+
+export function getWorkingTreeBreakdown(
+  status: WorkingTreeStatus,
+): { category: ChangeCategory; count: number }[] {
+  return BREAKDOWN_ORDER.map((category) => ({ category, count: status.counts[category] })).filter(
+    (item) => item.count > 0,
+  );
+}
+
 export function getRepositoryOverviewState(project: RepositoryInfo): RepositoryOverviewState {
   const isDetached = project.headState === "detached";
   const isUnborn = project.headState === "unborn";

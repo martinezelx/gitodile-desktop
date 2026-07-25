@@ -90,40 +90,40 @@ index/working-tree split as the primary concept.
 
 # Acceptance criteria
 
-- [ ] A Tauri command returns a typed working-tree status for an opened
+- [x] A Tauri command returns a typed working-tree status for an opened
       repository, with Git execution and parsing in Rust.
-- [ ] Parsing uses `--porcelain=v2` with `-z`, so paths containing spaces,
+- [x] Parsing uses `--porcelain=v2` with `-z`, so paths containing spaces,
       quotes, non-ASCII characters, or newlines survive intact.
-- [ ] Changed, new, deleted, renamed, and conflicted entries are each
+- [x] Changed, new, deleted, renamed, and conflicted entries are each
       classified correctly, and renames retain both paths.
-- [ ] A repository with no changes reports an explicit clean state.
-- [ ] An unborn branch reports its status without error.
-- [ ] A detached HEAD reports its status without claiming a branch.
-- [ ] A linked worktree reports its own working tree, not the main checkout's.
-- [ ] Failures — Git missing, the repository disappearing, a command failing —
+- [x] A repository with no changes reports an explicit clean state.
+- [x] An unborn branch reports its status without error.
+- [x] A detached HEAD reports its status without claiming a branch.
+- [x] A linked worktree reports its own working tree, not the main checkout's.
+- [x] Failures — Git missing, the repository disappearing, a command failing —
       return the structured `{ code, message, remediation }` contract and are
       localized in the interface.
-- [ ] The Overview's primary card states the real number of changed files in
+- [x] The Overview's primary card states the real number of changed files in
       plain language, with correct singular and plural forms in both languages,
       and never displays a count that was not derived from a typed result.
-- [ ] The clean state reads as a positive, finished state rather than an empty
+- [x] The clean state reads as a positive, finished state rather than an empty
       one.
-- [ ] Conflicted files are surfaced distinctly and are not counted as ordinary
+- [x] Conflicted files are surfaced distinctly and are not counted as ordinary
       changes.
-- [ ] Refreshing exposes a busy state, does not clear the previously known
+- [x] Refreshing exposes a busy state, does not clear the previously known
       status while loading, and announces a material change accessibly without
       stealing focus.
-- [ ] State is never conveyed by color or icon alone.
-- [ ] The status is not requested when no project is open.
-- [ ] Parser unit tests cover clean, staged-only, unstaged-only, mixed,
+- [x] State is never conveyed by color or icon alone.
+- [x] The status is not requested when no project is open.
+- [x] Parser unit tests cover clean, staged-only, unstaged-only, mixed,
       untracked, renamed, deleted, conflicted, unborn, and detached fixtures.
-- [ ] Temporary-repository tests cover a clean repository, a repository with
+- [x] Temporary-repository tests cover a clean repository, a repository with
       changes, an unborn branch, and a linked worktree.
 - [ ] A repository with a large number of changed files renders without
       freezing the interface, and the summary remains readable.
-- [ ] The required frontend and Rust checks pass.
-- [ ] New copy is complete in English and Spanish.
-- [ ] The Overview remains usable at approximately 1024px, at 200% text zoom,
+- [x] The required frontend and Rust checks pass.
+- [x] New copy is complete in English and Spanish.
+- [x] The Overview remains usable at approximately 1024px, at 200% text zoom,
       and in both themes with the new card.
 - [ ] The new state has been verified in the real desktop app against a clean
       repository, a repository with mixed changes, and a conflicted repository.
@@ -172,9 +172,76 @@ index/working-tree split as the primary concept.
 
 # Implementation notes
 
-Complete this section during implementation.
+- `src-tauri/src/lib.rs`: added `read_working_tree_status(path)`, a
+  `parse_status_porcelain_v2` parser, and the `ChangeCategory`,
+  `WorkingTreeEntry`, `WorkingTreeCounts`, `UpstreamStatus`, and
+  `WorkingTreeStatus` types. The command runs
+  `git status --porcelain=v2 --branch --untracked-files=all --renames -z`.
+  `--renames` is passed explicitly so a repository configured with
+  `status.renames=false` still reports a rename as a rename rather than a
+  delete plus an add.
+- The parser works on raw bytes, not the trimmed `String` the existing helpers
+  return, because `-z` output is NUL-separated and must not be trimmed. The
+  subtle part is that a rename record spans **two** NUL-separated fields — the
+  record and then the original path — so the parser advances the iterator an
+  extra step for `2 ` records. Getting this wrong silently shifts every
+  subsequent entry by one.
+- Classification is by what happened to the file, not by where Git recorded it:
+  a staged modification and an unstaged one are both "changed". The
+  index/worktree split stays hidden until the save-version flow owns it.
+- The entry list is capped at `MAX_REPORTED_ENTRIES` (1000) with a `truncated`
+  flag; counts are never capped, so the summary stays exact for any repository
+  size.
+- `src/repositoryOverview.ts`: added the mirrored TypeScript types plus
+  `getWorkingTreeSummary` and `getWorkingTreeBreakdown`. Conflicts outrank the
+  plain change count, and a clean tree resolves to a positive tone rather than
+  an empty one.
+- `src/main.tsx`: the Overview's primary card now renders the working-tree
+  summary with `success`/`neutral`/`attention`/`loading`/`error` variants and a
+  chip row of category counts. A refresh runs on open and whenever the opened
+  project changes, never when no project is open, and a failed refresh keeps
+  the last known status rather than blanking the card.
+- **Action layout changed.** "Check for changes" became the card's enabled
+  primary action, "Review changes" stays disabled with "Coming soon" until the
+  Changes screen exists, and "Open another project" moved into the project
+  menu next to "Close project" — which is where task 001's specification
+  already allowed it. Three buttons in the card was one too many.
+- A visually-hidden `role="status"` announces the finished summary, so a
+  refresh is reported without moving focus.
+- **Review pass before commit** found three defects, all fixed:
+  - a refresh that failed *after* a successful one was swallowed silently — the
+    card kept showing stale numbers with no sign the check had failed. It now
+    keeps the known status and adds a `role="alert"` note saying the figures
+    are the last readable result;
+  - the live region mirrored the card's headline and message from first render,
+    so a screen reader read the whole status twice. `StatusAnnouncement` now
+    stays empty until a check has actually run and completed;
+  - the error and needs-attention states used the same glyph, because
+    `AlertTriangle` is a lucide alias of `TriangleAlert`. With colour as the
+    only remaining difference this broke the "never state by colour alone"
+    rule. Error now uses `CircleAlert`, attention keeps `TriangleAlert`.
 
 # Validation
 
-Record the exact commands run and their results. Do not claim checks passed
-unless they were executed successfully.
+- `pnpm run check:frontend` — pass (typecheck, 13 tests, build).
+- `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
+  --all-features -- -D warnings` — pass, no warnings.
+- `cargo test --manifest-path src-tauri/Cargo.toml` — pass, 29 tests
+  (13 new: 8 parser fixtures, 5 temporary-repository cases).
+- Card variants exercised in the running dev server with substituted status
+  values: clean renders `project-hero--success` with no chips; a mixed status
+  renders `project-hero--neutral`, "5 archivos han cambiado…", and the chips
+  "3 editados / 1 nuevo / 1 eliminado"; a conflicted status renders
+  `project-hero--attention` with "2 necesitan atención" first.
+- No horizontal page scroll and no overflowing element at 1280px, 1024px, or
+  512px (1024px at 200% zoom) with a 20-file status and all five chips.
+
+## Still open
+
+- Large-repository rendering has not been measured against a real repository
+  with thousands of changed files. The entry cap is unit-tested, but the
+  interface behaviour under that load is unverified.
+- The real desktop pass over clean, mixed, and conflicted repositories has not
+  been done; the checks above ran in the browser dev server, where `invoke` is
+  unavailable and status values had to be substituted.

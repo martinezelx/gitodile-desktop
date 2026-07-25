@@ -316,6 +316,249 @@ fn open_repository(path: String) -> Result<RepositoryInfo, AppError> {
     })
 }
 
+/// Product-level meaning of a change, rather than Git's index/worktree split.
+/// The staging model belongs to the save-version flow, not to this summary.
+#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+enum ChangeCategory {
+    Changed,
+    New,
+    Deleted,
+    Renamed,
+    Conflicted,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct WorkingTreeEntry {
+    path: String,
+    /// Only set for renames: where the file came from.
+    original_path: Option<String>,
+    category: ChangeCategory,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+struct WorkingTreeCounts {
+    changed: usize,
+    #[serde(rename = "new")]
+    new_files: usize,
+    deleted: usize,
+    renamed: usize,
+    conflicted: usize,
+    total: usize,
+}
+
+/// Captured because `--branch` provides it for free. Task 007 does not present
+/// it: explaining ahead/behind needs the remote contracts from a later phase.
+#[derive(serde::Serialize, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+struct UpstreamStatus {
+    branch: Option<String>,
+    upstream: Option<String>,
+    ahead: u32,
+    behind: u32,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+struct WorkingTreeStatus {
+    is_clean: bool,
+    counts: WorkingTreeCounts,
+    entries: Vec<WorkingTreeEntry>,
+    /// True when more files changed than `MAX_REPORTED_ENTRIES`. The counts
+    /// stay exact; only the per-file list is capped.
+    truncated: bool,
+    upstream: UpstreamStatus,
+}
+
+/// Enough to populate a file list without shipping a pathological status
+/// (a fresh clone of a huge tree, a reformatting commit) across the IPC
+/// boundary. Counts are never truncated, so the summary stays truthful.
+const MAX_REPORTED_ENTRIES: usize = 1000;
+
+/// Classifies an ordinary `1 <XY>` record. `X` is the index status and `Y` the
+/// worktree status; either may be `.` for "unchanged there".
+fn categorize_ordinary(index_status: u8, worktree_status: u8) -> ChangeCategory {
+    if index_status == b'D' || worktree_status == b'D' {
+        ChangeCategory::Deleted
+    } else if index_status == b'A' {
+        ChangeCategory::New
+    } else {
+        ChangeCategory::Changed
+    }
+}
+
+fn parse_ahead_behind(value: &str) -> (u32, u32) {
+    let mut ahead = 0;
+    let mut behind = 0;
+    for field in value.split_whitespace() {
+        let (sign, digits) = field.split_at(1);
+        let parsed = digits.parse::<u32>().unwrap_or(0);
+        match sign {
+            "+" => ahead = parsed,
+            "-" => behind = parsed,
+            _ => {}
+        }
+    }
+    (ahead, behind)
+}
+
+/// Parses `git status --porcelain=v2 --branch -z` output.
+///
+/// The `-z` form is NUL-separated and leaves paths verbatim, which is the only
+/// way to survive paths containing spaces, quotes, or newlines. Note that a
+/// rename record spans two NUL-separated fields: the record itself and the
+/// original path.
+fn parse_status_porcelain_v2(stdout: &[u8]) -> WorkingTreeStatus {
+    let mut status = WorkingTreeStatus::default();
+    let mut fields = stdout
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty());
+
+    while let Some(field) = fields.next() {
+        let record = String::from_utf8_lossy(field);
+
+        if let Some(header) = record.strip_prefix("# ") {
+            if let Some(head) = header.strip_prefix("branch.head ") {
+                // `(detached)` is Git's placeholder, not a branch name.
+                status.upstream.branch = match head {
+                    "(detached)" => None,
+                    value => Some(value.to_string()),
+                };
+            } else if let Some(upstream) = header.strip_prefix("branch.upstream ") {
+                status.upstream.upstream = Some(upstream.to_string());
+            } else if let Some(ab) = header.strip_prefix("branch.ab ") {
+                let (ahead, behind) = parse_ahead_behind(ab);
+                status.upstream.ahead = ahead;
+                status.upstream.behind = behind;
+            }
+            continue;
+        }
+
+        let (category, path, original_path) = match record.as_bytes().first() {
+            // `1 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>`
+            Some(b'1') => {
+                let Some(rest) = record.strip_prefix("1 ") else {
+                    continue;
+                };
+                let mut parts = rest.splitn(8, ' ');
+                let Some(xy) = parts.next() else { continue };
+                let Some(path) = parts.nth(6) else { continue };
+                let xy = xy.as_bytes();
+                if xy.len() < 2 {
+                    continue;
+                }
+                (categorize_ordinary(xy[0], xy[1]), path.to_string(), None)
+            }
+            // `2 ... <path>` followed by a separate NUL-terminated original path.
+            Some(b'2') => {
+                let Some(rest) = record.strip_prefix("2 ") else {
+                    continue;
+                };
+                let Some(path) = rest.splitn(9, ' ').nth(8) else {
+                    continue;
+                };
+                let original = fields
+                    .next()
+                    .map(|value| String::from_utf8_lossy(value).to_string());
+                (ChangeCategory::Renamed, path.to_string(), original)
+            }
+            // `u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>`
+            Some(b'u') => {
+                let Some(rest) = record.strip_prefix("u ") else {
+                    continue;
+                };
+                let Some(path) = rest.splitn(10, ' ').nth(9) else {
+                    continue;
+                };
+                (ChangeCategory::Conflicted, path.to_string(), None)
+            }
+            Some(b'?') => {
+                let Some(path) = record.strip_prefix("? ") else {
+                    continue;
+                };
+                (ChangeCategory::New, path.to_string(), None)
+            }
+            // `!` ignored entries are never requested, and anything else is
+            // output this parser does not model.
+            _ => continue,
+        };
+
+        match category {
+            ChangeCategory::Changed => status.counts.changed += 1,
+            ChangeCategory::New => status.counts.new_files += 1,
+            ChangeCategory::Deleted => status.counts.deleted += 1,
+            ChangeCategory::Renamed => status.counts.renamed += 1,
+            ChangeCategory::Conflicted => status.counts.conflicted += 1,
+        }
+        status.counts.total += 1;
+
+        if status.entries.len() < MAX_REPORTED_ENTRIES {
+            status.entries.push(WorkingTreeEntry {
+                path,
+                original_path,
+                category,
+            });
+        } else {
+            status.truncated = true;
+        }
+    }
+
+    status.is_clean = status.counts.total == 0;
+    status
+}
+
+#[tauri::command]
+fn read_working_tree_status(path: String) -> Result<WorkingTreeStatus, AppError> {
+    let repo_path = Path::new(&path);
+    let metadata = repo_path.metadata().map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            AppError::new(
+                AppErrorCode::PathMissing,
+                "This project's folder is no longer there.",
+            )
+            .with_remediation("Open the project again, or choose another folder.")
+        } else {
+            AppError::new(
+                AppErrorCode::PathUnusable,
+                "This project's folder can't be read.",
+            )
+            .with_remediation("Check the folder permissions and try again.")
+        }
+    })?;
+    if !metadata.is_dir() {
+        return Err(AppError::new(
+            AppErrorCode::PathUnusable,
+            "This project's path isn't a folder any more.",
+        )
+        .with_remediation("Open the project again."));
+    }
+
+    let output = run_git(
+        &path,
+        &[
+            "status",
+            "--porcelain=v2",
+            "--branch",
+            "--untracked-files=all",
+            // Explicit so a repository that sets `status.renames=false` still
+            // reports a rename as a rename, not as a delete plus an add.
+            "--renames",
+            "-z",
+        ],
+    )?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't check what changed in this project.",
+        )
+        .with_remediation("Check that the folder and its Git metadata are readable."));
+    }
+
+    Ok(parse_status_porcelain_v2(&output.stdout))
+}
+
 #[tauri::command]
 fn git_diagnostics() -> GitDiagnostics {
     let attempt = match base_git_command().arg("--version").output() {
@@ -790,6 +1033,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_status,
             open_repository,
+            read_working_tree_status,
             git_diagnostics,
             install_git,
             update_git,
@@ -1160,5 +1404,243 @@ mod tests {
         let error = set_git_identity_with_override(" ", "ada@example.com", None)
             .expect_err("empty name should be rejected");
         assert_eq!(error.code, AppErrorCode::InvalidIdentity);
+    }
+
+    /// Joins porcelain-v2 records the way `-z` emits them: every record, and
+    /// every rename's original path, is its own NUL-terminated field.
+    fn porcelain_v2(records: &[&str]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for record in records {
+            bytes.extend_from_slice(record.as_bytes());
+            bytes.push(0);
+        }
+        bytes
+    }
+
+    const HASHES: &str = "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 \
+                          e69de29bb2d1d6434b8b29ae775ad8c2e48c5391";
+
+    #[test]
+    fn status_parser_reports_a_clean_repository() {
+        let status = parse_status_porcelain_v2(&porcelain_v2(&[
+            "# branch.oid 1234567890abcdef1234567890abcdef12345678",
+            "# branch.head main",
+        ]));
+
+        assert!(status.is_clean);
+        assert_eq!(status.counts, WorkingTreeCounts::default());
+        assert!(status.entries.is_empty());
+        assert!(!status.truncated);
+        assert_eq!(status.upstream.branch, Some("main".to_string()));
+    }
+
+    #[test]
+    fn status_parser_separates_staged_and_unstaged_modifications() {
+        let staged = parse_status_porcelain_v2(&porcelain_v2(&[&format!(
+            "1 M. N... 100644 100644 100644 {HASHES} staged.txt"
+        )]));
+        let unstaged = parse_status_porcelain_v2(&porcelain_v2(&[&format!(
+            "1 .M N... 100644 100644 100644 {HASHES} unstaged.txt"
+        )]));
+
+        // Both are simply "changed" to the user: the index/worktree split is
+        // not the product's primary concept.
+        for status in [staged, unstaged] {
+            assert!(!status.is_clean);
+            assert_eq!(status.counts.changed, 1);
+            assert_eq!(status.counts.total, 1);
+            assert_eq!(status.entries[0].category, ChangeCategory::Changed);
+        }
+    }
+
+    #[test]
+    fn status_parser_classifies_every_category_in_a_mixed_status() {
+        let status = parse_status_porcelain_v2(&porcelain_v2(&[
+            "# branch.head main",
+            "# branch.upstream origin/main",
+            "# branch.ab +2 -3",
+            &format!("1 .M N... 100644 100644 100644 {HASHES} changed.txt"),
+            &format!("1 A. N... 100644 100644 100644 {HASHES} added.txt"),
+            &format!("1 .D N... 100644 100644 000000 {HASHES} deleted.txt"),
+            &format!("2 R. N... 100644 100644 100644 {HASHES} R100 renamed-new.txt"),
+            "renamed-old.txt",
+            &format!("u UU N... 100644 100644 100644 100644 {HASHES} e69de29 conflict.txt"),
+            "? untracked.txt",
+        ]));
+
+        assert_eq!(
+            status.counts,
+            WorkingTreeCounts {
+                changed: 1,
+                new_files: 2,
+                deleted: 1,
+                renamed: 1,
+                conflicted: 1,
+                total: 6,
+            }
+        );
+        assert!(!status.is_clean);
+        assert_eq!(status.upstream.upstream, Some("origin/main".to_string()));
+        assert_eq!(status.upstream.ahead, 2);
+        assert_eq!(status.upstream.behind, 3);
+    }
+
+    #[test]
+    fn status_parser_keeps_both_sides_of_a_rename() {
+        let status = parse_status_porcelain_v2(&porcelain_v2(&[
+            &format!("2 R. N... 100644 100644 100644 {HASHES} R100 new name.txt"),
+            "old name.txt",
+        ]));
+
+        assert_eq!(status.counts.renamed, 1);
+        assert_eq!(status.entries[0].category, ChangeCategory::Renamed);
+        assert_eq!(status.entries[0].path, "new name.txt");
+        assert_eq!(
+            status.entries[0].original_path,
+            Some("old name.txt".to_string())
+        );
+    }
+
+    #[test]
+    fn status_parser_preserves_paths_with_spaces_and_non_ascii_characters() {
+        let status = parse_status_porcelain_v2(&porcelain_v2(&[
+            &format!("1 .M N... 100644 100644 100644 {HASHES} src/a file — ñ.txt"),
+            "? another new file.md",
+        ]));
+
+        assert_eq!(status.entries[0].path, "src/a file — ñ.txt");
+        assert_eq!(status.entries[1].path, "another new file.md");
+    }
+
+    #[test]
+    fn status_parser_does_not_present_a_detached_head_as_a_branch() {
+        let status = parse_status_porcelain_v2(&porcelain_v2(&[
+            "# branch.oid 1234567890abcdef1234567890abcdef12345678",
+            "# branch.head (detached)",
+        ]));
+
+        assert_eq!(status.upstream.branch, None);
+        assert!(status.is_clean);
+    }
+
+    #[test]
+    fn status_parser_reports_an_unborn_branch_without_error() {
+        let status = parse_status_porcelain_v2(&porcelain_v2(&[
+            "# branch.oid (initial)",
+            "# branch.head main",
+            "? first.txt",
+        ]));
+
+        assert_eq!(status.upstream.branch, Some("main".to_string()));
+        assert_eq!(status.counts.new_files, 1);
+        assert!(!status.is_clean);
+    }
+
+    #[test]
+    fn status_parser_caps_the_entry_list_but_never_the_counts() {
+        let records: Vec<String> = (0..MAX_REPORTED_ENTRIES + 25)
+            .map(|index| format!("? file-{index}.txt"))
+            .collect();
+        let borrowed: Vec<&str> = records.iter().map(String::as_str).collect();
+
+        let status = parse_status_porcelain_v2(&porcelain_v2(&borrowed));
+
+        assert!(status.truncated);
+        assert_eq!(status.entries.len(), MAX_REPORTED_ENTRIES);
+        assert_eq!(status.counts.new_files, MAX_REPORTED_ENTRIES + 25);
+        assert_eq!(status.counts.total, MAX_REPORTED_ENTRIES + 25);
+    }
+
+    fn write_file(repo_path: &str, name: &str, contents: &str) {
+        fs::write(Path::new(repo_path).join(name), contents).expect("write test file");
+    }
+
+    #[test]
+    fn read_working_tree_status_reports_a_clean_repository() {
+        let path = unique_temp_dir("status-clean");
+        git_init(&path);
+        git_commit_empty(&path);
+
+        let status = read_working_tree_status(path.clone()).expect("a repository should report");
+        assert!(status.is_clean);
+        assert_eq!(status.counts.total, 0);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_status_reports_real_changes() {
+        let path = unique_temp_dir("status-dirty");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "untracked.txt", "hello");
+
+        let status = read_working_tree_status(path.clone()).expect("a repository should report");
+        assert!(!status.is_clean);
+        assert_eq!(status.counts.new_files, 1);
+        assert_eq!(status.counts.total, 1);
+        assert_eq!(status.entries[0].path, "untracked.txt");
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_status_handles_an_unborn_branch() {
+        let path = unique_temp_dir("status-unborn");
+        git_init(&path);
+        write_file(&path, "first.txt", "hello");
+
+        let status =
+            read_working_tree_status(path.clone()).expect("an unborn branch should report");
+        assert_eq!(status.counts.new_files, 1);
+        assert!(!status.is_clean);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_status_reports_a_linked_worktree_separately() {
+        let path = unique_temp_dir("status-worktree");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "only-in-main.txt", "hello");
+
+        let worktree = Path::new(&path).join("linked");
+        let created = git_command(&path)
+            .args(["worktree", "add", "-q", "-b", "linked-branch"])
+            .arg(&worktree)
+            .status()
+            .expect("run git worktree add");
+        assert!(created.success(), "git worktree add should succeed");
+
+        let status = read_working_tree_status(worktree.to_string_lossy().to_string())
+            .expect("a linked worktree should report");
+
+        // The untracked file lives in the main checkout, not here.
+        assert!(status.is_clean);
+        assert_eq!(status.upstream.branch, Some("linked-branch".to_string()));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_status_rejects_a_missing_folder() {
+        let path = unique_temp_dir("status-missing");
+        let _ = fs::remove_dir_all(&path);
+
+        let error = read_working_tree_status(path).expect_err("a missing folder should fail");
+        assert_eq!(error.code, AppErrorCode::PathMissing);
+        assert!(error.remediation.is_some());
+    }
+
+    #[test]
+    fn read_working_tree_status_rejects_a_non_repository_folder() {
+        let path = unique_temp_dir("status-non-repo");
+
+        let error = read_working_tree_status(path.clone())
+            .expect_err("a folder outside a repository should fail");
+        assert_eq!(error.code, AppErrorCode::GitCommandFailed);
+
+        let _ = fs::remove_dir_all(&path);
     }
 }
