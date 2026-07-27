@@ -18,10 +18,12 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 - Detect changes caused only by line-ending normalization.
 - Design repository watching, cancellation, and large-repository performance
   tests before adding continuous background refresh.
+- Benchmark the complete Changes and save-version workflow with thousands of
+  changed files once both flows exist; cover Rust parsing, Tauri payloads,
+  list/diff rendering, refresh cancellation, and interaction responsiveness.
 
 ## Save and history
 
-- Create a safe “Save version” flow.
 - Generate optional commit message suggestions locally or through an opt-in AI provider.
 - Present history as an understandable timeline.
 - Compare two saved versions.
@@ -32,7 +34,6 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 ## Sync and collaboration
 
 - Detect remotes and upstream configuration.
-- Implement safe fetch and publish flows.
 - Explain ahead/behind state without hiding exact Git details.
 - Guide users through overlapping changes.
 - Support GitHub authentication after the local workflow is stable.

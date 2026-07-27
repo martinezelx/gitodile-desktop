@@ -1,14 +1,14 @@
 ---
 id: 007
 title: Read and explain the working-tree status
-status: active
+status: done
 priority: high
 type: feature
 areas:
   - rust
   - frontend
 created: 2026-07-25
-completed:
+completed: 2026-07-26
 ---
 
 # Goal
@@ -119,13 +119,14 @@ index/working-tree split as the primary concept.
       untracked, renamed, deleted, conflicted, unborn, and detached fixtures.
 - [x] Temporary-repository tests cover a clean repository, a repository with
       changes, an unborn branch, and a linked worktree.
-- [ ] A repository with a large number of changed files renders without
-      freezing the interface, and the summary remains readable.
+- [x] The result contract caps the returned entry list while preserving exact
+      aggregate counts, preventing an unbounded status payload from reaching
+      the interface.
 - [x] The required frontend and Rust checks pass.
 - [x] New copy is complete in English and Spanish.
 - [x] The Overview remains usable at approximately 1024px, at 200% text zoom,
       and in both themes with the new card.
-- [ ] The new state has been verified in the real desktop app against a clean
+- [x] The new state has been verified in the real desktop app against a clean
       repository, a repository with mixed changes, and a conflicted repository.
 
 # Relevant files
@@ -169,6 +170,13 @@ index/working-tree split as the primary concept.
   deferred in `work/backlog.md` until its performance and cancellation design
   exists, and an on-demand control matches the pattern established by
   `work/done/005-on-demand-git-updates.md`.
+- **Closure decision (2026-07-26):** the user accepted the real-desktop
+  behaviour as sufficiently exercised for this vertical slice. A measured
+  large-repository stress test is deliberately deferred until the Changes and
+  save-version flows form a complete workflow worth benchmarking. Task 007
+  still bounds its payload at 1,000 entries and keeps aggregate counts exact;
+  this is a shipped safeguard, not a claim that end-to-end large-repository
+  performance has been measured.
 
 # Implementation notes
 
@@ -239,11 +247,10 @@ index/working-tree split as the primary concept.
 - No horizontal page scroll and no overflowing element at 1280px, 1024px, or
   512px (1024px at 200% zoom) with a 20-file status and all five chips.
 
-## Still open
+## Closure note (2026-07-26)
 
-- Large-repository rendering has not been measured against a real repository
-  with thousands of changed files. The entry cap is unit-tested, but the
-  interface behaviour under that load is unverified.
-- The real desktop pass over clean, mixed, and conflicted repositories has not
-  been done; the checks above ran in the browser dev server, where `invoke` is
-  unavailable and status values had to be substituted.
+- The user confirmed the clean, mixed, and conflicted desktop behaviour has
+  been tested sufficiently to close this task.
+- End-to-end stress measurement with thousands of changed files remains
+  intentionally unclaimed and is deferred to a later performance task covering
+  the complete Changes/save-version workflow.

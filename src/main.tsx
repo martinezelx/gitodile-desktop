@@ -27,6 +27,7 @@ import {
   Menu,
   MoreHorizontal,
   Copy,
+  Square,
   Check,
   X,
   RefreshCw,
@@ -46,24 +47,12 @@ import {
   type RepositoryInfo,
   type WorkingTreeStatus,
 } from "./repositoryOverview";
+import { localizeAppError } from "./appError";
+import { ChangesPanel } from "./changes";
 import "./styles.css";
 
 type ThemePreference = "system" | "light" | "dark";
-type View = "overview" | "settings";
-type AppError = {
-  code:
-    | "path_missing"
-    | "path_unusable"
-    | "not_repository"
-    | "bare_repository"
-    | "git_missing"
-    | "git_unusable"
-    | "git_command_failed"
-    | "invalid_identity"
-    | "git_config_write_failed";
-  message: string;
-  remediation: string | null;
-};
+type View = "overview" | "changes" | "settings";
 type GitDiagnostics = {
   state: "available" | "missing" | "unusable" | "check_failed";
   version: string | null;
@@ -158,29 +147,6 @@ const LAST_PROJECT_PATH_STORAGE_KEY = "gitodrile-last-project-path";
 const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
 const APP_VERSION = "0.1.0";
-
-function isAppError(value: unknown): value is AppError {
-  return typeof value === "object" && value !== null && "code" in value && "message" in value;
-}
-
-function localizeAppError(error: unknown, t: ReturnType<typeof useLanguage>["t"], fallback: string): string {
-  if (!isAppError(error)) {
-    return typeof error === "string" ? error : fallback;
-  }
-
-  const messages: Record<AppError["code"], string> = {
-    path_missing: t.errorPathMissing,
-    path_unusable: t.errorPathUnusable,
-    not_repository: t.errorNotRepository,
-    bare_repository: t.errorBareRepository,
-    git_missing: t.errorGitMissing,
-    git_unusable: t.errorGitUnusable,
-    git_command_failed: t.errorGitCommandFailed,
-    invalid_identity: t.errorInvalidIdentity,
-    git_config_write_failed: t.errorGitConfigWriteFailed,
-  };
-  return messages[error.code] ?? fallback;
-}
 
 function repositoryStatus(project: RepositoryInfo, t: ReturnType<typeof useLanguage>["t"]): string {
   if (project.headState === "detached") {
@@ -588,6 +554,7 @@ function OverviewPanel({
   workingTreeError,
   isCheckingChanges,
   onCheckChanges,
+  onReviewChanges,
   onOpenProject,
   onCloseProject,
 }: {
@@ -598,6 +565,7 @@ function OverviewPanel({
   workingTreeError: string | null;
   isCheckingChanges: boolean;
   onCheckChanges: () => void;
+  onReviewChanges: () => void;
   onOpenProject: () => void;
   onCloseProject: () => void;
 }): React.JSX.Element {
@@ -724,12 +692,7 @@ function OverviewPanel({
               />
               {isCheckingChanges ? t.statusRefreshing : t.statusRefresh}
             </button>
-            <button
-              className="secondary-button project-hero__action"
-              type="button"
-              disabled
-              title={t.overviewReviewChangesTitle}
-            >
+            <button className="secondary-button project-hero__action" type="button" onClick={onReviewChanges}>
               {t.overviewReviewChanges}
             </button>
           </div>
@@ -1361,6 +1324,15 @@ function App(): React.JSX.Element {
     void checkWorkingTree(projectPath);
   }, [projectPath]);
 
+  // The Changes screen only exists for an opened project; if the project
+  // closes while it is showing, leave immediately rather than rendering it
+  // against a project that is no longer open.
+  useEffect(() => {
+    if (view === "changes" && !project) {
+      navigateToView("overview");
+    }
+  }, [view, project]);
+
   const closeProject = (): void => {
     setProject(null);
     localStorage.removeItem(LAST_PROJECT_PATH_STORAGE_KEY);
@@ -1389,6 +1361,7 @@ function App(): React.JSX.Element {
 
   const commands: Command[] = [
     { id: "go-overview", label: t.commandGoOverview, action: () => navigateToView("overview") },
+    ...(project ? [{ id: "go-changes", label: t.navChanges, action: () => navigateToView("changes") }] : []),
     { id: "go-settings", label: t.commandGoSettings, action: () => navigateToView("settings") },
     ...(project
       ? [{ id: "close-project", label: t.overviewCloseProject, action: requestCloseProject }]
@@ -1406,10 +1379,41 @@ function App(): React.JSX.Element {
 
   const appWindow = "__TAURI_INTERNALS__" in window
     ? getCurrentWindow()
-    : { minimize: async () => {}, toggleMaximize: async () => {}, close: async () => {} };
+    : {
+        minimize: async () => {},
+        toggleMaximize: async () => {},
+        close: async () => {},
+        isMaximized: async () => false,
+        onResized: async () => () => {},
+      };
   const performWindowAction = (action: () => Promise<void>): void => {
     void action().catch(() => undefined);
   };
+
+  const [isWindowMaximized, setIsWindowMaximized] = useState(false);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    void appWindow.isMaximized().then((maximized) => {
+      if (!cancelled) setIsWindowMaximized(maximized);
+    });
+
+    void appWindow.onResized(() => {
+      void appWindow.isMaximized().then((maximized) => {
+        if (!cancelled) setIsWindowMaximized(maximized);
+      });
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
 
   return (
     <div className="app-window">
@@ -1422,7 +1426,7 @@ function App(): React.JSX.Element {
         <div className="window-titlebar__actions">
           <TitlebarMenu onOpenAbout={() => setIsAboutOpen(true)} />
           <button
-            className="titlebar-command-button"
+            className="titlebar-icon-button"
             type="button"
             ref={paletteTriggerRef}
             aria-label={t.titlebarOpenCommandPalette}
@@ -1430,7 +1434,6 @@ function App(): React.JSX.Element {
             onClick={openPalette}
           >
             {SEARCH_ICON}
-            <span className="titlebar-command-button__label">{t.titlebarJumpTo}</span>
           </button>
           <div className="titlebar-history-controls">
             <button
@@ -1478,7 +1481,11 @@ function App(): React.JSX.Element {
             aria-label={t.windowMaximize}
             onClick={() => performWindowAction(() => appWindow.toggleMaximize())}
           >
-            <span className="window-control__maximize" aria-hidden="true" />
+            {isWindowMaximized ? (
+              <Copy className="window-control__maximize-icon" aria-hidden="true" />
+            ) : (
+              <Square className="window-control__maximize-icon" aria-hidden="true" />
+            )}
           </button>
           <button
             className="window-control window-control--close"
@@ -1525,10 +1532,16 @@ function App(): React.JSX.Element {
               <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.overview}</span>
               <span className="nav-item__label">{t.navOverview}</span>
             </button>
-            <button className="nav-item" type="button" disabled title={t.navChangesTitle}>
+            <button
+              className={`nav-item${view === "changes" ? " nav-item--active" : ""}`}
+              type="button"
+              disabled={!project}
+              aria-current={view === "changes" ? "page" : undefined}
+              title={project ? t.navChanges : t.navChangesTitle}
+              onClick={() => navigateToView("changes")}
+            >
               <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.changes}</span>
               <span className="nav-item__label">{t.navChanges}</span>
-              <span className="nav-item__availability">{t.navComingSoon}</span>
             </button>
             <button className="nav-item" type="button" disabled title={t.navHistoryTitle}>
               <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.history}</span>
@@ -1556,7 +1569,7 @@ function App(): React.JSX.Element {
           </nav>
         </aside>
 
-        <section className="workspace">
+        <section className={`workspace${view === "changes" ? " workspace--changes" : ""}`}>
           <nav className="compact-nav" aria-label={t.navApplicationAriaLabel}>
             <button
               className={`compact-nav__item${view === "overview" ? " compact-nav__item--active" : ""}`}
@@ -1567,6 +1580,17 @@ function App(): React.JSX.Element {
               <span aria-hidden="true">{NAV_ICONS.overview}</span>
               {t.navOverview}
             </button>
+            {project && (
+              <button
+                className={`compact-nav__item${view === "changes" ? " compact-nav__item--active" : ""}`}
+                type="button"
+                aria-current={view === "changes" ? "page" : undefined}
+                onClick={() => navigateToView("changes")}
+              >
+                <span aria-hidden="true">{NAV_ICONS.changes}</span>
+                {t.navChanges}
+              </button>
+            )}
             <button
               className={`compact-nav__item${view === "settings" ? " compact-nav__item--active" : ""}`}
               type="button"
@@ -1577,9 +1601,9 @@ function App(): React.JSX.Element {
               {t.navSettings}
             </button>
           </nav>
-          {(view !== "overview" || !project) && (
+          {(view === "settings" || (view === "overview" && !project)) && (
             <header className="topbar">
-              <h1>{view === "overview" ? t.navOverview : t.navSettings}</h1>
+              <h1>{view === "settings" ? t.navSettings : t.navOverview}</h1>
             </header>
           )}
 
@@ -1592,8 +1616,18 @@ function App(): React.JSX.Element {
               workingTreeError={workingTreeError}
               isCheckingChanges={isCheckingChanges}
               onCheckChanges={() => projectPath && void checkWorkingTree(projectPath)}
+              onReviewChanges={() => navigateToView("changes")}
               onOpenProject={() => void handleOpenProject()}
               onCloseProject={requestCloseProject}
+            />
+          ) : view === "changes" && project ? (
+            <ChangesPanel
+              projectPath={project.path}
+              workingTree={workingTree}
+              workingTreeError={workingTreeError}
+              isCheckingChanges={isCheckingChanges}
+              onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
+              onNavigateOverview={() => navigateToView("overview")}
             />
           ) : (
             <SettingsPanel

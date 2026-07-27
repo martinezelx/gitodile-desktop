@@ -28,7 +28,6 @@ export function resolveLanguage(locale: string | null | undefined): Language {
 export interface Translations {
   titlebarOpenCommandPalette: string;
   titlebarJumpToHint: string;
-  titlebarJumpTo: string;
   titlebarMoreActions: string;
   titlebarHelpSection: string;
   titlebarGoBack: string;
@@ -102,7 +101,6 @@ export interface Translations {
   overviewOpeningDescription: string;
   overviewOpenFailedTitle: string;
   overviewReviewChanges: string;
-  overviewReviewChangesTitle: string;
   statusCleanTitle: string;
   statusCleanMessage: string;
   statusChangesTitle: string;
@@ -123,6 +121,43 @@ export interface Translations {
   statusCategoryConflicted: (count: number) => string;
   statusTruncatedNote: (shown: number) => string;
   statusRefreshFailedNote: string;
+
+  changesHeading: string;
+  changesSummaryClean: string;
+  changesSummaryTotal: (total: number) => string;
+  changesSummaryWithConflicts: (conflicted: number, total: number) => string;
+  changesEmptyTitle: string;
+  changesEmptyDescription: string;
+  changesBackToOverview: string;
+  changesBackToList: string;
+  changesListAriaLabel: string;
+  changesCategoryLabelChanged: string;
+  changesCategoryLabelNew: string;
+  changesCategoryLabelDeleted: string;
+  changesCategoryLabelRenamed: string;
+  changesCategoryLabelConflicted: string;
+  changesRenamedFrom: (original: string) => string;
+  changesSelectionAnnouncement: (path: string) => string;
+  changesDiffLoadingTitle: string;
+  changesDiffErrorTitle: string;
+  changesDiffRetry: string;
+  changesDiffBinaryTitle: string;
+  changesDiffBinaryDescription: string;
+  changesDiffTooLargeTitle: string;
+  changesDiffTooLargeDescription: (limit: string) => string;
+  changesDiffUnchangedTitle: string;
+  changesDiffUnchangedDescription: string;
+  changesDiffConflictTitle: string;
+  changesDiffConflictDescription: string;
+  changesDiffConflictUnavailable: string;
+  changesDiffConflictBinary: string;
+  changesDiffConflictTooLarge: string;
+  changesDiffAriaLabel: (path: string) => string;
+  changesDiffHiddenLines: (count: number) => string;
+  changesDiffTruncatedNote: (shownLines: number) => string;
+  changesLineAddedLabel: string;
+  changesLineRemovedLabel: string;
+
   overviewCloseProject: string;
   overviewEmptyTitle: string;
   overviewEmptyDescription: string;
@@ -141,6 +176,9 @@ export interface Translations {
   errorGitCommandFailed: string;
   errorInvalidIdentity: string;
   errorGitConfigWriteFailed: string;
+  errorPathInvalid: string;
+  errorPathNotChanged: string;
+  errorPathEncodingUnsupported: string;
 
   settingsAppearanceTitle: string;
   settingsAppearanceDescription: string;
@@ -222,7 +260,6 @@ export interface Translations {
 const en: Translations = {
   titlebarOpenCommandPalette: "Open command palette",
   titlebarJumpToHint: "Jump to a view or action",
-  titlebarJumpTo: "Jump to…",
   titlebarMoreActions: "More actions",
   titlebarHelpSection: "Help",
   titlebarGoBack: "Go back",
@@ -241,7 +278,7 @@ const en: Translations = {
   navApplicationAriaLabel: "Application",
   navOverview: "Overview",
   navChanges: "Changes",
-  navChangesTitle: "Changes — Coming soon",
+  navChangesTitle: "Changes — Open a project first",
   navHistory: "History",
   navHistoryTitle: "History — Coming soon",
   navRecovery: "Recovery",
@@ -296,7 +333,6 @@ const en: Translations = {
   overviewOpeningDescription: "GitOdrile is checking the selected folder.",
   overviewOpenFailedTitle: "We couldn’t open that project",
   overviewReviewChanges: "Review changes",
-  overviewReviewChangesTitle: "Review changes — Coming soon",
   statusCleanTitle: "Everything is saved",
   statusCleanMessage: "You have no unsaved changes in this project.",
   statusChangesTitle: "You have unsaved changes",
@@ -321,6 +357,50 @@ const en: Translations = {
   statusCategoryConflicted: (count) => (count === 1 ? "1 needs attention" : `${count} need attention`),
   statusTruncatedNote: (shown) => `Showing the first ${shown} files. The totals above cover every change.`,
   statusRefreshFailedNote: "This is the last result we could read. The latest check didn’t work.",
+
+  changesHeading: "Changes",
+  changesSummaryClean: "Everything is saved. There is nothing to review.",
+  changesSummaryTotal: (total) => (total === 1 ? "1 file has unsaved changes." : `${total} files have unsaved changes.`),
+  changesSummaryWithConflicts: (conflicted, total) =>
+    conflicted === total
+      ? conflicted === 1
+        ? "1 file needs your attention."
+        : `${conflicted} files need your attention.`
+      : `${conflicted} of ${total} files need your attention.`,
+  changesEmptyTitle: "Nothing to review",
+  changesEmptyDescription: "Every saved file matches the latest saved version. Come back after you make changes.",
+  changesBackToOverview: "Back to Overview",
+  changesBackToList: "Back to the file list",
+  changesListAriaLabel: "Changed files",
+  changesCategoryLabelChanged: "Edited",
+  changesCategoryLabelNew: "New",
+  changesCategoryLabelDeleted: "Deleted",
+  changesCategoryLabelRenamed: "Renamed",
+  changesCategoryLabelConflicted: "Needs attention",
+  changesRenamedFrom: (original) => `Renamed from ${original}`,
+  changesSelectionAnnouncement: (path) => `Now showing the difference for ${path}.`,
+  changesDiffLoadingTitle: "Reading the difference…",
+  changesDiffErrorTitle: "We couldn’t read this file’s difference",
+  changesDiffRetry: "Try again",
+  changesDiffBinaryTitle: "This file can’t be previewed as text",
+  changesDiffBinaryDescription: "GitOdrile can tell this file changed, but its contents aren’t readable as text.",
+  changesDiffTooLargeTitle: "This difference is too large to show here",
+  changesDiffTooLargeDescription: (limit) =>
+    `This file’s difference is larger than ${limit}, GitOdrile’s safety limit for reviewing changes here. The file itself is unaffected.`,
+  changesDiffUnchangedTitle: "No content changed",
+  changesDiffUnchangedDescription: "Only the file’s name or permissions changed. There is no text difference to show.",
+  changesDiffConflictTitle: "This file needs your attention",
+  changesDiffConflictDescription:
+    "GitOdrile is showing the current conflict markers for information only. Resolving conflicts isn’t supported here yet.",
+  changesDiffConflictUnavailable: "GitOdrile couldn’t read the current conflict markers for this file.",
+  changesDiffConflictBinary: "This file’s contents aren’t readable as text, so its conflict markers can’t be shown.",
+  changesDiffConflictTooLarge: "The conflict is too large to preview safely here.",
+  changesDiffAriaLabel: (path) => `Difference for ${path}`,
+  changesDiffHiddenLines: (count) => (count === 1 ? "1 unchanged line" : `${count} unchanged lines`),
+  changesDiffTruncatedNote: (shownLines) => `Showing the first ${shownLines} lines of this difference.`,
+  changesLineAddedLabel: "Added:",
+  changesLineRemovedLabel: "Removed:",
+
   overviewCloseProject: "Close project",
   overviewEmptyTitle: "No project open",
   overviewEmptyDescription:
@@ -340,6 +420,10 @@ const en: Translations = {
   errorGitCommandFailed: "Git couldn't inspect this project. Check that its files are readable.",
   errorInvalidIdentity: "Enter both a name and an email.",
   errorGitConfigWriteFailed: "Git couldn't save that identity. Check your global Git configuration.",
+  errorPathInvalid: "That file path isn't valid. Choose the file again from the list.",
+  errorPathNotChanged: "This file is no longer part of the unsaved changes. Refresh the list and choose a file that is still listed.",
+  errorPathEncodingUnsupported:
+    "This project contains a file name GitOdrile can't represent safely. Rename it with a Unicode-compatible name and refresh.",
 
   settingsAppearanceTitle: "Appearance",
   settingsAppearanceDescription: 'Choose how GitOdrile looks. "System" follows your OS setting automatically.',
@@ -423,7 +507,6 @@ const en: Translations = {
 const es: Translations = {
   titlebarOpenCommandPalette: "Abrir la paleta de comandos",
   titlebarJumpToHint: "Ir a una vista o acción",
-  titlebarJumpTo: "Ir a…",
   titlebarMoreActions: "Más acciones",
   titlebarHelpSection: "Ayuda",
   titlebarGoBack: "Atrás",
@@ -442,7 +525,7 @@ const es: Translations = {
   navApplicationAriaLabel: "Aplicación",
   navOverview: "Resumen",
   navChanges: "Cambios",
-  navChangesTitle: "Cambios — Próximamente",
+  navChangesTitle: "Cambios — Abre un proyecto primero",
   navHistory: "Historial",
   navHistoryTitle: "Historial — Próximamente",
   navRecovery: "Recuperación",
@@ -499,7 +582,6 @@ const es: Translations = {
   overviewOpeningDescription: "GitOdrile está comprobando la carpeta seleccionada.",
   overviewOpenFailedTitle: "No hemos podido abrir ese proyecto",
   overviewReviewChanges: "Revisar cambios",
-  overviewReviewChangesTitle: "Revisar cambios — Próximamente",
   statusCleanTitle: "Todo está guardado",
   statusCleanMessage: "No tienes cambios sin guardar en este proyecto.",
   statusChangesTitle: "Tienes cambios sin guardar",
@@ -529,6 +611,52 @@ const es: Translations = {
     `Mostrando los primeros ${shown} archivos. Los totales de arriba incluyen todos los cambios.`,
   statusRefreshFailedNote:
     "Este es el último resultado que pudimos leer. La comprobación más reciente no ha funcionado.",
+
+  changesHeading: "Cambios",
+  changesSummaryClean: "Todo está guardado. No hay nada que revisar.",
+  changesSummaryTotal: (total) =>
+    total === 1 ? "1 archivo tiene cambios sin guardar." : `${total} archivos tienen cambios sin guardar.`,
+  changesSummaryWithConflicts: (conflicted, total) =>
+    conflicted === total
+      ? conflicted === 1
+        ? "1 archivo necesita tu atención."
+        : `${conflicted} archivos necesitan tu atención.`
+      : `${conflicted} de ${total} archivos necesitan tu atención.`,
+  changesEmptyTitle: "Nada que revisar",
+  changesEmptyDescription:
+    "Todos los archivos guardados coinciden con la última versión guardada. Vuelve cuando hagas cambios.",
+  changesBackToOverview: "Volver a Resumen",
+  changesBackToList: "Volver a la lista de archivos",
+  changesListAriaLabel: "Archivos con cambios",
+  changesCategoryLabelChanged: "Editado",
+  changesCategoryLabelNew: "Nuevo",
+  changesCategoryLabelDeleted: "Eliminado",
+  changesCategoryLabelRenamed: "Renombrado",
+  changesCategoryLabelConflicted: "Necesita atención",
+  changesRenamedFrom: (original) => `Renombrado desde ${original}`,
+  changesSelectionAnnouncement: (path) => `Mostrando ahora la diferencia de ${path}.`,
+  changesDiffLoadingTitle: "Leyendo la diferencia…",
+  changesDiffErrorTitle: "No pudimos leer la diferencia de este archivo",
+  changesDiffRetry: "Reintentar",
+  changesDiffBinaryTitle: "Este archivo no se puede previsualizar como texto",
+  changesDiffBinaryDescription: "GitOdrile detecta que este archivo cambió, pero su contenido no es legible como texto.",
+  changesDiffTooLargeTitle: "Esta diferencia es demasiado grande para mostrarla aquí",
+  changesDiffTooLargeDescription: (limit) =>
+    `La diferencia de este archivo supera ${limit}, el límite de seguridad de GitOdrile para revisar cambios aquí. El archivo en sí no se ve afectado.`,
+  changesDiffUnchangedTitle: "No hay cambios de contenido",
+  changesDiffUnchangedDescription: "Solo cambió el nombre o los permisos del archivo. No hay diferencia de texto que mostrar.",
+  changesDiffConflictTitle: "Este archivo necesita tu atención",
+  changesDiffConflictDescription:
+    "GitOdrile muestra las marcas de conflicto actuales solo a título informativo. Resolver conflictos aún no está disponible aquí.",
+  changesDiffConflictUnavailable: "GitOdrile no pudo leer las marcas de conflicto actuales de este archivo.",
+  changesDiffConflictBinary: "El contenido de este archivo no es legible como texto, así que sus marcas de conflicto no se pueden mostrar.",
+  changesDiffConflictTooLarge: "El conflicto es demasiado grande para previsualizarlo aquí de forma segura.",
+  changesDiffAriaLabel: (path) => `Diferencia de ${path}`,
+  changesDiffHiddenLines: (count) => (count === 1 ? "1 línea sin cambios" : `${count} líneas sin cambios`),
+  changesDiffTruncatedNote: (shownLines) => `Mostrando las primeras ${shownLines} líneas de esta diferencia.`,
+  changesLineAddedLabel: "Añadida:",
+  changesLineRemovedLabel: "Eliminada:",
+
   overviewCloseProject: "Cerrar proyecto",
   overviewEmptyTitle: "No hay ningún proyecto abierto",
   overviewEmptyDescription:
@@ -548,6 +676,11 @@ const es: Translations = {
   errorGitCommandFailed: "Git no pudo inspeccionar este proyecto. Comprueba que sus archivos se puedan leer.",
   errorInvalidIdentity: "Introduce un nombre y un correo electrónico.",
   errorGitConfigWriteFailed: "Git no pudo guardar la identidad. Comprueba tu configuración global de Git.",
+  errorPathInvalid: "Esa ruta de archivo no es válida. Elige el archivo de nuevo desde la lista.",
+  errorPathNotChanged:
+    "Este archivo ya no forma parte de los cambios sin guardar. Actualiza la lista y elige un archivo que siga apareciendo.",
+  errorPathEncodingUnsupported:
+    "Este proyecto contiene un nombre de archivo que GitOdrile no puede representar de forma segura. Renómbralo con un nombre Unicode compatible y actualiza.",
 
   settingsAppearanceTitle: "Apariencia",
   settingsAppearanceDescription:
