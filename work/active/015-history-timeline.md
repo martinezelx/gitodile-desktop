@@ -186,7 +186,7 @@ Use temporary repositories for:
 - `docs/ARCHITECTURE.md`
 - `work/done/009-changes-and-diff-viewer.md`
 - `work/active/010-save-version.md`
-- `work/active/011-publish-changes.md`
+- `work/done/011-publish-changes.md`
 - `work/active/012-open-and-switch-projects.md`
 - `work/active/013-check-team-changes.md`
 - `src/main.tsx`

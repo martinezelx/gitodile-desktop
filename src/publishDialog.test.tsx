@@ -19,20 +19,21 @@ function plan(overrides: Partial<PublishPlan> = {}): PublishPlan {
     recovery: "",
     requiresConfirmation: true,
     stateToken: "publish-token-1",
-    remote: "origin",
+    target: { remote: "origin", destinationBranch: "main" },
     localBranch: "main",
-    destinationBranch: "main",
     willCreateUpstream: false,
     commitCount: 1,
-    commitSummary: ["fix the thing"],
+    commitSummary: [{ commit: "abc123abc123abc123abc123abc123abc123ab", shortCommit: "abc123a", description: "fix the thing" }],
     hasUnsavedFiles: false,
+    remainingAfterPublish: 0,
+    remainingCommitSummary: [],
     ...overrides,
   };
 }
 
 function renderDialog(props: Partial<React.ComponentProps<typeof PublishDialog>> = {}) {
   const onClose = vi.fn();
-  const onPublished = vi.fn();
+  const onPublished = vi.fn(async () => undefined);
   const utils = render(
     <LanguageProvider>
       <PublishDialog isOpen projectPath="/repo" onClose={onClose} onPublished={onPublished} {...props} />
@@ -61,9 +62,75 @@ describe("PublishDialog", () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     renderDialog();
 
-    expect(await screen.findByText('Publish to "origin" (main).')).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Destination" })).toBeInTheDocument();
+    expect(screen.getByText("origin")).toBeInTheDocument();
+    expect(screen.getByText("main")).toBeInTheDocument();
     expect(screen.getByText("1 saved version will be published.")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("plan_publish", { path: "/repo", remote: undefined });
+  });
+
+  it("lists each version being published with its description and short hash", async () => {
+    mockedInvoke.mockResolvedValueOnce(
+      plan({
+        commitCount: 2,
+        commitSummary: [
+          { commit: "aaa111", shortCommit: "aaa111", description: "fix the thing" },
+          { commit: "bbb222", shortCommit: "bbb222", description: "add the other thing" },
+        ],
+      }),
+    );
+    renderDialog();
+
+    expect(await screen.findByText("fix the thing")).toBeInTheDocument();
+    expect(screen.getByText("add the other thing")).toBeInTheDocument();
+    expect(screen.getByText("aaa111")).toBeInTheDocument();
+    expect(screen.getByText("bbb222")).toBeInTheDocument();
+  });
+
+  it("shows the names, without hashes, of saved versions that will remain unpublished", async () => {
+    mockedInvoke.mockResolvedValueOnce(
+      plan({
+        remainingAfterPublish: 2,
+        remainingCommitSummary: [
+          { commit: "newer111", shortCommit: "newer1", description: "polish the empty state" },
+          { commit: "newer222", shortCommit: "newer2", description: "add keyboard navigation" },
+        ],
+      }),
+    );
+    renderDialog({ upTo: "abc123" });
+
+    expect(await screen.findByText("polish the empty state")).toHaveClass("publish-stays__pill");
+    expect(screen.getByText("add keyboard navigation")).toHaveClass("publish-stays__pill");
+    expect(screen.queryByText("newer1")).not.toBeInTheDocument();
+    expect(screen.queryByText("newer2")).not.toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("plan_publish", { path: "/repo", remote: undefined, upTo: "abc123" });
+  });
+
+  it("lazily loads and shows a commit's changed files only once it is expanded", async () => {
+    mockedInvoke.mockResolvedValueOnce(
+      plan({ commitSummary: [{ commit: "aaa111", shortCommit: "aaa111", description: "fix the thing" }] }),
+    );
+    renderDialog();
+    await screen.findByText("fix the thing");
+    expect(mockedInvoke).toHaveBeenCalledTimes(1);
+
+    mockedInvoke.mockResolvedValueOnce([
+      { path: "src/foo.ts", originalPath: null, category: "changed" },
+      { path: "src/new.ts", originalPath: null, category: "new" },
+    ]);
+    await userEvent.click(screen.getByText("fix the thing"));
+
+    expect(await screen.findByText("src/foo.ts")).toBeInTheDocument();
+    expect(screen.getByText("src/new.ts")).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenLastCalledWith("read_commit_file_changes", {
+      path: "/repo",
+      commit: "aaa111",
+    });
+
+    // Collapsing and re-expanding must not refetch — the result is cached.
+    await userEvent.click(screen.getByText("fix the thing"));
+    await userEvent.click(screen.getByText("fix the thing"));
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
   });
 
   it("shows the upstream-tracking note only when the plan will create it", async () => {
@@ -81,6 +148,7 @@ describe("PublishDialog", () => {
     expect(
       await screen.findByText("Unsaved files on this computer will stay local — only saved versions are published."),
     ).toBeInTheDocument();
+    expect(screen.getByText("Unsaved file changes")).toHaveClass("publish-stays__pill--unsaved");
   });
 
   it("shows a localized blocker and offers to try again", async () => {
@@ -91,7 +159,7 @@ describe("PublishDialog", () => {
 
     mockedInvoke.mockResolvedValueOnce(plan());
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByText('Publish to "origin" (main).')).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Destination" })).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledTimes(2);
   });
 
@@ -112,26 +180,26 @@ describe("PublishDialog", () => {
     expect(screen.getByText("upstream")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("discover_remotes", { path: "/repo" });
 
-    mockedInvoke.mockResolvedValueOnce(plan({ remote: "upstream" }));
+    mockedInvoke.mockResolvedValueOnce(plan({ target: { remote: "upstream", destinationBranch: "main" } }));
     await userEvent.click(screen.getByText("upstream"));
 
-    expect(await screen.findByText('Publish to "upstream" (main).')).toBeInTheDocument();
+    expect(await screen.findByText("upstream")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenLastCalledWith("plan_publish", { path: "/repo", remote: "upstream" });
   });
 
   it("publishes successfully and refreshes the caller", async () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     const { onPublished } = renderDialog();
-    await screen.findByText('Publish to "origin" (main).');
+    await screen.findByRole("heading", { name: "Destination" });
 
     const result: PublishResult = {
-      remote: "origin",
+      target: { remote: "origin", destinationBranch: "main" },
       localBranch: "main",
-      destinationBranch: "main",
       previousRemoteCommit: "def456",
       publishedCommit: "abc123",
       publishedCount: 1,
       createdUpstream: false,
+      remainingAfterPublish: 0,
     };
     mockedInvoke.mockResolvedValueOnce(result);
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
@@ -148,16 +216,16 @@ describe("PublishDialog", () => {
   it("shows the upstream-created note only when the result says so", async () => {
     mockedInvoke.mockResolvedValueOnce(plan({ willCreateUpstream: true }));
     renderDialog();
-    await screen.findByText('Publish to "origin" (main).');
+    await screen.findByRole("heading", { name: "Destination" });
 
     const result: PublishResult = {
-      remote: "origin",
+      target: { remote: "origin", destinationBranch: "main" },
       localBranch: "main",
-      destinationBranch: "main",
       previousRemoteCommit: null,
       publishedCommit: "abc123",
       publishedCount: 1,
       createdUpstream: true,
+      remainingAfterPublish: 0,
     };
     mockedInvoke.mockResolvedValueOnce(result);
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
@@ -168,7 +236,7 @@ describe("PublishDialog", () => {
   it("reports a publish failure and keeps the plan visible to retry", async () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     renderDialog();
-    await screen.findByText('Publish to "origin" (main).');
+    await screen.findByRole("heading", { name: "Destination" });
 
     mockedInvoke.mockRejectedValueOnce({
       code: "remote_rejected",
@@ -184,6 +252,63 @@ describe("PublishDialog", () => {
     expect(screen.queryByText("pre-receive hook declined")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Show technical details" }));
     expect(screen.getByText("pre-receive hook declined")).toBeInTheDocument();
+  });
+
+  it("replans instead of retrying a stale state token", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    renderDialog();
+    await screen.findByRole("heading", { name: "Destination" });
+
+    mockedInvoke.mockRejectedValueOnce({
+      code: "stale_publish_plan",
+      message: "x",
+      remediation: null,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
+
+    const reviewButton = await screen.findByRole("button", { name: "Review updated plan" });
+    mockedInvoke.mockResolvedValueOnce(plan({ stateToken: "publish-token-2" }));
+    await userEvent.click(reviewButton);
+
+    await screen.findByRole("heading", { name: "Destination" });
+    expect(mockedInvoke).toHaveBeenLastCalledWith("plan_publish", {
+      path: "/repo",
+      remote: undefined,
+      upTo: undefined,
+    });
+  });
+
+  it("cannot be dismissed while publishing is in progress", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    const { onClose, container } = renderDialog();
+    await screen.findByRole("heading", { name: "Destination" });
+
+    let resolvePublish: ((result: PublishResult) => void) | undefined;
+    mockedInvoke.mockImplementationOnce(
+      () =>
+        new Promise<PublishResult>((resolve) => {
+          resolvePublish = resolve;
+        }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
+
+    expect(await screen.findByText("Keep this window open while GitOdrile confirms the remote result.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(container.querySelector(".save-version-backdrop") as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    resolvePublish?.({
+      target: { remote: "origin", destinationBranch: "main" },
+      localBranch: "main",
+      previousRemoteCommit: null,
+      publishedCommit: "abc123",
+      publishedCount: 1,
+      createdUpstream: false,
+      remainingAfterPublish: 0,
+    });
+    expect(await screen.findByText('1 saved version was published to "origin".')).toBeInTheDocument();
   });
 
   it("closes on Escape and restores focus to the element that opened it", async () => {
@@ -206,18 +331,18 @@ describe("PublishDialog", () => {
       </LanguageProvider>,
     );
     await userEvent.click(screen.getByRole("button", { name: "open" }));
-    await screen.findByText('Publish to "origin" (main).');
+    await screen.findByRole("heading", { name: "Destination" });
 
     await userEvent.keyboard("{Escape}");
 
-    await waitFor(() => expect(screen.queryByText('Publish to "origin" (main).')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.getByRole("button", { name: "open" })).toHaveFocus();
   });
 
   it("cancel button closes the dialog without publishing", async () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     const { onClose } = renderDialog();
-    await screen.findByText('Publish to "origin" (main).');
+    await screen.findByRole("heading", { name: "Destination" });
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 

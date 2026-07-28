@@ -103,7 +103,7 @@ function formatByteLimit(bytes: number): string {
   return `${Number.isInteger(megabytes) ? megabytes.toFixed(0) : megabytes.toFixed(1)} MB`;
 }
 
-const CATEGORY_ICONS: Record<ChangeCategory, React.JSX.Element> = {
+export const CATEGORY_ICONS: Record<ChangeCategory, React.JSX.Element> = {
   changed: <Pencil aria-hidden="true" />,
   new: <FilePlus aria-hidden="true" />,
   deleted: <FileMinus aria-hidden="true" />,
@@ -323,7 +323,7 @@ function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): Rea
   );
 }
 
-function DiffResultView({ diff, t }: { diff: FileDiff; t: Translations }): React.JSX.Element {
+export function DiffResultView({ diff, t }: { diff: FileDiff; t: Translations }): React.JSX.Element {
   switch (diff.kind) {
     case "text": {
       const lineCount = diff.hunks.reduce((total, hunk) => total + hunk.lines.length, 0);

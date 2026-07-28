@@ -19,6 +19,9 @@ fn base_git_command() -> Command {
     // elsewhere, but clippy flags it as unused on non-Windows targets.
     #[allow(unused_mut)]
     let mut command = Command::new("git");
+    // Domain parsers and error classifiers need deterministic diagnostics on
+    // localized installations.
+    command.env("LC_ALL", "C").env("LANG", "C");
     #[cfg(target_os = "windows")]
     command.creation_flags(CREATE_NO_WINDOW);
     command
@@ -2975,6 +2978,13 @@ struct RemoteInfo {
     url: String,
 }
 
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PublishTarget {
+    remote: String,
+    destination_branch: String,
+}
+
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct RemoteDiscovery {
@@ -2995,10 +3005,17 @@ fn redact_remote_url(url: &str) -> String {
     let (scheme, rest) = url.split_at(scheme_end + 3);
     let authority_end = rest.find('/').unwrap_or(rest.len());
     let authority = &rest[..authority_end];
-    match authority.rfind('@') {
+    let redacted = match authority.rfind('@') {
         Some(at_pos) => format!("{scheme}{}", &rest[at_pos + 1..]),
         None => url.to_string(),
-    }
+    };
+    // Query strings and fragments are presentation-irrelevant and may carry
+    // access tokens in signed HTTPS remote URLs.
+    redacted
+        .split(['?', '#'])
+        .next()
+        .unwrap_or(&redacted)
+        .to_string()
 }
 
 /// Parses `git remote -v` output (`name\turl (fetch|push)`), keeping only
@@ -3037,6 +3054,282 @@ fn discover_remotes(path: String) -> Result<RemoteDiscovery, AppError> {
     })
 }
 
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+struct SavedVersionSummary {
+    commit: String,
+    short_commit: String,
+    description: String,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PendingVersionsResult {
+    total_count: u32,
+    versions: Vec<SavedVersionSummary>,
+    is_truncated: bool,
+}
+
+/// How many saved versions a `git log` summary call reports at most, whether
+/// for the Overview's passive pending list or a publish plan's preview. Not a
+/// hard guarantee against a much larger real gap — just enough for a
+/// quick-glance list without shipping an unbounded payload.
+const MAX_LISTED_SAVED_VERSIONS: usize = 50;
+
+fn parse_saved_version_summaries(text: &str) -> Vec<SavedVersionSummary> {
+    text.lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(3, '\u{1f}');
+            let commit = parts.next()?.to_string();
+            let short_commit = parts.next()?.to_string();
+            let description = parts.next().unwrap_or("").to_string();
+            Some(SavedVersionSummary {
+                commit,
+                short_commit,
+                description,
+            })
+        })
+        .collect()
+}
+
+/// Runs `git log` for `range` with hash/short-hash/subject in one machine-
+/// parseable pass (`%x1f` as a delimiter that can't collide with commit
+/// message text). A failing range (e.g. a configured upstream that has never
+/// been fetched locally, so Git can't resolve it as a revision yet) is
+/// treated as "nothing reliable to report", not an error — callers show an
+/// empty list rather than surfacing a spurious failure for something that
+/// isn't actually broken.
+fn git_log_summaries(path: &str, range: &str) -> Result<Vec<SavedVersionSummary>, AppError> {
+    let cap = MAX_LISTED_SAVED_VERSIONS.to_string();
+    let output = run_git(
+        path,
+        &["log", "--pretty=format:%H%x1f%h%x1f%s", "-n", &cap, range],
+    )?;
+    let text = checked_git_stdout(output)?;
+    if text.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(parse_saved_version_summaries(&text))
+}
+
+/// Read-only and local-only: never fetches. When an upstream is configured,
+/// this only reflects the last-known remote-tracking ref (as of the most
+/// recent fetch or publish) — the same "cached, possibly optimistic" signal
+/// documented for the Overview's publish entry point, not a fresh preflight.
+/// With no upstream configured yet, every local saved version is reported as
+/// unpublished, since nothing is locally known to contradict that.
+#[tauri::command]
+fn list_unpublished_versions(path: String) -> Result<PendingVersionsResult, AppError> {
+    let status = read_working_tree_status(path.clone())?;
+    let (head_state, _) = resolve_head_state(&path, status.upstream.branch.clone())?;
+    if head_state != HeadState::Branch {
+        return Ok(PendingVersionsResult {
+            total_count: 0,
+            versions: Vec::new(),
+            is_truncated: false,
+        });
+    }
+
+    let range = match &status.upstream.upstream {
+        Some(upstream) => format!("{upstream}..HEAD"),
+        None => "HEAD".to_string(),
+    };
+    let total_count = checked_git_stdout(run_git(&path, &["rev-list", "--count", &range])?)?
+        .parse::<u32>()
+        .map_err(|_| {
+            AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "GitOdrile couldn't count the saved versions waiting to be published.",
+            )
+            .with_remediation("Refresh and try again.")
+        })?;
+    let versions = git_log_summaries(&path, &range)?;
+    Ok(PendingVersionsResult {
+        total_count,
+        is_truncated: total_count as usize > versions.len(),
+        versions,
+    })
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CommitFileChange {
+    path: String,
+    /// Only set for a detected rename/copy: where the file came from.
+    original_path: Option<String>,
+    category: ChangeCategory,
+}
+
+/// Classifies one `git show --name-status` line. Reuses the same
+/// `ChangeCategory` vocabulary (and, on the frontend, the same icons) as the
+/// working-tree Changes list, so a saved version's file summary and the
+/// Changes screen can never disagree about what a category means. A type
+/// change (`T`) is presented as `Changed` — GitOdrile doesn't have a distinct
+/// category for that rare case, and it *is* still a modification to the file.
+fn parse_name_status_line(line: &str) -> Option<CommitFileChange> {
+    let mut parts = line.split('\t');
+    let status = parts.next()?;
+    let first_path = parts.next()?;
+    match status.as_bytes().first()? {
+        b'A' => Some(CommitFileChange {
+            path: first_path.to_string(),
+            original_path: None,
+            category: ChangeCategory::New,
+        }),
+        b'D' => Some(CommitFileChange {
+            path: first_path.to_string(),
+            original_path: None,
+            category: ChangeCategory::Deleted,
+        }),
+        b'R' | b'C' => {
+            let new_path = parts.next()?.to_string();
+            Some(CommitFileChange {
+                path: new_path,
+                original_path: Some(first_path.to_string()),
+                category: ChangeCategory::Renamed,
+            })
+        }
+        _ => Some(CommitFileChange {
+            path: first_path.to_string(),
+            original_path: None,
+            category: ChangeCategory::Changed,
+        }),
+    }
+}
+
+/// A commit hash reaching any of these commands always comes from GitOdrile's
+/// own previously displayed list (`SavedVersionSummary`/`CommitFileChange`),
+/// never free-typed by the user — but since it still becomes a `git` process
+/// argument, this rejects the one shape that could be misread as a flag
+/// instead of a revision.
+fn validate_commit_ish(commit: &str) -> Result<(), AppError> {
+    if commit.is_empty() || commit.starts_with('-') {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version couldn't be identified.",
+        ));
+    }
+    Ok(())
+}
+
+/// Read-only, local-only file summary for one already-saved commit — the
+/// "very summarized" per-version detail shown inline in the publish preview,
+/// deliberately not the full line-by-line diff the Changes screen shows.
+/// `git show` handles a root commit (no parent) the same way it handles any
+/// other commit, listing every file as added, so no special case is needed.
+#[tauri::command]
+fn read_commit_file_changes(
+    path: String,
+    commit: String,
+) -> Result<Vec<CommitFileChange>, AppError> {
+    validate_commit_ish(&commit)?;
+    let output = run_git(
+        &path,
+        &[
+            "show",
+            "--no-color",
+            "--format=",
+            "--name-status",
+            "-M",
+            &commit,
+        ],
+    )?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "GitOdrile couldn't read that saved version's changed files.",
+        )
+        .with_remediation("Refresh and try again."));
+    }
+    Ok(git_stdout(&output)
+        .lines()
+        .filter_map(parse_name_status_line)
+        .collect())
+}
+
+/// The line-by-line diff for one file within one already-saved commit — the
+/// second level of the Overview's "view changes" flow, once a specific file
+/// from `read_commit_file_changes` is picked. Reuses the exact same
+/// `RawStatusEntry`/`diff_result_from_text` pipeline the working-tree diff
+/// commands use, so a file's classification (binary/too-large/unchanged/text)
+/// can never disagree between an unsaved change and an already-saved one —
+/// only the `git show`/`--name-status` step that determined `category` and
+/// `original_path` here comes from a commit instead of the working tree.
+#[tauri::command]
+fn read_commit_file_diff(
+    path: String,
+    commit: String,
+    file_path: String,
+) -> Result<FileDiff, AppError> {
+    validate_repo_relative_path(&file_path)?;
+    validate_commit_ish(&commit)?;
+
+    let status_output = run_git(
+        &path,
+        &[
+            "show",
+            "--no-color",
+            "--format=",
+            "--name-status",
+            "-M",
+            &commit,
+            "--",
+            &file_path,
+        ],
+    )?;
+    if !status_output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "GitOdrile couldn't check that saved version's changes.",
+        )
+        .with_remediation("Refresh and try again."));
+    }
+    let Some(change) = git_stdout(&status_output)
+        .lines()
+        .find_map(parse_name_status_line)
+    else {
+        return Err(AppError::new(
+            AppErrorCode::PathNotChanged,
+            "This file isn't part of that saved version.",
+        )
+        .with_remediation("Refresh and choose a file that is still listed."));
+    };
+    let entry = RawStatusEntry {
+        path: change.path,
+        original_path: change.original_path,
+        category: change.category,
+        is_untracked: false,
+        is_prepared: false,
+        has_unprepared_changes: false,
+    };
+
+    let output = run_git_capped(
+        &path,
+        &[
+            "show",
+            "--no-color",
+            "--no-ext-diff",
+            "--format=",
+            "-M",
+            &commit,
+            "--",
+            &file_path,
+        ],
+        MAX_DIFF_OUTPUT_BYTES,
+    )?;
+    if output.limit_exceeded {
+        return Ok(build_text_result(&entry, &output));
+    }
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't read this file's difference.",
+        )
+        .with_remediation("Check that the folder and its Git metadata are readable."));
+    }
+    Ok(build_text_result(&entry, &output))
+}
+
 /// Remote selection rules from task 011: an explicit request always wins (if
 /// it names a configured remote); otherwise the configured upstream's remote
 /// wins; otherwise exactly one remote can be proposed; two or more remotes
@@ -3058,10 +3351,12 @@ fn resolve_remote_selection(
         };
     }
     if let Some(upstream_ref) = upstream {
-        if let Some((remote_name, _)) = upstream_ref.split_once('/') {
-            if remotes.iter().any(|remote| remote.name == remote_name) {
-                return Ok(remote_name.to_string());
-            }
+        if let Some(remote) = remotes
+            .iter()
+            .filter(|remote| upstream_ref.starts_with(&format!("{}/", remote.name)))
+            .max_by_key(|remote| remote.name.len())
+        {
+            return Ok(remote.name.clone());
         }
     }
     match remotes.len() {
@@ -3076,6 +3371,25 @@ fn resolve_remote_selection(
             "This project has more than one remote project. Choose which one to publish to.",
         )),
     }
+}
+
+fn validate_remote_name(name: &str) -> Result<(), AppError> {
+    if name.is_empty() || name.starts_with('-') || name.chars().any(char::is_control) {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That remote project has an unsafe name.",
+        )
+        .with_remediation("Rename the remote in Git, then try again."));
+    }
+    Ok(())
+}
+
+fn destination_for_remote(upstream: Option<&str>, remote: &str, local_branch: &str) -> String {
+    upstream
+        .and_then(|upstream| upstream.strip_prefix(&format!("{remote}/")))
+        .filter(|branch| !branch.is_empty())
+        .unwrap_or(local_branch)
+        .to_string()
 }
 
 /// How long GitOdrile waits on a single network-touching Git call (`fetch` or
@@ -3239,25 +3553,29 @@ struct PublishPlan {
     /// Opaque fingerprint of local + freshly observed remote state. Execution
     /// must refuse to proceed if a freshly computed token no longer matches.
     state_token: String,
-    remote: String,
+    target: PublishTarget,
     local_branch: String,
-    destination_branch: String,
     will_create_upstream: bool,
     commit_count: u32,
-    commit_summary: Vec<String>,
+    commit_summary: Vec<SavedVersionSummary>,
     has_unsaved_files: bool,
+    /// How many more pending saved versions (newer than what this plan
+    /// covers) would still remain unpublished after it — always `0` unless
+    /// `upTo` was requested and it isn't the newest pending version.
+    remaining_after_publish: u32,
+    remaining_commit_summary: Vec<SavedVersionSummary>,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct PublishResult {
-    remote: String,
+    target: PublishTarget,
     local_branch: String,
-    destination_branch: String,
     previous_remote_commit: Option<String>,
     published_commit: String,
     published_count: u32,
     created_upstream: bool,
+    remaining_after_publish: u32,
 }
 
 /// Everything a fresh plan/execution pass needs, produced by exactly one
@@ -3269,26 +3587,85 @@ struct PublishResult {
 /// two commands the way the temporary index is for save-version — only
 /// within a single command's own call.
 struct ValidatedPublish {
-    remote: String,
+    target: PublishTarget,
     local_branch: String,
-    local_sha: String,
+    /// The commit that will actually be pushed: `HEAD` normally, or a
+    /// specific ancestor of `HEAD` when `upTo` narrowed the publish to a
+    /// checkpoint. Publishing a specific ancestor is always a fast-forward
+    /// for the remote (never a force-push) — it just means later local
+    /// commits stay unpublished for now.
+    target_sha: String,
     remote_sha: Option<String>,
     will_create_upstream: bool,
     commit_count: u32,
+    remaining_after_publish: u32,
     has_unsaved_files: bool,
     state_token: String,
 }
 
+/// Validates and resolves an explicit `upTo` request: it must name a real
+/// commit, that commit must be an ancestor of (or equal to) `HEAD` — GitOdrile
+/// never publishes something outside this version line's own history — and it
+/// must not already be reachable from the remote's last known position, or
+/// there would be nothing new to send.
+fn resolve_up_to_target(
+    path: &str,
+    up_to: &str,
+    local_sha: &str,
+    remote_sha: Option<&str>,
+) -> Result<String, AppError> {
+    validate_commit_ish(up_to)?;
+    let rev_output = run_git(
+        path,
+        &["rev-parse", "--verify", &format!("{up_to}^{{commit}}")],
+    )?;
+    if !rev_output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version couldn't be identified.",
+        ));
+    }
+    let resolved = git_stdout(&rev_output);
+
+    let is_ancestor_of_head =
+        run_git(path, &["merge-base", "--is-ancestor", &resolved, local_sha])?;
+    if !is_ancestor_of_head.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version isn't part of this version line anymore.",
+        )
+        .with_remediation("Refresh and try again."));
+    }
+
+    if let Some(remote_sha) = remote_sha {
+        let already_published = run_git(
+            path,
+            &["merge-base", "--is-ancestor", &resolved, remote_sha],
+        )?;
+        if already_published.status.success() {
+            return Err(AppError::new(
+                AppErrorCode::NothingToPublish,
+                "That saved version is already published.",
+            ));
+        }
+    }
+
+    Ok(resolved)
+}
+
 fn compute_publish_state_token(
     local_sha: &str,
-    remote: &str,
+    target: &PublishTarget,
     remote_sha: Option<&str>,
     branch: &str,
+    has_unsaved_files: bool,
 ) -> String {
     use std::hash::{Hash, Hasher};
     let fingerprint = format!(
-        "local:{local_sha}|remote:{remote}|remote_sha:{}|branch:{branch}|",
-        remote_sha.unwrap_or("none"),
+        "local:{local_sha}|remote:{}|destination:{}|remote_sha:{}|branch:{branch}|unsaved:{has_unsaved_files}|",
+        target.remote,
+        target.destination_branch,
+        remote_sha.unwrap_or("none")
     );
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     fingerprint.hash(&mut hasher);
@@ -3298,6 +3675,7 @@ fn compute_publish_state_token(
 fn validate_and_prepare_publish(
     path: &str,
     requested_remote: Option<String>,
+    up_to: Option<String>,
 ) -> Result<ValidatedPublish, AppError> {
     let status = read_working_tree_status(path.to_string())?;
     let branch = status.upstream.branch.clone();
@@ -3327,14 +3705,22 @@ fn validate_and_prepare_publish(
         status.upstream.upstream.as_deref(),
         requested_remote.as_deref(),
     )?;
-    let will_create_upstream = status
-        .upstream
-        .upstream
-        .as_deref()
-        .map(|upstream| !upstream.starts_with(&format!("{remote}/")))
-        .unwrap_or(true);
+    validate_remote_name(&remote)?;
+    let destination_branch =
+        destination_for_remote(status.upstream.upstream.as_deref(), &remote, &local_branch);
+    validate_branch_ref_name(path, &destination_branch)?;
+    let target = PublishTarget {
+        remote,
+        destination_branch,
+    };
+    let configured_target = format!("{}/{}", target.remote, target.destination_branch);
+    let will_create_upstream = status.upstream.upstream.as_deref() != Some(&configured_target);
 
-    let fetch = run_git_networked(path, &["fetch", &remote, &local_branch], NETWORK_TIMEOUT)?;
+    let fetch = run_git_networked(
+        path,
+        &["fetch", &target.remote, &target.destination_branch],
+        NETWORK_TIMEOUT,
+    )?;
     if fetch.timed_out {
         return Err(AppError::new(
             AppErrorCode::NetworkTimeout,
@@ -3393,73 +3779,116 @@ fn validate_and_prepare_publish(
         }
     }
 
-    let commit_count = if remote_sha.is_some() {
-        ahead
-    } else {
-        checked_git_stdout(run_git(path, &["rev-list", "--count", &local_sha])?)?
-            .parse()
-            .unwrap_or(1)
+    let target_sha = match up_to {
+        Some(up_to) => resolve_up_to_target(path, &up_to, &local_sha, remote_sha.as_deref())?,
+        None => local_sha.clone(),
     };
 
-    let state_token =
-        compute_publish_state_token(&local_sha, &remote, remote_sha.as_deref(), &local_branch);
+    let commit_count = match &remote_sha {
+        Some(remote_sha) => checked_git_stdout(run_git(
+            path,
+            &[
+                "rev-list",
+                "--count",
+                &format!("{remote_sha}..{target_sha}"),
+            ],
+        )?)?
+        .parse()
+        .unwrap_or(0),
+        None => checked_git_stdout(run_git(path, &["rev-list", "--count", &target_sha])?)?
+            .parse()
+            .unwrap_or(1),
+    };
+    let remaining_after_publish = if target_sha == local_sha {
+        0
+    } else {
+        checked_git_stdout(run_git(
+            path,
+            &["rev-list", "--count", &format!("{target_sha}..{local_sha}")],
+        )?)?
+        .parse()
+        .unwrap_or(0)
+    };
+
+    let has_unsaved_files = !status.is_clean;
+    let state_token = compute_publish_state_token(
+        &target_sha,
+        &target,
+        remote_sha.as_deref(),
+        &local_branch,
+        has_unsaved_files,
+    );
 
     Ok(ValidatedPublish {
-        remote,
+        target,
         local_branch,
-        local_sha,
+        target_sha,
         remote_sha,
         will_create_upstream,
         commit_count,
-        has_unsaved_files: !status.is_clean,
+        remaining_after_publish,
+        has_unsaved_files,
         state_token,
     })
 }
 
-fn commit_summary_lines(path: &str, local_sha: &str, remote_sha: Option<&str>) -> Vec<String> {
+fn commit_summary_entries(
+    path: &str,
+    local_sha: &str,
+    remote_sha: Option<&str>,
+) -> Vec<SavedVersionSummary> {
     let range = match remote_sha {
         Some(remote_sha) => format!("{remote_sha}..{local_sha}"),
         None => local_sha.to_string(),
     };
-    let Ok(output) = run_git(path, &["log", "--pretty=format:%s", "-n", "20", &range]) else {
-        return Vec::new();
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-    git_stdout(&output)
-        .lines()
-        .map(|line| line.to_string())
-        .collect()
+    git_log_summaries(path, &range).unwrap_or_default()
 }
 
 #[tauri::command]
-fn plan_publish(path: String, remote: Option<String>) -> Result<PublishPlan, AppError> {
-    let validated = validate_and_prepare_publish(&path, remote)?;
-    let commit_summary =
-        commit_summary_lines(&path, &validated.local_sha, validated.remote_sha.as_deref());
+fn plan_publish(
+    path: String,
+    remote: Option<String>,
+    up_to: Option<String>,
+) -> Result<PublishPlan, AppError> {
+    let validated = validate_and_prepare_publish(&path, remote, up_to)?;
+    let commit_summary = commit_summary_entries(
+        &path,
+        &validated.target_sha,
+        validated.remote_sha.as_deref(),
+    );
+    let remaining_commit_summary = if validated.remaining_after_publish > 0 {
+        commit_summary_entries(&path, &validated.local_branch, Some(&validated.target_sha))
+    } else {
+        Vec::new()
+    };
 
     let summary = if validated.remote_sha.is_none() {
         format!(
             "This publishes this version line to \"{}\" for the first time.",
-            validated.remote
+            validated.target.remote
         )
     } else {
         format!(
             "This sends {} saved version(s) to \"{}\".",
-            validated.commit_count, validated.remote
+            validated.commit_count, validated.target.remote
         )
     };
 
     let mut steps = vec![format!(
         "Send the confirmed saved versions to \"{}\" ({}).",
-        validated.remote, validated.local_branch
+        validated.target.remote, validated.target.destination_branch
     )];
     if validated.will_create_upstream {
         steps.push("Set this version line to track the remote branch going forward.".to_string());
     }
     if validated.has_unsaved_files {
         steps.push("Leave unsaved files on this computer only.".to_string());
+    }
+    if validated.remaining_after_publish > 0 {
+        steps.push(format!(
+            "Leave {} more saved version(s) unpublished for now.",
+            validated.remaining_after_publish
+        ));
     }
 
     let recovery = match &validated.remote_sha {
@@ -3482,13 +3911,14 @@ fn plan_publish(path: String, remote: Option<String>) -> Result<PublishPlan, App
         recovery,
         requires_confirmation: true,
         state_token: validated.state_token,
-        remote: validated.remote,
+        target: validated.target,
         local_branch: validated.local_branch.clone(),
-        destination_branch: validated.local_branch,
         will_create_upstream: validated.will_create_upstream,
         commit_count: validated.commit_count,
         commit_summary,
         has_unsaved_files: validated.has_unsaved_files,
+        remaining_after_publish: validated.remaining_after_publish,
+        remaining_commit_summary,
     })
 }
 
@@ -3538,11 +3968,13 @@ fn publish_selection(
     path: String,
     remote: String,
     state_token: String,
+    up_to: Option<String>,
 ) -> Result<PublishResult, AppError> {
-    // Revalidates everything (remote choice, local/remote state, ahead/behind)
-    // against a *fresh* fetch, immediately before mutating anything — the
-    // same safety property save-version's execution keeps for the index.
-    let validated = validate_and_prepare_publish(&path, Some(remote))?;
+    // Revalidates everything (remote choice, local/remote state, ahead/behind,
+    // and the `upTo` target if one was requested) against a *fresh* fetch,
+    // immediately before mutating anything — the same safety property
+    // save-version's execution keeps for the index.
+    let validated = validate_and_prepare_publish(&path, Some(remote), up_to)?;
     if validated.state_token != state_token {
         return Err(AppError::new(
             AppErrorCode::StalePublishPlan,
@@ -3551,13 +3983,15 @@ fn publish_selection(
         .with_remediation("Review the updated plan, then try publishing again."));
     }
 
-    let refspec = format!("refs/heads/{0}:refs/heads/{0}", validated.local_branch);
-    let mut args: Vec<&str> = vec!["push", "--porcelain"];
-    if validated.will_create_upstream {
-        args.push("-u");
-    }
-    args.push(&validated.remote);
-    args.push(&refspec);
+    // The source side is always the resolved commit itself, never a branch
+    // name — a raw commit is just as valid there and works identically
+    // whether it happens to be the current `HEAD` or an earlier checkpoint,
+    // so there is only one code path to reason about instead of two.
+    let refspec = format!(
+        "{}:refs/heads/{}",
+        validated.target_sha, validated.target.destination_branch
+    );
+    let args: Vec<&str> = vec!["push", "--porcelain", &validated.target.remote, &refspec];
 
     let result = run_git_networked(&path, &args, NETWORK_TIMEOUT)?;
     if result.timed_out {
@@ -3580,20 +4014,49 @@ fn publish_selection(
         return Err(classify_push_failure(&result.stdout, &result.stderr));
     }
 
+    // A raw commit source means `git push -u` can't reliably infer which
+    // local branch to track, so upstream creation is a separate, explicit
+    // step after a successful push rather than a push flag — and its actual
+    // success (not just the original intent) is what gets reported.
+    let created_upstream = if validated.will_create_upstream {
+        let upstream_ref = format!(
+            "{}/{}",
+            validated.target.remote, validated.target.destination_branch
+        );
+        run_git(
+            &path,
+            &[
+                "branch",
+                "--set-upstream-to",
+                &upstream_ref,
+                &validated.local_branch,
+            ],
+        )
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+    } else {
+        false
+    };
+
     Ok(PublishResult {
-        remote: validated.remote,
+        target: validated.target,
         local_branch: validated.local_branch.clone(),
-        destination_branch: validated.local_branch,
         previous_remote_commit: validated.remote_sha,
-        published_commit: validated.local_sha,
+        published_commit: validated.target_sha,
         published_count: validated.commit_count,
-        created_upstream: validated.will_create_upstream,
+        created_upstream,
+        remaining_after_publish: validated.remaining_after_publish,
     })
 }
 
 #[tauri::command]
-fn publish(path: String, remote: String, state_token: String) -> Result<PublishResult, AppError> {
-    publish_selection(path, remote, state_token)
+fn publish(
+    path: String,
+    remote: String,
+    state_token: String,
+    up_to: Option<String>,
+) -> Result<PublishResult, AppError> {
+    publish_selection(path, remote, state_token, up_to)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -3617,6 +4080,9 @@ pub fn run() {
             plan_save_version,
             save_version,
             discover_remotes,
+            list_unpublished_versions,
+            read_commit_file_changes,
+            read_commit_file_diff,
             plan_publish,
             publish
         ])
@@ -5896,6 +6362,14 @@ mod tests {
     }
 
     #[test]
+    fn redact_remote_url_removes_query_tokens_and_fragments() {
+        assert_eq!(
+            redact_remote_url("https://example.com/repo.git?access_token=secret#fragment"),
+            "https://example.com/repo.git"
+        );
+    }
+
+    #[test]
     fn parse_remote_v_output_keeps_one_entry_per_remote() {
         let output = "origin\thttps://user:pw@example.com/repo.git (fetch)\n\
                        origin\thttps://user:pw@example.com/repo.git (push)\n\
@@ -5975,21 +6449,36 @@ mod tests {
     }
 
     #[test]
+    fn validate_remote_name_rejects_option_shaped_names() {
+        let error = validate_remote_name("--upload-pack=evil")
+            .expect_err("an option-shaped remote name must be rejected");
+        assert_eq!(error.code, AppErrorCode::InvalidSelection);
+    }
+
+    #[test]
     fn compute_publish_state_token_is_stable_then_changes_with_remote_state() {
-        let first = compute_publish_state_token("abc123", "origin", Some("def456"), "main");
-        let same = compute_publish_state_token("abc123", "origin", Some("def456"), "main");
+        let target = PublishTarget {
+            remote: "origin".to_string(),
+            destination_branch: "main".to_string(),
+        };
+        let first = compute_publish_state_token("abc123", &target, Some("def456"), "main", false);
+        let same = compute_publish_state_token("abc123", &target, Some("def456"), "main", false);
         assert_eq!(first, same);
 
         let after_local_move =
-            compute_publish_state_token("zzz999", "origin", Some("def456"), "main");
+            compute_publish_state_token("zzz999", &target, Some("def456"), "main", false);
         assert_ne!(first, after_local_move);
 
         let after_remote_move =
-            compute_publish_state_token("abc123", "origin", Some("newsha"), "main");
+            compute_publish_state_token("abc123", &target, Some("newsha"), "main", false);
         assert_ne!(first, after_remote_move);
 
-        let first_publish = compute_publish_state_token("abc123", "origin", None, "main");
+        let first_publish = compute_publish_state_token("abc123", &target, None, "main", false);
         assert_ne!(first, first_publish);
+
+        let unsaved_files_changed =
+            compute_publish_state_token("abc123", &target, Some("def456"), "main", true);
+        assert_ne!(first, unsaved_files_changed);
     }
 
     #[test]
@@ -6031,8 +6520,9 @@ mod tests {
         init_bare_remote(&remote);
         wire_remote(&repo, "origin", &remote);
 
-        let plan = plan_publish(repo.clone(), None).expect("first plan should succeed");
-        publish(repo.clone(), plan.remote, plan.state_token).expect("first publish should succeed");
+        let plan = plan_publish(repo.clone(), None, None).expect("first plan should succeed");
+        publish(repo.clone(), plan.target.remote, plan.state_token, None)
+            .expect("first publish should succeed");
 
         (repo, remote, branch)
     }
@@ -6050,15 +6540,16 @@ mod tests {
         init_bare_remote(&remote);
         wire_remote(&repo, "origin", &remote);
 
-        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
+        let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
         assert_eq!(plan.operation_kind, OperationKind::RemoteMutation);
         assert!(plan.requires_confirmation);
         assert!(plan.will_create_upstream);
-        assert_eq!(plan.remote, "origin");
+        assert_eq!(plan.target.remote, "origin");
+        assert_eq!(plan.target.destination_branch, branch);
         assert_eq!(plan.commit_count, 1);
 
-        let result =
-            publish(repo.clone(), plan.remote, plan.state_token).expect("publish should succeed");
+        let result = publish(repo.clone(), plan.target.remote, plan.state_token, None)
+            .expect("publish should succeed");
         assert!(result.created_upstream);
         assert_eq!(result.published_count, 1);
         assert!(result.previous_remote_commit.is_none());
@@ -6082,11 +6573,11 @@ mod tests {
         git_add_all(&repo);
         git_commit(&repo, "second");
 
-        let plan = plan_publish(repo.clone(), None).expect("second plan should succeed");
+        let plan = plan_publish(repo.clone(), None, None).expect("second plan should succeed");
         assert!(!plan.will_create_upstream);
         assert_eq!(plan.commit_count, 1);
 
-        let result = publish(repo.clone(), plan.remote, plan.state_token)
+        let result = publish(repo.clone(), plan.target.remote, plan.state_token, None)
             .expect("second publish should succeed");
         assert_eq!(result.published_count, 1);
         assert!(result.previous_remote_commit.is_some());
@@ -6100,10 +6591,43 @@ mod tests {
     }
 
     #[test]
+    fn publish_uses_the_configured_upstream_branch_when_its_name_differs_locally() {
+        let (repo, remote, original_branch) =
+            published_repo_and_remote("different-upstream-branch");
+
+        let rename_status = git_command(&repo)
+            .args(["branch", "-m", "feature"])
+            .status()
+            .expect("rename local branch");
+        assert!(rename_status.success());
+        write_file(&repo, "feature.txt", "published to main\n");
+        git_add_all(&repo);
+        git_commit(&repo, "feature work");
+
+        let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
+        assert_eq!(plan.local_branch, "feature");
+        assert_eq!(plan.target.remote, "origin");
+        assert_eq!(plan.target.destination_branch, original_branch);
+        assert!(!plan.will_create_upstream);
+
+        let result = publish(repo.clone(), plan.target.remote, plan.state_token, None)
+            .expect("publish should use the configured destination");
+        assert_eq!(result.target.destination_branch, original_branch);
+        assert_eq!(
+            remote_branch_sha(&remote, &original_branch),
+            Some(result.published_commit)
+        );
+        assert_eq!(remote_branch_sha(&remote, "feature"), None);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
     fn plan_publish_reports_nothing_to_publish_when_already_up_to_date() {
         let (repo, remote, _branch) = published_repo_and_remote("up-to-date");
 
-        let error = plan_publish(repo.clone(), None).expect_err("nothing new should publish");
+        let error = plan_publish(repo.clone(), None, None).expect_err("nothing new should publish");
         assert_eq!(error.code, AppErrorCode::NothingToPublish);
 
         let _ = fs::remove_dir_all(&repo);
@@ -6133,7 +6657,8 @@ mod tests {
             "the other clone's push should succeed"
         );
 
-        let error = plan_publish(repo.clone(), None).expect_err("a behind branch must be blocked");
+        let error =
+            plan_publish(repo.clone(), None, None).expect_err("a behind branch must be blocked");
         assert_eq!(error.code, AppErrorCode::BehindRemote);
 
         let _ = fs::remove_dir_all(&repo);
@@ -6169,7 +6694,7 @@ mod tests {
         git_commit(&repo, "from repo");
 
         let error =
-            plan_publish(repo.clone(), None).expect_err("a diverged history must be blocked");
+            plan_publish(repo.clone(), None, None).expect_err("a diverged history must be blocked");
         assert_eq!(error.code, AppErrorCode::DivergedHistories);
 
         let _ = fs::remove_dir_all(&repo);
@@ -6184,7 +6709,7 @@ mod tests {
         write_file(&repo, "b.txt", "second\n");
         git_add_all(&repo);
         git_commit(&repo, "second");
-        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
+        let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
 
         // The remote moves after the plan was produced but before execution.
         let other = unique_temp_dir("publish-stale-other");
@@ -6205,7 +6730,7 @@ mod tests {
             "the other clone's push should succeed"
         );
 
-        let error = publish(repo.clone(), plan.remote, plan.state_token)
+        let error = publish(repo.clone(), plan.target.remote, plan.state_token, None)
             .expect_err("a plan invalidated by a remote change must be rejected");
         assert!(matches!(
             error.code,
@@ -6232,8 +6757,8 @@ mod tests {
         write_failing_hook(Path::new(&remote), "pre-receive");
         wire_remote(&repo, "origin", &remote);
 
-        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
-        let error = publish(repo.clone(), plan.remote, plan.state_token)
+        let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
+        let error = publish(repo.clone(), plan.target.remote, plan.state_token, None)
             .expect_err("a rejecting pre-receive hook should fail the publish");
         assert_eq!(error.code, AppErrorCode::RemoteRejected);
 
@@ -6253,11 +6778,11 @@ mod tests {
         let index_path = resolve_index_path(&repo).expect("resolve index path");
         let index_before = fs::read(&index_path).expect("read index before publish");
 
-        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
+        let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
         assert!(plan.has_unsaved_files);
 
-        let result =
-            publish(repo.clone(), plan.remote, plan.state_token).expect("publish should succeed");
+        let result = publish(repo.clone(), plan.target.remote, plan.state_token, None)
+            .expect("publish should succeed");
         assert_eq!(
             remote_branch_sha(&remote, &branch),
             Some(result.published_commit)
@@ -6295,8 +6820,9 @@ mod tests {
         init_bare_remote(&remote);
         wire_remote(&repo, "origin", &remote);
 
-        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
-        publish(repo.clone(), plan.remote, plan.state_token).expect("publish should succeed");
+        let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
+        publish(repo.clone(), plan.target.remote, plan.state_token, None)
+            .expect("publish should succeed");
 
         let branches = checked_git_stdout(
             run_git(
@@ -6310,6 +6836,373 @@ mod tests {
 
         let tags = checked_git_stdout(run_git(&remote, &["tag", "--list"]).unwrap()).unwrap();
         assert!(tags.is_empty(), "publish must never create tags");
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn list_unpublished_versions_reports_every_local_commit_without_an_upstream() {
+        let repo = unique_temp_dir("unpublished-no-upstream");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        write_file(&repo, "b.txt", "second\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+
+        let pending =
+            list_unpublished_versions(repo.clone()).expect("should list without a remote");
+        assert_eq!(pending.total_count, 2);
+        assert!(!pending.is_truncated);
+        assert_eq!(pending.versions[0].description, "second");
+        assert_eq!(pending.versions[1].description, "first");
+        assert!(!pending.versions[0].commit.is_empty());
+        assert!(!pending.versions[0].short_commit.is_empty());
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn list_unpublished_versions_reports_only_commits_ahead_of_a_published_upstream() {
+        let (repo, remote, _branch) = published_repo_and_remote("unpublished-list");
+
+        assert!(list_unpublished_versions(repo.clone())
+            .expect("should list with an upstream")
+            .versions
+            .is_empty());
+
+        write_file(&repo, "b.txt", "second\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+        write_file(&repo, "c.txt", "third\n");
+        git_add_all(&repo);
+        git_commit(&repo, "third");
+
+        let pending =
+            list_unpublished_versions(repo.clone()).expect("should list the two new commits");
+        assert_eq!(pending.total_count, 2);
+        assert_eq!(pending.versions[0].description, "third");
+        assert_eq!(pending.versions[1].description, "second");
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn list_unpublished_versions_reports_the_total_when_the_preview_is_truncated() {
+        let repo = unique_temp_dir("unpublished-truncated");
+        git_init(&repo);
+        for _ in 0..(MAX_LISTED_SAVED_VERSIONS + 1) {
+            git_commit_empty(&repo);
+        }
+
+        let pending =
+            list_unpublished_versions(repo.clone()).expect("should report the capped preview");
+        assert_eq!(pending.total_count, (MAX_LISTED_SAVED_VERSIONS + 1) as u32);
+        assert_eq!(pending.versions.len(), MAX_LISTED_SAVED_VERSIONS);
+        assert!(pending.is_truncated);
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn read_commit_file_changes_classifies_the_root_commit_as_entirely_new() {
+        let repo = unique_temp_dir("commit-files-root");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        write_file(&repo, "b.txt", "world\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        let files =
+            read_commit_file_changes(repo.clone(), commit).expect("should read root commit files");
+        assert_eq!(files.len(), 2);
+        assert!(files
+            .iter()
+            .all(|file| file.category == ChangeCategory::New && file.original_path.is_none()));
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn read_commit_file_changes_classifies_modify_delete_and_rename() {
+        let repo = unique_temp_dir("commit-files-mixed");
+        git_init(&repo);
+        write_file(&repo, "keep.txt", "unchanged\n");
+        write_file(&repo, "to-modify.txt", "before\n");
+        write_file(&repo, "to-delete.txt", "temporary\n");
+        write_file(&repo, "to-rename.txt", "rename me please, this needs to be long enough for git to detect a rename by similarity\n");
+        git_add_all(&repo);
+        git_commit(&repo, "base");
+
+        write_file(&repo, "to-modify.txt", "after\n");
+        fs::remove_file(Path::new(&repo).join("to-delete.txt")).expect("delete file");
+        fs::rename(
+            Path::new(&repo).join("to-rename.txt"),
+            Path::new(&repo).join("renamed.txt"),
+        )
+        .expect("rename file");
+        git_add_all(&repo);
+        git_commit(&repo, "mixed changes");
+        let commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        let files =
+            read_commit_file_changes(repo.clone(), commit).expect("should read mixed commit files");
+        let find = |path: &str| files.iter().find(|file| file.path == path);
+
+        assert_eq!(
+            find("to-modify.txt").map(|f| f.category),
+            Some(ChangeCategory::Changed)
+        );
+        assert_eq!(
+            find("to-delete.txt").map(|f| f.category),
+            Some(ChangeCategory::Deleted)
+        );
+        let renamed = find("renamed.txt").expect("renamed.txt should be reported");
+        assert_eq!(renamed.category, ChangeCategory::Renamed);
+        assert_eq!(renamed.original_path.as_deref(), Some("to-rename.txt"));
+        assert!(
+            find("keep.txt").is_none(),
+            "an unchanged file must not be reported"
+        );
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn read_commit_file_changes_rejects_a_value_that_looks_like_a_flag() {
+        let repo = unique_temp_dir("commit-files-invalid");
+        git_init(&repo);
+        git_commit_empty(&repo);
+
+        let error = read_commit_file_changes(repo.clone(), "--upload-pack=evil".to_string())
+            .expect_err("a flag-shaped commit value must be rejected");
+        assert_eq!(error.code, AppErrorCode::InvalidSelection);
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn read_commit_file_diff_reports_hunks_for_a_modified_file() {
+        let repo = unique_temp_dir("commit-diff-modify");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "one\ntwo\nthree\n");
+        git_add_all(&repo);
+        git_commit(&repo, "base");
+        write_file(&repo, "a.txt", "one\nTWO\nthree\n");
+        git_add_all(&repo);
+        git_commit(&repo, "modify");
+        let commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        let diff = read_commit_file_diff(repo.clone(), commit, "a.txt".to_string())
+            .expect("should read the commit's diff for this file");
+        match diff {
+            FileDiff::Text { change, hunks, .. } => {
+                assert_eq!(change, ChangeCategory::Changed);
+                assert!(!hunks.is_empty());
+                assert!(hunks[0].lines.iter().any(|line| line.content == "TWO"));
+            }
+            other => panic!("expected a text diff, got {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn read_commit_file_diff_reports_a_root_commit_file_as_a_pure_addition() {
+        let repo = unique_temp_dir("commit-diff-root");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        let diff = read_commit_file_diff(repo.clone(), commit, "a.txt".to_string())
+            .expect("should read the root commit's diff for this file");
+        match diff {
+            FileDiff::Text { change, hunks, .. } => {
+                assert_eq!(change, ChangeCategory::New);
+                assert!(hunks[0]
+                    .lines
+                    .iter()
+                    .all(|line| line.kind == DiffLineKind::Addition));
+            }
+            other => panic!("expected a text diff, got {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn read_commit_file_diff_rejects_a_path_not_touched_by_that_commit() {
+        let repo = unique_temp_dir("commit-diff-untouched");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        write_file(&repo, "b.txt", "untouched\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+
+        write_file(&repo, "a.txt", "hello again\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+        let second_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        let error = read_commit_file_diff(repo.clone(), second_commit, "b.txt".to_string())
+            .expect_err("b.txt wasn't touched by the second commit");
+        assert_eq!(error.code, AppErrorCode::PathNotChanged);
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn read_commit_file_diff_rejects_a_flag_shaped_commit_value() {
+        let repo = unique_temp_dir("commit-diff-invalid");
+        git_init(&repo);
+        git_commit_empty(&repo);
+
+        let error = read_commit_file_diff(
+            repo.clone(),
+            "--upload-pack=evil".to_string(),
+            "a.txt".to_string(),
+        )
+        .expect_err("a flag-shaped commit value must be rejected");
+        assert_eq!(error.code, AppErrorCode::InvalidSelection);
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    // ---- Publish up to a checkpoint (task 011 follow-up) ----
+
+    #[test]
+    fn plan_publish_with_up_to_reports_only_the_checkpoint_and_what_remains() {
+        let repo = unique_temp_dir("publish-up-to-plan");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let first_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        write_file(&repo, "b.txt", "second\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+        write_file(&repo, "c.txt", "third\n");
+        git_add_all(&repo);
+        git_commit(&repo, "third");
+
+        let remote = unique_temp_dir("publish-up-to-plan-remote");
+        init_bare_remote(&remote);
+        wire_remote(&repo, "origin", &remote);
+
+        let plan = plan_publish(repo.clone(), None, Some(first_commit))
+            .expect("planning a checkpoint publish should succeed");
+        assert_eq!(plan.commit_count, 1);
+        assert_eq!(plan.remaining_after_publish, 2);
+        assert_eq!(plan.commit_summary.len(), 1);
+        assert_eq!(plan.commit_summary[0].description, "first");
+        assert_eq!(plan.remaining_commit_summary.len(), 2);
+        assert_eq!(plan.remaining_commit_summary[0].description, "third");
+        assert_eq!(plan.remaining_commit_summary[1].description, "second");
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn publish_with_up_to_only_pushes_the_checkpoint_and_leaves_newer_commits_local() {
+        let repo = unique_temp_dir("publish-up-to-exec");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let first_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let branch = current_branch(&repo);
+
+        write_file(&repo, "b.txt", "second\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+        let second_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        let remote = unique_temp_dir("publish-up-to-exec-remote");
+        init_bare_remote(&remote);
+        wire_remote(&repo, "origin", &remote);
+
+        let plan = plan_publish(repo.clone(), None, Some(first_commit.clone()))
+            .expect("planning a checkpoint publish should succeed");
+        let result = publish(
+            repo.clone(),
+            plan.target.remote,
+            plan.state_token,
+            Some(first_commit.clone()),
+        )
+        .expect("publishing up to the checkpoint should succeed");
+
+        assert_eq!(result.published_commit, first_commit);
+        assert_eq!(result.published_count, 1);
+        assert_eq!(result.remaining_after_publish, 1);
+        assert!(result.created_upstream);
+        assert_eq!(remote_branch_sha(&remote, &branch), Some(first_commit));
+        assert_ne!(remote_branch_sha(&remote, &branch), Some(second_commit));
+
+        let pending = list_unpublished_versions(repo.clone()).expect("should list what remains");
+        assert_eq!(pending.total_count, 1);
+        assert_eq!(pending.versions[0].description, "second");
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn plan_publish_rejects_an_up_to_commit_that_is_not_an_ancestor_of_head() {
+        let repo = unique_temp_dir("publish-up-to-unrelated");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let branch = current_branch(&repo);
+
+        let orphan_status = git_command(&repo)
+            .args(["checkout", "--orphan", "unrelated-branch", "-q"])
+            .status()
+            .expect("run git checkout --orphan");
+        assert!(orphan_status.success(), "checkout --orphan should succeed");
+        write_file(&repo, "x.txt", "unrelated\n");
+        git_add_all(&repo);
+        git_commit(&repo, "unrelated");
+        let unrelated_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        let checkout_back = git_command(&repo)
+            .args(["checkout", &branch, "-q"])
+            .status()
+            .expect("run git checkout back");
+        assert!(checkout_back.success(), "checkout back should succeed");
+
+        let remote = unique_temp_dir("publish-up-to-unrelated-remote");
+        init_bare_remote(&remote);
+        wire_remote(&repo, "origin", &remote);
+
+        let error = plan_publish(repo.clone(), None, Some(unrelated_commit))
+            .expect_err("a commit outside this branch's history must be rejected");
+        assert_eq!(error.code, AppErrorCode::InvalidSelection);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn plan_publish_rejects_an_up_to_commit_that_is_already_published() {
+        let (repo, remote, _branch) = published_repo_and_remote("up-to-already-published");
+        let published_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+
+        write_file(&repo, "b.txt", "second\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+
+        let error = plan_publish(repo.clone(), None, Some(published_commit))
+            .expect_err("an already-published commit must be rejected");
+        assert_eq!(error.code, AppErrorCode::NothingToPublish);
 
         let _ = fs::remove_dir_all(&repo);
         let _ = fs::remove_dir_all(&remote);

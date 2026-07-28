@@ -37,6 +37,7 @@ import {
   CircleAlert,
   TriangleAlert,
   FileDiff,
+  Send,
 } from "lucide-react";
 import { LANGUAGE_NAMES, LanguageProvider, useLanguage, type Language, type LanguagePreference } from "./i18n";
 import {
@@ -50,11 +51,19 @@ import {
 import { localizeAppError } from "./appError";
 import { ChangesPanel } from "./changes";
 import { PublishDialog } from "./publishDialog";
+import { PendingVersionsSection } from "./pendingVersions";
+import type { PendingVersionsResult } from "./publish";
 import { useModalFocus } from "./modalFocus";
 import "./styles.css";
 
 type ThemePreference = "system" | "light" | "dark";
 type View = "overview" | "changes" | "settings";
+
+const EMPTY_PENDING_VERSIONS: PendingVersionsResult = {
+  totalCount: 0,
+  versions: [],
+  isTruncated: false,
+};
 type GitDiagnostics = {
   state: "available" | "missing" | "unusable" | "check_failed";
   version: string | null;
@@ -498,6 +507,10 @@ function OverviewPanel({
   onCloseProject,
   canPublish,
   onPublish,
+  onPublishUpTo,
+  pendingVersions,
+  pendingVersionsError,
+  onRetryPendingVersions,
 }: {
   project: RepositoryInfo | null;
   openError: string | null;
@@ -508,9 +521,13 @@ function OverviewPanel({
   onCheckChanges: () => void;
   onReviewChanges: () => void;
   onOpenProject: () => void;
+  pendingVersions: PendingVersionsResult;
+  pendingVersionsError: string | null;
+  onRetryPendingVersions: () => void;
   onCloseProject: () => void;
   canPublish: boolean;
   onPublish: () => void;
+  onPublishUpTo: (commit: string) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
@@ -542,13 +559,18 @@ function OverviewPanel({
       heroMessage = errorMessage;
     } else if (summary) {
       heroStatus = summary.tone === "positive" ? "success" : summary.tone;
-      heroHeadline = t[summary.headlineKey];
-      heroMessage =
-        summary.conflicted > 0
-          ? t.statusConflictsMessage(summary.conflicted)
-          : summary.total === 0
-            ? t.statusCleanMessage
-            : t.statusChangesMessage(summary.total);
+      if (summary.total === 0 && pendingVersions.totalCount > 0) {
+        heroHeadline = t.overviewSavedAndReadyTitle;
+        heroMessage = t.overviewSavedAndReadyMessage(pendingVersions.totalCount);
+      } else {
+        heroHeadline = t[summary.headlineKey];
+        heroMessage =
+          summary.conflicted > 0
+            ? t.statusConflictsMessage(summary.conflicted)
+            : summary.total === 0
+              ? t.statusCleanMessage
+              : t.statusChangesMessage(summary.total);
+      }
     } else {
       // Reached only if a check has neither finished nor failed yet.
       heroStatus = "success";
@@ -623,8 +645,14 @@ function OverviewPanel({
             )}
           </div>
           <div className="project-hero__actions">
+            {canPublish && (
+              <button className="primary-button project-hero__action" type="button" onClick={onPublish}>
+                <Send aria-hidden="true" />
+                {t.overviewPublishChanges}
+              </button>
+            )}
             <button
-              className="primary-button project-hero__action"
+              className={`${canPublish ? "secondary-button" : "primary-button"} project-hero__action`}
               type="button"
               onClick={onCheckChanges}
               disabled={isCheckingChanges || isOpening}
@@ -638,14 +666,20 @@ function OverviewPanel({
             <button className="secondary-button project-hero__action" type="button" onClick={onReviewChanges}>
               {t.overviewReviewChanges}
             </button>
-            {canPublish && (
-              <button className="secondary-button project-hero__action" type="button" onClick={onPublish}>
-                {t.overviewPublishChanges}
-              </button>
-            )}
           </div>
           <StatusAnnouncement isBusy={isCheckingChanges} message={`${heroHeadline}. ${heroMessage}`} />
         </section>
+
+        {(pendingVersions.totalCount > 0 || pendingVersionsError) && project && (
+          <PendingVersionsSection
+            key={project.path}
+            projectPath={project.path}
+            result={pendingVersions}
+            error={pendingVersionsError}
+            onRetry={onRetryPendingVersions}
+            onPublishUpTo={onPublishUpTo}
+          />
+        )}
 
         <section className="project-facts" aria-labelledby="project-facts-heading">
           <h2 className="project-facts__title" id="project-facts-heading">
@@ -1142,6 +1176,13 @@ function App(): React.JSX.Element {
   const [workingTreeError, setWorkingTreeError] = useState<string | null>(null);
   const [isCheckingChanges, setIsCheckingChanges] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
+  const openPublishDialog = (upTo?: string): void => {
+    setPublishUpTo(upTo ?? null);
+    setIsPublishOpen(true);
+  };
+  const [pendingVersions, setPendingVersions] = useState<PendingVersionsResult>(EMPTY_PENDING_VERSIONS);
+  const [pendingVersionsError, setPendingVersionsError] = useState<string | null>(null);
   const [gitDiagnostics, setGitDiagnostics] = useState<GitDiagnostics | null>(null);
   const [isRefreshingGitDiagnostics, setIsRefreshingGitDiagnostics] = useState(false);
   const [gitUpdateStatus, setGitUpdateStatus] = useState<GitUpdateStatus | null>(null);
@@ -1248,16 +1289,17 @@ function App(): React.JSX.Element {
   }, []);
 
   const projectPath = project?.path ?? null;
-  // Cheap, cached-status signal: shown whenever it isn't *known* there's
-  // nothing to publish (an upstream configured with zero commits ahead).
-  // A no-upstream or ahead>0 project may still turn out to have nothing new
-  // once `plan_publish` does its fresh preflight — that "already published"
-  // outcome is a normal blocked state the dialog itself reports.
+  // `pendingVersions` is the real, local-only list of not-yet-published
+  // saved versions (see `list_unpublished_versions`'s doc comment for the
+  // "cached, possibly optimistic" caveat — it reflects the last-known
+  // remote-tracking state, not a fresh preflight). Its length is a more
+  // accurate publish-entry-point signal than the old ahead-count heuristic,
+  // since it already accounts for the no-upstream-yet case (everything
+  // local is reported as pending) with no extra branching needed here.
   const canPublish = Boolean(
     project &&
       project.headState === "branch" &&
-      workingTree &&
-      !(workingTree.upstream.upstream && workingTree.upstream.ahead === 0),
+      (pendingVersions.totalCount > 0 || pendingVersionsError),
   );
 
   const checkWorkingTree = async (path: string): Promise<void> => {
@@ -1273,6 +1315,14 @@ function App(): React.JSX.Element {
     } finally {
       setIsCheckingChanges(false);
     }
+    // Independent of the status outcome above: a failure here must never
+    // blank out or corrupt the primary working-tree status.
+    try {
+      setPendingVersions(await invoke<PendingVersionsResult>("list_unpublished_versions", { path }));
+      setPendingVersionsError(null);
+    } catch (error) {
+      setPendingVersionsError(localizeAppError(error, t, t.overviewPendingVersionsError));
+    }
   };
 
   // Never asks for a status when no project is open, and re-reads whenever the
@@ -1280,6 +1330,8 @@ function App(): React.JSX.Element {
   useEffect(() => {
     setWorkingTree(null);
     setWorkingTreeError(null);
+    setPendingVersions(EMPTY_PENDING_VERSIONS);
+    setPendingVersionsError(null);
     if (!projectPath) {
       return;
     }
@@ -1591,7 +1643,11 @@ function App(): React.JSX.Element {
               onOpenProject={() => void handleOpenProject()}
               onCloseProject={requestCloseProject}
               canPublish={canPublish}
-              onPublish={() => setIsPublishOpen(true)}
+              onPublish={() => openPublishDialog()}
+              onPublishUpTo={(commit) => openPublishDialog(commit)}
+              pendingVersions={pendingVersions}
+              pendingVersionsError={pendingVersionsError}
+              onRetryPendingVersions={() => projectPath && void checkWorkingTree(projectPath)}
             />
           ) : view === "changes" && project ? (
             <ChangesPanel
@@ -1601,7 +1657,7 @@ function App(): React.JSX.Element {
               isCheckingChanges={isCheckingChanges}
               onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
               onNavigateOverview={() => navigateToView("overview")}
-              onPublishNow={() => setIsPublishOpen(true)}
+              onPublishNow={() => openPublishDialog()}
             />
           ) : (
             <SettingsPanel
@@ -1629,8 +1685,9 @@ function App(): React.JSX.Element {
         <PublishDialog
           isOpen={isPublishOpen}
           projectPath={project.path}
+          upTo={publishUpTo ?? undefined}
           onClose={() => setIsPublishOpen(false)}
-          onPublished={() => void checkWorkingTree(project.path)}
+          onPublished={() => checkWorkingTree(project.path)}
         />
       )}
 

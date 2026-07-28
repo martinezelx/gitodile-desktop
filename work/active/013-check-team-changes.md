@@ -160,7 +160,7 @@ Use local bare remotes and separate clones for:
 - `AGENTS.md`
 - `DESIGN.md`
 - `docs/ARCHITECTURE.md`
-- `work/active/011-publish-changes.md`
+- `work/done/011-publish-changes.md`
 - `work/active/012-open-and-switch-projects.md`
 - `src/main.tsx`
 - `src/repositoryOverview.ts`
@@ -191,4 +191,3 @@ arguments, timeout/cancellation behavior, and redaction coverage.
 
 Record exact frontend, Rust, temporary-remote, desktop, accessibility, and
 platform checks.
-

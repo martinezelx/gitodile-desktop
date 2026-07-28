@@ -1,7 +1,7 @@
 ---
 id: "011"
 title: "Publish saved versions safely"
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -276,30 +276,26 @@ where a hermetic real integration is not practical.
 ## Validation
 
 - `pnpm run typecheck` — pass.
-- `pnpm run test` — pass, 7 test files / 57 tests (including 12 new
-  `publishDialog.test.tsx` tests and the updated `saveVersionDialog.test.tsx`/
-  `changesPanel.test.tsx` for the new `onPublishNow` prop).
+- `pnpm run test` — pass, 8 test files / 71 tests, including
+  `publishDialog.test.tsx`, `pendingVersions.test.tsx`, and the updated
+  `saveVersionDialog.test.tsx`/`changesPanel.test.tsx` for the new
+  `onPublishNow` prop.
 - `pnpm run build` — pass.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
   --all-features -- -D warnings` — pass.
-- `cargo test --manifest-path src-tauri/Cargo.toml` — pass, 112 tests (91
-  pre-existing + 21 new: redaction, remote-selection rules, state-token
-  stability, push-failure classification as unit tests; first publish with
-  upstream creation, ahead-only, already up to date, behind, diverged,
-  remote changed after planning (stale token), remote hook rejection,
-  unsaved-files-present with byte-identical index, and exactly-one-branch-
-  updated as integration tests against real local bare remotes).
-- **Not performed: live desktop verification.** This environment can only
-  drive a Chromium-based browser preview, not the actual Tauri desktop
-  window (`invoke` has no IPC bridge outside the real Tauri shell, and
-  `pnpm run dev` alone only serves the frontend). The light/dark theme,
-  real-credential-helper, and true end-to-end publish flow described in
-  "Required tests > Frontend tests and manual verification" have **not**
-  been visually confirmed by me. Recommend running `pnpm tauri dev` locally
-  before treating this as fully shippable. This task file is intentionally
-  left in `work/active/`, not moved to `work/done/`, until that check
-  happens.
+- `cargo test --manifest-path src-tauri/Cargo.toml` — pass, 129 tests,
+  including differently named local/upstream branches, truncated pending
+  lists, unsafe remote names, and remote URL query-token redaction.
+- `node .agents/skills/impeccable/scripts/detect.mjs --json src` — pass,
+  no findings.
+- Live Tauri desktop verification — pass against
+  `C:\workspace\gitodrile-sandbox\repo` in dark and light themes:
+  compound saved/pending status, primary publish action, changed-file
+  disclosure, per-file line diff, full first-publish preview, and a 3-of-5
+  checkpoint preview. The final pending-row action and adaptive-height diff
+  were rechecked in both themes after the visual polish.
+  Both previews were cancelled; no sandbox ref or working file was changed.
 
 ## Relevant files
 
@@ -316,8 +312,10 @@ where a hermetic real integration is not practical.
 - `src/saveVersionDialog.tsx`
 - `src/publish.ts`
 - `src/publishDialog.tsx`
+- `src/pendingVersions.tsx`
 - `src/appError.ts`
 - `src/i18n.tsx`
+- `src/styles.css`
 - `src-tauri/src/lib.rs`
 
 ## Implementation notes
@@ -347,15 +345,91 @@ where a hermetic real integration is not practical.
   handling (`PublishUncertain`), not an interactive mid-push cancel button —
   the codebase has no async-cancellation precedent, and save-version's own
   `submitting` state offers no mid-flight cancel either.
-- The Overview's **Publish changes** entry point is a cheap, cached-status
-  heuristic (`workingTree.upstream`, no network call): hidden only when
-  affirmatively known there's nothing to publish (upstream configured and
-  ahead is 0); shown otherwise, including "no upstream configured yet".
-  `plan_publish`'s own `NothingToPublish` blocked state covers the rare
-  false positive. Confirmed with the user before implementing.
 - `SaveVersionDialog`'s previously-disabled **Publish now** placeholder
   (and its now-inaccurate `saveVersionPublishComingSoon` copy, removed) is
   now a real button via a new required `onPublishNow` prop; both entry
   points open the same lifted `PublishDialog` instance owned by `App` in
   `main.tsx`.
 
+## Additions beyond the original scope
+
+Built in response to live user feedback while trying the feature (not called
+for by the acceptance criteria above), in the order they came up:
+
+1. **The Overview's pending-versions list (`src/pendingVersions.tsx`).**
+   Originally the Overview only showed a count-based **Publish changes**
+   entry point. The user found that too vague ("I have two saved versions —
+   which ones?"), so this section lists every not-yet-published saved
+   version by description, with its short hash de-emphasized next to it. A
+   new read-only, local-only Rust command (`list_unpublished_versions`)
+   computes the list via `git log <upstream>..HEAD` (or plain `HEAD` when no
+   upstream is configured yet, in which case every local commit counts as
+   pending) — this reads the same last-known remote-tracking ref the
+   ahead/behind counts already used, not a fresh fetch. `canPublish` (the
+   Overview's entry-point visibility) now derives from this real list's
+   length instead of the earlier `ahead`-count heuristic, since the list
+   already correctly handles the no-upstream-yet case that the heuristic
+   needed extra branching for.
+2. **Per-commit file list, expandable inline (`read_commit_file_changes`).**
+   Each pending version expands (a `<details>`/`<summary>` row, chevron
+   rotating on open — the same pattern already used for "Technical details"
+   in this screen) into a very condensed file list: category icon + path,
+   reusing the exact same `ChangeCategory` vocabulary and icon set
+   (`CATEGORY_ICONS`, exported from `changes.tsx`) as the Changes screen, so
+   the two can never disagree about what a category means. Backed by
+   `git show --name-status -M <commit>`, parsed by a new
+   `parse_name_status_line` shared with the state-token/summary path.
+3. **Per-file diff, expandable one level deeper (`read_commit_file_diff`).**
+   Clicking a file inside that list reveals its real line-by-line diff,
+   reusing the Changes screen's entire diff pipeline unchanged: the same
+   `FileDiff` parsing/classification (`diff_result_from_text`) and the same
+   virtualized `DiffResultView`/`DiffHunkList` component (exported from
+   `changes.tsx`), just fed from `git show` on a specific commit instead of
+   the working tree. Two real CSS bugs surfaced and were fixed getting this
+   right in a non-Changes-screen context:
+   - Flex children inside `.pending-versions__list` (a capped-height,
+     `overflow-y: auto` flex column) were *shrinking* below their real
+     content height instead of the list simply scrolling, once several rows
+     were expanded at once — the classic flex default (`flex-shrink: 1`)
+     fighting the intended scroll behavior. Fixed with `flex-shrink: 0` on
+     `.pending-versions__item`.
+   - The diff viewport (`.diff-code`, shared with the Changes screen) relies
+     on `flex: 1; min-height: 0` against a *bounded* flex ancestor to become
+     the virtualizer's real scroll container — outside of one, those
+     properties are simply inert. The pending-list wrapper now provides a
+     bounded viewport whose height matches the visible diff rows and their
+     padding, up to a 300px maximum. Small diffs contain only their rendered
+     lines while long diffs retain the existing virtualized scrollbar.
+4. **Publish up to a checkpoint, per saved version.** The user asked for a
+   per-commit publish button; the constraint (confirmed with the user
+   before building) is that Git can't publish an isolated middle commit —
+   pushing any commit necessarily publishes every older ancestor too, so
+   "publish up to here" is the only meaningful framing, and choosing the
+   *oldest* pending version is the safe, single-click "just this one" case.
+   `plan_publish`/`publish` gained an optional `upTo` (a specific pending
+   commit hash) threaded through the same `validate_and_prepare_publish`
+   core: `resolve_up_to_target` requires it to be an ancestor of `HEAD`
+   (never something outside this version line's own history) and to not
+   already be reachable from the remote's last known position (else
+   `NothingToPublish`). The push refspec's source becomes that resolved
+   commit directly (a raw hash is a perfectly valid push source, not just a
+   branch name) instead of `refs/heads/<branch>`. That in turn meant
+   dropping `git push -u`, since a raw-commit source gives Git nothing to
+   infer a local branch name from for upstream tracking — upstream creation
+   is now a separate, explicit `git branch --set-upstream-to` call after a
+   successful push, whose actual success (not just the original intent) is
+   what `PublishResult.createdUpstream` reports. This refspec/upstream
+   change applies uniformly to the plain "publish everything" path too
+   (where the resolved target simply equals `HEAD`), and the full existing
+   test suite re-passed unchanged, confirming no regression there. A new
+   `remainingAfterPublish` count on both `PublishPlan` and `PublishResult`
+   drives the "N other saved versions will stay unpublished for now" note.
+   The per-row button is a sibling of the version's `<details>`, so it has
+   independent keyboard and pointer behavior without nested interactive
+   controls. It is styled as a compact inline action rather than a visually
+   divided second column. The preview's **Will stay on this computer**
+   section receives the descriptions of any newer saved versions from the
+   same plan and presents them as compact pills; hashes are intentionally
+   omitted there because they do not help with that decision. Unsaved file
+   changes use a separate pill because they do not yet have a saved-version
+   description.
