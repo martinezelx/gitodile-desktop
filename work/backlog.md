@@ -7,7 +7,6 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 - Add structured Git command execution in Rust.
 - Define typed Rust-to-frontend error contracts.
 - Define typed operation plans, risk classification, confirmation, and recovery contracts.
-- Persist and reopen recent projects.
 - Add application logging with privacy-safe defaults.
 
 ## Repository experience
@@ -25,7 +24,6 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 ## Save and history
 
 - Generate optional commit message suggestions locally or through an opt-in AI provider.
-- Present history as an understandable timeline.
 - Compare two saved versions.
 - Restore an earlier version through a reversible plan.
 - Define the lifecycle, naming, retention, and cleanup policy for recovery
@@ -33,8 +31,6 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 
 ## Sync and collaboration
 
-- Detect remotes and upstream configuration.
-- Explain ahead/behind state without hiding exact Git details.
 - Guide users through overlapping changes.
 - Support GitHub authentication after the local workflow is stable.
 

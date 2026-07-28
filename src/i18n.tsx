@@ -158,6 +158,55 @@ export interface Translations {
   changesLineAddedLabel: string;
   changesLineRemovedLabel: string;
 
+  changesSaveVersion: string;
+  changesSaveVersionDisabledHint: string;
+  changesSaveVersionNoSelectionHint: string;
+  changesSelectionSummary: (selected: number, total: number) => string;
+  changesSelectAll: string;
+  changesSelectNone: string;
+  changesIncludeFile: (path: string) => string;
+  changesPartialUnavailableTruncated: string;
+  changesProjectRoot: string;
+  saveVersionDialogTitle: string;
+  saveVersionDialogTitleFirst: string;
+  saveVersionLoadingTitle: string;
+  saveVersionDescriptionLabel: string;
+  saveVersionDescriptionPlaceholder: string;
+  saveVersionFilesSummary: (total: number) => string;
+  saveVersionRemainingNote: (remaining: number) => string;
+  saveVersionPreparedNote: string;
+  saveVersionFirstVersionNote: string;
+  saveVersionLocalOnlyNote: string;
+  saveVersionConfirm: string;
+  saveVersionSaving: string;
+  saveVersionRetry: string;
+  saveVersionShowDetail: string;
+  saveVersionHideDetail: string;
+  saveVersionDetailHeading: string;
+  saveVersionSuccessTitle: string;
+  saveVersionSuccessDescription: (shortCommit: string) => string;
+  saveVersionSuccessLocalNote: string;
+  saveVersionPublishNow: string;
+  saveVersionDone: string;
+
+  publishDialogTitle: string;
+  publishDialogTitleFirst: string;
+  publishLoadingTitle: string;
+  publishChooseRemoteTitle: string;
+  publishChooseRemoteDescription: string;
+  publishSummary: (remote: string, branch: string) => string;
+  publishCommitCount: (count: number) => string;
+  publishUpstreamNote: string;
+  publishUnsavedFilesNote: string;
+  publishTeammatesNote: string;
+  publishConfirm: string;
+  publishPublishing: string;
+  publishSuccessTitle: string;
+  publishSuccessDescription: (count: number, remote: string) => string;
+  publishSuccessUpstreamNote: string;
+  publishDone: string;
+
+  overviewPublishChanges: string;
   overviewCloseProject: string;
   overviewEmptyTitle: string;
   overviewEmptyDescription: string;
@@ -179,6 +228,30 @@ export interface Translations {
   errorPathInvalid: string;
   errorPathNotChanged: string;
   errorPathEncodingUnsupported: string;
+  errorNothingToSave: string;
+  errorUnresolvedConflicts: string;
+  errorDetachedHead: string;
+  errorGitOperationInProgress: string;
+  errorMissingIdentity: string;
+  errorEmptyDescription: string;
+  errorStalePreview: string;
+  errorHookRejected: string;
+  errorSigningFailed: string;
+  errorIndexUnavailable: string;
+  errorIndexRestoreFailed: string;
+  errorInvalidSelection: string;
+  errorNoRemoteConfigured: string;
+  errorRemoteSelectionRequired: string;
+  errorUnbornBranchNoVersion: string;
+  errorNothingToPublish: string;
+  errorBehindRemote: string;
+  errorDivergedHistories: string;
+  errorStalePublishPlan: string;
+  errorInvalidRefName: string;
+  errorAuthenticationFailed: string;
+  errorNetworkTimeout: string;
+  errorRemoteRejected: string;
+  errorPublishUncertain: string;
 
   settingsAppearanceTitle: string;
   settingsAppearanceDescription: string;
@@ -186,6 +259,8 @@ export interface Translations {
   commonSystem: string;
   themeLight: string;
   themeDark: string;
+  titlebarSwitchToLightTheme: string;
+  titlebarSwitchToDarkTheme: string;
 
   settingsGeneralTitle: string;
   settingsGeneralDescription: string;
@@ -401,6 +476,63 @@ const en: Translations = {
   changesLineAddedLabel: "Added:",
   changesLineRemovedLabel: "Removed:",
 
+  changesSaveVersion: "Save version",
+  changesSaveVersionDisabledHint: "Make some changes first, then come back to save a version.",
+  changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
+  changesSelectionSummary: (selected, total) => `${selected} of ${total} selected`,
+  changesSelectAll: "Select all",
+  changesSelectNone: "Select none",
+  changesIncludeFile: (path) => `Include ${path} in this version`,
+  changesPartialUnavailableTruncated:
+    "This project has more changed files than can be listed safely. Save all changes before using file selection.",
+  changesProjectRoot: "Project root",
+  saveVersionDialogTitle: "Save version",
+  saveVersionDialogTitleFirst: "Save your first version",
+  saveVersionLoadingTitle: "Preparing a preview…",
+  saveVersionDescriptionLabel: "What changed?",
+  saveVersionDescriptionPlaceholder: "Describe what changed…",
+  saveVersionFilesSummary: (total) => (total === 1 ? "1 file will be saved." : `${total} files will be saved.`),
+  saveVersionRemainingNote: (remaining) =>
+    remaining === 1 ? "1 other file will remain as a pending change." : `${remaining} other files will remain as pending changes.`,
+  saveVersionPreparedNote:
+    "Some selected changes were prepared earlier with another Git tool. They will be saved together with this selection.",
+  saveVersionFirstVersionNote: "This will be this project's first saved version.",
+  saveVersionLocalOnlyNote: "This creates a saved version on this computer only. Nothing is sent anywhere yet.",
+  saveVersionConfirm: "Save version",
+  saveVersionSaving: "Saving your version…",
+  saveVersionRetry: "Try again",
+  saveVersionShowDetail: "Show technical details",
+  saveVersionHideDetail: "Hide technical details",
+  saveVersionDetailHeading: "Technical details",
+  saveVersionSuccessTitle: "Version saved",
+  saveVersionSuccessDescription: (shortCommit) => `Saved as ${shortCommit}.`,
+  saveVersionSuccessLocalNote: "Saved on this computer. Not published to a remote project yet.",
+  saveVersionPublishNow: "Publish now",
+  saveVersionDone: "Done",
+
+  publishDialogTitle: "Publish changes",
+  publishDialogTitleFirst: "Publish for the first time",
+  publishLoadingTitle: "Checking what's ready to publish…",
+  publishChooseRemoteTitle: "Choose a remote project",
+  publishChooseRemoteDescription:
+    "This project has more than one remote project configured. Choose where to publish.",
+  publishSummary: (remote, branch) => `Publish to "${remote}" (${branch}).`,
+  publishCommitCount: (count) =>
+    count === 1 ? "1 saved version will be published." : `${count} saved versions will be published.`,
+  publishUpstreamNote: "This version line will start tracking the remote branch.",
+  publishUnsavedFilesNote: "Unsaved files on this computer will stay local — only saved versions are published.",
+  publishTeammatesNote: "Teammates with access to this remote project will be able to see the published history.",
+  publishConfirm: "Publish now",
+  publishPublishing: "Publishing…",
+  publishSuccessTitle: "Published",
+  publishSuccessDescription: (count, remote) =>
+    count === 1
+      ? `1 saved version was published to "${remote}".`
+      : `${count} saved versions were published to "${remote}".`,
+  publishSuccessUpstreamNote: "This version line now tracks the remote branch.",
+  publishDone: "Done",
+
+  overviewPublishChanges: "Publish changes",
   overviewCloseProject: "Close project",
   overviewEmptyTitle: "No project open",
   overviewEmptyDescription:
@@ -424,6 +556,35 @@ const en: Translations = {
   errorPathNotChanged: "This file is no longer part of the unsaved changes. Refresh the list and choose a file that is still listed.",
   errorPathEncodingUnsupported:
     "This project contains a file name GitOdrile can't represent safely. Rename it with a Unicode-compatible name and refresh.",
+  errorNothingToSave: "There's nothing to save right now. Make some changes first.",
+  errorUnresolvedConflicts: "Some files have overlapping changes that need to be resolved before you can save.",
+  errorDetachedHead: "This project isn't on a version line right now. Switch to one before saving a version.",
+  errorGitOperationInProgress:
+    "A Git operation is already in progress in this project. Finish or abort it, then try again.",
+  errorMissingIdentity: "GitOdrile doesn't know who is saving this version yet. Add a name and email in Settings.",
+  errorEmptyDescription: "Write a short description before saving.",
+  errorStalePreview: "This project changed since the preview was shown. Review the updated changes and try again.",
+  errorHookRejected: "A Git hook rejected this version. Check the hook's output, then try again.",
+  errorSigningFailed: "Git couldn't sign this version. Check your commit-signing setup (GPG or SSH key) and try again.",
+  errorIndexUnavailable:
+    "GitOdrile couldn't safely prepare this project's Git index. Check disk space and permissions, then try again.",
+  errorIndexRestoreFailed:
+    "GitOdrile couldn't restore the project's prepared changes. Your working files are still there; review the technical details before trying again.",
+  errorInvalidSelection: "Choose at least one file to save.",
+  errorNoRemoteConfigured: "This project has no remote project configured yet. Add a remote in Git, then try again.",
+  errorRemoteSelectionRequired: "This project has more than one remote project. Choose which one to publish to.",
+  errorUnbornBranchNoVersion: "There's no saved version on this version line yet. Save a version first.",
+  errorNothingToPublish: "Every saved version is already published.",
+  errorBehindRemote: "The remote project has newer versions this project doesn't have yet. Get the team's changes first.",
+  errorDivergedHistories:
+    "This version line and the remote project have both moved apart. Get the team's changes first.",
+  errorStalePublishPlan: "This project or the remote project changed since the preview was shown. Try publishing again.",
+  errorInvalidRefName: "This version line's name isn't a valid Git reference.",
+  errorAuthenticationFailed: "GitOdrile couldn't sign in to the remote project. Check your Git credentials and try again.",
+  errorNetworkTimeout: "GitOdrile couldn't reach the remote project in time. Check your connection and try again.",
+  errorRemoteRejected: "The remote project rejected this publish. Check the remote project's rules for this branch.",
+  errorPublishUncertain:
+    "GitOdrile lost the connection while publishing. Refresh and check whether it was published before trying again.",
 
   settingsAppearanceTitle: "Appearance",
   settingsAppearanceDescription: 'Choose how GitOdrile looks. "System" follows your OS setting automatically.',
@@ -431,6 +592,8 @@ const en: Translations = {
   commonSystem: "System",
   themeLight: "Light",
   themeDark: "Dark",
+  titlebarSwitchToLightTheme: "Switch to light theme",
+  titlebarSwitchToDarkTheme: "Switch to dark theme",
 
   settingsGeneralTitle: "General",
   settingsGeneralDescription: "Application information and diagnostics.",
@@ -657,6 +820,68 @@ const es: Translations = {
   changesLineAddedLabel: "Añadida:",
   changesLineRemovedLabel: "Eliminada:",
 
+  changesSaveVersion: "Guardar versión",
+  changesSaveVersionDisabledHint: "Haz algún cambio primero y vuelve para guardar una versión.",
+  changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
+  changesSelectionSummary: (selected, total) => `${selected} de ${total} seleccionados`,
+  changesSelectAll: "Seleccionar todo",
+  changesSelectNone: "No seleccionar ninguno",
+  changesIncludeFile: (path) => `Incluir ${path} en esta versión`,
+  changesPartialUnavailableTruncated:
+    "Este proyecto tiene más archivos modificados de los que se pueden listar con seguridad. Guarda todos los cambios antes de usar la selección.",
+  changesProjectRoot: "Raíz del proyecto",
+  saveVersionDialogTitle: "Guardar versión",
+  saveVersionDialogTitleFirst: "Guarda tu primera versión",
+  saveVersionLoadingTitle: "Preparando una vista previa…",
+  saveVersionDescriptionLabel: "¿Qué cambió?",
+  saveVersionDescriptionPlaceholder: "Describe qué cambió…",
+  saveVersionFilesSummary: (total) =>
+    total === 1 ? "Se guardará 1 archivo." : `Se guardarán ${total} archivos.`,
+  saveVersionRemainingNote: (remaining) =>
+    remaining === 1
+      ? "Otro archivo seguirá como cambio pendiente."
+      : `Otros ${remaining} archivos seguirán como cambios pendientes.`,
+  saveVersionPreparedNote:
+    "Algunos cambios seleccionados se habían preparado antes con otra herramienta Git. Se guardarán junto con esta selección.",
+  saveVersionFirstVersionNote: "Esta será la primera versión guardada de este proyecto.",
+  saveVersionLocalOnlyNote: "Esto crea una versión guardada solo en este equipo. Todavía no se envía nada a ningún sitio.",
+  saveVersionConfirm: "Guardar versión",
+  saveVersionSaving: "Guardando tu versión…",
+  saveVersionRetry: "Reintentar",
+  saveVersionShowDetail: "Mostrar detalles técnicos",
+  saveVersionHideDetail: "Ocultar detalles técnicos",
+  saveVersionDetailHeading: "Detalles técnicos",
+  saveVersionSuccessTitle: "Versión guardada",
+  saveVersionSuccessDescription: (shortCommit) => `Guardada como ${shortCommit}.`,
+  saveVersionSuccessLocalNote: "Guardada en este equipo. Todavía no se ha publicado en un proyecto remoto.",
+  saveVersionPublishNow: "Publicar ahora",
+  saveVersionDone: "Listo",
+
+  publishDialogTitle: "Publicar cambios",
+  publishDialogTitleFirst: "Publicar por primera vez",
+  publishLoadingTitle: "Comprobando qué está listo para publicar…",
+  publishChooseRemoteTitle: "Elige un proyecto remoto",
+  publishChooseRemoteDescription:
+    "Este proyecto tiene más de un proyecto remoto configurado. Elige dónde publicar.",
+  publishSummary: (remote, branch) => `Publicar en "${remote}" (${branch}).`,
+  publishCommitCount: (count) =>
+    count === 1 ? "Se publicará 1 versión guardada." : `Se publicarán ${count} versiones guardadas.`,
+  publishUpstreamNote: "Esta línea de versión empezará a seguir la rama remota.",
+  publishUnsavedFilesNote:
+    "Los archivos sin guardar en este equipo permanecerán locales — solo se publican las versiones guardadas.",
+  publishTeammatesNote:
+    "Las personas con acceso a este proyecto remoto podrán ver el historial publicado.",
+  publishConfirm: "Publicar ahora",
+  publishPublishing: "Publicando…",
+  publishSuccessTitle: "Publicado",
+  publishSuccessDescription: (count, remote) =>
+    count === 1
+      ? `Se publicó 1 versión guardada en "${remote}".`
+      : `Se publicaron ${count} versiones guardadas en "${remote}".`,
+  publishSuccessUpstreamNote: "Esta línea de versión ahora sigue la rama remota.",
+  publishDone: "Listo",
+
+  overviewPublishChanges: "Publicar cambios",
   overviewCloseProject: "Cerrar proyecto",
   overviewEmptyTitle: "No hay ningún proyecto abierto",
   overviewEmptyDescription:
@@ -681,6 +906,38 @@ const es: Translations = {
     "Este archivo ya no forma parte de los cambios sin guardar. Actualiza la lista y elige un archivo que siga apareciendo.",
   errorPathEncodingUnsupported:
     "Este proyecto contiene un nombre de archivo que GitOdrile no puede representar de forma segura. Renómbralo con un nombre Unicode compatible y actualiza.",
+  errorNothingToSave: "No hay nada que guardar ahora mismo. Haz algún cambio primero.",
+  errorUnresolvedConflicts: "Algunos archivos tienen cambios superpuestos que hay que resolver antes de poder guardar.",
+  errorDetachedHead: "Este proyecto no está en una línea de versión ahora mismo. Cambia a una antes de guardar una versión.",
+  errorGitOperationInProgress:
+    "Ya hay una operación de Git en curso en este proyecto. Termínala o cancélala, y vuelve a intentarlo.",
+  errorMissingIdentity: "GitOdrile todavía no sabe quién está guardando esta versión. Añade un nombre y un correo en Configuración.",
+  errorEmptyDescription: "Escribe una breve descripción antes de guardar.",
+  errorStalePreview: "Este proyecto cambió desde que se mostró la vista previa. Revisa los cambios actualizados e inténtalo de nuevo.",
+  errorHookRejected: "Un hook de Git rechazó esta versión. Revisa lo que indica el hook e inténtalo de nuevo.",
+  errorSigningFailed: "Git no pudo firmar esta versión. Comprueba tu configuración de firma (GPG o clave SSH) e inténtalo de nuevo.",
+  errorIndexUnavailable:
+    "GitOdrile no pudo preparar de forma segura el índice de Git de este proyecto. Comprueba el espacio en disco y los permisos, e inténtalo de nuevo.",
+  errorIndexRestoreFailed:
+    "GitOdrile no pudo restaurar los cambios preparados del proyecto. Tus archivos siguen ahí; revisa los detalles técnicos antes de intentarlo de nuevo.",
+  errorInvalidSelection: "Elige al menos un archivo para guardar.",
+  errorNoRemoteConfigured: "Este proyecto todavía no tiene un proyecto remoto configurado. Añade un remoto en Git e inténtalo de nuevo.",
+  errorRemoteSelectionRequired: "Este proyecto tiene más de un proyecto remoto. Elige a cuál publicar.",
+  errorUnbornBranchNoVersion: "Todavía no hay ninguna versión guardada en esta línea de versión. Guarda una versión primero.",
+  errorNothingToPublish: "Todas las versiones guardadas ya están publicadas.",
+  errorBehindRemote:
+    "El proyecto remoto tiene versiones más recientes que este proyecto todavía no tiene. Obtén primero los cambios del equipo.",
+  errorDivergedHistories:
+    "Esta línea de versión y el proyecto remoto se han separado. Obtén primero los cambios del equipo.",
+  errorStalePublishPlan:
+    "Este proyecto o el proyecto remoto cambiaron desde que se mostró la vista previa. Intenta publicar de nuevo.",
+  errorInvalidRefName: "El nombre de esta línea de versión no es una referencia de Git válida.",
+  errorAuthenticationFailed:
+    "GitOdrile no pudo iniciar sesión en el proyecto remoto. Comprueba tus credenciales de Git e inténtalo de nuevo.",
+  errorNetworkTimeout: "GitOdrile no pudo contactar con el proyecto remoto a tiempo. Comprueba tu conexión e inténtalo de nuevo.",
+  errorRemoteRejected: "El proyecto remoto rechazó esta publicación. Revisa las reglas del proyecto remoto para esta rama.",
+  errorPublishUncertain:
+    "GitOdrile perdió la conexión mientras publicaba. Actualiza y comprueba si se publicó antes de intentarlo de nuevo.",
 
   settingsAppearanceTitle: "Apariencia",
   settingsAppearanceDescription:
@@ -689,6 +946,8 @@ const es: Translations = {
   commonSystem: "Sistema",
   themeLight: "Claro",
   themeDark: "Oscuro",
+  titlebarSwitchToLightTheme: "Cambiar a tema claro",
+  titlebarSwitchToDarkTheme: "Cambiar a tema oscuro",
 
   settingsGeneralTitle: "General",
   settingsGeneralDescription: "Información de la aplicación y diagnósticos.",

@@ -95,6 +95,8 @@ function status(counts: Partial<WorkingTreeCounts>): WorkingTreeStatus {
     counts: filled,
     entries: [],
     truncated: false,
+    hasPreparedChanges: false,
+    hasUnpreparedChanges: false,
     upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
   };
 }

@@ -17,9 +17,37 @@ export type AppError = {
     | "git_config_write_failed"
     | "path_invalid"
     | "path_not_changed"
-    | "path_encoding_unsupported";
+    | "path_encoding_unsupported"
+    | "nothing_to_save"
+    | "unresolved_conflicts"
+    | "detached_head"
+    | "git_operation_in_progress"
+    | "missing_identity"
+    | "empty_description"
+    | "stale_preview"
+    | "hook_rejected"
+    | "signing_failed"
+    | "index_unavailable"
+    | "index_restore_failed"
+    | "invalid_selection"
+    | "no_remote_configured"
+    | "remote_selection_required"
+    | "unborn_branch_no_version"
+    | "nothing_to_publish"
+    | "behind_remote"
+    | "diverged_histories"
+    | "stale_publish_plan"
+    | "invalid_ref_name"
+    | "authentication_failed"
+    | "network_timeout"
+    | "remote_rejected"
+    | "publish_uncertain";
   message: string;
   remediation: string | null;
+  /** A bounded, secondary excerpt (e.g. raw hook or signing output) for
+   * failures GitOdrile can only classify heuristically. Never the primary
+   * message — see `saveVersionDialog.tsx`'s optional "technical details". */
+  detail?: string | null;
 };
 
 export function isAppError(value: unknown): value is AppError {
@@ -44,6 +72,30 @@ export function localizeAppError(error: unknown, t: Translations, fallback: stri
     path_invalid: t.errorPathInvalid,
     path_not_changed: t.errorPathNotChanged,
     path_encoding_unsupported: t.errorPathEncodingUnsupported,
+    nothing_to_save: t.errorNothingToSave,
+    unresolved_conflicts: t.errorUnresolvedConflicts,
+    detached_head: t.errorDetachedHead,
+    git_operation_in_progress: t.errorGitOperationInProgress,
+    missing_identity: t.errorMissingIdentity,
+    empty_description: t.errorEmptyDescription,
+    stale_preview: t.errorStalePreview,
+    hook_rejected: t.errorHookRejected,
+    signing_failed: t.errorSigningFailed,
+    index_unavailable: t.errorIndexUnavailable,
+    index_restore_failed: t.errorIndexRestoreFailed,
+    invalid_selection: t.errorInvalidSelection,
+    no_remote_configured: t.errorNoRemoteConfigured,
+    remote_selection_required: t.errorRemoteSelectionRequired,
+    unborn_branch_no_version: t.errorUnbornBranchNoVersion,
+    nothing_to_publish: t.errorNothingToPublish,
+    behind_remote: t.errorBehindRemote,
+    diverged_histories: t.errorDivergedHistories,
+    stale_publish_plan: t.errorStalePublishPlan,
+    invalid_ref_name: t.errorInvalidRefName,
+    authentication_failed: t.errorAuthenticationFailed,
+    network_timeout: t.errorNetworkTimeout,
+    remote_rejected: t.errorRemoteRejected,
+    publish_uncertain: t.errorPublishUncertain,
   };
   return messages[error.code] ?? fallback;
 }

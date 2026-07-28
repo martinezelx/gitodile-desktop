@@ -36,6 +36,10 @@ struct AppError {
     code: AppErrorCode,
     message: String,
     remediation: Option<String>,
+    /// A bounded, secondary excerpt for failures whose primary cause is
+    /// something GitOdrile can only classify heuristically (a rejecting hook,
+    /// a signing failure) — never the sole or primary user-facing message.
+    detail: Option<String>,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -53,6 +57,30 @@ enum AppErrorCode {
     PathInvalid,
     PathNotChanged,
     PathEncodingUnsupported,
+    NothingToSave,
+    UnresolvedConflicts,
+    DetachedHead,
+    GitOperationInProgress,
+    MissingIdentity,
+    EmptyDescription,
+    StalePreview,
+    HookRejected,
+    SigningFailed,
+    IndexUnavailable,
+    IndexRestoreFailed,
+    InvalidSelection,
+    NoRemoteConfigured,
+    RemoteSelectionRequired,
+    UnbornBranchNoVersion,
+    NothingToPublish,
+    BehindRemote,
+    DivergedHistories,
+    StalePublishPlan,
+    InvalidRefName,
+    AuthenticationFailed,
+    NetworkTimeout,
+    RemoteRejected,
+    PublishUncertain,
 }
 
 impl AppError {
@@ -61,11 +89,17 @@ impl AppError {
             code,
             message: message.into(),
             remediation: None,
+            detail: None,
         }
     }
 
     fn with_remediation(mut self, remediation: impl Into<String>) -> Self {
         self.remediation = Some(remediation.into());
+        self
+    }
+
+    fn with_detail(mut self, detail: impl Into<String>) -> Self {
+        self.detail = Some(detail.into());
         self
     }
 }
@@ -413,16 +447,20 @@ enum ChangeCategory {
     Conflicted,
 }
 
-#[derive(serde::Serialize, Debug, PartialEq)]
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 struct WorkingTreeEntry {
     path: String,
     /// Only set for renames: where the file came from.
     original_path: Option<String>,
     category: ChangeCategory,
+    /// Kept as structured metadata for save planning and advanced tooling.
+    /// Simple mode deliberately does not expose Git's index vocabulary.
+    is_prepared: bool,
+    has_unprepared_changes: bool,
 }
 
-#[derive(serde::Serialize, Debug, PartialEq, Default)]
+#[derive(serde::Serialize, Debug, PartialEq, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 struct WorkingTreeCounts {
     changed: usize,
@@ -454,6 +492,8 @@ struct WorkingTreeStatus {
     /// True when more files changed than `MAX_REPORTED_ENTRIES`. The counts
     /// stay exact; only the per-file list is capped.
     truncated: bool,
+    has_prepared_changes: bool,
+    has_unprepared_changes: bool,
     upstream: UpstreamStatus,
 }
 
@@ -514,6 +554,8 @@ struct RawStatusEntry {
     original_path: Option<String>,
     category: ChangeCategory,
     is_untracked: bool,
+    is_prepared: bool,
+    has_unprepared_changes: bool,
 }
 
 struct ParsedStatusRecords {
@@ -570,72 +612,101 @@ fn parse_status_records(stdout: &[u8]) -> ParsedStatusRecords {
             continue;
         }
 
-        let (category, path, original_path, is_untracked) = match record.as_bytes().first() {
-            // `1 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>`
-            Some(b'1') => {
-                let Some(rest) = record.strip_prefix("1 ") else {
-                    continue;
-                };
-                let mut parts = rest.splitn(8, ' ');
-                let Some(xy) = parts.next() else { continue };
-                let Some(path) = parts.nth(6) else { continue };
-                let xy = xy.as_bytes();
-                if xy.len() < 2 {
-                    continue;
+        let (category, path, original_path, is_untracked, is_prepared, has_unprepared_changes) =
+            match record.as_bytes().first() {
+                // `1 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>`
+                Some(b'1') => {
+                    let Some(rest) = record.strip_prefix("1 ") else {
+                        continue;
+                    };
+                    let mut parts = rest.splitn(8, ' ');
+                    let Some(xy) = parts.next() else { continue };
+                    let Some(path) = parts.nth(6) else { continue };
+                    let xy = xy.as_bytes();
+                    if xy.len() < 2 {
+                        continue;
+                    }
+                    (
+                        categorize_ordinary(xy[0], xy[1]),
+                        path.to_string(),
+                        None,
+                        false,
+                        xy[0] != b'.',
+                        xy[1] != b'.',
+                    )
                 }
-                (
-                    categorize_ordinary(xy[0], xy[1]),
-                    path.to_string(),
-                    None,
-                    false,
-                )
-            }
-            // `2 ... <path>` followed by a separate NUL-terminated original path.
-            Some(b'2') => {
-                let Some(rest) = record.strip_prefix("2 ") else {
-                    continue;
-                };
-                let Some(path) = rest.splitn(9, ' ').nth(8) else {
-                    continue;
-                };
-                let original = match fields.next() {
-                    Some(value) => match std::str::from_utf8(value) {
-                        Ok(value) => Some(value.to_string()),
-                        Err(_) => {
-                            has_unsupported_path_encoding = true;
-                            continue;
-                        }
-                    },
-                    None => None,
-                };
-                (ChangeCategory::Renamed, path.to_string(), original, false)
-            }
-            // `u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>`
-            Some(b'u') => {
-                let Some(rest) = record.strip_prefix("u ") else {
-                    continue;
-                };
-                let Some(path) = rest.splitn(10, ' ').nth(9) else {
-                    continue;
-                };
-                (ChangeCategory::Conflicted, path.to_string(), None, false)
-            }
-            Some(b'?') => {
-                let Some(path) = record.strip_prefix("? ") else {
-                    continue;
-                };
-                (ChangeCategory::New, path.to_string(), None, true)
-            }
-            // `!` ignored entries are never requested, and anything else is
-            // output this parser does not model.
-            _ => continue,
-        };
+                // `2 ... <path>` followed by a separate NUL-terminated original path.
+                Some(b'2') => {
+                    let Some(rest) = record.strip_prefix("2 ") else {
+                        continue;
+                    };
+                    let mut parts = rest.splitn(9, ' ');
+                    let Some(xy) = parts.next() else { continue };
+                    let Some(path) = parts.nth(7) else {
+                        continue;
+                    };
+                    let original = match fields.next() {
+                        Some(value) => match std::str::from_utf8(value) {
+                            Ok(value) => Some(value.to_string()),
+                            Err(_) => {
+                                has_unsupported_path_encoding = true;
+                                continue;
+                            }
+                        },
+                        None => None,
+                    };
+                    let xy = xy.as_bytes();
+                    (
+                        ChangeCategory::Renamed,
+                        path.to_string(),
+                        original,
+                        false,
+                        xy.first().is_some_and(|value| *value != b'.'),
+                        xy.get(1).is_some_and(|value| *value != b'.'),
+                    )
+                }
+                // `u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>`
+                Some(b'u') => {
+                    let Some(rest) = record.strip_prefix("u ") else {
+                        continue;
+                    };
+                    let Some(path) = rest.splitn(10, ' ').nth(9) else {
+                        continue;
+                    };
+                    (
+                        ChangeCategory::Conflicted,
+                        path.to_string(),
+                        None,
+                        false,
+                        true,
+                        true,
+                    )
+                }
+                Some(b'?') => {
+                    let Some(path) = record.strip_prefix("? ") else {
+                        continue;
+                    };
+                    (
+                        ChangeCategory::New,
+                        path.to_string(),
+                        None,
+                        true,
+                        false,
+                        true,
+                    )
+                }
+                // `!` ignored entries are never requested, and anything else is
+                // output this parser does not model.
+                _ => continue,
+            };
 
         entries.push(RawStatusEntry {
             path,
             original_path,
             category,
             is_untracked,
+            is_prepared,
+            has_unprepared_changes,
         });
     }
 
@@ -653,6 +724,8 @@ fn status_from_records(records: ParsedStatusRecords) -> WorkingTreeStatus {
     };
 
     for raw in records.entries {
+        status.has_prepared_changes |= raw.is_prepared;
+        status.has_unprepared_changes |= raw.has_unprepared_changes;
         match raw.category {
             ChangeCategory::Changed => status.counts.changed += 1,
             ChangeCategory::New => status.counts.new_files += 1,
@@ -667,6 +740,8 @@ fn status_from_records(records: ParsedStatusRecords) -> WorkingTreeStatus {
                 path: raw.path,
                 original_path: raw.original_path,
                 category: raw.category,
+                is_prepared: raw.is_prepared,
+                has_unprepared_changes: raw.has_unprepared_changes,
             });
         } else {
             status.truncated = true;
@@ -1061,8 +1136,16 @@ fn diff_output_is_success(strategy: &DiffStrategy, output: &CappedOutput) -> boo
     }
 }
 
-fn build_text_result(entry: &RawStatusEntry, output: &CappedOutput) -> FileDiff {
-    if output.limit_exceeded {
+/// Shared by the single-file (`read_file_diff`) and batched
+/// (`read_working_tree_diffs`) paths, so a file's classification (binary,
+/// too-large, unchanged, text-with-hunks) never depends on which path fetched
+/// it. `too_large` is decided by the caller: the single-file path checks
+/// `CappedOutput::limit_exceeded` from its own dedicated-size invocation,
+/// while the batch path checks each file's *section* length against the same
+/// `MAX_DIFF_OUTPUT_BYTES` threshold, since the whole combined invocation is
+/// capped much higher.
+fn diff_result_from_text(entry: &RawStatusEntry, text: &str, too_large: bool) -> FileDiff {
+    if too_large {
         return FileDiff::TooLarge {
             path: entry.path.clone(),
             original_path: entry.original_path.clone(),
@@ -1071,8 +1154,7 @@ fn build_text_result(entry: &RawStatusEntry, output: &CappedOutput) -> FileDiff 
         };
     }
 
-    let text = String::from_utf8_lossy(&output.stdout);
-    if is_binary_diff_output(&text) {
+    if is_binary_diff_output(text) {
         return FileDiff::Binary {
             path: entry.path.clone(),
             original_path: entry.original_path.clone(),
@@ -1080,7 +1162,7 @@ fn build_text_result(entry: &RawStatusEntry, output: &CappedOutput) -> FileDiff 
         };
     }
 
-    let parsed = parse_diff_body(&text);
+    let parsed = parse_diff_body(text);
     if parsed.hunks.is_empty() {
         return FileDiff::Unchanged {
             path: entry.path.clone(),
@@ -1096,6 +1178,14 @@ fn build_text_result(entry: &RawStatusEntry, output: &CappedOutput) -> FileDiff 
         hunks: parsed.hunks,
         truncated: parsed.truncated,
     }
+}
+
+fn build_text_result(entry: &RawStatusEntry, output: &CappedOutput) -> FileDiff {
+    diff_result_from_text(
+        entry,
+        &String::from_utf8_lossy(&output.stdout),
+        output.limit_exceeded,
+    )
 }
 
 /// Conflict inspection is informational only (see task decisions), so a
@@ -1257,6 +1347,304 @@ fn read_file_diff(path: String, file_path: String) -> Result<FileDiff, AppError>
     }
 
     Ok(build_text_result(&entry, &output))
+}
+
+// ---- Batched working-tree diffs (extra optimization, task 010) ----
+//
+// `read_file_diff` spawns at least two Git processes per call (a fresh
+// status re-validation plus a dedicated `git diff` for that one path), which
+// is the dominant cost when switching between files quickly — not IPC, not
+// parsing. This command answers "the diff for every currently changed file"
+// with one `git status` and, for ordinary tracked changes, exactly one more
+// `git diff` process covering all of them at once. The frontend uses it to
+// warm its cache right after the working tree loads, so most clicks become
+// pure cache hits instead of a fresh process spawn. It is a read-only,
+// best-effort *supplement* to `read_file_diff`, not a replacement: entries it
+// cannot or does not cover (conflicts, a file whose section did not fit
+// before the combined output was capped, or a failed batch) are simply
+// absent from the result, and the frontend falls back to `read_file_diff`
+// for exactly those paths.
+
+/// Higher than `MAX_DIFF_OUTPUT_BYTES` (which bounds one file) because this
+/// covers every ordinary tracked change in the project at once. Still bounded
+/// so a pathological changeset can't block the UI or balloon the IPC payload;
+/// see `batch_tracked_diffs` for how a cap mid-file is handled safely.
+const MAX_BATCH_DIFF_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
+
+/// Git's own heuristic for "treat this as binary": a NUL byte anywhere in a
+/// bounded prefix. Only needed for untracked files, which this command reads
+/// directly from disk instead of spawning `git diff --no-index` per file;
+/// every other path's binary detection still goes through Git's own output
+/// (`is_binary_diff_output`), which stays authoritative there.
+const BINARY_SNIFF_BYTES: usize = 8000;
+
+fn looks_binary(bytes: &[u8]) -> bool {
+    bytes.iter().take(BINARY_SNIFF_BYTES).any(|&byte| byte == 0)
+}
+
+/// Splits `text` into per-file sections at each line beginning with
+/// `diff --git `, without needing to parse (and possibly un-quote) the path
+/// on that line. Sections are returned in the same order Git printed them,
+/// which — for the identical base/flags/pathspec — is also the order
+/// `--name-only -z` reports, so the two can be zipped positionally.
+fn split_diff_sections(text: &str) -> Vec<&str> {
+    const MARKER: &str = "diff --git ";
+    let mut starts: Vec<usize> = Vec::new();
+    if text.starts_with(MARKER) {
+        starts.push(0);
+    }
+    let mut search_from = 0;
+    while let Some(relative) = text[search_from..].find("\ndiff --git ") {
+        let start = search_from + relative + 1;
+        starts.push(start);
+        search_from = start + MARKER.len();
+    }
+    starts
+        .iter()
+        .enumerate()
+        .map(|(index, &start)| {
+            let end = starts.get(index + 1).copied().unwrap_or(text.len());
+            &text[start..end]
+        })
+        .collect()
+}
+
+/// Splits file content into lines the same way `parse_diff_body` treats
+/// hunk lines: on `\n` only (never touching a lone `\r`, which belongs to the
+/// file's own CRLF line endings), and without fabricating a phantom trailing
+/// empty line for a file that ends with a newline.
+fn split_content_lines(content: &str) -> Vec<&str> {
+    if content.is_empty() {
+        return Vec::new();
+    }
+    let mut lines: Vec<&str> = content.split('\n').collect();
+    if content.ends_with('\n') {
+        lines.pop();
+    }
+    lines
+}
+
+/// Builds an untracked file's diff by reading it directly from disk instead
+/// of spawning `git diff --no-index` — an untracked file's diff is always
+/// "every line is an addition," which needs no Git process to compute.
+fn untracked_file_diff(repo_path: &Path, entry: &RawStatusEntry) -> FileDiff {
+    let full_path = repo_path.join(&entry.path);
+    let Ok(bytes) = std::fs::read(&full_path) else {
+        // Unreadable (permissions, a broken symlink, a race with deletion):
+        // report it as absent from the batch rather than guessing; the
+        // frontend's per-file fallback will surface a proper error.
+        return FileDiff::Unchanged {
+            path: entry.path.clone(),
+            original_path: None,
+            change: entry.category,
+        };
+    };
+
+    if bytes.len() as u64 > MAX_DIFF_OUTPUT_BYTES as u64 {
+        return FileDiff::TooLarge {
+            path: entry.path.clone(),
+            original_path: None,
+            change: entry.category,
+            limit_bytes: MAX_DIFF_OUTPUT_BYTES as u64,
+        };
+    }
+    if looks_binary(&bytes) {
+        return FileDiff::Binary {
+            path: entry.path.clone(),
+            original_path: None,
+            change: entry.category,
+        };
+    }
+
+    let text = String::from_utf8_lossy(&bytes);
+    let lines = split_content_lines(&text);
+    if lines.is_empty() {
+        return FileDiff::Unchanged {
+            path: entry.path.clone(),
+            original_path: None,
+            change: entry.category,
+        };
+    }
+
+    let truncated = lines.len() > MAX_DIFF_LINES;
+    let included = if truncated {
+        &lines[..MAX_DIFF_LINES]
+    } else {
+        &lines[..]
+    };
+    let diff_lines = included
+        .iter()
+        .enumerate()
+        .map(|(index, content)| DiffLine {
+            kind: DiffLineKind::Addition,
+            content: (*content).to_string(),
+            old_line_number: None,
+            new_line_number: Some(index as u32 + 1),
+        })
+        .collect::<Vec<_>>();
+
+    FileDiff::Text {
+        path: entry.path.clone(),
+        original_path: None,
+        change: entry.category,
+        hunks: vec![DiffHunk {
+            header: format!("@@ -0,0 +1,{} @@", diff_lines.len()),
+            old_start: 0,
+            old_lines: 0,
+            new_start: 1,
+            new_lines: diff_lines.len() as u32,
+            lines: diff_lines,
+        }],
+        truncated,
+    }
+}
+
+/// Batches every ordinary (non-conflicted, tracked) change into one `git
+/// diff` process. Renamed entries contribute both their old and new path to
+/// the pathspec, matching the single-file `Rename` strategy, so Git's rename
+/// pairing still has both sides to match.
+fn batch_tracked_diffs(
+    path: &str,
+    base: &str,
+    entries: &[&RawStatusEntry],
+) -> Result<Vec<FileDiff>, AppError> {
+    if entries.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut pathspecs: Vec<&str> = Vec::with_capacity(entries.len() * 2);
+    for entry in entries {
+        if let Some(original) = &entry.original_path {
+            pathspecs.push(original);
+        }
+        pathspecs.push(&entry.path);
+    }
+
+    // Pass 1: the ordered, unambiguous list of paths this exact diff will
+    // emit sections for. `-z` keeps it NUL-separated so no path (however it
+    // would otherwise need quoting) can be misread.
+    let mut name_args = vec![
+        "diff",
+        "--no-color",
+        "--no-ext-diff",
+        "-M",
+        "-z",
+        "--name-only",
+        base,
+        "--",
+    ];
+    name_args.extend(pathspecs.iter().copied());
+    let name_output = run_git(path, &name_args)?;
+    if !name_output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't list which files changed.",
+        )
+        .with_remediation("Check that the folder and its Git metadata are readable."));
+    }
+    let ordered_paths: Vec<String> = name_output
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|segment| !segment.is_empty())
+        .map(|segment| String::from_utf8_lossy(segment).into_owned())
+        .collect();
+
+    // Pass 2: the actual patch text, from the identical base/flags/pathspec,
+    // so Git computes and orders it identically to pass 1.
+    let mut diff_args = vec!["diff", "--no-color", "--no-ext-diff", "-M", base, "--"];
+    diff_args.extend(pathspecs.iter().copied());
+    let capped = run_git_capped(path, &diff_args, MAX_BATCH_DIFF_OUTPUT_BYTES)?;
+    if !capped.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't read these files' differences.",
+        )
+        .with_remediation("Check that the folder and its Git metadata are readable."));
+    }
+
+    let text = String::from_utf8_lossy(&capped.stdout);
+    let mut sections = split_diff_sections(&text);
+    if capped.limit_exceeded {
+        // The combined output was cut mid-stream, so the last section (if
+        // any) may be an incomplete file rather than a real one. Dropping it
+        // is always safe: every path it would have covered still gets a
+        // result from the frontend's per-file fallback.
+        sections.pop();
+    }
+
+    let mut results = Vec::with_capacity(sections.len());
+    for (name, section) in ordered_paths.iter().zip(sections.iter()) {
+        let Some(entry) = entries.iter().find(|entry| &entry.path == name) else {
+            // A rename's *old* path can appear here if similarity fell below
+            // Git's detection threshold and it downgraded to a delete+add;
+            // that old path isn't one of our known entries, so skip it.
+            continue;
+        };
+        let too_large = section.len() > MAX_DIFF_OUTPUT_BYTES;
+        results.push(diff_result_from_text(entry, section, too_large));
+    }
+    Ok(results)
+}
+
+#[tauri::command]
+fn read_working_tree_diffs(path: String) -> Result<Vec<FileDiff>, AppError> {
+    let repo_path = Path::new(&path);
+    let metadata = repo_path.metadata().map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            AppError::new(
+                AppErrorCode::PathMissing,
+                "This project's folder is no longer there.",
+            )
+            .with_remediation("Open the project again, or choose another folder.")
+        } else {
+            AppError::new(
+                AppErrorCode::PathUnusable,
+                "This project's folder can't be read.",
+            )
+            .with_remediation("Check the folder permissions and try again.")
+        }
+    })?;
+    if !metadata.is_dir() {
+        return Err(AppError::new(
+            AppErrorCode::PathUnusable,
+            "This project's path isn't a folder any more.",
+        )
+        .with_remediation("Open the project again."));
+    }
+
+    let status_output = run_git(&path, &STATUS_ARGS)?;
+    if !status_output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't check what changed in this project.",
+        )
+        .with_remediation("Check that the folder and its Git metadata are readable."));
+    }
+    let records = checked_status_records(&status_output.stdout)?;
+
+    let tracked_entries: Vec<&RawStatusEntry> = records
+        .entries
+        .iter()
+        .filter(|entry| entry.category != ChangeCategory::Conflicted && !entry.is_untracked)
+        .collect();
+    let untracked_entries: Vec<&RawStatusEntry> = records
+        .entries
+        .iter()
+        .filter(|entry| entry.is_untracked)
+        .collect();
+
+    let mut results = if tracked_entries.is_empty() {
+        Vec::new()
+    } else {
+        let base = diff_base_rev(&path)?;
+        batch_tracked_diffs(&path, &base, &tracked_entries)?
+    };
+    results.extend(
+        untracked_entries
+            .iter()
+            .map(|entry| untracked_file_diff(repo_path, entry)),
+    );
+    Ok(results)
 }
 
 #[tauri::command]
@@ -1724,6 +2112,1490 @@ fn set_git_identity(name: String, email: String) -> Result<(), AppError> {
     set_git_identity_with_override(&name, &email, None)
 }
 
+// ---- Save version planning (task 010) ----
+//
+// This is the read-only preview half of the save-version flow. It never
+// mutates the repository; `save_version` (execution) is a separate, narrower
+// command so the risky, history-mutating code path stays small and auditable
+// on its own.
+
+/// Shared by every planned operation, so the frontend can classify any
+/// GitOdrile operation from one field without a lookup table.
+#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
+enum OperationKind {
+    HistoryMutation,
+    RemoteMutation,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct SaveVersionPlan {
+    operation_kind: OperationKind,
+    summary: String,
+    steps: Vec<String>,
+    risks: Vec<String>,
+    recovery: String,
+    requires_confirmation: bool,
+    /// Opaque fingerprint of everything that would change the outcome of a
+    /// save. Execution must refuse to proceed if a freshly computed token no
+    /// longer matches this one.
+    state_token: String,
+    branch: Option<String>,
+    is_first_version: bool,
+    total_files: usize,
+    remaining_files: usize,
+    is_partial: bool,
+    has_prepared_changes: bool,
+    counts: WorkingTreeCounts,
+}
+
+/// Resolves branch/detached/unborn state and the current HEAD sha for a
+/// project whose branch name is *already known* — the status call
+/// `validate_and_prepare_save` already made (`--branch` reports `#
+/// branch.head <name-or-"(detached)">`, parsed into exactly this same
+/// `Option<String>` shape) says exactly what `git symbolic-ref` would, so
+/// resolving it again here would just be the same Git process a second
+/// time. Only one further call (`rev-parse --verify HEAD`) is needed, to
+/// tell an unborn branch (no commits yet) apart from a real one, and its
+/// stdout doubles as the sha the state-token fingerprint needs — a second
+/// `resolve_head_sha` call used to read that same output again separately.
+fn resolve_head_state(
+    path: &str,
+    branch: Option<String>,
+) -> Result<(HeadState, Option<String>), AppError> {
+    let verified_head = run_git(path, &["rev-parse", "--verify", "HEAD"])?;
+    let head_sha = verified_head
+        .status
+        .success()
+        .then(|| git_stdout(&verified_head));
+
+    let head_state = if branch.is_some() {
+        if head_sha.is_some() {
+            HeadState::Branch
+        } else {
+            HeadState::Unborn
+        }
+    } else if head_sha.is_some() {
+        HeadState::Detached
+    } else {
+        HeadState::Unborn
+    };
+    Ok((head_state, head_sha))
+}
+
+/// Detects an in-progress merge, rebase, cherry-pick, revert, or bisect by
+/// the marker files/directories Git itself uses, rather than parsing porcelain
+/// status (which reports the resulting conflicts but not *why* they exist).
+fn git_operation_in_progress(path: &str) -> Result<Option<&'static str>, AppError> {
+    let git_dir_raw = checked_git_stdout(run_git(path, &["rev-parse", "--absolute-git-dir"])?)?;
+    let git_dir = Path::new(&git_dir_raw);
+    if git_dir.join("MERGE_HEAD").is_file() {
+        return Ok(Some("merge"));
+    }
+    if git_dir.join("CHERRY_PICK_HEAD").is_file() {
+        return Ok(Some("cherry-pick"));
+    }
+    if git_dir.join("REVERT_HEAD").is_file() {
+        return Ok(Some("revert"));
+    }
+    if git_dir.join("rebase-merge").is_dir() || git_dir.join("rebase-apply").is_dir() {
+        return Ok(Some("rebase"));
+    }
+    if git_dir.join("BISECT_LOG").is_file() {
+        return Ok(Some("bisect"));
+    }
+    Ok(None)
+}
+
+/// Same env-override pattern as `write_global_git_config`: production always
+/// passes `None` (the user's real global config); tests point `GIT_CONFIG_GLOBAL`
+/// at a temporary file so they never depend on, or mutate, the machine's real
+/// Git identity.
+fn run_git_with_global_override(
+    repo_path: &str,
+    args: &[&str],
+    config_override: Option<&str>,
+) -> Result<Output, AppError> {
+    let mut command = git_command(repo_path);
+    if let Some(global) = config_override {
+        command.env("GIT_CONFIG_GLOBAL", global);
+    }
+    command.args(args).output().map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            AppError::new(
+                AppErrorCode::GitMissing,
+                "Git isn't installed, or isn't available on PATH.",
+            )
+            .with_remediation("Install Git, then reopen GitOdrile and try again.")
+        } else {
+            AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
+                .with_remediation("Check the Git installation and try again.")
+        }
+    })
+}
+
+/// Checks the *effective* identity (local config overriding global, exactly
+/// like `git commit` resolves it), not just the global identity `get_git_identity`
+/// exposes in Settings. A single `--get-regexp` call resolves both keys at
+/// once — same effective-value precedence as two separate `--get` calls,
+/// one fewer Git process on a path that runs on every plan and save.
+fn identity_configured(path: &str, config_override: Option<&str>) -> Result<bool, AppError> {
+    let output = run_git_with_global_override(
+        path,
+        &["config", "--get-regexp", "^user\\.(name|email)$"],
+        config_override,
+    )?;
+    if !output.status.success() {
+        // A nonzero exit means no matching keys at all (git's convention for
+        // `--get`/`--get-regexp` when nothing matches), not a real failure.
+        return Ok(false);
+    }
+
+    let mut has_name = false;
+    let mut has_email = false;
+    for line in git_stdout(&output).lines() {
+        let Some((key, value)) = line.split_once(' ') else {
+            continue;
+        };
+        if value.trim().is_empty() {
+            continue;
+        }
+        match key {
+            "user.name" => has_name = true,
+            "user.email" => has_email = true,
+            _ => {}
+        }
+    }
+    Ok(has_name && has_email)
+}
+
+/// A compact fingerprint of everything that would change the outcome of a
+/// save between preview and execution. Counts are folded in alongside the
+/// (possibly capped) entry list, so drift beyond the reported-entries cap on
+/// a very large changeset still invalidates the token. This only needs to
+/// detect drift, not to be reversible or collision-proof, so a non-cryptographic
+/// hash of a deterministic string is enough — no extra crate required.
+fn compute_state_token(
+    head: Option<&str>,
+    branch: Option<&str>,
+    tree: &str,
+    selected_paths: Option<&[String]>,
+) -> String {
+    use std::hash::{Hash, Hasher};
+
+    let mut fingerprint = format!(
+        "head:{}|branch:{}|tree:{}|selection:{}|",
+        head.unwrap_or("unborn"),
+        branch.unwrap_or("detached"),
+        tree,
+        if selected_paths.is_some() {
+            "partial"
+        } else {
+            "all"
+        },
+    );
+    if let Some(paths) = selected_paths {
+        for path in paths {
+            fingerprint.push_str(path);
+            fingerprint.push('\0');
+        }
+    }
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    fingerprint.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+struct PreparedIndex {
+    path: PathBuf,
+    tree: String,
+}
+
+impl Drop for PreparedIndex {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+        let mut lock = self.path.as_os_str().to_os_string();
+        lock.push(".lock");
+        let _ = std::fs::remove_file(PathBuf::from(lock));
+    }
+}
+
+fn prepare_index(
+    path: &str,
+    head_state: &HeadState,
+    selected_entries: Option<&[WorkingTreeEntry]>,
+) -> Result<PreparedIndex, AppError> {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let mut index_path = std::env::temp_dir();
+    index_path.push(format!(
+        "gitodrile-selection-index-{}-{nanos}",
+        std::process::id()
+    ));
+
+    let mut read_tree = git_command(path);
+    read_tree.env("GIT_INDEX_FILE", &index_path);
+    if *head_state == HeadState::Unborn {
+        read_tree.args(["read-tree", "--empty"]);
+    } else {
+        read_tree.args(["read-tree", "HEAD"]);
+    }
+    let output = read_tree.output().map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
+    }
+
+    let mut add = git_command(path);
+    add.env("GIT_INDEX_FILE", &index_path).args(["add", "-A"]);
+    if let Some(entries) = selected_entries {
+        add.arg("--");
+        for entry in entries {
+            add.arg(&entry.path);
+            if let Some(original) = &entry.original_path {
+                add.arg(original);
+            }
+        }
+    }
+    let output = add.output().map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't prepare the selected changes.",
+        )
+        .with_remediation("Refresh the project and check that the selected files are readable.")
+        .with_detail(truncate_detail(&stderr_text(&output))));
+    }
+
+    let mut write_tree = git_command(path);
+    let output = write_tree
+        .env("GIT_INDEX_FILE", &index_path)
+        .args(["write-tree"])
+        .output()
+        .map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
+    }
+
+    Ok(PreparedIndex {
+        path: index_path,
+        tree: git_stdout(&output),
+    })
+}
+
+fn counts_for_entries(entries: &[WorkingTreeEntry]) -> WorkingTreeCounts {
+    let mut counts = WorkingTreeCounts::default();
+    for entry in entries {
+        match entry.category {
+            ChangeCategory::Changed => counts.changed += 1,
+            ChangeCategory::New => counts.new_files += 1,
+            ChangeCategory::Deleted => counts.deleted += 1,
+            ChangeCategory::Renamed => counts.renamed += 1,
+            ChangeCategory::Conflicted => counts.conflicted += 1,
+        }
+        counts.total += 1;
+    }
+    counts
+}
+
+struct ResolvedSelection {
+    paths: Option<Vec<String>>,
+    entries: Option<Vec<WorkingTreeEntry>>,
+}
+
+fn resolve_selection(
+    status: &WorkingTreeStatus,
+    selected_paths: Option<Vec<String>>,
+) -> Result<ResolvedSelection, AppError> {
+    let Some(mut paths) = selected_paths else {
+        return Ok(ResolvedSelection {
+            paths: None,
+            entries: None,
+        });
+    };
+    paths.sort();
+    paths.dedup();
+    if paths.is_empty() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "Choose at least one file to save.",
+        ));
+    }
+
+    let mut entries = Vec::with_capacity(paths.len());
+    for selected in &paths {
+        let Some(entry) = status.entries.iter().find(|entry| entry.path == *selected) else {
+            return Err(AppError::new(
+                AppErrorCode::StalePreview,
+                "The selected files changed since they were shown.",
+            )
+            .with_remediation("Refresh the changes and choose the files again."));
+        };
+        entries.push(entry.clone());
+    }
+    Ok(ResolvedSelection {
+        paths: Some(paths),
+        entries: Some(entries),
+    })
+}
+
+/// Everything a fresh plan/execution pass needs, plus the live temporary
+/// index (`prepared`) that produced its tree hash. Both `plan_save_version`
+/// and `save_version` call `validate_and_prepare_save` exactly once each —
+/// they used to run this whole sequence independently (execution re-checked
+/// every blocker *and* rebuilt a second temporary index from scratch after
+/// already calling the full planning function once), doubling roughly ten
+/// Git process spawns into twenty for a single save. Sharing one function
+/// keeps the safety property ("execution revalidates everything fresh
+/// immediately before mutating") while only ever doing that validation once
+/// per call.
+struct ValidatedSave {
+    branch: Option<String>,
+    is_first_version: bool,
+    selected_counts: WorkingTreeCounts,
+    remaining_files: usize,
+    is_partial: bool,
+    has_prepared_changes: bool,
+    state_token: String,
+    prepared: PreparedIndex,
+}
+
+fn validate_and_prepare_save(
+    path: &str,
+    selected_paths: Option<Vec<String>>,
+    identity_override: Option<&str>,
+) -> Result<ValidatedSave, AppError> {
+    // Reuses task 007's status command for path/repository validation and for
+    // the same categorized counts the Changes screen already shows, so both
+    // surfaces can never disagree about what "current changes" means.
+    let status = read_working_tree_status(path.to_string())?;
+
+    if let Some(operation) = git_operation_in_progress(path)? {
+        return Err(AppError::new(
+            AppErrorCode::GitOperationInProgress,
+            format!("A Git {operation} is already in progress in this project."),
+        )
+        .with_remediation(
+            "Finish or abort that operation in Git, then try saving a version again.",
+        ));
+    }
+
+    let branch = status.upstream.branch.clone();
+    let (head_state, head) = resolve_head_state(path, branch.clone())?;
+    if head_state == HeadState::Detached {
+        return Err(AppError::new(
+            AppErrorCode::DetachedHead,
+            "This project isn't on a version line right now.",
+        )
+        .with_remediation("Switch to a version line before saving a version."));
+    }
+
+    if status.counts.conflicted > 0 {
+        return Err(AppError::new(
+            AppErrorCode::UnresolvedConflicts,
+            "Some files have overlapping changes that need to be resolved first.",
+        )
+        .with_remediation("Resolve the overlapping changes, then try saving again."));
+    }
+
+    if status.is_clean {
+        return Err(AppError::new(
+            AppErrorCode::NothingToSave,
+            "There's nothing to save right now.",
+        )
+        .with_remediation("Make some changes, then come back to save a version."));
+    }
+
+    if !identity_configured(path, identity_override)? {
+        return Err(AppError::new(
+            AppErrorCode::MissingIdentity,
+            "GitOdrile doesn't know who is saving this version yet.",
+        )
+        .with_remediation("Add a name and email for Git, then try again."));
+    }
+
+    let selection = resolve_selection(&status, selected_paths)?;
+    let selected_paths = selection.paths;
+    let selected_entries = selection.entries;
+    let selected_counts = selected_entries
+        .as_deref()
+        .map(counts_for_entries)
+        .unwrap_or_else(|| status.counts.clone());
+    if selected_counts.conflicted > 0 {
+        return Err(AppError::new(
+            AppErrorCode::UnresolvedConflicts,
+            "Some selected files have overlapping changes that need to be resolved first.",
+        )
+        .with_remediation("Resolve the overlapping changes, then try saving again."));
+    }
+
+    let is_first_version = head_state == HeadState::Unborn;
+    let prepared = prepare_index(path, &head_state, selected_entries.as_deref())?;
+    let state_token = compute_state_token(
+        head.as_deref(),
+        branch.as_deref(),
+        &prepared.tree,
+        selected_paths.as_deref(),
+    );
+    let is_partial = selected_paths.is_some() && selected_counts.total < status.counts.total;
+    let remaining_files = status.counts.total.saturating_sub(selected_counts.total);
+    let has_prepared_changes = selected_entries
+        .as_deref()
+        .map(|entries| entries.iter().any(|entry| entry.is_prepared))
+        .unwrap_or(status.has_prepared_changes);
+
+    Ok(ValidatedSave {
+        branch,
+        is_first_version,
+        selected_counts,
+        remaining_files,
+        is_partial,
+        has_prepared_changes,
+        state_token,
+        prepared,
+    })
+}
+
+fn plan_save_version_selection_with_identity_override(
+    path: String,
+    selected_paths: Option<Vec<String>>,
+    identity_override: Option<&str>,
+) -> Result<SaveVersionPlan, AppError> {
+    let validated = validate_and_prepare_save(&path, selected_paths, identity_override)?;
+    let is_first_version = validated.is_first_version;
+    let is_partial = validated.is_partial;
+
+    let summary = if is_first_version {
+        if is_partial {
+            "This creates the project's first saved version from the selected changes."
+        } else {
+            "This creates the project's first saved version from every current change."
+        }
+    } else if is_partial {
+        "This saves the selected changes as one new version."
+    } else {
+        "This saves every current change as one new version."
+    }
+    .to_string();
+
+    let mut steps = vec![
+        if is_partial {
+            "Include only the selected changed, new, deleted, renamed, and copied files."
+                .to_string()
+        } else {
+            "Include every changed, new, deleted, renamed, and copied file that isn't ignored."
+                .to_string()
+        },
+        "Create one new saved version with the description you write.".to_string(),
+    ];
+    if !is_first_version {
+        steps.push("Keep the project's earlier saved version reachable for recovery.".to_string());
+    }
+
+    let recovery = if is_first_version {
+        "This is the first saved version, so there's no earlier version to recover.".to_string()
+    } else {
+        "The save is additive: the earlier saved version stays reachable through Git's history if you need to go back."
+            .to_string()
+    };
+
+    Ok(SaveVersionPlan {
+        operation_kind: OperationKind::HistoryMutation,
+        summary,
+        steps,
+        risks: vec![
+            "This only affects local history; nothing is sent to a remote project.".to_string(),
+        ],
+        recovery,
+        requires_confirmation: true,
+        state_token: validated.state_token,
+        branch: validated.branch,
+        is_first_version,
+        total_files: validated.selected_counts.total,
+        remaining_files: validated.remaining_files,
+        is_partial,
+        has_prepared_changes: validated.has_prepared_changes,
+        counts: validated.selected_counts,
+    })
+    // `validated.prepared`'s temporary index is dropped (and its backing
+    // file removed) here — the plan only ever needed its tree hash, already
+    // folded into `state_token` above.
+}
+
+#[tauri::command]
+fn plan_save_version(
+    path: String,
+    selected_paths: Option<Vec<String>>,
+) -> Result<SaveVersionPlan, AppError> {
+    plan_save_version_selection_with_identity_override(path, selected_paths, None)
+}
+
+#[cfg(test)]
+fn plan_save_version_with_identity_override(
+    path: String,
+    identity_override: Option<&str>,
+) -> Result<SaveVersionPlan, AppError> {
+    plan_save_version_selection_with_identity_override(path, None, identity_override)
+}
+
+// ---- Save version execution (task 010) ----
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct SaveVersionResult {
+    commit: String,
+    short_commit: String,
+    description: String,
+    branch: Option<String>,
+    saved_files: usize,
+}
+
+/// Resolves the *effective* index file for `path`, which may be a linked
+/// worktree's own index rather than `.git/index`. `--git-path` already
+/// accounts for that; it just doesn't guarantee an absolute result, so the
+/// raw value is resolved relative to `path` the same way `open_repository`
+/// resolves `--absolute-git-dir`'s output.
+fn resolve_index_path(path: &str) -> Result<PathBuf, AppError> {
+    let raw = checked_git_stdout(run_git(path, &["rev-parse", "--git-path", "index"])?)?;
+    Ok(normalized_path(Path::new(path), &raw))
+}
+
+fn index_unavailable_error() -> AppError {
+    AppError::new(
+        AppErrorCode::IndexUnavailable,
+        "GitOdrile couldn't safely prepare this project's Git index.",
+    )
+    .with_remediation("Check available disk space and file permissions (antivirus tools can lock this file on Windows), then try again.")
+}
+
+/// Holds what's needed to put the repository's index back exactly as it was,
+/// including the case where no index file existed yet (a fresh, never-staged
+/// repository) — restoring then means removing whatever `git add` created,
+/// not overwriting it with empty content.
+struct IndexBackup {
+    index_path: PathBuf,
+    backup_path: Option<PathBuf>,
+}
+
+fn backup_index(index_path: &Path) -> Result<IndexBackup, AppError> {
+    if !index_path.exists() {
+        return Ok(IndexBackup {
+            index_path: index_path.to_path_buf(),
+            backup_path: None,
+        });
+    }
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let mut backup_path = std::env::temp_dir();
+    backup_path.push(format!(
+        "gitodrile-index-backup-{}-{nanos}.bak",
+        std::process::id()
+    ));
+    std::fs::copy(index_path, &backup_path).map_err(|_| index_unavailable_error())?;
+    Ok(IndexBackup {
+        index_path: index_path.to_path_buf(),
+        backup_path: Some(backup_path),
+    })
+}
+
+/// Restores the index to its pre-save state. Errors here are reported but
+/// deliberately not layered onto an already-in-flight failure: callers treat
+/// this as best-effort cleanup after the primary error has been decided.
+fn restore_index(backup: &IndexBackup) -> Result<(), AppError> {
+    match &backup.backup_path {
+        Some(backup_path) => {
+            std::fs::copy(backup_path, &backup.index_path)
+                .map_err(|_| index_unavailable_error())?;
+            let _ = std::fs::remove_file(backup_path);
+        }
+        None => {
+            let _ = std::fs::remove_file(&backup.index_path);
+        }
+    }
+    Ok(())
+}
+
+fn cleanup_backup(backup: &IndexBackup) {
+    if let Some(backup_path) = &backup.backup_path {
+        let _ = std::fs::remove_file(backup_path);
+    }
+}
+
+fn restore_or_report(backup: &IndexBackup, primary: AppError) -> AppError {
+    match restore_index(backup) {
+        Ok(()) => primary,
+        Err(_) => AppError::new(
+            AppErrorCode::IndexRestoreFailed,
+            "GitOdrile couldn't restore the project's prepared changes after the save failed.",
+        )
+        .with_remediation(
+            "Your working files are still there. Keep the project open and review Git's prepared changes before trying again.",
+        )
+        .with_detail(
+            backup
+                .backup_path
+                .as_ref()
+                .map(|path| {
+                    format!(
+                        "The original index backup was kept at {}.",
+                        display_path(path.clone())
+                    )
+                })
+                .unwrap_or_else(|| {
+                    "The project did not have an index before this save attempt.".to_string()
+                }),
+        ),
+    }
+}
+
+fn stderr_text(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stderr).to_string()
+}
+
+/// Long enough to be useful as a secondary detail, short enough that a noisy
+/// hook can't balloon the error payload.
+const MAX_FAILURE_DETAIL_BYTES: usize = 4000;
+
+fn truncate_detail(text: &str) -> String {
+    let trimmed = text.trim();
+    if trimmed.len() <= MAX_FAILURE_DETAIL_BYTES {
+        trimmed.to_string()
+    } else {
+        let mut truncated = trimmed
+            .char_indices()
+            .take_while(|(index, _)| *index < MAX_FAILURE_DETAIL_BYTES)
+            .map(|(_, ch)| ch)
+            .collect::<String>();
+        truncated.push('…');
+        truncated
+    }
+}
+
+/// A hook's presence doesn't guarantee it fired, and a missing one doesn't
+/// rule out a server-side equivalent — this is a best-effort classification
+/// hint, not a guarantee. Git gives no structured signal for "a hook
+/// rejected this commit" versus any other nonzero exit.
+fn hook_exists(path: &str) -> bool {
+    let Ok(output) = run_git(path, &["rev-parse", "--absolute-git-dir"]) else {
+        return false;
+    };
+    let Ok(git_dir_raw) = checked_git_stdout(output) else {
+        return false;
+    };
+    let hooks_dir = Path::new(&git_dir_raw).join("hooks");
+    ["pre-commit", "commit-msg"]
+        .iter()
+        .any(|name| hooks_dir.join(name).is_file())
+}
+
+/// Best-effort classification of a failed `git commit`. Git does not expose a
+/// structured reason for a nonzero exit, so this pattern-matches known GPG/SSH
+/// signing failure text before falling back to "a hook rejected this" (when a
+/// hook is actually present) and finally a generic failure. The raw stderr
+/// always rides along as `detail`, never as the primary `message`.
+fn classify_commit_failure(path: &str, stderr: &str) -> AppError {
+    let lowered = stderr.to_lowercase();
+    let looks_like_signing_failure = lowered.contains("gpg failed to sign")
+        || lowered.contains("unable to sign")
+        || (lowered.contains("sign") && lowered.contains("fail"));
+
+    if looks_like_signing_failure {
+        return AppError::new(
+            AppErrorCode::SigningFailed,
+            "Git couldn't sign this version.",
+        )
+        .with_remediation("Check your Git commit-signing setup (GPG or SSH key), then try again.")
+        .with_detail(truncate_detail(stderr));
+    }
+
+    if hook_exists(path) {
+        return AppError::new(
+            AppErrorCode::HookRejected,
+            "A Git hook rejected this version.",
+        )
+        .with_remediation("Check the hook's output, address what it's flagging, then try again.")
+        .with_detail(truncate_detail(stderr));
+    }
+
+    AppError::new(
+        AppErrorCode::GitCommandFailed,
+        "Git couldn't save this version.",
+    )
+    .with_remediation("Check the project's Git configuration and try again.")
+    .with_detail(truncate_detail(stderr))
+}
+
+fn save_version_selection_with_identity_override(
+    path: String,
+    description: String,
+    state_token: String,
+    selected_paths: Option<Vec<String>>,
+    identity_override: Option<&str>,
+) -> Result<SaveVersionResult, AppError> {
+    let trimmed_description = description.trim();
+    if trimmed_description.is_empty() {
+        return Err(AppError::new(
+            AppErrorCode::EmptyDescription,
+            "Write a short description before saving.",
+        ));
+    }
+
+    // Revalidates every planning blocker (clean tree, conflicts, detached
+    // HEAD, an operation in progress, missing identity) against the
+    // *current* repository, so execution can never proceed on a state
+    // preview already rejected. Comparing `state_token` on top of that
+    // catches drift the blockers alone wouldn't (e.g. the same files
+    // changed again). This used to happen twice — once via a full call to
+    // the planning function, then again independently to get a fresh
+    // temporary index to actually use — doubling roughly ten Git process
+    // spawns into twenty. One call now does both jobs.
+    let validated = validate_and_prepare_save(&path, selected_paths, identity_override)?;
+    if validated.state_token != state_token {
+        return Err(AppError::new(
+            AppErrorCode::StalePreview,
+            "This project changed since the preview was shown.",
+        )
+        .with_remediation("Review the updated changes, then try saving again."));
+    }
+
+    let index_path = resolve_index_path(&path)?;
+    let backup = backup_index(&index_path)?;
+
+    if let Err(error) = std::fs::copy(&validated.prepared.path, &index_path) {
+        let primary = index_unavailable_error().with_detail(error.to_string());
+        return Err(restore_or_report(&backup, primary));
+    }
+
+    let mut commit_command = git_command(&path);
+    if let Some(global) = identity_override {
+        commit_command.env("GIT_CONFIG_GLOBAL", global);
+    }
+    let commit_output = match commit_command
+        .args(["commit", "-m", trimmed_description])
+        .output()
+    {
+        Ok(output) => output,
+        Err(error) => {
+            let primary = if error.kind() == ErrorKind::NotFound {
+                AppError::new(
+                    AppErrorCode::GitMissing,
+                    "Git isn't installed, or isn't available on PATH.",
+                )
+                .with_remediation("Install Git, then reopen GitOdrile and try again.")
+            } else {
+                AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
+                    .with_remediation("Check the Git installation and try again.")
+            };
+            return Err(restore_or_report(&backup, primary));
+        }
+    };
+
+    if !commit_output.status.success() {
+        let primary = classify_commit_failure(&path, &stderr_text(&commit_output));
+        return Err(restore_or_report(&backup, primary));
+    }
+
+    cleanup_backup(&backup);
+
+    let full_commit = match run_git(&path, &["rev-parse", "HEAD"]) {
+        Ok(output) if output.status.success() => git_stdout(&output),
+        _ => {
+            return Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "The version was saved, but GitOdrile couldn't read its identifier.",
+            )
+            .with_remediation("Refresh the project to see the saved version."));
+        }
+    };
+    let short_commit = match run_git(&path, &["rev-parse", "--short", "HEAD"]) {
+        Ok(output) if output.status.success() => git_stdout(&output),
+        _ => full_commit.chars().take(7).collect(),
+    };
+
+    Ok(SaveVersionResult {
+        commit: full_commit,
+        short_commit,
+        description: trimmed_description.to_string(),
+        branch: validated.branch,
+        saved_files: validated.selected_counts.total,
+    })
+}
+
+#[cfg(test)]
+fn save_version_with_identity_override(
+    path: String,
+    description: String,
+    state_token: String,
+    identity_override: Option<&str>,
+) -> Result<SaveVersionResult, AppError> {
+    save_version_selection_with_identity_override(
+        path,
+        description,
+        state_token,
+        None,
+        identity_override,
+    )
+}
+
+#[tauri::command]
+fn save_version(
+    path: String,
+    description: String,
+    state_token: String,
+    selected_paths: Option<Vec<String>>,
+) -> Result<SaveVersionResult, AppError> {
+    save_version_selection_with_identity_override(
+        path,
+        description,
+        state_token,
+        selected_paths,
+        None,
+    )
+}
+
+// ---- Publish planning and execution (task 011) ----
+//
+// Mirrors the save-version split: a read-only discovery/plan half and a
+// narrow execution half, sharing one validation core the same way
+// `validate_and_prepare_save` avoids double-spawning Git for save-version.
+// Unlike save-version, `git push` never touches the index or working tree,
+// so none of the temporary-index machinery applies here.
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+struct RemoteInfo {
+    name: String,
+    /// Embedded credentials (`user:pass@`/token-in-URL) are stripped before
+    /// this ever leaves Rust; nothing upstream of this struct should see them.
+    url: String,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct RemoteDiscovery {
+    remotes: Vec<RemoteInfo>,
+    branch: Option<String>,
+    /// The full `remote/branch` tracking ref, when one is configured.
+    upstream: Option<String>,
+}
+
+/// Strips embedded credentials (`user:pass@host`, `token@host`) from a remote
+/// URL before it's ever serialized to the frontend. SSH's `user@host:path`
+/// shorthand has no `://` and is left untouched — the account name there
+/// isn't a secret the way an embedded password or token is.
+fn redact_remote_url(url: &str) -> String {
+    let Some(scheme_end) = url.find("://") else {
+        return url.to_string();
+    };
+    let (scheme, rest) = url.split_at(scheme_end + 3);
+    let authority_end = rest.find('/').unwrap_or(rest.len());
+    let authority = &rest[..authority_end];
+    match authority.rfind('@') {
+        Some(at_pos) => format!("{scheme}{}", &rest[at_pos + 1..]),
+        None => url.to_string(),
+    }
+}
+
+/// Parses `git remote -v` output (`name\turl (fetch|push)`), keeping only
+/// the fetch URL per remote (push and fetch URLs are normally identical, and
+/// the UI only needs one representative value).
+fn parse_remote_v_output(output: &str) -> Vec<RemoteInfo> {
+    let mut remotes = Vec::new();
+    for line in output.lines() {
+        let Some((name, rest)) = line.split_once('\t') else {
+            continue;
+        };
+        let Some(url) = rest.strip_suffix(" (fetch)") else {
+            continue;
+        };
+        remotes.push(RemoteInfo {
+            name: name.to_string(),
+            url: redact_remote_url(url),
+        });
+    }
+    remotes
+}
+
+fn list_remotes(path: &str) -> Result<Vec<RemoteInfo>, AppError> {
+    let output = checked_git_stdout(run_git(path, &["remote", "-v"])?)?;
+    Ok(parse_remote_v_output(&output))
+}
+
+#[tauri::command]
+fn discover_remotes(path: String) -> Result<RemoteDiscovery, AppError> {
+    let status = read_working_tree_status(path.clone())?;
+    let remotes = list_remotes(&path)?;
+    Ok(RemoteDiscovery {
+        remotes,
+        branch: status.upstream.branch,
+        upstream: status.upstream.upstream,
+    })
+}
+
+/// Remote selection rules from task 011: an explicit request always wins (if
+/// it names a configured remote); otherwise the configured upstream's remote
+/// wins; otherwise exactly one remote can be proposed; two or more remotes
+/// with no upstream require the user to choose.
+fn resolve_remote_selection(
+    remotes: &[RemoteInfo],
+    upstream: Option<&str>,
+    requested: Option<&str>,
+) -> Result<String, AppError> {
+    if let Some(name) = requested {
+        return if remotes.iter().any(|remote| remote.name == name) {
+            Ok(name.to_string())
+        } else {
+            Err(AppError::new(
+                AppErrorCode::NoRemoteConfigured,
+                "That remote isn't configured for this project anymore.",
+            )
+            .with_remediation("Refresh and choose a remote again."))
+        };
+    }
+    if let Some(upstream_ref) = upstream {
+        if let Some((remote_name, _)) = upstream_ref.split_once('/') {
+            if remotes.iter().any(|remote| remote.name == remote_name) {
+                return Ok(remote_name.to_string());
+            }
+        }
+    }
+    match remotes.len() {
+        0 => Err(AppError::new(
+            AppErrorCode::NoRemoteConfigured,
+            "This project has no remote project configured yet.",
+        )
+        .with_remediation("Add a remote in Git, then try publishing again.")),
+        1 => Ok(remotes[0].name.clone()),
+        _ => Err(AppError::new(
+            AppErrorCode::RemoteSelectionRequired,
+            "This project has more than one remote project. Choose which one to publish to.",
+        )),
+    }
+}
+
+/// How long GitOdrile waits on a single network-touching Git call (`fetch` or
+/// `push`) before treating it as timed out. There is no existing timeout
+/// primitive for `git` calls anywhere else in the file to reuse — only the
+/// Windows-only winget update-check loop follows this spawn/poll/kill shape.
+const NETWORK_TIMEOUT: Duration = Duration::from_secs(30);
+
+struct NetworkOutput {
+    /// `None` only when the process was killed after timing out.
+    status: Option<ExitStatus>,
+    stdout: String,
+    stderr: String,
+    timed_out: bool,
+}
+
+/// Runs a network-touching Git command (`fetch`/`push`) with a wall-clock
+/// timeout, following the same spawn -> poll `try_wait` -> kill-on-timeout
+/// shape as `run_winget_update_check`. `GIT_TERMINAL_PROMPT=0` makes Git fail
+/// fast instead of blocking forever on a terminal credential prompt GitOdrile
+/// (a GUI app with no TTY) could never answer; real credential helpers (Git
+/// Credential Manager, the macOS/GNOME keychains, SSH agents/askpass) run as
+/// separate processes and are unaffected by this setting.
+fn run_git_networked(
+    repo_path: &str,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<NetworkOutput, AppError> {
+    let mut command = git_command(repo_path);
+    command
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut child = command.spawn().map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            AppError::new(
+                AppErrorCode::GitMissing,
+                "Git isn't installed, or isn't available on PATH.",
+            )
+            .with_remediation("Install Git, then reopen GitOdrile and try again.")
+        } else {
+            AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
+                .with_remediation("Check the Git installation and try again.")
+        }
+    })?;
+
+    let started_at = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                let output = child.wait_with_output().map_err(|_| {
+                    AppError::new(
+                        AppErrorCode::GitCommandFailed,
+                        "Git's output couldn't be read.",
+                    )
+                    .with_remediation("Check the Git installation and try again.")
+                })?;
+                return Ok(NetworkOutput {
+                    status: Some(output.status),
+                    stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                    stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                    timed_out: false,
+                });
+            }
+            Ok(None) if started_at.elapsed() < timeout => {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Ok(NetworkOutput {
+                    status: None,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                    timed_out: true,
+                });
+            }
+            Err(_) => {
+                return Err(AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "GitOdrile lost track of a running Git process.",
+                )
+                .with_remediation("Try again."));
+            }
+        }
+    }
+}
+
+fn looks_like_authentication_failure(stderr_lower: &str) -> bool {
+    stderr_lower.contains("authentication failed")
+        || stderr_lower.contains("could not read username")
+        || stderr_lower.contains("could not read password")
+        || stderr_lower.contains("permission denied (publickey")
+        || stderr_lower.contains("terminal prompts disabled")
+        || stderr_lower.contains("403")
+        || stderr_lower.contains("401")
+}
+
+fn looks_like_missing_remote_ref(stderr_lower: &str) -> bool {
+    stderr_lower.contains("couldn't find remote ref")
+        || stderr_lower.contains("couldn't find remote branch")
+}
+
+/// `git check-ref-format` is Git's own source of truth for a valid branch
+/// name; today `local_branch` only ever comes from the current HEAD's own
+/// symbolic ref (which Git already guarantees is valid), so this is
+/// defense-in-depth against any future path that could construct a refspec
+/// from a less trusted name, rather than a check that can currently fail.
+fn validate_branch_ref_name(path: &str, name: &str) -> Result<(), AppError> {
+    let output = run_git(path, &["check-ref-format", "--branch", name])?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(AppError::new(
+            AppErrorCode::InvalidRefName,
+            "This version line's name isn't a valid Git reference.",
+        )
+        .with_remediation("Rename the version line to a valid Git branch name, then try again."))
+    }
+}
+
+/// `git rev-list --left-right --count local...remote` reports ahead/behind as
+/// two tab-separated counts in one call; a diverged history is simply both
+/// counts being nonzero.
+fn classify_sync(
+    path: &str,
+    local_sha: &str,
+    remote_sha: Option<&str>,
+) -> Result<(u32, u32, bool), AppError> {
+    let Some(remote_sha) = remote_sha else {
+        return Ok((0, 0, false));
+    };
+    let range = format!("{local_sha}...{remote_sha}");
+    let output = checked_git_stdout(run_git(
+        path,
+        &["rev-list", "--left-right", "--count", &range],
+    )?)?;
+    let mut parts = output.split_whitespace();
+    let ahead: u32 = parts
+        .next()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0);
+    let behind: u32 = parts
+        .next()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0);
+    Ok((ahead, behind, ahead > 0 && behind > 0))
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PublishPlan {
+    operation_kind: OperationKind,
+    summary: String,
+    steps: Vec<String>,
+    risks: Vec<String>,
+    recovery: String,
+    requires_confirmation: bool,
+    /// Opaque fingerprint of local + freshly observed remote state. Execution
+    /// must refuse to proceed if a freshly computed token no longer matches.
+    state_token: String,
+    remote: String,
+    local_branch: String,
+    destination_branch: String,
+    will_create_upstream: bool,
+    commit_count: u32,
+    commit_summary: Vec<String>,
+    has_unsaved_files: bool,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PublishResult {
+    remote: String,
+    local_branch: String,
+    destination_branch: String,
+    previous_remote_commit: Option<String>,
+    published_commit: String,
+    published_count: u32,
+    created_upstream: bool,
+}
+
+/// Everything a fresh plan/execution pass needs, produced by exactly one
+/// fetch preflight — the same "shared validation core, called once per
+/// command" shape as `ValidatedSave`. Unlike save-version, `plan_publish` and
+/// `publish` are each expected to run their *own* independent fetch (the
+/// whole point of "revalidate immediately before push" is that time passes
+/// while the user reads the confirmation), so this isn't shared across the
+/// two commands the way the temporary index is for save-version — only
+/// within a single command's own call.
+struct ValidatedPublish {
+    remote: String,
+    local_branch: String,
+    local_sha: String,
+    remote_sha: Option<String>,
+    will_create_upstream: bool,
+    commit_count: u32,
+    has_unsaved_files: bool,
+    state_token: String,
+}
+
+fn compute_publish_state_token(
+    local_sha: &str,
+    remote: &str,
+    remote_sha: Option<&str>,
+    branch: &str,
+) -> String {
+    use std::hash::{Hash, Hasher};
+    let fingerprint = format!(
+        "local:{local_sha}|remote:{remote}|remote_sha:{}|branch:{branch}|",
+        remote_sha.unwrap_or("none"),
+    );
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    fingerprint.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+fn validate_and_prepare_publish(
+    path: &str,
+    requested_remote: Option<String>,
+) -> Result<ValidatedPublish, AppError> {
+    let status = read_working_tree_status(path.to_string())?;
+    let branch = status.upstream.branch.clone();
+    let (head_state, head_sha) = resolve_head_state(path, branch.clone())?;
+
+    if head_state == HeadState::Detached {
+        return Err(AppError::new(
+            AppErrorCode::DetachedHead,
+            "This project isn't on a version line right now.",
+        )
+        .with_remediation("Switch to a version line before publishing."));
+    }
+    if head_state == HeadState::Unborn {
+        return Err(AppError::new(
+            AppErrorCode::UnbornBranchNoVersion,
+            "There's no saved version on this version line yet.",
+        )
+        .with_remediation("Save a version first, then publish it."));
+    }
+    let local_branch = branch.expect("a non-detached, non-unborn head has a branch name");
+    let local_sha = head_sha.expect("a non-unborn head has a commit");
+    validate_branch_ref_name(path, &local_branch)?;
+
+    let remotes = list_remotes(path)?;
+    let remote = resolve_remote_selection(
+        &remotes,
+        status.upstream.upstream.as_deref(),
+        requested_remote.as_deref(),
+    )?;
+    let will_create_upstream = status
+        .upstream
+        .upstream
+        .as_deref()
+        .map(|upstream| !upstream.starts_with(&format!("{remote}/")))
+        .unwrap_or(true);
+
+    let fetch = run_git_networked(path, &["fetch", &remote, &local_branch], NETWORK_TIMEOUT)?;
+    if fetch.timed_out {
+        return Err(AppError::new(
+            AppErrorCode::NetworkTimeout,
+            "GitOdrile couldn't reach the remote project in time.",
+        )
+        .with_remediation("Check your connection and try again."));
+    }
+    let fetch_succeeded = fetch.status.map(|status| status.success()).unwrap_or(false);
+    let remote_sha = if fetch_succeeded {
+        Some(checked_git_stdout(run_git(
+            path,
+            &["rev-parse", "FETCH_HEAD"],
+        )?)?)
+    } else {
+        let stderr_lower = fetch.stderr.to_lowercase();
+        if looks_like_missing_remote_ref(&stderr_lower) {
+            None
+        } else if looks_like_authentication_failure(&stderr_lower) {
+            return Err(AppError::new(
+                AppErrorCode::AuthenticationFailed,
+                "GitOdrile couldn't sign in to the remote project.",
+            )
+            .with_remediation("Check your Git credentials for this remote, then try again.")
+            .with_detail(truncate_detail(&fetch.stderr)));
+        } else {
+            return Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "GitOdrile couldn't check the remote project's latest state.",
+            )
+            .with_remediation("Check your connection and the remote project, then try again.")
+            .with_detail(truncate_detail(&fetch.stderr)));
+        }
+    };
+
+    let (ahead, behind, diverged) = classify_sync(path, &local_sha, remote_sha.as_deref())?;
+    if remote_sha.is_some() {
+        if diverged {
+            return Err(AppError::new(
+                AppErrorCode::DivergedHistories,
+                "This version line and the remote project have both moved apart.",
+            )
+            .with_remediation("Get the team's changes first, then publish again."));
+        }
+        if behind > 0 {
+            return Err(AppError::new(
+                AppErrorCode::BehindRemote,
+                "The remote project has newer versions this project doesn't have yet.",
+            )
+            .with_remediation("Get the team's changes first, then publish again."));
+        }
+        if ahead == 0 {
+            return Err(AppError::new(
+                AppErrorCode::NothingToPublish,
+                "Every saved version is already published.",
+            ));
+        }
+    }
+
+    let commit_count = if remote_sha.is_some() {
+        ahead
+    } else {
+        checked_git_stdout(run_git(path, &["rev-list", "--count", &local_sha])?)?
+            .parse()
+            .unwrap_or(1)
+    };
+
+    let state_token =
+        compute_publish_state_token(&local_sha, &remote, remote_sha.as_deref(), &local_branch);
+
+    Ok(ValidatedPublish {
+        remote,
+        local_branch,
+        local_sha,
+        remote_sha,
+        will_create_upstream,
+        commit_count,
+        has_unsaved_files: !status.is_clean,
+        state_token,
+    })
+}
+
+fn commit_summary_lines(path: &str, local_sha: &str, remote_sha: Option<&str>) -> Vec<String> {
+    let range = match remote_sha {
+        Some(remote_sha) => format!("{remote_sha}..{local_sha}"),
+        None => local_sha.to_string(),
+    };
+    let Ok(output) = run_git(path, &["log", "--pretty=format:%s", "-n", "20", &range]) else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    git_stdout(&output)
+        .lines()
+        .map(|line| line.to_string())
+        .collect()
+}
+
+#[tauri::command]
+fn plan_publish(path: String, remote: Option<String>) -> Result<PublishPlan, AppError> {
+    let validated = validate_and_prepare_publish(&path, remote)?;
+    let commit_summary =
+        commit_summary_lines(&path, &validated.local_sha, validated.remote_sha.as_deref());
+
+    let summary = if validated.remote_sha.is_none() {
+        format!(
+            "This publishes this version line to \"{}\" for the first time.",
+            validated.remote
+        )
+    } else {
+        format!(
+            "This sends {} saved version(s) to \"{}\".",
+            validated.commit_count, validated.remote
+        )
+    };
+
+    let mut steps = vec![format!(
+        "Send the confirmed saved versions to \"{}\" ({}).",
+        validated.remote, validated.local_branch
+    )];
+    if validated.will_create_upstream {
+        steps.push("Set this version line to track the remote branch going forward.".to_string());
+    }
+    if validated.has_unsaved_files {
+        steps.push("Leave unsaved files on this computer only.".to_string());
+    }
+
+    let recovery = match &validated.remote_sha {
+        Some(sha) => format!(
+            "If this needs to be undone, the remote project's previous position ({}) is known.",
+            &sha[..sha.len().min(12)]
+        ),
+        None => {
+            "This is the first publish to this remote, so there's no earlier remote position to recover.".to_string()
+        }
+    };
+
+    Ok(PublishPlan {
+        operation_kind: OperationKind::RemoteMutation,
+        summary,
+        steps,
+        risks: vec![
+            "Teammates with access to this remote project will be able to see the published history.".to_string(),
+        ],
+        recovery,
+        requires_confirmation: true,
+        state_token: validated.state_token,
+        remote: validated.remote,
+        local_branch: validated.local_branch.clone(),
+        destination_branch: validated.local_branch,
+        will_create_upstream: validated.will_create_upstream,
+        commit_count: validated.commit_count,
+        commit_summary,
+        has_unsaved_files: validated.has_unsaved_files,
+    })
+}
+
+/// Best-effort classification of a failed `git push`, mirroring
+/// `classify_commit_failure`'s approach: Git gives no structured reason for a
+/// rejected push beyond porcelain flags and free-text stderr.
+fn classify_push_failure(porcelain_stdout: &str, stderr: &str) -> AppError {
+    let stderr_lower = stderr.to_lowercase();
+    if looks_like_authentication_failure(&stderr_lower) {
+        return AppError::new(
+            AppErrorCode::AuthenticationFailed,
+            "GitOdrile couldn't sign in to the remote project.",
+        )
+        .with_remediation("Check your Git credentials for this remote, then try again.")
+        .with_detail(truncate_detail(stderr));
+    }
+    if porcelain_stdout.contains("[remote rejected]")
+        || stderr_lower.contains("pre-receive")
+        || stderr_lower.contains("hook declined")
+    {
+        return AppError::new(
+            AppErrorCode::RemoteRejected,
+            "The remote project rejected this publish.",
+        )
+        .with_remediation("Check the remote project's rules for this branch, then try again.")
+        .with_detail(truncate_detail(stderr));
+    }
+    if porcelain_stdout.contains("[rejected]")
+        || stderr_lower.contains("non-fast-forward")
+        || stderr_lower.contains("fetch first")
+    {
+        return AppError::new(
+            AppErrorCode::DivergedHistories,
+            "The remote project moved since this was checked. GitOdrile never force-publishes.",
+        )
+        .with_remediation("Get the team's changes first, then publish again.");
+    }
+    AppError::new(
+        AppErrorCode::GitCommandFailed,
+        "GitOdrile couldn't publish this version line.",
+    )
+    .with_remediation("Check your connection and the remote project, then try again.")
+    .with_detail(truncate_detail(stderr))
+}
+
+fn publish_selection(
+    path: String,
+    remote: String,
+    state_token: String,
+) -> Result<PublishResult, AppError> {
+    // Revalidates everything (remote choice, local/remote state, ahead/behind)
+    // against a *fresh* fetch, immediately before mutating anything — the
+    // same safety property save-version's execution keeps for the index.
+    let validated = validate_and_prepare_publish(&path, Some(remote))?;
+    if validated.state_token != state_token {
+        return Err(AppError::new(
+            AppErrorCode::StalePublishPlan,
+            "This project or the remote project changed since the preview was shown.",
+        )
+        .with_remediation("Review the updated plan, then try publishing again."));
+    }
+
+    let refspec = format!("refs/heads/{0}:refs/heads/{0}", validated.local_branch);
+    let mut args: Vec<&str> = vec!["push", "--porcelain"];
+    if validated.will_create_upstream {
+        args.push("-u");
+    }
+    args.push(&validated.remote);
+    args.push(&refspec);
+
+    let result = run_git_networked(&path, &args, NETWORK_TIMEOUT)?;
+    if result.timed_out {
+        return Err(AppError::new(
+            AppErrorCode::PublishUncertain,
+            "GitOdrile lost the connection while publishing. It's unknown whether the remote project received it.",
+        )
+        .with_remediation("Refresh and check whether this version was published before trying again."));
+    }
+    let status = result.status.ok_or_else(|| {
+        AppError::new(
+            AppErrorCode::PublishUncertain,
+            "GitOdrile couldn't confirm whether this publish finished.",
+        )
+        .with_remediation(
+            "Refresh and check whether this version was published before trying again.",
+        )
+    })?;
+    if !status.success() {
+        return Err(classify_push_failure(&result.stdout, &result.stderr));
+    }
+
+    Ok(PublishResult {
+        remote: validated.remote,
+        local_branch: validated.local_branch.clone(),
+        destination_branch: validated.local_branch,
+        previous_remote_commit: validated.remote_sha,
+        published_commit: validated.local_sha,
+        published_count: validated.commit_count,
+        created_upstream: validated.will_create_upstream,
+    })
+}
+
+#[tauri::command]
+fn publish(path: String, remote: String, state_token: String) -> Result<PublishResult, AppError> {
+    publish_selection(path, remote, state_token)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1735,12 +3607,18 @@ pub fn run() {
             open_repository,
             read_working_tree_status,
             read_file_diff,
+            read_working_tree_diffs,
             git_diagnostics,
             install_git,
             update_git,
             check_git_update,
             get_git_identity,
-            set_git_identity
+            set_git_identity,
+            plan_save_version,
+            save_version,
+            discover_remotes,
+            plan_publish,
+            publish
         ])
         .run(tauri::generate_context!())
         .expect("error while running GitOdrile");
@@ -2394,6 +4272,8 @@ mod tests {
             original_path: None,
             category,
             is_untracked: false,
+            is_prepared: false,
+            has_unprepared_changes: true,
         }
     }
 
@@ -2532,6 +4412,8 @@ mod tests {
             original_path: Some("old.txt".to_string()),
             category: ChangeCategory::Renamed,
             is_untracked: false,
+            is_prepared: true,
+            has_unprepared_changes: false,
         };
         let output = fake_output(
             "diff --git a/old.txt b/new.txt\nsimilarity index 100%\nrename from old.txt\nrename to new.txt\n",
@@ -2975,5 +4857,1461 @@ mod tests {
         assert_eq!(parsed.hunks.len(), 1);
         assert_eq!(parsed.hunks[0].old_start, 1);
         assert_eq!(parsed.hunks[0].lines.len(), 2);
+    }
+
+    // ---- plan_save_version (task 010) ----
+
+    /// A `GIT_CONFIG_GLOBAL` file with an identity set, so planner tests don't
+    /// depend on (or risk reading) the real machine's global Git identity.
+    fn write_test_identity_config(label: &str) -> String {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "gitodrile-test-identity-{label}-{}.gitconfig",
+            std::process::id()
+        ));
+        fs::write(
+            &path,
+            "[user]\n\tname = GitOdrile Test\n\temail = test@gitodrile.local\n",
+        )
+        .expect("write temp identity config");
+        path.to_string_lossy().to_string()
+    }
+
+    /// A `GIT_CONFIG_GLOBAL` path that does not exist, so `git config --get`
+    /// finds no identity there and (with no local repo config set either)
+    /// reports none configured, deterministically.
+    fn empty_identity_override(label: &str) -> String {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "gitodrile-test-no-identity-{label}-{}.gitconfig",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        path.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn plan_save_version_reports_nothing_to_save_for_a_clean_unborn_repo() {
+        let path = unique_temp_dir("plan-clean-unborn");
+        git_init(&path);
+        let identity = write_test_identity_config("plan-clean-unborn");
+
+        let error = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect_err("a clean, commit-less repo has nothing to save");
+        assert_eq!(error.code, AppErrorCode::NothingToSave);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn plan_save_version_reports_nothing_to_save_for_a_clean_existing_history() {
+        let path = unique_temp_dir("plan-clean-existing");
+        git_init(&path);
+        git_commit_empty(&path);
+        let identity = write_test_identity_config("plan-clean-existing");
+
+        let error = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect_err("a clean repo has nothing to save");
+        assert_eq!(error.code, AppErrorCode::NothingToSave);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn plan_save_version_returns_a_first_version_plan_for_an_unborn_repo_with_changes() {
+        let path = unique_temp_dir("plan-first-version");
+        git_init(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("plan-first-version");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("an unborn repo with changes should produce a plan");
+        assert_eq!(plan.operation_kind, OperationKind::HistoryMutation);
+        assert!(plan.requires_confirmation);
+        assert!(plan.is_first_version);
+        assert_eq!(plan.total_files, 1);
+        assert_eq!(plan.counts.new_files, 1);
+        assert!(plan.branch.is_some());
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn plan_save_version_returns_a_normal_plan_for_an_existing_history() {
+        let path = unique_temp_dir("plan-normal");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("plan-normal");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("a repo with changes should produce a plan");
+        assert!(!plan.is_first_version);
+        assert_eq!(plan.total_files, 1);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn plan_save_version_rejects_a_detached_head() {
+        let path = unique_temp_dir("plan-detached");
+        git_init(&path);
+        git_commit_empty(&path);
+        let status = git_command(&path)
+            .args(["checkout", "--detach", "-q"])
+            .status()
+            .expect("detach HEAD");
+        assert!(status.success(), "git checkout --detach should succeed");
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("plan-detached");
+
+        let error = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect_err("a detached HEAD should block saving");
+        assert_eq!(error.code, AppErrorCode::DetachedHead);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn plan_save_version_rejects_unresolved_conflicts() {
+        let path = unique_temp_dir("plan-conflicts");
+        git_init(&path);
+        write_file(&path, "file.txt", "base\n");
+        git_add_all(&path);
+        git_commit(&path, "base");
+        let original_branch =
+            git_stdout(&run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"]).unwrap());
+
+        let status = git_command(&path)
+            .args(["checkout", "-q", "-b", "feature"])
+            .status()
+            .expect("create feature branch");
+        assert!(status.success());
+        write_file(&path, "file.txt", "feature change\n");
+        git_add(&path, "file.txt");
+        git_commit(&path, "feature change");
+
+        let status = git_command(&path)
+            .args(["checkout", "-q", &original_branch])
+            .status()
+            .expect("checkout the original branch");
+        assert!(status.success());
+        write_file(&path, "file.txt", "main change\n");
+        git_add(&path, "file.txt");
+        git_commit(&path, "main change");
+
+        // A merge conflict is the point of this test: ignore the (expected
+        // nonzero) result and inspect the conflicted status afterward.
+        let _ = git_command(&path)
+            .args(["merge", "-q", "--no-edit", "feature"])
+            .status();
+        // `git merge` also leaves `MERGE_HEAD` behind, which would otherwise
+        // be caught by the (higher-priority) operation-in-progress check.
+        // Removing it isolates the unresolved-conflicts blocker, which also
+        // fires for unmerged index entries left by other means (e.g. a
+        // conflicting `stash pop`, which never sets `MERGE_HEAD`).
+        let git_dir_raw =
+            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+                .unwrap();
+        fs::remove_file(Path::new(&git_dir_raw).join("MERGE_HEAD"))
+            .expect("remove MERGE_HEAD to isolate the conflict blocker");
+
+        let identity = write_test_identity_config("plan-conflicts");
+        let error = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect_err("unresolved conflicts should block saving");
+        assert_eq!(error.code, AppErrorCode::UnresolvedConflicts);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn plan_save_version_rejects_an_operation_in_progress() {
+        let path = unique_temp_dir("plan-merge-in-progress");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let git_dir_raw =
+            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+                .unwrap();
+        fs::write(Path::new(&git_dir_raw).join("MERGE_HEAD"), "deadbeef\n")
+            .expect("simulate an in-progress merge");
+        let identity = write_test_identity_config("plan-merge-in-progress");
+
+        let error = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect_err("an in-progress merge should block saving");
+        assert_eq!(error.code, AppErrorCode::GitOperationInProgress);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn plan_save_version_rejects_missing_identity() {
+        let path = unique_temp_dir("plan-missing-identity");
+        git_init(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = empty_identity_override("plan-missing-identity");
+
+        let error = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect_err("a repo with no configured identity should block saving");
+        assert_eq!(error.code, AppErrorCode::MissingIdentity);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn plan_save_version_state_token_is_stable_then_invalidated_by_new_changes() {
+        let path = unique_temp_dir("plan-token");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("plan-token");
+
+        let first = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("first plan should succeed");
+        let second = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("re-planning identical state should succeed");
+        assert_eq!(first.state_token, second.state_token);
+
+        write_file(&path, "other.txt", "more\n");
+        let third = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan after a new change should succeed");
+        assert_ne!(first.state_token, third.state_token);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    // ---- save_version (task 010) ----
+
+    /// A pre-commit hook that always rejects, written the same way on every
+    /// platform: Git for Windows executes shebang scripts through its bundled
+    /// `sh`, so no `.exe`/`.bat` wrapper or executable bit is needed there.
+    /// Unix needs the executable bit set explicitly.
+    fn write_failing_hook(git_dir: &Path, name: &str) {
+        let hooks_dir = git_dir.join("hooks");
+        fs::create_dir_all(&hooks_dir).expect("create hooks dir");
+        let hook_path = hooks_dir.join(name);
+        fs::write(
+            &hook_path,
+            "#!/bin/sh\necho 'rejected by test hook' 1>&2\nexit 1\n",
+        )
+        .expect("write failing hook");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&hook_path).unwrap().permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&hook_path, perms).unwrap();
+        }
+    }
+
+    /// A `gpg.program` replacement that always fails the way real GPG does,
+    /// so signing failures can be tested without a real GPG/SSH signing setup.
+    /// Written under the system temp directory rather than inside the test
+    /// repository, so the fixture script itself never shows up as an
+    /// untracked file in that repository's status.
+    #[cfg(target_os = "windows")]
+    fn write_fake_failing_gpg(label: &str) -> String {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "gitodrile-fake-gpg-{label}-{}.bat",
+            std::process::id()
+        ));
+        fs::write(
+            &path,
+            "@echo off\r\necho gpg failed to sign the data 1>&2\r\nexit /b 1\r\n",
+        )
+        .expect("write fake gpg script");
+        path.to_string_lossy().replace('\\', "/")
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn write_fake_failing_gpg(label: &str) -> String {
+        use std::os::unix::fs::PermissionsExt;
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "gitodrile-fake-gpg-{label}-{}.sh",
+            std::process::id()
+        ));
+        fs::write(
+            &path,
+            "#!/bin/sh\necho 'gpg failed to sign the data' 1>&2\nexit 1\n",
+        )
+        .expect("write fake gpg script");
+        let mut perms = fs::metadata(&path).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&path, perms).unwrap();
+        path.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn save_version_rejects_an_empty_description() {
+        let path = unique_temp_dir("save-empty-description");
+        git_init(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-empty-description");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        let error = save_version_with_identity_override(
+            path.clone(),
+            "   ".to_string(),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect_err("a whitespace-only description must be rejected");
+        assert_eq!(error.code, AppErrorCode::EmptyDescription);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_creates_the_first_commit_on_an_unborn_branch() {
+        let path = unique_temp_dir("save-first-commit");
+        git_init(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-first-commit");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        assert!(plan.is_first_version);
+
+        let result = save_version_with_identity_override(
+            path.clone(),
+            "first version".to_string(),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect("first save should succeed");
+
+        assert_eq!(result.saved_files, 1);
+        assert_eq!(
+            git_stdout(&run_git(&path, &["rev-list", "--count", "HEAD"]).unwrap()),
+            "1"
+        );
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_commits_every_change_kind_and_excludes_ignored_files() {
+        let path = unique_temp_dir("save-full-flow");
+        git_init(&path);
+        write_file(&path, ".gitignore", "ignored.txt\n");
+        write_file(&path, "keep.txt", "unchanged\n");
+        write_file(&path, "to-modify.txt", "original\n");
+        write_file(&path, "to-delete.txt", "bye\n");
+        write_file(
+            &path,
+            "to-rename.txt",
+            "rename me, with enough unique content to be detected as a rename\n",
+        );
+        git_add_all(&path);
+        git_commit(&path, "base");
+
+        write_file(&path, "to-modify.txt", "changed\n");
+        fs::remove_file(Path::new(&path).join("to-delete.txt")).expect("delete file");
+        fs::rename(
+            Path::new(&path).join("to-rename.txt"),
+            Path::new(&path).join("renamed.txt"),
+        )
+        .expect("rename file");
+        write_file(&path, "new-file.txt", "brand new\n");
+        write_file(&path, "ignored.txt", "should stay out\n");
+        // Unstaged renames are reported by `git status` as a plain delete +
+        // add, not a rename (rename detection only kicks in once a change is
+        // staged) — matching the pattern the existing diff/rename tests
+        // already rely on. Staging here previews the same categorization
+        // `save_version`'s own `git add -A` would produce.
+        git_add_all(&path);
+
+        let identity = write_test_identity_config("save-full-flow");
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        assert_eq!(
+            plan.total_files, 4,
+            "modify, delete, rename, new — ignored excluded"
+        );
+
+        let result = save_version_with_identity_override(
+            path.clone(),
+            "  save everything  ".to_string(),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect("save should succeed");
+
+        assert_eq!(result.description, "save everything");
+        assert_eq!(result.saved_files, 4);
+        assert_eq!(result.commit.len(), 40);
+        assert!(result.commit.starts_with(&result.short_commit));
+
+        let status_after = read_working_tree_status(path.clone()).expect("status after save");
+        assert!(status_after.is_clean, "everything should be committed");
+
+        let tracked = git_stdout(&run_git(&path, &["ls-files"]).unwrap());
+        assert!(
+            !tracked.contains("ignored.txt"),
+            "ignored files must never be committed"
+        );
+        assert!(tracked.contains("renamed.txt"));
+        assert!(!tracked.contains("to-delete.txt"));
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_commits_only_the_selected_files() {
+        let path = unique_temp_dir("save-selection");
+        git_init(&path);
+        write_file(&path, "selected.txt", "before\n");
+        write_file(&path, "pending.txt", "before\n");
+        git_add_all(&path);
+        git_commit(&path, "base");
+        write_file(&path, "selected.txt", "saved\n");
+        write_file(&path, "pending.txt", "still pending\n");
+        let identity = write_test_identity_config("save-selection");
+        let selected = Some(vec!["selected.txt".to_string()]);
+
+        let plan = plan_save_version_selection_with_identity_override(
+            path.clone(),
+            selected.clone(),
+            Some(&identity),
+        )
+        .expect("partial plan should succeed");
+        assert!(plan.is_partial);
+        assert_eq!(plan.total_files, 1);
+        assert_eq!(plan.remaining_files, 1);
+
+        save_version_selection_with_identity_override(
+            path.clone(),
+            "save one file".to_string(),
+            plan.state_token,
+            selected,
+            Some(&identity),
+        )
+        .expect("partial save should succeed");
+
+        assert_eq!(
+            git_stdout(&run_git(&path, &["show", "HEAD:selected.txt"]).unwrap()),
+            "saved"
+        );
+        assert_eq!(
+            git_stdout(&run_git(&path, &["show", "HEAD:pending.txt"]).unwrap()),
+            "before"
+        );
+        assert_eq!(
+            fs::read_to_string(Path::new(&path).join("pending.txt")).unwrap(),
+            "still pending\n"
+        );
+        let status = read_working_tree_status(path.clone()).expect("remaining status");
+        assert_eq!(status.counts.total, 1);
+        assert_eq!(status.entries[0].path, "pending.txt");
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_includes_both_prepared_and_later_changes_to_the_same_file() {
+        let path = unique_temp_dir("save-prepared-and-unprepared");
+        git_init(&path);
+        write_file(&path, "file.txt", "one\ntwo\n");
+        git_add_all(&path);
+        git_commit(&path, "base");
+        write_file(&path, "file.txt", "ONE\ntwo\n");
+        git_add(&path, "file.txt");
+        write_file(&path, "file.txt", "ONE\nTWO\n");
+        let identity = write_test_identity_config("save-prepared-and-unprepared");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("mixed plan should succeed");
+        assert!(plan.has_prepared_changes);
+
+        save_version_with_identity_override(
+            path.clone(),
+            "save complete file".to_string(),
+            plan.state_token,
+            Some(&identity),
+        )
+        .expect("mixed save should succeed");
+
+        assert_eq!(
+            git_stdout(&run_git(&path, &["show", "HEAD:file.txt"]).unwrap()),
+            "ONE\nTWO"
+        );
+        assert!(
+            read_working_tree_status(path.clone())
+                .expect("status after mixed save")
+                .is_clean
+        );
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_plan_token_changes_when_the_same_file_content_changes_again() {
+        let path = unique_temp_dir("save-content-token");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "file.txt", "first\n");
+        let identity = write_test_identity_config("save-content-token");
+
+        let first = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("first plan");
+        write_file(&path, "file.txt", "second\n");
+        let second = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("second plan");
+
+        assert_ne!(first.state_token, second.state_token);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn a_failed_index_restore_is_reported_and_keeps_the_backup() {
+        let path = unique_temp_dir("save-restore-failure");
+        let backup_path = Path::new(&path).join("original-index.bak");
+        fs::write(&backup_path, b"original").expect("write backup");
+        let index_directory = Path::new(&path).join("index-as-directory");
+        fs::create_dir(&index_directory).expect("create invalid index target");
+        let backup = IndexBackup {
+            index_path: index_directory,
+            backup_path: Some(backup_path.clone()),
+        };
+
+        let error = restore_or_report(
+            &backup,
+            AppError::new(AppErrorCode::GitCommandFailed, "primary failure"),
+        );
+        assert_eq!(error.code, AppErrorCode::IndexRestoreFailed);
+        assert!(backup_path.exists(), "the recovery backup must be retained");
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn save_version_rejects_a_stale_state_token() {
+        let path = unique_temp_dir("save-stale-token");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-stale-token");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+
+        // Project state drifts after the preview token was captured.
+        write_file(&path, "other.txt", "more\n");
+        let status_before = read_working_tree_status(path.clone()).expect("status before");
+
+        let error = save_version_with_identity_override(
+            path.clone(),
+            "a version".to_string(),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect_err("a stale plan must be rejected");
+        assert_eq!(error.code, AppErrorCode::StalePreview);
+
+        let status_after = read_working_tree_status(path.clone()).expect("status after");
+        assert_eq!(status_before, status_after);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_reports_a_hook_rejection_and_leaves_history_untouched() {
+        let path = unique_temp_dir("save-hook-rejection");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-hook-rejection");
+
+        let git_dir_raw =
+            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+                .unwrap();
+        write_failing_hook(Path::new(&git_dir_raw), "pre-commit");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        let status_before = read_working_tree_status(path.clone()).expect("status before");
+
+        let error = save_version_with_identity_override(
+            path.clone(),
+            "a version".to_string(),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect_err("a rejecting pre-commit hook should fail the save");
+        assert_eq!(error.code, AppErrorCode::HookRejected);
+        assert!(error.detail.is_some());
+
+        let status_after = read_working_tree_status(path.clone()).expect("status after");
+        assert_eq!(status_before, status_after);
+        assert_eq!(
+            git_stdout(&run_git(&path, &["rev-list", "--count", "HEAD"]).unwrap()),
+            "1",
+            "no new commit should have been created"
+        );
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_restores_the_index_byte_for_byte_after_a_hook_rejection() {
+        let path = unique_temp_dir("save-index-restore");
+        git_init(&path);
+        write_file(&path, "tracked.txt", "base\n");
+        git_add_all(&path);
+        git_commit(&path, "base");
+        write_file(&path, "tracked.txt", "changed\n");
+        write_file(&path, "extra.txt", "new\n");
+        let identity = write_test_identity_config("save-index-restore");
+
+        let index_path = resolve_index_path(&path).expect("resolve index path");
+        let original_index_bytes = fs::read(&index_path).expect("read original index");
+
+        let git_dir_raw =
+            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+                .unwrap();
+        write_failing_hook(Path::new(&git_dir_raw), "pre-commit");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        let error = save_version_with_identity_override(
+            path.clone(),
+            "a version".to_string(),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect_err("hook rejection should fail the save");
+        assert_eq!(error.code, AppErrorCode::HookRejected);
+
+        let restored_index_bytes = fs::read(&index_path).expect("read restored index");
+        assert_eq!(original_index_bytes, restored_index_bytes);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_leaves_no_index_behind_when_a_first_save_fails() {
+        let path = unique_temp_dir("save-no-index-restore");
+        git_init(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-no-index-restore");
+
+        let index_path = resolve_index_path(&path).expect("resolve index path");
+        assert!(
+            !index_path.exists(),
+            "a fresh repo should have no index yet"
+        );
+
+        let git_dir_raw =
+            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+                .unwrap();
+        write_failing_hook(Path::new(&git_dir_raw), "pre-commit");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        let error = save_version_with_identity_override(
+            path.clone(),
+            "a version".to_string(),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect_err("hook rejection should fail the first save too");
+        assert_eq!(error.code, AppErrorCode::HookRejected);
+        assert!(
+            !index_path.exists(),
+            "no index should exist after a failed first save either"
+        );
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_reports_a_signing_failure() {
+        let path = unique_temp_dir("save-signing-failure");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-signing-failure");
+
+        let fake_gpg = write_fake_failing_gpg("save-signing-failure");
+        assert!(git_command(&path)
+            .args(["config", "commit.gpgsign", "true"])
+            .status()
+            .expect("set commit.gpgsign")
+            .success());
+        assert!(git_command(&path)
+            .args(["config", "gpg.program", &fake_gpg])
+            .status()
+            .expect("set gpg.program")
+            .success());
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        let error = save_version_with_identity_override(
+            path.clone(),
+            "a version".to_string(),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect_err("a failing gpg program should be reported as a signing failure");
+        assert_eq!(error.code, AppErrorCode::SigningFailed);
+        assert!(error.detail.is_some());
+
+        let status_after = read_working_tree_status(path.clone()).expect("status after");
+        assert_eq!(status_after.counts.total, 1);
+        assert_eq!(status_after.counts.new_files, 1);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+        let _ = fs::remove_file(&fake_gpg);
+    }
+
+    // ---- read_working_tree_diffs (extra optimization, task 010) ----
+
+    #[test]
+    fn split_diff_sections_splits_on_diff_git_lines() {
+        let text = "diff --git a/one b/one\n@@ -1 +1 @@\n-a\n+b\ndiff --git a/two b/two\n@@ -1 +1 @@\n-c\n+d\n";
+        let sections = split_diff_sections(text);
+        assert_eq!(sections.len(), 2);
+        assert!(sections[0].starts_with("diff --git a/one b/one"));
+        assert!(sections[0].contains("-a\n+b"));
+        assert!(sections[1].starts_with("diff --git a/two b/two"));
+        assert!(sections[1].contains("-c\n+d"));
+    }
+
+    #[test]
+    fn split_diff_sections_returns_nothing_for_empty_input() {
+        assert!(split_diff_sections("").is_empty());
+    }
+
+    #[test]
+    fn split_content_lines_drops_the_phantom_line_from_a_trailing_newline() {
+        assert_eq!(split_content_lines("a\nb\n"), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn split_content_lines_keeps_the_final_unterminated_line() {
+        assert_eq!(split_content_lines("a\nb"), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn split_content_lines_returns_nothing_for_empty_content() {
+        assert!(split_content_lines("").is_empty());
+    }
+
+    fn find_diff<'a>(diffs: &'a [FileDiff], path: &str) -> Option<&'a FileDiff> {
+        diffs.iter().find(|diff| match diff {
+            FileDiff::Text { path: p, .. }
+            | FileDiff::Binary { path: p, .. }
+            | FileDiff::TooLarge { path: p, .. }
+            | FileDiff::Unchanged { path: p, .. } => p == path,
+            FileDiff::Conflict { path: p, .. } => p == path,
+        })
+    }
+
+    #[test]
+    fn read_working_tree_diffs_batches_every_tracked_change_into_one_process() {
+        let path = unique_temp_dir("batch-diffs-tracked");
+        git_init(&path);
+        write_file(&path, "one.txt", "one\n");
+        write_file(&path, "two.txt", "two\n");
+        git_add_all(&path);
+        git_commit(&path, "base");
+        write_file(&path, "one.txt", "one changed\n");
+        write_file(&path, "two.txt", "two changed\n");
+
+        let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+        assert_eq!(diffs.len(), 2);
+
+        match find_diff(&diffs, "one.txt") {
+            Some(FileDiff::Text { hunks, .. }) => {
+                assert_eq!(hunks.len(), 1);
+                assert!(hunks[0]
+                    .lines
+                    .iter()
+                    .any(|line| line.content == "one changed"));
+            }
+            other => panic!("expected a text diff for one.txt, got {other:?}"),
+        }
+        match find_diff(&diffs, "two.txt") {
+            Some(FileDiff::Text { hunks, .. }) => {
+                assert!(hunks[0]
+                    .lines
+                    .iter()
+                    .any(|line| line.content == "two changed"));
+            }
+            other => panic!("expected a text diff for two.txt, got {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_diffs_reads_an_untracked_file_without_invoking_git_diff() {
+        let path = unique_temp_dir("batch-diffs-untracked");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "new-file.txt", "hello\nworld\n");
+
+        let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+        assert_eq!(diffs.len(), 1);
+        match find_diff(&diffs, "new-file.txt") {
+            Some(FileDiff::Text { hunks, change, .. }) => {
+                assert_eq!(*change, ChangeCategory::New);
+                assert_eq!(hunks.len(), 1);
+                assert_eq!(hunks[0].lines.len(), 2);
+                assert!(hunks[0]
+                    .lines
+                    .iter()
+                    .all(|line| line.kind == DiffLineKind::Addition));
+                assert_eq!(hunks[0].lines[0].content, "hello");
+                assert_eq!(hunks[0].lines[1].new_line_number, Some(2));
+            }
+            other => panic!("expected a text diff for new-file.txt, got {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_diffs_reports_an_empty_untracked_file_as_unchanged() {
+        let path = unique_temp_dir("batch-diffs-empty-untracked");
+        git_init(&path);
+        git_commit_empty(&path);
+        write_file(&path, "empty.txt", "");
+
+        let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+        match find_diff(&diffs, "empty.txt") {
+            Some(FileDiff::Unchanged { .. }) => {}
+            other => panic!("expected unchanged for an empty new file, got {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_diffs_reports_a_binary_untracked_file_as_binary() {
+        let path = unique_temp_dir("batch-diffs-binary-untracked");
+        git_init(&path);
+        git_commit_empty(&path);
+        fs::write(
+            Path::new(&path).join("image.bin"),
+            [0u8, 159, 146, 150, 0, 1, 2],
+        )
+        .expect("write binary file");
+
+        let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+        match find_diff(&diffs, "image.bin") {
+            Some(FileDiff::Binary { .. }) => {}
+            other => panic!("expected binary for a binary untracked file, got {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_diffs_excludes_conflicted_entries() {
+        let path = unique_temp_dir("batch-diffs-conflict");
+        git_init(&path);
+        write_file(&path, "file.txt", "base\n");
+        git_add_all(&path);
+        git_commit(&path, "base");
+        let original_branch =
+            git_stdout(&run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"]).unwrap());
+
+        let status = git_command(&path)
+            .args(["checkout", "-q", "-b", "feature"])
+            .status()
+            .expect("create feature branch");
+        assert!(status.success());
+        write_file(&path, "file.txt", "feature change\n");
+        git_add(&path, "file.txt");
+        git_commit(&path, "feature change");
+
+        let status = git_command(&path)
+            .args(["checkout", "-q", &original_branch])
+            .status()
+            .expect("checkout the original branch");
+        assert!(status.success());
+        write_file(&path, "file.txt", "main change\n");
+        git_add(&path, "file.txt");
+        git_commit(&path, "main change");
+
+        let _ = git_command(&path)
+            .args(["merge", "-q", "--no-edit", "feature"])
+            .status();
+
+        let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+        assert!(
+            find_diff(&diffs, "file.txt").is_none(),
+            "a conflicted entry must be left for the per-file fallback, not guessed at here"
+        );
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_diffs_batches_a_renamed_file() {
+        let path = unique_temp_dir("batch-diffs-rename");
+        git_init(&path);
+        write_file(
+            &path,
+            "old.txt",
+            "same content, renamed with enough text to be detected\n",
+        );
+        git_add_all(&path);
+        git_commit(&path, "base");
+        fs::rename(
+            Path::new(&path).join("old.txt"),
+            Path::new(&path).join("new.txt"),
+        )
+        .expect("rename file");
+        git_add_all(&path);
+
+        let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+        match find_diff(&diffs, "new.txt") {
+            Some(FileDiff::Unchanged {
+                original_path,
+                change,
+                ..
+            }) => {
+                assert_eq!(original_path.as_deref(), Some("old.txt"));
+                assert_eq!(*change, ChangeCategory::Renamed);
+            }
+            other => panic!("expected an unchanged pure rename, got {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_diffs_batches_a_deleted_file() {
+        let path = unique_temp_dir("batch-diffs-delete");
+        git_init(&path);
+        write_file(&path, "gone.txt", "bye\n");
+        git_add_all(&path);
+        git_commit(&path, "base");
+        fs::remove_file(Path::new(&path).join("gone.txt")).expect("delete file");
+
+        let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+        match find_diff(&diffs, "gone.txt") {
+            Some(FileDiff::Text { change, hunks, .. }) => {
+                assert_eq!(*change, ChangeCategory::Deleted);
+                assert!(hunks[0]
+                    .lines
+                    .iter()
+                    .any(|line| line.kind == DiffLineKind::Deletion));
+            }
+            other => panic!("expected a text diff for the deleted file, got {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_working_tree_diffs_returns_nothing_for_a_clean_repository() {
+        let path = unique_temp_dir("batch-diffs-clean");
+        git_init(&path);
+        git_commit_empty(&path);
+
+        let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+        assert!(diffs.is_empty());
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    // ---- Publish (task 011) ----
+
+    fn init_bare_remote(path: &str) {
+        let status = git_command(path)
+            .args(["init", "--bare", "-q"])
+            .status()
+            .expect("run git init --bare");
+        assert!(status.success(), "git init --bare should succeed");
+    }
+
+    fn wire_remote(repo_path: &str, remote_name: &str, remote_path: &str) {
+        let status = git_command(repo_path)
+            .args(["remote", "add", remote_name, remote_path])
+            .status()
+            .expect("run git remote add");
+        assert!(status.success(), "git remote add should succeed");
+    }
+
+    fn remote_branch_sha(remote_path: &str, branch: &str) -> Option<String> {
+        let output = git_command(remote_path)
+            .args(["rev-parse", "--verify", branch])
+            .output()
+            .expect("run git rev-parse on the remote");
+        output.status.success().then(|| git_stdout(&output))
+    }
+
+    #[test]
+    fn redact_remote_url_strips_userinfo_credentials() {
+        assert_eq!(
+            redact_remote_url("https://alice:s3cr3t@example.com/repo.git"),
+            "https://example.com/repo.git"
+        );
+        assert_eq!(
+            redact_remote_url("https://ghp_abcdef123@github.com/org/repo.git"),
+            "https://github.com/org/repo.git"
+        );
+    }
+
+    #[test]
+    fn redact_remote_url_leaves_urls_without_credentials_untouched() {
+        assert_eq!(
+            redact_remote_url("https://github.com/org/repo.git"),
+            "https://github.com/org/repo.git"
+        );
+        assert_eq!(
+            redact_remote_url("git@github.com:org/repo.git"),
+            "git@github.com:org/repo.git"
+        );
+        assert_eq!(
+            redact_remote_url("/local/bare/repo.git"),
+            "/local/bare/repo.git"
+        );
+    }
+
+    #[test]
+    fn parse_remote_v_output_keeps_one_entry_per_remote() {
+        let output = "origin\thttps://user:pw@example.com/repo.git (fetch)\n\
+                       origin\thttps://user:pw@example.com/repo.git (push)\n\
+                       upstream\tgit@example.com:org/repo.git (fetch)\n\
+                       upstream\tgit@example.com:org/repo.git (push)\n";
+        let remotes = parse_remote_v_output(output);
+        assert_eq!(remotes.len(), 2);
+        assert_eq!(remotes[0].name, "origin");
+        assert_eq!(remotes[0].url, "https://example.com/repo.git");
+        assert_eq!(remotes[1].name, "upstream");
+        assert_eq!(remotes[1].url, "git@example.com:org/repo.git");
+    }
+
+    #[test]
+    fn resolve_remote_selection_proposes_the_single_configured_remote() {
+        let remotes = vec![RemoteInfo {
+            name: "origin".to_string(),
+            url: "https://example.com/repo.git".to_string(),
+        }];
+        let remote = resolve_remote_selection(&remotes, None, None).expect("should propose origin");
+        assert_eq!(remote, "origin");
+    }
+
+    #[test]
+    fn resolve_remote_selection_rejects_when_no_remote_is_configured() {
+        let error = resolve_remote_selection(&[], None, None).expect_err("no remotes configured");
+        assert_eq!(error.code, AppErrorCode::NoRemoteConfigured);
+    }
+
+    #[test]
+    fn resolve_remote_selection_requires_an_explicit_choice_with_multiple_remotes() {
+        let remotes = vec![
+            RemoteInfo {
+                name: "origin".to_string(),
+                url: "https://example.com/a.git".to_string(),
+            },
+            RemoteInfo {
+                name: "upstream".to_string(),
+                url: "https://example.com/b.git".to_string(),
+            },
+        ];
+        let error =
+            resolve_remote_selection(&remotes, None, None).expect_err("ambiguous without a choice");
+        assert_eq!(error.code, AppErrorCode::RemoteSelectionRequired);
+
+        let remote = resolve_remote_selection(&remotes, None, Some("upstream"))
+            .expect("an explicit request should resolve");
+        assert_eq!(remote, "upstream");
+    }
+
+    #[test]
+    fn resolve_remote_selection_prefers_the_configured_upstream_over_ambiguity() {
+        let remotes = vec![
+            RemoteInfo {
+                name: "origin".to_string(),
+                url: "https://example.com/a.git".to_string(),
+            },
+            RemoteInfo {
+                name: "upstream".to_string(),
+                url: "https://example.com/b.git".to_string(),
+            },
+        ];
+        let remote = resolve_remote_selection(&remotes, Some("upstream/main"), None)
+            .expect("configured upstream should resolve without asking");
+        assert_eq!(remote, "upstream");
+    }
+
+    #[test]
+    fn resolve_remote_selection_rejects_an_unknown_requested_remote() {
+        let remotes = vec![RemoteInfo {
+            name: "origin".to_string(),
+            url: "https://example.com/repo.git".to_string(),
+        }];
+        let error = resolve_remote_selection(&remotes, None, Some("does-not-exist"))
+            .expect_err("an unconfigured remote name must be rejected");
+        assert_eq!(error.code, AppErrorCode::NoRemoteConfigured);
+    }
+
+    #[test]
+    fn compute_publish_state_token_is_stable_then_changes_with_remote_state() {
+        let first = compute_publish_state_token("abc123", "origin", Some("def456"), "main");
+        let same = compute_publish_state_token("abc123", "origin", Some("def456"), "main");
+        assert_eq!(first, same);
+
+        let after_local_move =
+            compute_publish_state_token("zzz999", "origin", Some("def456"), "main");
+        assert_ne!(first, after_local_move);
+
+        let after_remote_move =
+            compute_publish_state_token("abc123", "origin", Some("newsha"), "main");
+        assert_ne!(first, after_remote_move);
+
+        let first_publish = compute_publish_state_token("abc123", "origin", None, "main");
+        assert_ne!(first, first_publish);
+    }
+
+    #[test]
+    fn classify_push_failure_recognizes_remote_rejection() {
+        let stdout = "To ../remote.git\n!\trefs/heads/main:refs/heads/main\t[remote rejected] (pre-receive hook declined)\n";
+        let error = classify_push_failure(stdout, "hook declined\n");
+        assert_eq!(error.code, AppErrorCode::RemoteRejected);
+    }
+
+    #[test]
+    fn classify_push_failure_recognizes_non_fast_forward_as_diverged() {
+        let stdout =
+            "To ../remote.git\n!\trefs/heads/main:refs/heads/main\t[rejected] (non-fast-forward)\n";
+        let error = classify_push_failure(stdout, "");
+        assert_eq!(error.code, AppErrorCode::DivergedHistories);
+    }
+
+    #[test]
+    fn classify_push_failure_recognizes_authentication_failure() {
+        let error = classify_push_failure(
+            "",
+            "fatal: Authentication failed for 'https://example.com/repo.git'\n",
+        );
+        assert_eq!(error.code, AppErrorCode::AuthenticationFailed);
+    }
+
+    /// Sets up a repository with one commit already published to a fresh bare
+    /// remote under `origin`, with upstream tracking configured — the common
+    /// starting point most publish tests build on.
+    fn published_repo_and_remote(label: &str) -> (String, String, String) {
+        let repo = unique_temp_dir(&format!("publish-{label}"));
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let branch = current_branch(&repo);
+
+        let remote = unique_temp_dir(&format!("publish-{label}-remote"));
+        init_bare_remote(&remote);
+        wire_remote(&repo, "origin", &remote);
+
+        let plan = plan_publish(repo.clone(), None).expect("first plan should succeed");
+        publish(repo.clone(), plan.remote, plan.state_token).expect("first publish should succeed");
+
+        (repo, remote, branch)
+    }
+
+    #[test]
+    fn plan_publish_reports_the_first_publish_and_publish_creates_upstream() {
+        let repo = unique_temp_dir("publish-first");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let branch = current_branch(&repo);
+
+        let remote = unique_temp_dir("publish-first-remote");
+        init_bare_remote(&remote);
+        wire_remote(&repo, "origin", &remote);
+
+        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
+        assert_eq!(plan.operation_kind, OperationKind::RemoteMutation);
+        assert!(plan.requires_confirmation);
+        assert!(plan.will_create_upstream);
+        assert_eq!(plan.remote, "origin");
+        assert_eq!(plan.commit_count, 1);
+
+        let result =
+            publish(repo.clone(), plan.remote, plan.state_token).expect("publish should succeed");
+        assert!(result.created_upstream);
+        assert_eq!(result.published_count, 1);
+        assert!(result.previous_remote_commit.is_none());
+        assert_eq!(
+            remote_branch_sha(&remote, &branch),
+            Some(result.published_commit)
+        );
+
+        let status = read_working_tree_status(repo.clone()).expect("status should read");
+        assert_eq!(status.upstream.upstream, Some(format!("origin/{branch}")));
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn ahead_only_publish_succeeds_after_the_first_publish() {
+        let (repo, remote, branch) = published_repo_and_remote("ahead-only");
+
+        write_file(&repo, "b.txt", "second\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+
+        let plan = plan_publish(repo.clone(), None).expect("second plan should succeed");
+        assert!(!plan.will_create_upstream);
+        assert_eq!(plan.commit_count, 1);
+
+        let result = publish(repo.clone(), plan.remote, plan.state_token)
+            .expect("second publish should succeed");
+        assert_eq!(result.published_count, 1);
+        assert!(result.previous_remote_commit.is_some());
+        assert_eq!(
+            remote_branch_sha(&remote, &branch),
+            Some(result.published_commit)
+        );
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn plan_publish_reports_nothing_to_publish_when_already_up_to_date() {
+        let (repo, remote, _branch) = published_repo_and_remote("up-to-date");
+
+        let error = plan_publish(repo.clone(), None).expect_err("nothing new should publish");
+        assert_eq!(error.code, AppErrorCode::NothingToPublish);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn plan_publish_blocks_when_the_local_branch_is_behind_the_remote() {
+        let (repo, remote, branch) = published_repo_and_remote("behind");
+
+        // A second clone advances the remote without repo A's knowledge.
+        let other = unique_temp_dir("publish-behind-other");
+        let clone_status = base_git_command()
+            .args(["clone", "-q", &remote, &other])
+            .status()
+            .expect("run git clone");
+        assert!(clone_status.success(), "clone should succeed");
+        write_file(&other, "from-other.txt", "hi\n");
+        git_add_all(&other);
+        git_commit(&other, "from other clone");
+        let push_status = git_command(&other)
+            .args(["push", "-q", "origin", &branch])
+            .status()
+            .expect("run git push from the other clone");
+        assert!(
+            push_status.success(),
+            "the other clone's push should succeed"
+        );
+
+        let error = plan_publish(repo.clone(), None).expect_err("a behind branch must be blocked");
+        assert_eq!(error.code, AppErrorCode::BehindRemote);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+        let _ = fs::remove_dir_all(&other);
+    }
+
+    #[test]
+    fn plan_publish_blocks_a_diverged_history() {
+        let (repo, remote, branch) = published_repo_and_remote("diverged");
+
+        let other = unique_temp_dir("publish-diverged-other");
+        let clone_status = base_git_command()
+            .args(["clone", "-q", &remote, &other])
+            .status()
+            .expect("run git clone");
+        assert!(clone_status.success(), "clone should succeed");
+        write_file(&other, "from-other.txt", "hi\n");
+        git_add_all(&other);
+        git_commit(&other, "from other clone");
+        let push_status = git_command(&other)
+            .args(["push", "-q", "origin", &branch])
+            .status()
+            .expect("run git push from the other clone");
+        assert!(
+            push_status.success(),
+            "the other clone's push should succeed"
+        );
+
+        // repo now has its own unpublished commit too, so both sides moved.
+        write_file(&repo, "from-repo.txt", "hi\n");
+        git_add_all(&repo);
+        git_commit(&repo, "from repo");
+
+        let error =
+            plan_publish(repo.clone(), None).expect_err("a diverged history must be blocked");
+        assert_eq!(error.code, AppErrorCode::DivergedHistories);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+        let _ = fs::remove_dir_all(&other);
+    }
+
+    #[test]
+    fn publish_rejects_a_state_token_that_went_stale_after_planning() {
+        let (repo, remote, branch) = published_repo_and_remote("stale-token");
+
+        write_file(&repo, "b.txt", "second\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
+
+        // The remote moves after the plan was produced but before execution.
+        let other = unique_temp_dir("publish-stale-other");
+        let clone_status = base_git_command()
+            .args(["clone", "-q", &remote, &other])
+            .status()
+            .expect("run git clone");
+        assert!(clone_status.success(), "clone should succeed");
+        write_file(&other, "from-other.txt", "hi\n");
+        git_add_all(&other);
+        git_commit(&other, "from other clone");
+        let push_status = git_command(&other)
+            .args(["push", "-q", "origin", &branch])
+            .status()
+            .expect("run git push from the other clone");
+        assert!(
+            push_status.success(),
+            "the other clone's push should succeed"
+        );
+
+        let error = publish(repo.clone(), plan.remote, plan.state_token)
+            .expect_err("a plan invalidated by a remote change must be rejected");
+        assert!(matches!(
+            error.code,
+            AppErrorCode::StalePublishPlan
+                | AppErrorCode::DivergedHistories
+                | AppErrorCode::BehindRemote
+        ));
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+        let _ = fs::remove_dir_all(&other);
+    }
+
+    #[test]
+    fn publish_reports_a_remote_hook_rejection() {
+        let repo = unique_temp_dir("publish-hook-rejection");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+
+        let remote = unique_temp_dir("publish-hook-rejection-remote");
+        init_bare_remote(&remote);
+        write_failing_hook(Path::new(&remote), "pre-receive");
+        wire_remote(&repo, "origin", &remote);
+
+        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
+        let error = publish(repo.clone(), plan.remote, plan.state_token)
+            .expect_err("a rejecting pre-receive hook should fail the publish");
+        assert_eq!(error.code, AppErrorCode::RemoteRejected);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn publish_leaves_unsaved_files_local_and_the_working_tree_and_index_unchanged() {
+        let (repo, remote, branch) = published_repo_and_remote("unsaved-files");
+
+        write_file(&repo, "b.txt", "second\n");
+        git_add_all(&repo);
+        git_commit(&repo, "second");
+        write_file(&repo, "untracked.txt", "not saved\n");
+
+        let index_path = resolve_index_path(&repo).expect("resolve index path");
+        let index_before = fs::read(&index_path).expect("read index before publish");
+
+        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
+        assert!(plan.has_unsaved_files);
+
+        let result =
+            publish(repo.clone(), plan.remote, plan.state_token).expect("publish should succeed");
+        assert_eq!(
+            remote_branch_sha(&remote, &branch),
+            Some(result.published_commit)
+        );
+
+        let index_after = fs::read(&index_path).expect("read index after publish");
+        assert_eq!(
+            index_before, index_after,
+            "publish must never touch the index"
+        );
+        assert_eq!(
+            fs::read_to_string(Path::new(&repo).join("untracked.txt"))
+                .expect("read untracked file"),
+            "not saved\n"
+        );
+
+        let status = read_working_tree_status(repo.clone()).expect("status should read");
+        assert_eq!(status.counts.new_files, 1);
+        assert_eq!(status.entries[0].path, "untracked.txt");
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn publish_updates_exactly_one_branch_and_creates_no_tags() {
+        let repo = unique_temp_dir("publish-one-ref");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let branch = current_branch(&repo);
+
+        let remote = unique_temp_dir("publish-one-ref-remote");
+        init_bare_remote(&remote);
+        wire_remote(&repo, "origin", &remote);
+
+        let plan = plan_publish(repo.clone(), None).expect("plan should succeed");
+        publish(repo.clone(), plan.remote, plan.state_token).expect("publish should succeed");
+
+        let branches = checked_git_stdout(
+            run_git(
+                &remote,
+                &["for-each-ref", "--format=%(refname)", "refs/heads"],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(branches, format!("refs/heads/{branch}"));
+
+        let tags = checked_git_stdout(run_git(&remote, &["tag", "--list"]).unwrap()).unwrap();
+        assert!(tags.is_empty(), "publish must never create tags");
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
     }
 }

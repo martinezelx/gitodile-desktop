@@ -49,6 +49,8 @@ import {
 } from "./repositoryOverview";
 import { localizeAppError } from "./appError";
 import { ChangesPanel } from "./changes";
+import { PublishDialog } from "./publishDialog";
+import { useModalFocus } from "./modalFocus";
 import "./styles.css";
 
 type ThemePreference = "system" | "light" | "dark";
@@ -70,76 +72,6 @@ type GitUpdateLaunchResult = {
   outcome: "started" | "already_starting" | "unavailable" | "failed";
 };
 type GitIdentity = { name: string | null; email: string | null };
-
-function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter((element) => !element.hasAttribute("hidden"));
-}
-
-function useModalFocus<T extends HTMLElement>(
-  isOpen: boolean,
-  dialogRef: React.RefObject<T | null>,
-  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>,
-): void {
-  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-
-    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusDialog = (): void => {
-      const dialog = dialogRef.current;
-      if (!dialog) {
-        return;
-      }
-      (getFocusableElements(dialog)[0] ?? dialog).focus();
-    };
-    const animationFrame = window.requestAnimationFrame(focusDialog);
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setIsOpen(false);
-        return;
-      }
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const dialog = dialogRef.current;
-      if (!dialog) {
-        return;
-      }
-      const focusable = getFocusableElements(dialog);
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-      document.removeEventListener("keydown", handleKeyDown);
-      previouslyFocusedRef.current?.focus();
-    };
-  }, [dialogRef, isOpen, setIsOpen]);
-}
 
 const THEME_STORAGE_KEY = "gitodrile-theme";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
@@ -189,6 +121,13 @@ function useTheme(): [ThemePreference, (theme: ThemePreference) => void] {
   }, [theme]);
 
   return [theme, setTheme];
+}
+
+function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {
+  if (theme !== "system") {
+    return theme;
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
@@ -557,6 +496,8 @@ function OverviewPanel({
   onReviewChanges,
   onOpenProject,
   onCloseProject,
+  canPublish,
+  onPublish,
 }: {
   project: RepositoryInfo | null;
   openError: string | null;
@@ -568,6 +509,8 @@ function OverviewPanel({
   onReviewChanges: () => void;
   onOpenProject: () => void;
   onCloseProject: () => void;
+  canPublish: boolean;
+  onPublish: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
@@ -695,6 +638,11 @@ function OverviewPanel({
             <button className="secondary-button project-hero__action" type="button" onClick={onReviewChanges}>
               {t.overviewReviewChanges}
             </button>
+            {canPublish && (
+              <button className="secondary-button project-hero__action" type="button" onClick={onPublish}>
+                {t.overviewPublishChanges}
+              </button>
+            )}
           </div>
           <StatusAnnouncement isBusy={isCheckingChanges} message={`${heroHeadline}. ${heroMessage}`} />
         </section>
@@ -1182,6 +1130,8 @@ function App(): React.JSX.Element {
   const canGoBack = viewHistoryIndex > 0;
   const canGoForward = viewHistoryIndex < viewHistory.length - 1;
   const [theme, setTheme] = useTheme();
+  const effectiveTheme = resolveEffectiveTheme(theme);
+  const toggleTheme = (): void => setTheme(effectiveTheme === "dark" ? "light" : "dark");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true",
   );
@@ -1191,6 +1141,7 @@ function App(): React.JSX.Element {
   const [workingTree, setWorkingTree] = useState<WorkingTreeStatus | null>(null);
   const [workingTreeError, setWorkingTreeError] = useState<string | null>(null);
   const [isCheckingChanges, setIsCheckingChanges] = useState(false);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [gitDiagnostics, setGitDiagnostics] = useState<GitDiagnostics | null>(null);
   const [isRefreshingGitDiagnostics, setIsRefreshingGitDiagnostics] = useState(false);
   const [gitUpdateStatus, setGitUpdateStatus] = useState<GitUpdateStatus | null>(null);
@@ -1297,6 +1248,17 @@ function App(): React.JSX.Element {
   }, []);
 
   const projectPath = project?.path ?? null;
+  // Cheap, cached-status signal: shown whenever it isn't *known* there's
+  // nothing to publish (an upstream configured with zero commits ahead).
+  // A no-upstream or ahead>0 project may still turn out to have nothing new
+  // once `plan_publish` does its fresh preflight — that "already published"
+  // outcome is a normal blocked state the dialog itself reports.
+  const canPublish = Boolean(
+    project &&
+      project.headState === "branch" &&
+      workingTree &&
+      !(workingTree.upstream.upstream && workingTree.upstream.ahead === 0),
+  );
 
   const checkWorkingTree = async (path: string): Promise<void> => {
     setIsCheckingChanges(true);
@@ -1458,6 +1420,15 @@ function App(): React.JSX.Element {
             </button>
           </div>
           <span className="titlebar-badge" aria-label={t.alphaBadgeAriaLabel}>{t.alphaBadge}</span>
+          <button
+            className="titlebar-icon-button titlebar-theme-toggle"
+            type="button"
+            aria-label={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
+            title={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
+            onClick={toggleTheme}
+          >
+            {effectiveTheme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+          </button>
         </div>
 
         <div
@@ -1619,6 +1590,8 @@ function App(): React.JSX.Element {
               onReviewChanges={() => navigateToView("changes")}
               onOpenProject={() => void handleOpenProject()}
               onCloseProject={requestCloseProject}
+              canPublish={canPublish}
+              onPublish={() => setIsPublishOpen(true)}
             />
           ) : view === "changes" && project ? (
             <ChangesPanel
@@ -1628,6 +1601,7 @@ function App(): React.JSX.Element {
               isCheckingChanges={isCheckingChanges}
               onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
               onNavigateOverview={() => navigateToView("overview")}
+              onPublishNow={() => setIsPublishOpen(true)}
             />
           ) : (
             <SettingsPanel
@@ -1650,6 +1624,15 @@ function App(): React.JSX.Element {
       </main>
 
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
+
+      {project && (
+        <PublishDialog
+          isOpen={isPublishOpen}
+          projectPath={project.path}
+          onClose={() => setIsPublishOpen(false)}
+          onPublished={() => void checkWorkingTree(project.path)}
+        />
+      )}
 
       {isAboutOpen && (
         <div className="about-backdrop" role="presentation" onMouseDown={() => setIsAboutOpen(false)}>
@@ -1710,6 +1693,8 @@ function App(): React.JSX.Element {
     </div>
   );
 }
+
+document.addEventListener("contextmenu", (event) => event.preventDefault());
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

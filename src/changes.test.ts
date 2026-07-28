@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getOrderedChangeEntries, resolveSelectedPath } from "./changes";
+import { flattenDiffRows, getOrderedChangeEntries, isFirstRowOfHunk, resolveSelectedPath } from "./changes";
+import type { DiffHunk, DiffLine } from "./changes";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
 function entry(path: string, category: ChangeCategory, originalPath: string | null = null): WorkingTreeEntry {
-  return { path, originalPath, category };
+  return { path, originalPath, category, isPrepared: false, hasUnpreparedChanges: true };
 }
 
 function status(entries: WorkingTreeEntry[], truncated = false): WorkingTreeStatus {
@@ -12,6 +13,8 @@ function status(entries: WorkingTreeEntry[], truncated = false): WorkingTreeStat
     counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: entries.length },
     entries,
     truncated,
+    hasPreparedChanges: false,
+    hasUnpreparedChanges: entries.length > 0,
     upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
   };
 }
@@ -74,5 +77,59 @@ describe("resolveSelectedPath", () => {
 
   it("returns null when the list is empty", () => {
     expect(resolveSelectedPath([], "a.txt")).toBeNull();
+  });
+});
+
+function line(kind: DiffLine["kind"], content: string): DiffLine {
+  return { kind, content, oldLineNumber: null, newLineNumber: null };
+}
+
+function hunk(oldStart: number, oldLines: number, lines: DiffLine[]): DiffHunk {
+  return { header: `@@ -${oldStart},${oldLines} +${oldStart},${lines.length} @@`, oldStart, oldLines, newStart: oldStart, newLines: lines.length, lines };
+}
+
+describe("flattenDiffRows", () => {
+  it("emits one line row per hunk line, with no marker for the first hunk at the start of the file", () => {
+    const hunks = [hunk(1, 1, [line("context", "a"), line("addition", "b")])];
+
+    const rows = flattenDiffRows(hunks);
+
+    expect(rows).toEqual([
+      { kind: "line", hunkIndex: 0, line: hunks[0].lines[0] },
+      { kind: "line", hunkIndex: 0, line: hunks[0].lines[1] },
+    ]);
+  });
+
+  it("inserts a marker row when a later hunk skips unchanged lines", () => {
+    const hunks = [hunk(1, 1, [line("context", "a")]), hunk(10, 1, [line("context", "b")])];
+
+    const rows = flattenDiffRows(hunks);
+
+    expect(rows).toEqual([
+      { kind: "line", hunkIndex: 0, line: hunks[0].lines[0] },
+      { kind: "marker", hunkIndex: 1, hiddenLines: 8 },
+      { kind: "line", hunkIndex: 1, line: hunks[1].lines[0] },
+    ]);
+  });
+
+  it("emits no marker when hunks are adjacent with nothing hidden between them", () => {
+    const hunks = [hunk(1, 1, [line("context", "a")]), hunk(2, 1, [line("context", "b")])];
+
+    expect(flattenDiffRows(hunks).map((row) => row.kind)).toEqual(["line", "line"]);
+  });
+});
+
+describe("isFirstRowOfHunk", () => {
+  it("is true for the very first row", () => {
+    const rows = flattenDiffRows([hunk(1, 1, [line("context", "a")])]);
+    expect(isFirstRowOfHunk(rows, 0)).toBe(true);
+  });
+
+  it("is true for a marker or line that starts a new hunk, and false otherwise", () => {
+    const hunks = [hunk(1, 2, [line("context", "a"), line("context", "b")]), hunk(10, 1, [line("context", "c")])];
+    const rows = flattenDiffRows(hunks);
+
+    // [line(hunk0), line(hunk0), marker(hunk1), line(hunk1)]
+    expect(rows.map((_, index) => isFirstRowOfHunk(rows, index))).toEqual([true, false, true, false]);
   });
 });

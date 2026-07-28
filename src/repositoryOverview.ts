@@ -42,6 +42,8 @@ export type WorkingTreeEntry = {
   path: string;
   originalPath: string | null;
   category: ChangeCategory;
+  isPrepared: boolean;
+  hasUnpreparedChanges: boolean;
 };
 
 export type WorkingTreeCounts = Record<ChangeCategory, number> & { total: number };
@@ -52,6 +54,8 @@ export type WorkingTreeStatus = {
   entries: WorkingTreeEntry[];
   /** The entry list is capped for very large statuses; `counts` never is. */
   truncated: boolean;
+  hasPreparedChanges: boolean;
+  hasUnpreparedChanges: boolean;
   /** Captured from `--branch` but not presented until the remote work exists. */
   upstream: {
     branch: string | null;

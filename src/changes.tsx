@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -12,10 +13,13 @@ import {
   LoaderCircle,
   Pencil,
   RefreshCw,
+  Save,
   TriangleAlert,
 } from "lucide-react";
 import { useLanguage, type Translations } from "./i18n";
 import { localizeAppError } from "./appError";
+import { getFileTypeIcon } from "./fileIcons";
+import { SaveVersionDialog } from "./saveVersionDialog";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
 // ---- Types mirroring the Rust `FileDiff` contract (src-tauri/src/lib.rs) ----
@@ -121,6 +125,56 @@ type DiffState =
   | { status: "error"; message: string }
   | { status: "ready"; diff: FileDiff };
 
+type DiffStore = {
+  projectPath: string;
+  workingTree: WorkingTreeStatus | null;
+  cache: Map<string, FileDiff>;
+  requests: Map<string, Promise<FileDiff>>;
+  /** Guards the one-shot `read_working_tree_diffs` warm-up below. Unlike
+   * per-file fetches, that call has no per-path key to dedupe through
+   * `requests`, so without this flag React re-running the effect for the
+   * same store (development's StrictMode double-invoke, a fast-refresh, ...)
+   * would fire the whole-snapshot batch more than once. */
+  batchStarted: boolean;
+};
+
+const DIFF_LOADING_DELAY_MS = 140;
+/** How many files on each side of the current selection get quietly
+ * prefetched in the background. Small on purpose: this rides on the same
+ * per-file `git diff` process spawn as a real click, so it trades a couple
+ * of extra background processes for near-instant "next file" clicks during
+ * the common sequential-review flow, without eagerly fetching an entire
+ * (possibly huge) change set up front. */
+const PREFETCH_RADIUS = 2;
+
+/** Single point of truth for turning a path into a diff: checks the cache,
+ * then joins an in-flight request for that path if one exists, otherwise
+ * starts one. Every caller (the active selection and the background
+ * prefetcher below) shares the same cache and in-flight map, so two
+ * simultaneous callers for the same path only ever spawn one Git process. */
+function fetchDiff(store: DiffStore, projectPath: string, path: string): Promise<FileDiff> {
+  const cached = store.cache.get(path);
+  if (cached) {
+    return Promise.resolve(cached);
+  }
+  let request = store.requests.get(path);
+  if (!request) {
+    request = invoke<FileDiff>("read_file_diff", { path: projectPath, filePath: path }).then(
+      (diff) => {
+        store.cache.set(path, diff);
+        store.requests.delete(path);
+        return diff;
+      },
+      (error: unknown) => {
+        store.requests.delete(path);
+        throw error;
+      },
+    );
+    store.requests.set(path, request);
+  }
+  return request;
+}
+
 function EmptyDiffNote({
   icon,
   title,
@@ -174,37 +228,96 @@ function hiddenLinesBeforeHunk(hunk: DiffHunk, previousHunk: DiffHunk | null): n
   return Math.max(0, hunk.oldStart - previousEnd);
 }
 
-function DiffHunkView({
-  hunk,
-  hiddenLines,
-  t,
-}: {
-  hunk: DiffHunk;
-  hiddenLines: number;
-  t: Translations;
-}): React.JSX.Element {
-  return (
-    <div className="diff-hunk">
-      {hiddenLines > 0 && <div className="diff-hunk__marker">{t.changesDiffHiddenLines(hiddenLines)}</div>}
-      {hunk.lines.map((line, index) => (
-        <DiffLineRow key={index} line={line} t={t} />
-      ))}
-    </div>
-  );
+/** One renderable row of a diff: either the "N unchanged lines" marker that
+ * opens a hunk, or a single line within it. Flattening every hunk into one
+ * list of rows (rather than nesting them, as the DOM used to) is what makes
+ * the list virtualizable below — a virtualizer needs one flat, indexable
+ * sequence of same-shaped items, not a tree. */
+export type DiffRow =
+  | { kind: "marker"; hunkIndex: number; hiddenLines: number }
+  | { kind: "line"; hunkIndex: number; line: DiffLine };
+
+export function flattenDiffRows(hunks: DiffHunk[]): DiffRow[] {
+  const rows: DiffRow[] = [];
+  hunks.forEach((hunk, hunkIndex) => {
+    const hiddenLines = hiddenLinesBeforeHunk(hunk, hunks[hunkIndex - 1] ?? null);
+    if (hiddenLines > 0) {
+      rows.push({ kind: "marker", hunkIndex, hiddenLines });
+    }
+    for (const line of hunk.lines) {
+      rows.push({ kind: "line", hunkIndex, line });
+    }
+  });
+  return rows;
 }
 
+/** A row is the first of its hunk when nothing before it in `rows` shares
+ * the same `hunkIndex` — used to draw the dashed separator between hunks
+ * that DOM nesting (one `.diff-hunk` wrapper per hunk) used to provide for
+ * free via a `.diff-hunk + .diff-hunk` sibling selector. Flattening for
+ * virtualization means every row is now a sibling, so that boundary has to
+ * be marked per-row instead. */
+export function isFirstRowOfHunk(rows: DiffRow[], index: number): boolean {
+  return index === 0 || rows[index - 1].hunkIndex !== rows[index].hunkIndex;
+}
+
+/** Rough starting guesses only: `useVirtualizer`'s `measureElement` corrects
+ * each row's real height after its first render, so these never need to
+ * track the CSS exactly — they just need to be close enough that the
+ * initial scroll position and scrollbar size aren't visibly wrong for a
+ * frame. Line rows are always exactly one line tall (`.diff-line__content`
+ * is `white-space: pre`, so content never wraps); marker rows are a short,
+ * single-line pill. */
+const ESTIMATED_LINE_ROW_HEIGHT = 20;
+const ESTIMATED_MARKER_ROW_HEIGHT = 32;
+
+/** Renders only the diff rows currently scrolled into view (plus a small
+ * overscan buffer), instead of the whole file's worth of DOM nodes at once.
+ * A large file with thousands of changed lines (this codebase's own
+ * `lib.rs` is a good stress test) would otherwise force the browser to lay
+ * out and paint every line up front just to show the first screenful,
+ * which is the actual source of "it's a bit laggy to open" — not the Git
+ * read, which the caching/prefetch/batching above already made fast. */
 function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): React.JSX.Element {
+  const rows = useMemo(() => flattenDiffRows(hunks), [hunks]);
+  const scrollRef = useRef<HTMLPreElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (index) =>
+      rows[index].kind === "marker" ? ESTIMATED_MARKER_ROW_HEIGHT : ESTIMATED_LINE_ROW_HEIGHT,
+    overscan: 12,
+  });
+
   return (
-    <pre className="diff-code" tabIndex={0}>
-      <code>
-        {hunks.map((hunk, index) => (
-          <DiffHunkView
-            key={index}
-            hunk={hunk}
-            hiddenLines={hiddenLinesBeforeHunk(hunk, hunks[index - 1] ?? null)}
-            t={t}
-          />
-        ))}
+    <pre className="diff-code" tabIndex={0} ref={scrollRef}>
+      <code style={{ display: "block", position: "relative", height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const row = rows[virtualRow.index];
+          // The "N unchanged lines" chip already signals the jump between
+          // hunks on its own, so the dashed hunk-start border is reserved for
+          // a line row that opens a hunk directly (no marker before it) —
+          // applying it to the marker row too stacked its own vertical
+          // margin with the border's `padding-top`, pushing the chip down
+          // and off-center on every hunk after the first.
+          const isHunkStart = row.kind === "line" && row.hunkIndex > 0 && isFirstRowOfHunk(rows, virtualRow.index);
+          return (
+            <div
+              key={virtualRow.key}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              className={isHunkStart ? "diff-row diff-row--hunk-start" : "diff-row"}
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
+            >
+              {row.kind === "marker" ? (
+                <div className="diff-hunk__marker">{t.changesDiffHiddenLines(row.hiddenLines)}</div>
+              ) : (
+                <DiffLineRow line={row.line} t={t} />
+              )}
+            </div>
+          );
+        })}
       </code>
     </pre>
   );
@@ -362,16 +475,23 @@ function DiffWorkspace({
 function FileListItem({
   entry,
   isSelected,
+  isIncluded,
+  canChoose,
   onSelect,
+  onToggleIncluded,
   t,
 }: {
   entry: WorkingTreeEntry;
   isSelected: boolean;
+  isIncluded: boolean;
+  canChoose: boolean;
   onSelect: () => void;
+  onToggleIncluded: () => void;
   t: Translations;
 }): React.JSX.Element {
   const { name, dir } = splitPath(entry.path);
   const categoryLabel = t[CATEGORY_LABEL_KEYS[entry.category]];
+  const FileTypeIcon = getFileTypeIcon(entry.path);
   // The icon's shape (not just its color) already distinguishes the
   // category, so the label doesn't need to stay always-visible in a row that
   // is otherwise just a file name — it stays available as the accessible
@@ -381,7 +501,15 @@ function FileListItem({
     : `${entry.path} — ${categoryLabel}`;
 
   return (
-    <li>
+    <li className="changes-file-row">
+      <input
+        className="changes-file-row__checkbox"
+        type="checkbox"
+        checked={isIncluded}
+        disabled={!canChoose}
+        aria-label={t.changesIncludeFile(entry.path)}
+        onChange={onToggleIncluded}
+      />
       <button
         type="button"
         className={`changes-file-item${isSelected ? " changes-file-item--active" : ""}${
@@ -393,14 +521,17 @@ function FileListItem({
         onClick={onSelect}
       >
         <span className="changes-file-item__icon" aria-hidden="true">
-          {CATEGORY_ICONS[entry.category]}
+          <FileTypeIcon className="changes-file-item__type-icon" />
         </span>
         <span className="changes-file-item__details">
           <span className="changes-file-item__name">{name}</span>
-          {dir && <span className="changes-file-item__dir">{dir}</span>}
+          <span className="changes-file-item__dir">{dir || t.changesProjectRoot}</span>
           {entry.originalPath && (
             <span className="changes-file-item__origin">{t.changesRenamedFrom(entry.originalPath)}</span>
           )}
+        </span>
+        <span className={`changes-file-item__category-icon changes-file-item__category-icon--${entry.category}`} aria-hidden="true">
+          {CATEGORY_ICONS[entry.category]}
         </span>
       </button>
     </li>
@@ -414,6 +545,7 @@ export function ChangesPanel({
   isCheckingChanges,
   onRefresh,
   onNavigateOverview,
+  onPublishNow,
 }: {
   projectPath: string;
   workingTree: WorkingTreeStatus | null;
@@ -421,6 +553,7 @@ export function ChangesPanel({
   isCheckingChanges: boolean;
   onRefresh: () => void;
   onNavigateOverview: () => void;
+  onPublishNow: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
@@ -428,9 +561,35 @@ export function ChangesPanel({
   const [announcement, setAnnouncement] = useState("");
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [retryToken, setRetryToken] = useState(0);
+  const [isSaveVersionOpen, setIsSaveVersionOpen] = useState(false);
+  const [excludedPaths, setExcludedPaths] = useState<Set<string>>(() => new Set());
+  const diffStoreRef = useRef<DiffStore>({
+    projectPath,
+    workingTree,
+    cache: new Map(),
+    requests: new Map(),
+    batchStarted: false,
+  });
+  if (
+    diffStoreRef.current.projectPath !== projectPath ||
+    diffStoreRef.current.workingTree !== workingTree
+  ) {
+    diffStoreRef.current = {
+      projectPath,
+      workingTree,
+      cache: new Map(),
+      requests: new Map(),
+      batchStarted: false,
+    };
+  }
   // Below ~1024px the list and the diff can't sit side by side legibly, so
   // the layout becomes list/detail: this tracks which one is showing.
   const [isDetailFocused, setIsDetailFocused] = useState(false);
+  // Read inside the batch-prefetch effect's `.then`, so it reacts to
+  // whichever file is selected *when the batch resolves* rather than
+  // whichever was selected when the effect last ran.
+  const selectedPathRef = useRef(selectedPath);
+  selectedPathRef.current = selectedPath;
 
   // Preserves the current selection across a refresh when it is still
   // present; otherwise moves to the next available file and announces the
@@ -446,35 +605,141 @@ export function ChangesPanel({
     }
   }, [entries, selectedPath, t]);
 
-  // Fetches only the current selection's diff. Re-running whenever
-  // `workingTree` changes keeps the diff fresh after a list refresh; the
-  // `cancelled` flag discards a response that arrives after the selection,
-  // project, or refresh token has already moved on.
+  useEffect(() => {
+    const available = new Set(entries.map((entry) => entry.path));
+    setExcludedPaths((current) => {
+      const next = new Set([...current].filter((path) => available.has(path)));
+      return next.size === current.size ? current : next;
+    });
+  }, [entries]);
+
+  // Diffs are cached only for the current working-tree snapshot. A refresh or
+  // project switch replaces the whole store, while revisiting a file within
+  // the same snapshot is instant. In-flight requests are shared too, avoiding
+  // duplicate Git processes when the user switches away and back quickly.
   useEffect(() => {
     if (!selectedPath) {
       setDiffState({ status: "idle" });
       return undefined;
     }
+
+    const store = diffStoreRef.current;
+    const cachedDiff = store.cache.get(selectedPath);
+    if (cachedDiff) {
+      setDiffState({ status: "ready", diff: cachedDiff });
+      return undefined;
+    }
+
     let cancelled = false;
-    setDiffState({ status: "loading" });
-    invoke<FileDiff>("read_file_diff", { path: projectPath, filePath: selectedPath })
+    setDiffState({ status: "idle" });
+    const loadingTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setDiffState({ status: "loading" });
+      }
+    }, DIFF_LOADING_DELAY_MS);
+
+    fetchDiff(store, projectPath, selectedPath)
       .then((diff) => {
         if (!cancelled) {
+          window.clearTimeout(loadingTimer);
           setDiffState({ status: "ready", diff });
         }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
+          window.clearTimeout(loadingTimer);
           setDiffState({ status: "error", message: localizeAppError(error, t, t.changesDiffErrorTitle) });
         }
       });
     return () => {
       cancelled = true;
+      window.clearTimeout(loadingTimer);
     };
   }, [projectPath, selectedPath, workingTree, retryToken, t]);
 
+  // Warms the entire cache in one Git process per working-tree snapshot
+  // (`read_working_tree_diffs`), instead of one process per file
+  // (`read_file_diff`) — the dominant cost of switching between files
+  // quickly. Best-effort and additive: a path this doesn't cover (a
+  // conflict, an oversized section, or the call failing outright) simply
+  // falls back to the on-demand fetch above, so this can never make things
+  // worse, only faster. `selectedPathRef` reads whichever file is current
+  // *when the batch resolves*, not whichever was selected when the effect
+  // started, so a same-tick reselection is still handled correctly.
+  useEffect(() => {
+    if (!workingTree || workingTree.isClean) {
+      return undefined;
+    }
+    const store = diffStoreRef.current;
+    if (store.batchStarted) {
+      return undefined;
+    }
+    store.batchStarted = true;
+    invoke<FileDiff[]>("read_working_tree_diffs", { path: projectPath })
+      .then((diffs) => {
+        // Guards against a real project/snapshot switch that happened while
+        // this was in flight — deliberately *not* an effect-cleanup
+        // `cancelled` flag. Combined with the one-shot `batchStarted` guard
+        // above, that pattern breaks under React's development StrictMode:
+        // its synchronous mount → cleanup → mount would cancel this exact
+        // call, and the guard would then block the second mount from ever
+        // starting a real replacement, permanently discarding the result.
+        // Comparing store identity survives that double-invoke correctly
+        // while still discarding a result that genuinely no longer applies.
+        if (diffStoreRef.current !== store) {
+          return;
+        }
+        for (const diff of diffs) {
+          if (!store.cache.has(diff.path)) {
+            store.cache.set(diff.path, diff);
+          }
+          if (diff.path === selectedPathRef.current) {
+            setDiffState({ status: "ready", diff });
+          }
+        }
+      })
+      .catch(() => {
+        // Silent: a best-effort cache warm-up, not the file the user is
+        // actually looking at. Its own fetch (above) reports real errors.
+      });
+  }, [projectPath, workingTree]);
+
+  // Quietly warms the cache for files near the current selection, so the
+  // common "review sequentially, click next" flow finds a warm cache instead
+  // of paying a fresh Git process spawn on every click. Never touches
+  // `diffState`: a slow or failed prefetch is invisible unless the user
+  // actually selects that file, at which point the effect above handles it
+  // (and reports the error) normally.
+  useEffect(() => {
+    if (!selectedPath) {
+      return;
+    }
+    const store = diffStoreRef.current;
+    const index = entries.findIndex((entry) => entry.path === selectedPath);
+    if (index === -1) {
+      return;
+    }
+    for (let offset = 1; offset <= PREFETCH_RADIUS; offset += 1) {
+      for (const neighbor of [entries[index - offset], entries[index + offset]]) {
+        if (neighbor && !store.cache.has(neighbor.path) && !store.requests.has(neighbor.path)) {
+          fetchDiff(store, projectPath, neighbor.path).catch(() => {
+            // Silent: this path isn't visible to the user yet.
+          });
+        }
+      }
+    }
+  }, [entries, projectPath, selectedPath]);
+
   const isLoadingList = isCheckingChanges && !workingTree;
   const selectedEntry = entries.find((entry) => entry.path === selectedPath) ?? null;
+  const canChooseFiles = !workingTree?.truncated;
+  const includedPaths = useMemo(
+    () => entries.filter((entry) => !excludedPaths.has(entry.path)).map((entry) => entry.path),
+    [entries, excludedPaths],
+  );
+  const selectedPathsForSave = canChooseFiles ? includedPaths : null;
+  const includedCount = canChooseFiles ? includedPaths.length : (workingTree?.counts.total ?? 0);
+  const canSaveSelection = includedCount > 0;
 
   let headerMessage: React.ReactNode = null;
   if (isLoadingList) {
@@ -510,15 +775,33 @@ export function ChangesPanel({
             </p>
           )}
         </div>
-        <button
-          className="secondary-button changes-view__refresh"
-          type="button"
-          onClick={onRefresh}
-          disabled={isCheckingChanges}
-        >
-          <RefreshCw aria-hidden="true" className={isCheckingChanges ? "icon--spinning" : undefined} />
-          {isCheckingChanges ? t.statusRefreshing : t.statusRefresh}
-        </button>
+        <div className="changes-view__actions">
+          <button
+            className="secondary-button changes-view__refresh"
+            type="button"
+            onClick={onRefresh}
+            disabled={isCheckingChanges}
+          >
+            <RefreshCw aria-hidden="true" className={isCheckingChanges ? "icon--spinning" : undefined} />
+            {isCheckingChanges ? t.statusRefreshing : t.statusRefresh}
+          </button>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => setIsSaveVersionOpen(true)}
+            disabled={!workingTree || workingTree.isClean || isCheckingChanges || !canSaveSelection}
+            title={
+              !workingTree || workingTree.isClean
+                ? t.changesSaveVersionDisabledHint
+                : !canSaveSelection
+                  ? t.changesSaveVersionNoSelectionHint
+                  : undefined
+            }
+          >
+            <Save aria-hidden="true" />
+            {t.changesSaveVersion}
+          </button>
+        </div>
       </header>
 
       {isLoadingList ? (
@@ -539,6 +822,24 @@ export function ChangesPanel({
       ) : (
         <div className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}`}>
           <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
+            <div className="changes-file-list__selection">
+              <span>{t.changesSelectionSummary(includedCount, workingTree.counts.total)}</span>
+              {canChooseFiles ? (
+                <div>
+                  <button type="button" onClick={() => setExcludedPaths(new Set())}>
+                    {t.changesSelectAll}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExcludedPaths(new Set(entries.map((entry) => entry.path)))}
+                  >
+                    {t.changesSelectNone}
+                  </button>
+                </div>
+              ) : (
+                <span title={t.changesPartialUnavailableTruncated}>{t.changesSelectAll}</span>
+              )}
+            </div>
             <div className="changes-file-list__scroll">
               {workingTree.truncated && (
                 <p className="changes-file-list__truncated" role="status">
@@ -551,10 +852,23 @@ export function ChangesPanel({
                     key={entry.path}
                     entry={entry}
                     isSelected={entry.path === selectedPath}
+                    isIncluded={!excludedPaths.has(entry.path)}
+                    canChoose={canChooseFiles}
                     onSelect={() => {
                       setSelectedPath(entry.path);
                       setIsDetailFocused(true);
                     }}
+                    onToggleIncluded={() =>
+                      setExcludedPaths((current) => {
+                        const next = new Set(current);
+                        if (next.has(entry.path)) {
+                          next.delete(entry.path);
+                        } else {
+                          next.add(entry.path);
+                        }
+                        return next;
+                      })
+                    }
                     t={t}
                   />
                 ))}
@@ -575,6 +889,15 @@ export function ChangesPanel({
       <span className="visually-hidden" role="status">
         {announcement}
       </span>
+
+      <SaveVersionDialog
+        isOpen={isSaveVersionOpen}
+        projectPath={projectPath}
+        selectedPaths={selectedPathsForSave}
+        onClose={() => setIsSaveVersionOpen(false)}
+        onSaved={onRefresh}
+        onPublishNow={onPublishNow}
+      />
     </div>
   );
 }
