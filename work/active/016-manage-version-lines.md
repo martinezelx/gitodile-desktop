@@ -1,0 +1,531 @@
+---
+id: "016"
+title: "Create, switch, and safely delete version lines"
+status: active
+priority: high
+type: feature
+areas:
+  - rust
+  - frontend
+  - repository
+  - recovery
+created: 2026-07-28
+completed:
+---
+
+# 016 — Create, switch, and safely delete version lines
+
+## Goal
+
+Let the user inspect local Git branches, create a new branch from the current
+work, switch between existing branches, and delete branches whose saved work is
+provably retained elsewhere.
+
+Simple mode uses **version line** as the primary term and explains that Git
+calls it a **branch** through progressive disclosure. The feature must expose
+the consequences of changing `HEAD`, the index, working files, and local refs
+without requiring the user to understand checkout semantics.
+
+## User outcome
+
+A user can:
+
+1. see which version line is active and which other local lines exist;
+2. start a new version line from the current point, optionally carrying current
+   unsaved work with it;
+3. preview and switch to an existing version line when doing so is safe;
+4. understand why a switch is blocked when unsaved work or another Git
+   operation makes it unsafe;
+5. delete an inactive local version line only when its saved work remains
+   reachable from another known reference;
+6. recover from detached `HEAD` by creating a named version line at the current
+   commit.
+
+## Context and audit findings
+
+The current application already:
+
+- returns the active branch, `branch`/`unborn`/`detached` head state,
+  `gitDir`, and `commonGitDir` from repository discovery;
+- parses the current branch and upstream metadata while reading working-tree
+  status;
+- detects merge, rebase, cherry-pick, revert, and bisect operations for the
+  save-version flow;
+- binds save and publish operations to the current branch and rejects detached
+  or stale state;
+- distinguishes normal repositories from linked worktrees;
+- has established **version line** as the simple-mode wording.
+
+It does not currently:
+
+- inventory local branches or show where else a branch is checked out;
+- expose a Version lines/Branches destination in the sidebar or compact
+  navigation, despite the product design reserving this area;
+- plan or execute branch creation, switching, or deletion;
+- invalidate all branch-dependent snapshots after `HEAD` changes;
+- provide a safe route out of detached `HEAD`.
+
+Task 012 explicitly excludes branch management. Tasks 013–015 all derive their
+truth from the active branch and already mention branch changes as an
+invalidation event. This task therefore owns the missing branch boundary rather
+than spreading branch mutations across project switching, sync, and history.
+
+## Scheduling
+
+Keep the permanent ID `016`; do not renumber existing tasks.
+
+Recommended execution order:
+
+1. finish and manually validate task 011;
+2. implement task 016;
+3. continue with tasks 012–015.
+
+Task 012 is architecturally independent but should consume task 016's
+path-scoped operation state when it introduces project sessions. Tasks 013,
+014, and 015 must treat a successful version-line change as a hard invalidation
+and should not be considered complete without that integration.
+
+## Product model and vocabulary
+
+- Use **Version lines** / **Líneas de versión** as the navigation and page
+  title in simple mode.
+- Introduce the exact term **branch** / **rama** once in the page explanation
+  and retain exact ref names in technical details.
+- A version line is a local branch. A linked Git worktree remains a **separate
+  workspace** and is not itself a branch.
+- Do not merge local branches and remote-tracking branches into one visually
+  ambiguous list.
+- Remote-only branch discovery, creation of tracking branches, and remote
+  deletion remain outside this task. Existing locally known upstream metadata
+  may be shown as secondary, potentially stale detail.
+
+## Scope
+
+### Branch discovery
+
+Add a narrow, read-only Rust command that returns a typed
+`VersionLinesSnapshot` containing at least:
+
+- repository/worktree identity;
+- `branch`, `unborn`, or `detached` head state;
+- current commit when one exists;
+- ordered local version lines with:
+  - full, lossless local branch name;
+  - tip commit ID and bounded subject/date metadata;
+  - whether it is active in this worktree;
+  - configured upstream, when present;
+  - whether its exact tip is reachable from another retained local or
+    remote-tracking ref;
+  - unique-commit count relative to the active line where meaningful;
+  - linked-worktree path when it is checked out elsewhere;
+- total count and honest truncation metadata when safety limits apply.
+
+Use a stable, machine-readable ref format. Do not parse human-formatted
+`git branch` output, terminal decoration, localized dates, colors, or current
+branch markers.
+
+The list must distinguish:
+
+- ordinary active branch;
+- unborn active branch;
+- detached `HEAD`;
+- branch checked out in another linked worktree;
+- local branch with and without an upstream;
+- branch whose tip is retained elsewhere;
+- branch with unique saved work.
+
+Discovery is read-only and must not contact a remote. Any ahead/behind or
+upstream reachability information is based on locally available refs and must
+not be presented as freshly verified remote truth.
+
+### Version-lines screen
+
+- Add **Version lines** to project navigation between Changes and History in
+  the expanded sidebar and the narrow/compact navigation.
+- Disable it honestly when no project is open.
+- Add the same destination and relevant create/switch actions to the command
+  palette without duplicating operation logic.
+- Build a dedicated project screen with:
+  - the active line clearly identified;
+  - a short plain-language explanation of what version lines do;
+  - a searchable local-line list;
+  - configured upstream and linked-worktree occupancy as secondary details;
+  - a primary **New version line** action;
+  - contextual **Switch to this line** and **Delete line** actions;
+  - technical branch/ref details through progressive disclosure.
+- Keep the active item visible but non-switchable.
+- For branches checked out in another worktree, show the workspace path and why
+  this window cannot switch to or delete them.
+- Preserve readable names, focus, and actions with long, nested
+  (`feature/name`), duplicate-looking, and non-ASCII ref names.
+- Provide loading, empty, truncated, detached, unborn, blocked, error, and
+  success states in English and Spanish.
+
+### Create a version line
+
+Create a typed `CreateVersionLinePlan` and execution result. The plan contains
+at least:
+
+- operation kind: `local-mutation`;
+- `requiresConfirmation` based on the consequences below;
+- validated proposed name;
+- current head state and starting commit;
+- whether the new line will become active;
+- whether unsaved/prepared work exists and will remain byte-for-byte present;
+- state token covering repository identity, `HEAD`, index, working-tree
+  snapshot, and conflicting Git-operation state;
+- plain-language steps, consequences, and recovery information.
+
+Creation rules:
+
+- Create only from the current `HEAD` in this task; do not expose arbitrary
+  commit selection.
+- Default to **Create and switch**, with an explicit option to create without
+  switching.
+- Allow creation while ordinary non-conflicted work is unsaved. Explain that
+  the same unsaved files and prepared state remain present, but future saved
+  versions will belong to the new line.
+- Revalidate and prove that create-and-switch does not alter working-file or
+  index bytes. Stop if state changed after preview.
+- Allow detached `HEAD` with a valid commit to create and switch to a named
+  line, preserving otherwise hard-to-find work.
+- Block creation during unresolved conflicts or merge, rebase, cherry-pick,
+  revert, or bisect operations.
+- For an unborn branch, explain that the first version should be saved before
+  another line is created. Do not silently rename or replace the unborn ref.
+- Validate names through Git ref rules and explicit argument boundaries. Never
+  interpolate a name into a shell command.
+- Detect existing names, case-folding collisions on relevant filesystems,
+  reserved/ref-lock conflicts, and branches already active in another
+  worktree.
+- Do not generate a name automatically in this task. ADR 0002 remains proposed
+  and any future suggestion must remain editable and explicitly confirmed.
+
+Creating a ref is a local mutation. The submitted form is sufficient
+confirmation when the project is clean and remains on the current line.
+Create-and-switch, detached-head recovery, and creation carrying unsaved work
+must show an explicit consequence preview before execution.
+
+### Switch to an existing version line
+
+Create a typed `SwitchVersionLinePlan` containing at least:
+
+- operation kind: `local-mutation`;
+- `requiresConfirmation: true`;
+- source and destination line names and commit IDs;
+- state token covering repository identity, source/destination tips, `HEAD`,
+  index, complete working-tree state, and conflicting Git-operation state;
+- bounded count/list of files expected to change between the two tips;
+- confirmation that the destination is not checked out in another worktree;
+- plain-language steps and consequences.
+
+MVP switching rules:
+
+- Require a completely clean working tree and index, including no untracked or
+  conflicted files.
+- If work is unsaved, do not rely on Git's situational ability to carry changes
+  across branches. Offer two truthful next actions:
+  - **Save version**, using task 010;
+  - **New version line with this work**, using this task's creation flow.
+- Block during merge, rebase, cherry-pick, revert, or bisect operations.
+- Block a destination checked out in another linked worktree and show its path.
+- Revalidate immediately before execution and stop on any changed ref,
+  worktree, index, or operation state.
+- Switch only to the exact confirmed local ref. Disable Git's ambiguous
+  remote-name guessing.
+- Never stash, reset, clean, discard, merge, rebase, or resolve conflicts as
+  part of switching.
+- If Git refuses the switch because an ignored/untracked file, lock, sparse
+  checkout, submodule, or platform constraint was missed by planning, surface
+  the structured reason without claiming success or attempting cleanup.
+
+### Safely delete a local version line
+
+Create a typed `DeleteVersionLinePlan` containing at least:
+
+- operation kind: `destructive`;
+- `requiresConfirmation: true`;
+- exact branch name and tip commit;
+- proof of the retained ref(s) that still reach the tip;
+- locally known upstream metadata;
+- state token covering branch tip, current `HEAD`, retained reachability, and
+  linked-worktree occupancy;
+- clear consequences and recovery evidence.
+
+Deletion rules:
+
+- Never delete the active line.
+- Never delete a branch checked out in any linked worktree.
+- Never delete a remote branch or remote-tracking ref.
+- Never force-delete (`git branch -D`, ref deletion, or equivalent).
+- Permit deletion only when Git's safe-delete semantics succeed and the tip is
+  provably reachable from another retained local branch or an exact known
+  remote-tracking ref.
+- Block deletion when the branch has unique saved versions or when reachability
+  cannot be proven. Explain where the unique work is and keep it intact.
+- Revalidate tip, reachability, worktree occupancy, and repository state
+  immediately before deletion.
+- Show the exact retained line/upstream that preserves the work. Do not promise
+  a recovery workflow that has not yet been implemented.
+- If recovery refs are introduced later, define their namespace, retention, and
+  cleanup policy in the Recovery domain before allowing destructive deletion
+  of unique work.
+
+### Operation coordination and refresh
+
+- Keep all Rust commands path-scoped and stateless; do not introduce a mutable
+  global current repository.
+- Serialize version-line mutations against other mutations sharing the same
+  `commonGitDir`, including linked worktrees.
+- A successful create, switch, or delete must refresh repository discovery and
+  working-tree status.
+- A successful switch must invalidate:
+  - selected file and diff caches;
+  - save-version and publish plans/tokens;
+  - locally cached remote relation;
+  - history snapshot and selection;
+  - branch inventory and overview metadata;
+  - navigation entries whose selected content no longer exists.
+- Late responses created before a switch must not overwrite the new branch's
+  state.
+- Task 012 must later bind these snapshots, plans, dialogs, and mutations to
+  the originating project session.
+
+## Safety model
+
+| Action | Classification | Confirmation and recovery |
+| --- | --- | --- |
+| List version lines | Read-only | No confirmation; no remote contact |
+| Create without switching | Local mutation | Explicit form submission |
+| Create and switch | Local mutation | Consequence preview; state revalidation |
+| Switch existing line | Local mutation affecting files/index | Required preview and clean-tree proof |
+| Delete local line | Destructive local-ref mutation | Required confirmation and retained-reachability proof |
+
+No flow in this task may run reset, clean, forced checkout, forced branch
+deletion, automatic stash, merge, rebase, or remote mutation.
+
+## States and UX copy
+
+Cover at least:
+
+- loading and ready inventory;
+- no project;
+- ordinary current line;
+- no other local lines;
+- detached `HEAD` with recovery action;
+- unborn line with save-first guidance;
+- valid/invalid/duplicate/case-colliding name;
+- creating with clean or unsaved work;
+- creation carrying prepared changes from another Git tool;
+- switch preview and progress;
+- switch blocked by unsaved work, conflicts, operation in progress, another
+  worktree, ref movement, lock, or filesystem obstruction;
+- deletion confirmation;
+- deletion blocked for active, checked-out-elsewhere, unique, stale, or
+  unprovable work;
+- successful create, switch, and delete;
+- stale plan and structured generic failure.
+
+Copy must say whether files, the index, local history, local refs, remote refs,
+or teammates are affected. Branch operations in this task never publish
+anything.
+
+## Acceptance criteria
+
+- [ ] A project-level Version lines destination exists in expanded and compact
+      navigation and is available through the command palette.
+- [ ] Local branches are discovered through typed, machine-readable output and
+      the active, detached, unborn, upstream, truncated, and checked-out-in-
+      worktree states are represented honestly.
+- [ ] Simple mode uses version-line language while exact Git branch names and
+      terminology remain available.
+- [ ] A user can create a local line from the current commit and choose whether
+      to switch to it.
+- [ ] Create-and-switch preserves every working-file and index byte, including
+      prepared and untracked work.
+- [ ] Detached `HEAD` can be recovered into a named local line without losing
+      its current commit.
+- [ ] Invalid, duplicate, case-colliding, locked, and non-representable names
+      return structured errors without partial mutation.
+- [ ] Existing-line switching requires a completely clean project and previews
+      the exact source, destination, and bounded file impact.
+- [ ] Unsaved work blocks existing-line switching and offers Save version or
+      New version line with this work rather than stash/discard behavior.
+- [ ] Conflicts and in-progress Git operations block every unsafe mutation.
+- [ ] Branches active in another linked worktree cannot be switched to or
+      deleted and their workspace path is explained.
+- [ ] The active branch, remote refs, and branches with unique/unprovable work
+      cannot be deleted.
+- [ ] No force deletion, forced checkout, reset, clean, automatic stash, merge,
+      rebase, remote guessing, or remote mutation is reachable.
+- [ ] Every plan is revalidated immediately before execution and stale plans
+      stop without mutation.
+- [ ] Successful operations refresh and invalidate all branch-dependent state;
+      late responses cannot reintroduce the previous branch's data.
+- [ ] Long, nested, non-ASCII, and overflowing names work without ambiguous
+      truncation; non-UTF-8 refs fail honestly rather than being mutated through
+      lossy text.
+- [ ] Keyboard navigation, focus restoration, screen-reader announcements,
+      loading/error states, reduced motion, light/dark themes, narrow windows,
+      Spanish, and English are verified.
+
+## Required tests and audit
+
+### Rust unit tests
+
+- Machine-readable ref parsing with long, nested, non-ASCII, delimiter-like,
+  malformed, and capped input.
+- Current/detached/unborn state mapping.
+- Name validation, duplicate detection, case-collision handling, argument
+  boundaries, and non-UTF-8 failure.
+- Linked-worktree occupancy parsing.
+- Unique-commit and retained-reachability classification.
+- Create/switch/delete state-token stability and invalidation.
+- Structured mapping for operation-in-progress, dirty tree, stale ref, lock,
+  worktree occupancy, unsupported Git behavior, and safe-delete refusal.
+
+### Rust integration tests
+
+Use temporary repositories and linked worktrees to cover:
+
+- clean creation with and without switching;
+- creation carrying modified, prepared, unprepared, untracked, renamed, and
+  deleted work with byte-identical working files/index;
+- detached-HEAD recovery;
+- unborn creation blocked without changing `HEAD`;
+- clean switch between branches with different trees;
+- dirty, conflicted, and operation-in-progress switches blocked;
+- ignored/untracked obstruction and stale destination tip;
+- destination active in another linked worktree;
+- deletion of a fully retained inactive branch;
+- active, unique, stale, and worktree-active deletion blocked;
+- exact refs before and after every operation, proving no tags, remotes, or
+  unrelated branches changed;
+- `commonGitDir` lock coordination across linked worktrees;
+- non-ASCII refs and filesystem case behavior where supported.
+
+For every mutation, snapshot working-file bytes, index bytes, `HEAD`, local
+refs, remote-tracking refs, and tags as applicable. Assert that only the
+explicitly planned state changes.
+
+### Frontend and desktop audit
+
+- Inventory, search, truncation, empty, detached, unborn, loading, stale, and
+  error states.
+- Create forms and consequence previews for clean, dirty, and detached states.
+- Switch preview, dirty-project guidance, progress, stale result, success, and
+  focus restoration.
+- Safe-delete confirmation and every blocked reason.
+- Refresh/invalidation of Overview, Changes, publish state, and history stubs.
+- Rapid branch selection and late-response races.
+- Real linked worktrees and branches with identical final path segments.
+- Keyboard-only and screen-reader completion.
+- Windows, macOS, and Linux behavior where available; light/dark themes,
+  approximately 1024px and large windows, text zoom, and reduced motion.
+
+## Out of scope
+
+- Renaming a branch.
+- Creating a branch from an arbitrary historical commit or tag.
+- Remote-only branch browsing or creating a local tracking branch from one.
+- Fetching, pulling, merging, rebasing, cherry-picking, or resolving conflicts.
+- Remote branch/tag creation or deletion beyond task 011 publishing the current
+  confirmed branch.
+- Force deletion of a branch with unique work.
+- Automatic stash, discard, or worktree cleanup.
+- Creating, moving, locking, repairing, or deleting linked worktrees.
+- A visual multi-branch commit graph.
+- Branch protection rules from hosting-provider APIs.
+- AI or heuristic branch-name generation.
+
+## Platform implications
+
+- Git ref names are case-sensitive conceptually, but loose refs may live on a
+  case-insensitive filesystem. Detect collisions before mutation and let Git's
+  own ref locking remain authoritative.
+- Preserve UTF-8 non-ASCII names. Do not round-trip non-UTF-8 ref bytes through
+  lossy strings before a mutation.
+- Expect Windows antivirus/indexer ref-lock interference and surface it without
+  retrying destructively.
+- Resolve linked-worktree occupancy from Git metadata rather than assuming
+  `.git` is a directory.
+- Do not assume slash direction, default branch names, `origin`, GitHub, or a
+  case-sensitive filesystem.
+- Choose an explicit system-Git compatibility strategy for branch switching.
+  Prefer the unambiguous `git switch` command when the detected Git version
+  supports it; any compatibility fallback must use separated arguments,
+  disable remote guessing, and preserve the same safety contract.
+
+## Dependencies
+
+- Task 001 repository identity and head-state discovery.
+- Task 007 structured working-tree status.
+- Task 010 Save version entry point and state invalidation.
+- Task 011 publish planner/result invalidation and upstream terminology.
+- Existing system-Git runner, operation-in-progress detection, typed errors,
+  and linked-worktree metadata.
+
+Downstream integration:
+
+- Task 012 must bind version-line state and mutations to project sessions.
+- Task 013 must invalidate/recompute remote status after a version-line change.
+- Task 014 must plan only against the newly active line and reject stale plans.
+- Task 015 must refresh history and selection after a version-line change.
+
+## Relevant files
+
+- `AGENTS.md`
+- `DESIGN.md`
+- `docs/ARCHITECTURE.md`
+- `docs/PRODUCT_STRATEGY.md`
+- `docs/adr/0002-heuristic-first-commit-and-branch-naming.md`
+- `work/done/001-open-local-repository.md`
+- `work/done/007-working-tree-status.md`
+- `work/done/010-save-version.md`
+- `work/done/011-publish-changes.md`
+- `work/active/012-open-and-switch-projects.md`
+- `work/active/013-check-team-changes.md`
+- `work/active/014-get-team-changes-safely.md`
+- `work/active/015-history-timeline.md`
+- `src/main.tsx`
+- `src/repositoryOverview.ts`
+- `src/changes.tsx`
+- `src/publish.ts`
+- `src/publishDialog.tsx`
+- `src/appError.ts`
+- `src/i18n.tsx`
+- `src/styles.css`
+- `src-tauri/src/lib.rs`
+
+## Decisions
+
+- Introduce one dedicated Version lines screen instead of hiding branch
+  mutations in Overview, Changes, or History.
+- Model local branches and linked worktrees as related but distinct concepts.
+- Allow dirty work to move only into a newly created line; never carry it
+  implicitly while switching to an existing line.
+- Keep existing-line switching clean-only for the MVP.
+- Use plan/revalidate/execute contracts for every branch mutation.
+- Permit deletion only with safe-delete semantics and proof that the tip
+  remains reachable; never force-delete unique work.
+- Keep discovery local and provider-neutral. Task 013 owns fresh remote truth.
+- Keep Rust commands repository-path-scoped so task 012 can add project
+  sessions without a mutable backend singleton.
+
+## Implementation notes
+
+Complete during implementation. Record:
+
+- exact ref-list format and safety cap;
+- chosen Git-version compatibility behavior for switching;
+- plan-token inputs;
+- worktree-occupancy and ref-lock handling;
+- final navigation and responsive interaction;
+- mutation coordination and cache invalidation boundaries;
+- any platform behavior that could not be verified.
+
+## Validation
+
+Record the exact frontend, Rust, temporary-repository, linked-worktree,
+accessibility, responsive, theme, and platform checks. Do not mark this task
+done without real desktop verification of create, switch, and safe delete.
