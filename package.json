@@ -26,6 +26,9 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@iconify-json/vscode-icons": "^1.2.67",
+    "@svgr/core": "^8.1.0",
+    "@svgr/plugin-jsx": "^8.1.0",
     "@tauri-apps/cli": "^2.11.4",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
@@ -36,6 +39,7 @@
     "@vitejs/plugin-react": "^6.0.4",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
+    "unplugin-icons": "^23.0.1",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
   }

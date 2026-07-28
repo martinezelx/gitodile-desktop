@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ChevronDown, ChevronRight, CircleAlert, LoaderCircle, RefreshCw, Send } from "lucide-react";
 import { useLanguage, type Translations } from "./i18n";
 import { CATEGORY_ICONS, DiffResultView, type FileDiff } from "./changes";
+import { getFileTypeIcon } from "./fileIcons";
 import type { CommitFileChange, PendingVersionsResult } from "./publish";
 
 type FilesState = "loading" | "error" | CommitFileChange[];
@@ -60,6 +61,7 @@ function CommitFilesList({
       {files.map((file) => {
         const isSelected = selectedPath === file.path;
         const diff = diffs?.[file.path];
+        const FileTypeIcon = getFileTypeIcon(file.path);
         return (
           <li key={file.path} className="pending-versions__file">
             <button
@@ -69,8 +71,11 @@ function CommitFilesList({
               onClick={() => onToggleFile(commit, file.path)}
             >
               <ChevronRight aria-hidden="true" className="pending-versions__file-chevron" />
-              {CATEGORY_ICONS[file.category]}
+              <FileTypeIcon aria-hidden="true" className="pending-versions__file-type-icon" />
               <span className="pending-versions__file-path">{file.path}</span>
+              <span className="pending-versions__file-category" aria-hidden="true">
+                {CATEGORY_ICONS[file.category]}
+              </span>
             </button>
             {isSelected && (
               <div className="pending-versions__diff" style={{ height: diffPanelHeight(diff) }}>

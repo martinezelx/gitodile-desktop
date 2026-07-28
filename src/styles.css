@@ -765,6 +765,10 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   transform: rotate(90deg);
 }
 .pending-versions__file-path { overflow-wrap: anywhere; }
+/* Mirrors the changes list: the category icon trails the path instead of
+   sitting next to the type icon, so it only draws the eye when its color
+   differs from the common case. */
+.pending-versions__file-category { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
 .pending-versions__diff {
   max-height: min(300px, 38vh);
   margin: 2px 0 var(--space-2) 19px;
@@ -1165,6 +1169,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .publish-commit-list__file { display: flex; align-items: center; gap: 6px; }
 .publish-commit-list__file svg { width: 13px; height: 13px; flex-shrink: 0; }
 .publish-commit-list__file-path { overflow-wrap: anywhere; }
+.publish-commit-list__file-category { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
 .save-version-error {
   display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px;
   border-radius: var(--radius-sm); background: color-mix(in srgb, var(--status-danger) 12%, transparent);
@@ -1299,8 +1304,11 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
    exists so the two-line name/dir stack keeps its natural flow) — matches
    the checkbox and the category badge on the row's other end, both of which
    center on the full row height rather than the first text line. */
-.changes-file-item__icon { display: grid; place-items: center; flex-shrink: 0; align-self: center; color: var(--text-secondary); }
-.changes-file-item--attention .changes-file-item__icon { color: var(--status-danger); }
+/* Each type icon carries its own fixed brand colors (not `currentColor`),
+   so unlike the rest of this row's icons, `color` here has no visible
+   effect — conflict/attention state is already carried by the file name
+   and the category badge at the row's other end. */
+.changes-file-item__icon { display: grid; place-items: center; flex-shrink: 0; align-self: center; }
 .changes-file-item__type-icon { width: 15px; height: 15px; }
 /* Sits at the row's trailing edge, apart from the name, so it only draws the
    eye when its color actually differs from the common case (an edited file,

@@ -1,9 +1,10 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import Icons from "unplugin-icons/vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), Icons({ compiler: "jsx", jsx: "react" })],
   clearScreen: false,
   server: {
     port: 1420,

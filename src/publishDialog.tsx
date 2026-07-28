@@ -5,6 +5,7 @@ import { useLanguage, type Translations } from "./i18n";
 import { localizeAppError, isAppError } from "./appError";
 import { useModalFocus } from "./modalFocus";
 import { CATEGORY_ICONS } from "./changes";
+import { getFileTypeIcon } from "./fileIcons";
 import type { CommitFileChange, PublishPlan, PublishResult, RemoteDiscovery, RemoteInfo } from "./publish";
 
 type DialogState =
@@ -50,12 +51,18 @@ function CommitFilesPanel({
   }
   return (
     <div className="publish-commit-list__files">
-      {files.map((file) => (
-        <div key={file.path} className="publish-commit-list__file">
-          {CATEGORY_ICONS[file.category]}
-          <span className="publish-commit-list__file-path">{file.path}</span>
-        </div>
-      ))}
+      {files.map((file) => {
+        const FileTypeIcon = getFileTypeIcon(file.path);
+        return (
+          <div key={file.path} className="publish-commit-list__file">
+            <FileTypeIcon aria-hidden="true" className="publish-commit-list__file-type-icon" />
+            <span className="publish-commit-list__file-path">{file.path}</span>
+            <span className="publish-commit-list__file-category" aria-hidden="true">
+              {CATEGORY_ICONS[file.category]}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
