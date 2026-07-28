@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
@@ -49,12 +49,19 @@ import {
   type WorkingTreeStatus,
 } from "./repositoryOverview";
 import { localizeAppError } from "./appError";
-import { ChangesPanel } from "./changes";
-import { PublishDialog } from "./publishDialog";
-import { PendingVersionsSection } from "./pendingVersions";
 import type { PendingVersionsResult } from "./publish";
 import { useModalFocus } from "./modalFocus";
 import "./styles.css";
+
+// Lazily loaded: none of these are needed for the first paint (the Overview
+// screen with no project open), and ChangesPanel/PublishDialog/PendingVersions
+// pull in the file-type icon set (~70 SVGs). Deferring them keeps the initial
+// bundle — and therefore first-paint time — small.
+const ChangesPanel = lazy(() => import("./changes").then((m) => ({ default: m.ChangesPanel })));
+const PublishDialog = lazy(() => import("./publishDialog").then((m) => ({ default: m.PublishDialog })));
+const PendingVersionsSection = lazy(() =>
+  import("./pendingVersions").then((m) => ({ default: m.PendingVersionsSection })),
+);
 
 type ThemePreference = "system" | "light" | "dark";
 type View = "overview" | "changes" | "settings";
@@ -163,6 +170,20 @@ const SEARCH_ICON = <Search />;
 const CROCODILE_MARK = (
   <span className="gitodrile-mark" aria-hidden="true" />
 );
+
+/** Suspense fallback for a lazily-loaded view (see `ChangesPanel` below).
+ * Only ever visible on the first navigation into that view before its chunk
+ * has been fetched — normally masked entirely by the idle-time prefetch in
+ * `main.tsx`. */
+function ViewLoadingFallback(): React.JSX.Element {
+  return (
+    <div className="empty-state" aria-busy="true">
+      <div className="empty-state__icon empty-state__icon--loading" aria-hidden="true">
+        <LoaderCircle />
+      </div>
+    </div>
+  );
+}
 
 type Command = { id: string; label: string; hint?: string; action: () => void };
 
@@ -671,14 +692,16 @@ function OverviewPanel({
         </section>
 
         {(pendingVersions.totalCount > 0 || pendingVersionsError) && project && (
-          <PendingVersionsSection
-            key={project.path}
-            projectPath={project.path}
-            result={pendingVersions}
-            error={pendingVersionsError}
-            onRetry={onRetryPendingVersions}
-            onPublishUpTo={onPublishUpTo}
-          />
+          <Suspense fallback={null}>
+            <PendingVersionsSection
+              key={project.path}
+              projectPath={project.path}
+              result={pendingVersions}
+              error={pendingVersionsError}
+              onRetry={onRetryPendingVersions}
+              onPublishUpTo={onPublishUpTo}
+            />
+          </Suspense>
         )}
 
         <section className="project-facts" aria-labelledby="project-facts-heading">
@@ -1650,15 +1673,17 @@ function App(): React.JSX.Element {
               onRetryPendingVersions={() => projectPath && void checkWorkingTree(projectPath)}
             />
           ) : view === "changes" && project ? (
-            <ChangesPanel
-              projectPath={project.path}
-              workingTree={workingTree}
-              workingTreeError={workingTreeError}
-              isCheckingChanges={isCheckingChanges}
-              onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
-              onNavigateOverview={() => navigateToView("overview")}
-              onPublishNow={() => openPublishDialog()}
-            />
+            <Suspense fallback={<ViewLoadingFallback />}>
+              <ChangesPanel
+                projectPath={project.path}
+                workingTree={workingTree}
+                workingTreeError={workingTreeError}
+                isCheckingChanges={isCheckingChanges}
+                onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
+                onNavigateOverview={() => navigateToView("overview")}
+                onPublishNow={() => openPublishDialog()}
+              />
+            </Suspense>
           ) : (
             <SettingsPanel
               theme={theme}
@@ -1682,13 +1707,15 @@ function App(): React.JSX.Element {
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
 
       {project && (
-        <PublishDialog
-          isOpen={isPublishOpen}
-          projectPath={project.path}
-          upTo={publishUpTo ?? undefined}
-          onClose={() => setIsPublishOpen(false)}
-          onPublished={() => checkWorkingTree(project.path)}
-        />
+        <Suspense fallback={null}>
+          <PublishDialog
+            isOpen={isPublishOpen}
+            projectPath={project.path}
+            upTo={publishUpTo ?? undefined}
+            onClose={() => setIsPublishOpen(false)}
+            onPublished={() => checkWorkingTree(project.path)}
+          />
+        </Suspense>
       )}
 
       {isAboutOpen && (
@@ -1760,3 +1787,30 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </LanguageProvider>
   </React.StrictMode>,
 );
+
+// The main window starts hidden (see `tauri.conf.json`) so it never shows a
+// blank frame while the webview loads. Two rAFs guarantee the browser has
+// actually painted the mounted UI before the window becomes visible.
+if ("__TAURI_INTERNALS__" in window) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      void invoke("show_main_window");
+    });
+  });
+}
+
+// Warms the lazy chunks (Changes, Publish, pending versions) once the app is
+// idle after first paint, so navigating to them right after launch is a cache
+// hit rather than a fresh fetch+parse. Deliberately not run before first
+// paint: that would defeat the point of splitting them out in the first place.
+const prefetchLazyPanels = (): void => {
+  void import("./changes");
+  void import("./publishDialog");
+  void import("./pendingVersions");
+};
+
+if ("requestIdleCallback" in window) {
+  window.requestIdleCallback(prefetchLazyPanels, { timeout: 2000 });
+} else {
+  setTimeout(prefetchLazyPanels, 1000);
+}

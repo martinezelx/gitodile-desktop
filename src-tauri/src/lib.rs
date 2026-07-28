@@ -6,6 +6,7 @@ use std::process::{Command, ExitStatus, Output, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tauri::Manager;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -334,6 +335,17 @@ fn git_diagnostics_from_attempt(attempt: ProcessAttempt) -> GitDiagnostics {
 #[tauri::command]
 fn app_status() -> &'static str {
     "GitOdrile is ready"
+}
+
+/// The main window starts hidden (see `tauri.conf.json`) so the OS-level
+/// window never appears blank while the webview loads and React mounts.
+/// The frontend calls this once the first frame has actually painted.
+#[tauri::command]
+fn show_main_window(window: tauri::Window) {
+    if let Some(main) = window.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
 }
 
 #[tauri::command]
@@ -4067,6 +4079,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .invoke_handler(tauri::generate_handler![
             app_status,
+            show_main_window,
             open_repository,
             read_working_tree_status,
             read_file_diff,

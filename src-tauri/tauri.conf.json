@@ -20,7 +20,8 @@
         "minHeight": 620,
         "decorations": false,
         "resizable": true,
-        "scrollBarStyle": "default"
+        "scrollBarStyle": "default",
+        "visible": false
       }
     ],
     "security": {
