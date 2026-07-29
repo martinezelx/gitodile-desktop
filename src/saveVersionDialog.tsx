@@ -93,7 +93,8 @@ export function SaveVersionDialog({
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   const [retryToken, setRetryToken] = useState(0);
 
   // Snapshots `selectedPaths` at the moment the dialog opens (the false →
@@ -112,8 +113,9 @@ export function SaveVersionDialog({
     selectedPathsRef.current = selectedPaths;
   }
   previousIsOpenRef.current = isOpen;
-  const [description, setDescription] = useState("");
-  const [showDescriptionError, setShowDescriptionError] = useState(false);
+  const [title, setTitle] = useState("");
+  const [details, setDetails] = useState("");
+  const [showTitleError, setShowTitleError] = useState(false);
   const [state, setState] = useState<DialogState>({ status: "loading" });
 
   // `useModalFocus` only ever calls this with the literal `false` (Escape),
@@ -141,8 +143,9 @@ export function SaveVersionDialog({
   // user already typed.
   useEffect(() => {
     if (isOpen) {
-      setDescription("");
-      setShowDescriptionError(false);
+      setTitle("");
+      setDetails("");
+      setShowTitleError(false);
     }
   }, [isOpen]);
 
@@ -173,6 +176,20 @@ export function SaveVersionDialog({
     // reference change while it's already open.
   }, [isOpen, projectPath, retryToken]);
 
+  useEffect(() => {
+    if (!isOpen || state.status === "loading") {
+      return undefined;
+    }
+    const animationFrame = window.requestAnimationFrame(() => {
+      if (state.status === "ready") {
+        titleRef.current?.focus();
+      } else if (state.status === "success") {
+        headingRef.current?.focus();
+      }
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [isOpen, state.status]);
+
   if (!isOpen) {
     return null;
   }
@@ -192,17 +209,19 @@ export function SaveVersionDialog({
     if (!plan) {
       return;
     }
-    const trimmed = description.trim();
-    if (!trimmed) {
-      setShowDescriptionError(true);
-      descriptionRef.current?.focus();
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setShowTitleError(true);
+      titleRef.current?.focus();
       return;
     }
+    const trimmedDetails = details.trim();
     setState({ status: "submitting", plan });
     onPhaseChangeRef.current?.("executing");
     invoke<SaveVersionResult>("save_version", {
       path: projectPath,
-      description: trimmed,
+      title: trimmedTitle,
+      description: trimmedDetails ? trimmedDetails : null,
       stateToken: plan.stateToken,
       selectedPaths: selectedPathsRef.current,
     })
@@ -229,7 +248,11 @@ export function SaveVersionDialog({
         tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <h2 id="save-version-title">
+        <h2
+          ref={headingRef}
+          id="save-version-title"
+          tabIndex={state.status === "success" ? -1 : undefined}
+        >
           {state.status === "success"
             ? t.saveVersionSuccessTitle
             : isFirstVersion
@@ -275,34 +298,53 @@ export function SaveVersionDialog({
               </div>
             )}
 
+            <label className="text-field save-version-title">
+              <span>{t.saveVersionTitleLabel}</span>
+              <input
+                ref={titleRef}
+                type="text"
+                value={title}
+                required
+                disabled={isBusy}
+                aria-describedby={
+                  showTitleError
+                    ? "save-version-title-guidance save-version-title-error"
+                    : "save-version-title-guidance"
+                }
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  if (showTitleError) {
+                    setShowTitleError(false);
+                  }
+                }}
+                placeholder={t.saveVersionTitlePlaceholder}
+              />
+            </label>
+            <span id="save-version-title-guidance" className="save-version-title__guidance">
+              {t.saveVersionTitleGuidance}
+            </span>
+            {showTitleError && (
+              // A sibling of the <label>, not a child: text-library's
+              // implicit label lookup matches on the label's full text
+              // content, so nesting this here would make "Version name"
+              // stop resolving to the input once the error appears.
+              <span id="save-version-title-error" className="save-version-title__error" role="alert">
+                {t.errorEmptyTitle}
+              </span>
+            )}
+
             <label className="text-field save-version-description">
               <span>{t.saveVersionDescriptionLabel}</span>
               <textarea
                 {...autoHideScrollbarProps<HTMLTextAreaElement>()}
                 className="auto-hide-scrollbar"
-                ref={descriptionRef}
                 rows={3}
-                value={description}
+                value={details}
                 disabled={isBusy}
-                aria-describedby={showDescriptionError ? "save-version-description-error" : undefined}
-                onChange={(event) => {
-                  setDescription(event.target.value);
-                  if (showDescriptionError) {
-                    setShowDescriptionError(false);
-                  }
-                }}
+                onChange={(event) => setDetails(event.target.value)}
                 placeholder={t.saveVersionDescriptionPlaceholder}
               />
             </label>
-            {showDescriptionError && (
-              // A sibling of the <label>, not a child: text-library's
-              // implicit label lookup matches on the label's full text
-              // content, so nesting this here would make "What changed?"
-              // stop resolving to the textarea once the error appears.
-              <span id="save-version-description-error" className="save-version-description__error" role="alert">
-                {t.errorEmptyDescription}
-              </span>
-            )}
 
             <div className="dialog-actions">
               <button className="secondary-button" type="button" onClick={onClose} disabled={isBusy}>
@@ -327,8 +369,13 @@ export function SaveVersionDialog({
 
         {state.status === "success" && (
           <>
-            <p>{t.saveVersionSuccessDescription(state.result.shortCommit)}</p>
-            <p className="save-version-note">{t.saveVersionSuccessLocalNote}</p>
+            <div role="status" aria-live="polite" className="save-version-success">
+              <p>{t.saveVersionSuccessDescription(state.result.title, state.result.shortCommit)}</p>
+              {state.result.description && (
+                <p className="save-version-success-details">{state.result.description}</p>
+              )}
+              <p className="save-version-note">{t.saveVersionSuccessLocalNote}</p>
+            </div>
             <div className="dialog-actions">
               <button
                 className="secondary-button"

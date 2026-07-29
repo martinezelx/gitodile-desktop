@@ -23,7 +23,8 @@ export type AppError = {
     | "detached_head"
     | "git_operation_in_progress"
     | "missing_identity"
-    | "empty_description"
+    | "empty_title"
+    | "invalid_title"
     | "stale_preview"
     | "hook_rejected"
     | "signing_failed"
@@ -77,7 +78,8 @@ export function localizeAppError(error: unknown, t: Translations, fallback: stri
     detached_head: t.errorDetachedHead,
     git_operation_in_progress: t.errorGitOperationInProgress,
     missing_identity: t.errorMissingIdentity,
-    empty_description: t.errorEmptyDescription,
+    empty_title: t.errorEmptyTitle,
+    invalid_title: t.errorInvalidTitle,
     stale_preview: t.errorStalePreview,
     hook_rejected: t.errorHookRejected,
     signing_failed: t.errorSigningFailed,

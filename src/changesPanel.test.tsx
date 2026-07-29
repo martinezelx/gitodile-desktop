@@ -118,7 +118,7 @@ describe("ChangesPanel save selection", () => {
     expect(added).toBeChecked();
     expect(screen.getAllByText("Project root")).toHaveLength(2);
 
-    await userEvent.click(screen.getByRole("button", { name: "Select none" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select none" }));
     expect(screen.getByRole("button", { name: "Save version" })).toBeDisabled();
 
     await userEvent.click(edited);

@@ -185,6 +185,9 @@ export interface Translations {
   saveVersionDialogTitle: string;
   saveVersionDialogTitleFirst: string;
   saveVersionLoadingTitle: string;
+  saveVersionTitleLabel: string;
+  saveVersionTitlePlaceholder: string;
+  saveVersionTitleGuidance: string;
   saveVersionDescriptionLabel: string;
   saveVersionDescriptionPlaceholder: string;
   saveVersionFilesSummary: (total: number) => string;
@@ -199,7 +202,7 @@ export interface Translations {
   saveVersionHideDetail: string;
   saveVersionDetailHeading: string;
   saveVersionSuccessTitle: string;
-  saveVersionSuccessDescription: (shortCommit: string) => string;
+  saveVersionSuccessDescription: (title: string, shortCommit: string) => string;
   saveVersionSuccessLocalNote: string;
   saveVersionPublishNow: string;
   saveVersionDone: string;
@@ -270,7 +273,8 @@ export interface Translations {
   errorDetachedHead: string;
   errorGitOperationInProgress: string;
   errorMissingIdentity: string;
-  errorEmptyDescription: string;
+  errorEmptyTitle: string;
+  errorInvalidTitle: string;
   errorStalePreview: string;
   errorHookRejected: string;
   errorSigningFailed: string;
@@ -534,7 +538,7 @@ const en: Translations = {
   changesSaveVersion: "Save version",
   changesSaveVersionDisabledHint: "Make some changes first, then come back to save a version.",
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
-  changesSelectionSummary: (selected, total) => `${selected} of ${total} selected`,
+  changesSelectionSummary: (selected, total) => `${selected}/${total}`,
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
   changesIncludeFile: (path) => `Include ${path} in this version`,
@@ -544,8 +548,11 @@ const en: Translations = {
   saveVersionDialogTitle: "Save version",
   saveVersionDialogTitleFirst: "Save your first version",
   saveVersionLoadingTitle: "Preparing a preview…",
-  saveVersionDescriptionLabel: "What changed?",
-  saveVersionDescriptionPlaceholder: "Describe what changed…",
+  saveVersionTitleLabel: "Version name",
+  saveVersionTitlePlaceholder: "Summarize what changed…",
+  saveVersionTitleGuidance: "Around 50 characters is easy to scan, but longer names are allowed.",
+  saveVersionDescriptionLabel: "More details (optional)",
+  saveVersionDescriptionPlaceholder: "Add more context, if useful…",
   saveVersionFilesSummary: (total) => (total === 1 ? "1 file will be saved." : `${total} files will be saved.`),
   saveVersionRemainingNote: (remaining) =>
     remaining === 1 ? "1 other file will remain as a pending change." : `${remaining} other files will remain as pending changes.`,
@@ -560,7 +567,7 @@ const en: Translations = {
   saveVersionHideDetail: "Hide technical details",
   saveVersionDetailHeading: "Technical details",
   saveVersionSuccessTitle: "Version saved",
-  saveVersionSuccessDescription: (shortCommit) => `Saved as ${shortCommit}.`,
+  saveVersionSuccessDescription: (title, shortCommit) => `Saved "${title}" as ${shortCommit}.`,
   saveVersionSuccessLocalNote: "Saved on this computer. Not published to a remote project yet.",
   saveVersionPublishNow: "Publish now",
   saveVersionDone: "Done",
@@ -644,7 +651,8 @@ const en: Translations = {
   errorGitOperationInProgress:
     "A Git operation is already in progress in this project. Finish or abort it, then try again.",
   errorMissingIdentity: "GitOdrile doesn't know who is saving this version yet. Add a name and email in Settings.",
-  errorEmptyDescription: "Write a short description before saving.",
+  errorEmptyTitle: "Write a short name before saving.",
+  errorInvalidTitle: "Keep the version name on one line.",
   errorStalePreview: "This project changed since the preview was shown. Review the updated changes and try again.",
   errorHookRejected: "A Git hook rejected this version. Check the hook's output, then try again.",
   errorSigningFailed: "Git couldn't sign this version. Check your commit-signing setup (GPG or SSH key) and try again.",
@@ -926,7 +934,7 @@ const es: Translations = {
   changesSaveVersion: "Guardar versión",
   changesSaveVersionDisabledHint: "Haz algún cambio primero y vuelve para guardar una versión.",
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
-  changesSelectionSummary: (selected, total) => `${selected} de ${total} seleccionados`,
+  changesSelectionSummary: (selected, total) => `${selected}/${total}`,
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",
   changesIncludeFile: (path) => `Incluir ${path} en esta versión`,
@@ -936,8 +944,11 @@ const es: Translations = {
   saveVersionDialogTitle: "Guardar versión",
   saveVersionDialogTitleFirst: "Guarda tu primera versión",
   saveVersionLoadingTitle: "Preparando una vista previa…",
-  saveVersionDescriptionLabel: "¿Qué cambió?",
-  saveVersionDescriptionPlaceholder: "Describe qué cambió…",
+  saveVersionTitleLabel: "Nombre de la versión",
+  saveVersionTitlePlaceholder: "Resume qué cambió…",
+  saveVersionTitleGuidance: "Unas 50 letras se leen de un vistazo, pero se permiten nombres más largos.",
+  saveVersionDescriptionLabel: "Más detalles (opcional)",
+  saveVersionDescriptionPlaceholder: "Añade más contexto, si es útil…",
   saveVersionFilesSummary: (total) =>
     total === 1 ? "Se guardará 1 archivo." : `Se guardarán ${total} archivos.`,
   saveVersionRemainingNote: (remaining) =>
@@ -955,7 +966,7 @@ const es: Translations = {
   saveVersionHideDetail: "Ocultar detalles técnicos",
   saveVersionDetailHeading: "Detalles técnicos",
   saveVersionSuccessTitle: "Versión guardada",
-  saveVersionSuccessDescription: (shortCommit) => `Guardada como ${shortCommit}.`,
+  saveVersionSuccessDescription: (title, shortCommit) => `Guardada "${title}" como ${shortCommit}.`,
   saveVersionSuccessLocalNote: "Guardada en este equipo. Todavía no se ha publicado en un proyecto remoto.",
   saveVersionPublishNow: "Publicar ahora",
   saveVersionDone: "Listo",
@@ -1044,7 +1055,8 @@ const es: Translations = {
   errorGitOperationInProgress:
     "Ya hay una operación de Git en curso en este proyecto. Termínala o cancélala, y vuelve a intentarlo.",
   errorMissingIdentity: "GitOdrile todavía no sabe quién está guardando esta versión. Añade un nombre y un correo en Configuración.",
-  errorEmptyDescription: "Escribe una breve descripción antes de guardar.",
+  errorEmptyTitle: "Escribe un nombre breve antes de guardar.",
+  errorInvalidTitle: "Escribe el nombre de la versión en una sola línea.",
   errorStalePreview: "Este proyecto cambió desde que se mostró la vista previa. Revisa los cambios actualizados e inténtalo de nuevo.",
   errorHookRejected: "Un hook de Git rechazó esta versión. Revisa lo que indica el hook e inténtalo de nuevo.",
   errorSigningFailed: "Git no pudo firmar esta versión. Comprueba tu configuración de firma (GPG o clave SSH) e inténtalo de nuevo.",

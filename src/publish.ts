@@ -57,7 +57,8 @@ export type PublishResult = {
 export type SavedVersionSummary = {
   commit: string;
   shortCommit: string;
-  description: string;
+  title: string;
+  description: string | null;
 };
 
 export type PendingVersionsResult = {

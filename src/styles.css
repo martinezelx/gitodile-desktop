@@ -883,6 +883,16 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   white-space: nowrap;
   font-size: 13.5px;
 }
+.pending-versions__message-body {
+  margin: 0;
+  padding-block: 0 var(--space-2);
+  padding-inline: 36px var(--space-3);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 /* Secondary/advanced info by design (see AGENTS.md's UX vocabulary table) —
    toned down further than the description it sits next to. */
 .pending-versions__hash {
@@ -1237,6 +1247,12 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .save-version-summary { display: flex; flex-direction: column; gap: var(--space-2); }
 .save-version-summary > p:first-child { margin: 0; font-weight: 600; }
 .save-version-note { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.save-version-success { display: grid; gap: var(--space-2); }
+.save-version-success > p { margin: 0; }
+.save-version-success-details {
+  margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-hover);
+  color: var(--text-primary); font-size: 13px; white-space: pre-wrap; word-break: break-word;
+}
 .publish-plan { gap: var(--space-3); }
 .publish-plan__section {
   display: grid;
@@ -1362,6 +1378,15 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
   color: var(--text-secondary);
   font-size: 12.5px;
 }
+.publish-commit-list__message-body {
+  margin: 0;
+  padding: 2px 12px 10px 32px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .publish-commit-list__files[role="status"] { flex-direction: row; align-items: center; gap: 6px; }
 .publish-commit-list__files[role="status"] svg { width: 13px; height: 13px; flex-shrink: 0; }
 .publish-commit-list__files--error { color: var(--status-danger); }
@@ -1393,6 +1418,8 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 }
 .save-version-description textarea:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
 .save-version-description__error { color: var(--status-danger); font-size: 12.5px; }
+.save-version-title__guidance { color: var(--text-secondary); font-size: 12.5px; }
+.save-version-title__error { color: var(--status-danger); font-size: 12.5px; }
 /* `.primary-button`/`.secondary-button` don't size or align an icon on their
    own (only specific screens, like the Changes header, opt into that) — this
    dialog's buttons mix an icon with text too, so without this the icon rendered
@@ -1438,15 +1465,17 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 }
 .changes-file-list__selection {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-  padding: 10px 12px 2px; color: var(--text-secondary); font-size: 12px;
+  /* Right inset matches where the file rows' trailing category icon actually
+     sits: the scroll viewport's own margin (`--space-2`) plus the file item's
+     own right padding (`--space-3`) — not just the viewport margin alone,
+     or the count reads closer to the edge than the icons below it. */
+  padding: 10px calc(var(--space-2) + var(--space-3)) 2px var(--space-2);
+  color: var(--text-secondary); font-size: 12px;
 }
-.changes-file-list__selection > div { display: flex; align-items: center; gap: var(--space-2); }
-.changes-file-list__selection button {
-  border: 0; padding: 3px 4px; background: transparent; color: var(--accent-primary);
-  font: inherit; cursor: pointer; border-radius: var(--radius-sm);
+.changes-file-list__select-all {
+  display: inline-flex;
 }
-.changes-file-list__selection button:hover { background: var(--surface-hover); }
-.changes-file-list__selection button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.changes-file-list__select-all .changes-file-row__checkbox { margin: 0 0 0 6px; }
 .changes-file-list__scroll {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: var(--space-2);
 }
@@ -1474,6 +1503,13 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
   border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
 }
 .changes-file-row__checkbox:checked::before { transform: translate(0.25px, -1px) rotate(-45deg) scale(1); }
+.changes-file-row__checkbox:indeterminate {
+  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
+}
+.changes-file-row__checkbox:indeterminate::before {
+  width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary-contrast);
+  transform: translate(0, 0) rotate(0deg) scale(1);
+}
 .changes-file-row__checkbox:disabled { cursor: not-allowed; opacity: 0.55; }
 .changes-file-row__checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .changes-file-row .changes-file-item { flex: 1; width: auto; }
@@ -1583,6 +1619,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
    already keeps the top clear. */
 .changes-diff__body {
   flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; margin-bottom: var(--space-2);
+  background: var(--surface-code);
 }
 .changes-diff__status {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
@@ -1608,7 +1645,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
      in `.changes-diff__body` — a fixed/percentage height here would ignore
      that sibling and either overlap it or hand scrolling back to the parent,
      which would defeat virtualization by keeping every row mounted. */
-  flex: 1; min-height: 0; margin: 0; padding: var(--space-3) 0; overflow: auto;
+  flex: 1; min-height: 0; margin: 0; padding: var(--space-3) 0; overflow-x: hidden; overflow-y: auto;
   background: var(--surface-code); font: 12.5px/1.6 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
 /* Marks the first row of every hunk after the first — the flattened,
@@ -1624,10 +1661,10 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
   background: var(--surface-hover); color: var(--text-secondary); text-align: left;
   font: 11.5px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-.diff-line { display: grid; grid-template-columns: 48px 16px 1fr; align-items: baseline; padding-right: var(--space-4); width: fit-content; min-width: 100%; }
+.diff-line { display: grid; grid-template-columns: 48px 16px 1fr; align-items: baseline; padding-right: var(--space-4); }
 .diff-line__number { padding: 0 6px; text-align: right; color: var(--text-secondary); opacity: 0.55; font-size: 11px; user-select: none; }
 .diff-line__sign { text-align: center; user-select: none; }
-.diff-line__content { white-space: pre; }
+.diff-line__content { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
 .diff-line--addition { background: color-mix(in srgb, var(--diff-added) 12%, transparent); }
 .diff-line--addition .diff-line__sign, .diff-line--addition .diff-line__content { color: var(--diff-added); }
 .diff-line--deletion { background: color-mix(in srgb, var(--diff-removed) 12%, transparent); }

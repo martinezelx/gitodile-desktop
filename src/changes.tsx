@@ -773,6 +773,14 @@ export function ChangesPanel({
   const selectedPathsForSave = canChooseFiles ? includedPaths : null;
   const includedCount = canChooseFiles ? includedPaths.length : (workingTree?.counts.total ?? 0);
   const canSaveSelection = includedCount > 0;
+  const totalCount = workingTree?.counts.total ?? 0;
+  const allSelected = totalCount > 0 && includedCount === totalCount;
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = includedCount > 0 && includedCount < totalCount;
+    }
+  }, [includedCount, totalCount]);
 
   let headerMessage: React.ReactNode = null;
   if (isLoadingList) {
@@ -856,22 +864,34 @@ export function ChangesPanel({
         <div className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}`}>
           <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
             <div className="changes-file-list__selection">
+              <span className="changes-file-list__select-all">
+                {canChooseFiles ? (
+                  <input
+                    ref={selectAllRef}
+                    className="changes-file-row__checkbox"
+                    type="checkbox"
+                    checked={allSelected}
+                    aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
+                    title={allSelected ? t.changesSelectNone : t.changesSelectAll}
+                    onChange={() =>
+                      allSelected
+                        ? setExcludedPaths(new Set(entries.map((entry) => entry.path)))
+                        : setExcludedPaths(new Set())
+                    }
+                  />
+                ) : (
+                  <input
+                    className="changes-file-row__checkbox"
+                    type="checkbox"
+                    checked
+                    disabled
+                    aria-label={t.changesPartialUnavailableTruncated}
+                    title={t.changesPartialUnavailableTruncated}
+                    readOnly
+                  />
+                )}
+              </span>
               <span>{t.changesSelectionSummary(includedCount, workingTree.counts.total)}</span>
-              {canChooseFiles ? (
-                <div>
-                  <button type="button" onClick={() => setExcludedPaths(new Set())}>
-                    {t.changesSelectAll}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setExcludedPaths(new Set(entries.map((entry) => entry.path)))}
-                  >
-                    {t.changesSelectNone}
-                  </button>
-                </div>
-              ) : (
-                <span title={t.changesPartialUnavailableTruncated}>{t.changesSelectAll}</span>
-              )}
             </div>
             <div
               {...autoHideScrollbarProps<HTMLDivElement>()}

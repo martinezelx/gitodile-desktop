@@ -22,7 +22,8 @@ export type SaveVersionPlan = {
 export type SaveVersionResult = {
   commit: string;
   shortCommit: string;
-  description: string;
+  title: string;
+  description: string | null;
   branch: string | null;
   savedFiles: number;
 };

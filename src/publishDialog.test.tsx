@@ -23,7 +23,12 @@ function plan(overrides: Partial<PublishPlan> = {}): PublishPlan {
     localBranch: "main",
     willCreateUpstream: false,
     commitCount: 1,
-    commitSummary: [{ commit: "abc123abc123abc123abc123abc123abc123ab", shortCommit: "abc123a", description: "fix the thing" }],
+    commitSummary: [{
+      commit: "abc123abc123abc123abc123abc123abc123ab",
+      shortCommit: "abc123a",
+      title: "fix the thing",
+      description: null,
+    }],
     hasUnsavedFiles: false,
     remainingAfterPublish: 0,
     remainingCommitSummary: [],
@@ -69,13 +74,13 @@ describe("PublishDialog", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("plan_publish", { path: "/repo", remote: undefined });
   });
 
-  it("lists each version being published with its description and short hash", async () => {
+  it("lists each version being published with its title and short hash", async () => {
     mockedInvoke.mockResolvedValueOnce(
       plan({
         commitCount: 2,
         commitSummary: [
-          { commit: "aaa111", shortCommit: "aaa111", description: "fix the thing" },
-          { commit: "bbb222", shortCommit: "bbb222", description: "add the other thing" },
+          { commit: "aaa111", shortCommit: "aaa111", title: "fix the thing", description: null },
+          { commit: "bbb222", shortCommit: "bbb222", title: "add the other thing", description: null },
         ],
       }),
     );
@@ -92,8 +97,8 @@ describe("PublishDialog", () => {
       plan({
         remainingAfterPublish: 2,
         remainingCommitSummary: [
-          { commit: "newer111", shortCommit: "newer1", description: "polish the empty state" },
-          { commit: "newer222", shortCommit: "newer2", description: "add keyboard navigation" },
+          { commit: "newer111", shortCommit: "newer1", title: "polish the empty state", description: null },
+          { commit: "newer222", shortCommit: "newer2", title: "add keyboard navigation", description: null },
         ],
       }),
     );
@@ -108,7 +113,14 @@ describe("PublishDialog", () => {
 
   it("lazily loads and shows a commit's changed files only once it is expanded", async () => {
     mockedInvoke.mockResolvedValueOnce(
-      plan({ commitSummary: [{ commit: "aaa111", shortCommit: "aaa111", description: "fix the thing" }] }),
+      plan({
+        commitSummary: [{
+          commit: "aaa111",
+          shortCommit: "aaa111",
+          title: "fix the thing",
+          description: null,
+        }],
+      }),
     );
     renderDialog();
     await screen.findByText("fix the thing");
@@ -131,6 +143,28 @@ describe("PublishDialog", () => {
     await userEvent.click(screen.getByText("fix the thing"));
     await userEvent.click(screen.getByText("fix the thing"));
     expect(mockedInvoke).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a saved version's multiline details read-only when expanded", async () => {
+    mockedInvoke.mockResolvedValueOnce(
+      plan({
+        commitSummary: [{
+          commit: "aaa111",
+          shortCommit: "aaa111",
+          title: "fix the thing",
+          description: "Why it changed.\n\nWhat collaborators should know.",
+        }],
+      }),
+    );
+    renderDialog();
+
+    mockedInvoke.mockResolvedValueOnce([]);
+    await userEvent.click(await screen.findByText("fix the thing"));
+
+    expect(screen.getByText("Why it changed. What collaborators should know.")).toHaveClass(
+      "publish-commit-list__message-body",
+    );
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("shows the upstream-tracking note only when the plan will create it", async () => {

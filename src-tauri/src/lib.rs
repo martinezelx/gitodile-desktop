@@ -66,7 +66,8 @@ enum AppErrorCode {
     DetachedHead,
     GitOperationInProgress,
     MissingIdentity,
-    EmptyDescription,
+    EmptyTitle,
+    InvalidTitle,
     StalePreview,
     HookRejected,
     SigningFailed,
@@ -2662,7 +2663,8 @@ fn plan_save_version_with_identity_override(
 struct SaveVersionResult {
     commit: String,
     short_commit: String,
-    description: String,
+    title: String,
+    description: Option<String>,
     branch: Option<String>,
     saved_files: usize,
 }
@@ -2847,18 +2849,36 @@ fn classify_commit_failure(path: &str, stderr: &str) -> AppError {
 
 fn save_version_selection_with_identity_override(
     path: String,
-    description: String,
+    title: String,
+    description: Option<String>,
     state_token: String,
     selected_paths: Option<Vec<String>>,
     identity_override: Option<&str>,
 ) -> Result<SaveVersionResult, AppError> {
-    let trimmed_description = description.trim();
-    if trimmed_description.is_empty() {
+    let trimmed_title = title.trim();
+    if trimmed_title.is_empty() {
         return Err(AppError::new(
-            AppErrorCode::EmptyDescription,
-            "Write a short description before saving.",
+            AppErrorCode::EmptyTitle,
+            "Write a short name before saving.",
         ));
     }
+    if trimmed_title.contains(['\r', '\n']) {
+        return Err(AppError::new(
+            AppErrorCode::InvalidTitle,
+            "Keep the version name on one line.",
+        ));
+    }
+    // `None`/empty/whitespace-only all collapse to "no details" — the caller
+    // (an optional textarea) can produce any of the three, and none of them
+    // should append an empty trailing paragraph to the commit message.
+    let trimmed_description = description
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty());
+    let commit_message = match trimmed_description {
+        Some(details) => format!("{trimmed_title}\n\n{details}"),
+        None => trimmed_title.to_string(),
+    };
 
     // Revalidates every planning blocker (clean tree, conflicts, detached
     // HEAD, an operation in progress, missing identity) against the
@@ -2891,7 +2911,7 @@ fn save_version_selection_with_identity_override(
         commit_command.env("GIT_CONFIG_GLOBAL", global);
     }
     let commit_output = match commit_command
-        .args(["commit", "-m", trimmed_description])
+        .args(["commit", "-m", &commit_message])
         .output()
     {
         Ok(output) => output,
@@ -2935,7 +2955,8 @@ fn save_version_selection_with_identity_override(
     Ok(SaveVersionResult {
         commit: full_commit,
         short_commit,
-        description: trimmed_description.to_string(),
+        title: trimmed_title.to_string(),
+        description: trimmed_description.map(str::to_string),
         branch: validated.branch,
         saved_files: validated.selected_counts.total,
     })
@@ -2944,12 +2965,14 @@ fn save_version_selection_with_identity_override(
 #[cfg(test)]
 fn save_version_with_identity_override(
     path: String,
-    description: String,
+    title: String,
+    description: Option<String>,
     state_token: String,
     identity_override: Option<&str>,
 ) -> Result<SaveVersionResult, AppError> {
     save_version_selection_with_identity_override(
         path,
+        title,
         description,
         state_token,
         None,
@@ -2960,12 +2983,14 @@ fn save_version_with_identity_override(
 #[tauri::command]
 fn save_version(
     path: String,
-    description: String,
+    title: String,
+    description: Option<String>,
     state_token: String,
     selected_paths: Option<Vec<String>>,
 ) -> Result<SaveVersionResult, AppError> {
     save_version_selection_with_identity_override(
         path,
+        title,
         description,
         state_token,
         selected_paths,
@@ -3071,7 +3096,8 @@ fn discover_remotes(path: String) -> Result<RemoteDiscovery, AppError> {
 struct SavedVersionSummary {
     commit: String,
     short_commit: String,
-    description: String,
+    title: String,
+    description: Option<String>,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -3089,24 +3115,31 @@ struct PendingVersionsResult {
 const MAX_LISTED_SAVED_VERSIONS: usize = 50;
 
 fn parse_saved_version_summaries(text: &str) -> Vec<SavedVersionSummary> {
-    text.lines()
-        .filter_map(|line| {
-            let mut parts = line.splitn(3, '\u{1f}');
-            let commit = parts.next()?.to_string();
-            let short_commit = parts.next()?.to_string();
-            let description = parts.next().unwrap_or("").to_string();
+    let fields = text.split('\0').collect::<Vec<_>>();
+    fields
+        .chunks_exact(4)
+        .filter_map(|parts| {
+            let commit = parts[0].trim();
+            let short_commit = parts[1].trim();
+            let title = parts[2].trim();
+            if commit.is_empty() || short_commit.is_empty() || title.is_empty() {
+                return None;
+            }
+            let description = parts[3].trim();
             Some(SavedVersionSummary {
-                commit,
-                short_commit,
-                description,
+                commit: commit.to_string(),
+                short_commit: short_commit.to_string(),
+                title: title.to_string(),
+                description: (!description.is_empty()).then(|| description.to_string()),
             })
         })
         .collect()
 }
 
-/// Runs `git log` for `range` with hash/short-hash/subject in one machine-
-/// parseable pass (`%x1f` as a delimiter that can't collide with commit
-/// message text). A failing range (e.g. a configured upstream that has never
+/// Runs `git log` for `range` with hash/short-hash/subject/body in one machine-
+/// parseable pass. NUL separates both fields and records because Git commit
+/// messages cannot contain NUL bytes, while their bodies may contain any
+/// number of ordinary lines. A failing range (e.g. a configured upstream that has never
 /// been fetched locally, so Git can't resolve it as a revision yet) is
 /// treated as "nothing reliable to report", not an error — callers show an
 /// empty list rather than surfacing a spurious failure for something that
@@ -3115,7 +3148,14 @@ fn git_log_summaries(path: &str, range: &str) -> Result<Vec<SavedVersionSummary>
     let cap = MAX_LISTED_SAVED_VERSIONS.to_string();
     let output = run_git(
         path,
-        &["log", "--pretty=format:%H%x1f%h%x1f%s", "-n", &cap, range],
+        &[
+            "log",
+            "-z",
+            "--pretty=format:%H%x00%h%x00%s%x00%b",
+            "-n",
+            &cap,
+            range,
+        ],
     )?;
     let text = checked_git_stdout(output)?;
     if text.is_empty() {
@@ -5631,22 +5671,115 @@ mod tests {
     }
 
     #[test]
-    fn save_version_rejects_an_empty_description() {
-        let path = unique_temp_dir("save-empty-description");
+    fn save_version_rejects_an_empty_title() {
+        let path = unique_temp_dir("save-empty-title");
         git_init(&path);
         write_file(&path, "readme.md", "hello\n");
-        let identity = write_test_identity_config("save-empty-description");
+        let identity = write_test_identity_config("save-empty-title");
 
         let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
             .expect("plan should succeed");
         let error = save_version_with_identity_override(
             path.clone(),
             "   ".to_string(),
+            None,
             plan.state_token.clone(),
             Some(&identity),
         )
-        .expect_err("a whitespace-only description must be rejected");
-        assert_eq!(error.code, AppErrorCode::EmptyDescription);
+        .expect_err("a whitespace-only title must be rejected");
+        assert_eq!(error.code, AppErrorCode::EmptyTitle);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_rejects_a_multiline_title() {
+        let path = unique_temp_dir("save-multiline-title");
+        git_init(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-multiline-title");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        let error = save_version_with_identity_override(
+            path.clone(),
+            "title\nunexpected body".to_string(),
+            None,
+            plan.state_token,
+            Some(&identity),
+        )
+        .expect_err("a multiline title must be rejected at the Rust boundary");
+        assert_eq!(error.code, AppErrorCode::InvalidTitle);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_creates_a_title_only_commit_message_with_no_trailing_blank_paragraph() {
+        let path = unique_temp_dir("save-title-only-message");
+        git_init(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-title-only-message");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        let result = save_version_with_identity_override(
+            path.clone(),
+            "  title only  ".to_string(),
+            Some("   ".to_string()),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect("save should succeed");
+
+        assert_eq!(result.title, "title only");
+        assert_eq!(
+            result.description, None,
+            "a blank details field is no details"
+        );
+
+        let full_message = git_stdout(&run_git(&path, &["log", "-1", "--format=%B"]).unwrap());
+        assert_eq!(
+            full_message.trim_end(),
+            "title only",
+            "no empty trailing paragraph should be appended"
+        );
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_file(&identity);
+    }
+
+    #[test]
+    fn save_version_creates_a_conventional_subject_blank_line_and_body_commit_message() {
+        let path = unique_temp_dir("save-title-and-description");
+        git_init(&path);
+        write_file(&path, "readme.md", "hello\n");
+        let identity = write_test_identity_config("save-title-and-description");
+
+        let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+            .expect("plan should succeed");
+        let result = save_version_with_identity_override(
+            path.clone(),
+            "  Añadir soporte de emojis 🎉  ".to_string(),
+            Some("  Primera línea.\n\nSegunda línea con más contexto.  ".to_string()),
+            plan.state_token.clone(),
+            Some(&identity),
+        )
+        .expect("save should succeed");
+
+        assert_eq!(result.title, "Añadir soporte de emojis 🎉");
+        assert_eq!(
+            result.description.as_deref(),
+            Some("Primera línea.\n\nSegunda línea con más contexto.")
+        );
+
+        let full_message = git_stdout(&run_git(&path, &["log", "-1", "--format=%B"]).unwrap());
+        assert_eq!(
+            full_message.trim_end(),
+            "Añadir soporte de emojis 🎉\n\nPrimera línea.\n\nSegunda línea con más contexto."
+        );
 
         let _ = fs::remove_dir_all(&path);
         let _ = fs::remove_file(&identity);
@@ -5666,6 +5799,7 @@ mod tests {
         let result = save_version_with_identity_override(
             path.clone(),
             "first version".to_string(),
+            None,
             plan.state_token.clone(),
             Some(&identity),
         )
@@ -5724,12 +5858,14 @@ mod tests {
         let result = save_version_with_identity_override(
             path.clone(),
             "  save everything  ".to_string(),
+            None,
             plan.state_token.clone(),
             Some(&identity),
         )
         .expect("save should succeed");
 
-        assert_eq!(result.description, "save everything");
+        assert_eq!(result.title, "save everything");
+        assert_eq!(result.description, None);
         assert_eq!(result.saved_files, 4);
         assert_eq!(result.commit.len(), 40);
         assert!(result.commit.starts_with(&result.short_commit));
@@ -5775,6 +5911,7 @@ mod tests {
         save_version_selection_with_identity_override(
             path.clone(),
             "save one file".to_string(),
+            None,
             plan.state_token,
             selected,
             Some(&identity),
@@ -5820,6 +5957,7 @@ mod tests {
         save_version_with_identity_override(
             path.clone(),
             "save complete file".to_string(),
+            None,
             plan.state_token,
             Some(&identity),
         )
@@ -5899,6 +6037,7 @@ mod tests {
         let error = save_version_with_identity_override(
             path.clone(),
             "a version".to_string(),
+            None,
             plan.state_token.clone(),
             Some(&identity),
         )
@@ -5932,6 +6071,7 @@ mod tests {
         let error = save_version_with_identity_override(
             path.clone(),
             "a version".to_string(),
+            None,
             plan.state_token.clone(),
             Some(&identity),
         )
@@ -5975,6 +6115,7 @@ mod tests {
         let error = save_version_with_identity_override(
             path.clone(),
             "a version".to_string(),
+            None,
             plan.state_token.clone(),
             Some(&identity),
         )
@@ -6011,6 +6152,7 @@ mod tests {
         let error = save_version_with_identity_override(
             path.clone(),
             "a version".to_string(),
+            None,
             plan.state_token.clone(),
             Some(&identity),
         )
@@ -6050,6 +6192,7 @@ mod tests {
         let error = save_version_with_identity_override(
             path.clone(),
             "a version".to_string(),
+            None,
             plan.state_token.clone(),
             Some(&identity),
         )
@@ -6869,10 +7012,45 @@ mod tests {
             list_unpublished_versions(repo.clone()).expect("should list without a remote");
         assert_eq!(pending.total_count, 2);
         assert!(!pending.is_truncated);
-        assert_eq!(pending.versions[0].description, "second");
-        assert_eq!(pending.versions[1].description, "first");
+        assert_eq!(pending.versions[0].title, "second");
+        assert_eq!(pending.versions[0].description, None);
+        assert_eq!(pending.versions[1].title, "first");
+        assert_eq!(pending.versions[1].description, None);
         assert!(!pending.versions[0].commit.is_empty());
         assert!(!pending.versions[0].short_commit.is_empty());
+
+        let _ = fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn list_unpublished_versions_separates_an_existing_title_and_multiline_description() {
+        let repo = unique_temp_dir("unpublished-message-body");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        checked_git_stdout(
+            run_git(
+                &repo,
+                &[
+                    "commit",
+                    "-m",
+                    "Añadir búsqueda 🔎",
+                    "-m",
+                    "Primera línea.\n\nSecond paragraph with context.",
+                ],
+            )
+            .unwrap(),
+        )
+        .expect("commit with a body should succeed");
+
+        let pending = list_unpublished_versions(repo.clone())
+            .expect("the existing commit message should be readable");
+        assert_eq!(pending.versions.len(), 1);
+        assert_eq!(pending.versions[0].title, "Añadir búsqueda 🔎");
+        assert_eq!(
+            pending.versions[0].description.as_deref(),
+            Some("Primera línea.\n\nSecond paragraph with context.")
+        );
 
         let _ = fs::remove_dir_all(&repo);
     }
@@ -6896,8 +7074,10 @@ mod tests {
         let pending =
             list_unpublished_versions(repo.clone()).expect("should list the two new commits");
         assert_eq!(pending.total_count, 2);
-        assert_eq!(pending.versions[0].description, "third");
-        assert_eq!(pending.versions[1].description, "second");
+        assert_eq!(pending.versions[0].title, "third");
+        assert_eq!(pending.versions[0].description, None);
+        assert_eq!(pending.versions[1].title, "second");
+        assert_eq!(pending.versions[1].description, None);
 
         let _ = fs::remove_dir_all(&repo);
         let _ = fs::remove_dir_all(&remote);
@@ -7114,10 +7294,13 @@ mod tests {
         assert_eq!(plan.commit_count, 1);
         assert_eq!(plan.remaining_after_publish, 2);
         assert_eq!(plan.commit_summary.len(), 1);
-        assert_eq!(plan.commit_summary[0].description, "first");
+        assert_eq!(plan.commit_summary[0].title, "first");
+        assert_eq!(plan.commit_summary[0].description, None);
         assert_eq!(plan.remaining_commit_summary.len(), 2);
-        assert_eq!(plan.remaining_commit_summary[0].description, "third");
-        assert_eq!(plan.remaining_commit_summary[1].description, "second");
+        assert_eq!(plan.remaining_commit_summary[0].title, "third");
+        assert_eq!(plan.remaining_commit_summary[0].description, None);
+        assert_eq!(plan.remaining_commit_summary[1].title, "second");
+        assert_eq!(plan.remaining_commit_summary[1].description, None);
 
         let _ = fs::remove_dir_all(&repo);
         let _ = fs::remove_dir_all(&remote);
@@ -7161,7 +7344,8 @@ mod tests {
 
         let pending = list_unpublished_versions(repo.clone()).expect("should list what remains");
         assert_eq!(pending.total_count, 1);
-        assert_eq!(pending.versions[0].description, "second");
+        assert_eq!(pending.versions[0].title, "second");
+        assert_eq!(pending.versions[0].description, None);
 
         let _ = fs::remove_dir_all(&repo);
         let _ = fs::remove_dir_all(&remote);

@@ -1,13 +1,14 @@
 ---
 id: "010-1"
 title: "Separate saved-version title and description"
-status: active
+status: done
 priority: medium
 type: enhancement
 areas:
   - rust
   - frontend
 created: 2026-07-28
+completed: 2026-07-29
 parent: "010"
 ---
 
@@ -125,21 +126,40 @@ working-file preservation, stale-plan detection, hook execution, or signing.
 
 ## Acceptance criteria
 
-- [ ] The save dialog has a required **Version name** field and optional
+- [x] The save dialog has a required **Version name** field and optional
       **More details** field in English and Spanish.
-- [ ] Empty or whitespace-only names are rejected in both frontend and Rust.
-- [ ] Details can contain multiple paragraphs and non-ASCII text.
-- [ ] A title-only save creates a commit with no empty trailing paragraph.
-- [ ] A title plus details creates a conventional subject, blank line, and
+- [x] Empty or whitespace-only names are rejected in both frontend and Rust.
+- [x] Details can contain multiple paragraphs and non-ASCII text.
+- [x] A title-only save creates a commit with no empty trailing paragraph.
+- [x] A title plus details creates a conventional subject, blank line, and
       body commit message.
-- [ ] Recoverable planning/execution errors preserve both entered values.
-- [ ] The success state reports the saved title and can disclose its details.
-- [ ] Existing title-only commits continue to render correctly.
-- [ ] Publish previews can display the saved information but cannot edit it.
-- [ ] No existing file-selection, state-token, index-restoration, hook,
+- [x] Recoverable planning/execution errors preserve both entered values.
+- [x] The success state reports the saved title and can disclose its details.
+- [x] Existing title-only commits continue to render correctly.
+- [x] Publish previews display the saved title and disclose its optional
+      description read-only.
+- [x] No existing file-selection, state-token, index-restoration, hook,
       signing, or local-only behavior regresses.
-- [ ] Keyboard navigation, focus, validation, long content, and reduced-motion
-      behavior are verified.
+- [x] Keyboard navigation, delayed-plan and success focus, validation, long
+      content, and reduced-motion behavior are covered by implementation and
+      automated tests. The final hands-on review remains listed below.
+
+## Implementation note (2026-07-29)
+
+`SavedVersionSummary` now carries an explicit `title` and optional
+`description`. `git_log_summaries` reads `%s` and `%b` in one bounded process
+and separates fields/records with NUL bytes, which cannot occur inside Git
+commit messages. Pending-version and publish previews show the title compactly
+and disclose the multiline description read-only when expanded.
+
+The Rust execution boundary also rejects multiline titles independently of the
+single-line HTML input. The dialog marks the title as required, provides
+non-blocking length guidance, focuses it after delayed planning, and moves
+focus to an announced success state after saving.
+
+Automated validation after the completed pass: 117 frontend tests and 133 Rust
+tests pass, together with TypeScript typechecking, the production frontend
+build, `cargo fmt --check`, and Clippy with warnings denied.
 
 ## Required tests
 

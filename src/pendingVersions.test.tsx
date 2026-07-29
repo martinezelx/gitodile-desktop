@@ -11,8 +11,8 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
 
 const versions: SavedVersionSummary[] = [
-  { commit: "aaa111", shortCommit: "aaa111", description: "fix the thing" },
-  { commit: "bbb222", shortCommit: "bbb222", description: "add the other thing" },
+  { commit: "aaa111", shortCommit: "aaa111", title: "fix the thing", description: "Useful context." },
+  { commit: "bbb222", shortCommit: "bbb222", title: "add the other thing", description: null },
 ];
 const result: PendingVersionsResult = { totalCount: 2, versions, isTruncated: false };
 
@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("PendingVersionsSection", () => {
-  it("lists every pending version with its description and hash, with a count in the title, without fetching anything", () => {
+  it("lists every pending version with its title and hash, with a count in the title, without fetching anything", () => {
     renderSection();
 
     expect(screen.getByText("Saved versions not yet published (2)")).toBeInTheDocument();
@@ -51,6 +51,16 @@ describe("PendingVersionsSection", () => {
     expect(screen.getByText("add the other thing")).toBeInTheDocument();
     expect(screen.getByText("aaa111")).toBeInTheDocument();
     expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("shows an existing version's details read-only when expanded", async () => {
+    renderSection();
+
+    mockedInvoke.mockResolvedValueOnce([]);
+    await userEvent.click(screen.getByText("fix the thing"));
+
+    expect(screen.getByText("Useful context.")).toHaveClass("pending-versions__message-body");
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("loads and shows a version's changed files only once it is expanded", async () => {

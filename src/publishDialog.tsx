@@ -116,9 +116,12 @@ function PublishSummary({
                 <details onToggle={(event) => handleToggle(entry.commit, event.currentTarget.open)}>
                   <summary className="publish-commit-list__summary">
                     <ChevronDown aria-hidden="true" className="publish-commit-list__chevron" />
-                    <span className="publish-commit-list__description">{entry.description}</span>
+                    <span className="publish-commit-list__description">{entry.title}</span>
                     <code className="publish-commit-list__hash">{entry.shortCommit}</code>
                   </summary>
+                  {entry.description && (
+                    <p className="publish-commit-list__message-body">{entry.description}</p>
+                  )}
                   <CommitFilesPanel files={fileChanges[entry.commit]} t={t} />
                 </details>
               </li>
@@ -132,7 +135,7 @@ function PublishSummary({
           <div className="publish-stays__pills">
             {plan.remainingCommitSummary.map((entry) => (
               <span key={entry.commit} className="publish-stays__pill">
-                {entry.description}
+                {entry.title}
               </span>
             ))}
             {plan.hasUnsavedFiles && (

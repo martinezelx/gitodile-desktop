@@ -199,11 +199,14 @@ export function PendingVersionsSection({
               >
                 <summary className="pending-versions__summary">
                   <ChevronDown aria-hidden="true" className="pending-versions__chevron" />
-                  <span className="pending-versions__description" title={version.description}>
-                    {version.description}
+                  <span className="pending-versions__description" title={version.title}>
+                    {version.title}
                   </span>
                   <code className="pending-versions__hash">{version.shortCommit}</code>
                 </summary>
+                {version.description && (
+                  <p className="pending-versions__message-body">{version.description}</p>
+                )}
                 <CommitFilesList
                   commit={version.commit}
                   files={filesByCommit[version.commit]}
