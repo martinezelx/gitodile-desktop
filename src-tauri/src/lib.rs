@@ -1727,6 +1727,10 @@ enum GitInstallationPlatform {
 }
 
 #[derive(Clone, Copy)]
+// Every variant is constructed by `spawn_git_installer`, which only exists
+// under `#[cfg(target_os = "windows")]`; a single-platform clippy run on
+// another target sees none of those constructors.
+#[allow(dead_code)]
 enum InstallSpawnResult {
     Started,
     Missing,
@@ -1840,6 +1844,10 @@ struct GitUpdateLaunchResult {
 
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
+// `Failed` is only constructed by `spawn_git_update`, which only exists
+// under `#[cfg(target_os = "windows")]`; a single-platform clippy run on
+// another target cannot see that constructor.
+#[allow(dead_code)]
 enum GitUpdateLaunchOutcome {
     Started,
     AlreadyStarting,
