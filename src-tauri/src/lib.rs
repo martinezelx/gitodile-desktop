@@ -5329,6 +5329,26 @@ mod tests {
             .args(["merge", "-q", "--no-edit", "feature"])
             .status();
 
+        // TEMP DIAGNOSTIC: dump repo state to see why CI sometimes reports no
+        // conflict here. Remove once the root cause is confirmed.
+        let log = git_command(&path)
+            .args(["log", "--oneline", "--all", "--graph"])
+            .output()
+            .expect("git log");
+        eprintln!("DIAG log:\n{}", String::from_utf8_lossy(&log.stdout));
+        let git_status = git_command(&path)
+            .args(["status"])
+            .output()
+            .expect("git status");
+        eprintln!(
+            "DIAG status:\n{}",
+            String::from_utf8_lossy(&git_status.stdout)
+        );
+        eprintln!(
+            "DIAG file.txt:\n{:?}",
+            fs::read_to_string(Path::new(&path).join("file.txt"))
+        );
+
         let diff =
             read_file_diff(path.clone(), "file.txt".to_string()).expect("diff should succeed");
         match diff {
@@ -5537,6 +5557,27 @@ mod tests {
         let _ = git_command(&path)
             .args(["merge", "-q", "--no-edit", "feature"])
             .status();
+
+        // TEMP DIAGNOSTIC: dump repo state to see why CI sometimes reports no
+        // conflict here. Remove once the root cause is confirmed.
+        let log = git_command(&path)
+            .args(["log", "--oneline", "--all", "--graph"])
+            .output()
+            .expect("git log");
+        eprintln!("DIAG log:\n{}", String::from_utf8_lossy(&log.stdout));
+        let git_status = git_command(&path)
+            .args(["status"])
+            .output()
+            .expect("git status");
+        eprintln!(
+            "DIAG status:\n{}",
+            String::from_utf8_lossy(&git_status.stdout)
+        );
+        eprintln!(
+            "DIAG file.txt:\n{:?}",
+            fs::read_to_string(Path::new(&path).join("file.txt"))
+        );
+
         // `git merge` also leaves `MERGE_HEAD` behind, which would otherwise
         // be caught by the (higher-priority) operation-in-progress check.
         // Removing it isolates the unresolved-conflicts blocker, which also
