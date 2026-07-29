@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,36 @@ import type { WorkingTreeStatus } from "./repositoryOverview";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const mockedInvoke = vi.mocked(invoke);
+
+/** `ChangesPanel` no longer owns `selectedPath` or the save-version dialog's
+ * open state — both are lifted so a project session can remember them (see
+ * task 012). This wrapper plays the same role `main.tsx` does in the real
+ * app: holding that state and passing it down as controlled props. */
+function ControlledChangesPanel(
+  props: Omit<
+    React.ComponentProps<typeof ChangesPanel>,
+    | "selectedPath"
+    | "onSelectedPathChange"
+    | "isSaveVersionOpen"
+    | "onOpenSaveVersion"
+    | "onCloseSaveVersion"
+    | "onSaveVersionPhaseChange"
+  >,
+): React.JSX.Element {
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [isSaveVersionOpen, setIsSaveVersionOpen] = useState(false);
+  return (
+    <ChangesPanel
+      {...props}
+      selectedPath={selectedPath}
+      onSelectedPathChange={setSelectedPath}
+      isSaveVersionOpen={isSaveVersionOpen}
+      onOpenSaveVersion={() => setIsSaveVersionOpen(true)}
+      onCloseSaveVersion={() => setIsSaveVersionOpen(false)}
+      onSaveVersionPhaseChange={() => {}}
+    />
+  );
+}
 
 const workingTree: WorkingTreeStatus = {
   isClean: false,
@@ -69,7 +100,7 @@ describe("ChangesPanel save selection", () => {
   it("selects everything by default and sends only the chosen files to the planner", async () => {
     render(
       <LanguageProvider>
-        <ChangesPanel
+        <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
@@ -105,7 +136,7 @@ describe("ChangesPanel save selection", () => {
   it("reuses a cached diff until the working-tree snapshot changes", async () => {
     const { container, rerender } = render(
       <LanguageProvider>
-        <ChangesPanel
+        <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
@@ -130,7 +161,7 @@ describe("ChangesPanel save selection", () => {
 
     rerender(
       <LanguageProvider>
-        <ChangesPanel
+        <ControlledChangesPanel
           projectPath="/repo"
           workingTree={{ ...workingTree }}
           workingTreeError={null}
@@ -161,7 +192,7 @@ describe("ChangesPanel save selection", () => {
 
     render(
       <LanguageProvider>
-        <ChangesPanel
+        <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
@@ -191,7 +222,7 @@ describe("ChangesPanel save selection", () => {
 
     const { container } = render(
       <LanguageProvider>
-        <ChangesPanel
+        <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
@@ -264,7 +295,7 @@ describe("ChangesPanel save selection", () => {
 
     render(
       <LanguageProvider>
-        <ChangesPanel
+        <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}

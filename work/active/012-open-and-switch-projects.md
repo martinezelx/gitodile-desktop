@@ -232,13 +232,86 @@ feature.
   shared mutation boundary.
 - Persist descriptors and UI continuity, not repository contents or live Git
   truth.
+- Block switching projects while a save/publish dialog is open for the current
+  project. The user must confirm or cancel it first, rather than the dialog
+  being silently dismissed or left floating over another project's screen.
+- Coordinate shared-`commonGitDir` mutations entirely in the frontend session
+  store (an in-memory busy set), not with a Rust-side lock. Keeps Rust
+  path-scoped and stateless per the decision above.
+- Keyboard switching uses `Ctrl`/`Cmd+Tab` and `Ctrl`/`Cmd+Shift+Tab` to rotate
+  to the next/previous open project.
 
 # Implementation notes
 
-Complete during implementation. Record the final session model, storage schema,
-migration behavior, shortcut choices, and any operation-coordination trade-offs.
+- Session identity: no new Rust field was needed. `RepositoryInfo.path` is
+  already the Rust-canonicalized worktree root (resolves nested folders,
+  symlinks, and filesystem case per `open_repository`'s existing tests), so
+  it is used directly as the session id — no separate opaque identifier to
+  keep in sync.
+- Frontend session store: `src/projectSessions.ts` — a pure reducer
+  (`projectSessionsReducer`) plus `localStorage` read/write/migration
+  helpers, with no React dependency so it's unit-testable directly
+  (`src/projectSessions.test.ts`). Storage key `gitodrile-projects` (`{
+  version: 1, order, activeId }`); `gitodrile-last-project-path` migrates
+  into it once, then is removed.
+- Stale-response protection: each session carries a `statusGeneration`.
+  `main.tsx` owns the actual counter (a ref keyed by session id) and stamps
+  every `read_working_tree_status`/`list_unpublished_versions` call with it;
+  `applyWorkingTree`/`applyPendingVersions` (and their `*Error` counterparts)
+  are no-ops if the session's generation has since moved on. This also
+  covers a same-session double-refresh, not just cross-project switches.
+- Mutation coordination lives in the frontend session store. Each save or
+  publish records its immutable originating session, kind, and phase. Before
+  another mutation starts, `getMutationBlocker` rejects an operation from a
+  linked worktree with the same `commonGitDir`; executing, verifying, or
+  uncertain mutations also prevent their originating session from being
+  closed.
+- UI: `src/projectSwitcher.tsx` — `ProjectSwitcher` (expanded sidebar list)
+  and `ProjectSwitcherCompact` (collapsed-sidebar and ≤800px narrow-layout
+  popover, same button+ref+outside-click+Escape pattern as the existing
+  `ProjectMenu`/`TitlebarMenu`). Renders nothing when no project is open.
+  Status indicators are icon-shaped (`CircleAlert`/`LoaderCircle`/`FileDiff`),
+  not color-only, and simultaneous states remain visible instead of masking
+  one another. Duplicate project names gain their parent-folder context.
+- Per-project UI state implemented: each session owns its Overview/Changes
+  history and index, `lastView`, and the Changes screen's `selectedPath`.
+  Titlebar Back/Forward traverses the active project's own history; Settings
+  remains application-wide and Back returns to the active session's last
+  project view. Save-version checkbox exclusions stay local to
+  `ChangesPanel` and reset per project because they are a working selection
+  for the next save, not durable navigation state.
+- Startup persistence is gated until stored paths have been revalidated. This
+  prevents the reducer's initial empty state from overwriting the previous
+  session or the migrated legacy path before restoration completes.
+- The compact switcher uses dialog/list semantics, restores focus to its
+  trigger after switching or closing, and a polite live region announces the
+  newly active project without moving focus.
+- Activating a project immediately refreshes its local working-tree and
+  unpublished-version status; no background polling runs for inactive
+  projects. Scrollable surfaces share one WebView2-safe auto-hide behavior
+  with keyboard, touch, and forced-colors fallbacks.
+- An uncertain publish remains bound to its originating session and cannot be
+  dismissed as complete. The dialog offers a fresh remote preflight so it can
+  determine whether the publish landed before allowing a retry or close.
+- Keyboard: `Ctrl`/`Cmd+Tab` and `+Shift+Tab` rotate through
+  `sessionsState.order`; guarded against firing while focus is in an
+  `input`/`textarea`/contenteditable, and while a save/publish dialog is
+  open.
+- Reducer supports a `reorder` action (tested) but no drag-and-drop UI was
+  built for it in this pass — not in the acceptance criteria, and the
+  switcher's fixed open-order was enough for a first version.
 
 # Validation
 
-Record exact frontend, Rust, desktop, accessibility, and platform checks.
-
+- Frontend: `pnpm run typecheck`, `pnpm run test` (107 tests across 13 files),
+  and `pnpm run build` all pass. Coverage includes startup persistence before
+  revalidation, per-session navigation history, shared-`commonGitDir`
+  mutation exclusion, activation refresh, Save-version dismissal protection,
+  uncertain-publish recovery, compact-switcher semantics/focus restoration,
+  and reusable auto-hiding scrollbars.
+- Rust: `cargo fmt -- --check`, `cargo clippy --all-targets --all-features
+  -- -D warnings`, and all 129 tests pass.
+- Desktop audit: verified two real repositories, invalid-open isolation,
+  `Ctrl+Tab`, and the accessibility tree in Tauri. Linked worktrees, a full
+  relaunch matrix, real save/publish mutations, themes, narrow layout, and a
+  20-project stress pass remain manual checks.

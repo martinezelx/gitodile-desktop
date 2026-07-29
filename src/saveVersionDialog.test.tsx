@@ -247,6 +247,37 @@ describe("SaveVersionDialog", () => {
     expect(screen.getByText("pre-commit exited 1")).toBeInTheDocument();
   });
 
+  it("cannot be dismissed while saving is in progress", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    const { onClose, container } = renderDialog();
+    await screen.findByLabelText("What changed?");
+    await userEvent.type(screen.getByLabelText("What changed?"), "save safely");
+
+    let resolveSave: ((result: SaveVersionResult) => void) | undefined;
+    mockedInvoke.mockImplementationOnce(
+      () =>
+        new Promise<SaveVersionResult>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(container.querySelector(".save-version-backdrop") as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    resolveSave?.({
+      commit: "abc123abc123abc123abc123abc123abc123ab",
+      shortCommit: "abc123a",
+      description: "save safely",
+      branch: "main",
+      savedFiles: 2,
+    });
+    expect(await screen.findByText("Saved as abc123a.")).toBeInTheDocument();
+  });
+
   it("closes on Escape and restores focus to the element that opened it", async () => {
     // `useModalFocus` only restores focus once `isOpen` actually flips back
     // to `false`, and it only captures "what had focus" at the moment it

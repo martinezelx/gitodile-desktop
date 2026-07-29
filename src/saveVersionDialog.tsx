@@ -4,6 +4,7 @@ import { CircleAlert, LoaderCircle, Save, Send } from "lucide-react";
 import { useLanguage, type Translations } from "./i18n";
 import { localizeAppError, isAppError } from "./appError";
 import { useModalFocus } from "./modalFocus";
+import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { getSaveVersionBreakdown, type SaveVersionPlan, type SaveVersionResult } from "./saveVersion";
 import type { ChangeCategory } from "./repositoryOverview";
 
@@ -61,7 +62,12 @@ function FailureDetail({ error, t }: { error: unknown; t: Translations }): React
       {expanded && (
         <div>
           <p className="save-version-detail__heading">{t.saveVersionDetailHeading}</p>
-          <pre className="save-version-detail__body">{error.detail}</pre>
+          <pre
+            {...autoHideScrollbarProps<HTMLPreElement>()}
+            className="save-version-detail__body auto-hide-scrollbar"
+          >
+            {error.detail}
+          </pre>
         </div>
       )}
     </div>
@@ -75,6 +81,7 @@ export function SaveVersionDialog({
   onClose,
   onSaved,
   onPublishNow,
+  onPhaseChange,
 }: {
   isOpen: boolean;
   projectPath: string;
@@ -82,6 +89,7 @@ export function SaveVersionDialog({
   onClose: () => void;
   onSaved: () => void;
   onPublishNow: () => void;
+  onPhaseChange?: (phase: "planning" | "executing" | "error" | "success") => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -116,10 +124,13 @@ export function SaveVersionDialog({
   // tear down and reinstall its keydown listener and re-steal focus on
   // every render while the dialog is open.
   const onCloseRef = useRef(onClose);
+  const onPhaseChangeRef = useRef(onPhaseChange);
+  const isBusyRef = useRef(false);
   onCloseRef.current = onClose;
+  onPhaseChangeRef.current = onPhaseChange;
   const setOpenState = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((next) => {
     const value = typeof next === "function" ? (next as (previous: boolean) => boolean)(true) : next;
-    if (!value) {
+    if (!value && !isBusyRef.current) {
       onCloseRef.current();
     }
   }, []);
@@ -140,6 +151,7 @@ export function SaveVersionDialog({
       return undefined;
     }
     let cancelled = false;
+    onPhaseChangeRef.current?.("planning");
     setState({ status: "loading" });
     invoke<SaveVersionPlan>("plan_save_version", { path: projectPath, selectedPaths: selectedPathsRef.current })
       .then((plan) => {
@@ -168,6 +180,13 @@ export function SaveVersionDialog({
   const plan = "plan" in state ? state.plan : null;
   const isFirstVersion = plan?.isFirstVersion ?? false;
   const isBusy = state.status === "submitting";
+  isBusyRef.current = isBusy;
+
+  function requestClose(): void {
+    if (!isBusy) {
+      onClose();
+    }
+  }
 
   function handleConfirm(): void {
     if (!plan) {
@@ -180,6 +199,7 @@ export function SaveVersionDialog({
       return;
     }
     setState({ status: "submitting", plan });
+    onPhaseChangeRef.current?.("executing");
     invoke<SaveVersionResult>("save_version", {
       path: projectPath,
       description: trimmed,
@@ -188,18 +208,21 @@ export function SaveVersionDialog({
     })
       .then((result) => {
         setState({ status: "success", result });
+        onPhaseChangeRef.current?.("success");
         onSaved();
       })
       .catch((error: unknown) => {
         setState({ status: "save-error", plan, error });
+        onPhaseChangeRef.current?.("error");
       });
   }
 
   return (
-    <div className="save-version-backdrop" role="presentation" onMouseDown={() => onClose()}>
+    <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
       <div
+        {...autoHideScrollbarProps<HTMLDivElement>()}
         ref={dialogRef}
-        className="save-version-dialog"
+        className="save-version-dialog auto-hide-scrollbar"
         role="dialog"
         aria-modal="true"
         aria-labelledby="save-version-title"
@@ -255,6 +278,8 @@ export function SaveVersionDialog({
             <label className="text-field save-version-description">
               <span>{t.saveVersionDescriptionLabel}</span>
               <textarea
+                {...autoHideScrollbarProps<HTMLTextAreaElement>()}
+                className="auto-hide-scrollbar"
                 ref={descriptionRef}
                 rows={3}
                 value={description}
@@ -309,8 +334,8 @@ export function SaveVersionDialog({
                 className="secondary-button"
                 type="button"
                 onClick={() => {
-                  onPublishNow();
                   onClose();
+                  onPublishNow();
                 }}
               >
                 <Send aria-hidden="true" />

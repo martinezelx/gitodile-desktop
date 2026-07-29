@@ -311,6 +311,41 @@ describe("PublishDialog", () => {
     expect(await screen.findByText('1 saved version was published to "origin".')).toBeInTheDocument();
   });
 
+  it("keeps an uncertain result open and offers a remote recheck", async () => {
+    const onPhaseChange = vi.fn();
+    mockedInvoke
+      .mockResolvedValueOnce(plan())
+      .mockRejectedValueOnce({
+        code: "publish_uncertain",
+        message: "Connection lost.",
+        remediation: null,
+      })
+      .mockRejectedValueOnce({
+        code: "nothing_to_publish",
+        message: "Already published.",
+        remediation: null,
+      });
+    const { onClose } = renderDialog({ onPhaseChange });
+    await screen.findByRole("heading", { name: "Destination" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
+
+    expect(await screen.findByRole("button", { name: "Check remote again" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(onPhaseChange).toHaveBeenCalledWith("uncertain");
+
+    await userEvent.click(screen.getByRole("button", { name: "Check remote again" }));
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenLastCalledWith("plan_publish", {
+        path: "/repo",
+        remote: undefined,
+        upTo: undefined,
+      }),
+    );
+    expect(onPhaseChange).toHaveBeenLastCalledWith("planning");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("closes on Escape and restores focus to the element that opened it", async () => {
     function Harness(): React.JSX.Element {
       const [isOpen, setIsOpen] = React.useState(false);

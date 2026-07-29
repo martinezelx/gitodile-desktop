@@ -32,6 +32,7 @@ export interface Translations {
   titlebarHelpSection: string;
   titlebarGoBack: string;
   titlebarGoForward: string;
+  titlebarHistoryControls: string;
   alphaBadge: string;
   alphaBadgeAriaLabel: string;
   windowMinimize: string;
@@ -63,6 +64,8 @@ export interface Translations {
   commandUseSystemTheme: string;
   commandUseLightTheme: string;
   commandUseDarkTheme: string;
+  commandCloseActiveProject: string;
+  commandSwitchToProject: (name: string) => string;
 
   overviewRepositoryBranch: (branch: string) => string;
   overviewWorktreeBranch: (branch: string) => string;
@@ -78,6 +81,18 @@ export interface Translations {
   overviewDetachedReady: string;
   overviewOpenAnotherProject: string;
   overviewProjectMenu: string;
+  projectSwitcherAriaLabel: string;
+  projectSwitchToLabel: (name: string) => string;
+  projectSwitcherCloseLabel: (name: string) => string;
+  projectSwitcherUnsavedIndicator: string;
+  projectSwitcherOperationIndicator: string;
+  projectSwitcherErrorIndicator: string;
+  projectSwitcherCollapsedTrigger: string;
+  projectSwitcherSwitchBlockedHint: string;
+  projectSwitcherEmptyHint: string;
+  projectSwitcherActiveAnnouncement: (name: string) => string;
+  projectSwitcherMutationBlocked: (name: string) => string;
+  projectSwitcherCloseBlocked: (name: string) => string;
   overviewCurrentVersionLine: string;
   overviewSpecificSavedVersion: string;
   overviewNoSavedVersions: string;
@@ -215,6 +230,7 @@ export interface Translations {
   publishVerifying: string;
   publishCannotCloseNote: string;
   publishReviewUpdatedPlan: string;
+  publishCheckRemoteAgain: string;
   publishSuccessTitle: string;
   publishSuccessDescription: (count: number, remote: string) => string;
   publishSuccessUpstreamNote: string;
@@ -331,6 +347,7 @@ export interface Translations {
   settingsStartupDescription: string;
   startupReopenLabel: string;
   startupReopenDescription: string;
+  startupRestoreSkippedNotice: (count: number) => string;
 
   settingsSafetyTitle: string;
   settingsSafetyDescription: string;
@@ -360,6 +377,7 @@ const en: Translations = {
   titlebarHelpSection: "Help",
   titlebarGoBack: "Go back",
   titlebarGoForward: "Go forward",
+  titlebarHistoryControls: "Navigation history",
   alphaBadge: "alpha",
   alphaBadgeAriaLabel: "Development version: alpha",
   windowMinimize: "Minimize window",
@@ -391,6 +409,8 @@ const en: Translations = {
   commandUseSystemTheme: "Use system theme",
   commandUseLightTheme: "Use light theme",
   commandUseDarkTheme: "Use dark theme",
+  commandCloseActiveProject: "Close active project",
+  commandSwitchToProject: (name) => `Switch to ${name}`,
 
   overviewRepositoryBranch: (branch) => `Git project on version line “${branch}”.`,
   overviewWorktreeBranch: (branch) => `Separate workspace on version line “${branch}”.`,
@@ -406,6 +426,20 @@ const en: Translations = {
   overviewDetachedReady: "A specific saved version is open",
   overviewOpenAnotherProject: "Open another project",
   overviewProjectMenu: "Project actions",
+  projectSwitcherAriaLabel: "Open projects",
+  projectSwitchToLabel: (name) => `Switch to ${name}`,
+  projectSwitcherCloseLabel: (name) => `Close ${name}`,
+  projectSwitcherUnsavedIndicator: "Has unsaved changes",
+  projectSwitcherOperationIndicator: "Operation in progress",
+  projectSwitcherErrorIndicator: "Needs attention",
+  projectSwitcherCollapsedTrigger: "Switch project",
+  projectSwitcherSwitchBlockedHint: "Finish the open dialog before switching projects",
+  projectSwitcherEmptyHint: "Your open projects will show up here.",
+  projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
+  projectSwitcherMutationBlocked: (name) =>
+    `Wait for the operation in ${name} to finish before starting another one in a linked workspace.`,
+  projectSwitcherCloseBlocked: (name) =>
+    `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
   overviewCurrentVersionLine: "Current version line",
   overviewSpecificSavedVersion: "Specific saved version",
   overviewNoSavedVersions: "No saved versions yet",
@@ -562,6 +596,7 @@ const en: Translations = {
   publishVerifying: "Checking the result…",
   publishCannotCloseNote: "Keep this window open while GitOdrile confirms the remote result.",
   publishReviewUpdatedPlan: "Review updated plan",
+  publishCheckRemoteAgain: "Check remote again",
   publishSuccessTitle: "Published",
   publishSuccessDescription: (count, remote) =>
     count === 1
@@ -690,8 +725,12 @@ const en: Translations = {
 
   settingsStartupTitle: "Startup",
   settingsStartupDescription: "Control what happens when GitOdrile launches.",
-  startupReopenLabel: "Reopen last project on launch",
-  startupReopenDescription: "Skip picking a folder again if you had one open last time.",
+  startupReopenLabel: "Reopen projects from the previous session",
+  startupReopenDescription: "Skip picking folders again if you had projects open last time.",
+  startupRestoreSkippedNotice: (count) =>
+    count === 1
+      ? "1 project from your last session couldn't be reopened."
+      : `${count} projects from your last session couldn't be reopened.`,
 
   settingsSafetyTitle: "Safety",
   settingsSafetyDescription: "Extra confirmations before you can lose your place.",
@@ -721,6 +760,7 @@ const es: Translations = {
   titlebarHelpSection: "Ayuda",
   titlebarGoBack: "Atrás",
   titlebarGoForward: "Adelante",
+  titlebarHistoryControls: "Historial de navegación",
   alphaBadge: "alpha",
   alphaBadgeAriaLabel: "Versión en desarrollo: alpha",
   windowMinimize: "Minimizar ventana",
@@ -752,6 +792,8 @@ const es: Translations = {
   commandUseSystemTheme: "Usar el tema del sistema",
   commandUseLightTheme: "Usar el tema claro",
   commandUseDarkTheme: "Usar el tema oscuro",
+  commandCloseActiveProject: "Cerrar el proyecto activo",
+  commandSwitchToProject: (name) => `Cambiar a ${name}`,
 
   overviewRepositoryBranch: (branch) => `Proyecto de Git en la línea de versión «${branch}».`,
   overviewWorktreeBranch: (branch) => `Espacio de trabajo separado en la línea de versión «${branch}».`,
@@ -769,6 +811,20 @@ const es: Translations = {
   overviewDetachedReady: "Hay abierta una versión guardada concreta",
   overviewOpenAnotherProject: "Abrir otro proyecto",
   overviewProjectMenu: "Acciones del proyecto",
+  projectSwitcherAriaLabel: "Proyectos abiertos",
+  projectSwitchToLabel: (name) => `Cambiar a ${name}`,
+  projectSwitcherCloseLabel: (name) => `Cerrar ${name}`,
+  projectSwitcherUnsavedIndicator: "Tiene cambios sin guardar",
+  projectSwitcherOperationIndicator: "Operación en curso",
+  projectSwitcherErrorIndicator: "Necesita atención",
+  projectSwitcherCollapsedTrigger: "Cambiar de proyecto",
+  projectSwitcherSwitchBlockedHint: "Termina el diálogo abierto antes de cambiar de proyecto",
+  projectSwitcherEmptyHint: "Aquí aparecerán tus proyectos abiertos.",
+  projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,
+  projectSwitcherMutationBlocked: (name) =>
+    `Espera a que termine la operación de ${name} antes de iniciar otra en un espacio de trabajo vinculado.`,
+  projectSwitcherCloseBlocked: (name) =>
+    `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
   overviewCurrentVersionLine: "Línea de versión actual",
   overviewSpecificSavedVersion: "Versión guardada concreta",
   overviewNoSavedVersions: "Todavía no hay versiones guardadas",
@@ -937,6 +993,7 @@ const es: Translations = {
   publishVerifying: "Comprobando el resultado…",
   publishCannotCloseNote: "Mantén esta ventana abierta mientras GitOdrile confirma el resultado remoto.",
   publishReviewUpdatedPlan: "Revisar el plan actualizado",
+  publishCheckRemoteAgain: "Comprobar remoto de nuevo",
   publishSuccessTitle: "Publicado",
   publishSuccessDescription: (count, remote) =>
     count === 1
@@ -1078,8 +1135,12 @@ const es: Translations = {
 
   settingsStartupTitle: "Inicio",
   settingsStartupDescription: "Controla qué ocurre cuando se abre GitOdrile.",
-  startupReopenLabel: "Reabrir el último proyecto al iniciar",
-  startupReopenDescription: "Evita elegir una carpeta de nuevo si tenías un proyecto abierto la última vez.",
+  startupReopenLabel: "Reabrir los proyectos de la última sesión",
+  startupReopenDescription: "Evita elegir carpetas de nuevo si tenías proyectos abiertos la última vez.",
+  startupRestoreSkippedNotice: (count) =>
+    count === 1
+      ? "1 proyecto de tu última sesión no se pudo volver a abrir."
+      : `${count} proyectos de tu última sesión no se pudieron volver a abrir.`,
 
   settingsSafetyTitle: "Seguridad",
   settingsSafetyDescription: "Confirmaciones adicionales antes de perder tu lugar.",

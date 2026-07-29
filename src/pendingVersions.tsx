@@ -5,6 +5,7 @@ import { useLanguage, type Translations } from "./i18n";
 import { CATEGORY_ICONS, DiffResultView, type FileDiff } from "./changes";
 import { getFileTypeIcon } from "./fileIcons";
 import type { CommitFileChange, PendingVersionsResult } from "./publish";
+import { autoHideScrollbarProps } from "./autoHideScrollbar";
 
 type FilesState = "loading" | "error" | CommitFileChange[];
 type DiffState = "loading" | "error" | FileDiff;
@@ -186,7 +187,10 @@ export function PendingVersionsSection({
       )}
 
       {result.versions.length > 0 && (
-        <ul className="pending-versions__list">
+        <ul
+          {...autoHideScrollbarProps<HTMLUListElement>()}
+          className="pending-versions__list auto-hide-scrollbar"
+        >
           {result.versions.map((version) => (
             <li key={version.commit} className="pending-versions__item">
               <details

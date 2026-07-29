@@ -19,6 +19,7 @@ import {
 import { useLanguage, type Translations } from "./i18n";
 import { localizeAppError } from "./appError";
 import { getFileTypeIcon } from "./fileIcons";
+import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { SaveVersionDialog } from "./saveVersionDialog";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
@@ -291,7 +292,12 @@ function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): Rea
   });
 
   return (
-    <pre className="diff-code" tabIndex={0} ref={scrollRef}>
+    <pre
+      {...autoHideScrollbarProps<HTMLPreElement>()}
+      className="diff-code auto-hide-scrollbar"
+      tabIndex={0}
+      ref={scrollRef}
+    >
       <code style={{ display: "block", position: "relative", height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const row = rows[virtualRow.index];
@@ -450,7 +456,10 @@ function DiffWorkspace({
           {entry?.originalPath && <p className="changes-diff__origin">{t.changesRenamedFrom(entry.originalPath)}</p>}
         </div>
       </header>
-      <div className="changes-diff__body">
+      <div
+        {...autoHideScrollbarProps<HTMLDivElement>()}
+        className="changes-diff__body auto-hide-scrollbar"
+      >
         {diffState.status === "loading" && (
           <div className="changes-diff__status" role="status">
             <LoaderCircle aria-hidden="true" className="icon--spinning" />
@@ -546,6 +555,12 @@ export function ChangesPanel({
   onRefresh,
   onNavigateOverview,
   onPublishNow,
+  selectedPath,
+  onSelectedPathChange,
+  isSaveVersionOpen,
+  onOpenSaveVersion,
+  onCloseSaveVersion,
+  onSaveVersionPhaseChange,
 }: {
   projectPath: string;
   workingTree: WorkingTreeStatus | null;
@@ -554,14 +569,25 @@ export function ChangesPanel({
   onRefresh: () => void;
   onNavigateOverview: () => void;
   onPublishNow: () => void;
+  /** Which file is selected, lifted to the caller so it survives switching
+   * away to another project's session and back (see task 012's per-session
+   * UI state). `excludedPaths` (the save-version checkbox picks) stays local
+   * below — it's a working selection for the *next* save, not something a
+   * project session needs to remember across navigation. */
+  selectedPath: string | null;
+  onSelectedPathChange: (path: string | null) => void;
+  isSaveVersionOpen: boolean;
+  onOpenSaveVersion: () => void;
+  onCloseSaveVersion: () => void;
+  onSaveVersionPhaseChange: (
+    phase: "planning" | "executing" | "error" | "success"
+  ) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [retryToken, setRetryToken] = useState(0);
-  const [isSaveVersionOpen, setIsSaveVersionOpen] = useState(false);
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(() => new Set());
   const diffStoreRef = useRef<DiffStore>({
     projectPath,
@@ -599,11 +625,18 @@ export function ChangesPanel({
     if (resolved === selectedPath) {
       return;
     }
-    setSelectedPath(resolved);
+    onSelectedPathChange(resolved);
     if (resolved) {
       setAnnouncement(t.changesSelectionAnnouncement(resolved));
     }
-  }, [entries, selectedPath, t]);
+  }, [entries, selectedPath, t, onSelectedPathChange]);
+
+  // Local to this project's session: a switch away and back (or the working
+  // tree simply refreshing) must not leave a previous project's checkbox
+  // exclusions applied to a different one's file list.
+  useEffect(() => {
+    setExcludedPaths(new Set());
+  }, [projectPath]);
 
   useEffect(() => {
     const available = new Set(entries.map((entry) => entry.path));
@@ -788,7 +821,7 @@ export function ChangesPanel({
           <button
             className="primary-button"
             type="button"
-            onClick={() => setIsSaveVersionOpen(true)}
+            onClick={onOpenSaveVersion}
             disabled={!workingTree || workingTree.isClean || isCheckingChanges || !canSaveSelection}
             title={
               !workingTree || workingTree.isClean
@@ -840,7 +873,10 @@ export function ChangesPanel({
                 <span title={t.changesPartialUnavailableTruncated}>{t.changesSelectAll}</span>
               )}
             </div>
-            <div className="changes-file-list__scroll">
+            <div
+              {...autoHideScrollbarProps<HTMLDivElement>()}
+              className="changes-file-list__scroll auto-hide-scrollbar"
+            >
               {workingTree.truncated && (
                 <p className="changes-file-list__truncated" role="status">
                   {t.statusTruncatedNote(entries.length)}
@@ -855,7 +891,7 @@ export function ChangesPanel({
                     isIncluded={!excludedPaths.has(entry.path)}
                     canChoose={canChooseFiles}
                     onSelect={() => {
-                      setSelectedPath(entry.path);
+                      onSelectedPathChange(entry.path);
                       setIsDetailFocused(true);
                     }}
                     onToggleIncluded={() =>
@@ -894,9 +930,10 @@ export function ChangesPanel({
         isOpen={isSaveVersionOpen}
         projectPath={projectPath}
         selectedPaths={selectedPathsForSave}
-        onClose={() => setIsSaveVersionOpen(false)}
+        onClose={onCloseSaveVersion}
         onSaved={onRefresh}
         onPublishNow={onPublishNow}
+        onPhaseChange={onSaveVersionPhaseChange}
       />
     </div>
   );

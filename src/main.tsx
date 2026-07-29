@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useReducer, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
@@ -49,8 +49,26 @@ import {
   type WorkingTreeStatus,
 } from "./repositoryOverview";
 import { localizeAppError } from "./appError";
+import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import type { PendingVersionsResult } from "./publish";
 import { useModalFocus } from "./modalFocus";
+import {
+  EMPTY_CHANGES_SELECTION,
+  EMPTY_PENDING_VERSIONS,
+  getMutationBlocker,
+  initialProjectSessionsState,
+  projectSessionsReducer,
+  projectSessionsStateToStored,
+  readStoredProjects,
+  writeStoredProjects,
+  type ProjectView,
+} from "./projectSessions";
+import {
+  ProjectSwitcher,
+  ProjectSwitcherCompact,
+  ProjectSwitcherIcons,
+  type ProjectSwitcherEntry,
+} from "./projectSwitcher";
 import "./styles.css";
 
 // Lazily loaded: none of these are needed for the first paint (the Overview
@@ -64,13 +82,8 @@ const PendingVersionsSection = lazy(() =>
 );
 
 type ThemePreference = "system" | "light" | "dark";
-type View = "overview" | "changes" | "settings";
+type View = ProjectView | "settings";
 
-const EMPTY_PENDING_VERSIONS: PendingVersionsResult = {
-  totalCount: 0,
-  versions: [],
-  isTruncated: false,
-};
 type GitDiagnostics = {
   state: "available" | "missing" | "unusable" | "check_failed";
   version: string | null;
@@ -91,7 +104,6 @@ type GitIdentity = { name: string | null; email: string | null };
 
 const THEME_STORAGE_KEY = "gitodrile-theme";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
-const LAST_PROJECT_PATH_STORAGE_KEY = "gitodrile-last-project-path";
 const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
 const APP_VERSION = "0.1.0";
@@ -268,7 +280,12 @@ function CommandPalette({
             onKeyDown={handleKeyDown}
           />
         </div>
-        <ul className="palette-list" id="palette-list" role="listbox">
+        <ul
+          {...autoHideScrollbarProps<HTMLUListElement>()}
+          className="palette-list auto-hide-scrollbar"
+          id="palette-list"
+          role="listbox"
+        >
           {filtered.length === 0 && <li className="palette-empty">{t.paletteNoMatches}</li>}
           {filtered.map((command, index) => (
             <li
@@ -517,7 +534,6 @@ const CATEGORY_LABEL_KEYS = {
 
 function OverviewPanel({
   project,
-  openError,
   isOpening,
   workingTree,
   workingTreeError,
@@ -534,7 +550,11 @@ function OverviewPanel({
   onRetryPendingVersions,
 }: {
   project: RepositoryInfo | null;
-  openError: string | null;
+  /** Only ever drives the *empty*-state's own loading affordance below —
+   * opening another project while one is already active must not make the
+   * active project's own card look like it's the one being (re)opened. Its
+   * failures are reported in a standalone dialog (see `openError` in
+   * `App`), never merged into this project's own status. */
   isOpening: boolean;
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
@@ -564,19 +584,19 @@ function OverviewPanel({
     // later refresh is running.
     const summary = workingTree ? getWorkingTreeSummary(workingTree) : null;
     const breakdown = workingTree ? getWorkingTreeBreakdown(workingTree) : [];
-    const isLoading = isOpening || (isCheckingChanges && !workingTree);
-    const errorMessage = openError ?? (workingTree ? null : workingTreeError);
+    const isLoading = isCheckingChanges && !workingTree;
+    const errorMessage = workingTree ? null : workingTreeError;
 
     let heroStatus: "loading" | "error" | "success" | "attention" | "neutral";
     let heroHeadline: string;
     let heroMessage: string;
     if (isLoading) {
       heroStatus = "loading";
-      heroHeadline = isOpening ? t.overviewOpeningTitle : t.statusCheckingTitle;
-      heroMessage = isOpening ? t.overviewOpeningDescription : t.statusCheckingMessage;
+      heroHeadline = t.statusCheckingTitle;
+      heroMessage = t.statusCheckingMessage;
     } else if (errorMessage) {
       heroStatus = "error";
-      heroHeadline = openError ? t.overviewOpenFailedTitle : t.statusCheckFailedTitle;
+      heroHeadline = t.statusCheckFailedTitle;
       heroMessage = errorMessage;
     } else if (summary) {
       heroStatus = summary.tone === "positive" ? "success" : summary.tone;
@@ -600,7 +620,7 @@ function OverviewPanel({
     }
 
     return (
-      <div className="project-overview" aria-busy={isOpening || isCheckingChanges}>
+      <div className="project-overview" aria-busy={isCheckingChanges}>
         <header className="project-overview__header">
           <div className="project-overview__identity">
             <h1>{project.name}</h1>
@@ -676,7 +696,7 @@ function OverviewPanel({
               className={`${canPublish ? "secondary-button" : "primary-button"} project-hero__action`}
               type="button"
               onClick={onCheckChanges}
-              disabled={isCheckingChanges || isOpening}
+              disabled={isCheckingChanges}
             >
               <RefreshCw
                 aria-hidden="true"
@@ -773,7 +793,6 @@ function OverviewPanel({
       </div>
       <h2>{t.overviewEmptyTitle}</h2>
       <p>{t.overviewEmptyDescription}</p>
-      {openError && <p className="empty-state__error" role="alert">{openError}</p>}
       <div className="empty-state__actions">
         <button className="primary-button" type="button" onClick={onOpenProject} disabled={isOpening}>
           {isOpening ? t.overviewOpening : t.overviewOpenProject}
@@ -1167,45 +1186,133 @@ function ToggleSwitch({
   );
 }
 
-function App(): React.JSX.Element {
+export function App(): React.JSX.Element {
   const { t } = useLanguage();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-  const [viewHistory, setViewHistory] = useState<View[]>(["overview"]);
-  const [viewHistoryIndex, setViewHistoryIndex] = useState(0);
-  const view = viewHistory[viewHistoryIndex];
-
-  const navigateToView = (next: View): void => {
-    if (next === view) {
-      return;
-    }
-    setViewHistory((history) => [...history.slice(0, viewHistoryIndex + 1), next]);
-    setViewHistoryIndex((index) => index + 1);
-  };
-  const goBack = (): void => setViewHistoryIndex((index) => Math.max(0, index - 1));
-  const goForward = (): void => setViewHistoryIndex((index) => Math.min(viewHistory.length - 1, index + 1));
-  const canGoBack = viewHistoryIndex > 0;
-  const canGoForward = viewHistoryIndex < viewHistory.length - 1;
+  const [view, setView] = useState<View>("overview");
   const [theme, setTheme] = useTheme();
   const effectiveTheme = resolveEffectiveTheme(theme);
   const toggleTheme = (): void => setTheme(effectiveTheme === "dark" ? "light" : "dark");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true",
   );
-  const [project, setProject] = useState<RepositoryInfo | null>(null);
-  const [openError, setOpenError] = useState<string | null>(null);
-  const [isOpening, setIsOpening] = useState(false);
-  const [workingTree, setWorkingTree] = useState<WorkingTreeStatus | null>(null);
-  const [workingTreeError, setWorkingTreeError] = useState<string | null>(null);
-  const [isCheckingChanges, setIsCheckingChanges] = useState(false);
-  const [isPublishOpen, setIsPublishOpen] = useState(false);
-  const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
-  const openPublishDialog = (upTo?: string): void => {
-    setPublishUpTo(upTo ?? null);
-    setIsPublishOpen(true);
+  const [sessionsState, dispatchSessions] = useReducer(projectSessionsReducer, initialProjectSessionsState);
+  // Owns the "which response is still current" counter per session. Lives
+  // outside the reducer so a caller can read "the next generation" as a
+  // plain synchronous value before the async status/pending-versions calls
+  // even start (see `checkWorkingTree` below).
+  const statusGenerationsRef = useRef<Record<string, number>>({});
+  const activeSession = sessionsState.activeId ? sessionsState.byId[sessionsState.activeId] : null;
+  const project = activeSession?.project ?? null;
+  const workingTree = activeSession?.workingTree ?? null;
+  const workingTreeError = activeSession?.workingTreeError ?? null;
+  const isCheckingChanges = activeSession?.isCheckingChanges ?? false;
+  const pendingVersions = activeSession?.pendingVersions ?? EMPTY_PENDING_VERSIONS;
+  const pendingVersionsError = activeSession?.pendingVersionsError ?? null;
+  const [projectAnnouncement, setProjectAnnouncement] = useState("");
+  const [storedProjectsOnLaunch] = useState(readStoredProjects);
+  const [hasCompletedSessionRestore, setHasCompletedSessionRestore] = useState(false);
+
+  const navigateToView = (next: View): void => {
+    if (next === view) {
+      return;
+    }
+    if (next !== "settings" && sessionsState.activeId) {
+      dispatchSessions({ type: "navigate", id: sessionsState.activeId, view: next });
+    }
+    setView(next);
   };
-  const [pendingVersions, setPendingVersions] = useState<PendingVersionsResult>(EMPTY_PENDING_VERSIONS);
-  const [pendingVersionsError, setPendingVersionsError] = useState<string | null>(null);
+
+  const goBack = (): void => {
+    if (view === "settings") {
+      setView(activeSession?.lastView ?? "overview");
+      return;
+    }
+    if (!activeSession || activeSession.viewHistoryIndex === 0) {
+      return;
+    }
+    const nextIndex = activeSession.viewHistoryIndex - 1;
+    dispatchSessions({ type: "goBack", id: activeSession.id });
+    setView(activeSession.viewHistory[nextIndex]);
+  };
+
+  const goForward = (): void => {
+    if (
+      view === "settings" ||
+      !activeSession ||
+      activeSession.viewHistoryIndex >= activeSession.viewHistory.length - 1
+    ) {
+      return;
+    }
+    const nextIndex = activeSession.viewHistoryIndex + 1;
+    dispatchSessions({ type: "goForward", id: activeSession.id });
+    setView(activeSession.viewHistory[nextIndex]);
+  };
+
+  const canGoBack =
+    view === "settings" || Boolean(activeSession && activeSession.viewHistoryIndex > 0);
+  const canGoForward =
+    view !== "settings" &&
+    Boolean(
+      activeSession &&
+        activeSession.viewHistoryIndex < activeSession.viewHistory.length - 1,
+    );
+  // The failed-open message and whether its dialog is showing are tracked
+  // separately (rather than deriving visibility from `openError !== null`)
+  // so `useModalFocus` gets a stable setter — see the identical rationale in
+  // `SaveVersionDialog`/`PublishDialog`'s `onCloseRef` comments.
+  const [openError, setOpenError] = useState<string | null>(null);
+  const [openErrorTitle, setOpenErrorTitle] = useState(t.overviewOpenFailedTitle);
+  const [isOpenErrorDialogOpen, setIsOpenErrorDialogOpen] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
+  const [publishDialogSessionId, setPublishDialogSessionId] = useState<string | null>(null);
+  const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
+  const [saveDialogSessionId, setSaveDialogSessionId] = useState<string | null>(null);
+  const publishDialogSession = publishDialogSessionId
+    ? sessionsState.byId[publishDialogSessionId] ?? null
+    : null;
+  // Blocking rather than retargeting an open confirmation/operation is
+  // simpler and safer than reconciling it against a different project mid-
+  // flight (see the "Decisions" section of task 012): switching and closing
+  // the active project are both disabled while either dialog is open.
+  const hasBlockingDialog = publishDialogSessionId !== null || saveDialogSessionId !== null;
+  const showErrorDialog = (title: string, message: string): void => {
+    setOpenErrorTitle(title);
+    setOpenError(message);
+    setIsOpenErrorDialogOpen(true);
+  };
+
+  const startSessionOperation = (
+    kind: "save" | "publish",
+    upTo?: string,
+  ): void => {
+    const session = activeSession;
+    if (!session) {
+      return;
+    }
+    const blocker = getMutationBlocker(sessionsState, session.id);
+    if (blocker) {
+      showErrorDialog(
+        t.projectSwitcherOperationIndicator,
+        t.projectSwitcherMutationBlocked(blocker.project.name),
+      );
+      return;
+    }
+    dispatchSessions({ type: "startOperation", id: session.id, kind });
+    if (kind === "save") {
+      setSaveDialogSessionId(session.id);
+    } else {
+      setPublishUpTo(upTo ?? null);
+      setPublishDialogSessionId(session.id);
+    }
+  };
+
+  const openPublishDialog = (upTo?: string): void => {
+    startSessionOperation("publish", upTo);
+  };
+  const [skippedRestoreCount, setSkippedRestoreCount] = useState(0);
+  const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const [gitDiagnostics, setGitDiagnostics] = useState<GitDiagnostics | null>(null);
   const [isRefreshingGitDiagnostics, setIsRefreshingGitDiagnostics] = useState(false);
   const [gitUpdateStatus, setGitUpdateStatus] = useState<GitUpdateStatus | null>(null);
@@ -1219,11 +1326,39 @@ function App(): React.JSX.Element {
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const aboutDialogRef = useRef<HTMLDivElement>(null);
   const closeConfirmDialogRef = useRef<HTMLDivElement>(null);
+  const openErrorDialogRef = useRef<HTMLDivElement>(null);
   const paletteTriggerRef = useRef<HTMLButtonElement>(null);
   const palettePreviouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useModalFocus(isAboutOpen, aboutDialogRef, setIsAboutOpen);
   useModalFocus(isCloseConfirmOpen, closeConfirmDialogRef, setIsCloseConfirmOpen);
+  useModalFocus(isOpenErrorDialogOpen, openErrorDialogRef, setIsOpenErrorDialogOpen);
+
+  // Whichever path closed the confirmation (Cancel, Escape, or confirming
+  // the close), the target it referred to stops being relevant.
+  useEffect(() => {
+    if (!isCloseConfirmOpen) {
+      setCloseTargetId(null);
+    }
+  }, [isCloseConfirmOpen]);
+
+  // Same idea: once the dialog is gone (Escape, backdrop click, or the
+  // button), the message it was showing stops mattering.
+  useEffect(() => {
+    if (!isOpenErrorDialogOpen) {
+      setOpenError(null);
+    }
+  }, [isOpenErrorDialogOpen]);
+
+  // Only the order, membership, and active id ever reach storage — no diffs,
+  // source contents, credentials, tokens, or raw Git errors (those all live
+  // only in `sessionsState.byId`, which never leaves memory).
+  useEffect(() => {
+    if (!hasCompletedSessionRestore) {
+      return;
+    }
+    writeStoredProjects(projectSessionsStateToStored(sessionsState));
+  }, [hasCompletedSessionRestore, sessionsState.order, sessionsState.activeId]);
 
   const openPalette = (): void => {
     palettePreviouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1278,7 +1413,73 @@ function App(): React.JSX.Element {
     }
   };
 
+  const checkWorkingTree = async (path: string): Promise<void> => {
+    const generation = (statusGenerationsRef.current[path] ?? 0) + 1;
+    statusGenerationsRef.current[path] = generation;
+    dispatchSessions({ type: "startStatusCheck", id: path, generation });
+    try {
+      const status = await invoke<WorkingTreeStatus>("read_working_tree_status", { path });
+      dispatchSessions({
+        type: "applyWorkingTree",
+        id: path,
+        generation,
+        workingTree: status,
+      });
+    } catch (error) {
+      // Keep the last known status visible; the card reports the failure only
+      // when it has nothing truthful to show instead.
+      dispatchSessions({
+        type: "applyWorkingTreeError",
+        id: path,
+        generation,
+        error: localizeAppError(error, t, t.statusCouldntCheck),
+      });
+    }
+    // Independent of the status outcome above: a failure here must never
+    // blank out or corrupt the primary working-tree status. Guarded by the
+    // same generation as the status call above so a superseded refresh's
+    // pending-versions result can't land after a newer one either.
+    try {
+      const result = await invoke<PendingVersionsResult>("list_unpublished_versions", { path });
+      dispatchSessions({ type: "applyPendingVersions", id: path, generation, result });
+    } catch (error) {
+      dispatchSessions({
+        type: "applyPendingVersionsError",
+        id: path,
+        generation,
+        error: localizeAppError(error, t, t.overviewPendingVersionsError),
+      });
+    }
+  };
+
+  // Switching or opening a project moves the visible screen to whatever that
+  // session was last showing — unless the user is currently in Settings,
+  // which is application-wide and stays exactly where it is regardless of
+  // which project is active underneath it.
+  const syncViewToSession = (targetLastView: ProjectView): void => {
+    if (view !== "settings" && view !== targetLastView) {
+      setView(targetLastView);
+    }
+  };
+
+  const activateSession = (id: string): void => {
+    if (hasBlockingDialog || id === sessionsState.activeId) {
+      return;
+    }
+    const target = sessionsState.byId[id];
+    if (!target) {
+      return;
+    }
+    dispatchSessions({ type: "activate", id });
+    syncViewToSession(target.lastView);
+    setProjectAnnouncement(t.projectSwitcherActiveAnnouncement(target.project.name));
+    void checkWorkingTree(target.project.path);
+  };
+
   const handleOpenProject = async (): Promise<void> => {
+    if (hasBlockingDialog) {
+      return;
+    }
     setOpenError(null);
     try {
       const selected = await openFolderDialog({ directory: true, multiple: false, title: t.overviewOpenDialogTitle });
@@ -1287,28 +1488,78 @@ function App(): React.JSX.Element {
       }
       setIsOpening(true);
       const info = await invoke<RepositoryInfo>("open_repository", { path: selected });
-      setProject(info);
-      localStorage.setItem(LAST_PROJECT_PATH_STORAGE_KEY, info.path);
+      // Opening an already-open worktree activates it instead of duplicating
+      // it — `existing` is read before dispatching so its (possibly stale)
+      // `lastView` is available for `syncViewToSession` below.
+      const existing = sessionsState.byId[info.path];
+      dispatchSessions({ type: "open", project: info });
+      syncViewToSession(existing?.lastView ?? "overview");
+      setProjectAnnouncement(t.projectSwitcherActiveAnnouncement(info.name));
+      if (!existing) {
+        void checkWorkingTree(info.path);
+      }
     } catch (error) {
-      setOpenError(localizeAppError(error, t, t.overviewCouldntOpenFolder));
+      // Opening failures belong only to the attempted path; existing
+      // sessions are never touched by a failed `open_repository` call. When
+      // a project is already active, this is reported in its own dialog
+      // rather than inside that project's Overview card — otherwise it
+      // would read as if the *active* project were the one that failed.
+      showErrorDialog(
+        t.overviewOpenFailedTitle,
+        localizeAppError(error, t, t.overviewCouldntOpenFolder),
+      );
     } finally {
       setIsOpening(false);
     }
   };
 
+  // Restores the previous session's open projects exactly once, on launch.
+  // Every stored path is revalidated through `open_repository` in order; one
+  // that's missing, unreadable, or no longer a repository is skipped without
+  // blocking the rest, and only a count of skipped projects is surfaced —
+  // never the raw Git error.
   useEffect(() => {
     if (!reopenLastProject) {
+      setHasCompletedSessionRestore(true);
       return;
     }
-    const lastPath = localStorage.getItem(LAST_PROJECT_PATH_STORAGE_KEY);
-    if (!lastPath) {
+    const stored = storedProjectsOnLaunch;
+    if (stored.order.length === 0) {
+      setHasCompletedSessionRestore(true);
       return;
     }
-    invoke<RepositoryInfo>("open_repository", { path: lastPath })
-      .then(setProject)
-      .catch(() => localStorage.removeItem(LAST_PROJECT_PATH_STORAGE_KEY));
+    let cancelled = false;
+    void (async () => {
+      let skipped = 0;
+      for (const path of stored.order) {
+        if (cancelled) {
+          return;
+        }
+        try {
+          const info = await invoke<RepositoryInfo>("open_repository", { path });
+          dispatchSessions({ type: "open", project: info });
+          void checkWorkingTree(info.path);
+        } catch {
+          skipped += 1;
+        }
+      }
+      if (cancelled) {
+        return;
+      }
+      if (stored.activeId) {
+        dispatchSessions({ type: "activate", id: stored.activeId });
+      }
+      if (skipped > 0) {
+        setSkippedRestoreCount(skipped);
+      }
+      setHasCompletedSessionRestore(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // Only ever run once, on launch — reopenLastProject changing later
-    // shouldn't retrigger an auto-open mid-session.
+    // shouldn't retroactively restore or discard anything mid-session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const projectPath = project?.path ?? null;
@@ -1325,42 +1576,6 @@ function App(): React.JSX.Element {
       (pendingVersions.totalCount > 0 || pendingVersionsError),
   );
 
-  const checkWorkingTree = async (path: string): Promise<void> => {
-    setIsCheckingChanges(true);
-    try {
-      const status = await invoke<WorkingTreeStatus>("read_working_tree_status", { path });
-      setWorkingTree(status);
-      setWorkingTreeError(null);
-    } catch (error) {
-      // Keep the last known status visible; the card reports the failure only
-      // when it has nothing truthful to show instead.
-      setWorkingTreeError(localizeAppError(error, t, t.statusCouldntCheck));
-    } finally {
-      setIsCheckingChanges(false);
-    }
-    // Independent of the status outcome above: a failure here must never
-    // blank out or corrupt the primary working-tree status.
-    try {
-      setPendingVersions(await invoke<PendingVersionsResult>("list_unpublished_versions", { path }));
-      setPendingVersionsError(null);
-    } catch (error) {
-      setPendingVersionsError(localizeAppError(error, t, t.overviewPendingVersionsError));
-    }
-  };
-
-  // Never asks for a status when no project is open, and re-reads whenever the
-  // opened project changes.
-  useEffect(() => {
-    setWorkingTree(null);
-    setWorkingTreeError(null);
-    setPendingVersions(EMPTY_PENDING_VERSIONS);
-    setPendingVersionsError(null);
-    if (!projectPath) {
-      return;
-    }
-    void checkWorkingTree(projectPath);
-  }, [projectPath]);
-
   // The Changes screen only exists for an opened project; if the project
   // closes while it is showing, leave immediately rather than rendering it
   // against a project that is no longer open.
@@ -1370,17 +1585,55 @@ function App(): React.JSX.Element {
     }
   }, [view, project]);
 
-  const closeProject = (): void => {
-    setProject(null);
-    localStorage.removeItem(LAST_PROJECT_PATH_STORAGE_KEY);
+  const performCloseSession = (id: string): void => {
+    const index = sessionsState.order.indexOf(id);
+    const remainingOrder = sessionsState.order.filter((sessionId) => sessionId !== id);
+    const nextActiveId =
+      sessionsState.activeId === id && remainingOrder.length > 0
+        ? remainingOrder[Math.min(index, remainingOrder.length - 1)]
+        : sessionsState.activeId;
+    const nextSession = nextActiveId ? sessionsState.byId[nextActiveId] : null;
+    dispatchSessions({ type: "close", id });
+    if (sessionsState.activeId === id && view !== "settings") {
+      setView(nextSession?.lastView ?? "overview");
+      if (nextSession) {
+        setProjectAnnouncement(
+          t.projectSwitcherActiveAnnouncement(nextSession.project.name),
+        );
+      }
+    }
     setIsCloseConfirmOpen(false);
   };
 
-  const requestCloseProject = (): void => {
+  const requestCloseSession = (id: string): void => {
+    const session = sessionsState.byId[id];
+    if (!session) {
+      return;
+    }
+    if (
+      session.operation?.phase === "executing" ||
+      session.operation?.phase === "verifying"
+    ) {
+      showErrorDialog(
+        t.projectSwitcherOperationIndicator,
+        t.projectSwitcherCloseBlocked(session.project.name),
+      );
+      return;
+    }
+    if (id === sessionsState.activeId && hasBlockingDialog) {
+      return;
+    }
     if (confirmCloseProject) {
+      setCloseTargetId(id);
       setIsCloseConfirmOpen(true);
     } else {
-      closeProject();
+      performCloseSession(id);
+    }
+  };
+
+  const requestCloseActiveProject = (): void => {
+    if (sessionsState.activeId) {
+      requestCloseSession(sessionsState.activeId);
     }
   };
 
@@ -1389,20 +1642,55 @@ function App(): React.JSX.Element {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         openPalette();
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === "Tab") {
+        // Never captured while the user is typing — Ctrl/Cmd+Tab still
+        // reaches whatever native behavior applies inside a text field.
+        const target = event.target as HTMLElement | null;
+        if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) {
+          return;
+        }
+        if (hasBlockingDialog || sessionsState.order.length < 2) {
+          return;
+        }
+        event.preventDefault();
+        const currentIndex = sessionsState.activeId ? sessionsState.order.indexOf(sessionsState.activeId) : -1;
+        const delta = event.shiftKey ? -1 : 1;
+        const nextIndex = (currentIndex + delta + sessionsState.order.length) % sessionsState.order.length;
+        activateSession(sessionsState.order[nextIndex]);
       }
     };
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
+  }, [sessionsState, hasBlockingDialog, view]);
 
   const commands: Command[] = [
     { id: "go-overview", label: t.commandGoOverview, action: () => navigateToView("overview") },
     ...(project ? [{ id: "go-changes", label: t.navChanges, action: () => navigateToView("changes") }] : []),
     { id: "go-settings", label: t.commandGoSettings, action: () => navigateToView("settings") },
-    ...(project
-      ? [{ id: "close-project", label: t.overviewCloseProject, action: requestCloseProject }]
-      : [{ id: "open-project", label: t.overviewOpenProject, action: () => void handleOpenProject() }]),
+    ...(!hasBlockingDialog
+      ? [
+          {
+            id: "open-project",
+            label: project ? t.overviewOpenAnotherProject : t.overviewOpenProject,
+            action: () => void handleOpenProject(),
+          },
+        ]
+      : []),
+    ...(project && !hasBlockingDialog
+      ? [{ id: "close-project", label: t.commandCloseActiveProject, action: requestCloseActiveProject }]
+      : []),
+    ...(!hasBlockingDialog
+      ? sessionsState.order
+          .filter((id) => id !== sessionsState.activeId)
+          .map((id) => ({
+            id: `switch-${id}`,
+            label: t.commandSwitchToProject(sessionsState.byId[id].project.name),
+            action: () => activateSession(id),
+          }))
+      : []),
     { id: "theme-system", label: t.commandUseSystemTheme, action: () => setTheme("system") },
     { id: "theme-light", label: t.commandUseLightTheme, action: () => setTheme("light") },
     { id: "theme-dark", label: t.commandUseDarkTheme, action: () => setTheme("dark") },
@@ -1413,6 +1701,33 @@ function App(): React.JSX.Element {
     },
     { id: "about", label: t.aboutGitOdrile, action: () => setIsAboutOpen(true) },
   ];
+
+  const projectNameCounts = sessionsState.order.reduce<Record<string, number>>((counts, id) => {
+    const name = sessionsState.byId[id].project.name.toLocaleLowerCase();
+    counts[name] = (counts[name] ?? 0) + 1;
+    return counts;
+  }, {});
+  const switcherEntries: ProjectSwitcherEntry[] = sessionsState.order.map((id) => {
+    const session = sessionsState.byId[id];
+    const normalizedPath = session.project.path.replaceAll("\\", "/").replace(/\/+$/, "");
+    const pathParts = normalizedPath.split("/");
+    return {
+      id,
+      name: session.project.name,
+      contextLabel:
+        projectNameCounts[session.project.name.toLocaleLowerCase()] > 1
+          ? pathParts.at(-2) ?? normalizedPath
+          : null,
+      hasError: Boolean(session.workingTreeError || session.pendingVersionsError),
+      hasOperationInProgress: Boolean(
+        session.operation &&
+          session.operation.phase !== "error" &&
+          session.operation.phase !== "success",
+      ),
+      hasUnsavedChanges: Boolean(session.workingTree && !session.workingTree.isClean),
+    };
+  });
+  const closeTargetSession = closeTargetId ? sessionsState.byId[closeTargetId] : null;
 
   const appWindow = "__TAURI_INTERNALS__" in window
     ? getCurrentWindow()
@@ -1454,6 +1769,9 @@ function App(): React.JSX.Element {
 
   return (
     <div className="app-window">
+      <span className="visually-hidden" role="status" aria-live="polite">
+        {projectAnnouncement}
+      </span>
       <header className="window-titlebar">
         <div className="window-titlebar__brand" data-tauri-drag-region>
           <span className="window-titlebar__mark" aria-hidden="true">{CROCODILE_MARK}</span>
@@ -1556,6 +1874,86 @@ function App(): React.JSX.Element {
                 </div>
               )}
             </div>
+          </div>
+
+          <div
+            {...autoHideScrollbarProps<HTMLDivElement>()}
+            className="sidebar-scroll auto-hide-scrollbar"
+          >
+            <nav aria-label={t.navProjectAriaLabel}>
+              <button
+                className={`nav-item${view === "overview" ? " nav-item--active" : ""}`}
+                type="button"
+                aria-current={view === "overview" ? "page" : undefined}
+                title={t.navOverview}
+                onClick={() => navigateToView("overview")}
+              >
+                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.overview}</span>
+                <span className="nav-item__label">{t.navOverview}</span>
+              </button>
+              <button
+                className={`nav-item${view === "changes" ? " nav-item--active" : ""}`}
+                type="button"
+                disabled={!project}
+                aria-current={view === "changes" ? "page" : undefined}
+                title={project ? t.navChanges : t.navChangesTitle}
+                onClick={() => navigateToView("changes")}
+              >
+                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.changes}</span>
+                <span className="nav-item__label">{t.navChanges}</span>
+              </button>
+              <button className="nav-item" type="button" disabled title={t.navHistoryTitle}>
+                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.history}</span>
+                <span className="nav-item__label">{t.navHistory}</span>
+                <span className="nav-item__availability">{t.navComingSoon}</span>
+              </button>
+              <button className="nav-item" type="button" disabled title={t.navRecoveryTitle}>
+                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.recovery}</span>
+                <span className="nav-item__label">{t.navRecovery}</span>
+                <span className="nav-item__availability">{t.navComingSoon}</span>
+              </button>
+            </nav>
+
+            <div className="sidebar-divider" aria-hidden="true" />
+
+            {isSidebarCollapsed ? (
+              <ProjectSwitcherIcons
+                entries={switcherEntries}
+                activeId={sessionsState.activeId}
+                canSwitch={!hasBlockingDialog}
+                isOpening={isOpening}
+                onActivate={activateSession}
+                onClose={requestCloseSession}
+                onOpenAnother={() => void handleOpenProject()}
+              />
+            ) : (
+              <ProjectSwitcher
+                entries={switcherEntries}
+                activeId={sessionsState.activeId}
+                canSwitch={!hasBlockingDialog}
+                isOpening={isOpening}
+                onActivate={activateSession}
+                onClose={requestCloseSession}
+                onOpenAnother={() => void handleOpenProject()}
+              />
+            )}
+          </div>
+
+          <div className="sidebar-divider" aria-hidden="true" />
+
+          <div className="sidebar-footer">
+            <nav aria-label={t.navApplicationAriaLabel} className="nav--secondary">
+              <button
+                className={`nav-item${view === "settings" ? " nav-item--active" : ""}`}
+                type="button"
+                aria-current={view === "settings" ? "page" : undefined}
+                title={t.navSettings}
+                onClick={() => navigateToView("settings")}
+              >
+                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.settings}</span>
+                <span className="nav-item__label">{t.navSettings}</span>
+              </button>
+            </nav>
             <button
               className="sidebar-toggle"
               type="button"
@@ -1566,97 +1964,99 @@ function App(): React.JSX.Element {
               <span aria-hidden="true">{isSidebarCollapsed ? NAV_ICONS.expand : NAV_ICONS.collapse}</span>
             </button>
           </div>
-
-          <nav aria-label={t.navProjectAriaLabel}>
-            <button
-              className={`nav-item${view === "overview" ? " nav-item--active" : ""}`}
-              type="button"
-              aria-current={view === "overview" ? "page" : undefined}
-              title={t.navOverview}
-              onClick={() => navigateToView("overview")}
-            >
-              <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.overview}</span>
-              <span className="nav-item__label">{t.navOverview}</span>
-            </button>
-            <button
-              className={`nav-item${view === "changes" ? " nav-item--active" : ""}`}
-              type="button"
-              disabled={!project}
-              aria-current={view === "changes" ? "page" : undefined}
-              title={project ? t.navChanges : t.navChangesTitle}
-              onClick={() => navigateToView("changes")}
-            >
-              <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.changes}</span>
-              <span className="nav-item__label">{t.navChanges}</span>
-            </button>
-            <button className="nav-item" type="button" disabled title={t.navHistoryTitle}>
-              <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.history}</span>
-              <span className="nav-item__label">{t.navHistory}</span>
-              <span className="nav-item__availability">{t.navComingSoon}</span>
-            </button>
-            <button className="nav-item" type="button" disabled title={t.navRecoveryTitle}>
-              <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.recovery}</span>
-              <span className="nav-item__label">{t.navRecovery}</span>
-              <span className="nav-item__availability">{t.navComingSoon}</span>
-            </button>
-          </nav>
-
-          <nav aria-label={t.navApplicationAriaLabel} className="nav--secondary">
-            <button
-              className={`nav-item${view === "settings" ? " nav-item--active" : ""}`}
-              type="button"
-              aria-current={view === "settings" ? "page" : undefined}
-              title={t.navSettings}
-              onClick={() => navigateToView("settings")}
-            >
-              <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.settings}</span>
-              <span className="nav-item__label">{t.navSettings}</span>
-            </button>
-          </nav>
         </aside>
 
-        <section className={`workspace${view === "changes" ? " workspace--changes" : ""}`}>
-          <nav className="compact-nav" aria-label={t.navApplicationAriaLabel}>
-            <button
-              className={`compact-nav__item${view === "overview" ? " compact-nav__item--active" : ""}`}
-              type="button"
-              aria-current={view === "overview" ? "page" : undefined}
-              onClick={() => navigateToView("overview")}
-            >
-              <span aria-hidden="true">{NAV_ICONS.overview}</span>
-              {t.navOverview}
-            </button>
-            {project && (
+        <section
+          {...autoHideScrollbarProps<HTMLElement>()}
+          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}`}
+        >
+          <div className="compact-nav-row">
+            <ProjectSwitcherCompact
+              entries={switcherEntries}
+              activeId={sessionsState.activeId}
+              canSwitch={!hasBlockingDialog}
+              isOpening={isOpening}
+              onActivate={activateSession}
+              onClose={requestCloseSession}
+              onOpenAnother={() => void handleOpenProject()}
+            />
+            <div className="compact-history-controls" aria-label={t.titlebarHistoryControls}>
               <button
-                className={`compact-nav__item${view === "changes" ? " compact-nav__item--active" : ""}`}
+                className="titlebar-icon-button"
                 type="button"
-                aria-current={view === "changes" ? "page" : undefined}
-                onClick={() => navigateToView("changes")}
+                disabled={!canGoBack}
+                title={t.titlebarGoBack}
+                aria-label={t.titlebarGoBack}
+                onClick={goBack}
               >
-                <span aria-hidden="true">{NAV_ICONS.changes}</span>
-                {t.navChanges}
+                <ChevronLeft aria-hidden="true" />
               </button>
-            )}
-            <button
-              className={`compact-nav__item${view === "settings" ? " compact-nav__item--active" : ""}`}
-              type="button"
-              aria-current={view === "settings" ? "page" : undefined}
-              onClick={() => navigateToView("settings")}
-            >
-              <span aria-hidden="true">{NAV_ICONS.settings}</span>
-              {t.navSettings}
-            </button>
-          </nav>
+              <button
+                className="titlebar-icon-button"
+                type="button"
+                disabled={!canGoForward}
+                title={t.titlebarGoForward}
+                aria-label={t.titlebarGoForward}
+                onClick={goForward}
+              >
+                <ChevronRight aria-hidden="true" />
+              </button>
+            </div>
+            <nav className="compact-nav" aria-label={t.navApplicationAriaLabel}>
+              <button
+                className={`compact-nav__item${view === "overview" ? " compact-nav__item--active" : ""}`}
+                type="button"
+                aria-current={view === "overview" ? "page" : undefined}
+                onClick={() => navigateToView("overview")}
+              >
+                <span aria-hidden="true">{NAV_ICONS.overview}</span>
+                {t.navOverview}
+              </button>
+              {project && (
+                <button
+                  className={`compact-nav__item${view === "changes" ? " compact-nav__item--active" : ""}`}
+                  type="button"
+                  aria-current={view === "changes" ? "page" : undefined}
+                  onClick={() => navigateToView("changes")}
+                >
+                  <span aria-hidden="true">{NAV_ICONS.changes}</span>
+                  {t.navChanges}
+                </button>
+              )}
+              <button
+                className={`compact-nav__item${view === "settings" ? " compact-nav__item--active" : ""}`}
+                type="button"
+                aria-current={view === "settings" ? "page" : undefined}
+                onClick={() => navigateToView("settings")}
+              >
+                <span aria-hidden="true">{NAV_ICONS.settings}</span>
+                {t.navSettings}
+              </button>
+            </nav>
+          </div>
           {(view === "settings" || (view === "overview" && !project)) && (
             <header className="topbar">
               <h1>{view === "settings" ? t.navSettings : t.navOverview}</h1>
             </header>
           )}
 
+          {view === "overview" && skippedRestoreCount > 0 && (
+            <p className="restore-skipped-notice" role="status">
+              <span>{t.startupRestoreSkippedNotice(skippedRestoreCount)}</span>
+              <button
+                type="button"
+                aria-label={t.commonClose}
+                title={t.commonClose}
+                onClick={() => setSkippedRestoreCount(0)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </p>
+          )}
+
           {view === "overview" ? (
             <OverviewPanel
               project={project}
-              openError={openError}
               isOpening={isOpening}
               workingTree={workingTree}
               workingTreeError={workingTreeError}
@@ -1664,7 +2064,7 @@ function App(): React.JSX.Element {
               onCheckChanges={() => projectPath && void checkWorkingTree(projectPath)}
               onReviewChanges={() => navigateToView("changes")}
               onOpenProject={() => void handleOpenProject()}
-              onCloseProject={requestCloseProject}
+              onCloseProject={requestCloseActiveProject}
               canPublish={canPublish}
               onPublish={() => openPublishDialog()}
               onPublishUpTo={(commit) => openPublishDialog(commit)}
@@ -1682,6 +2082,32 @@ function App(): React.JSX.Element {
                 onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
                 onNavigateOverview={() => navigateToView("overview")}
                 onPublishNow={() => openPublishDialog()}
+                selectedPath={activeSession?.changesSelection.selectedPath ?? null}
+                onSelectedPathChange={(selectedPath) =>
+                  sessionsState.activeId &&
+                  dispatchSessions({
+                    type: "setChangesSelection",
+                    id: sessionsState.activeId,
+                    selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
+                  })
+                }
+                isSaveVersionOpen={saveDialogSessionId === sessionsState.activeId}
+                onOpenSaveVersion={() => startSessionOperation("save")}
+                onCloseSaveVersion={() => {
+                  if (saveDialogSessionId) {
+                    dispatchSessions({ type: "finishOperation", id: saveDialogSessionId });
+                  }
+                  setSaveDialogSessionId(null);
+                }}
+                onSaveVersionPhaseChange={(phase) => {
+                  if (saveDialogSessionId) {
+                    dispatchSessions({
+                      type: "setOperationPhase",
+                      id: saveDialogSessionId,
+                      phase,
+                    });
+                  }
+                }}
               />
             </Suspense>
           ) : (
@@ -1706,14 +2132,24 @@ function App(): React.JSX.Element {
 
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
 
-      {project && (
+      {publishDialogSession && (
         <Suspense fallback={null}>
           <PublishDialog
-            isOpen={isPublishOpen}
-            projectPath={project.path}
+            isOpen
+            projectPath={publishDialogSession.project.path}
             upTo={publishUpTo ?? undefined}
-            onClose={() => setIsPublishOpen(false)}
-            onPublished={() => checkWorkingTree(project.path)}
+            onClose={() => {
+              dispatchSessions({ type: "finishOperation", id: publishDialogSession.id });
+              setPublishDialogSessionId(null);
+            }}
+            onPublished={() => checkWorkingTree(publishDialogSession.project.path)}
+            onPhaseChange={(phase) =>
+              dispatchSessions({
+                type: "setOperationPhase",
+                id: publishDialogSession.id,
+                phase,
+              })
+            }
           />
         </Suspense>
       )}
@@ -1762,13 +2198,41 @@ function App(): React.JSX.Element {
             onMouseDown={(event) => event.stopPropagation()}
           >
             <h2 id="close-confirm-title">{t.closeConfirmTitle}</h2>
-            <p>{project ? t.closeConfirmBodyNamed(project.name) : t.closeConfirmBodyGeneric}</p>
+            <p>
+              {closeTargetSession ? t.closeConfirmBodyNamed(closeTargetSession.project.name) : t.closeConfirmBodyGeneric}
+            </p>
             <div className="dialog-actions">
               <button className="secondary-button" type="button" onClick={() => setIsCloseConfirmOpen(false)}>
                 {t.commonCancel}
               </button>
-              <button className="primary-button" type="button" onClick={closeProject}>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => closeTargetId && performCloseSession(closeTargetId)}
+              >
                 {t.overviewCloseProject}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isOpenErrorDialogOpen && openError && (
+        <div className="about-backdrop" role="presentation" onMouseDown={() => setIsOpenErrorDialogOpen(false)}>
+          <div
+            ref={openErrorDialogRef}
+            className="about-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="open-error-title"
+            tabIndex={-1}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <h2 id="open-error-title">{openErrorTitle}</h2>
+            <p role="alert">{openError}</p>
+            <div className="dialog-actions">
+              <button className="primary-button" type="button" onClick={() => setIsOpenErrorDialogOpen(false)}>
+                {t.commonClose}
               </button>
             </div>
           </div>
@@ -1780,13 +2244,16 @@ function App(): React.JSX.Element {
 
 document.addEventListener("contextmenu", (event) => event.preventDefault());
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <LanguageProvider>
-      <App />
-    </LanguageProvider>
-  </React.StrictMode>,
-);
+const rootElement = document.getElementById("root");
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>
+    </React.StrictMode>,
+  );
+}
 
 // The main window starts hidden (see `tauri.conf.json`) so it never shows a
 // blank frame while the webview loads. Two rAFs guarantee the browser has

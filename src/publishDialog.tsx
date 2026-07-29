@@ -4,6 +4,7 @@ import { ChevronDown, CircleAlert, LoaderCircle, Send } from "lucide-react";
 import { useLanguage, type Translations } from "./i18n";
 import { localizeAppError, isAppError } from "./appError";
 import { useModalFocus } from "./modalFocus";
+import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { CATEGORY_ICONS } from "./changes";
 import { getFileTypeIcon } from "./fileIcons";
 import type { CommitFileChange, PublishPlan, PublishResult, RemoteDiscovery, RemoteInfo } from "./publish";
@@ -104,22 +105,26 @@ function PublishSummary({
       <section className="publish-plan__section" aria-labelledby="publish-included-heading">
         <h3 id="publish-included-heading">{t.publishWillPublishLabel}</h3>
         <p>{t.publishCommitCount(plan.commitCount)}</p>
-      {plan.commitSummary.length > 0 && (
-        <ul className="publish-commit-list" aria-label={t.publishCommitListLabel}>
-          {plan.commitSummary.map((entry) => (
-            <li key={entry.commit} className="publish-commit-list__item">
-              <details onToggle={(event) => handleToggle(entry.commit, event.currentTarget.open)}>
-                <summary className="publish-commit-list__summary">
-                  <ChevronDown aria-hidden="true" className="publish-commit-list__chevron" />
-                  <span className="publish-commit-list__description">{entry.description}</span>
-                  <code className="publish-commit-list__hash">{entry.shortCommit}</code>
-                </summary>
-                <CommitFilesPanel files={fileChanges[entry.commit]} t={t} />
-              </details>
-            </li>
-          ))}
-        </ul>
-      )}
+        {plan.commitSummary.length > 0 && (
+          <ul
+            {...autoHideScrollbarProps<HTMLUListElement>()}
+            className="publish-commit-list auto-hide-scrollbar"
+            aria-label={t.publishCommitListLabel}
+          >
+            {plan.commitSummary.map((entry) => (
+              <li key={entry.commit} className="publish-commit-list__item">
+                <details onToggle={(event) => handleToggle(entry.commit, event.currentTarget.open)}>
+                  <summary className="publish-commit-list__summary">
+                    <ChevronDown aria-hidden="true" className="publish-commit-list__chevron" />
+                    <span className="publish-commit-list__description">{entry.description}</span>
+                    <code className="publish-commit-list__hash">{entry.shortCommit}</code>
+                  </summary>
+                  <CommitFilesPanel files={fileChanges[entry.commit]} t={t} />
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
       {(plan.hasUnsavedFiles || plan.remainingAfterPublish > 0) && (
         <section className="publish-plan__section" aria-labelledby="publish-stays-heading">
@@ -162,7 +167,12 @@ function FailureDetail({ error, t }: { error: unknown; t: Translations }): React
       {expanded && (
         <div>
           <p className="save-version-detail__heading">{t.saveVersionDetailHeading}</p>
-          <pre className="save-version-detail__body">{error.detail}</pre>
+          <pre
+            {...autoHideScrollbarProps<HTMLPreElement>()}
+            className="save-version-detail__body auto-hide-scrollbar"
+          >
+            {error.detail}
+          </pre>
         </div>
       )}
     </div>
@@ -175,6 +185,7 @@ export function PublishDialog({
   upTo,
   onClose,
   onPublished,
+  onPhaseChange,
 }: {
   isOpen: boolean;
   projectPath: string;
@@ -184,6 +195,9 @@ export function PublishDialog({
   upTo?: string;
   onClose: () => void;
   onPublished: () => Promise<void>;
+  onPhaseChange?: (
+    phase: "planning" | "executing" | "verifying" | "uncertain" | "error" | "success"
+  ) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -195,8 +209,10 @@ export function PublishDialog({
   // identity stable across renders so `useModalFocus`'s effect doesn't tear
   // down and reinstall its keydown listener on every state change.
   const onCloseRef = useRef(onClose);
+  const onPhaseChangeRef = useRef(onPhaseChange);
   const isBusyRef = useRef(false);
   onCloseRef.current = onClose;
+  onPhaseChangeRef.current = onPhaseChange;
   const setOpenState = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((next) => {
     const value = typeof next === "function" ? (next as (previous: boolean) => boolean)(true) : next;
     if (!value && !isBusyRef.current) {
@@ -219,6 +235,7 @@ export function PublishDialog({
       return undefined;
     }
     let cancelled = false;
+    onPhaseChangeRef.current?.("planning");
     setState({ status: "loading" });
     invoke<PublishPlan>("plan_publish", { path: projectPath, remote: selectedRemote ?? undefined, upTo })
       .then((plan) => {
@@ -257,18 +274,23 @@ export function PublishDialog({
 
   const plan = "plan" in state ? state.plan : null;
   const isFirstPublish = plan?.willCreateUpstream ?? false;
+  const isUncertain =
+    state.status === "publish-error" &&
+    isAppError(state.error) &&
+    state.error.code === "publish_uncertain";
   const isBusy = state.status === "submitting" || state.status === "verifying";
-  isBusyRef.current = isBusy;
+  isBusyRef.current = isBusy || isUncertain;
   const isStalePlan =
     state.status === "publish-error" && isAppError(state.error) && state.error.code === "stale_publish_plan";
 
   function requestClose(): void {
-    if (!isBusy) {
+    if (!isBusy && !isUncertain) {
       onClose();
     }
   }
 
   function handleReplan(): void {
+    onPhaseChangeRef.current?.("planning");
     setState({ status: "loading" });
     setRetryToken((token) => token + 1);
   }
@@ -278,6 +300,7 @@ export function PublishDialog({
       return;
     }
     setState({ status: "submitting", plan });
+    onPhaseChangeRef.current?.("executing");
     invoke<PublishResult>("publish", {
       path: projectPath,
       remote: plan.target.remote,
@@ -286,19 +309,25 @@ export function PublishDialog({
     })
       .then(async (result) => {
         setState({ status: "verifying", plan, result });
+        onPhaseChangeRef.current?.("verifying");
         await onPublished();
         setState({ status: "success", result });
+        onPhaseChangeRef.current?.("success");
       })
       .catch((error: unknown) => {
         setState({ status: "publish-error", plan, error });
+        onPhaseChangeRef.current?.(
+          isAppError(error) && error.code === "publish_uncertain" ? "uncertain" : "error",
+        );
       });
   }
 
   return (
     <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
       <div
+        {...autoHideScrollbarProps<HTMLDivElement>()}
         ref={dialogRef}
-        className="save-version-dialog publish-dialog"
+        className="save-version-dialog publish-dialog auto-hide-scrollbar"
         role="dialog"
         aria-modal="true"
         aria-labelledby="publish-dialog-title"
@@ -387,13 +416,18 @@ export function PublishDialog({
             )}
 
             <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={requestClose}
+                disabled={isBusy || isUncertain}
+              >
                 {t.commonCancel}
               </button>
               <button
                 className="primary-button"
                 type="button"
-                onClick={isStalePlan ? handleReplan : handleConfirm}
+                onClick={isStalePlan || isUncertain ? handleReplan : handleConfirm}
                 disabled={isBusy}
               >
                 {isBusy ? (
@@ -404,7 +438,11 @@ export function PublishDialog({
                 ) : (
                   <>
                     <Send aria-hidden="true" />
-                    {isStalePlan ? t.publishReviewUpdatedPlan : t.publishConfirm}
+                    {isUncertain
+                      ? t.publishCheckRemoteAgain
+                      : isStalePlan
+                        ? t.publishReviewUpdatedPlan
+                        : t.publishConfirm}
                   </>
                 )}
               </button>
