@@ -5325,29 +5325,22 @@ mod tests {
 
         // A merge conflict is the point of this test: ignore the (expected
         // nonzero) result and inspect the conflicted worktree state instead.
+        // An explicit identity is required here too: a clean (non-conflicting)
+        // merge would need to auto-commit, and Git checks committer identity
+        // before attempting the merge at all, aborting the whole operation
+        // untouched on a machine with no configured identity (e.g. CI runners).
         let _ = git_command(&path)
-            .args(["merge", "-q", "--no-edit", "feature"])
+            .args([
+                "-c",
+                "user.name=GitOdrile Test",
+                "-c",
+                "user.email=test@gitodrile.local",
+                "merge",
+                "-q",
+                "--no-edit",
+                "feature",
+            ])
             .status();
-
-        // TEMP DIAGNOSTIC: dump repo state to see why CI sometimes reports no
-        // conflict here. Remove once the root cause is confirmed.
-        let log = git_command(&path)
-            .args(["log", "--oneline", "--all", "--graph"])
-            .output()
-            .expect("git log");
-        eprintln!("DIAG log:\n{}", String::from_utf8_lossy(&log.stdout));
-        let git_status = git_command(&path)
-            .args(["status"])
-            .output()
-            .expect("git status");
-        eprintln!(
-            "DIAG status:\n{}",
-            String::from_utf8_lossy(&git_status.stdout)
-        );
-        eprintln!(
-            "DIAG file.txt:\n{:?}",
-            fs::read_to_string(Path::new(&path).join("file.txt"))
-        );
 
         let diff =
             read_file_diff(path.clone(), "file.txt".to_string()).expect("diff should succeed");
@@ -5554,29 +5547,22 @@ mod tests {
 
         // A merge conflict is the point of this test: ignore the (expected
         // nonzero) result and inspect the conflicted status afterward.
+        // An explicit identity is required here too: a clean (non-conflicting)
+        // merge would need to auto-commit, and Git checks committer identity
+        // before attempting the merge at all, aborting the whole operation
+        // untouched on a machine with no configured identity (e.g. CI runners).
         let _ = git_command(&path)
-            .args(["merge", "-q", "--no-edit", "feature"])
+            .args([
+                "-c",
+                "user.name=GitOdrile Test",
+                "-c",
+                "user.email=test@gitodrile.local",
+                "merge",
+                "-q",
+                "--no-edit",
+                "feature",
+            ])
             .status();
-
-        // TEMP DIAGNOSTIC: dump repo state to see why CI sometimes reports no
-        // conflict here. Remove once the root cause is confirmed.
-        let log = git_command(&path)
-            .args(["log", "--oneline", "--all", "--graph"])
-            .output()
-            .expect("git log");
-        eprintln!("DIAG log:\n{}", String::from_utf8_lossy(&log.stdout));
-        let git_status = git_command(&path)
-            .args(["status"])
-            .output()
-            .expect("git status");
-        eprintln!(
-            "DIAG status:\n{}",
-            String::from_utf8_lossy(&git_status.stdout)
-        );
-        eprintln!(
-            "DIAG file.txt:\n{:?}",
-            fs::read_to_string(Path::new(&path).join("file.txt"))
-        );
 
         // `git merge` also leaves `MERGE_HEAD` behind, which would otherwise
         // be caught by the (higher-priority) operation-in-progress check.
@@ -6429,8 +6415,21 @@ mod tests {
         git_add(&path, "file.txt");
         git_commit(&path, "main change");
 
+        // An explicit identity is required here too: a clean (non-conflicting)
+        // merge would need to auto-commit, and Git checks committer identity
+        // before attempting the merge at all, aborting the whole operation
+        // untouched on a machine with no configured identity (e.g. CI runners).
         let _ = git_command(&path)
-            .args(["merge", "-q", "--no-edit", "feature"])
+            .args([
+                "-c",
+                "user.name=GitOdrile Test",
+                "-c",
+                "user.email=test@gitodrile.local",
+                "merge",
+                "-q",
+                "--no-edit",
+                "feature",
+            ])
             .status();
 
         let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
@@ -7081,6 +7080,10 @@ mod tests {
             run_git(
                 &repo,
                 &[
+                    "-c",
+                    "user.name=GitOdrile Test",
+                    "-c",
+                    "user.email=test@gitodrile.local",
                     "commit",
                     "-m",
                     "Añadir búsqueda 🔎",
