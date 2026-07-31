@@ -6,6 +6,7 @@ import {
   projectSessionsReducer,
   projectSessionsStateToStored,
   readStoredProjects,
+  shouldRefreshOnWatchEvent,
   writeStoredProjects,
   type ProjectSessionsState,
 } from "./projectSessions";
@@ -267,6 +268,29 @@ describe("projectSessionsReducer", () => {
       snapshot: versionLines,
     });
     expect(state.byId["/a"].versionLines).toEqual(versionLines);
+  });
+
+  it("answers a watch event only when no operation owns the working tree", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
+    expect(shouldRefreshOnWatchEvent(state.byId["/a"])).toBe(true);
+
+    // A save writes files itself; refreshing underneath it would show a
+    // half-finished tree or move the ground under a plan being confirmed.
+    state = projectSessionsReducer(state, { type: "startOperation", id: "/a", kind: "save" });
+    expect(shouldRefreshOnWatchEvent(state.byId["/a"])).toBe(false);
+    for (const phase of ["executing", "verifying", "uncertain"] as const) {
+      state = projectSessionsReducer(state, { type: "setOperationPhase", id: "/a", phase });
+      expect(shouldRefreshOnWatchEvent(state.byId["/a"])).toBe(false);
+    }
+
+    // Settled phases only linger because the dialog is still open.
+    for (const phase of ["error", "success"] as const) {
+      state = projectSessionsReducer(state, { type: "setOperationPhase", id: "/a", phase });
+      expect(shouldRefreshOnWatchEvent(state.byId["/a"])).toBe(true);
+    }
+
+    // An event for a project that isn't open is simply dropped.
+    expect(shouldRefreshOnWatchEvent(state.byId["/gone"])).toBe(false);
   });
 
   it("remembers the last view and changes selection per session", () => {

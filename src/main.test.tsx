@@ -126,6 +126,15 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       }
+      if (command === "watch_repository") {
+        // Live working-tree updates (task 020). Answered so the watch
+        // lifecycle stays a background no-op in these tests; the listener
+        // itself is inert outside Tauri.
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
+      }
       if (command === "get_version_lines") {
         // The idle-time branch-inventory prefetch (task 019). Answered here
         // so it stays a background no-op rather than an unexpected command.
@@ -190,6 +199,15 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       }
+      if (command === "watch_repository") {
+        // Live working-tree updates (task 020). Answered so the watch
+        // lifecycle stays a background no-op in these tests; the listener
+        // itself is inert outside Tauri.
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
+      }
       if (command === "get_version_lines") {
         // The idle-time branch-inventory prefetch (task 019). Answered here
         // so it stays a background no-op rather than an unexpected command.
@@ -247,6 +265,15 @@ describe("App project restoration", () => {
       }
       if (command === "list_unpublished_versions") {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "watch_repository") {
+        // Live working-tree updates (task 020). Answered so the watch
+        // lifecycle stays a background no-op in these tests; the listener
+        // itself is inert outside Tauri.
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
       }
       if (command === "get_version_lines") {
         return Promise.resolve(versionLines);

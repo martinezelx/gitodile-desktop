@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useReducer, useRef, useState } from "
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -61,6 +62,7 @@ import {
   projectSessionsReducer,
   projectSessionsStateToStored,
   readStoredProjects,
+  shouldRefreshOnWatchEvent,
   writeStoredProjects,
   type ProjectView,
 } from "./projectSessions";
@@ -1835,6 +1837,64 @@ export function App(): React.JSX.Element {
       project.headState === "branch" &&
       (pendingVersions.totalCount > 0 || pendingVersionsError),
   );
+
+  // Live working-tree updates (task 020). The Rust watcher reports that
+  // *something* changed; what changed is answered by the same status read the
+  // "Check changes" button performs, so this adds a trigger and nothing else.
+  // Held in a ref because the listener below is registered once, on mount,
+  // and would otherwise close over the first render's state forever.
+  const handleRepositoryChangedRef = useRef<(path: string) => void>(() => {});
+  handleRepositoryChangedRef.current = (path: string) => {
+    if (!shouldRefreshOnWatchEvent(sessionsState.byId[path])) {
+      return;
+    }
+    void checkWorkingTree(path);
+  };
+
+  useEffect(() => {
+    // Outside Tauri (tests, a plain `vite dev`) there is no event bus to
+    // listen on, and the manual refresh path is unaffected.
+    if (!("__TAURI_INTERNALS__" in window)) {
+      return undefined;
+    }
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    void listen<{ path: string }>("repository-changed", (event) => {
+      handleRepositoryChangedRef.current(event.payload.path);
+    })
+      .then((stop) => {
+        if (cancelled) {
+          stop();
+        } else {
+          unlisten = stop;
+        }
+      })
+      .catch(() => {
+        // A listener that can't be registered leaves the app exactly as it
+        // was before this feature: manual refreshes only.
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
+  // Only the active project is watched: the others already refresh when they
+  // become active, and watching every open project multiplies the OS-level
+  // cost for state nobody is looking at. Gated on the startup restore so the
+  // watch (and its one `rev-parse`) never competes with launch.
+  useEffect(() => {
+    if (!hasCompletedSessionRestore || !projectPath) {
+      return undefined;
+    }
+    void invoke<boolean>("watch_repository", { path: projectPath }).catch(() => {
+      // Network shares, container mounts, and exhausted watch budgets all
+      // land here. The project stays on the manual "Check changes" path.
+    });
+    return () => {
+      void invoke("unwatch_repository", { path: projectPath }).catch(() => {});
+    };
+  }, [hasCompletedSessionRestore, projectPath]);
 
   // Warms the active project's branch inventory during idle time, so the
   // first visit to Version lines already has something to render. Gated on

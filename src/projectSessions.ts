@@ -145,6 +145,25 @@ function freshSession(project: RepositoryInfo): ProjectSession {
   };
 }
 
+/**
+ * Whether a filesystem-watch event for this session should be answered with a
+ * working-tree refresh (task 020).
+ *
+ * A save or publish that is planning, executing, or verifying owns the
+ * working tree for the duration: it writes files itself, and re-reading
+ * underneath it would either show a half-finished state or move the ground
+ * under a plan the user is confirming. `error` and `success` are settled
+ * phases whose dialog is only still open because the user hasn't dismissed
+ * it, so those refresh normally.
+ */
+export function shouldRefreshOnWatchEvent(session: ProjectSession | undefined): boolean {
+  if (!session) {
+    return false;
+  }
+  const phase = session.operation?.phase;
+  return phase === undefined || phase === "error" || phase === "success";
+}
+
 export function getMutationBlocker(
   state: ProjectSessionsState,
   id: string,

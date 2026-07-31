@@ -1,5 +1,7 @@
 #![allow(linker_messages)]
 
+mod watch;
+
 use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Output, Stdio};
@@ -23,6 +25,12 @@ fn base_git_command() -> Command {
     // Domain parsers and error classifiers need deterministic diagnostics on
     // localized installations.
     command.env("LC_ALL", "C").env("LANG", "C");
+    // Stops read commands from taking the *optional* index lock and rewriting
+    // `.git/index` just to refresh its stat cache. Without this, every status
+    // read is itself a filesystem change, which the watcher in `watch.rs`
+    // would see and answer with another status read — a loop that never
+    // settles. Required locks (commit, checkout) are unaffected.
+    command.env("GIT_OPTIONAL_LOCKS", "0");
     #[cfg(target_os = "windows")]
     command.creation_flags(CREATE_NO_WINDOW);
     command
@@ -5124,9 +5132,43 @@ fn delete_version_line(
     get_version_lines(path)
 }
 
+/// Starts reporting filesystem changes for an open project (task 020).
+///
+/// Returns whether a watch could actually be established. `false` is a normal
+/// outcome, not a failure to report: network shares, some container mounts,
+/// and an exhausted inotify budget all leave a project on the manual "Check
+/// changes" path, which keeps working exactly as before. A real `Err` is
+/// reserved for a path that isn't a usable repository at all.
+#[tauri::command]
+fn watch_repository(
+    app: tauri::AppHandle,
+    registry: tauri::State<'_, watch::WatcherRegistry>,
+    path: String,
+) -> Result<bool, AppError> {
+    let root = Path::new(&path);
+    if !root.is_dir() {
+        return Err(
+            AppError::new(AppErrorCode::PathMissing, "That folder doesn't exist.")
+                .with_remediation("Reopen the project and try again."),
+        );
+    }
+    // The resolved Git directory is what the event filter needs; for a linked
+    // worktree it sits outside the watched tree, while `<root>/.git` is a
+    // file inside it. Both are named so neither leaks Git's own churn through.
+    let git_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"])?)?;
+    let git_dirs = vec![normalized_path(root, &git_dir_raw), root.join(".git")];
+    Ok(registry.watch(app, &path, git_dirs))
+}
+
+#[tauri::command]
+fn unwatch_repository(registry: tauri::State<'_, watch::WatcherRegistry>, path: String) {
+    registry.unwatch(&path);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(watch::WatcherRegistry::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
@@ -5157,7 +5199,9 @@ pub fn run() {
             plan_switch_version_line,
             switch_version_line,
             plan_delete_version_line,
-            delete_version_line
+            delete_version_line,
+            watch_repository,
+            unwatch_repository
         ])
         .run(tauri::generate_context!())
         .expect("error while running GitOdrile");
