@@ -48,6 +48,8 @@ export interface Translations {
   navOverview: string;
   navChanges: string;
   navChangesTitle: string;
+  navVersionLines: string;
+  navVersionLinesTitle: string;
   navHistory: string;
   navHistoryTitle: string;
   navRecovery: string;
@@ -60,6 +62,8 @@ export interface Translations {
   paletteNoMatches: string;
 
   commandGoOverview: string;
+  commandGoVersionLines: string;
+  commandNewVersionLine: string;
   commandGoSettings: string;
   commandUseSystemTheme: string;
   commandUseLightTheme: string;
@@ -239,6 +243,78 @@ export interface Translations {
   publishSuccessUpstreamNote: string;
   publishDone: string;
 
+  versionLinesTitle: string;
+  versionLinesExplanation: string;
+  versionLinesSearchPlaceholder: string;
+  versionLinesSearchAriaLabel: string;
+  versionLinesFilterAllLabel: string;
+  versionLinesFilterAriaLabel: string;
+  versionLinesNoProjectTitle: string;
+  versionLinesNoProjectDescription: string;
+  versionLinesLoading: string;
+  versionLinesErrorLoading: string;
+  versionLinesRetry: string;
+  versionLinesActiveLabel: string;
+  versionLinesNewButton: string;
+  versionLinesEmptyOthers: string;
+  versionLinesNoSearchMatches: string;
+  versionLinesTruncatedNote: (visible: number, total: number) => string;
+  versionLinesDetachedTitle: string;
+  versionLinesDetachedDescription: string;
+  versionLinesDetachedRecoverButton: string;
+  versionLinesUnbornTitle: string;
+  versionLinesUnbornDescription: string;
+  versionLinesSwitchButton: string;
+  versionLinesDeleteButton: string;
+  versionLinesUpstreamLabel: (upstream: string) => string;
+  versionLinesNoUpstreamLabel: string;
+  versionLinesCheckedOutElsewhere: (path: string) => string;
+  versionLinesUniqueCommits: (count: number) => string;
+  versionLinesTechnicalDetails: string;
+  versionLinesRefNameLabel: string;
+  versionLinesTipCommitLabel: string;
+  versionLinesSavedLabel: (date: string) => string;
+
+  createVersionLineTitle: string;
+  createVersionLineNameLabel: string;
+  createVersionLineNamePlaceholder: string;
+  createVersionLineSwitchLabel: string;
+  createVersionLineWithoutSwitchLabel: string;
+  createVersionLineDetachedNote: string;
+  createVersionLineUnsavedNote: string;
+  createVersionLineUnbornBlocked: string;
+  createVersionLineConfirm: string;
+  createVersionLineCreating: string;
+  createVersionLineSuccessTitle: string;
+  createVersionLineDone: string;
+
+  switchVersionLineTitle: (to: string) => string;
+  switchVersionLineLoading: string;
+  switchVersionLineChangedFiles: (count: number) => string;
+  switchVersionLineChangedFilesTruncated: (visible: number, total: number) => string;
+  switchVersionLineDirtyTitle: string;
+  switchVersionLineDirtyDescription: string;
+  switchVersionLineSaveVersionAction: string;
+  switchVersionLineNewLineAction: string;
+  switchVersionLineConfirm: string;
+  switchVersionLineSwitching: string;
+  switchVersionLineSuccessTitle: string;
+  switchVersionLineDone: string;
+
+  deleteVersionLineTitle: (name: string) => string;
+  deleteVersionLineRetainedBy: (refs: string) => string;
+  deleteVersionLineWarning: string;
+  deleteVersionLineConfirm: string;
+  deleteVersionLineDeleting: string;
+  deleteVersionLineSuccessTitle: string;
+  deleteVersionLineDone: string;
+
+  overviewChangeVersionLine: string;
+  overviewNewVersionLine: string;
+  overviewQuickSwitchTitle: string;
+  overviewQuickSwitchEmpty: string;
+  overviewQuickSwitchSeeAll: string;
+
   overviewPublishChanges: string;
   overviewPendingVersionsTitle: (count: number) => string;
   overviewPendingVersionsGuidance: string;
@@ -293,6 +369,16 @@ export interface Translations {
   errorNetworkTimeout: string;
   errorRemoteRejected: string;
   errorPublishUncertain: string;
+  errorGitVersionTooOld: string;
+  errorVersionLineNameTaken: string;
+  errorVersionLineNameCollides: string;
+  errorVersionLineCheckedOutElsewhere: string;
+  errorVersionLineIsActive: string;
+  errorVersionLineUniqueWork: string;
+  errorVersionLineSwitchObstructed: string;
+  errorStaleVersionLinePlan: string;
+  errorDirtyWorkingTree: string;
+  errorRefLocked: string;
 
   settingsAppearanceTitle: string;
   settingsAppearanceDescription: string;
@@ -397,6 +483,8 @@ const en: Translations = {
   navOverview: "Overview",
   navChanges: "Changes",
   navChangesTitle: "Changes — Open a project first",
+  navVersionLines: "Version lines",
+  navVersionLinesTitle: "Version lines — Open a project first",
   navHistory: "History",
   navHistoryTitle: "History — Coming soon",
   navRecovery: "Recovery",
@@ -409,6 +497,8 @@ const en: Translations = {
   paletteNoMatches: "No matching commands",
 
   commandGoOverview: "Go to Overview",
+  commandGoVersionLines: "Go to Version lines",
+  commandNewVersionLine: "New version line",
   commandGoSettings: "Go to Settings",
   commandUseSystemTheme: "Use system theme",
   commandUseLightTheme: "Use light theme",
@@ -612,6 +702,85 @@ const en: Translations = {
   publishSuccessUpstreamNote: "This version line now tracks the remote branch.",
   publishDone: "Done",
 
+  versionLinesTitle: "Version lines",
+  versionLinesExplanation:
+    "A version line is a separate track for your saved versions. Git calls this a branch. Switching moves your files to that line's latest saved version; nothing here touches the remote project.",
+  versionLinesSearchPlaceholder: "Search version lines…",
+  versionLinesSearchAriaLabel: "Search version lines",
+  versionLinesFilterAllLabel: "All",
+  versionLinesFilterAriaLabel: "Filter by name prefix",
+  versionLinesNoProjectTitle: "No project open",
+  versionLinesNoProjectDescription: "Open a project to see and manage its version lines.",
+  versionLinesLoading: "Loading version lines…",
+  versionLinesErrorLoading: "GitOdrile couldn't load this project's version lines.",
+  versionLinesRetry: "Try again",
+  versionLinesActiveLabel: "Active",
+  versionLinesNewButton: "New version line",
+  versionLinesEmptyOthers: "There are no other version lines in this project yet.",
+  versionLinesNoSearchMatches: "No version lines match that search.",
+  versionLinesTruncatedNote: (visible, total) => `Showing the ${visible} most recently saved of ${total}.`,
+  versionLinesDetachedTitle: "This project isn't on a version line right now",
+  versionLinesDetachedDescription:
+    "You're looking at one specific saved version. Create a named version line here to keep this work easy to find.",
+  versionLinesDetachedRecoverButton: "Create a version line here",
+  versionLinesUnbornTitle: "Save a version first",
+  versionLinesUnbornDescription: "This version line has no saved versions yet, so there's nothing to branch from.",
+  versionLinesSwitchButton: "Switch to this line",
+  versionLinesDeleteButton: "Delete line",
+  versionLinesUpstreamLabel: (upstream) => `Tracks ${upstream}`,
+  versionLinesNoUpstreamLabel: "Not published to a remote",
+  versionLinesCheckedOutElsewhere: (path) => `Open in another workspace at ${path}. Switch to it from there.`,
+  versionLinesUniqueCommits: (count) =>
+    count === 1 ? "1 saved version not on the active line" : `${count} saved versions not on the active line`,
+  versionLinesTechnicalDetails: "Technical details",
+  versionLinesRefNameLabel: "Branch name",
+  versionLinesTipCommitLabel: "Latest commit",
+  versionLinesSavedLabel: (date) => `Saved ${date}`,
+
+  createVersionLineTitle: "New version line",
+  createVersionLineNameLabel: "Name",
+  createVersionLineNamePlaceholder: "e.g. feature/new-onboarding",
+  createVersionLineSwitchLabel: "Create and switch to it",
+  createVersionLineWithoutSwitchLabel: "Create without switching",
+  createVersionLineDetachedNote:
+    "This project isn't on a version line right now, so GitOdrile will switch to the new one to keep this commit easy to find.",
+  createVersionLineUnsavedNote:
+    "Your unsaved files and prepared changes stay exactly as they are. Future saved versions will belong to the new version line.",
+  createVersionLineUnbornBlocked: "Save the first version before creating another version line.",
+  createVersionLineConfirm: "Create",
+  createVersionLineCreating: "Creating…",
+  createVersionLineSuccessTitle: "Version line created",
+  createVersionLineDone: "Done",
+
+  switchVersionLineTitle: (to) => `Switch to “${to}”`,
+  switchVersionLineLoading: "Comparing version lines…",
+  switchVersionLineChangedFiles: (count) =>
+    count === 1 ? "1 file will change." : `${count} files will change.`,
+  switchVersionLineChangedFilesTruncated: (visible, total) => `Showing ${visible} of ${total} changed files.`,
+  switchVersionLineDirtyTitle: "This project has unsaved changes",
+  switchVersionLineDirtyDescription:
+    "GitOdrile can't switch version lines with unsaved work in the way. Save a version, or start a new version line with this work instead.",
+  switchVersionLineSaveVersionAction: "Save version",
+  switchVersionLineNewLineAction: "New version line with this work",
+  switchVersionLineConfirm: "Switch",
+  switchVersionLineSwitching: "Switching…",
+  switchVersionLineSuccessTitle: "Switched version lines",
+  switchVersionLineDone: "Done",
+
+  deleteVersionLineTitle: (name) => `Delete “${name}”?`,
+  deleteVersionLineRetainedBy: (refs) => `Its saved work stays reachable from: ${refs}.`,
+  deleteVersionLineWarning: "This can't be undone from GitOdrile.",
+  deleteVersionLineConfirm: "Delete",
+  deleteVersionLineDeleting: "Deleting…",
+  deleteVersionLineSuccessTitle: "Version line deleted",
+  deleteVersionLineDone: "Done",
+
+  overviewChangeVersionLine: "Change",
+  overviewNewVersionLine: "New",
+  overviewQuickSwitchTitle: "Switch version line",
+  overviewQuickSwitchEmpty: "There are no other version lines yet.",
+  overviewQuickSwitchSeeAll: "See all version lines",
+
   overviewPublishChanges: "Publish changes",
   overviewPendingVersionsTitle: (count) => `Saved versions not yet published (${count})`,
   overviewPendingVersionsGuidance:
@@ -675,6 +844,21 @@ const en: Translations = {
   errorRemoteRejected: "The remote project rejected this publish. Check the remote project's rules for this branch.",
   errorPublishUncertain:
     "GitOdrile lost the connection while publishing. Refresh and check whether it was published before trying again.",
+  errorGitVersionTooOld:
+    "This version of Git is too old for GitOdrile to change version lines safely. Update Git to version 2.23 or newer.",
+  errorVersionLineNameTaken: "A version line with this exact name already exists. Choose a different name.",
+  errorVersionLineNameCollides:
+    "That name only differs by letter case from an existing version line, which some file systems can't tell apart. Choose a different name.",
+  errorVersionLineCheckedOutElsewhere: "That version line is open in another workspace.",
+  errorVersionLineIsActive: "The active version line can't be deleted. Switch to a different one first.",
+  errorVersionLineUniqueWork:
+    "This version line has saved work that isn't reachable from any other version line or remote yet.",
+  errorVersionLineSwitchObstructed:
+    "Git found local changes in the way of this switch that weren't visible in the preview. Save or discard them in Git directly, then try again.",
+  errorStaleVersionLinePlan: "This project changed since the preview was shown. Refresh and try again.",
+  errorDirtyWorkingTree:
+    "This project has unsaved changes, so GitOdrile can't switch version lines yet. Save a version, or start a new version line with this work.",
+  errorRefLocked: "Git couldn't update its references right now — another Git process may be using them.",
 
   settingsAppearanceTitle: "Appearance",
   settingsAppearanceDescription: 'Choose how GitOdrile looks. "System" follows your OS setting automatically.',
@@ -784,6 +968,8 @@ const es: Translations = {
   navOverview: "Resumen",
   navChanges: "Cambios",
   navChangesTitle: "Cambios — Abre un proyecto primero",
+  navVersionLines: "Líneas de versión",
+  navVersionLinesTitle: "Líneas de versión — Abre un proyecto primero",
   navHistory: "Historial",
   navHistoryTitle: "Historial — Próximamente",
   navRecovery: "Recuperación",
@@ -796,6 +982,8 @@ const es: Translations = {
   paletteNoMatches: "No hay coincidencias",
 
   commandGoOverview: "Ir a Resumen",
+  commandGoVersionLines: "Ir a Líneas de versión",
+  commandNewVersionLine: "Nueva línea de versión",
   commandGoSettings: "Ir a Configuración",
   commandUseSystemTheme: "Usar el tema del sistema",
   commandUseLightTheme: "Usar el tema claro",
@@ -1013,6 +1201,87 @@ const es: Translations = {
   publishSuccessUpstreamNote: "Esta línea de versión ahora sigue la rama remota.",
   publishDone: "Listo",
 
+  versionLinesTitle: "Líneas de versión",
+  versionLinesExplanation:
+    "Una línea de versión es una vía independiente para tus versiones guardadas. Git la llama rama. Cambiar de línea mueve tus archivos a la última versión guardada de esa línea; nada de esto toca el proyecto remoto.",
+  versionLinesSearchPlaceholder: "Buscar líneas de versión…",
+  versionLinesSearchAriaLabel: "Buscar líneas de versión",
+  versionLinesFilterAllLabel: "Todas",
+  versionLinesFilterAriaLabel: "Filtrar por prefijo del nombre",
+  versionLinesNoProjectTitle: "No hay ningún proyecto abierto",
+  versionLinesNoProjectDescription: "Abre un proyecto para ver y gestionar sus líneas de versión.",
+  versionLinesLoading: "Cargando líneas de versión…",
+  versionLinesErrorLoading: "GitOdrile no pudo cargar las líneas de versión de este proyecto.",
+  versionLinesRetry: "Intentar de nuevo",
+  versionLinesActiveLabel: "Activa",
+  versionLinesNewButton: "Nueva línea de versión",
+  versionLinesEmptyOthers: "Todavía no hay otras líneas de versión en este proyecto.",
+  versionLinesNoSearchMatches: "Ninguna línea de versión coincide con esa búsqueda.",
+  versionLinesTruncatedNote: (visible, total) => `Se muestran las ${visible} guardadas más recientemente de ${total}.`,
+  versionLinesDetachedTitle: "Este proyecto no está en una línea de versión ahora mismo",
+  versionLinesDetachedDescription:
+    "Estás viendo una versión guardada concreta. Crea aquí una línea de versión con nombre para que este trabajo sea fácil de encontrar.",
+  versionLinesDetachedRecoverButton: "Crear una línea de versión aquí",
+  versionLinesUnbornTitle: "Guarda una versión primero",
+  versionLinesUnbornDescription: "Esta línea de versión todavía no tiene versiones guardadas, así que no hay nada de qué partir.",
+  versionLinesSwitchButton: "Cambiar a esta línea",
+  versionLinesDeleteButton: "Eliminar línea",
+  versionLinesUpstreamLabel: (upstream) => `Sigue a ${upstream}`,
+  versionLinesNoUpstreamLabel: "No publicada en ningún remoto",
+  versionLinesCheckedOutElsewhere: (path) => `Abierta en otro espacio de trabajo en ${path}. Cámbiate a ella desde ahí.`,
+  versionLinesUniqueCommits: (count) =>
+    count === 1
+      ? "1 versión guardada que no está en la línea activa"
+      : `${count} versiones guardadas que no están en la línea activa`,
+  versionLinesTechnicalDetails: "Detalles técnicos",
+  versionLinesRefNameLabel: "Nombre de la rama",
+  versionLinesTipCommitLabel: "Último commit",
+  versionLinesSavedLabel: (date) => `Guardada el ${date}`,
+
+  createVersionLineTitle: "Nueva línea de versión",
+  createVersionLineNameLabel: "Nombre",
+  createVersionLineNamePlaceholder: "p. ej. feature/nueva-bienvenida",
+  createVersionLineSwitchLabel: "Crear y cambiar a ella",
+  createVersionLineWithoutSwitchLabel: "Crear sin cambiar",
+  createVersionLineDetachedNote:
+    "Este proyecto no está en una línea de versión ahora mismo, así que GitOdrile cambiará a la nueva para que este commit sea fácil de encontrar.",
+  createVersionLineUnsavedNote:
+    "Tus archivos sin guardar y los cambios preparados permanecen exactamente igual. Las próximas versiones guardadas pertenecerán a la nueva línea de versión.",
+  createVersionLineUnbornBlocked: "Guarda la primera versión antes de crear otra línea de versión.",
+  createVersionLineConfirm: "Crear",
+  createVersionLineCreating: "Creando…",
+  createVersionLineSuccessTitle: "Línea de versión creada",
+  createVersionLineDone: "Listo",
+
+  switchVersionLineTitle: (to) => `Cambiar a «${to}»`,
+  switchVersionLineLoading: "Comparando líneas de versión…",
+  switchVersionLineChangedFiles: (count) =>
+    count === 1 ? "1 archivo cambiará." : `${count} archivos cambiarán.`,
+  switchVersionLineChangedFilesTruncated: (visible, total) => `Se muestran ${visible} de ${total} archivos cambiados.`,
+  switchVersionLineDirtyTitle: "Este proyecto tiene cambios sin guardar",
+  switchVersionLineDirtyDescription:
+    "GitOdrile no puede cambiar de línea de versión con trabajo sin guardar de por medio. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
+  switchVersionLineSaveVersionAction: "Guardar versión",
+  switchVersionLineNewLineAction: "Nueva línea de versión con este trabajo",
+  switchVersionLineConfirm: "Cambiar",
+  switchVersionLineSwitching: "Cambiando…",
+  switchVersionLineSuccessTitle: "Línea de versión cambiada",
+  switchVersionLineDone: "Listo",
+
+  deleteVersionLineTitle: (name) => `¿Eliminar «${name}»?`,
+  deleteVersionLineRetainedBy: (refs) => `Su trabajo guardado sigue siendo accesible desde: ${refs}.`,
+  deleteVersionLineWarning: "Esto no se puede deshacer desde GitOdrile.",
+  deleteVersionLineConfirm: "Eliminar",
+  deleteVersionLineDeleting: "Eliminando…",
+  deleteVersionLineSuccessTitle: "Línea de versión eliminada",
+  deleteVersionLineDone: "Listo",
+
+  overviewChangeVersionLine: "Cambiar",
+  overviewNewVersionLine: "Nueva",
+  overviewQuickSwitchTitle: "Cambiar línea de versión",
+  overviewQuickSwitchEmpty: "Todavía no hay otras líneas de versión.",
+  overviewQuickSwitchSeeAll: "Ver todas las líneas de versión",
+
   overviewPublishChanges: "Publicar cambios",
   overviewPendingVersionsTitle: (count) => `Versiones guardadas sin publicar (${count})`,
   overviewPendingVersionsGuidance:
@@ -1082,6 +1351,21 @@ const es: Translations = {
   errorRemoteRejected: "El proyecto remoto rechazó esta publicación. Revisa las reglas del proyecto remoto para esta rama.",
   errorPublishUncertain:
     "GitOdrile perdió la conexión mientras publicaba. Actualiza y comprueba si se publicó antes de intentarlo de nuevo.",
+  errorGitVersionTooOld:
+    "Esta versión de Git es demasiado antigua para que GitOdrile cambie de línea de versión de forma segura. Actualiza Git a la versión 2.23 o posterior.",
+  errorVersionLineNameTaken: "Ya existe una línea de versión con exactamente este nombre. Elige otro nombre.",
+  errorVersionLineNameCollides:
+    "Ese nombre solo se diferencia por mayúsculas o minúsculas de una línea de versión existente, algo que algunos sistemas de archivos no distinguen. Elige otro nombre.",
+  errorVersionLineCheckedOutElsewhere: "Esa línea de versión está abierta en otro espacio de trabajo.",
+  errorVersionLineIsActive: "La línea de versión activa no se puede eliminar. Cambia primero a otra distinta.",
+  errorVersionLineUniqueWork:
+    "Esta línea de versión tiene trabajo guardado que todavía no es accesible desde ninguna otra línea de versión ni remoto.",
+  errorVersionLineSwitchObstructed:
+    "Git encontró cambios locales que impiden este cambio y que no eran visibles en la vista previa. Guárdalos o descártalos directamente en Git, e inténtalo de nuevo.",
+  errorStaleVersionLinePlan: "Este proyecto cambió desde que se mostró la vista previa. Actualiza e inténtalo de nuevo.",
+  errorDirtyWorkingTree:
+    "Este proyecto tiene cambios sin guardar, así que GitOdrile no puede cambiar de línea de versión todavía. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
+  errorRefLocked: "Git no pudo actualizar sus referencias ahora mismo (otro proceso de Git podría estar usándolas).",
 
   settingsAppearanceTitle: "Apariencia",
   settingsAppearanceDescription:

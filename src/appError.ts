@@ -42,7 +42,17 @@ export type AppError = {
     | "authentication_failed"
     | "network_timeout"
     | "remote_rejected"
-    | "publish_uncertain";
+    | "publish_uncertain"
+    | "git_version_too_old"
+    | "version_line_name_taken"
+    | "version_line_name_collides"
+    | "version_line_checked_out_elsewhere"
+    | "version_line_is_active"
+    | "version_line_unique_work"
+    | "version_line_switch_obstructed"
+    | "stale_version_line_plan"
+    | "dirty_working_tree"
+    | "ref_locked";
   message: string;
   remediation: string | null;
   /** A bounded, secondary excerpt (e.g. raw hook or signing output) for
@@ -98,6 +108,16 @@ export function localizeAppError(error: unknown, t: Translations, fallback: stri
     network_timeout: t.errorNetworkTimeout,
     remote_rejected: t.errorRemoteRejected,
     publish_uncertain: t.errorPublishUncertain,
+    git_version_too_old: t.errorGitVersionTooOld,
+    version_line_name_taken: t.errorVersionLineNameTaken,
+    version_line_name_collides: t.errorVersionLineNameCollides,
+    version_line_checked_out_elsewhere: t.errorVersionLineCheckedOutElsewhere,
+    version_line_is_active: t.errorVersionLineIsActive,
+    version_line_unique_work: t.errorVersionLineUniqueWork,
+    version_line_switch_obstructed: t.errorVersionLineSwitchObstructed,
+    stale_version_line_plan: t.errorStaleVersionLinePlan,
+    dirty_working_tree: t.errorDirtyWorkingTree,
+    ref_locked: t.errorRefLocked,
   };
   return messages[error.code] ?? fallback;
 }

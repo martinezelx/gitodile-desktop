@@ -3,7 +3,7 @@ import type { RepositoryInfo, WorkingTreeStatus } from "./repositoryOverview";
 
 /** Per-project view: `settings` lives outside any session (see main.tsx), so
  * a session only ever remembers which of these two it was last showing. */
-export type ProjectView = "overview" | "changes";
+export type ProjectView = "overview" | "changes" | "version-lines";
 
 export type ProjectMutationKind = "save" | "publish";
 export type ProjectMutationPhase =

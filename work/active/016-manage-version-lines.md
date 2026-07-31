@@ -161,6 +161,30 @@ not be presented as freshly verified remote truth.
 - Provide loading, empty, truncated, detached, unborn, blocked, error, and
   success states in English and Spanish.
 
+### Overview quick switch
+
+- Extend the existing "Current version line" card on Overview
+  (`overviewCurrentVersionLine`) with a bounded quick-switch entry point (e.g.
+  a **Change** button opening a small popover/menu of recent local lines,
+  distinct from the full searchable list on the Version lines screen).
+- The quick switch must trigger the exact same `SwitchVersionLinePlan`,
+  confirmation dialog, and revalidation used by the Version lines screen — no
+  parallel switch implementation, matching the existing pattern where
+  Overview's "Review changes" and "Publish changes" buttons enter the same
+  flows owned by Changes/Publish rather than reimplementing them.
+- The quick switch is bounded to a small, recent/searchable subset of local
+  lines; it does not replace the full list, which stays on the dedicated
+  screen.
+- When the working tree is not clean, the quick switch surfaces the same
+  block and the same **Save version** / **New version line with this work**
+  next actions as the dedicated screen — it must never offer a shortcut that
+  bypasses the clean-tree requirement.
+- Add a bounded **New version line** quick action alongside it, entering the
+  same `CreateVersionLinePlan` flow.
+- The quick-switch list excludes the active line and any line checked out in
+  another worktree, same as the dedicated screen; overflow past the bounded
+  count links to the full Version lines screen instead of silently truncating.
+
 ### Create a version line
 
 Create a typed `CreateVersionLinePlan` and execution result. The plan contains
@@ -334,6 +358,9 @@ anything.
 
 - [ ] A project-level Version lines destination exists in expanded and compact
       navigation and is available through the command palette.
+- [ ] Overview's current-version-line card offers a bounded quick switch and
+      quick create that reuse the same plans, dialogs, and revalidation as the
+      dedicated screen, including the same clean-tree block and next actions.
 - [ ] Local branches are discovered through typed, machine-readable output and
       the active, detached, unborn, upstream, truncated, and checked-out-in-
       worktree states are represented honestly.
@@ -417,6 +444,9 @@ explicitly planned state changes.
   focus restoration.
 - Safe-delete confirmation and every blocked reason.
 - Refresh/invalidation of Overview, Changes, publish state, and history stubs.
+- Overview quick-switch/quick-create popover: focus trap, keyboard dismissal,
+  identical blocked/preview states as the dedicated screen, and correct
+  return focus to the Overview trigger button.
 - Rapid branch selection and late-response races.
 - Real linked worktrees and branches with identical final path segments.
 - Keyboard-only and screen-reader completion.
@@ -455,6 +485,14 @@ explicitly planned state changes.
   Prefer the unambiguous `git switch` command when the detected Git version
   supports it; any compatibility fallback must use separated arguments,
   disable remote guessing, and preserve the same safety contract.
+- Decided: require Git >= 2.23 (the `git switch`/`git restore` split) for
+  create, switch, and delete mutations in this task. No older-Git fallback
+  path is implemented. When the detected Git version is older or unknown,
+  block these mutations with a structured, honest error naming the required
+  version; read-only discovery still uses version-agnostic plumbing. This is
+  the first Git-version floor enforced anywhere in the app (task 002
+  explicitly left minimum-version enforcement out of scope), so keep the
+  check local to this task's commands rather than a global gate.
 
 ## Dependencies
 
@@ -499,8 +537,10 @@ Downstream integration:
 
 ## Decisions
 
-- Introduce one dedicated Version lines screen instead of hiding branch
-  mutations in Overview, Changes, or History.
+- Introduce one dedicated Version lines screen as the source of truth for
+  branch inventory, technical details, and full-list search; Overview only
+  gets a bounded quick-switch/quick-create entry point into the same plans,
+  never a second implementation of the mutations.
 - Model local branches and linked worktrees as related but distinct concepts.
 - Allow dirty work to move only into a newly created line; never carry it
   implicitly while switching to an existing line.
@@ -511,18 +551,93 @@ Downstream integration:
 - Keep discovery local and provider-neutral. Task 013 owns fresh remote truth.
 - Keep Rust commands repository-path-scoped so task 012 can add project
   sessions without a mutable backend singleton.
+- Decided: the compact/narrow navigation currently has no History or Recovery
+  placeholders at all (only Overview, Changes, Settings). This task adds only
+  the Version lines entry there; it does not backfill the pre-existing
+  History/Recovery gap in compact nav, to stay within this task's scope.
 
 ## Implementation notes
 
-Complete during implementation. Record:
+Pre-declared before implementation:
+
+- Git-version compatibility: require Git >= 2.23 for create/switch/delete;
+  block older/unknown versions with a structured error (see Decisions above).
+- Nav icon: use a `GitBranch`-style icon (lucide-react) for the Version lines
+  sidebar/compact-nav entry and command-palette item; add
+  `navVersionLines` / `navVersionLinesTitle` (and Spanish equivalents) to
+  `src/i18n.tsx` alongside the existing `navHistory`/`navRecovery` keys.
+- Compact nav: add only the Version lines entry; do not backfill the
+  pre-existing History/Recovery gap there (see Decisions above).
+
+Still to complete during implementation. Record:
 
 - exact ref-list format and safety cap;
-- chosen Git-version compatibility behavior for switching;
 - plan-token inputs;
 - worktree-occupancy and ref-lock handling;
 - final navigation and responsive interaction;
 - mutation coordination and cache invalidation boundaries;
 - any platform behavior that could not be verified.
+
+Implemented (first pass):
+
+- Ref list: `git for-each-ref --format=%(refname)%00%(objectname)%00%(objectname:short)%00%(contents:subject)%00%(committerdate:iso-strict)%00%(upstream:short) --sort=-committerdate refs/heads`,
+  NUL-separated fields, one record per line. Capped at 300
+  (`VERSION_LINE_LIST_CAP`); `totalCount`/`isTruncated` stay exact.
+- Worktree occupancy: `git worktree list --porcelain`, parsed into
+  path/branch blocks; cross-referenced by branch name against the ref list.
+- Retained-elsewhere / delete-safety proof: `git for-each-ref --contains
+  <tip> --format=%(refname) refs/heads refs/remotes`, excluding the branch's
+  own ref. Delete still calls `git branch -d` (never `-D`) as the actual
+  enforcement; the reachability check only explains *why* it's expected to
+  succeed.
+- Plan-token inputs: HEAD sha, active branch name, a fingerprint of the
+  already-fetched `WorkingTreeStatus` (clean flag + total + per-entry
+  path/category/prepared), and an operation-specific string (name/target
+  plus, for delete, the retained-by set). No extra Git process beyond what
+  validation already needed.
+- Git-version gate: `git --version` parsed and compared numerically
+  (`git_version_at_least`); create/switch/delete all call
+  `require_git_switch_support` first. Discovery does not.
+- Mutation coordination: relies on Git's own ref locking plus the existing
+  per-`commonGitDir` frontend session lock (`getMutationBlocker`) reused
+  as-is; no new cross-session lock was added specifically for version-line
+  commands in this pass — see "Known gaps" below.
+- Navigation: added between Changes and History in the expanded sidebar and
+  compact nav (`main.tsx`); command palette gained "Go to Version lines" and
+  "New version line" (the latter opens the screen and auto-opens the create
+  dialog). Overview's "Current version line" card gained bounded
+  "Change"/"New" quick actions (`OverviewVersionLineQuickActions` in
+  `main.tsx`) that reuse the exact same dialogs/plans as the dedicated
+  screen.
+- Invalidation: a successful create/switch/delete calls
+  `handleVersionLineChanged` (`main.tsx`), which re-runs `open_repository`
+  (refreshes branch/head state via the existing session `"open"` action),
+  clears the Changes screen's selected file/diff, and re-runs
+  `checkWorkingTree` (working-tree status + pending/publish list). Branch
+  inventory needs no separate refetch: every mutation command already
+  returns the fresh `VersionLinesSnapshot` its own screen renders directly.
+- Tests: 22 new Rust unit/integration tests (parsing, git-version
+  comparison, create/switch/delete happy paths and every listed block
+  reason, stale-token rejection) plus frontend tests for the panel and the
+  three dialogs. `cargo fmt --check`, `cargo clippy --all-targets
+  --all-features -- -D warnings`, `pnpm run typecheck`, `pnpm run test`, and
+  `pnpm run build` all pass.
+
+Known gaps (flagged for manual review, not silently dropped):
+
+- No dedicated frontend history stub/search-empty/keyboard-audit pass beyond
+  what the automated tests above exercise — the desktop verification this
+  task requires (real linked worktrees, screen reader, reduced motion,
+  Windows/macOS/Linux) has not been done and must happen before this task is
+  marked done.
+- Version-line mutations do not yet have their own cross-session "blocked by
+  another session's operation" UI lock the way save/publish do
+  (`startSessionOperation`/`getMutationBlocker`); Git's own ref locking is
+  the only safety net today if two sessions on the same `commonGitDir` race.
+  Worth revisiting alongside task 012.
+- Unique-commit-count and retained-elsewhere are computed with one extra Git
+  process per listed branch; fine at the tested scale, not benchmarked at
+  the 300-branch cap.
 
 ## Validation
 

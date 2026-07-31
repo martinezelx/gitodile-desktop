@@ -22,7 +22,6 @@ import {
   ChevronLeft,
   ChevronRight,
   GitBranch,
-  Layers3,
   LoaderCircle,
   Menu,
   MoreHorizontal,
@@ -51,6 +50,7 @@ import {
 import { localizeAppError } from "./appError";
 import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import type { PendingVersionsResult } from "./publish";
+import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
 import { useModalFocus } from "./modalFocus";
 import {
   EMPTY_CHANGES_SELECTION,
@@ -79,6 +79,15 @@ const ChangesPanel = lazy(() => import("./changes").then((m) => ({ default: m.Ch
 const PublishDialog = lazy(() => import("./publishDialog").then((m) => ({ default: m.PublishDialog })));
 const PendingVersionsSection = lazy(() =>
   import("./pendingVersions").then((m) => ({ default: m.PendingVersionsSection })),
+);
+const VersionLinesPanel = lazy(() =>
+  import("./versionLinesPanel").then((m) => ({ default: m.VersionLinesPanel })),
+);
+const CreateVersionLineDialog = lazy(() =>
+  import("./versionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
+);
+const SwitchVersionLineDialog = lazy(() =>
+  import("./versionLinesDialog").then((m) => ({ default: m.SwitchVersionLineDialog })),
 );
 
 type ThemePreference = "system" | "light" | "dark";
@@ -170,6 +179,7 @@ const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
 const NAV_ICONS = {
   overview: <LayoutDashboard />,
   changes: <GitCompare />,
+  versionLines: <GitBranch />,
   history: <GitCommitHorizontal />,
   recovery: <LifeBuoy />,
   settings: <Settings2 />,
@@ -532,6 +542,165 @@ const CATEGORY_LABEL_KEYS = {
   conflicted: "statusCategoryConflicted",
 } as const satisfies Record<ChangeCategory, keyof ReturnType<typeof useLanguage>["t"]>;
 
+/** Overview's bounded quick-switch/quick-create entry point (task 016). A
+ * deliberately small menu — the searchable full list stays on the
+ * Version-lines screen (`onSeeAll`). It reads the project session's cached
+ * branch inventory (task 019) instead of fetching its own copy on every
+ * open, and asks for a background refresh when opened so the menu is both
+ * instant and current. */
+function OverviewVersionLineQuickActions({
+  snapshot,
+  isLoadingSnapshot,
+  currentValue,
+  canSwitch,
+  variant = "default",
+  onOpened,
+  onSwitch,
+  onCreate,
+  onSeeAll,
+}: {
+  snapshot: VersionLinesSnapshot | null;
+  /** Distinguishes "still reading, for the first time" from "read failed and
+   * left nothing to show", which would otherwise both look like a menu stuck
+   * on its spinner. */
+  isLoadingSnapshot: boolean;
+  /** The active branch name (or the detached/unborn placeholder text) —
+   * shown as the selector's own trigger label, not a separate static value
+   * next to a generic "Change" button. */
+  currentValue: string;
+  canSwitch: boolean;
+  /** "spotlight" is the larger, more prominent styling used in Overview's
+   * dedicated version-line section; "default" is the compact form other
+   * callers can still use. */
+  variant?: "default" | "spotlight";
+  /** Fired each time the menu opens, so the caller can revalidate the shared
+   * snapshot behind it. The menu never waits on that: it renders whatever is
+   * cached and swaps in the newer answer if one arrives. */
+  onOpened: () => void;
+  onSwitch: (target: string) => void;
+  onCreate: () => void;
+  onSeeAll: () => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  // Bounded on purpose: this is the shortcut, not the inventory. Lines
+  // checked out in another worktree are dropped because this window cannot
+  // switch to them.
+  const lines: VersionLine[] | null = snapshot
+    ? snapshot.lines.filter((line) => !line.isActive && !line.worktreePath).slice(0, 6)
+    : null;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonClassName = variant === "spotlight" ? "secondary-button secondary-button--large" : "secondary-button";
+
+  useEffect(() => {
+    if (isOpen) {
+      onOpened();
+    }
+    // Only on the open transition: `onOpened` is a fresh closure every
+    // render, so depending on it would re-request on unrelated re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Moves focus into the open menu for keyboard/screen-reader users, and
+  // gives Escape an explicit place to send focus back to (native outside-
+  // click dismissal already leaves focus wherever the click landed, so that
+  // path is left alone).
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+    const frame = window.requestAnimationFrame(() => menuRef.current?.focus());
+    const handlePointerDown = (event: MouseEvent): void => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className={`version-lines-quick-switch version-lines-quick-switch--${variant}`} ref={containerRef}>
+      {canSwitch ? (
+        <button
+          ref={triggerRef}
+          className="version-line-selector"
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          aria-label={`${t.overviewChangeVersionLine} (${currentValue})`}
+          onClick={() => setIsOpen((value) => !value)}
+        >
+          <span className="version-line-selector__value">{currentValue}</span>
+          <ChevronDown aria-hidden="true" className="version-line-selector__chevron" />
+        </button>
+      ) : (
+        <span className="version-line-selector version-line-selector--static">
+          <span className="version-line-selector__value">{currentValue}</span>
+        </span>
+      )}
+      <button className={buttonClassName} type="button" onClick={onCreate}>
+        {t.overviewNewVersionLine}
+      </button>
+      {isOpen && (
+        <div
+          ref={menuRef}
+          className="version-lines-quick-switch__menu"
+          role="menu"
+          aria-label={t.overviewQuickSwitchTitle}
+          tabIndex={-1}
+        >
+          {lines === null && isLoadingSnapshot ? (
+            <div className="version-lines-quick-switch__status" role="status">
+              <LoaderCircle aria-hidden="true" className="icon--spinning" />
+            </div>
+          ) : lines === null || lines.length === 0 ? (
+            <p className="version-lines-quick-switch__empty">{t.overviewQuickSwitchEmpty}</p>
+          ) : (
+            lines.map((line) => (
+              <button
+                key={line.name}
+                type="button"
+                role="menuitem"
+                className="version-lines-quick-switch__item"
+                onClick={() => {
+                  setIsOpen(false);
+                  onSwitch(line.name);
+                }}
+              >
+                {line.name}
+              </button>
+            ))
+          )}
+          <button
+            type="button"
+            className="version-lines-quick-switch__see-all"
+            onClick={() => {
+              setIsOpen(false);
+              onSeeAll();
+            }}
+          >
+            {t.overviewQuickSwitchSeeAll}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OverviewPanel({
   project,
   isOpening,
@@ -548,6 +717,12 @@ function OverviewPanel({
   pendingVersions,
   pendingVersionsError,
   onRetryPendingVersions,
+  versionLines,
+  isLoadingVersionLines,
+  onQuickSwitchOpened,
+  onQuickSwitchVersionLine,
+  onQuickCreateVersionLine,
+  onGoToVersionLines,
 }: {
   project: RepositoryInfo | null;
   /** Only ever drives the *empty*-state's own loading affordance below —
@@ -566,15 +741,23 @@ function OverviewPanel({
   pendingVersionsError: string | null;
   onRetryPendingVersions: () => void;
   onCloseProject: () => void;
+  /** The project session's cached branch inventory, shared with the Version
+   * lines screen so Overview's quick-switch menu opens instantly instead of
+   * reading branches again every time (task 019). */
+  versionLines: VersionLinesSnapshot | null;
+  isLoadingVersionLines: boolean;
+  onQuickSwitchOpened: () => void;
   canPublish: boolean;
   onPublish: () => void;
   onPublishUpTo: (commit: string) => void;
+  onQuickSwitchVersionLine: (target: string) => void;
+  onQuickCreateVersionLine: (forceSwitch: boolean) => void;
+  onGoToVersionLines: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
   if (project) {
     const overview = getRepositoryOverviewState(project);
-    const projectType = t[overview.projectTypeKey];
     const versionValue = overview.isDetached
       ? t.overviewSpecificSavedVersion
       : (overview.versionLine ?? t.overviewNoSavedVersions);
@@ -624,17 +807,6 @@ function OverviewPanel({
         <header className="project-overview__header">
           <div className="project-overview__identity">
             <h1>{project.name}</h1>
-            <ul className="project-chips">
-              <li className="project-chip">
-                <Layers3 aria-hidden="true" />
-                {projectType}
-              </li>
-              <li className="project-chip project-chip--technical">
-                <GitBranch aria-hidden="true" />
-                <span className="visually-hidden">{t.overviewCurrentVersionLine}: </span>
-                {versionValue}
-              </li>
-            </ul>
           </div>
           <ProjectMenu onOpenProject={onOpenProject} onCloseProject={onCloseProject} isOpening={isOpening} />
         </header>
@@ -711,6 +883,30 @@ function OverviewPanel({
           <StatusAnnouncement isBusy={isCheckingChanges} message={`${heroHeadline}. ${heroMessage}`} />
         </section>
 
+        <section className="version-line-spotlight" aria-labelledby="version-line-spotlight-heading">
+          <div className="version-line-spotlight__icon" aria-hidden="true">
+            <GitBranch />
+          </div>
+          <div className="version-line-spotlight__body">
+            <h2 id="version-line-spotlight-heading">{t.overviewCurrentVersionLine}</h2>
+            {overview.isUnborn && <p className="version-line-spotlight__value">{versionValue}</p>}
+            <p className="version-line-spotlight__description">{t[overview.versionDescriptionKey]}</p>
+          </div>
+          {!overview.isUnborn && (
+            <OverviewVersionLineQuickActions
+              snapshot={versionLines}
+              isLoadingSnapshot={isLoadingVersionLines}
+              currentValue={versionValue}
+              canSwitch={!overview.isDetached}
+              variant="spotlight"
+              onOpened={onQuickSwitchOpened}
+              onSwitch={onQuickSwitchVersionLine}
+              onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
+              onSeeAll={onGoToVersionLines}
+            />
+          )}
+        </section>
+
         {(pendingVersions.totalCount > 0 || pendingVersionsError) && project && (
           <Suspense fallback={null}>
             <PendingVersionsSection
@@ -730,12 +926,6 @@ function OverviewPanel({
           </h2>
           <div className="project-facts__grid">
             <article className="project-fact">
-              <h3>{t.overviewCurrentVersionLine}</h3>
-              <p className="project-fact__value project-fact__value--technical">{versionValue}</p>
-              <p>{t[overview.versionDescriptionKey]}</p>
-            </article>
-
-            <article className="project-fact">
               <h3>{t.overviewProjectLocation}</h3>
               <ProjectPath path={project.path} />
               {overview.wasOpenedFromNestedFolder && (
@@ -745,43 +935,8 @@ function OverviewPanel({
                 </p>
               )}
             </article>
-
-            <article className="project-fact">
-              <h3>{t.overviewProjectType}</h3>
-              <p className="project-fact__value">{projectType}</p>
-              <p>{t[overview.projectTypeDescriptionKey]}</p>
-            </article>
           </div>
         </section>
-
-        <details className="project-technical">
-          <summary>
-            <span>{t.overviewTechnicalDetails}</span>
-            <ChevronDown aria-hidden="true" />
-          </summary>
-          <dl>
-            <div>
-              <dt>{t.overviewResolvedRoot}</dt>
-              <dd>{project.path}</dd>
-            </div>
-            {overview.wasOpenedFromNestedFolder && (
-              <div>
-                <dt>{t.overviewSelectedFolder}</dt>
-                <dd>{project.selectedPath}</dd>
-              </div>
-            )}
-            <div>
-              <dt>{t.overviewGitDirectory}</dt>
-              <dd>{project.gitDir}</dd>
-            </div>
-            {overview.isWorktree && (
-              <div>
-                <dt>{t.overviewCommonGitDirectory}</dt>
-                <dd>{project.commonGitDir}</dd>
-              </div>
-            )}
-          </dl>
-        </details>
       </div>
     );
   }
@@ -1269,6 +1424,13 @@ export function App(): React.JSX.Element {
   const [publishDialogSessionId, setPublishDialogSessionId] = useState<string | null>(null);
   const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
   const [saveDialogSessionId, setSaveDialogSessionId] = useState<string | null>(null);
+  // Overview's bounded quick-switch/quick-create: distinct from the
+  // Version-lines screen's own dialogs (see `versionLinesPanel.tsx`) because
+  // Overview isn't that screen's React subtree — both ultimately drive the
+  // same Rust plan/execute commands through the same dialog components.
+  const [overviewSwitchTarget, setOverviewSwitchTarget] = useState<string | null>(null);
+  const [overviewCreateRequest, setOverviewCreateRequest] = useState<{ forceSwitch: boolean } | null>(null);
+  const [versionLinesAutoOpenCreate, setVersionLinesAutoOpenCreate] = useState(false);
   const publishDialogSession = publishDialogSessionId
     ? sessionsState.byId[publishDialogSessionId] ?? null
     : null;
@@ -1452,6 +1614,30 @@ export function App(): React.JSX.Element {
     }
   };
 
+  // A successful create/switch/delete on a version line changes `HEAD`, the
+  // index, and the working tree — every one of task 016's "Operation
+  // coordination and refresh" invalidation targets that already exist in
+  // this app. Re-reading the repository facts (branch/head state) through
+  // the same `"open"` action `handleOpenProject` uses below re-hydrates the
+  // active session in place (same `id`, since the path never changes), and
+  // `checkWorkingTree` covers both the working-tree status and the pending-
+  // versions list save/publish depend on. Clearing the Changes selection
+  // stops a diff/file that may not exist on the new line from staying
+  // "selected". Branch inventory itself needs no separate refetch: every
+  // version-line command already returns the fresh `VersionLinesSnapshot`
+  // its own screen renders directly.
+  const handleVersionLineChanged = async (path: string): Promise<void> => {
+    try {
+      const info = await invoke<RepositoryInfo>("open_repository", { path });
+      dispatchSessions({ type: "open", project: info });
+    } catch {
+      // Best-effort: the working-tree refresh below still runs, and the
+      // next status check will eventually re-derive the branch too.
+    }
+    dispatchSessions({ type: "setChangesSelection", id: path, selection: EMPTY_CHANGES_SELECTION });
+    await checkWorkingTree(path);
+  };
+
   // Switching or opening a project moves the visible screen to whatever that
   // session was last showing — unless the user is currently in Settings,
   // which is application-wide and stays exactly where it is regardless of
@@ -1576,11 +1762,11 @@ export function App(): React.JSX.Element {
       (pendingVersions.totalCount > 0 || pendingVersionsError),
   );
 
-  // The Changes screen only exists for an opened project; if the project
-  // closes while it is showing, leave immediately rather than rendering it
-  // against a project that is no longer open.
+  // The Changes and Version-lines screens only exist for an opened project;
+  // if the project closes while one is showing, leave immediately rather
+  // than rendering it against a project that is no longer open.
   useEffect(() => {
-    if (view === "changes" && !project) {
+    if ((view === "changes" || view === "version-lines") && !project) {
       navigateToView("overview");
     }
   }, [view, project]);
@@ -1669,6 +1855,23 @@ export function App(): React.JSX.Element {
   const commands: Command[] = [
     { id: "go-overview", label: t.commandGoOverview, action: () => navigateToView("overview") },
     ...(project ? [{ id: "go-changes", label: t.navChanges, action: () => navigateToView("changes") }] : []),
+    ...(project
+      ? [
+          {
+            id: "go-version-lines",
+            label: t.commandGoVersionLines,
+            action: () => navigateToView("version-lines"),
+          },
+          {
+            id: "new-version-line",
+            label: t.commandNewVersionLine,
+            action: () => {
+              navigateToView("version-lines");
+              setVersionLinesAutoOpenCreate(true);
+            },
+          },
+        ]
+      : []),
     { id: "go-settings", label: t.commandGoSettings, action: () => navigateToView("settings") },
     ...(!hasBlockingDialog
       ? [
@@ -1902,6 +2105,17 @@ export function App(): React.JSX.Element {
                 <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.changes}</span>
                 <span className="nav-item__label">{t.navChanges}</span>
               </button>
+              <button
+                className={`nav-item${view === "version-lines" ? " nav-item--active" : ""}`}
+                type="button"
+                disabled={!project}
+                aria-current={view === "version-lines" ? "page" : undefined}
+                title={project ? t.navVersionLines : t.navVersionLinesTitle}
+                onClick={() => navigateToView("version-lines")}
+              >
+                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.versionLines}</span>
+                <span className="nav-item__label">{t.navVersionLines}</span>
+              </button>
               <button className="nav-item" type="button" disabled title={t.navHistoryTitle}>
                 <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.history}</span>
                 <span className="nav-item__label">{t.navHistory}</span>
@@ -2023,6 +2237,17 @@ export function App(): React.JSX.Element {
                   {t.navChanges}
                 </button>
               )}
+              {project && (
+                <button
+                  className={`compact-nav__item${view === "version-lines" ? " compact-nav__item--active" : ""}`}
+                  type="button"
+                  aria-current={view === "version-lines" ? "page" : undefined}
+                  onClick={() => navigateToView("version-lines")}
+                >
+                  <span aria-hidden="true">{NAV_ICONS.versionLines}</span>
+                  {t.navVersionLines}
+                </button>
+              )}
               <button
                 className={`compact-nav__item${view === "settings" ? " compact-nav__item--active" : ""}`}
                 type="button"
@@ -2071,6 +2296,9 @@ export function App(): React.JSX.Element {
               pendingVersions={pendingVersions}
               pendingVersionsError={pendingVersionsError}
               onRetryPendingVersions={() => projectPath && void checkWorkingTree(projectPath)}
+              onQuickSwitchVersionLine={(target) => setOverviewSwitchTarget(target)}
+              onQuickCreateVersionLine={(forceSwitch) => setOverviewCreateRequest({ forceSwitch })}
+              onGoToVersionLines={() => navigateToView("version-lines")}
             />
           ) : view === "changes" && project ? (
             <Suspense fallback={<ViewLoadingFallback />}>
@@ -2108,6 +2336,19 @@ export function App(): React.JSX.Element {
                     });
                   }
                 }}
+              />
+            </Suspense>
+          ) : view === "version-lines" && project ? (
+            <Suspense fallback={<ViewLoadingFallback />}>
+              <VersionLinesPanel
+                projectPath={project.path}
+                onChanged={() => void handleVersionLineChanged(project.path)}
+                onSaveVersion={() => {
+                  startSessionOperation("save");
+                  navigateToView("changes");
+                }}
+                autoOpenCreate={versionLinesAutoOpenCreate}
+                onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
               />
             </Suspense>
           ) : (
@@ -2150,6 +2391,45 @@ export function App(): React.JSX.Element {
                 phase,
               })
             }
+          />
+        </Suspense>
+      )}
+
+      {project && overviewSwitchTarget && (
+        <Suspense fallback={null}>
+          <SwitchVersionLineDialog
+            isOpen
+            projectPath={project.path}
+            target={overviewSwitchTarget}
+            onClose={() => setOverviewSwitchTarget(null)}
+            onSwitched={() => {
+              setOverviewSwitchTarget(null);
+              void handleVersionLineChanged(project.path);
+            }}
+            onSaveVersion={() => {
+              setOverviewSwitchTarget(null);
+              startSessionOperation("save");
+              navigateToView("changes");
+            }}
+            onCreateWithWork={() => {
+              setOverviewSwitchTarget(null);
+              setOverviewCreateRequest({ forceSwitch: false });
+            }}
+          />
+        </Suspense>
+      )}
+
+      {project && overviewCreateRequest && (
+        <Suspense fallback={null}>
+          <CreateVersionLineDialog
+            isOpen
+            projectPath={project.path}
+            forceSwitch={overviewCreateRequest.forceSwitch}
+            onClose={() => setOverviewCreateRequest(null)}
+            onCreated={() => {
+              setOverviewCreateRequest(null);
+              void handleVersionLineChanged(project.path);
+            }}
           />
         </Suspense>
       )}

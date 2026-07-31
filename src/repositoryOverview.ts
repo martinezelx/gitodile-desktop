@@ -1,3 +1,5 @@
+export type HeadState = "branch" | "detached" | "unborn";
+
 export type RepositoryInfo = {
   name: string;
   path: string;
@@ -5,7 +7,7 @@ export type RepositoryInfo = {
   gitDir: string;
   commonGitDir: string;
   branch: string | null;
-  headState: "branch" | "detached" | "unborn";
+  headState: HeadState;
   kind: "repository" | "worktree";
 };
 
