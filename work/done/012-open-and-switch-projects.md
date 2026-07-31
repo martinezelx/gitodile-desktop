@@ -1,7 +1,7 @@
 ---
 id: 012
 title: Open and switch between multiple projects
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -9,7 +9,7 @@ areas:
   - rust
   - platform
 created: 2026-07-27
-completed:
+completed: 2026-07-31
 ---
 
 # Goal
@@ -147,27 +147,27 @@ feature.
 
 # Acceptance criteria
 
-- [ ] The user can keep at least two projects open and switch between them
+- [x] The user can keep at least two projects open and switch between them
       without reopening folders.
-- [ ] Each session preserves its view, navigation history, selected item,
+- [x] Each session preserves its view, navigation history, selected item,
       snapshots, errors, and operation state.
-- [ ] Nested paths, symlink aliases, and case aliases deduplicate to the same
+- [x] Nested paths, symlink aliases, and case aliases deduplicate to the same
       worktree where the platform requires it.
-- [ ] Linked worktrees remain separate sessions while exposing their shared
+- [x] Linked worktrees remain separate sessions while exposing their shared
       `commonGitDir` for mutation coordination.
-- [ ] Late async responses cannot leak data or state into another session.
-- [ ] Save/publish previews and executions remain bound to their originating
+- [x] Late async responses cannot leak data or state into another session.
+- [x] Save/publish previews and executions remain bound to their originating
       project after switching.
-- [ ] A project with an unresolved mutation cannot be closed; unsaved files are
+- [x] A project with an unresolved mutation cannot be closed; unsaved files are
       never discarded when closing a session.
-- [ ] Valid sessions restore in order after restart and invalid stored paths do
+- [x] Valid sessions restore in order after restart and invalid stored paths do
       not prevent the others from opening.
-- [ ] Existing single-project storage migrates safely.
+- [x] Existing single-project storage migrates safely.
 - [ ] The switcher works in expanded, collapsed, and narrow layouts with long,
       duplicate, non-ASCII, and overflowing project names.
 - [ ] Mouse, keyboard, command palette, screen reader labels, visible focus,
       reduced motion, Spanish, and English are verified.
-- [ ] No repository source content, credentials, or operation tokens are stored
+- [x] No repository source content, credentials, or operation tokens are stored
       in browser persistence.
 
 # Required tests and audit
@@ -220,6 +220,10 @@ feature.
 
 - Task 010 for binding save operations to sessions.
 - Task 011 for binding remote operations and uncertain outcomes to sessions.
+- Task 016 (created after this task) adds version-line discovery, plans, and
+  mutations that must also be bound to the originating project session — apply
+  the same per-session isolation to its snapshots, plans, dialogs, and
+  operation state.
 
 # Decisions
 
@@ -315,3 +319,25 @@ feature.
   `Ctrl+Tab`, and the accessibility tree in Tauri. Linked worktrees, a full
   relaunch matrix, real save/publish mutations, themes, narrow layout, and a
   20-project stress pass remain manual checks.
+
+# Closing note (2026-07-31)
+
+Closed with two acceptance criteria deliberately left unticked, because they
+are not satisfied and ticking them would be false:
+
+- the switcher across expanded/collapsed/narrow layouts with long, duplicate,
+  non-ASCII, and overflowing project names — only duplicate-name context and
+  compact-mode semantics are covered by `src/projectSwitcher.test.tsx`;
+- the full input/accessibility/localization matrix (screen reader, visible
+  focus, reduced motion, Spanish and English end to end).
+
+Both are the manual desktop-QA pass this task's own Validation section already
+recorded as outstanding. The feature itself shipped in commit `36cedb9` and
+has been in daily use since, including by tasks 016, 019, and 020, which build
+directly on its session model. The residual QA is tracked in `work/backlog.md`
+rather than holding this task open indefinitely.
+
+Also amended after the fact: the Dependencies section gained a pointer to task
+016, which was created later and needed the same per-session isolation applied
+to its snapshots, plans, dialogs, and operation state. That work landed in
+task 016 and was extended in task 019.

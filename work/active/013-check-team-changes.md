@@ -161,7 +161,7 @@ Use local bare remotes and separate clones for:
 - `DESIGN.md`
 - `docs/ARCHITECTURE.md`
 - `work/done/011-publish-changes.md`
-- `work/active/012-open-and-switch-projects.md`
+- `work/done/012-open-and-switch-projects.md`
 - `src/main.tsx`
 - `src/repositoryOverview.ts`
 - `src/appError.ts`

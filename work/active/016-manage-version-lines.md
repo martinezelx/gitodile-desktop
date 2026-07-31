@@ -483,7 +483,7 @@ Downstream integration:
 - `work/done/007-working-tree-status.md`
 - `work/done/010-save-version.md`
 - `work/done/011-publish-changes.md`
-- `work/active/012-open-and-switch-projects.md`
+- `work/done/012-open-and-switch-projects.md`
 - `work/active/013-check-team-changes.md`
 - `work/active/014-get-team-changes-safely.md`
 - `work/active/015-history-timeline.md`

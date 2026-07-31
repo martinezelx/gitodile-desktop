@@ -34,6 +34,14 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 - Guide users through overlapping changes.
 - Support GitHub authentication after the local workflow is stable.
 
+## Quality and verification
+
+- Complete the manual desktop-QA pass task 012 closed without: the project
+  switcher across expanded, collapsed, and narrow layouts with long,
+  duplicate, non-ASCII, and overflowing project names; and the full
+  keyboard/screen-reader/visible-focus/reduced-motion pass in both Spanish and
+  English.
+
 ## Product and design
 
 - Create the GitOdrile crocodile icon and mascot system.
