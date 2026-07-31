@@ -10,6 +10,7 @@ import {
   type ProjectSessionsState,
 } from "./projectSessions";
 import type { RepositoryInfo } from "./repositoryOverview";
+import type { VersionLinesSnapshot } from "./versionLines";
 
 function makeProject(path: string, overrides: Partial<RepositoryInfo> = {}): RepositoryInfo {
   return {
@@ -24,6 +25,25 @@ function makeProject(path: string, overrides: Partial<RepositoryInfo> = {}): Rep
     ...overrides,
   };
 }
+
+const versionLines: VersionLinesSnapshot = {
+  branch: "main",
+  headState: "branch",
+  currentCommit: "abc123",
+  lines: [
+    {
+      name: "main",
+      tip: { commit: "abc123", shortCommit: "abc123a", subject: "first", committedAt: "2026-07-01T00:00:00Z" },
+      isActive: true,
+      upstream: null,
+      isRetainedElsewhere: false,
+      uniqueCommitCount: null,
+      worktreePath: null,
+    },
+  ],
+  totalCount: 1,
+  isTruncated: false,
+};
 
 describe("projectSessionsReducer", () => {
   it("opens a new project as the active session", () => {
@@ -190,6 +210,63 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/a"].workingTree).toEqual(workingTree);
     expect(state.byId["/a"].workingTreeError).toBe("network blip");
     expect(state.byId["/a"].isCheckingChanges).toBe(false);
+  });
+
+  it("keeps the last known version lines visible when a refresh fails", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
+    expect(state.byId["/a"].versionLines).toBeNull();
+
+    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 1 });
+    expect(state.byId["/a"].isLoadingVersionLines).toBe(true);
+    state = projectSessionsReducer(state, {
+      type: "applyVersionLines",
+      id: "/a",
+      generation: 1,
+      snapshot: versionLines,
+    });
+    expect(state.byId["/a"].versionLines).toEqual(versionLines);
+    expect(state.byId["/a"].isLoadingVersionLines).toBe(false);
+
+    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 2 });
+    state = projectSessionsReducer(state, {
+      type: "applyVersionLinesError",
+      id: "/a",
+      generation: 2,
+      error: "git blip",
+    });
+    expect(state.byId["/a"].versionLines).toEqual(versionLines);
+    expect(state.byId["/a"].versionLinesError).toBe("git blip");
+    expect(state.byId["/a"].isLoadingVersionLines).toBe(false);
+  });
+
+  it("drops a superseded version-lines response instead of clobbering a newer one", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
+    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 1 });
+    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 2 });
+
+    const stale = projectSessionsReducer(state, {
+      type: "applyVersionLines",
+      id: "/a",
+      generation: 1,
+      snapshot: versionLines,
+    });
+    expect(stale).toBe(state);
+    expect(stale.byId["/a"].versionLines).toBeNull();
+  });
+
+  it("keeps each session's version lines separate from the working-tree generation", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
+    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 1 });
+    // A working-tree refresh runs its own counter; it must not invalidate the
+    // version-lines read already in flight.
+    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 7 });
+    state = projectSessionsReducer(state, {
+      type: "applyVersionLines",
+      id: "/a",
+      generation: 1,
+      snapshot: versionLines,
+    });
+    expect(state.byId["/a"].versionLines).toEqual(versionLines);
   });
 
   it("remembers the last view and changes selection per session", () => {

@@ -39,6 +39,34 @@ const cleanStatus: WorkingTreeStatus = {
   upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
 };
 
+const versionLines = {
+  branch: "main",
+  headState: "branch" as const,
+  currentCommit: "abc123",
+  lines: [
+    {
+      name: "main",
+      tip: { commit: "abc123", shortCommit: "abc123a", subject: "first", committedAt: "2026-07-01T00:00:00Z" },
+      isActive: true,
+      upstream: null,
+      isRetainedElsewhere: false,
+      uniqueCommitCount: null,
+      worktreePath: null,
+    },
+    {
+      name: "feature/spike",
+      tip: { commit: "def456", shortCommit: "def456a", subject: "wip", committedAt: "2026-07-02T00:00:00Z" },
+      isActive: false,
+      upstream: null,
+      isRetainedElsewhere: true,
+      uniqueCommitCount: 1,
+      worktreePath: null,
+    },
+  ],
+  totalCount: 2,
+  isTruncated: false,
+};
+
 const secondProject: RepositoryInfo = {
   ...restoredProject,
   name: "second-project",
@@ -97,6 +125,11 @@ describe("App project restoration", () => {
       }
       if (command === "list_unpublished_versions") {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "get_version_lines") {
+        // The idle-time branch-inventory prefetch (task 019). Answered here
+        // so it stays a background no-op rather than an unexpected command.
+        return Promise.resolve(versionLines);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -157,6 +190,11 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       }
+      if (command === "get_version_lines") {
+        // The idle-time branch-inventory prefetch (task 019). Answered here
+        // so it stays a background no-op rather than an unexpected command.
+        return Promise.resolve(versionLines);
+      }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
@@ -188,5 +226,50 @@ describe("App project restoration", () => {
         ),
       ).toHaveLength(2),
     );
+  });
+
+  it("reopens Overview's version-line menu from cache, with no spinner", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") {
+        return Promise.resolve(restoredProject);
+      }
+      if (command === "read_working_tree_status") {
+        return Promise.resolve(cleanStatus);
+      }
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "get_version_lines") {
+        return Promise.resolve(versionLines);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("heading", { name: restoredProject.name });
+    const trigger = screen.getByRole("button", { name: "Change (main)" });
+
+    await userEvent.click(trigger);
+    expect(await screen.findByRole("menuitem", { name: /feature\/spike/ })).toBeInTheDocument();
+    await userEvent.click(trigger);
+
+    // The regression this guards: the menu used to refetch on every open and
+    // blank itself to a spinner while it waited (task 019).
+    await userEvent.click(trigger);
+    expect(screen.getByRole("menuitem", { name: /feature\/spike/ })).toBeInTheDocument();
   });
 });

@@ -608,7 +608,9 @@ Implemented (first pass):
   dialog). Overview's "Current version line" card gained bounded
   "Change"/"New" quick actions (`OverviewVersionLineQuickActions` in
   `main.tsx`) that reuse the exact same dialogs/plans as the dedicated
-  screen.
+  screen. **Amended by task 019** — the menu read its own snapshot on every
+  open in this pass; it now renders the session's cached one and revalidates
+  behind it. The dialogs and plans it drives are unchanged.
 - Invalidation: a successful create/switch/delete calls
   `handleVersionLineChanged` (`main.tsx`), which re-runs `open_repository`
   (refreshes branch/head state via the existing session `"open"` action),
@@ -616,6 +618,12 @@ Implemented (first pass):
   `checkWorkingTree` (working-tree status + pending/publish list). Branch
   inventory needs no separate refetch: every mutation command already
   returns the fresh `VersionLinesSnapshot` its own screen renders directly.
+  **Superseded by task 019** — the inventory is now cached on the project
+  session rather than owned by the screen, so `handleVersionLineChanged`
+  does re-read it. The screen's own dialogs still hand their returned
+  snapshot straight back, but Overview's quick switch/create reach the same
+  commands from outside that screen and would otherwise leave the cache
+  stale. See task 019's implementation notes.
 - Tests: 22 new Rust unit/integration tests (parsing, git-version
   comparison, create/switch/delete happy paths and every listed block
   reason, stale-token rejection) plus frontend tests for the panel and the

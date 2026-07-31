@@ -1,5 +1,6 @@
 import type { PendingVersionsResult } from "./publish";
 import type { RepositoryInfo, WorkingTreeStatus } from "./repositoryOverview";
+import type { VersionLinesSnapshot } from "./versionLines";
 
 /** Per-project view: `settings` lives outside any session (see main.tsx), so
  * a session only ever remembers which of these two it was last showing. */
@@ -61,6 +62,19 @@ export type ProjectSession = {
   statusGeneration: number;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
+  /** Last known branch inventory, kept here rather than inside the Version
+   * lines screen so leaving that screen and coming back renders the previous
+   * answer immediately while a refresh runs behind it (see task 019).
+   * `null` means "never loaded for this project", which is the only case
+   * that warrants a full-screen loading state. */
+  versionLines: VersionLinesSnapshot | null;
+  versionLinesError: string | null;
+  isLoadingVersionLines: boolean;
+  /** Same role as `statusGeneration`, with its own counter: version-lines
+   * reads and working-tree reads are started independently, so sharing one
+   * counter would let either one's refresh discard the other's in-flight
+   * result. Ownership stays with the caller (`main.tsx`). */
+  versionLinesGeneration: number;
   operation: ProjectMutation | null;
 };
 
@@ -93,6 +107,14 @@ export type ProjectSessionsAction =
   | { type: "applyWorkingTreeError"; id: string; generation: number; error: string }
   | { type: "applyPendingVersions"; id: string; generation: number; result: PendingVersionsResult }
   | { type: "applyPendingVersionsError"; id: string; generation: number; error: string }
+  | { type: "startVersionLinesLoad"; id: string; generation: number }
+  | {
+      type: "applyVersionLines";
+      id: string;
+      generation: number;
+      snapshot: VersionLinesSnapshot;
+    }
+  | { type: "applyVersionLinesError"; id: string; generation: number; error: string }
   | { type: "navigate"; id: string; view: ProjectView }
   | { type: "goBack"; id: string }
   | { type: "goForward"; id: string }
@@ -115,6 +137,10 @@ function freshSession(project: RepositoryInfo): ProjectSession {
     statusGeneration: 0,
     pendingVersions: EMPTY_PENDING_VERSIONS,
     pendingVersionsError: null,
+    versionLines: null,
+    versionLinesError: null,
+    isLoadingVersionLines: false,
+    versionLinesGeneration: 0,
     operation: null,
   };
 }
@@ -269,6 +295,42 @@ export function projectSessionsReducer(
       return updateSession(state, action.id, (current) => ({
         ...current,
         pendingVersionsError: action.error,
+      }));
+    }
+
+    case "startVersionLinesLoad":
+      return updateSession(state, action.id, (session) => ({
+        ...session,
+        versionLinesGeneration: action.generation,
+        isLoadingVersionLines: true,
+      }));
+
+    case "applyVersionLines": {
+      const session = state.byId[action.id];
+      if (!session || session.versionLinesGeneration !== action.generation) {
+        return state;
+      }
+      return updateSession(state, action.id, (current) => ({
+        ...current,
+        versionLines: action.snapshot,
+        versionLinesError: null,
+        isLoadingVersionLines: false,
+      }));
+    }
+
+    case "applyVersionLinesError": {
+      const session = state.byId[action.id];
+      if (!session || session.versionLinesGeneration !== action.generation) {
+        return state;
+      }
+      // Mirrors `applyWorkingTreeError`: the last known snapshot stays
+      // visible and only the error and the busy flag change, so a failed
+      // background refresh degrades to "this may be stale" rather than
+      // blanking a screen the user was already reading.
+      return updateSession(state, action.id, (current) => ({
+        ...current,
+        versionLinesError: action.error,
+        isLoadingVersionLines: false,
       }));
     }
 

@@ -49,6 +49,7 @@ import {
 } from "./repositoryOverview";
 import { localizeAppError } from "./appError";
 import { autoHideScrollbarProps } from "./autoHideScrollbar";
+import { createDiffCache, releaseDiffCache } from "./diffCache";
 import type { PendingVersionsResult } from "./publish";
 import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
 import { useModalFocus } from "./modalFocus";
@@ -205,6 +206,21 @@ function ViewLoadingFallback(): React.JSX.Element {
       </div>
     </div>
   );
+}
+
+/** Defers background work (chunk prefetches, speculative repository reads)
+ * until the app is idle, so none of it competes with first paint or with a
+ * user action already in flight — the rule task 018 established for launch
+ * performance. Returns a canceller for use as an effect cleanup. */
+function scheduleIdleTask(task: () => void): () => void {
+  if ("requestIdleCallback" in window) {
+    const handle = window.requestIdleCallback(task, { timeout: 2000 });
+    return () => window.cancelIdleCallback(handle);
+  }
+  // Not `window.setTimeout`: the `in` check above narrows `window` itself, so
+  // reaching for a member of it here is a type error. The global works.
+  const handle = setTimeout(task, 1000);
+  return () => clearTimeout(handle);
 }
 
 type Command = { id: string; label: string; hint?: string; action: () => void };
@@ -1358,6 +1374,18 @@ export function App(): React.JSX.Element {
   // plain synchronous value before the async status/pending-versions calls
   // even start (see `checkWorkingTree` below).
   const statusGenerationsRef = useRef<Record<string, number>>({});
+  // The same idea for the version-lines read, on its own counter: that read
+  // and the working-tree read start independently, so one counter would let
+  // either refresh discard the other's in-flight result.
+  const versionLinesGenerationsRef = useRef<Record<string, number>>({});
+  // Dedupes concurrent version-lines reads for the same project, so the idle
+  // prefetch and a user who reaches the screen before it finishes share one
+  // Git process instead of racing.
+  const versionLinesRequestsRef = useRef<Record<string, Promise<void>>>({});
+  // Read diffs, kept per project across screen changes. Owned here rather
+  // than by `ChangesPanel` so leaving Changes and coming back is a cache hit
+  // (see task 019); entries are dropped when their session closes.
+  const diffCacheRef = useRef(createDiffCache());
   const activeSession = sessionsState.activeId ? sessionsState.byId[sessionsState.activeId] : null;
   const project = activeSession?.project ?? null;
   const workingTree = activeSession?.workingTree ?? null;
@@ -1614,6 +1642,48 @@ export function App(): React.JSX.Element {
     }
   };
 
+  /** Re-reads the branch inventory into the project's session. Safe to call
+   * speculatively: concurrent calls for the same project share one request,
+   * and the cached snapshot stays on screen throughout, so this is invisible
+   * unless it is the project's first read. */
+  const refreshVersionLines = (path: string): Promise<void> => {
+    const inFlight = versionLinesRequestsRef.current[path];
+    if (inFlight) {
+      return inFlight;
+    }
+    const generation = (versionLinesGenerationsRef.current[path] ?? 0) + 1;
+    versionLinesGenerationsRef.current[path] = generation;
+    dispatchSessions({ type: "startVersionLinesLoad", id: path, generation });
+    const request = invoke<VersionLinesSnapshot>("get_version_lines", { path })
+      .then((snapshot) => {
+        dispatchSessions({ type: "applyVersionLines", id: path, generation, snapshot });
+      })
+      .catch((error: unknown) => {
+        dispatchSessions({
+          type: "applyVersionLinesError",
+          id: path,
+          generation,
+          error: localizeAppError(error, t, t.versionLinesErrorLoading),
+        });
+      })
+      .finally(() => {
+        delete versionLinesRequestsRef.current[path];
+      });
+    versionLinesRequestsRef.current[path] = request;
+    return request;
+  };
+
+  /** Stores a snapshot a mutation already returned, skipping a re-read. The
+   * generation is bumped first so an older in-flight read can't land on top
+   * of it; both dispatches are batched into one render, so the momentary
+   * `isLoadingVersionLines` never reaches the screen. */
+  const commitVersionLines = (path: string, snapshot: VersionLinesSnapshot): void => {
+    const generation = (versionLinesGenerationsRef.current[path] ?? 0) + 1;
+    versionLinesGenerationsRef.current[path] = generation;
+    dispatchSessions({ type: "startVersionLinesLoad", id: path, generation });
+    dispatchSessions({ type: "applyVersionLines", id: path, generation, snapshot });
+  };
+
   // A successful create/switch/delete on a version line changes `HEAD`, the
   // index, and the working tree — every one of task 016's "Operation
   // coordination and refresh" invalidation targets that already exist in
@@ -1623,9 +1693,12 @@ export function App(): React.JSX.Element {
   // `checkWorkingTree` covers both the working-tree status and the pending-
   // versions list save/publish depend on. Clearing the Changes selection
   // stops a diff/file that may not exist on the new line from staying
-  // "selected". Branch inventory itself needs no separate refetch: every
-  // version-line command already returns the fresh `VersionLinesSnapshot`
-  // its own screen renders directly.
+  // "selected". The branch inventory is re-read too, now that it is cached
+  // per session rather than owned by the Version-lines screen: the screen's
+  // own dialogs hand their fresh snapshot straight back (see
+  // `commitVersionLines`), but Overview's quick switch/create reach the same
+  // commands from outside that screen, and their result must not be left
+  // behind in the cache.
   const handleVersionLineChanged = async (path: string): Promise<void> => {
     try {
       const info = await invoke<RepositoryInfo>("open_repository", { path });
@@ -1635,6 +1708,7 @@ export function App(): React.JSX.Element {
       // next status check will eventually re-derive the branch too.
     }
     dispatchSessions({ type: "setChangesSelection", id: path, selection: EMPTY_CHANGES_SELECTION });
+    void refreshVersionLines(path);
     await checkWorkingTree(path);
   };
 
@@ -1762,6 +1836,32 @@ export function App(): React.JSX.Element {
       (pendingVersions.totalCount > 0 || pendingVersionsError),
   );
 
+  // Warms the active project's branch inventory during idle time, so the
+  // first visit to Version lines already has something to render. Gated on
+  // the startup restore having finished and deferred to idle so it can never
+  // add Git work to launch; skipped entirely for a project that already has
+  // a cached snapshot, since the effect below covers keeping it current.
+  const hasCachedVersionLines = (activeSession?.versionLines ?? null) !== null;
+  useEffect(() => {
+    if (!hasCompletedSessionRestore || !projectPath || hasCachedVersionLines) {
+      return undefined;
+    }
+    return scheduleIdleTask(() => {
+      void refreshVersionLines(projectPath);
+    });
+  }, [hasCompletedSessionRestore, projectPath, hasCachedVersionLines]);
+
+  // Revalidates on arrival at the screen itself — the one moment the user is
+  // looking straight at this data, and the only place branches created
+  // outside GitOdrile would otherwise go unnoticed. Invisible when a snapshot
+  // is already cached: it stays on screen while this runs.
+  useEffect(() => {
+    if (view !== "version-lines" || !projectPath) {
+      return;
+    }
+    void refreshVersionLines(projectPath);
+  }, [view, projectPath]);
+
   // The Changes and Version-lines screens only exist for an opened project;
   // if the project closes while one is showing, leave immediately rather
   // than rendering it against a project that is no longer open.
@@ -1779,6 +1879,14 @@ export function App(): React.JSX.Element {
         ? remainingOrder[Math.min(index, remainingOrder.length - 1)]
         : sessionsState.activeId;
     const nextSession = nextActiveId ? sessionsState.byId[nextActiveId] : null;
+    // The session's own state goes with the reducer; the diff cache lives
+    // outside it and has to be dropped explicitly, or a closed project's
+    // file contents would stay in memory for the rest of the run.
+    // The generation counters deliberately survive: they are monotonic per
+    // path, and resetting one while a read is still in flight would let that
+    // read's response be accepted by a *reopened* session as if it were its
+    // own. Same reason `statusGenerationsRef` is never cleared.
+    releaseDiffCache(diffCacheRef.current, id);
     dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id && view !== "settings") {
       setView(nextSession?.lastView ?? "overview");
@@ -2296,6 +2404,9 @@ export function App(): React.JSX.Element {
               pendingVersions={pendingVersions}
               pendingVersionsError={pendingVersionsError}
               onRetryPendingVersions={() => projectPath && void checkWorkingTree(projectPath)}
+              versionLines={activeSession?.versionLines ?? null}
+              isLoadingVersionLines={activeSession?.isLoadingVersionLines ?? false}
+              onQuickSwitchOpened={() => projectPath && void refreshVersionLines(projectPath)}
               onQuickSwitchVersionLine={(target) => setOverviewSwitchTarget(target)}
               onQuickCreateVersionLine={(forceSwitch) => setOverviewCreateRequest({ forceSwitch })}
               onGoToVersionLines={() => navigateToView("version-lines")}
@@ -2307,6 +2418,7 @@ export function App(): React.JSX.Element {
                 workingTree={workingTree}
                 workingTreeError={workingTreeError}
                 isCheckingChanges={isCheckingChanges}
+                diffCache={diffCacheRef.current}
                 onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
                 onNavigateOverview={() => navigateToView("overview")}
                 onPublishNow={() => openPublishDialog()}
@@ -2342,6 +2454,11 @@ export function App(): React.JSX.Element {
             <Suspense fallback={<ViewLoadingFallback />}>
               <VersionLinesPanel
                 projectPath={project.path}
+                snapshot={activeSession?.versionLines ?? null}
+                error={activeSession?.versionLinesError ?? null}
+                isLoading={activeSession?.isLoadingVersionLines ?? false}
+                onRefresh={() => void refreshVersionLines(project.path)}
+                onSnapshot={(snapshot) => commitVersionLines(project.path, snapshot)}
                 onChanged={() => void handleVersionLineChanged(project.path)}
                 onSaveVersion={() => {
                   startSessionOperation("save");
@@ -2554,10 +2671,11 @@ const prefetchLazyPanels = (): void => {
   void import("./changes");
   void import("./publishDialog");
   void import("./pendingVersions");
+  // Added in task 019: these two arrived with task 016 and were never listed
+  // here, so the Version lines screen paid a chunk fetch — and showed
+  // `ViewLoadingFallback` — on its first visit of every run.
+  void import("./versionLinesPanel");
+  void import("./versionLinesDialog");
 };
 
-if ("requestIdleCallback" in window) {
-  window.requestIdleCallback(prefetchLazyPanels, { timeout: 2000 });
-} else {
-  setTimeout(prefetchLazyPanels, 1000);
-}
+scheduleIdleTask(prefetchLazyPanels);

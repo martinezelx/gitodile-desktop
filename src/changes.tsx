@@ -21,6 +21,7 @@ import { localizeAppError } from "./appError";
 import { getFileTypeIcon } from "./fileIcons";
 import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { SaveVersionDialog } from "./saveVersionDialog";
+import { fetchDiff, getDiffStore, type DiffCache } from "./diffCache";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
 // ---- Types mirroring the Rust `FileDiff` contract (src-tauri/src/lib.rs) ----
@@ -126,19 +127,6 @@ type DiffState =
   | { status: "error"; message: string }
   | { status: "ready"; diff: FileDiff };
 
-type DiffStore = {
-  projectPath: string;
-  workingTree: WorkingTreeStatus | null;
-  cache: Map<string, FileDiff>;
-  requests: Map<string, Promise<FileDiff>>;
-  /** Guards the one-shot `read_working_tree_diffs` warm-up below. Unlike
-   * per-file fetches, that call has no per-path key to dedupe through
-   * `requests`, so without this flag React re-running the effect for the
-   * same store (development's StrictMode double-invoke, a fast-refresh, ...)
-   * would fire the whole-snapshot batch more than once. */
-  batchStarted: boolean;
-};
-
 const DIFF_LOADING_DELAY_MS = 140;
 /** How many files on each side of the current selection get quietly
  * prefetched in the background. Small on purpose: this rides on the same
@@ -147,34 +135,6 @@ const DIFF_LOADING_DELAY_MS = 140;
  * the common sequential-review flow, without eagerly fetching an entire
  * (possibly huge) change set up front. */
 const PREFETCH_RADIUS = 2;
-
-/** Single point of truth for turning a path into a diff: checks the cache,
- * then joins an in-flight request for that path if one exists, otherwise
- * starts one. Every caller (the active selection and the background
- * prefetcher below) shares the same cache and in-flight map, so two
- * simultaneous callers for the same path only ever spawn one Git process. */
-function fetchDiff(store: DiffStore, projectPath: string, path: string): Promise<FileDiff> {
-  const cached = store.cache.get(path);
-  if (cached) {
-    return Promise.resolve(cached);
-  }
-  let request = store.requests.get(path);
-  if (!request) {
-    request = invoke<FileDiff>("read_file_diff", { path: projectPath, filePath: path }).then(
-      (diff) => {
-        store.cache.set(path, diff);
-        store.requests.delete(path);
-        return diff;
-      },
-      (error: unknown) => {
-        store.requests.delete(path);
-        throw error;
-      },
-    );
-    store.requests.set(path, request);
-  }
-  return request;
-}
 
 function EmptyDiffNote({
   icon,
@@ -552,6 +512,7 @@ export function ChangesPanel({
   workingTree,
   workingTreeError,
   isCheckingChanges,
+  diffCache,
   onRefresh,
   onNavigateOverview,
   onPublishNow,
@@ -566,6 +527,11 @@ export function ChangesPanel({
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
+  /** Owned by the caller, not this component, so already-read diffs survive
+   * navigating away from Changes and back within the same project (see task
+   * 019). Invalidation is unchanged: `getDiffStore` replaces the store
+   * whenever the project or the working-tree snapshot changes. */
+  diffCache: DiffCache;
   onRefresh: () => void;
   onNavigateOverview: () => void;
   onPublishNow: () => void;
@@ -586,28 +552,16 @@ export function ChangesPanel({
   const { t } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
   const [announcement, setAnnouncement] = useState("");
-  const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
+  const store = getDiffStore(diffCache, projectPath, workingTree);
+  // Seeded from the cache rather than starting at `idle`: on a remount with a
+  // warm cache (navigating back to this screen) that difference is the one
+  // frame of empty detail pane between mounting and the effect below running.
+  const [diffState, setDiffState] = useState<DiffState>(() => {
+    const cached = selectedPath ? store.cache.get(selectedPath) : undefined;
+    return cached ? { status: "ready", diff: cached } : { status: "idle" };
+  });
   const [retryToken, setRetryToken] = useState(0);
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(() => new Set());
-  const diffStoreRef = useRef<DiffStore>({
-    projectPath,
-    workingTree,
-    cache: new Map(),
-    requests: new Map(),
-    batchStarted: false,
-  });
-  if (
-    diffStoreRef.current.projectPath !== projectPath ||
-    diffStoreRef.current.workingTree !== workingTree
-  ) {
-    diffStoreRef.current = {
-      projectPath,
-      workingTree,
-      cache: new Map(),
-      requests: new Map(),
-      batchStarted: false,
-    };
-  }
   // Below ~1024px the list and the diff can't sit side by side legibly, so
   // the layout becomes list/detail: this tracks which one is showing.
   const [isDetailFocused, setIsDetailFocused] = useState(false);
@@ -616,6 +570,11 @@ export function ChangesPanel({
   // whichever was selected when the effect last ran.
   const selectedPathRef = useRef(selectedPath);
   selectedPathRef.current = selectedPath;
+  // Lets the batch effect below tell "the store this call belongs to is still
+  // the current one" from "a real project/snapshot switch happened while it
+  // was in flight", now that the store is no longer this component's own ref.
+  const storeRef = useRef(store);
+  storeRef.current = store;
 
   // Preserves the current selection across a refresh when it is still
   // present; otherwise moves to the next available file and announces the
@@ -648,15 +607,16 @@ export function ChangesPanel({
 
   // Diffs are cached only for the current working-tree snapshot. A refresh or
   // project switch replaces the whole store, while revisiting a file within
-  // the same snapshot is instant. In-flight requests are shared too, avoiding
-  // duplicate Git processes when the user switches away and back quickly.
+  // the same snapshot is instant — including after leaving this screen and
+  // coming back, since the store outlives the component. In-flight requests
+  // are shared too, avoiding duplicate Git processes when the user switches
+  // away and back quickly.
   useEffect(() => {
     if (!selectedPath) {
       setDiffState({ status: "idle" });
       return undefined;
     }
 
-    const store = diffStoreRef.current;
     const cachedDiff = store.cache.get(selectedPath);
     if (cachedDiff) {
       setDiffState({ status: "ready", diff: cachedDiff });
@@ -688,7 +648,7 @@ export function ChangesPanel({
       cancelled = true;
       window.clearTimeout(loadingTimer);
     };
-  }, [projectPath, selectedPath, workingTree, retryToken, t]);
+  }, [store, projectPath, selectedPath, workingTree, retryToken, t]);
 
   // Warms the entire cache in one Git process per working-tree snapshot
   // (`read_working_tree_diffs`), instead of one process per file
@@ -703,7 +663,6 @@ export function ChangesPanel({
     if (!workingTree || workingTree.isClean) {
       return undefined;
     }
-    const store = diffStoreRef.current;
     if (store.batchStarted) {
       return undefined;
     }
@@ -719,7 +678,7 @@ export function ChangesPanel({
         // starting a real replacement, permanently discarding the result.
         // Comparing store identity survives that double-invoke correctly
         // while still discarding a result that genuinely no longer applies.
-        if (diffStoreRef.current !== store) {
+        if (storeRef.current !== store) {
           return;
         }
         for (const diff of diffs) {
@@ -735,7 +694,7 @@ export function ChangesPanel({
         // Silent: a best-effort cache warm-up, not the file the user is
         // actually looking at. Its own fetch (above) reports real errors.
       });
-  }, [projectPath, workingTree]);
+  }, [store, projectPath, workingTree]);
 
   // Quietly warms the cache for files near the current selection, so the
   // common "review sequentially, click next" flow finds a warm cache instead
@@ -747,7 +706,6 @@ export function ChangesPanel({
     if (!selectedPath) {
       return;
     }
-    const store = diffStoreRef.current;
     const index = entries.findIndex((entry) => entry.path === selectedPath);
     if (index === -1) {
       return;
@@ -761,7 +719,7 @@ export function ChangesPanel({
         }
       }
     }
-  }, [entries, projectPath, selectedPath]);
+  }, [store, entries, projectPath, selectedPath]);
 
   const isLoadingList = isCheckingChanges && !workingTree;
   const selectedEntry = entries.find((entry) => entry.path === selectedPath) ?? null;

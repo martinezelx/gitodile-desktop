@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { ChangesPanel } from "./changes";
+import { createDiffCache } from "./diffCache";
 import { LanguageProvider } from "./i18n";
 import type { WorkingTreeStatus } from "./repositoryOverview";
 
@@ -11,26 +12,31 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const mockedInvoke = vi.mocked(invoke);
 
-/** `ChangesPanel` no longer owns `selectedPath` or the save-version dialog's
- * open state — both are lifted so a project session can remember them (see
- * task 012). This wrapper plays the same role `main.tsx` does in the real
- * app: holding that state and passing it down as controlled props. */
+/** `ChangesPanel` no longer owns `selectedPath`, the save-version dialog's
+ * open state, or the diff cache — all lifted so a project session can
+ * remember them across navigation (see tasks 012 and 019). This wrapper plays
+ * the same role `main.tsx` does in the real app: holding that state and
+ * passing it down as controlled props. `diffCache` may be supplied by a test
+ * that needs it to outlive a remount; otherwise each wrapper gets its own. */
 function ControlledChangesPanel(
   props: Omit<
     React.ComponentProps<typeof ChangesPanel>,
+    | "diffCache"
     | "selectedPath"
     | "onSelectedPathChange"
     | "isSaveVersionOpen"
     | "onOpenSaveVersion"
     | "onCloseSaveVersion"
     | "onSaveVersionPhaseChange"
-  >,
+  > & { diffCache?: React.ComponentProps<typeof ChangesPanel>["diffCache"] },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [isSaveVersionOpen, setIsSaveVersionOpen] = useState(false);
+  const ownCache = useRef(createDiffCache());
   return (
     <ChangesPanel
       {...props}
+      diffCache={props.diffCache ?? ownCache.current}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
       isSaveVersionOpen={isSaveVersionOpen}
@@ -176,6 +182,40 @@ describe("ChangesPanel save selection", () => {
     // A new working-tree snapshot resets the store, so the selected file,
     // its prefetched neighbor, and the batch warm-up all fire again: 3 more.
     await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(6));
+  });
+
+  it("re-reads nothing when the screen is left and reopened on the same snapshot", async () => {
+    // The regression this guards: the cache used to live in a ref inside
+    // `ChangesPanel`, so navigating to another screen and back discarded it
+    // and re-ran every read (task 019).
+    const diffCache = createDiffCache();
+    const panelElement = (
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={workingTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          diffCache={diffCache}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>
+    );
+
+    const first = render(panelElement);
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(3));
+    first.unmount();
+
+    const { container } = render(panelElement);
+    const panel = within(container);
+
+    // Rendered straight from the cache, with no further Git work: the diff is
+    // already on screen and the count is unchanged.
+    expect(await panel.findByText("No content changed")).toBeInTheDocument();
+    expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledTimes(3);
   });
 
   it("only shows diff loading feedback when a read remains pending", async () => {
