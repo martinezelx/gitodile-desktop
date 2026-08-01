@@ -54,6 +54,7 @@ import { createDiffCache, releaseDiffCache } from "./diffCache";
 import type { PendingVersionsResult } from "./publish";
 import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
 import { useModalFocus } from "./modalFocus";
+import { TooltipHost } from "./tooltip";
 import {
   EMPTY_CHANGES_SELECTION,
   EMPTY_PENDING_VERSIONS,
@@ -376,7 +377,7 @@ function TitlebarMenu({ onOpenAbout }: { onOpenAbout: () => void }): React.JSX.E
         className="titlebar-icon-button"
         type="button"
         aria-label={t.titlebarMoreActions}
-        title={t.titlebarMoreActions}
+        data-tooltip={t.titlebarMoreActions}
         aria-haspopup="menu"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
@@ -450,7 +451,7 @@ function ProjectMenu({
         className="project-menu__trigger"
         type="button"
         aria-label={t.overviewProjectMenu}
-        title={t.overviewProjectMenu}
+        data-tooltip={t.overviewProjectMenu}
         aria-haspopup="menu"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
@@ -508,7 +509,7 @@ function ProjectPath({ path }: { path: string }): React.JSX.Element {
 
   return (
     <p className="project-path">
-      <span className="project-path__value" title={path}>
+      <span className="project-path__value" data-tooltip={path}>
         {path}
       </span>
       <button
@@ -516,7 +517,7 @@ function ProjectPath({ path }: { path: string }): React.JSX.Element {
         type="button"
         onClick={() => void copyPath()}
         aria-label={t.overviewCopyPath}
-        title={wasCopied ? t.overviewPathCopied : t.overviewCopyPath}
+        data-tooltip={wasCopied ? t.overviewPathCopied : t.overviewCopyPath}
       >
         {wasCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
       </button>
@@ -949,7 +950,7 @@ function OverviewPanel({
               {overview.wasOpenedFromNestedFolder && (
                 <p className="project-fact__nested">
                   {t.overviewOpenedFrom}
-                  <span title={project.selectedPath}>{project.selectedPath}</span>
+                  <span data-tooltip={project.selectedPath}>{project.selectedPath}</span>
                 </p>
               )}
             </article>
@@ -970,7 +971,7 @@ function OverviewPanel({
         <button className="primary-button" type="button" onClick={onOpenProject} disabled={isOpening}>
           {isOpening ? t.overviewOpening : t.overviewOpenProject}
         </button>
-        <button className="secondary-button" type="button" disabled title={t.overviewCloneComingSoonTitle}>
+        <button className="secondary-button" type="button" disabled data-tooltip={t.overviewCloneComingSoonTitle}>
           {t.overviewCloneFromGithub}
         </button>
       </div>
@@ -1384,10 +1385,10 @@ export function App(): React.JSX.Element {
   // prefetch and a user who reaches the screen before it finishes share one
   // Git process instead of racing.
   const versionLinesRequestsRef = useRef<Record<string, Promise<void>>>({});
-  // Read diffs, kept per project across screen changes. Owned here rather
   // Watch events that arrive while a mutation owns the working tree are not
   // discarded. They are coalesced here and replayed when the dialog closes.
   const pendingWatchRefreshesRef = useRef<Record<string, { repositoryStateChanged: boolean }>>({});
+  // Read diffs, kept per project across screen changes. Owned here rather
   // than by `ChangesPanel` so leaving Changes and coming back is a cache hit
   // (see task 019); entries are dropped when their session closes.
   const diffCacheRef = useRef(createDiffCache());
@@ -1708,8 +1709,8 @@ export function App(): React.JSX.Element {
   // commands from outside that screen, and their result must not be left
   // behind in the cache.
   const handleVersionLineChanged = async (path: string): Promise<void> => {
-    try {
     delete pendingWatchRefreshesRef.current[path];
+    try {
       const info = await invoke<RepositoryInfo>("open_repository", { path });
       dispatchSessions({ type: "open", project: info });
     } catch {
@@ -1721,7 +1722,6 @@ export function App(): React.JSX.Element {
     await checkWorkingTree(path);
   };
 
-  // Switching or opening a project moves the visible screen to whatever that
   const refreshRepositoryState = async (path: string): Promise<void> => {
     try {
       const info = await invoke<RepositoryInfo>("open_repository", { path });
@@ -1772,6 +1772,7 @@ export function App(): React.JSX.Element {
     dispatchSessions({ type: "setOperationPhase", id: path, phase });
   };
 
+  // Switching or opening a project moves the visible screen to whatever that
   // session was last showing — unless the user is currently in Settings,
   // which is application-wide and stays exactly where it is regardless of
   // which project is active underneath it.
@@ -1957,12 +1958,12 @@ export function App(): React.JSX.Element {
     };
   }, []);
 
-  // Only the active project is watched: the others already refresh when they
   // Module-level idle work outlived jsdom test environments and left lazy
   // imports running after teardown. Owning it here gives React a real cleanup
   // point while preserving the same after-first-paint scheduling in the app.
   useEffect(() => scheduleIdleTask(prefetchLazyPanels), []);
 
+  // Only the active project is watched: the others already refresh when they
   // become active, and watching every open project multiplies the OS-level
   // cost for state nobody is looking at. Gated on the startup restore so the
   // watch (and its one `rev-parse`) never competes with launch.
@@ -2030,8 +2031,8 @@ export function App(): React.JSX.Element {
     // read's response be accepted by a *reopened* session as if it were its
     // own. Same reason `statusGenerationsRef` is never cleared.
     releaseDiffCache(diffCacheRef.current, id);
-    dispatchSessions({ type: "close", id });
     delete pendingWatchRefreshesRef.current[id];
+    dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id && view !== "settings") {
       setView(nextSession?.lastView ?? "overview");
       if (nextSession) {
@@ -2240,7 +2241,7 @@ export function App(): React.JSX.Element {
             type="button"
             ref={paletteTriggerRef}
             aria-label={t.titlebarOpenCommandPalette}
-            title={t.titlebarJumpToHint}
+            data-tooltip={t.titlebarJumpToHint}
             onClick={openPalette}
           >
             {SEARCH_ICON}
@@ -2250,7 +2251,7 @@ export function App(): React.JSX.Element {
               className="titlebar-icon-button"
               type="button"
               disabled={!canGoBack}
-              title={t.titlebarGoBack}
+              data-tooltip={t.titlebarGoBack}
               aria-label={t.titlebarGoBack}
               onClick={goBack}
             >
@@ -2260,7 +2261,7 @@ export function App(): React.JSX.Element {
               className="titlebar-icon-button"
               type="button"
               disabled={!canGoForward}
-              title={t.titlebarGoForward}
+              data-tooltip={t.titlebarGoForward}
               aria-label={t.titlebarGoForward}
               onClick={goForward}
             >
@@ -2272,7 +2273,7 @@ export function App(): React.JSX.Element {
             className="titlebar-icon-button titlebar-theme-toggle"
             type="button"
             aria-label={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
-            title={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
+            data-tooltip={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
             onClick={toggleTheme}
           >
             {effectiveTheme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
@@ -2340,7 +2341,6 @@ export function App(): React.JSX.Element {
                 className={`nav-item${view === "overview" ? " nav-item--active" : ""}`}
                 type="button"
                 aria-current={view === "overview" ? "page" : undefined}
-                title={t.navOverview}
                 onClick={() => navigateToView("overview")}
               >
                 <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.overview}</span>
@@ -2351,7 +2351,8 @@ export function App(): React.JSX.Element {
                 type="button"
                 disabled={!project}
                 aria-current={view === "changes" ? "page" : undefined}
-                title={project ? t.navChanges : t.navChangesTitle}
+                aria-label={project ? undefined : t.navChangesTitle}
+                data-tooltip={project ? undefined : t.navChangesTitle}
                 onClick={() => navigateToView("changes")}
               >
                 <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.changes}</span>
@@ -2362,21 +2363,20 @@ export function App(): React.JSX.Element {
                 type="button"
                 disabled={!project}
                 aria-current={view === "version-lines" ? "page" : undefined}
-                title={project ? t.navVersionLines : t.navVersionLinesTitle}
+                aria-label={project ? undefined : t.navVersionLinesTitle}
+                data-tooltip={project ? undefined : t.navVersionLinesTitle}
                 onClick={() => navigateToView("version-lines")}
               >
                 <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.versionLines}</span>
                 <span className="nav-item__label">{t.navVersionLines}</span>
               </button>
-              <button className="nav-item" type="button" disabled title={t.navHistoryTitle}>
+              <button className="nav-item" type="button" disabled aria-label={t.navHistoryTitle} data-tooltip={t.navHistoryTitle}>
                 <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.history}</span>
                 <span className="nav-item__label">{t.navHistory}</span>
-                <span className="nav-item__availability">{t.navComingSoon}</span>
               </button>
-              <button className="nav-item" type="button" disabled title={t.navRecoveryTitle}>
+              <button className="nav-item" type="button" disabled aria-label={t.navRecoveryTitle} data-tooltip={t.navRecoveryTitle}>
                 <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.recovery}</span>
                 <span className="nav-item__label">{t.navRecovery}</span>
-                <span className="nav-item__availability">{t.navComingSoon}</span>
               </button>
             </nav>
 
@@ -2413,7 +2413,6 @@ export function App(): React.JSX.Element {
                 className={`nav-item${view === "settings" ? " nav-item--active" : ""}`}
                 type="button"
                 aria-current={view === "settings" ? "page" : undefined}
-                title={t.navSettings}
                 onClick={() => navigateToView("settings")}
               >
                 <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.settings}</span>
@@ -2423,7 +2422,7 @@ export function App(): React.JSX.Element {
             <button
               className="sidebar-toggle"
               type="button"
-              title={isSidebarCollapsed ? t.sidebarExpand : t.sidebarCollapse}
+              data-tooltip={isSidebarCollapsed ? t.sidebarExpand : t.sidebarCollapse}
               aria-label={isSidebarCollapsed ? t.sidebarExpand : t.sidebarCollapse}
               onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
             >
@@ -2451,7 +2450,7 @@ export function App(): React.JSX.Element {
                 className="titlebar-icon-button"
                 type="button"
                 disabled={!canGoBack}
-                title={t.titlebarGoBack}
+                data-tooltip={t.titlebarGoBack}
                 aria-label={t.titlebarGoBack}
                 onClick={goBack}
               >
@@ -2461,7 +2460,7 @@ export function App(): React.JSX.Element {
                 className="titlebar-icon-button"
                 type="button"
                 disabled={!canGoForward}
-                title={t.titlebarGoForward}
+                data-tooltip={t.titlebarGoForward}
                 aria-label={t.titlebarGoForward}
                 onClick={goForward}
               >
@@ -2523,7 +2522,7 @@ export function App(): React.JSX.Element {
               <button
                 type="button"
                 aria-label={t.commonClose}
-                title={t.commonClose}
+                data-tooltip={t.commonClose}
                 onClick={() => setSkippedRestoreCount(0)}
               >
                 <X aria-hidden="true" />
@@ -2611,10 +2610,10 @@ export function App(): React.JSX.Element {
                 isLoading={activeSession?.isLoadingVersionLines ?? false}
                 onRefresh={() => void refreshVersionLines(project.path)}
                 onSnapshot={(snapshot) => commitVersionLines(project.path, snapshot)}
+                onChanged={() => void handleVersionLineChanged(project.path)}
                 onOperationStart={() => startVersionLineOperation(project.path)}
                 onOperationFinish={() => finishSessionOperation(project.path)}
                 onOperationPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
-                onChanged={() => void handleVersionLineChanged(project.path)}
                 onSaveVersion={() => {
                   startSessionOperation("save");
                   navigateToView("changes");
@@ -2679,8 +2678,8 @@ export function App(): React.JSX.Element {
             }}
             onSwitched={() => {
               setOverviewSwitchTarget(null);
-              finishSessionOperation(project.path);
               void handleVersionLineChanged(project.path);
+              finishSessionOperation(project.path);
             }}
             onSaveVersion={() => {
               startSessionOperation("save");
@@ -2731,7 +2730,7 @@ export function App(): React.JSX.Element {
               className="about-dialog__close"
               type="button"
               aria-label={t.commonClose}
-              title={t.commonClose}
+              data-tooltip={t.commonClose}
               onClick={() => setIsAboutOpen(false)}
             >
               <X aria-hidden="true" />
@@ -2800,6 +2799,7 @@ export function App(): React.JSX.Element {
           </div>
         </div>
       )}
+      <TooltipHost />
     </div>
   );
 }

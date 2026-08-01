@@ -199,7 +199,7 @@ export function PendingVersionsSection({
               >
                 <summary className="pending-versions__summary">
                   <ChevronDown aria-hidden="true" className="pending-versions__chevron" />
-                  <span className="pending-versions__description" title={version.title}>
+                  <span className="pending-versions__description" data-tooltip={version.title}>
                     {version.title}
                   </span>
                   <code className="pending-versions__hash">{version.shortCommit}</code>

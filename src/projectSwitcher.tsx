@@ -99,7 +99,7 @@ function ProjectSwitcherRows({
               className={`project-switcher__button${isActive ? " project-switcher__button--active" : ""}`}
               aria-current={isActive ? "true" : undefined}
               disabled={!canSwitch && !isActive}
-              title={canSwitch || isActive ? t.projectSwitchToLabel(accessibleName) : t.projectSwitcherSwitchBlockedHint}
+              data-tooltip={!canSwitch && !isActive ? t.projectSwitcherSwitchBlockedHint : undefined}
               onClick={() => onActivate(entry.id)}
             >
               <span
@@ -121,7 +121,7 @@ function ProjectSwitcherRows({
               type="button"
               className="project-switcher__close"
               aria-label={t.projectSwitcherCloseLabel(accessibleName)}
-              title={canSwitch || !isActive ? t.projectSwitcherCloseLabel(accessibleName) : t.projectSwitcherSwitchBlockedHint}
+              data-tooltip={canSwitch || !isActive ? t.projectSwitcherCloseLabel(accessibleName) : t.projectSwitcherSwitchBlockedHint}
               disabled={!canSwitch && isActive}
               onClick={() => onClose(entry.id)}
             >
@@ -204,7 +204,12 @@ export function ProjectSwitcherIcons({
             className={`project-switcher-icons__button${isActive ? " project-switcher-icons__button--active" : ""}`}
             aria-current={isActive ? "true" : undefined}
             disabled={!canSwitch && !isActive}
-            title={
+            aria-label={
+              canSwitch || isActive
+                ? statusSummary ? `${accessibleName} — ${statusSummary}` : accessibleName
+                : t.projectSwitcherSwitchBlockedHint
+            }
+            data-tooltip={
               canSwitch || isActive
                 ? statusSummary ? `${accessibleName} — ${statusSummary}` : accessibleName
                 : t.projectSwitcherSwitchBlockedHint
@@ -239,7 +244,7 @@ export function ProjectSwitcherIcons({
         type="button"
         className="project-switcher-icons__add"
         aria-label={entries.length > 0 ? t.overviewOpenAnotherProject : t.overviewOpenProject}
-        title={entries.length > 0 ? t.overviewOpenAnotherProject : t.overviewOpenProject}
+        data-tooltip={entries.length > 0 ? t.overviewOpenAnotherProject : t.overviewOpenProject}
         disabled={isOpening || !canSwitch}
         onClick={onOpenAnother}
       >
@@ -295,7 +300,7 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
           type="button"
           className="project-switcher-compact__trigger"
           aria-label={t.overviewOpenProject}
-          title={t.overviewOpenProject}
+          data-tooltip={t.overviewOpenProject}
           disabled={props.isOpening}
           onClick={props.onOpenAnother}
         >
@@ -314,7 +319,7 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
         type="button"
         className="project-switcher-compact__trigger"
         aria-label={t.projectSwitcherCollapsedTrigger}
-        title={t.projectSwitcherCollapsedTrigger}
+        data-tooltip={t.projectSwitcherCollapsedTrigger}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         aria-controls={isOpen ? popoverId : undefined}

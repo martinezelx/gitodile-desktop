@@ -54,7 +54,6 @@ export interface Translations {
   navHistoryTitle: string;
   navRecovery: string;
   navRecoveryTitle: string;
-  navComingSoon: string;
   navSettings: string;
 
   paletteAriaLabel: string;
@@ -258,8 +257,8 @@ export interface Translations {
   versionLinesNewButton: string;
   versionLinesEmptyOthers: string;
   versionLinesNoSearchMatches: string;
-  versionLinesUnreadableNote: (count: number) => string;
   versionLinesTruncatedNote: (visible: number, total: number) => string;
+  versionLinesUnreadableNote: (count: number) => string;
   versionLinesDetachedTitle: string;
   versionLinesDetachedDescription: string;
   versionLinesDetachedRecoverButton: string;
@@ -490,7 +489,6 @@ const en: Translations = {
   navHistoryTitle: "History — Coming soon",
   navRecovery: "Recovery",
   navRecoveryTitle: "Recovery — Coming soon",
-  navComingSoon: "Soon",
   navSettings: "Settings",
 
   paletteAriaLabel: "Command palette",
@@ -718,12 +716,12 @@ const en: Translations = {
   versionLinesActiveLabel: "Active",
   versionLinesNewButton: "New version line",
   versionLinesEmptyOthers: "There are no other version lines in this project yet.",
+  versionLinesNoSearchMatches: "No version lines match that search.",
+  versionLinesTruncatedNote: (visible, total) => `Showing the ${visible} most recently saved of ${total}.`,
   versionLinesUnreadableNote: (count) =>
     count === 1
       ? "One version line isn't shown: its name uses characters GitOdrile can't read exactly. Use Git directly to rename it."
       : `${count} version lines aren't shown: their names use characters GitOdrile can't read exactly. Use Git directly to rename them.`,
-  versionLinesNoSearchMatches: "No version lines match that search.",
-  versionLinesTruncatedNote: (visible, total) => `Showing the ${visible} most recently saved of ${total}.`,
   versionLinesDetachedTitle: "This project isn't on a version line right now",
   versionLinesDetachedDescription:
     "You're looking at one specific saved version. Create a named version line here to keep this work easy to find.",
@@ -979,7 +977,6 @@ const es: Translations = {
   navHistoryTitle: "Historial — Próximamente",
   navRecovery: "Recuperación",
   navRecoveryTitle: "Recuperación — Próximamente",
-  navComingSoon: "Próximamente",
   navSettings: "Configuración",
 
   paletteAriaLabel: "Paleta de comandos",
@@ -1220,13 +1217,13 @@ const es: Translations = {
   versionLinesRetry: "Intentar de nuevo",
   versionLinesActiveLabel: "Activa",
   versionLinesNewButton: "Nueva línea de versión",
+  versionLinesEmptyOthers: "Todavía no hay otras líneas de versión en este proyecto.",
+  versionLinesNoSearchMatches: "Ninguna línea de versión coincide con esa búsqueda.",
+  versionLinesTruncatedNote: (visible, total) => `Se muestran las ${visible} guardadas más recientemente de ${total}.`,
   versionLinesUnreadableNote: (count) =>
     count === 1
       ? "Hay una línea de versión que no se muestra: su nombre usa caracteres que GitOdrile no puede leer con exactitud. Cámbiale el nombre desde Git."
       : `Hay ${count} líneas de versión que no se muestran: sus nombres usan caracteres que GitOdrile no puede leer con exactitud. Cámbiales el nombre desde Git.`,
-  versionLinesEmptyOthers: "Todavía no hay otras líneas de versión en este proyecto.",
-  versionLinesNoSearchMatches: "Ninguna línea de versión coincide con esa búsqueda.",
-  versionLinesTruncatedNote: (visible, total) => `Se muestran las ${visible} guardadas más recientemente de ${total}.`,
   versionLinesDetachedTitle: "Este proyecto no está en una línea de versión ahora mismo",
   versionLinesDetachedDescription:
     "Estás viendo una versión guardada concreta. Crea aquí una línea de versión con nombre para que este trabajo sea fácil de encontrar.",

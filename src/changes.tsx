@@ -395,16 +395,12 @@ function DiffWorkspace({
         {t.changesBackToList}
       </button>
       <header className="changes-diff__header">
-        <span
-          className="changes-diff__header-icon"
-          aria-hidden="true"
-          title={entry ? t[CATEGORY_LABEL_KEYS[entry.category]] : undefined}
-        >
+        <span className="changes-diff__header-icon" aria-hidden="true">
           {entry ? CATEGORY_ICONS[entry.category] : null}
         </span>
         <div className="changes-diff__header-text">
           <div className="changes-diff__title-row">
-            <p className="changes-diff__path" title={selectedPath}>
+            <p className="changes-diff__path">
               {selectedPath}
             </p>
             {entry && (
@@ -464,7 +460,8 @@ function FileListItem({
   // The icon's shape (not just its color) already distinguishes the
   // category, so the label doesn't need to stay always-visible in a row that
   // is otherwise just a file name — it stays available as the accessible
-  // name and as a hover tooltip instead.
+  // name. Deliberately no tooltip: the row already shows the file name and
+  // its folder, so one popping up on every row hover is pure noise.
   const accessibleName = entry.originalPath
     ? `${entry.path} — ${categoryLabel} — ${t.changesRenamedFrom(entry.originalPath)}`
     : `${entry.path} — ${categoryLabel}`;
@@ -486,7 +483,6 @@ function FileListItem({
         }`}
         aria-current={isSelected ? "true" : undefined}
         aria-label={accessibleName}
-        title={accessibleName}
         onClick={onSelect}
       >
         <span className="changes-file-item__icon" aria-hidden="true">
@@ -789,7 +785,7 @@ export function ChangesPanel({
             type="button"
             onClick={onOpenSaveVersion}
             disabled={!workingTree || workingTree.isClean || isCheckingChanges || !canSaveSelection}
-            title={
+            data-tooltip={
               !workingTree || workingTree.isClean
                 ? t.changesSaveVersionDisabledHint
                 : !canSaveSelection
@@ -830,7 +826,6 @@ export function ChangesPanel({
                     type="checkbox"
                     checked={allSelected}
                     aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
-                    title={allSelected ? t.changesSelectNone : t.changesSelectAll}
                     onChange={() =>
                       allSelected
                         ? setExcludedPaths(new Set(entries.map((entry) => entry.path)))
@@ -844,7 +839,7 @@ export function ChangesPanel({
                     checked
                     disabled
                     aria-label={t.changesPartialUnavailableTruncated}
-                    title={t.changesPartialUnavailableTruncated}
+                    data-tooltip={t.changesPartialUnavailableTruncated}
                     readOnly
                   />
                 )}

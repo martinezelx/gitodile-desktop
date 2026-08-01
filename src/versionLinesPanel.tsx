@@ -41,7 +41,7 @@ function VersionLineRow({
       </div>
       <div className="version-line-row__body">
         <div className="version-line-row__name-row">
-          <span className="version-line-row__name" title={line.name}>
+          <span className="version-line-row__name">
             {line.name}
           </span>
           {line.isActive && <span className="version-line-row__badge">{t.versionLinesActiveLabel}</span>}
