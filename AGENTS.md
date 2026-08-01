@@ -79,6 +79,13 @@ Secondary:
 - Prefer accessible primitives and semantic HTML.
 - Use CSS variables as design tokens.
 - Avoid a large UI framework until the interaction model stabilizes.
+- Register every screen in `src/screens.tsx`. Navigation, the command palette,
+  idle chunk prefetching, the open-project guard, and keep-alive mounting all
+  derive from that table; a screen wired up by hand will silently miss them.
+  See "Screen shell and navigation cost" in `docs/ARCHITECTURE.md`.
+- Never fetch merely because a screen became visible. Render the cached
+  snapshot; refresh on project activation or an explicit repository
+  invalidation, idle-deferred where it is speculative.
 
 ### Desktop shell
 

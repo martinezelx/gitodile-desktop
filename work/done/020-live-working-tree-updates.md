@@ -1,14 +1,14 @@
 ---
 id: 020
 title: Live working-tree updates without pressing Check changes
-status: active
+status: done
 priority: normal
 type: feature
 areas:
   - frontend
   - desktop
 created: 2026-07-31
-completed:
+completed: 2026-08-01
 ---
 
 # Goal
@@ -226,3 +226,6 @@ Task 019 for the session-level caching this refreshes into.
   what is unverified is the last hop — the Tauri event reaching the webview
   and the refresh being visible on screen. This should be checked manually
   before the task is marked done.
+- 2026-08-01: closed on the user's confirmation that the committed behavior
+  was exercised in the running app. That last hop is therefore attested by the
+  user, not by a check recorded in this session.

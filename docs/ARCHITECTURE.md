@@ -131,6 +131,58 @@ Candidate categories:
 
 Avoid making Git state writable from arbitrary frontend components.
 
+## Screen shell and navigation cost
+
+Moving between screens of an already-open project must cost nothing the user
+can perceive. That is a property of the shell, not something each screen earns
+for itself, and it rests on four rules.
+
+**One registry.** `src/screens.tsx` holds every navigation destination: its
+label, icon, section, whether it needs an open project, its command-palette
+entry, and the chunks it needs. The expanded nav, the compact nav, the palette,
+the idle prefetch, the "leave this screen if the project closed" guard, and the
+keep-alive host all read from that table. A screen is added by adding an entry
+and a component; anything wired up by hand will be missed by one of them.
+Destinations that are announced but unbuilt (History, Recovery) live in the
+same table with `screen: null`.
+
+**Visited screens stay mounted.** `KeepAliveScreens` mounts a screen the first
+time it is opened and thereafter hides it rather than unmounting it, so
+returning avoids a React/DOM rebuild and in-screen state (scroll position,
+selection, filters) survives. Inactive screens are `hidden` and `inert`: out
+of the tab order, out of the accessibility tree, unable to announce anything
+from behind the visible screen. They are also frozen — their last element is
+re-rendered by identity, so an unrelated state change in `App` cannot
+reconcile a screen nobody is looking at; they take current props on the frame
+they become active again. Browsers may still redo style, layout, or paint when
+revealing a `display: none` subtree, so keep-alive removes application work but
+does not claim that CSS work is literally zero. Keep-alive is scoped to the
+active project session by keying the host on it, so switching or closing a
+project drops that session's screens.
+
+**Screens render from state, never fetch on arrival.** Per-project repository
+data belongs to `ProjectSession` and stays on screen while it is revalidated.
+Freshness comes from project activation, explicit user refresh, successful
+mutations, and repository-watch invalidation — not from making a screen
+visible. Cached background reads do not publish loading state, and unchanged
+snapshots preserve object and reducer-state identity. A screen showing a
+spinner on a warm session is a bug.
+
+**Blocking native work stays off the UI thread.** `requestIdleCallback` only
+schedules when frontend code starts; it cannot make a synchronous Tauri
+command non-blocking. Commands that launch Git or perform filesystem work use
+Tauri's asynchronous command execution so the WebView remains responsive.
+Read paths should batch related facts into as few Git processes and graph walks
+as compatibility permits.
+
+**Background work never precedes first paint.** Chunk prefetching and
+speculative reads go through `requestIdleCallback` and are gated on the startup
+session restore having finished.
+
+Screen-switch profiling is opt-in because measurement itself adds work. Run
+the development app with `VITE_PROFILE_SCREEN_SWITCHES=true` when collecting
+navigation timings; normal development and production builds omit it.
+
 ## Security model
 
 - Minimize Tauri capabilities.

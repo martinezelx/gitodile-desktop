@@ -367,7 +367,7 @@ fn show_main_window(window: tauri::Window) {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn open_repository(path: String) -> Result<RepositoryInfo, AppError> {
     let repo_path = Path::new(&path);
     let metadata = repo_path.metadata().map_err(|error| {
@@ -818,7 +818,7 @@ fn find_status_entry(stdout: &[u8], file_path: &str) -> Result<Option<RawStatusE
         .find(|entry| entry.path == file_path))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_working_tree_status(path: String) -> Result<WorkingTreeStatus, AppError> {
     let repo_path = Path::new(&path);
     let metadata = repo_path.metadata().map_err(|error| {
@@ -1311,7 +1311,7 @@ fn validate_repo_relative_path(file_path: &str) -> Result<(), AppError> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_file_diff(path: String, file_path: String) -> Result<FileDiff, AppError> {
     validate_repo_relative_path(&file_path)?;
 
@@ -1620,7 +1620,7 @@ fn batch_tracked_diffs(
     Ok(results)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_working_tree_diffs(path: String) -> Result<Vec<FileDiff>, AppError> {
     let repo_path = Path::new(&path);
     let metadata = repo_path.metadata().map_err(|error| {
@@ -1681,7 +1681,7 @@ fn read_working_tree_diffs(path: String) -> Result<Vec<FileDiff>, AppError> {
     Ok(results)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn git_diagnostics() -> GitDiagnostics {
     let attempt = match base_git_command().arg("--version").output() {
         Ok(output) => ProcessAttempt::Completed {
@@ -1834,7 +1834,7 @@ fn spawn_git_installer() -> InstallSpawnResult {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn install_git() -> GitInstallationResult {
     if INSTALL_STARTING.swap(true, Ordering::AcqRel) {
         return GitInstallationResult {
@@ -1893,7 +1893,7 @@ fn spawn_git_update() -> GitUpdateLaunchOutcome {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn update_git() -> GitUpdateLaunchResult {
     if UPDATE_STARTING.swap(true, Ordering::AcqRel) {
         return GitUpdateLaunchResult {
@@ -2037,7 +2037,7 @@ fn run_winget_update_check(timeout: Duration) -> UpdateCheckAttempt {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn check_git_update() -> GitUpdateStatus {
     let now = Instant::now();
     if let Some(cached) = cached_update_status(now) {
@@ -2141,7 +2141,7 @@ fn set_git_identity_with_override(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_git_identity() -> GitIdentity {
     GitIdentity {
         name: read_global_git_config("user.name", None),
@@ -2149,7 +2149,7 @@ fn get_git_identity() -> GitIdentity {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn set_git_identity(name: String, email: String) -> Result<(), AppError> {
     set_git_identity_with_override(&name, &email, None)
 }
@@ -2668,7 +2668,7 @@ fn plan_save_version_selection_with_identity_override(
     // folded into `state_token` above.
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn plan_save_version(
     path: String,
     selected_paths: Option<Vec<String>>,
@@ -3008,7 +3008,7 @@ fn save_version_with_identity_override(
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn save_version(
     path: String,
     title: String,
@@ -3108,7 +3108,7 @@ fn list_remotes(path: &str) -> Result<Vec<RemoteInfo>, AppError> {
     Ok(parse_remote_v_output(&output))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn discover_remotes(path: String) -> Result<RemoteDiscovery, AppError> {
     let status = read_working_tree_status(path.clone())?;
     let remotes = list_remotes(&path)?;
@@ -3198,7 +3198,7 @@ fn git_log_summaries(path: &str, range: &str) -> Result<Vec<SavedVersionSummary>
 /// documented for the Overview's publish entry point, not a fresh preflight.
 /// With no upstream configured yet, every local saved version is reported as
 /// unpublished, since nothing is locally known to contradict that.
-#[tauri::command]
+#[tauri::command(async)]
 fn list_unpublished_versions(path: String) -> Result<PendingVersionsResult, AppError> {
     let status = read_working_tree_status(path.clone())?;
     let (head_state, _) = resolve_head_state(&path, status.upstream.branch.clone())?;
@@ -3297,7 +3297,7 @@ fn validate_commit_ish(commit: &str) -> Result<(), AppError> {
 /// deliberately not the full line-by-line diff the Changes screen shows.
 /// `git show` handles a root commit (no parent) the same way it handles any
 /// other commit, listing every file as added, so no special case is needed.
-#[tauri::command]
+#[tauri::command(async)]
 fn read_commit_file_changes(
     path: String,
     commit: String,
@@ -3335,7 +3335,7 @@ fn read_commit_file_changes(
 /// can never disagree between an unsaved change and an already-saved one —
 /// only the `git show`/`--name-status` step that determined `category` and
 /// `original_path` here comes from a commit instead of the working tree.
-#[tauri::command]
+#[tauri::command(async)]
 fn read_commit_file_diff(
     path: String,
     commit: String,
@@ -3924,7 +3924,7 @@ fn commit_summary_entries(
     git_log_summaries(path, &range).unwrap_or_default()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn plan_publish(
     path: String,
     remote: Option<String>,
@@ -4129,7 +4129,7 @@ fn publish_selection(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn publish(
     path: String,
     remote: String,
@@ -4401,9 +4401,6 @@ fn reaching_refs_by_commit(
 
 fn branch_unique_commit_count(path: &str, active: Option<&str>, tip: &str) -> Option<u32> {
     let active = active?;
-    if active == tip {
-        return None;
-    }
     let output = run_git(path, &["rev-list", "--count", &format!("{active}..{tip}")]).ok()?;
     if !output.status.success() {
         return None;
@@ -4523,6 +4520,8 @@ struct VersionLineRaw {
     subject: String,
     committed_at: String,
     upstream: Option<String>,
+    unique_commit_count: Option<u32>,
+    worktree_path: Option<String>,
 }
 
 /// Parses one `for-each-ref` record per line, fields separated by the literal
@@ -4590,6 +4589,17 @@ fn parse_version_line_refs(bytes: &[u8]) -> ParsedVersionLines {
                 .get(5)
                 .and_then(|field| decode(field))
                 .filter(|value| !value.trim().is_empty()),
+            // Git >= 2.41 can calculate both values inside the inventory's
+            // single graph walk. Older versions return only the first six
+            // fields and use the compatibility path in `get_version_lines`.
+            unique_commit_count: fields
+                .get(6)
+                .and_then(|field| decode(field))
+                .and_then(|counts| counts.split_ascii_whitespace().next()?.parse().ok()),
+            worktree_path: fields
+                .get(7)
+                .and_then(|field| decode(field))
+                .filter(|value| !value.trim().is_empty()),
         });
     }
     ParsedVersionLines {
@@ -4598,56 +4608,87 @@ fn parse_version_line_refs(bytes: &[u8]) -> ParsedVersionLines {
     }
 }
 
-/// Read-only, local-only branch inventory. Never contacts a remote; any
-/// upstream/reachability information reflects only what is already known
-/// from local refs, exactly like the rest of the app's "no fresh remote
-/// truth" convention for non-network commands.
-#[tauri::command]
-fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
-    let symbolic_head = run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
-    let (branch, head_state) = if symbolic_head.status.success() {
-        let branch = Some(git_stdout(&symbolic_head));
-        let verified = run_git(&path, &["rev-parse", "--verify", "HEAD"])?;
-        (
-            branch,
-            if verified.status.success() {
-                HeadState::Branch
-            } else {
-                HeadState::Unborn
-            },
-        )
-    } else {
-        let verified = run_git(&path, &["rev-parse", "--verify", "HEAD"])?;
-        if verified.status.success() {
-            (None, HeadState::Detached)
-        } else {
-            (None, HeadState::Unborn)
+const VERSION_LINE_BASE_FORMAT: &str =
+    "%(refname)%00%(objectname)%00%(objectname:short)%00%(contents:subject)%00%(committerdate:iso-strict)%00%(upstream:short)";
+
+/// Git 2.41 added `ahead-behind:<committish>` to `for-each-ref`; together
+/// with `worktreepath`, it folds the old one-process-per-line count and the
+/// separate worktree inventory into the branch inventory's existing graph
+/// walk. Discovery still supports older Git versions: an unsupported atom
+/// makes this first command fail without mutating anything, then the legacy
+/// format and helpers provide exactly the previous answer.
+fn read_version_line_refs(
+    path: &str,
+    current_commit: Option<&str>,
+) -> Result<(ParsedVersionLines, bool), AppError> {
+    if let Some(commit) = current_commit {
+        let format = format!(
+            "--format={VERSION_LINE_BASE_FORMAT}%00%(ahead-behind:{commit})%00%(worktreepath)"
+        );
+        let batched = run_git(
+            path,
+            &[
+                "for-each-ref",
+                &format,
+                "--sort=-committerdate",
+                "refs/heads",
+            ],
+        )?;
+        if batched.status.success() {
+            return Ok((parse_version_line_refs(&batched.stdout), true));
         }
-    };
-    let current_commit_output = run_git(&path, &["rev-parse", "--verify", "HEAD"])?;
-    let current_commit = current_commit_output
-        .status
-        .success()
-        .then(|| git_stdout(&current_commit_output));
+    }
 
-    let worktrees = list_worktrees(&path).unwrap_or_default();
-
-    let refs_output = run_git(
-        &path,
+    let legacy_format = format!("--format={VERSION_LINE_BASE_FORMAT}");
+    let legacy = run_git(
+        path,
         &[
             "for-each-ref",
-            "--format=%(refname)%00%(objectname)%00%(objectname:short)%00%(contents:subject)%00%(committerdate:iso-strict)%00%(upstream:short)",
+            &legacy_format,
             "--sort=-committerdate",
             "refs/heads",
         ],
     )?;
-    if !refs_output.status.success() {
+    if !legacy.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
             "Git couldn't inspect this project's version lines.",
         ));
     }
-    let parsed = parse_version_line_refs(&refs_output.stdout);
+    Ok((parse_version_line_refs(&legacy.stdout), false))
+}
+
+/// Read-only, local-only branch inventory. Never contacts a remote; any
+/// upstream/reachability information reflects only what is already known
+/// from local refs, exactly like the rest of the app's "no fresh remote
+/// truth" convention for non-network commands.
+#[tauri::command(async)]
+fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
+    let symbolic_head = run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
+    let branch = symbolic_head
+        .status
+        .success()
+        .then(|| git_stdout(&symbolic_head));
+    // One verification answers both questions: whether HEAD exists and which
+    // commit it names. The previous implementation launched this same command
+    // twice on every refresh.
+    let verified_head = run_git(&path, &["rev-parse", "--verify", "HEAD"])?;
+    let current_commit = verified_head
+        .status
+        .success()
+        .then(|| git_stdout(&verified_head));
+    let head_state = match (branch.is_some(), current_commit.is_some()) {
+        (true, true) => HeadState::Branch,
+        (false, true) => HeadState::Detached,
+        (_, false) => HeadState::Unborn,
+    };
+
+    let (parsed, has_batched_metadata) = read_version_line_refs(&path, current_commit.as_deref())?;
+    let worktrees = if has_batched_metadata {
+        Vec::new()
+    } else {
+        list_worktrees(&path).unwrap_or_default()
+    };
     let unreadable_count = parsed.unreadable_count;
     let mut raw_lines = parsed.lines;
     // Counts only what is actually representable; the skipped records are
@@ -4664,6 +4705,10 @@ fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
         let is_active = branch.as_deref() == Some(raw.name.as_str());
         let worktree_path = if is_active {
             None
+        } else if has_batched_metadata {
+            raw.worktree_path
+                .as_deref()
+                .map(|worktree| display_path(PathBuf::from(worktree)))
         } else {
             worktrees
                 .iter()
@@ -4677,6 +4722,8 @@ fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
             .unwrap_or(false);
         let unique_commit_count = if is_active {
             None
+        } else if has_batched_metadata {
+            raw.unique_commit_count
         } else {
             *unique_counts_by_tip
                 .entry(raw.commit.clone())
@@ -4821,7 +4868,7 @@ fn validate_and_prepare_create(
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn plan_create_version_line(
     path: String,
     name: String,
@@ -4894,7 +4941,7 @@ fn classify_ref_mutation_failure(output: &Output, generic_message: &str) -> AppE
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn create_version_line(
     path: String,
     name: String,
@@ -5069,7 +5116,7 @@ fn validate_and_prepare_switch(path: &str, target: &str) -> Result<ValidatedSwit
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn plan_switch_version_line(
     path: String,
     target: String,
@@ -5132,7 +5179,7 @@ fn classify_switch_failure(output: &Output) -> AppError {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn switch_version_line(
     path: String,
     target: String,
@@ -5271,7 +5318,7 @@ fn validate_and_prepare_delete(path: &str, name: &str) -> Result<ValidatedDelete
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn plan_delete_version_line(path: String, name: String) -> Result<DeleteVersionLinePlan, AppError> {
     let validated = validate_and_prepare_delete(&path, &name)?;
     Ok(DeleteVersionLinePlan {
@@ -5323,7 +5370,7 @@ fn classify_delete_failure(output: &Output) -> AppError {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn delete_version_line(
     path: String,
     name: String,
@@ -5355,7 +5402,7 @@ fn delete_version_line(
 /// and an exhausted inotify budget all leave a project on the manual "Check
 /// changes" path, which keeps working exactly as before. A real `Err` is
 /// reserved for a path that isn't a usable repository at all.
-#[tauri::command]
+#[tauri::command(async)]
 fn watch_repository(
     app: tauri::AppHandle,
     registry: tauri::State<'_, watch::WatcherRegistry>,
@@ -5389,7 +5436,7 @@ fn watch_repository(
     Ok(registry.watch(app, &path, git_dirs))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn unwatch_repository(registry: tauri::State<'_, watch::WatcherRegistry>, path: String) {
     registry.unwatch(&path);
 }
@@ -8781,6 +8828,15 @@ mod tests {
         // must both survive without being mistaken for malformed input.
         assert_eq!(lines[1].name, "feature/nested");
         assert_eq!(lines[1].upstream, None);
+    }
+
+    #[test]
+    fn parse_version_line_refs_reads_batched_counts_and_worktrees() {
+        let text = b"refs/heads/feature\0def456\0def45\0Feature\x002024-02-02T00:00:00+00:00\0origin/feature\x003 7\0C:/repo-linked\n";
+        let lines = parse_version_line_refs(text).lines;
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].unique_commit_count, Some(3));
+        assert_eq!(lines[0].worktree_path.as_deref(), Some("C:/repo-linked"));
     }
 
     #[test]

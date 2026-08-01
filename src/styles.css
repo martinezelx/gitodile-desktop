@@ -433,6 +433,13 @@ nav { display: grid; gap: 6px; }
 .app-shell--collapsed .nav-item__label { opacity: 0; max-width: 0; margin-left: 0; }
 
 .workspace { flex: 1; min-width: 0; padding: 28px 36px 40px 24px; display: flex; flex-direction: column; overflow-y: auto; }
+/* Every visited screen stays mounted and only the active one is shown (see
+   `KeepAliveScreens`). `display: contents` makes the visible slot vanish from
+   layout entirely, so each screen remains a direct flex child of `.workspace`
+   and the layout is byte-for-byte what it was when screens were mounted one
+   at a time. The hidden rule has to come after it to win. */
+.screen-slot { display: contents; }
+.screen-slot[hidden] { display: none; }
 /* Changes owns its scrolling inside the file list and diff viewport. Keeping
    the shell scrollable as well creates a tiny third scroll range from layout
    rounding in WebView2, even though there is no additional content to reveal. */

@@ -6,11 +6,6 @@ import { listen } from "@tauri-apps/api/event";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
-  LayoutDashboard,
-  GitCompare,
-  GitCommitHorizontal,
-  LifeBuoy,
-  Settings2,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -73,19 +68,28 @@ import {
   ProjectSwitcherIcons,
   type ProjectSwitcherEntry,
 } from "./projectSwitcher";
+import {
+  ChangesPanel,
+  KeepAliveScreens,
+  NAV_DESTINATIONS,
+  SwitchMeasurementRoot,
+  VersionLinesPanel,
+  markScreenSwitchIntent,
+  prefetchScreenChunks,
+  screenRequiresProject,
+  type ScreenId,
+} from "./screens";
 import "./styles.css";
 
 // Lazily loaded: none of these are needed for the first paint (the Overview
 // screen with no project open), and ChangesPanel/PublishDialog/PendingVersions
 // pull in the file-type icon set (~70 SVGs). Deferring them keeps the initial
-// bundle — and therefore first-paint time — small.
-const ChangesPanel = lazy(() => import("./changes").then((m) => ({ default: m.ChangesPanel })));
+// bundle — and therefore first-paint time — small. The two screen panels live
+// in `screens.tsx` next to their registry entries; these are the dialogs,
+// which are not screens.
 const PublishDialog = lazy(() => import("./publishDialog").then((m) => ({ default: m.PublishDialog })));
 const PendingVersionsSection = lazy(() =>
   import("./pendingVersions").then((m) => ({ default: m.PendingVersionsSection })),
-);
-const VersionLinesPanel = lazy(() =>
-  import("./versionLinesPanel").then((m) => ({ default: m.VersionLinesPanel })),
 );
 const CreateVersionLineDialog = lazy(() =>
   import("./versionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
@@ -95,7 +99,9 @@ const SwitchVersionLineDialog = lazy(() =>
 );
 
 type ThemePreference = "system" | "light" | "dark";
-type View = ProjectView | "settings";
+/** Kept as a local alias so the many `View` references below stay readable;
+ * `screens.tsx` owns the definition and the registry that lists them. */
+type View = ScreenId;
 
 type GitDiagnostics = {
   state: "available" | "missing" | "unusable" | "check_failed";
@@ -180,13 +186,9 @@ const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
 const THEME_ORDER: ThemePreference[] = ["system", "light", "dark"];
 const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
 
+// Screen icons live in the nav registry (`screens.tsx`); these two belong to
+// the sidebar chrome, which is not a destination.
 const NAV_ICONS = {
-  overview: <LayoutDashboard />,
-  changes: <GitCompare />,
-  versionLines: <GitBranch />,
-  history: <GitCommitHorizontal />,
-  recovery: <LifeBuoy />,
-  settings: <Settings2 />,
   collapse: <PanelLeftClose />,
   expand: <PanelLeftOpen />,
 } as const;
@@ -573,7 +575,6 @@ function OverviewVersionLineQuickActions({
   currentValue,
   canSwitch,
   variant = "default",
-  onOpened,
   onSwitch,
   onCreate,
   onSeeAll,
@@ -595,7 +596,6 @@ function OverviewVersionLineQuickActions({
   /** Fired each time the menu opens, so the caller can revalidate the shared
    * snapshot behind it. The menu never waits on that: it renders whatever is
    * cached and swaps in the newer answer if one arrives. */
-  onOpened: () => void;
   onSwitch: (target: string) => void;
   onCreate: () => void;
   onSeeAll: () => void;
@@ -612,15 +612,6 @@ function OverviewVersionLineQuickActions({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonClassName = variant === "spotlight" ? "secondary-button secondary-button--large" : "secondary-button";
-
-  useEffect(() => {
-    if (isOpen) {
-      onOpened();
-    }
-    // Only on the open transition: `onOpened` is a fresh closure every
-    // render, so depending on it would re-request on unrelated re-renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
 
   // Moves focus into the open menu for keyboard/screen-reader users, and
   // gives Escape an explicit place to send focus back to (native outside-
@@ -738,7 +729,6 @@ function OverviewPanel({
   onRetryPendingVersions,
   versionLines,
   isLoadingVersionLines,
-  onQuickSwitchOpened,
   onQuickSwitchVersionLine,
   onQuickCreateVersionLine,
   onGoToVersionLines,
@@ -765,7 +755,6 @@ function OverviewPanel({
    * reading branches again every time (task 019). */
   versionLines: VersionLinesSnapshot | null;
   isLoadingVersionLines: boolean;
-  onQuickSwitchOpened: () => void;
   canPublish: boolean;
   onPublish: () => void;
   onPublishUpTo: (commit: string) => void;
@@ -918,7 +907,6 @@ function OverviewPanel({
               currentValue={versionValue}
               canSwitch={!overview.isDetached}
               variant="spotlight"
-              onOpened={onQuickSwitchOpened}
               onSwitch={onQuickSwitchVersionLine}
               onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
               onSeeAll={onGoToVersionLines}
@@ -1384,7 +1372,9 @@ export function App(): React.JSX.Element {
   // Dedupes concurrent version-lines reads for the same project, so the idle
   // prefetch and a user who reaches the screen before it finishes share one
   // Git process instead of racing.
-  const versionLinesRequestsRef = useRef<Record<string, Promise<void>>>({});
+  const versionLinesRequestsRef = useRef<
+    Record<string, { generation: number; promise: Promise<void> }>
+  >({});
   // Watch events that arrive while a mutation owns the working tree are not
   // discarded. They are coalesced here and replayed when the dialog closes.
   const pendingWatchRefreshesRef = useRef<Record<string, { repositoryStateChanged: boolean }>>({});
@@ -1407,6 +1397,7 @@ export function App(): React.JSX.Element {
     if (next === view) {
       return;
     }
+    markScreenSwitchIntent(view, next);
     if (next !== "settings" && sessionsState.activeId) {
       dispatchSessions({ type: "navigate", id: sessionsState.activeId, view: next });
     }
@@ -1651,46 +1642,55 @@ export function App(): React.JSX.Element {
     }
   };
 
-  /** Re-reads the branch inventory into the project's session. Safe to call
-   * speculatively: concurrent calls for the same project share one request,
-   * and the cached snapshot stays on screen throughout, so this is invisible
-   * unless it is the project's first read. */
+  /** Re-reads the branch inventory into the project's session. Concurrent
+   * calls for the same project share one request. A cached refresh does not
+   * publish a loading state, and an unchanged answer is ignored by the reducer,
+   * so repository-watch events cannot make the visible screen churn. */
   const refreshVersionLines = (path: string): Promise<void> => {
     const inFlight = versionLinesRequestsRef.current[path];
     if (inFlight) {
-      return inFlight;
+      return inFlight.promise;
     }
     const generation = (versionLinesGenerationsRef.current[path] ?? 0) + 1;
     versionLinesGenerationsRef.current[path] = generation;
-    dispatchSessions({ type: "startVersionLinesLoad", id: path, generation });
+    if (!sessionsState.byId[path]?.versionLines) {
+      dispatchSessions({ type: "startVersionLinesLoad", id: path });
+    }
     const request = invoke<VersionLinesSnapshot>("get_version_lines", { path })
       .then((snapshot) => {
-        dispatchSessions({ type: "applyVersionLines", id: path, generation, snapshot });
+        if (versionLinesGenerationsRef.current[path] === generation) {
+          dispatchSessions({ type: "applyVersionLines", id: path, snapshot });
+        }
       })
       .catch((error: unknown) => {
+        if (versionLinesGenerationsRef.current[path] !== generation) {
+          return;
+        }
         dispatchSessions({
           type: "applyVersionLinesError",
           id: path,
-          generation,
           error: localizeAppError(error, t, t.versionLinesErrorLoading),
         });
       })
       .finally(() => {
-        delete versionLinesRequestsRef.current[path];
+        // A close/reopen or mutation may have invalidated this request and
+        // installed a newer one for the same canonical path. Only the entry
+        // that still owns this generation may clear itself.
+        if (versionLinesRequestsRef.current[path]?.generation === generation) {
+          delete versionLinesRequestsRef.current[path];
+        }
       });
-    versionLinesRequestsRef.current[path] = request;
+    versionLinesRequestsRef.current[path] = { generation, promise: request };
     return request;
   };
 
   /** Stores a snapshot a mutation already returned, skipping a re-read. The
-   * generation is bumped first so an older in-flight read can't land on top
-   * of it; both dispatches are batched into one render, so the momentary
-   * `isLoadingVersionLines` never reaches the screen. */
+   * generation bump makes an older in-flight discovery response harmless. */
   const commitVersionLines = (path: string, snapshot: VersionLinesSnapshot): void => {
     const generation = (versionLinesGenerationsRef.current[path] ?? 0) + 1;
     versionLinesGenerationsRef.current[path] = generation;
-    dispatchSessions({ type: "startVersionLinesLoad", id: path, generation });
-    dispatchSessions({ type: "applyVersionLines", id: path, generation, snapshot });
+    delete versionLinesRequestsRef.current[path];
+    dispatchSessions({ type: "applyVersionLines", id: path, snapshot });
   };
 
   // A successful create/switch/delete on a version line changes `HEAD`, the
@@ -1718,7 +1718,6 @@ export function App(): React.JSX.Element {
       // next status check will eventually re-derive the branch too.
     }
     dispatchSessions({ type: "setChangesSelection", id: path, selection: EMPTY_CHANGES_SELECTION });
-    void refreshVersionLines(path);
     await checkWorkingTree(path);
   };
 
@@ -1958,10 +1957,16 @@ export function App(): React.JSX.Element {
     };
   }, []);
 
+  // Warms every registered screen's chunks once the app is idle after first
+  // paint, so navigating to one right after launch is a cache hit rather than
+  // a fetch+parse. Deliberately not run before first paint: that would defeat
+  // the point of splitting them out. The list itself lives with the screen
+  // registry, so a new screen cannot ship without one (task 021).
+  //
   // Module-level idle work outlived jsdom test environments and left lazy
   // imports running after teardown. Owning it here gives React a real cleanup
   // point while preserving the same after-first-paint scheduling in the app.
-  useEffect(() => scheduleIdleTask(prefetchLazyPanels), []);
+  useEffect(() => scheduleIdleTask(prefetchScreenChunks), []);
 
   // Only the active project is watched: the others already refresh when they
   // become active, and watching every open project multiplies the OS-level
@@ -1980,37 +1985,25 @@ export function App(): React.JSX.Element {
     };
   }, [hasCompletedSessionRestore, projectPath]);
 
-  // Warms the active project's branch inventory during idle time, so the
-  // first visit to Version lines already has something to render. Gated on
-  // the startup restore having finished and deferred to idle so it can never
-  // add Git work to launch; skipped entirely for a project that already has
-  // a cached snapshot, since the effect below covers keeping it current.
-  const hasCachedVersionLines = (activeSession?.versionLines ?? null) !== null;
+  // Refreshes once when a project becomes active, not whenever a screen is
+  // visited. This covers startup and changes made while another project was
+  // active; repository-watch events keep the active session fresh afterward.
+  // Deferred so startup and the project-switch frame remain uncontested.
   useEffect(() => {
-    if (!hasCompletedSessionRestore || !projectPath || hasCachedVersionLines) {
+    if (!hasCompletedSessionRestore || !projectPath) {
       return undefined;
     }
     return scheduleIdleTask(() => {
       void refreshVersionLines(projectPath);
     });
-  }, [hasCompletedSessionRestore, projectPath, hasCachedVersionLines]);
+  }, [hasCompletedSessionRestore, projectPath]);
 
-  // Revalidates on arrival at the screen itself — the one moment the user is
-  // looking straight at this data, and the only place branches created
-  // outside GitOdrile would otherwise go unnoticed. Invisible when a snapshot
-  // is already cached: it stays on screen while this runs.
+  // Some screens only exist for an opened project; if the project closes
+  // while one is showing, leave immediately rather than rendering it against
+  // a project that is no longer open. Which screens those are comes from the
+  // registry, so a new project-only screen is covered by declaring itself one.
   useEffect(() => {
-    if (view !== "version-lines" || !projectPath) {
-      return;
-    }
-    void refreshVersionLines(projectPath);
-  }, [view, projectPath]);
-
-  // The Changes and Version-lines screens only exist for an opened project;
-  // if the project closes while one is showing, leave immediately rather
-  // than rendering it against a project that is no longer open.
-  useEffect(() => {
-    if ((view === "changes" || view === "version-lines") && !project) {
+    if (screenRequiresProject(view) && !project) {
       navigateToView("overview");
     }
   }, [view, project]);
@@ -2026,12 +2019,16 @@ export function App(): React.JSX.Element {
     // The session's own state goes with the reducer; the diff cache lives
     // outside it and has to be dropped explicitly, or a closed project's
     // file contents would stay in memory for the rest of the run.
-    // The generation counters deliberately survive: they are monotonic per
-    // path, and resetting one while a read is still in flight would let that
-    // read's response be accepted by a *reopened* session as if it were its
-    // own. Same reason `statusGenerationsRef` is never cleared.
+    // Generation counters deliberately survive and are advanced here: a
+    // response started by the closed session must never be accepted by a
+    // later session that reopens the same canonical path. Dropping the request
+    // entry lets that reopened session start a fresh read; the old request's
+    // conditional cleanup cannot erase the replacement.
     releaseDiffCache(diffCacheRef.current, id);
     delete pendingWatchRefreshesRef.current[id];
+    versionLinesGenerationsRef.current[id] =
+      (versionLinesGenerationsRef.current[id] ?? 0) + 1;
+    delete versionLinesRequestsRef.current[id];
     dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id && view !== "settings") {
       setView(nextSession?.lastView ?? "overview");
@@ -2106,26 +2103,36 @@ export function App(): React.JSX.Element {
   }, [sessionsState, hasBlockingDialog, view]);
 
   const commands: Command[] = [
-    { id: "go-overview", label: t.commandGoOverview, action: () => navigateToView("overview") },
-    ...(project ? [{ id: "go-changes", label: t.navChanges, action: () => navigateToView("changes") }] : []),
-    ...(project
-      ? [
-          {
-            id: "go-version-lines",
-            label: t.commandGoVersionLines,
-            action: () => navigateToView("version-lines"),
+    // "Go to X" comes from the screen registry, in nav order, so a new screen
+    // reaches the palette by being registered rather than by being remembered
+    // here. Actions *within* a screen are not destinations and stay explicit.
+    ...NAV_DESTINATIONS.flatMap((destination) => {
+      const { screen } = destination;
+      if (screen === null || destination.commandLabelKey === null) {
+        return [];
+      }
+      if (destination.requiresProject && !project) {
+        return [];
+      }
+      const entries: Command[] = [
+        {
+          id: `go-${destination.id}`,
+          label: t[destination.commandLabelKey],
+          action: () => navigateToView(screen),
+        },
+      ];
+      if (screen === "version-lines") {
+        entries.push({
+          id: "new-version-line",
+          label: t.commandNewVersionLine,
+          action: () => {
+            navigateToView("version-lines");
+            setVersionLinesAutoOpenCreate(true);
           },
-          {
-            id: "new-version-line",
-            label: t.commandNewVersionLine,
-            action: () => {
-              navigateToView("version-lines");
-              setVersionLinesAutoOpenCreate(true);
-            },
-          },
-        ]
-      : []),
-    { id: "go-settings", label: t.commandGoSettings, action: () => navigateToView("settings") },
+        });
+      }
+      return entries;
+    }),
     ...(!hasBlockingDialog
       ? [
           {
@@ -2337,47 +2344,28 @@ export function App(): React.JSX.Element {
             className="sidebar-scroll auto-hide-scrollbar"
           >
             <nav aria-label={t.navProjectAriaLabel}>
-              <button
-                className={`nav-item${view === "overview" ? " nav-item--active" : ""}`}
-                type="button"
-                aria-current={view === "overview" ? "page" : undefined}
-                onClick={() => navigateToView("overview")}
-              >
-                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.overview}</span>
-                <span className="nav-item__label">{t.navOverview}</span>
-              </button>
-              <button
-                className={`nav-item${view === "changes" ? " nav-item--active" : ""}`}
-                type="button"
-                disabled={!project}
-                aria-current={view === "changes" ? "page" : undefined}
-                aria-label={project ? undefined : t.navChangesTitle}
-                data-tooltip={project ? undefined : t.navChangesTitle}
-                onClick={() => navigateToView("changes")}
-              >
-                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.changes}</span>
-                <span className="nav-item__label">{t.navChanges}</span>
-              </button>
-              <button
-                className={`nav-item${view === "version-lines" ? " nav-item--active" : ""}`}
-                type="button"
-                disabled={!project}
-                aria-current={view === "version-lines" ? "page" : undefined}
-                aria-label={project ? undefined : t.navVersionLinesTitle}
-                data-tooltip={project ? undefined : t.navVersionLinesTitle}
-                onClick={() => navigateToView("version-lines")}
-              >
-                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.versionLines}</span>
-                <span className="nav-item__label">{t.navVersionLines}</span>
-              </button>
-              <button className="nav-item" type="button" disabled aria-label={t.navHistoryTitle} data-tooltip={t.navHistoryTitle}>
-                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.history}</span>
-                <span className="nav-item__label">{t.navHistory}</span>
-              </button>
-              <button className="nav-item" type="button" disabled aria-label={t.navRecoveryTitle} data-tooltip={t.navRecoveryTitle}>
-                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.recovery}</span>
-                <span className="nav-item__label">{t.navRecovery}</span>
-              </button>
+              {NAV_DESTINATIONS.filter((destination) => destination.section === "project").map((destination) => {
+                const { screen } = destination;
+                const isDisabled = screen === null || (destination.requiresProject && !project);
+                const disabledLabel =
+                  isDisabled && destination.disabledLabelKey ? t[destination.disabledLabelKey] : undefined;
+                const isActive = screen !== null && view === screen;
+                return (
+                  <button
+                    key={destination.id}
+                    className={`nav-item${isActive ? " nav-item--active" : ""}`}
+                    type="button"
+                    disabled={isDisabled}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-label={disabledLabel}
+                    data-tooltip={disabledLabel}
+                    onClick={screen ? () => navigateToView(screen) : undefined}
+                  >
+                    <span className="nav-item__icon" aria-hidden="true">{destination.icon}</span>
+                    <span className="nav-item__label">{t[destination.labelKey]}</span>
+                  </button>
+                );
+              })}
             </nav>
 
             <div className="sidebar-divider" aria-hidden="true" />
@@ -2409,15 +2397,23 @@ export function App(): React.JSX.Element {
 
           <div className="sidebar-footer">
             <nav aria-label={t.navApplicationAriaLabel} className="nav--secondary">
-              <button
-                className={`nav-item${view === "settings" ? " nav-item--active" : ""}`}
-                type="button"
-                aria-current={view === "settings" ? "page" : undefined}
-                onClick={() => navigateToView("settings")}
-              >
-                <span className="nav-item__icon" aria-hidden="true">{NAV_ICONS.settings}</span>
-                <span className="nav-item__label">{t.navSettings}</span>
-              </button>
+              {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map((destination) => {
+                const { screen } = destination;
+                const isActive = screen !== null && view === screen;
+                return (
+                  <button
+                    key={destination.id}
+                    className={`nav-item${isActive ? " nav-item--active" : ""}`}
+                    type="button"
+                    disabled={screen === null}
+                    aria-current={isActive ? "page" : undefined}
+                    onClick={screen ? () => navigateToView(screen) : undefined}
+                  >
+                    <span className="nav-item__icon" aria-hidden="true">{destination.icon}</span>
+                    <span className="nav-item__label">{t[destination.labelKey]}</span>
+                  </button>
+                );
+              })}
             </nav>
             <button
               className="sidebar-toggle"
@@ -2468,46 +2464,29 @@ export function App(): React.JSX.Element {
               </button>
             </div>
             <nav className="compact-nav" aria-label={t.navApplicationAriaLabel}>
-              <button
-                className={`compact-nav__item${view === "overview" ? " compact-nav__item--active" : ""}`}
-                type="button"
-                aria-current={view === "overview" ? "page" : undefined}
-                onClick={() => navigateToView("overview")}
-              >
-                <span aria-hidden="true">{NAV_ICONS.overview}</span>
-                {t.navOverview}
-              </button>
-              {project && (
-                <button
-                  className={`compact-nav__item${view === "changes" ? " compact-nav__item--active" : ""}`}
-                  type="button"
-                  aria-current={view === "changes" ? "page" : undefined}
-                  onClick={() => navigateToView("changes")}
-                >
-                  <span aria-hidden="true">{NAV_ICONS.changes}</span>
-                  {t.navChanges}
-                </button>
-              )}
-              {project && (
-                <button
-                  className={`compact-nav__item${view === "version-lines" ? " compact-nav__item--active" : ""}`}
-                  type="button"
-                  aria-current={view === "version-lines" ? "page" : undefined}
-                  onClick={() => navigateToView("version-lines")}
-                >
-                  <span aria-hidden="true">{NAV_ICONS.versionLines}</span>
-                  {t.navVersionLines}
-                </button>
-              )}
-              <button
-                className={`compact-nav__item${view === "settings" ? " compact-nav__item--active" : ""}`}
-                type="button"
-                aria-current={view === "settings" ? "page" : undefined}
-                onClick={() => navigateToView("settings")}
-              >
-                <span aria-hidden="true">{NAV_ICONS.settings}</span>
-                {t.navSettings}
-              </button>
+              {/* Narrow windows drop a destination entirely rather than
+                  showing it disabled: the row is already tight, and the
+                  expanded nav is where the "open a project first" explanation
+                  belongs. */}
+              {NAV_DESTINATIONS.flatMap((destination) => {
+                const { screen } = destination;
+                if (!destination.inCompactNav || screen === null || (destination.requiresProject && !project)) {
+                  return [];
+                }
+                const isActive = view === screen;
+                return (
+                  <button
+                    key={destination.id}
+                    className={`compact-nav__item${isActive ? " compact-nav__item--active" : ""}`}
+                    type="button"
+                    aria-current={isActive ? "page" : undefined}
+                    onClick={() => navigateToView(screen)}
+                  >
+                    <span aria-hidden="true">{destination.icon}</span>
+                    {t[destination.labelKey]}
+                  </button>
+                );
+              })}
             </nav>
           </div>
           {(view === "settings" || (view === "overview" && !project)) && (
@@ -2530,115 +2509,133 @@ export function App(): React.JSX.Element {
             </p>
           )}
 
-          {view === "overview" ? (
-            <OverviewPanel
-              project={project}
-              isOpening={isOpening}
-              workingTree={workingTree}
-              workingTreeError={workingTreeError}
-              isCheckingChanges={isCheckingChanges}
-              onCheckChanges={() => projectPath && void checkWorkingTree(projectPath)}
-              onReviewChanges={() => navigateToView("changes")}
-              onOpenProject={() => void handleOpenProject()}
-              onCloseProject={requestCloseActiveProject}
-              canPublish={canPublish}
-              onPublish={() => openPublishDialog()}
-              onPublishUpTo={(commit) => openPublishDialog(commit)}
-              pendingVersions={pendingVersions}
-              pendingVersionsError={pendingVersionsError}
-              onRetryPendingVersions={() => projectPath && void checkWorkingTree(projectPath)}
-              versionLines={activeSession?.versionLines ?? null}
-              isLoadingVersionLines={activeSession?.isLoadingVersionLines ?? false}
-              onQuickSwitchOpened={() => projectPath && void refreshVersionLines(projectPath)}
-              onQuickSwitchVersionLine={(target) => {
-                if (projectPath && startVersionLineOperation(projectPath)) {
-                  setOverviewSwitchTarget(target);
-                }
-              }}
-              onQuickCreateVersionLine={(forceSwitch) => {
-                if (projectPath && startVersionLineOperation(projectPath)) {
-                  setOverviewCreateRequest({ forceSwitch });
-                }
-              }}
-              onGoToVersionLines={() => navigateToView("version-lines")}
-            />
-          ) : view === "changes" && project ? (
-            <Suspense fallback={<ViewLoadingFallback />}>
-              <ChangesPanel
-                projectPath={project.path}
-                workingTree={workingTree}
-                workingTreeError={workingTreeError}
-                isCheckingChanges={isCheckingChanges}
-                diffCache={diffCacheRef.current}
-                onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
-                onNavigateOverview={() => navigateToView("overview")}
-                onPublishNow={() => openPublishDialog()}
-                selectedPath={activeSession?.changesSelection.selectedPath ?? null}
-                onSelectedPathChange={(selectedPath) =>
-                  sessionsState.activeId &&
-                  dispatchSessions({
-                    type: "setChangesSelection",
-                    id: sessionsState.activeId,
-                    selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
-                  })
-                }
-                isSaveVersionOpen={saveDialogSessionId === sessionsState.activeId}
-                onOpenSaveVersion={() => startSessionOperation("save")}
-                onCloseSaveVersion={() => {
-                  if (saveDialogSessionId) {
-                    finishSessionOperation(saveDialogSessionId);
+          {/* One mounted set of screens per project session: keying the
+              host by the active session drops the previous project's
+              screens instead of keeping them alive against a project the
+              user has left. */}
+          <KeepAliveScreens
+            key={sessionsState.activeId ?? "no-project"}
+            active={view}
+            screens={{
+              overview: (
+                <OverviewPanel
+                  project={project}
+                  isOpening={isOpening}
+                  workingTree={workingTree}
+                  workingTreeError={workingTreeError}
+                  isCheckingChanges={isCheckingChanges}
+                  onCheckChanges={() => projectPath && void checkWorkingTree(projectPath)}
+                  onReviewChanges={() => navigateToView("changes")}
+                  onOpenProject={() => void handleOpenProject()}
+                  onCloseProject={requestCloseActiveProject}
+                  canPublish={canPublish}
+                  onPublish={() => openPublishDialog()}
+                  onPublishUpTo={(commit) => openPublishDialog(commit)}
+                  pendingVersions={pendingVersions}
+                  pendingVersionsError={pendingVersionsError}
+                  onRetryPendingVersions={() => projectPath && void checkWorkingTree(projectPath)}
+                  versionLines={activeSession?.versionLines ?? null}
+                  isLoadingVersionLines={activeSession?.isLoadingVersionLines ?? false}
+                  onQuickSwitchVersionLine={(target) => {
+                    if (projectPath && startVersionLineOperation(projectPath)) {
+                      setOverviewSwitchTarget(target);
+                    }
+                  }}
+                  onQuickCreateVersionLine={(forceSwitch) => {
+                    if (projectPath && startVersionLineOperation(projectPath)) {
+                      setOverviewCreateRequest({ forceSwitch });
+                    }
+                  }}
+                  onGoToVersionLines={() => navigateToView("version-lines")}
+                />
+              ),
+              // Project-only screens are absent, not disabled, when no
+              // project is open: the host drops what it is not given.
+              ...(project
+                ? {
+                    changes: (
+                      <Suspense fallback={<ViewLoadingFallback />}>
+                        <ChangesPanel
+                          projectPath={project.path}
+                          workingTree={workingTree}
+                          workingTreeError={workingTreeError}
+                          isCheckingChanges={isCheckingChanges}
+                          diffCache={diffCacheRef.current}
+                          onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
+                          onNavigateOverview={() => navigateToView("overview")}
+                          onPublishNow={() => openPublishDialog()}
+                          selectedPath={activeSession?.changesSelection.selectedPath ?? null}
+                          onSelectedPathChange={(selectedPath) =>
+                            sessionsState.activeId &&
+                            dispatchSessions({
+                              type: "setChangesSelection",
+                              id: sessionsState.activeId,
+                              selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
+                            })
+                          }
+                          isSaveVersionOpen={saveDialogSessionId === sessionsState.activeId}
+                          onOpenSaveVersion={() => startSessionOperation("save")}
+                          onCloseSaveVersion={() => {
+                            if (saveDialogSessionId) {
+                              finishSessionOperation(saveDialogSessionId);
+                            }
+                            setSaveDialogSessionId(null);
+                          }}
+                          onSaveVersionPhaseChange={(phase) => {
+                            if (saveDialogSessionId) {
+                              dispatchSessions({
+                                type: "setOperationPhase",
+                                id: saveDialogSessionId,
+                                phase,
+                              });
+                            }
+                          }}
+                        />
+                      </Suspense>
+                    ),
+                    "version-lines": (
+                      <Suspense fallback={<ViewLoadingFallback />}>
+                        <VersionLinesPanel
+                          projectPath={project.path}
+                          snapshot={activeSession?.versionLines ?? null}
+                          error={activeSession?.versionLinesError ?? null}
+                          isLoading={activeSession?.isLoadingVersionLines ?? false}
+                          onRefresh={() => void refreshVersionLines(project.path)}
+                          onSnapshot={(snapshot) => commitVersionLines(project.path, snapshot)}
+                          onChanged={() => void handleVersionLineChanged(project.path)}
+                          onOperationStart={() => startVersionLineOperation(project.path)}
+                          onOperationFinish={() => finishSessionOperation(project.path)}
+                          onOperationPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
+                          onSaveVersion={() => {
+                            startSessionOperation("save");
+                            navigateToView("changes");
+                          }}
+                          autoOpenCreate={versionLinesAutoOpenCreate}
+                          onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
+                        />
+                      </Suspense>
+                    ),
                   }
-                  setSaveDialogSessionId(null);
-                }}
-                onSaveVersionPhaseChange={(phase) => {
-                  if (saveDialogSessionId) {
-                    dispatchSessions({
-                      type: "setOperationPhase",
-                      id: saveDialogSessionId,
-                      phase,
-                    });
-                  }
-                }}
-              />
-            </Suspense>
-          ) : view === "version-lines" && project ? (
-            <Suspense fallback={<ViewLoadingFallback />}>
-              <VersionLinesPanel
-                projectPath={project.path}
-                snapshot={activeSession?.versionLines ?? null}
-                error={activeSession?.versionLinesError ?? null}
-                isLoading={activeSession?.isLoadingVersionLines ?? false}
-                onRefresh={() => void refreshVersionLines(project.path)}
-                onSnapshot={(snapshot) => commitVersionLines(project.path, snapshot)}
-                onChanged={() => void handleVersionLineChanged(project.path)}
-                onOperationStart={() => startVersionLineOperation(project.path)}
-                onOperationFinish={() => finishSessionOperation(project.path)}
-                onOperationPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
-                onSaveVersion={() => {
-                  startSessionOperation("save");
-                  navigateToView("changes");
-                }}
-                autoOpenCreate={versionLinesAutoOpenCreate}
-                onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
-              />
-            </Suspense>
-          ) : (
-            <SettingsPanel
-              theme={theme}
-              setTheme={setTheme}
-              onOpenAbout={() => setIsAboutOpen(true)}
-              gitDiagnostics={gitDiagnostics}
-              gitUpdateStatus={gitUpdateStatus}
-              onCheckGitUpdate={checkGitUpdate}
-              isCheckingGitUpdate={isCheckingGitUpdate}
-              onRefreshGitDiagnostics={refreshGitDiagnostics}
-              isRefreshingGitDiagnostics={isRefreshingGitDiagnostics}
-              reopenLastProject={reopenLastProject}
-              setReopenLastProject={setReopenLastProject}
-              confirmCloseProject={confirmCloseProject}
-              setConfirmCloseProject={setConfirmCloseProject}
-            />
-          )}
+                : {}),
+              settings: (
+                <SettingsPanel
+                  theme={theme}
+                  setTheme={setTheme}
+                  onOpenAbout={() => setIsAboutOpen(true)}
+                  gitDiagnostics={gitDiagnostics}
+                  gitUpdateStatus={gitUpdateStatus}
+                  onCheckGitUpdate={checkGitUpdate}
+                  isCheckingGitUpdate={isCheckingGitUpdate}
+                  onRefreshGitDiagnostics={refreshGitDiagnostics}
+                  isRefreshingGitDiagnostics={isRefreshingGitDiagnostics}
+                  reopenLastProject={reopenLastProject}
+                  setReopenLastProject={setReopenLastProject}
+                  confirmCloseProject={confirmCloseProject}
+                  setConfirmCloseProject={setConfirmCloseProject}
+                />
+              ),
+            }}
+          />
         </section>
       </main>
 
@@ -2810,9 +2807,11 @@ const rootElement = document.getElementById("root");
 if (rootElement) {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <LanguageProvider>
-        <App />
-      </LanguageProvider>
+      <SwitchMeasurementRoot>
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
+      </SwitchMeasurementRoot>
     </React.StrictMode>,
   );
 }
@@ -2826,19 +2825,4 @@ if ("__TAURI_INTERNALS__" in window) {
       void invoke("show_main_window");
     });
   });
-}
-
-// Warms the lazy chunks (Changes, Publish, pending versions) once the app is
-// idle after first paint, so navigating to them right after launch is a cache
-// hit rather than a fresh fetch+parse. Deliberately not run before first
-// paint: that would defeat the point of splitting them out in the first place.
-function prefetchLazyPanels(): void {
-  void import("./changes");
-  void import("./publishDialog");
-  void import("./pendingVersions");
-  // Added in task 019: these two arrived with task 016 and were never listed
-  // here, so the Version lines screen paid a chunk fetch — and showed
-  // `ViewLoadingFallback` — on its first visit of every run.
-  void import("./versionLinesPanel");
-  void import("./versionLinesDialog");
 }

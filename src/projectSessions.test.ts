@@ -218,22 +218,20 @@ describe("projectSessionsReducer", () => {
     let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
     expect(state.byId["/a"].versionLines).toBeNull();
 
-    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 1 });
+    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a" });
     expect(state.byId["/a"].isLoadingVersionLines).toBe(true);
     state = projectSessionsReducer(state, {
       type: "applyVersionLines",
       id: "/a",
-      generation: 1,
       snapshot: versionLines,
     });
     expect(state.byId["/a"].versionLines).toEqual(versionLines);
     expect(state.byId["/a"].isLoadingVersionLines).toBe(false);
 
-    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 2 });
+    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a" });
     state = projectSessionsReducer(state, {
       type: "applyVersionLinesError",
       id: "/a",
-      generation: 2,
       error: "git blip",
     });
     expect(state.byId["/a"].versionLines).toEqual(versionLines);
@@ -241,31 +239,31 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/a"].isLoadingVersionLines).toBe(false);
   });
 
-  it("drops a superseded version-lines response instead of clobbering a newer one", () => {
+  it("preserves state identity when a branch refresh returns the same snapshot", () => {
     let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
-    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 1 });
-    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 2 });
-
-    const stale = projectSessionsReducer(state, {
+    state = projectSessionsReducer(state, {
       type: "applyVersionLines",
       id: "/a",
-      generation: 1,
       snapshot: versionLines,
     });
-    expect(stale).toBe(state);
-    expect(stale.byId["/a"].versionLines).toBeNull();
+    const unchanged = projectSessionsReducer(state, {
+      type: "applyVersionLines",
+      id: "/a",
+      snapshot: structuredClone(versionLines),
+    });
+    expect(unchanged).toBe(state);
+    expect(unchanged.byId["/a"].versionLines).toBe(versionLines);
   });
 
   it("keeps each session's version lines separate from the working-tree generation", () => {
     let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
-    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a", generation: 1 });
+    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a" });
     // A working-tree refresh runs its own counter; it must not invalidate the
     // version-lines read already in flight.
     state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 7 });
     state = projectSessionsReducer(state, {
       type: "applyVersionLines",
       id: "/a",
-      generation: 1,
       snapshot: versionLines,
     });
     expect(state.byId["/a"].versionLines).toEqual(versionLines);

@@ -1,7 +1,8 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { LanguageProvider } from "./i18n";
 import { App } from "./main";
 import type { RepositoryInfo, WorkingTreeStatus } from "./repositoryOverview";
@@ -11,6 +12,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 
 const mockedInvoke = vi.mocked(invoke);
+const mockedOpenFolderDialog = vi.mocked(openFolderDialog);
 
 function invokedPath(args: unknown): unknown {
   return args && typeof args === "object" && !Array.isArray(args)
@@ -65,6 +67,7 @@ const versionLines = {
   ],
   totalCount: 2,
   isTruncated: false,
+  unreadableCount: 0,
 };
 
 const secondProject: RepositoryInfo = {
@@ -244,6 +247,210 @@ describe("App project restoration", () => {
         ),
       ).toHaveLength(2),
     );
+  });
+
+  it("keeps a screen mounted when you navigate away from it and back", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") {
+        return Promise.resolve(restoredProject);
+      }
+      if (command === "read_working_tree_status") {
+        return Promise.resolve(cleanStatus);
+      }
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "watch_repository") {
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
+      }
+      if (command === "get_version_lines") {
+        return Promise.resolve(versionLines);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    const nav = screen.getByRole("navigation", { name: "Project navigation" });
+    await userEvent.click(within(nav).getByRole("button", { name: "Changes" }));
+    const changesScreen = (
+      await screen.findByRole("heading", { name: "Changes" }, { timeout: 5000 })
+    ).closest(".changes-view");
+    expect(changesScreen).not.toBeNull();
+
+    await userEvent.click(within(nav).getByRole("button", { name: "Overview" }));
+
+    // Still in the DOM, but hidden: no role query can reach it, so it is out
+    // of the tab order and out of the accessibility tree while Overview is
+    // the screen the user is on.
+    expect(document.querySelector(".changes-view")).toBe(changesScreen);
+    expect(screen.queryByRole("heading", { name: "Changes" })).toBeNull();
+    expect(changesScreen?.closest(".screen-slot")).toHaveAttribute("hidden");
+
+    await userEvent.click(within(nav).getByRole("button", { name: "Changes" }));
+
+    // The regression this guards (task 021): the screens used to be a ternary
+    // chain, so every visit rebuilt this subtree from scratch — including the
+    // diff virtualizer, whose rows measure themselves on first render. Node
+    // identity is the evidence that the screen was revealed, not remounted.
+    expect(await screen.findByRole("heading", { name: "Changes" })).toBeInTheDocument();
+    expect(document.querySelector(".changes-view")).toBe(changesScreen);
+
+    await waitFor(() =>
+      expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1),
+    );
+    await userEvent.click(within(nav).getByRole("button", { name: "Version lines" }));
+    expect(await screen.findByRole("heading", { name: "Version lines" })).toBeInTheDocument();
+    await userEvent.click(within(nav).getByRole("button", { name: "Overview" }));
+    await userEvent.click(within(nav).getByRole("button", { name: "Version lines" }));
+
+    // Screen navigation consumes the cached snapshot. Freshness comes from
+    // project activation and repository-watch invalidation, not from arrival.
+    expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1);
+  });
+
+  it("rejects an old branch response after the same project is closed and reopened", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodrile-confirm-close-project", "false");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+    mockedOpenFolderDialog.mockResolvedValue(restoredProject.path);
+
+    const staleVersionLines = {
+      ...versionLines,
+      lines: [
+        ...versionLines.lines,
+        {
+          name: "stale/old-session",
+          tip: {
+            commit: "old789",
+            shortCommit: "old789a",
+            subject: "old session",
+            committedAt: "2026-06-01T00:00:00Z",
+          },
+          isActive: false,
+          upstream: null,
+          isRetainedElsewhere: true,
+          uniqueCommitCount: 1,
+          worktreePath: null,
+        },
+      ],
+      totalCount: 3,
+    };
+    const freshVersionLines = {
+      ...versionLines,
+      lines: [
+        ...versionLines.lines,
+        {
+          name: "fresh/reopened-session",
+          tip: {
+            commit: "new789",
+            shortCommit: "new789a",
+            subject: "new session",
+            committedAt: "2026-08-01T00:00:00Z",
+          },
+          isActive: false,
+          upstream: null,
+          isRetainedElsewhere: true,
+          uniqueCommitCount: 1,
+          worktreePath: null,
+        },
+      ],
+      totalCount: 3,
+    };
+    let resolveOldRequest: ((snapshot: typeof staleVersionLines) => void) | undefined;
+    let resolveNewRequest: ((snapshot: typeof freshVersionLines) => void) | undefined;
+    let versionLinesCallCount = 0;
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") {
+        return Promise.resolve(restoredProject);
+      }
+      if (command === "read_working_tree_status") {
+        return Promise.resolve(cleanStatus);
+      }
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "watch_repository") {
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
+      }
+      if (command === "get_version_lines") {
+        versionLinesCallCount += 1;
+        return versionLinesCallCount === 1
+          ? new Promise<typeof staleVersionLines>((resolve) => {
+              resolveOldRequest = resolve;
+            })
+          : new Promise<typeof freshVersionLines>((resolve) => {
+              resolveNewRequest = resolve;
+            });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("heading", { name: restoredProject.name });
+    await waitFor(
+      () =>
+        expect(
+          mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines"),
+        ).toHaveLength(1),
+      { timeout: 3000 },
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: `Close ${restoredProject.name}` }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Open a project" })[0]);
+
+    await waitFor(
+      () =>
+        expect(
+          mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines"),
+        ).toHaveLength(2),
+      { timeout: 3000 },
+    );
+
+    resolveOldRequest?.(staleVersionLines);
+    await userEvent.click(
+      within(screen.getByRole("navigation", { name: "Project navigation" })).getByRole("button", {
+        name: "Version lines",
+      }),
+    );
+    expect(screen.queryByText("stale/old-session")).toBeNull();
+
+    resolveNewRequest?.(freshVersionLines);
+    expect(await screen.findAllByText("fresh/reopened-session")).not.toHaveLength(0);
+    expect(screen.queryAllByText("stale/old-session")).toHaveLength(0);
   });
 
   it("reopens Overview's version-line menu from cache, with no spinner", async () => {

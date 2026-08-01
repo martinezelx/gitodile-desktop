@@ -1,7 +1,7 @@
 ---
 id: "016"
 title: "Create, switch, and safely delete version lines"
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -10,7 +10,7 @@ areas:
   - repository
   - recovery
 created: 2026-07-28
-completed:
+completed: 2026-08-01
 ---
 
 # 016 — Create, switch, and safely delete version lines
@@ -356,43 +356,43 @@ anything.
 
 ## Acceptance criteria
 
-- [ ] A project-level Version lines destination exists in expanded and compact
+- [x] A project-level Version lines destination exists in expanded and compact
       navigation and is available through the command palette.
-- [ ] Overview's current-version-line card offers a bounded quick switch and
+- [x] Overview's current-version-line card offers a bounded quick switch and
       quick create that reuse the same plans, dialogs, and revalidation as the
       dedicated screen, including the same clean-tree block and next actions.
-- [ ] Local branches are discovered through typed, machine-readable output and
+- [x] Local branches are discovered through typed, machine-readable output and
       the active, detached, unborn, upstream, truncated, and checked-out-in-
       worktree states are represented honestly.
-- [ ] Simple mode uses version-line language while exact Git branch names and
+- [x] Simple mode uses version-line language while exact Git branch names and
       terminology remain available.
-- [ ] A user can create a local line from the current commit and choose whether
+- [x] A user can create a local line from the current commit and choose whether
       to switch to it.
-- [ ] Create-and-switch preserves every working-file and index byte, including
+- [x] Create-and-switch preserves every working-file and index byte, including
       prepared and untracked work.
-- [ ] Detached `HEAD` can be recovered into a named local line without losing
+- [x] Detached `HEAD` can be recovered into a named local line without losing
       its current commit.
-- [ ] Invalid, duplicate, case-colliding, locked, and non-representable names
+- [x] Invalid, duplicate, case-colliding, locked, and non-representable names
       return structured errors without partial mutation.
-- [ ] Existing-line switching requires a completely clean project and previews
+- [x] Existing-line switching requires a completely clean project and previews
       the exact source, destination, and bounded file impact.
-- [ ] Unsaved work blocks existing-line switching and offers Save version or
+- [x] Unsaved work blocks existing-line switching and offers Save version or
       New version line with this work rather than stash/discard behavior.
-- [ ] Conflicts and in-progress Git operations block every unsafe mutation.
-- [ ] Branches active in another linked worktree cannot be switched to or
+- [x] Conflicts and in-progress Git operations block every unsafe mutation.
+- [x] Branches active in another linked worktree cannot be switched to or
       deleted and their workspace path is explained.
-- [ ] The active branch, remote refs, and branches with unique/unprovable work
+- [x] The active branch, remote refs, and branches with unique/unprovable work
       cannot be deleted.
-- [ ] No force deletion, forced checkout, reset, clean, automatic stash, merge,
+- [x] No force deletion, forced checkout, reset, clean, automatic stash, merge,
       rebase, remote guessing, or remote mutation is reachable.
-- [ ] Every plan is revalidated immediately before execution and stale plans
+- [x] Every plan is revalidated immediately before execution and stale plans
       stop without mutation.
-- [ ] Successful operations refresh and invalidate all branch-dependent state;
+- [x] Successful operations refresh and invalidate all branch-dependent state;
       late responses cannot reintroduce the previous branch's data.
-- [ ] Long, nested, non-ASCII, and overflowing names work without ambiguous
+- [x] Long, nested, non-ASCII, and overflowing names work without ambiguous
       truncation; non-UTF-8 refs fail honestly rather than being mutated through
       lossy text.
-- [ ] Keyboard navigation, focus restoration, screen-reader announcements,
+- [x] Keyboard navigation, focus restoration, screen-reader announcements,
       loading/error states, reduced motion, light/dark themes, narrow windows,
       Spanish, and English are verified.
 
@@ -673,6 +673,20 @@ Known gaps (flagged for manual review, not silently dropped):
 
 ## Validation
 
-Record the exact frontend, Rust, temporary-repository, linked-worktree,
-accessibility, responsive, theme, and platform checks. Do not mark this task
-done without real desktop verification of create, switch, and safe delete.
+Automated checks, run when the work was committed (146d4be) and again as part
+of tasks 019 and 020, which build on this code:
+
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` — pass.
+- `pnpm run typecheck`, `pnpm run test`, `pnpm run build` — pass. The
+  version-lines panel and dialogs carry their own suites
+  (`versionLinesPanel.test.tsx`, `versionLinesDialog.test.tsx`).
+
+Desktop verification: **attested by the user on 2026-08-01**, not recorded in
+an agent session. The commit message for 146d4be deliberately kept this task
+active pending real desktop checks of create, switch, and safe delete —
+including linked worktrees, screen reader, reduced motion, themes, narrow
+windows, and Spanish/English. The user confirmed that verification and
+approved closing the task; the acceptance criteria above are checked on that
+basis. Recorded here so the provenance of those checkmarks stays honest:
+anything later found unverified should be reopened as a follow-up task rather
+than treated as a regression of this one.

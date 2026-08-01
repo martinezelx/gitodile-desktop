@@ -1,13 +1,13 @@
 ---
 id: 019
 title: Instant screen switching inside an open project
-status: active
+status: done
 priority: normal
 type: chore
 areas:
   - frontend
 created: 2026-07-31
-completed:
+completed: 2026-08-01
 ---
 
 # Goal
