@@ -199,6 +199,9 @@ Use temporary repositories for:
 
 # Dependencies
 
+- Task 022 must land before implementation starts. History is the first new
+  screen that should consume its modular feature and performance-safe screen
+  blueprint rather than adding more responsibilities to `main.tsx`/`lib.rs`.
 - Task 010 for the save-version vocabulary and result.
 - Task 012 for per-project history continuity and request isolation.
 - Tasks 011/013 for optional published/local reachability. The timeline must
