@@ -12,6 +12,8 @@ import type {
   VersionLinesSnapshot,
 } from "./versionLines";
 
+type VersionLineOperationPhase = "planning" | "executing" | "error" | "success";
+
 function FailureDetail({ error, t }: { error: unknown; t: Translations }): React.JSX.Element | null {
   const [expanded, setExpanded] = useState(false);
   if (!isAppError(error) || !error.detail) {
@@ -69,12 +71,14 @@ export function CreateVersionLineDialog({
   forceSwitch,
   onClose,
   onCreated,
+  onPhaseChange,
 }: {
   isOpen: boolean;
   projectPath: string;
   forceSwitch?: boolean;
   onClose: () => void;
   onCreated: (snapshot: VersionLinesSnapshot) => void;
+  onPhaseChange?: (phase: VersionLineOperationPhase) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -82,6 +86,8 @@ export function CreateVersionLineDialog({
   const [name, setName] = useState("");
   const [switchChoice, setSwitchChoice] = useState(true);
   const [state, setState] = useState<CreateState>({ status: "form" });
+  const onPhaseChangeRef = useRef(onPhaseChange);
+  onPhaseChangeRef.current = onPhaseChange;
 
   const onCloseRef = useRef(onClose);
   const isBusyRef = useRef(false);
@@ -125,6 +131,7 @@ export function CreateVersionLineDialog({
       return;
     }
     setState({ status: "planning" });
+    onPhaseChangeRef.current?.("planning");
     try {
       const plan = await invoke<CreateVersionLinePlan>("plan_create_version_line", {
         path: projectPath,
@@ -138,11 +145,13 @@ export function CreateVersionLineDialog({
       setState({ status: "confirm", plan });
     } catch (error) {
       setState({ status: "form-error", error });
+      onPhaseChangeRef.current?.("error");
     }
   }
 
   async function execute(plan: CreateVersionLinePlan): Promise<void> {
     setState({ status: "creating", plan });
+    onPhaseChangeRef.current?.("executing");
     try {
       const snapshot = await invoke<VersionLinesSnapshot>("create_version_line", {
         path: projectPath,
@@ -151,9 +160,11 @@ export function CreateVersionLineDialog({
         stateToken: plan.stateToken,
       });
       setState({ status: "success", snapshot, name: plan.name, switched: plan.willSwitch });
+      onPhaseChangeRef.current?.("success");
       onCreated(snapshot);
     } catch (error) {
       setState({ status: "form-error", error });
+      onPhaseChangeRef.current?.("error");
     }
   }
 
@@ -296,6 +307,7 @@ export function SwitchVersionLineDialog({
   onSwitched,
   onSaveVersion,
   onCreateWithWork,
+  onPhaseChange,
 }: {
   isOpen: boolean;
   projectPath: string;
@@ -304,11 +316,14 @@ export function SwitchVersionLineDialog({
   onSwitched: (snapshot: VersionLinesSnapshot) => void;
   onSaveVersion: () => void;
   onCreateWithWork: () => void;
+  onPhaseChange?: (phase: VersionLineOperationPhase) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [state, setState] = useState<SwitchState>({ status: "loading" });
+  const onPhaseChangeRef = useRef(onPhaseChange);
+  onPhaseChangeRef.current = onPhaseChange;
 
   const onCloseRef = useRef(onClose);
   const isBusyRef = useRef(false);
@@ -327,6 +342,7 @@ export function SwitchVersionLineDialog({
     }
     let cancelled = false;
     setState({ status: "loading" });
+    onPhaseChangeRef.current?.("planning");
     invoke<SwitchVersionLinePlan>("plan_switch_version_line", { path: projectPath, target })
       .then((plan) => {
         if (!cancelled) {
@@ -336,6 +352,7 @@ export function SwitchVersionLineDialog({
       .catch((error: unknown) => {
         if (!cancelled) {
           setState({ status: "blocked", error });
+          onPhaseChangeRef.current?.("error");
         }
       });
     return () => {
@@ -363,6 +380,7 @@ export function SwitchVersionLineDialog({
     }
     const plan = state.plan;
     setState({ status: "switching", plan });
+    onPhaseChangeRef.current?.("executing");
     invoke<VersionLinesSnapshot>("switch_version_line", {
       path: projectPath,
       target: plan.to,
@@ -370,10 +388,12 @@ export function SwitchVersionLineDialog({
     })
       .then((snapshot) => {
         setState({ status: "success", snapshot });
+        onPhaseChangeRef.current?.("success");
         onSwitched(snapshot);
       })
       .catch((error: unknown) => {
         setState({ status: "switch-error", plan, error });
+        onPhaseChangeRef.current?.("error");
       });
   }
 
@@ -512,17 +532,21 @@ export function DeleteVersionLineDialog({
   target,
   onClose,
   onDeleted,
+  onPhaseChange,
 }: {
   isOpen: boolean;
   projectPath: string;
   target: string;
   onClose: () => void;
   onDeleted: (snapshot: VersionLinesSnapshot) => void;
+  onPhaseChange?: (phase: VersionLineOperationPhase) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [state, setState] = useState<DeleteState>({ status: "loading" });
+  const onPhaseChangeRef = useRef(onPhaseChange);
+  onPhaseChangeRef.current = onPhaseChange;
 
   const onCloseRef = useRef(onClose);
   const isBusyRef = useRef(false);
@@ -541,6 +565,7 @@ export function DeleteVersionLineDialog({
     }
     let cancelled = false;
     setState({ status: "loading" });
+    onPhaseChangeRef.current?.("planning");
     invoke<DeleteVersionLinePlan>("plan_delete_version_line", { path: projectPath, name: target })
       .then((plan) => {
         if (!cancelled) {
@@ -550,6 +575,7 @@ export function DeleteVersionLineDialog({
       .catch((error: unknown) => {
         if (!cancelled) {
           setState({ status: "blocked", error });
+          onPhaseChangeRef.current?.("error");
         }
       });
     return () => {
@@ -576,6 +602,7 @@ export function DeleteVersionLineDialog({
     }
     const plan = state.plan;
     setState({ status: "deleting", plan });
+    onPhaseChangeRef.current?.("executing");
     invoke<VersionLinesSnapshot>("delete_version_line", {
       path: projectPath,
       name: plan.name,
@@ -583,10 +610,12 @@ export function DeleteVersionLineDialog({
     })
       .then((snapshot) => {
         setState({ status: "success", snapshot });
+        onPhaseChangeRef.current?.("success");
         onDeleted(snapshot);
       })
       .catch((error: unknown) => {
         setState({ status: "delete-error", plan, error });
+        onPhaseChangeRef.current?.("error");
       });
   }
 

@@ -116,6 +116,9 @@ export function VersionLinesPanel({
   onSnapshot,
   onChanged,
   onSaveVersion,
+  onOperationStart,
+  onOperationFinish,
+  onOperationPhaseChange,
   autoOpenCreate,
   onAutoOpenCreateHandled,
 }: {
@@ -140,6 +143,11 @@ export function VersionLinesPanel({
    * itself — see `main.tsx`'s `handleVersionLineChanged`. */
   onChanged: () => void;
   onSaveVersion: () => void;
+  /** Registers the dialog as a path-scoped mutation before it opens. Returns
+   * false when another session sharing this Git directory owns a mutation. */
+  onOperationStart: () => boolean;
+  onOperationFinish: () => void;
+  onOperationPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
   /** Set by the command palette's "New version line" action, which can fire
    * from any screen — this opens the create dialog as soon as the panel
    * mounts instead of only reacting to its own "New version line" button. */
@@ -151,9 +159,20 @@ export function VersionLinesPanel({
   const [prefixFilter, setPrefixFilter] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogRequest>(null);
 
+  function openDialog(request: Exclude<DialogRequest, null>): void {
+    if (onOperationStart()) {
+      setDialog(request);
+    }
+  }
+
+  function closeDialog(): void {
+    setDialog(null);
+    onOperationFinish();
+  }
+
   useEffect(() => {
     if (autoOpenCreate) {
-      setDialog({ kind: "create", forceSwitch: false });
+      openDialog({ kind: "create", forceSwitch: false });
       onAutoOpenCreateHandled?.();
     }
     // Deliberately fires once per truthy transition of `autoOpenCreate`
@@ -208,6 +227,7 @@ export function VersionLinesPanel({
     onSnapshot(next);
     setDialog(null);
     onChanged();
+    onOperationFinish();
   }
 
   return (
@@ -221,7 +241,7 @@ export function VersionLinesPanel({
           <button
             className="primary-button"
             type="button"
-            onClick={() => setDialog({ kind: "create", forceSwitch: snapshot?.headState === "detached" })}
+            onClick={() => openDialog({ kind: "create", forceSwitch: snapshot?.headState === "detached" })}
           >
             <Plus aria-hidden="true" />
             {t.versionLinesNewButton}
@@ -267,7 +287,7 @@ export function VersionLinesPanel({
               <button
                 className="primary-button"
                 type="button"
-                onClick={() => setDialog({ kind: "create", forceSwitch: true })}
+                onClick={() => openDialog({ kind: "create", forceSwitch: true })}
               >
                 <GitBranch aria-hidden="true" />
                 {t.versionLinesDetachedRecoverButton}
@@ -338,8 +358,8 @@ export function VersionLinesPanel({
                   line={line}
                   language={language}
                   compact
-                  onSwitch={() => setDialog({ kind: "switch", target: line.name })}
-                  onDelete={() => setDialog({ kind: "delete", target: line.name })}
+                  onSwitch={() => openDialog({ kind: "switch", target: line.name })}
+                  onDelete={() => openDialog({ kind: "delete", target: line.name })}
                 />
               ))}
             </ul>
@@ -350,6 +370,12 @@ export function VersionLinesPanel({
               {t.versionLinesTruncatedNote(snapshot.lines.length, snapshot.totalCount)}
             </p>
           )}
+
+          {snapshot.unreadableCount > 0 && (
+            <p className="save-version-note" role="status">
+              {t.versionLinesUnreadableNote(snapshot.unreadableCount)}
+            </p>
+          )}
         </>
       )}
 
@@ -357,24 +383,27 @@ export function VersionLinesPanel({
         isOpen={dialog?.kind === "create"}
         projectPath={projectPath}
         forceSwitch={dialog?.kind === "create" ? dialog.forceSwitch : undefined}
-        onClose={() => setDialog(null)}
+        onClose={closeDialog}
         onCreated={handleMutated}
+        onPhaseChange={onOperationPhaseChange}
       />
       <SwitchVersionLineDialog
         isOpen={dialog?.kind === "switch"}
         projectPath={projectPath}
         target={dialog?.kind === "switch" ? dialog.target : ""}
-        onClose={() => setDialog(null)}
+        onClose={closeDialog}
         onSwitched={handleMutated}
         onSaveVersion={onSaveVersion}
-        onCreateWithWork={() => setDialog({ kind: "create", forceSwitch: false })}
+        onCreateWithWork={() => openDialog({ kind: "create", forceSwitch: false })}
+        onPhaseChange={onOperationPhaseChange}
       />
       <DeleteVersionLineDialog
         isOpen={dialog?.kind === "delete"}
         projectPath={projectPath}
         target={dialog?.kind === "delete" ? dialog.target : ""}
-        onClose={() => setDialog(null)}
+        onClose={closeDialog}
         onDeleted={handleMutated}
+        onPhaseChange={onOperationPhaseChange}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import type { VersionLinesSnapshot } from "./versionLines";
  * a session only ever remembers which of these two it was last showing. */
 export type ProjectView = "overview" | "changes" | "version-lines";
 
-export type ProjectMutationKind = "save" | "publish";
+export type ProjectMutationKind = "save" | "publish" | "version-line";
 export type ProjectMutationPhase =
   | "planning"
   | "executing"

@@ -299,4 +299,72 @@ describe("App project restoration", () => {
     await userEvent.click(trigger);
     expect(screen.getByRole("menuitem", { name: /feature\/spike/ })).toBeInTheDocument();
   });
+
+  it("replaces Overview's switch dialog instead of stacking a second one on top", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") {
+        return Promise.resolve(restoredProject);
+      }
+      if (command === "read_working_tree_status") {
+        return Promise.resolve(cleanStatus);
+      }
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "watch_repository") {
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
+      }
+      if (command === "get_version_lines") {
+        return Promise.resolve(versionLines);
+      }
+      if (command === "plan_switch_version_line") {
+        // Blocked by unsaved work: this is the state that offers the two
+        // hand-offs ("Save version" / "New version line with this work"),
+        // and both used to leave this dialog mounted behind whatever they
+        // opened next.
+        return Promise.reject({
+          code: "dirty_working_tree",
+          message: "There are unsaved changes.",
+          remediation: null,
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("heading", { name: restoredProject.name });
+    await userEvent.click(screen.getByRole("button", { name: "Change (main)" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /feature\/spike/ }));
+
+    const createWithWork = await screen.findByRole("button", {
+      name: "New version line with this work",
+    });
+    await userEvent.click(createWithWork);
+
+    // Exactly one dialog: the create dialog replaced the switch dialog
+    // rather than rendering on top of it. Both are owned by App state, so
+    // nothing else closes the first one.
+    // Exactly one: the switch dialog dismisses itself before handing off, so
+    // the create dialog replaces it instead of stacking on top. Both are
+    // owned by App state, so nothing else would close the first one.
+    await waitFor(() => expect(screen.getByLabelText("Name")).toBeInTheDocument());
+    expect(document.querySelectorAll("[role=dialog]")).toHaveLength(1);
+  });
 });

@@ -638,14 +638,38 @@ Known gaps (flagged for manual review, not silently dropped):
   task requires (real linked worktrees, screen reader, reduced motion,
   Windows/macOS/Linux) has not been done and must happen before this task is
   marked done.
-- Version-line mutations do not yet have their own cross-session "blocked by
-  another session's operation" UI lock the way save/publish do
-  (`startSessionOperation`/`getMutationBlocker`); Git's own ref locking is
-  the only safety net today if two sessions on the same `commonGitDir` race.
-  Worth revisiting alongside task 012.
-- Unique-commit-count and retained-elsewhere are computed with one extra Git
-  process per listed branch; fine at the tested scale, not benchmarked at
-  the 300-branch cap.
+- ~~Version-line mutations do not yet have their own cross-session "blocked
+  by another session's operation" UI lock the way save/publish do.~~
+  **Closed.** They now register through the same
+  `startSessionOperation`/`getMutationBlocker` contract, under a third
+  mutation kind (`version-line`), so two linked worktrees sharing a
+  `commonGitDir` block each other before Git's ref locking has to.
+- ~~Unique-commit-count and retained-elsewhere are computed with one extra
+  Git process per listed branch.~~ **Mostly closed.** Retained-elsewhere is
+  now answered for every branch in a single `rev-list --branches --remotes`
+  walk (`reaching_refs_by_commit`), and unique-commit-count is memoised per
+  distinct tip, so branches sharing a tip cost one process between them.
+  Still unbenchmarked at the 300-branch cap, and the graph walk now holds an
+  entry per reachable commit — see `work/backlog.md`.
+
+## Amendments after the first pass
+
+- **Plans expire on content, not only on shape.** The create state token
+  originally fingerprinted the working-tree *status*, which cannot tell that
+  an already-modified file was edited again between preview and confirm, nor
+  that the staged content changed while the final worktree stayed identical.
+  It now also carries the full worktree tree and the exact index tree
+  (`create_version_line_state_fingerprint`). The cost is a `git add -A` into
+  a temporary index during planning, not just execution.
+- **Unrepresentable ref names are skipped, not converted and not fatal.** Git
+  ref names are bytes, so a name GitOdrile cannot represent is possible.
+  Showing it with replacement characters would invite the user to act on a
+  name that does not exist, and every mutation is keyed by exact name — so
+  those records are dropped. Dropping them individually, rather than failing
+  the whole read, keeps the remaining lines usable; the screen reports how
+  many are missing (`unreadableCount`). `list_branch_names` skips them too,
+  which is safe because a *new* name is always valid UTF-8 and can therefore
+  never collide with bytes that are not.
 
 ## Validation
 

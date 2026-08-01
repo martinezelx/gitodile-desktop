@@ -4237,12 +4237,35 @@ fn list_worktrees(path: &str) -> Result<Vec<WorktreeEntry>, AppError> {
     Ok(parse_worktree_list_porcelain(&output))
 }
 
+/// Local branch names that this app can represent exactly. See
+/// `parse_version_line_refs` for why unrepresentable names are skipped rather
+/// than lossily converted.
 fn list_branch_names(path: &str) -> Result<Vec<String>, AppError> {
-    let output = checked_git_stdout(run_git(
+    let output = run_git(
         path,
-        &["for-each-ref", "--format=%(refname:short)", "refs/heads"],
-    )?)?;
-    Ok(output.lines().map(str::to_string).collect())
+        &["for-each-ref", "--format=%(refname:short)%00", "refs/heads"],
+    )?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't inspect this project's version-line names.",
+        )
+        .with_remediation("Check that the project's Git references are readable."));
+    }
+    Ok(output
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty() && *field != b"\n" && *field != b"\r\n")
+        .filter_map(|field| {
+            let field = field.strip_prefix(b"\n").unwrap_or(field);
+            let field = field.strip_suffix(b"\r").unwrap_or(field);
+            // Skipping an unrepresentable name is safe for every caller here:
+            // this list exists to reject an exact or case-only duplicate of a
+            // *new* name, and a new name is always valid UTF-8, so it can
+            // never collide with bytes that are not.
+            std::str::from_utf8(field).ok().map(str::to_string)
+        })
+        .collect())
 }
 
 /// Refs (local branches or remote-tracking refs) other than `name` itself
@@ -4270,6 +4293,110 @@ fn retaining_refs(path: &str, name: &str, tip: &str) -> Result<Vec<String>, AppE
         .filter(|line| *line != own_ref)
         .map(str::to_string)
         .collect())
+}
+
+fn add_reaching_ref(references: &mut Vec<String>, reference: &str) {
+    if references.iter().any(|existing| existing == reference) {
+        return;
+    }
+    // Inventory only needs to know whether at least one *other* ref reaches a
+    // branch tip. Keeping two distinct names is sufficient to answer that for
+    // every branch while bounding memory even in repositories with many refs.
+    if references.len() < 2 {
+        references.push(reference.to_string());
+    }
+}
+
+/// Computes the refs that can reach every commit in one graph walk. This
+/// replaces one `for-each-ref --contains` process per listed branch during
+/// discovery; delete planning still asks Git for the exact retained-by list.
+fn reaching_refs_by_commit(
+    path: &str,
+) -> Result<std::collections::HashMap<String, Vec<String>>, AppError> {
+    use std::collections::HashMap;
+
+    let refs_output = run_git(
+        path,
+        &[
+            "for-each-ref",
+            "--format=%(objectname)%00%(refname)%00",
+            "refs/heads",
+            "refs/remotes",
+        ],
+    )?;
+    if !refs_output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't inspect which references retain these version lines.",
+        ));
+    }
+
+    let mut reaching: HashMap<String, Vec<String>> = HashMap::new();
+    let mut fields = refs_output.stdout.split(|byte| *byte == 0);
+    while let Some(commit_bytes) = fields.next() {
+        if commit_bytes.is_empty() || commit_bytes == b"\n" || commit_bytes == b"\r\n" {
+            continue;
+        }
+        let commit_bytes = commit_bytes.strip_prefix(b"\n").unwrap_or(commit_bytes);
+        let Some(reference_bytes) = fields.next() else {
+            break;
+        };
+        let reference_bytes = reference_bytes
+            .strip_suffix(b"\r")
+            .unwrap_or(reference_bytes);
+        // A ref this app cannot name is dropped rather than failing the walk.
+        // That errs toward "we cannot prove this line is retained elsewhere",
+        // which shows the branch as carrying unique work — the cautious
+        // answer. Deletion safety does not rest on it either way:
+        // `git branch -d` remains the actual enforcement.
+        let (Ok(commit), Ok(reference)) = (
+            std::str::from_utf8(commit_bytes),
+            std::str::from_utf8(reference_bytes),
+        ) else {
+            continue;
+        };
+        add_reaching_ref(reaching.entry(commit.to_string()).or_default(), reference);
+    }
+
+    let graph = run_git(
+        path,
+        &[
+            "rev-list",
+            "--topo-order",
+            "--parents",
+            "--branches",
+            "--remotes",
+        ],
+    )?;
+    if !graph.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't inspect version-line reachability.",
+        ));
+    }
+    let graph_text = std::str::from_utf8(&graph.stdout).map_err(|_| {
+        AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git returned commit identifiers that couldn't be represented safely.",
+        )
+    })?;
+    for line in graph_text.lines() {
+        let mut commits = line.split_ascii_whitespace();
+        let Some(commit) = commits.next() else {
+            continue;
+        };
+        let sources = reaching.get(commit).cloned().unwrap_or_default();
+        if sources.is_empty() {
+            continue;
+        }
+        for parent in commits {
+            let parent_sources = reaching.entry(parent.to_string()).or_default();
+            for source in &sources {
+                add_reaching_ref(parent_sources, source);
+            }
+        }
+    }
+    Ok(reaching)
 }
 
 fn branch_unique_commit_count(path: &str, active: Option<&str>, tip: &str) -> Option<u32> {
@@ -4313,6 +4440,26 @@ fn status_fingerprint(status: &WorkingTreeStatus) -> String {
         fingerprint.push('|');
     }
     fingerprint
+}
+
+/// Fingerprint used when creating a line with unsaved/prepared work. The
+/// status shape alone cannot detect editing the same already-modified file
+/// after preview, so include both the complete worktree tree and the exact
+/// staged-content tree. `prepare_index` uses a temporary index and never
+/// mutates the user's real one; `write-tree` reads the real index without
+/// depending on volatile stat-cache bytes.
+fn create_version_line_state_fingerprint(
+    path: &str,
+    head_state: &HeadState,
+    status: &WorkingTreeStatus,
+) -> Result<String, AppError> {
+    let prepared_index = prepare_index(path, head_state, None)?;
+    let worktree_tree = &prepared_index.tree;
+    let index_tree = checked_git_stdout(run_git(path, &["write-tree"])?)?;
+    Ok(format!(
+        "{}|worktree-tree:{worktree_tree}|index-tree:{index_tree}",
+        status_fingerprint(status),
+    ))
 }
 
 fn compute_version_line_state_token(
@@ -4362,8 +4509,13 @@ struct VersionLinesSnapshot {
     lines: Vec<VersionLine>,
     total_count: usize,
     is_truncated: bool,
+    /// Local branches whose exact bytes this app cannot represent, and which
+    /// are therefore absent from `lines`. Surfaced so the screen can say so
+    /// instead of quietly showing an incomplete list.
+    unreadable_count: usize,
 }
 
+#[derive(Debug)]
 struct VersionLineRaw {
     name: String,
     commit: String,
@@ -4377,31 +4529,73 @@ struct VersionLineRaw {
 /// NUL bytes `%00` writes into the format string. Machine-readable and
 /// version-agnostic — this is the read-only half of the feature and must stay
 /// usable regardless of `require_git_switch_support`.
-fn parse_version_line_refs(text: &str) -> Vec<VersionLineRaw> {
-    text.lines()
-        .filter_map(|line| {
-            let mut fields = line.split('\0');
-            let refname = fields.next()?;
-            let name = refname.strip_prefix("refs/heads/")?.to_string();
-            let commit = fields.next()?.to_string();
-            let short_commit = fields.next()?.to_string();
-            let subject = fields.next().unwrap_or("").to_string();
-            let committed_at = fields.next().unwrap_or("").to_string();
-            let upstream = fields
-                .next()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(str::to_string);
-            Some(VersionLineRaw {
-                name,
-                commit,
-                short_commit,
-                subject,
-                committed_at,
-                upstream,
-            })
-        })
-        .collect()
+/// Parsed inventory plus the number of records skipped because their bytes
+/// are not valid UTF-8.
+struct ParsedVersionLines {
+    lines: Vec<VersionLineRaw>,
+    unreadable_count: usize,
+}
+
+/// Git ref names are bytes, not text, so a name this app cannot represent is
+/// possible. Such a record is skipped and counted, never lossily converted:
+/// showing a name peppered with replacement characters would invite the user
+/// to act on something that does not exist, and every mutation is keyed by
+/// exact name. Skipping one record rather than failing the whole read keeps
+/// the other lines usable, which is the same "show what is true, say what is
+/// missing" contract `is_truncated` already follows.
+fn parse_version_line_refs(bytes: &[u8]) -> ParsedVersionLines {
+    let mut lines = Vec::new();
+    let mut unreadable_count = 0;
+    for line in bytes.split(|byte| *byte == b'\n') {
+        if line.is_empty() {
+            continue;
+        }
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        let fields = line.split(|byte| *byte == 0).collect::<Vec<_>>();
+        if fields.len() < 3 {
+            continue;
+        }
+        let decode = |field: &[u8]| -> Option<String> {
+            std::str::from_utf8(field).ok().map(str::to_string)
+        };
+        // The ref name decides whether this record counts as unreadable; a
+        // malformed line that is not a local branch at all is simply not ours.
+        let Some(refname) = decode(fields[0]) else {
+            unreadable_count += 1;
+            continue;
+        };
+        let Some(name) = refname.strip_prefix("refs/heads/") else {
+            continue;
+        };
+        let (Some(commit), Some(short_commit)) = (decode(fields[1]), decode(fields[2])) else {
+            unreadable_count += 1;
+            continue;
+        };
+        // Metadata that cannot be represented degrades to empty rather than
+        // dropping an otherwise addressable line: the name is what mutations
+        // need, and the subject and date are decoration.
+        lines.push(VersionLineRaw {
+            name: name.to_string(),
+            commit,
+            short_commit,
+            subject: fields
+                .get(3)
+                .and_then(|field| decode(field))
+                .unwrap_or_default(),
+            committed_at: fields
+                .get(4)
+                .and_then(|field| decode(field))
+                .unwrap_or_default(),
+            upstream: fields
+                .get(5)
+                .and_then(|field| decode(field))
+                .filter(|value| !value.trim().is_empty()),
+        });
+    }
+    ParsedVersionLines {
+        lines,
+        unreadable_count,
+    }
 }
 
 /// Read-only, local-only branch inventory. Never contacts a remote; any
@@ -4447,12 +4641,24 @@ fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
             "refs/heads",
         ],
     )?;
-    let text = checked_git_stdout(refs_output)?;
-    let mut raw_lines = parse_version_line_refs(&text);
+    if !refs_output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't inspect this project's version lines.",
+        ));
+    }
+    let parsed = parse_version_line_refs(&refs_output.stdout);
+    let unreadable_count = parsed.unreadable_count;
+    let mut raw_lines = parsed.lines;
+    // Counts only what is actually representable; the skipped records are
+    // reported separately rather than being folded into a total the list
+    // cannot account for.
     let total_count = raw_lines.len();
     let is_truncated = total_count > VERSION_LINE_LIST_CAP;
     raw_lines.truncate(VERSION_LINE_LIST_CAP);
 
+    let reaching_refs = reaching_refs_by_commit(&path)?;
+    let mut unique_counts_by_tip = std::collections::HashMap::new();
     let mut lines = Vec::with_capacity(raw_lines.len());
     for raw in raw_lines {
         let is_active = branch.as_deref() == Some(raw.name.as_str());
@@ -4464,11 +4670,19 @@ fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
                 .find(|worktree| worktree.branch.as_deref() == Some(raw.name.as_str()))
                 .map(|worktree| display_path(PathBuf::from(&worktree.path)))
         };
-        let is_retained_elsewhere = !retaining_refs(&path, &raw.name, &raw.commit)?.is_empty();
+        let own_ref = format!("refs/heads/{}", raw.name);
+        let is_retained_elsewhere = reaching_refs
+            .get(&raw.commit)
+            .map(|references| references.iter().any(|reference| reference != &own_ref))
+            .unwrap_or(false);
         let unique_commit_count = if is_active {
             None
         } else {
-            branch_unique_commit_count(&path, branch.as_deref(), &raw.commit)
+            *unique_counts_by_tip
+                .entry(raw.commit.clone())
+                .or_insert_with(|| {
+                    branch_unique_commit_count(&path, branch.as_deref(), &raw.commit)
+                })
         };
         lines.push(VersionLine {
             name: raw.name,
@@ -4493,6 +4707,7 @@ fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
         lines,
         total_count,
         is_truncated,
+        unreadable_count,
     })
 }
 
@@ -4588,10 +4803,11 @@ fn validate_and_prepare_create(
     let has_unsaved_work = !status.is_clean;
     let will_switch = switch || head_state == HeadState::Detached;
 
+    let mutable_state = create_version_line_state_fingerprint(path, &head_state, &status)?;
     let state_token = compute_version_line_state_token(
         head_sha.as_deref(),
         branch.as_deref(),
-        &status_fingerprint(&status),
+        &mutable_state,
         &format!("create:{name}:{will_switch}"),
     );
 
@@ -5152,11 +5368,24 @@ fn watch_repository(
                 .with_remediation("Reopen the project and try again."),
         );
     }
-    // The resolved Git directory is what the event filter needs; for a linked
-    // worktree it sits outside the watched tree, while `<root>/.git` is a
-    // file inside it. Both are named so neither leaks Git's own churn through.
+    // A linked worktree has three relevant locations: its resolved private Git
+    // directory (HEAD/index), its `<root>/.git` pointer file, and the shared
+    // common Git directory (branches/packed refs). Name all of them so an
+    // external branch create/delete is visible from linked worktrees too.
     let git_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"])?)?;
-    let git_dirs = vec![normalized_path(root, &git_dir_raw), root.join(".git")];
+    let common_git_dir_raw =
+        checked_git_stdout(run_git(&path, &["rev-parse", "--git-common-dir"])?)?;
+    let mut git_dirs = vec![
+        normalized_path(root, &git_dir_raw),
+        root.join(".git"),
+        normalized_path(root, &common_git_dir_raw),
+    ];
+    // Order is deliberately not significant here: a linked worktree's private
+    // directory lives inside the common one, and the event filter resolves
+    // that overlap itself by matching the most specific entry (see
+    // `watch::is_relevant_path`). `dedup` collapses the normal-repository
+    // case, where all three resolve to the same `.git`.
+    git_dirs.dedup();
     Ok(registry.watch(app, &path, git_dirs))
 }
 
@@ -8542,8 +8771,8 @@ mod tests {
 
     #[test]
     fn parse_version_line_refs_reads_nul_delimited_fields() {
-        let text = "refs/heads/main\0abc123\0abc12\0First subject\x002024-01-01T00:00:00+00:00\0origin/main\nrefs/heads/feature/nested\0def456\0def45\0Nested line\x002024-02-02T00:00:00+00:00\0\n";
-        let lines = parse_version_line_refs(text);
+        let text = b"refs/heads/main\0abc123\0abc12\0First subject\x002024-01-01T00:00:00+00:00\0origin/main\nrefs/heads/feature/nested\0def456\0def45\0Nested line\x002024-02-02T00:00:00+00:00\0\n";
+        let lines = parse_version_line_refs(text).lines;
         assert_eq!(lines.len(), 2);
         assert_eq!(lines[0].name, "main");
         assert_eq!(lines[0].commit, "abc123");
@@ -8556,10 +8785,29 @@ mod tests {
 
     #[test]
     fn parse_version_line_refs_ignores_a_malformed_record() {
-        let text = "not-a-ref-line-at-all\nrefs/heads/main\0abc\0ab\0subject\0date\0\n";
-        let lines = parse_version_line_refs(text);
+        let text = b"not-a-ref-line-at-all\nrefs/heads/main\0abc\0ab\0subject\0date\0\n";
+        let lines = parse_version_line_refs(text).lines;
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].name, "main");
+    }
+
+    #[test]
+    fn parse_version_line_refs_skips_a_non_utf8_name_without_lossy_replacement() {
+        // One unrepresentable name must not cost the user the rest of the
+        // inventory, and must never be shown as a name that does not exist:
+        // every mutation is keyed by the exact bytes.
+        let bytes = b"refs/heads/feature-\xff\0abc\0ab\0subject\0date\0\nrefs/heads/main\0def\0de\0ok\0date\0\n";
+        let parsed = parse_version_line_refs(bytes);
+        assert_eq!(parsed.unreadable_count, 1);
+        assert_eq!(parsed.lines.len(), 1);
+        assert_eq!(parsed.lines[0].name, "main");
+        assert!(
+            !parsed
+                .lines
+                .iter()
+                .any(|line| line.name.contains(char::REPLACEMENT_CHARACTER)),
+            "a skipped name must never reappear as replacement characters"
+        );
     }
 
     #[test]
@@ -8854,6 +9102,62 @@ mod tests {
         assert!(!list_branch_names(&path)
             .unwrap()
             .contains(&"feature-stale".to_string()));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn create_version_line_rejects_changed_content_with_the_same_status_shape() {
+        let path = unique_temp_dir("vl-create-stale-content");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        write_file(&path, "pending.txt", "before preview\n");
+
+        let plan =
+            plan_create_version_line(path.clone(), "feature-stale-content".to_string(), true)
+                .expect("plan should succeed with ordinary unsaved work");
+        // The file remains untracked before and after, so the old status-only
+        // token was identical even though the confirmed bytes had changed.
+        write_file(&path, "pending.txt", "after preview\n");
+
+        let error = create_version_line(
+            path.clone(),
+            "feature-stale-content".to_string(),
+            true,
+            plan.state_token,
+        )
+        .expect_err("content drift after preview must stop execution");
+        assert_eq!(error.code, AppErrorCode::StaleVersionLinePlan);
+        assert!(!list_branch_names(&path)
+            .unwrap()
+            .contains(&"feature-stale-content".to_string()));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn create_version_line_rejects_changed_staged_content_with_the_same_worktree() {
+        let path = unique_temp_dir("vl-create-stale-index");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        write_file(&path, "a.txt", "staged before preview\n");
+        git_add(&path, "a.txt");
+        write_file(&path, "a.txt", "same final worktree\n");
+
+        let plan = plan_create_version_line(path.clone(), "feature-stale-index".to_string(), true)
+            .expect("plan should capture both index and worktree content");
+        write_file(&path, "a.txt", "different staged content\n");
+        git_add(&path, "a.txt");
+        write_file(&path, "a.txt", "same final worktree\n");
+
+        let error = create_version_line(
+            path.clone(),
+            "feature-stale-index".to_string(),
+            true,
+            plan.state_token,
+        )
+        .expect_err("staged-content drift must stop execution even when the worktree matches");
+        assert_eq!(error.code, AppErrorCode::StaleVersionLinePlan);
 
         let _ = fs::remove_dir_all(&path);
     }

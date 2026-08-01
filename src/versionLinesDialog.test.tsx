@@ -35,7 +35,15 @@ function switchPlan(overrides: Partial<SwitchVersionLinePlan> = {}): SwitchVersi
 }
 
 function emptySnapshot(): VersionLinesSnapshot {
-  return { branch: "feature/x", headState: "branch", currentCommit: "def456", lines: [], totalCount: 0, isTruncated: false };
+  return {
+    branch: "feature/x",
+    headState: "branch",
+    currentCommit: "def456",
+    lines: [],
+    totalCount: 0,
+    isTruncated: false,
+    unreadableCount: 0,
+  };
 }
 
 describe("SwitchVersionLineDialog", () => {

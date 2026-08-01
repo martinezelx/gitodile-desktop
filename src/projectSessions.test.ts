@@ -44,6 +44,7 @@ const versionLines: VersionLinesSnapshot = {
   ],
   totalCount: 1,
   isTruncated: false,
+  unreadableCount: 0,
 };
 
 describe("projectSessionsReducer", () => {
@@ -274,9 +275,11 @@ describe("projectSessionsReducer", () => {
     let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
     expect(shouldRefreshOnWatchEvent(state.byId["/a"])).toBe(true);
 
-    // A save writes files itself; refreshing underneath it would show a
-    // half-finished tree or move the ground under a plan being confirmed.
-    state = projectSessionsReducer(state, { type: "startOperation", id: "/a", kind: "save" });
+    // A local mutation writes repository state itself; refreshing underneath
+    // it would show a half-finished tree or move the ground under a plan being
+    // confirmed. Version-line operations use the same coordination contract
+    // as save and publish.
+    state = projectSessionsReducer(state, { type: "startOperation", id: "/a", kind: "version-line" });
     expect(shouldRefreshOnWatchEvent(state.byId["/a"])).toBe(false);
     for (const phase of ["executing", "verifying", "uncertain"] as const) {
       state = projectSessionsReducer(state, { type: "setOperationPhase", id: "/a", phase });
@@ -336,7 +339,7 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, {
       type: "startOperation",
       id: "/worktree-a",
-      kind: "save",
+      kind: "version-line",
     });
 
     expect(getMutationBlocker(state, "/worktree-b")?.id).toBe("/worktree-a");

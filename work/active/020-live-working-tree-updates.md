@@ -82,8 +82,9 @@ shared with Overview, its counts go live for free.
 - [x] GitOdrile's own reads do not retrigger the watcher — no refresh loop when
       the app is left idle on the Changes screen.
 - [x] A burst of filesystem activity produces a bounded number of refreshes.
-- [x] Refreshes are suppressed while a save or publish is in flight for that
-      project.
+- [x] Refreshes are suppressed while a save, publish, or version-line
+      operation is in flight for that project, and replayed when it ends
+      rather than being dropped.
 - [x] Closing a project stops its watcher; no watcher outlives its session.
 - [x] A path that cannot be watched (a network drive, a permission failure)
       degrades to today's manual behavior instead of erroring at the user.
@@ -119,11 +120,14 @@ Task 019 for the session-level caching this refreshes into.
   thread, and pure enough to unit-test as `burst_step`. A second dependency
   would have added file-id tracking this does not use, to a binary task 018
   spent effort shrinking.
-- **The event carries only the project path.** No path list, no file names, no
-  contents. The frontend answers it by running the same
+- **The event carries the project path and one boolean, never a path list.**
+  No file names, no contents. The frontend answers it by running the same
   `read_working_tree_status` the manual button runs, so the watcher cannot
   become a second, divergent source of truth about what changed — and nothing
-  about the user's files crosses the process boundary because of a watch.
+  about the user's files crosses the process boundary because of a watch. The
+  boolean (`repositoryStateChanged`, set for `HEAD`/`refs`/`packed-refs`)
+  exists so an ordinary file save does not also re-read repository identity
+  and the branch inventory; it says *which kind* of thing moved, not what.
 - **An event for the Git directory itself is ignored.** Windows reports a
   write to the parent directory of every changed file, so treating `.git` as
   relevant re-admitted all the `objects` and `*.lock` churn the allowlist
@@ -142,6 +146,24 @@ Task 019 for the session-level caching this refreshes into.
   running Tauri app, and none of the interesting behavior — filtering,
   debouncing, thread lifetime — has anything to do with Tauri. `watch` is a
   one-line wrapper that reports by emitting.
+- **A linked worktree needs three locations watched, not one.** Its `HEAD`
+  and index live in `<common>/worktrees/<name>`, outside the worktree root,
+  and branch creation/deletion lands in the shared common directory. Watching
+  only the root would make `git add` and external branch changes invisible
+  there. The extra watches are best-effort: if they fail, the root watch
+  still covers ordinary edits.
+- **The event filter matches the *most specific* Git directory, not the
+  first.** The private worktree directory sits inside the common one, so
+  first-match would read every private `HEAD`/`index` event as
+  `worktrees/...`, which is not on the allowlist, and drop it — silently, and
+  only for linked worktrees. `innermost_git_dir` makes the caller's ordering
+  irrelevant, and a test asserts both orderings agree.
+- **Events that arrive mid-mutation are queued, not dropped.** Suppressing a
+  refresh while a save/publish/version-line operation owns the working tree
+  is right; losing it is not, because the change that arrived is exactly the
+  one the user will want reflected when the dialog closes. They coalesce into
+  a single pending entry per project and replay on `finishSessionOperation`,
+  keeping the stronger `repositoryStateChanged` of whatever arrived.
 
 # Implementation notes
 

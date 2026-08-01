@@ -22,6 +22,15 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 - Benchmark the complete Changes and save-version workflow with thousands of
   changed files once both flows exist; cover Rust parsing, Tauri payloads,
   list/diff rendering, refresh cancellation, and interaction responsiveness.
+- Benchmark two version-line costs introduced for correctness in task 016 and
+  not yet measured on a large repository:
+  - `reaching_refs_by_commit` trades many `--contains` walks for a single
+    `rev-list --branches --remotes`, which is better on CPU but holds a map
+    entry per reachable commit — and task 019 made `get_version_lines` run on
+    navigation, on idle prefetch, and after every mutation;
+  - `create_version_line_state_fingerprint` runs a full `git add -A` into a
+    temporary index while *planning*, so opening the create dialog on a large
+    worktree is no longer cheap.
 
 ## Save and history
 

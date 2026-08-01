@@ -1385,6 +1385,9 @@ export function App(): React.JSX.Element {
   // Git process instead of racing.
   const versionLinesRequestsRef = useRef<Record<string, Promise<void>>>({});
   // Read diffs, kept per project across screen changes. Owned here rather
+  // Watch events that arrive while a mutation owns the working tree are not
+  // discarded. They are coalesced here and replayed when the dialog closes.
+  const pendingWatchRefreshesRef = useRef<Record<string, { repositoryStateChanged: boolean }>>({});
   // than by `ChangesPanel` so leaving Changes and coming back is a cache hit
   // (see task 019); entries are dropped when their session closes.
   const diffCacheRef = useRef(createDiffCache());
@@ -1468,7 +1471,10 @@ export function App(): React.JSX.Element {
   // simpler and safer than reconciling it against a different project mid-
   // flight (see the "Decisions" section of task 012): switching and closing
   // the active project are both disabled while either dialog is open.
-  const hasBlockingDialog = publishDialogSessionId !== null || saveDialogSessionId !== null;
+  const hasBlockingDialog =
+    publishDialogSessionId !== null ||
+    saveDialogSessionId !== null ||
+    activeSession?.operation?.kind === "version-line";
   const showErrorDialog = (title: string, message: string): void => {
     setOpenErrorTitle(title);
     setOpenError(message);
@@ -1703,6 +1709,7 @@ export function App(): React.JSX.Element {
   // behind in the cache.
   const handleVersionLineChanged = async (path: string): Promise<void> => {
     try {
+    delete pendingWatchRefreshesRef.current[path];
       const info = await invoke<RepositoryInfo>("open_repository", { path });
       dispatchSessions({ type: "open", project: info });
     } catch {
@@ -1715,6 +1722,56 @@ export function App(): React.JSX.Element {
   };
 
   // Switching or opening a project moves the visible screen to whatever that
+  const refreshRepositoryState = async (path: string): Promise<void> => {
+    try {
+      const info = await invoke<RepositoryInfo>("open_repository", { path });
+      dispatchSessions({ type: "open", project: info });
+    } catch {
+      // Keep the last known identity visible; the working-tree refresh below
+      // still runs and the next repository event/navigation can retry.
+    }
+    void refreshVersionLines(path);
+    await checkWorkingTree(path);
+  };
+
+  const startVersionLineOperation = (path: string): boolean => {
+    const session = sessionsState.byId[path];
+    if (!session) {
+      return false;
+    }
+    const blocker = getMutationBlocker(sessionsState, path);
+    if (blocker) {
+      showErrorDialog(
+        t.projectSwitcherOperationIndicator,
+        t.projectSwitcherMutationBlocked(blocker.project.name),
+      );
+      return false;
+    }
+    dispatchSessions({ type: "startOperation", id: path, kind: "version-line" });
+    return true;
+  };
+
+  const finishSessionOperation = (path: string): void => {
+    dispatchSessions({ type: "finishOperation", id: path });
+    const pending = pendingWatchRefreshesRef.current[path];
+    if (!pending) {
+      return;
+    }
+    delete pendingWatchRefreshesRef.current[path];
+    if (pending.repositoryStateChanged) {
+      void refreshRepositoryState(path);
+    } else {
+      void checkWorkingTree(path);
+    }
+  };
+
+  const setVersionLineOperationPhase = (
+    path: string,
+    phase: "planning" | "executing" | "error" | "success",
+  ): void => {
+    dispatchSessions({ type: "setOperationPhase", id: path, phase });
+  };
+
   // session was last showing — unless the user is currently in Settings,
   // which is application-wide and stays exactly where it is regardless of
   // which project is active underneath it.
@@ -1843,12 +1900,30 @@ export function App(): React.JSX.Element {
   // "Check changes" button performs, so this adds a trigger and nothing else.
   // Held in a ref because the listener below is registered once, on mount,
   // and would otherwise close over the first render's state forever.
-  const handleRepositoryChangedRef = useRef<(path: string) => void>(() => {});
-  handleRepositoryChangedRef.current = (path: string) => {
-    if (!shouldRefreshOnWatchEvent(sessionsState.byId[path])) {
+  const handleRepositoryChangedRef = useRef<(
+    path: string,
+    repositoryStateChanged?: boolean,
+  ) => void>(() => {});
+  handleRepositoryChangedRef.current = (path: string, repositoryStateChanged = false) => {
+    const session = sessionsState.byId[path];
+    if (!session) {
+      // A watch that outlived its session by a few milliseconds. Queueing
+      // here would strand an entry nothing ever replays, and would fire a
+      // refresh nobody asked for if the project were reopened later.
       return;
     }
-    void checkWorkingTree(path);
+    if (!shouldRefreshOnWatchEvent(session)) {
+      const pending = pendingWatchRefreshesRef.current[path];
+      pendingWatchRefreshesRef.current[path] = {
+        repositoryStateChanged: repositoryStateChanged || Boolean(pending?.repositoryStateChanged),
+      };
+      return;
+    }
+    if (repositoryStateChanged) {
+      void refreshRepositoryState(path);
+    } else {
+      void checkWorkingTree(path);
+    }
   };
 
   useEffect(() => {
@@ -1859,8 +1934,11 @@ export function App(): React.JSX.Element {
     }
     let cancelled = false;
     let unlisten: (() => void) | undefined;
-    void listen<{ path: string }>("repository-changed", (event) => {
-      handleRepositoryChangedRef.current(event.payload.path);
+    void listen<{ path: string; repositoryStateChanged?: boolean }>("repository-changed", (event) => {
+      handleRepositoryChangedRef.current(
+        event.payload.path,
+        event.payload.repositoryStateChanged ?? false,
+      );
     })
       .then((stop) => {
         if (cancelled) {
@@ -1880,6 +1958,11 @@ export function App(): React.JSX.Element {
   }, []);
 
   // Only the active project is watched: the others already refresh when they
+  // Module-level idle work outlived jsdom test environments and left lazy
+  // imports running after teardown. Owning it here gives React a real cleanup
+  // point while preserving the same after-first-paint scheduling in the app.
+  useEffect(() => scheduleIdleTask(prefetchLazyPanels), []);
+
   // become active, and watching every open project multiplies the OS-level
   // cost for state nobody is looking at. Gated on the startup restore so the
   // watch (and its one `rev-parse`) never competes with launch.
@@ -1948,6 +2031,7 @@ export function App(): React.JSX.Element {
     // own. Same reason `statusGenerationsRef` is never cleared.
     releaseDiffCache(diffCacheRef.current, id);
     dispatchSessions({ type: "close", id });
+    delete pendingWatchRefreshesRef.current[id];
     if (sessionsState.activeId === id && view !== "settings") {
       setView(nextSession?.lastView ?? "overview");
       if (nextSession) {
@@ -2467,8 +2551,16 @@ export function App(): React.JSX.Element {
               versionLines={activeSession?.versionLines ?? null}
               isLoadingVersionLines={activeSession?.isLoadingVersionLines ?? false}
               onQuickSwitchOpened={() => projectPath && void refreshVersionLines(projectPath)}
-              onQuickSwitchVersionLine={(target) => setOverviewSwitchTarget(target)}
-              onQuickCreateVersionLine={(forceSwitch) => setOverviewCreateRequest({ forceSwitch })}
+              onQuickSwitchVersionLine={(target) => {
+                if (projectPath && startVersionLineOperation(projectPath)) {
+                  setOverviewSwitchTarget(target);
+                }
+              }}
+              onQuickCreateVersionLine={(forceSwitch) => {
+                if (projectPath && startVersionLineOperation(projectPath)) {
+                  setOverviewCreateRequest({ forceSwitch });
+                }
+              }}
               onGoToVersionLines={() => navigateToView("version-lines")}
             />
           ) : view === "changes" && project ? (
@@ -2495,7 +2587,7 @@ export function App(): React.JSX.Element {
                 onOpenSaveVersion={() => startSessionOperation("save")}
                 onCloseSaveVersion={() => {
                   if (saveDialogSessionId) {
-                    dispatchSessions({ type: "finishOperation", id: saveDialogSessionId });
+                    finishSessionOperation(saveDialogSessionId);
                   }
                   setSaveDialogSessionId(null);
                 }}
@@ -2519,6 +2611,9 @@ export function App(): React.JSX.Element {
                 isLoading={activeSession?.isLoadingVersionLines ?? false}
                 onRefresh={() => void refreshVersionLines(project.path)}
                 onSnapshot={(snapshot) => commitVersionLines(project.path, snapshot)}
+                onOperationStart={() => startVersionLineOperation(project.path)}
+                onOperationFinish={() => finishSessionOperation(project.path)}
+                onOperationPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
                 onChanged={() => void handleVersionLineChanged(project.path)}
                 onSaveVersion={() => {
                   startSessionOperation("save");
@@ -2557,7 +2652,7 @@ export function App(): React.JSX.Element {
             projectPath={publishDialogSession.project.path}
             upTo={publishUpTo ?? undefined}
             onClose={() => {
-              dispatchSessions({ type: "finishOperation", id: publishDialogSession.id });
+              finishSessionOperation(publishDialogSession.id);
               setPublishDialogSessionId(null);
             }}
             onPublished={() => checkWorkingTree(publishDialogSession.project.path)}
@@ -2578,20 +2673,25 @@ export function App(): React.JSX.Element {
             isOpen
             projectPath={project.path}
             target={overviewSwitchTarget}
-            onClose={() => setOverviewSwitchTarget(null)}
+            onClose={() => {
+              setOverviewSwitchTarget(null);
+              finishSessionOperation(project.path);
+            }}
             onSwitched={() => {
               setOverviewSwitchTarget(null);
+              finishSessionOperation(project.path);
               void handleVersionLineChanged(project.path);
             }}
             onSaveVersion={() => {
-              setOverviewSwitchTarget(null);
               startSessionOperation("save");
               navigateToView("changes");
             }}
             onCreateWithWork={() => {
-              setOverviewSwitchTarget(null);
-              setOverviewCreateRequest({ forceSwitch: false });
+              if (startVersionLineOperation(project.path)) {
+                setOverviewCreateRequest({ forceSwitch: false });
+              }
             }}
+            onPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
           />
         </Suspense>
       )}
@@ -2602,11 +2702,16 @@ export function App(): React.JSX.Element {
             isOpen
             projectPath={project.path}
             forceSwitch={overviewCreateRequest.forceSwitch}
-            onClose={() => setOverviewCreateRequest(null)}
+            onClose={() => {
+              setOverviewCreateRequest(null);
+              finishSessionOperation(project.path);
+            }}
             onCreated={() => {
               setOverviewCreateRequest(null);
               void handleVersionLineChanged(project.path);
+              finishSessionOperation(project.path);
             }}
+            onPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
           />
         </Suspense>
       )}
@@ -2727,7 +2832,7 @@ if ("__TAURI_INTERNALS__" in window) {
 // idle after first paint, so navigating to them right after launch is a cache
 // hit rather than a fresh fetch+parse. Deliberately not run before first
 // paint: that would defeat the point of splitting them out in the first place.
-const prefetchLazyPanels = (): void => {
+function prefetchLazyPanels(): void {
   void import("./changes");
   void import("./publishDialog");
   void import("./pendingVersions");
@@ -2736,6 +2841,4 @@ const prefetchLazyPanels = (): void => {
   // `ViewLoadingFallback` — on its first visit of every run.
   void import("./versionLinesPanel");
   void import("./versionLinesDialog");
-};
-
-scheduleIdleTask(prefetchLazyPanels);
+}

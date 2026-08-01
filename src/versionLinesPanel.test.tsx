@@ -37,6 +37,7 @@ function snapshot(overrides: Partial<VersionLinesSnapshot> = {}): VersionLinesSn
     ],
     totalCount: 2,
     isTruncated: false,
+    unreadableCount: 0,
     ...overrides,
   };
 }
@@ -83,6 +84,9 @@ function renderPanel(props: Partial<React.ComponentProps<typeof VersionLinesPane
         onChanged={onChanged}
         onSaveVersion={onSaveVersion}
         {...props}
+        onOperationStart={props.onOperationStart ?? (() => true)}
+        onOperationFinish={props.onOperationFinish ?? vi.fn()}
+        onOperationPhaseChange={props.onOperationPhaseChange ?? vi.fn()}
       />
     </LanguageProvider>,
   );
@@ -186,10 +190,18 @@ describe("VersionLinesPanel", () => {
 
   it("opens the create dialog from the header button and creates a line", async () => {
     const user = userEvent.setup();
-    const { onChanged, onSnapshot } = renderPanel();
+    const onOperationStart = vi.fn(() => true);
+    const onOperationFinish = vi.fn();
+    const onOperationPhaseChange = vi.fn();
+    const { onChanged, onSnapshot } = renderPanel({
+      onOperationStart,
+      onOperationFinish,
+      onOperationPhaseChange,
+    });
 
     await screen.findAllByText("feature/new-thing");
     await user.click(screen.getByRole("button", { name: "New version line" }));
+    expect(onOperationStart).toHaveBeenCalledOnce();
     await user.type(screen.getByLabelText("Name"), "feature/z");
 
     mockedInvoke.mockResolvedValueOnce({
@@ -214,5 +226,30 @@ describe("VersionLinesPanel", () => {
     // The snapshot the command already returned goes straight back to the
     // session cache, so the list is current without a second read.
     expect(onSnapshot).toHaveBeenCalledWith(expect.objectContaining({ branch: "main" }));
+    expect(onOperationPhaseChange).toHaveBeenCalledWith("planning");
+    expect(onOperationPhaseChange).toHaveBeenCalledWith("executing");
+    expect(onOperationPhaseChange).toHaveBeenCalledWith("success");
+    expect(onOperationFinish).toHaveBeenCalledOnce();
+  });
+
+  it("says the list is incomplete when a name cannot be represented", () => {
+    renderPanel({ snapshot: snapshot({ unreadableCount: 2 }) });
+
+    // The names themselves are never invented: the count is all the screen
+    // can honestly show, and the other lines stay usable.
+    expect(
+      screen.getByText(/2 version lines aren't shown: their names use characters/),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("feature/new-thing").length).toBeGreaterThan(0);
+  });
+
+  it("does not open a mutation dialog when another linked workspace owns the repository", async () => {
+    const onOperationStart = vi.fn(() => false);
+    renderPanel({ onOperationStart });
+
+    await userEvent.click(await screen.findByRole("button", { name: "New version line" }));
+
+    expect(onOperationStart).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
