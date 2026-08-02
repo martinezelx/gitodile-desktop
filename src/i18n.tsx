@@ -29,7 +29,16 @@ export interface Translations {
   titlebarOpenCommandPalette: string;
   titlebarJumpToHint: string;
   titlebarMoreActions: string;
-  titlebarHelpSection: string;
+  titlebarOpenProject: string;
+  titlebarReloadWindow: string;
+  titlebarReloadBlocked: string;
+  titlebarReportIssue: string;
+  titlebarKeyboardShortcuts: string;
+  shortcutsDialogTitle: string;
+  shortcutsOpenPalette: string;
+  shortcutsNextProject: string;
+  shortcutsPreviousProject: string;
+  shortcutsCloseDialogs: string;
   titlebarGoBack: string;
   titlebarGoForward: string;
   titlebarHistoryControls: string;
@@ -83,7 +92,6 @@ export interface Translations {
   overviewUnbornReady: string;
   overviewDetachedReady: string;
   overviewOpenAnotherProject: string;
-  overviewProjectMenu: string;
   projectSwitcherAriaLabel: string;
   projectSwitchToLabel: (name: string) => string;
   projectSwitcherCloseLabel: (name: string) => string;
@@ -97,12 +105,13 @@ export interface Translations {
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
   overviewCurrentVersionLine: string;
+  overviewVersionLineActionsTitle: string;
+  overviewVersionLineActionsDescription: string;
   overviewSpecificSavedVersion: string;
   overviewNoSavedVersions: string;
   overviewVersionLineDescription: string;
   overviewDetachedDescription: string;
   overviewUnbornDescription: string;
-  overviewProjectLocation: string;
   overviewOpenedFrom: string;
   overviewProjectType: string;
   overviewRepositoryTypeDescription: string;
@@ -112,9 +121,10 @@ export interface Translations {
   overviewSelectedFolder: string;
   overviewGitDirectory: string;
   overviewCommonGitDirectory: string;
-  overviewProjectDetails: string;
   overviewCopyPath: string;
   overviewPathCopied: string;
+  overviewCopyPathFailedTitle: string;
+  overviewCopyPathFailedMessage: string;
   overviewOpeningTitle: string;
   overviewOpeningDescription: string;
   overviewOpenFailedTitle: string;
@@ -382,6 +392,11 @@ export interface Translations {
 
   settingsAppearanceTitle: string;
   settingsAppearanceDescription: string;
+  settingsDialogDescription: string;
+  settingsSectionsAriaLabel: string;
+  settingsGitTitle: string;
+  settingsGitDescription: string;
+  settingsGitInstallationDescription: string;
   themeAriaLabel: string;
   commonSystem: string;
   themeLight: string;
@@ -392,7 +407,6 @@ export interface Translations {
   settingsGeneralTitle: string;
   settingsGeneralDescription: string;
   commonVersion: string;
-  settingsGeneralViewAbout: string;
   settingsGeneralGitLabel: string;
   settingsGeneralChecking: string;
   settingsGeneralUpdateAvailable: string;
@@ -453,6 +467,7 @@ export interface Translations {
   aboutDescription: string;
   aboutFooterMadeWith: string;
   commonClose: string;
+  commonLoading: string;
 
   closeConfirmTitle: string;
   closeConfirmBodyGeneric: string;
@@ -464,7 +479,16 @@ const en: Translations = {
   titlebarOpenCommandPalette: "Open command palette",
   titlebarJumpToHint: "Jump to a view or action",
   titlebarMoreActions: "More actions",
-  titlebarHelpSection: "Help",
+  titlebarOpenProject: "Open project",
+  titlebarReloadWindow: "Reload window",
+  titlebarReloadBlocked: "Finish the current project operation before reloading.",
+  titlebarReportIssue: "Report an issue",
+  titlebarKeyboardShortcuts: "Keyboard shortcuts",
+  shortcutsDialogTitle: "Keyboard shortcuts",
+  shortcutsOpenPalette: "Open command palette",
+  shortcutsNextProject: "Next project",
+  shortcutsPreviousProject: "Previous project",
+  shortcutsCloseDialogs: "Close dialogs and menus",
   titlebarGoBack: "Go back",
   titlebarGoForward: "Go forward",
   titlebarHistoryControls: "Navigation history",
@@ -518,7 +542,6 @@ const en: Translations = {
   overviewUnbornReady: "Your new project is ready",
   overviewDetachedReady: "A specific saved version is open",
   overviewOpenAnotherProject: "Open another project",
-  overviewProjectMenu: "Project actions",
   projectSwitcherAriaLabel: "Open projects",
   projectSwitchToLabel: (name) => `Switch to ${name}`,
   projectSwitcherCloseLabel: (name) => `Close ${name}`,
@@ -534,12 +557,13 @@ const en: Translations = {
   projectSwitcherCloseBlocked: (name) =>
     `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
   overviewCurrentVersionLine: "Current version line",
+  overviewVersionLineActionsTitle: "Work separately",
+  overviewVersionLineActionsDescription: "Switch where new work goes, or create a separate version line.",
   overviewSpecificSavedVersion: "Specific saved version",
   overviewNoSavedVersions: "No saved versions yet",
   overviewVersionLineDescription: "New work will stay on this version line.",
   overviewDetachedDescription: "You are inspecting an exact point in the project history.",
   overviewUnbornDescription: "The first saved version will start this project’s history.",
-  overviewProjectLocation: "Project location",
   overviewOpenedFrom: "Opened from a folder inside this project",
   overviewProjectType: "Project type",
   overviewRepositoryTypeDescription: "A standard project stored in this folder.",
@@ -549,9 +573,10 @@ const en: Translations = {
   overviewSelectedFolder: "Folder you selected",
   overviewGitDirectory: "Git directory",
   overviewCommonGitDirectory: "Shared Git directory",
-  overviewProjectDetails: "Project details",
   overviewCopyPath: "Copy project path",
   overviewPathCopied: "Path copied",
+  overviewCopyPathFailedTitle: "Couldn't copy the path",
+  overviewCopyPathFailedMessage: "Select the project path and copy it manually.",
   overviewOpeningTitle: "Opening project…",
   overviewOpeningDescription: "GitOdrile is checking the selected folder.",
   overviewOpenFailedTitle: "We couldn’t open that project",
@@ -865,6 +890,11 @@ const en: Translations = {
 
   settingsAppearanceTitle: "Appearance",
   settingsAppearanceDescription: 'Choose how GitOdrile looks. "System" follows your OS setting automatically.',
+  settingsDialogDescription: "Adjust how GitOdrile looks, behaves, and works with Git.",
+  settingsSectionsAriaLabel: "Settings sections",
+  settingsGitTitle: "Git",
+  settingsGitDescription: "Manage the Git installation, updates, and identity used to save versions.",
+  settingsGitInstallationDescription: "Installed version, availability, and updates.",
   themeAriaLabel: "Theme",
   commonSystem: "System",
   themeLight: "Light",
@@ -873,9 +903,8 @@ const en: Translations = {
   titlebarSwitchToDarkTheme: "Switch to dark theme",
 
   settingsGeneralTitle: "General",
-  settingsGeneralDescription: "Application information and diagnostics.",
+  settingsGeneralDescription: "Choose what GitOdrile does when it starts.",
   commonVersion: "Version",
-  settingsGeneralViewAbout: "View about",
   settingsGeneralGitLabel: "Git",
   settingsGeneralChecking: "Checking…",
   settingsGeneralUpdateAvailable: "Update available",
@@ -941,6 +970,7 @@ const en: Translations = {
   aboutDescription: "Turns version control into clear, worry-free steps.",
   aboutFooterMadeWith: "Made with ♥ by Luis M. Martínez.",
   commonClose: "Close",
+  commonLoading: "Loading…",
 
   closeConfirmTitle: "Close this project?",
   closeConfirmBodyGeneric: "The project stays exactly as it is on disk. You can reopen it anytime.",
@@ -952,7 +982,16 @@ const es: Translations = {
   titlebarOpenCommandPalette: "Abrir la paleta de comandos",
   titlebarJumpToHint: "Ir a una vista o acción",
   titlebarMoreActions: "Más acciones",
-  titlebarHelpSection: "Ayuda",
+  titlebarOpenProject: "Abrir proyecto",
+  titlebarReloadWindow: "Recargar ventana",
+  titlebarReloadBlocked: "Termina la operación actual del proyecto antes de recargar.",
+  titlebarReportIssue: "Reportar un problema",
+  titlebarKeyboardShortcuts: "Atajos de teclado",
+  shortcutsDialogTitle: "Atajos de teclado",
+  shortcutsOpenPalette: "Abrir la paleta de comandos",
+  shortcutsNextProject: "Proyecto siguiente",
+  shortcutsPreviousProject: "Proyecto anterior",
+  shortcutsCloseDialogs: "Cerrar diálogos y menús",
   titlebarGoBack: "Atrás",
   titlebarGoForward: "Adelante",
   titlebarHistoryControls: "Historial de navegación",
@@ -1008,7 +1047,6 @@ const es: Translations = {
   overviewUnbornReady: "Tu nuevo proyecto está listo",
   overviewDetachedReady: "Hay abierta una versión guardada concreta",
   overviewOpenAnotherProject: "Abrir otro proyecto",
-  overviewProjectMenu: "Acciones del proyecto",
   projectSwitcherAriaLabel: "Proyectos abiertos",
   projectSwitchToLabel: (name) => `Cambiar a ${name}`,
   projectSwitcherCloseLabel: (name) => `Cerrar ${name}`,
@@ -1024,12 +1062,13 @@ const es: Translations = {
   projectSwitcherCloseBlocked: (name) =>
     `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
   overviewCurrentVersionLine: "Línea de versión actual",
+  overviewVersionLineActionsTitle: "Trabajar por separado",
+  overviewVersionLineActionsDescription: "Cambia dónde irá el trabajo nuevo o crea una línea de versión separada.",
   overviewSpecificSavedVersion: "Versión guardada concreta",
   overviewNoSavedVersions: "Todavía no hay versiones guardadas",
   overviewVersionLineDescription: "El trabajo nuevo permanecerá en esta línea de versión.",
   overviewDetachedDescription: "Estás inspeccionando un punto exacto del historial del proyecto.",
   overviewUnbornDescription: "La primera versión guardada iniciará el historial de este proyecto.",
-  overviewProjectLocation: "Ubicación del proyecto",
   overviewOpenedFrom: "Abierto desde una carpeta dentro de este proyecto",
   overviewProjectType: "Tipo de proyecto",
   overviewRepositoryTypeDescription: "Un proyecto estándar guardado en esta carpeta.",
@@ -1039,9 +1078,10 @@ const es: Translations = {
   overviewSelectedFolder: "Carpeta que seleccionaste",
   overviewGitDirectory: "Directorio de Git",
   overviewCommonGitDirectory: "Directorio de Git compartido",
-  overviewProjectDetails: "Detalles del proyecto",
   overviewCopyPath: "Copiar la ruta del proyecto",
   overviewPathCopied: "Ruta copiada",
+  overviewCopyPathFailedTitle: "No se pudo copiar la ruta",
+  overviewCopyPathFailedMessage: "Selecciona la ruta del proyecto y cópiala manualmente.",
   overviewOpeningTitle: "Abriendo el proyecto…",
   overviewOpeningDescription: "GitOdrile está comprobando la carpeta seleccionada.",
   overviewOpenFailedTitle: "No hemos podido abrir ese proyecto",
@@ -1373,6 +1413,11 @@ const es: Translations = {
     "Este proyecto tiene cambios sin guardar, así que GitOdrile no puede cambiar de línea de versión todavía. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
   errorRefLocked: "Git no pudo actualizar sus referencias ahora mismo (otro proceso de Git podría estar usándolas).",
 
+  settingsDialogDescription: "Ajusta el aspecto y el comportamiento de GitOdrile y cómo trabaja con Git.",
+  settingsSectionsAriaLabel: "Secciones de configuración",
+  settingsGitTitle: "Git",
+  settingsGitDescription: "Gestiona la instalación, las actualizaciones y la identidad de Git.",
+  settingsGitInstallationDescription: "Versión instalada, disponibilidad y actualizaciones.",
   settingsAppearanceTitle: "Apariencia",
   settingsAppearanceDescription:
     'Elige el aspecto de GitOdrile. "Sistema" sigue automáticamente el ajuste de tu sistema operativo.',
@@ -1384,9 +1429,8 @@ const es: Translations = {
   titlebarSwitchToDarkTheme: "Cambiar a tema oscuro",
 
   settingsGeneralTitle: "General",
-  settingsGeneralDescription: "Información de la aplicación y diagnósticos.",
+  settingsGeneralDescription: "Elige qué hace GitOdrile cuando se inicia.",
   commonVersion: "Versión",
-  settingsGeneralViewAbout: "Ver información",
   settingsGeneralGitLabel: "Git",
   settingsGeneralChecking: "Comprobando…",
   settingsGeneralUpdateAvailable: "Actualización disponible",
@@ -1458,6 +1502,7 @@ const es: Translations = {
   aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
   aboutFooterMadeWith: "Hecho con ♥ por Luis M. Martínez.",
   commonClose: "Cerrar",
+  commonLoading: "Cargando…",
 
   closeConfirmTitle: "¿Cerrar este proyecto?",
   closeConfirmBodyGeneric: "El proyecto se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.",

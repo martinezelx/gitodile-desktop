@@ -258,7 +258,7 @@ export function ProjectSwitcherIcons({
  * Narrow-layout rendering (sidebar hidden below ~800px): a single trigger
  * (showing the active project's initial) that opens the same row list in a
  * popover. Mirrors the button+ref+outside-click+Escape pattern already used
- * by `ProjectMenu`/`TitlebarMenu` in main.tsx. With no project open, there
+ * by `TitlebarMenu` in main.tsx. With no project open, there
  * is nothing to switch between yet, so it's a plain button that opens one
  * directly instead of a popover trigger.
  */

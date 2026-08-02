@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   EMPTY_PENDING_VERSIONS,
   getMutationBlocker,
+  hasUnsettledOperation,
   initialProjectSessionsState,
   projectSessionsReducer,
   projectSessionsStateToStored,
@@ -292,6 +293,25 @@ describe("projectSessionsReducer", () => {
 
     // An event for a project that isn't open is simply dropped.
     expect(shouldRefreshOnWatchEvent(state.byId["/gone"])).toBe(false);
+  });
+
+  it("blocks a window reload only while any project operation is unsettled", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
+    state = projectSessionsReducer(state, { type: "open", project: makeProject("/b") });
+    expect(hasUnsettledOperation(state)).toBe(false);
+
+    state = projectSessionsReducer(state, { type: "startOperation", id: "/a", kind: "save" });
+    expect(hasUnsettledOperation(state)).toBe(true);
+
+    for (const phase of ["executing", "verifying", "uncertain"] as const) {
+      state = projectSessionsReducer(state, { type: "setOperationPhase", id: "/a", phase });
+      expect(hasUnsettledOperation(state)).toBe(true);
+    }
+
+    state = projectSessionsReducer(state, { type: "setOperationPhase", id: "/a", phase: "error" });
+    expect(hasUnsettledOperation(state)).toBe(false);
+    state = projectSessionsReducer(state, { type: "setOperationPhase", id: "/a", phase: "success" });
+    expect(hasUnsettledOperation(state)).toBe(false);
   });
 
   it("remembers the last view and changes selection per session", () => {

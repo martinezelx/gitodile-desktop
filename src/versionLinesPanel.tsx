@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronRight, CircleAlert, GitBranch, LoaderCircle, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronRight, CircleAlert, GitBranch, Plus, Search, Trash2 } from "lucide-react";
 import { useLanguage } from "./i18n";
 import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
 import { CreateVersionLineDialog, DeleteVersionLineDialog, SwitchVersionLineDialog } from "./versionLinesDialog";
+import { LoadingBar } from "./loadingBar";
 
 type DialogRequest =
   | { kind: "create"; forceSwitch: boolean }
@@ -252,12 +253,7 @@ export function VersionLinesPanel({
       {/* Only when there is genuinely nothing to show: with a cached snapshot
           the background refresh stays invisible, which is the whole point of
           keeping it in the session. */}
-      {!snapshot && isLoading && (
-        <div className="changes-loading" role="status">
-          <LoaderCircle aria-hidden="true" className="icon--spinning" />
-          <p>{t.versionLinesLoading}</p>
-        </div>
-      )}
+      {!snapshot && isLoading && <LoadingBar label={t.versionLinesLoading} showLabel />}
 
       {!snapshot && !isLoading && error && (
         <div className="changes-empty">

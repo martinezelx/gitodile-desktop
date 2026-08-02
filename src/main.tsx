@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useReducer, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
@@ -6,8 +6,8 @@ import { listen } from "@tauri-apps/api/event";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronsLeft,
+  ChevronsRight,
   Search,
   Sun,
   Moon,
@@ -19,8 +19,7 @@ import {
   ChevronRight,
   GitBranch,
   LoaderCircle,
-  Menu,
-  MoreHorizontal,
+  Ellipsis,
   Copy,
   Square,
   Check,
@@ -33,6 +32,14 @@ import {
   TriangleAlert,
   FileDiff,
   Send,
+  FolderX,
+  RotateCw,
+  Info,
+  Settings,
+  Bug,
+  Keyboard,
+  Palette,
+  ShieldCheck,
 } from "lucide-react";
 import { LANGUAGE_NAMES, LanguageProvider, useLanguage, type Language, type LanguagePreference } from "./i18n";
 import {
@@ -50,10 +57,12 @@ import type { PendingVersionsResult } from "./publish";
 import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
 import { useModalFocus } from "./modalFocus";
 import { TooltipHost } from "./tooltip";
+import { LoadingBar } from "./loadingBar";
 import {
   EMPTY_CHANGES_SELECTION,
   EMPTY_PENDING_VERSIONS,
   getMutationBlocker,
+  hasUnsettledOperation,
   initialProjectSessionsState,
   projectSessionsReducer,
   projectSessionsStateToStored,
@@ -126,6 +135,9 @@ const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
 const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
 const APP_VERSION = "0.1.0";
+const ISSUES_URL = "https://github.com/martinezelx/project-gitodrile/issues/new";
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPod|iPad/.test(navigator.userAgent);
+const MOD_KEY_LABEL = IS_MAC ? "⌘" : "Ctrl";
 
 function repositoryStatus(project: RepositoryInfo, t: ReturnType<typeof useLanguage>["t"]): string {
   if (project.headState === "detached") {
@@ -189,8 +201,8 @@ const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
 // Screen icons live in the nav registry (`screens.tsx`); these two belong to
 // the sidebar chrome, which is not a destination.
 const NAV_ICONS = {
-  collapse: <PanelLeftClose />,
-  expand: <PanelLeftOpen />,
+  collapse: <ChevronsLeft />,
+  expand: <ChevronsRight />,
 } as const;
 
 const SEARCH_ICON = <Search />;
@@ -204,13 +216,8 @@ const CROCODILE_MARK = (
  * has been fetched — normally masked entirely by the idle-time prefetch in
  * `main.tsx`. */
 function ViewLoadingFallback(): React.JSX.Element {
-  return (
-    <div className="empty-state" aria-busy="true">
-      <div className="empty-state__icon empty-state__icon--loading" aria-hidden="true">
-        <LoaderCircle />
-      </div>
-    </div>
-  );
+  const { t } = useLanguage();
+  return <LoadingBar label={t.commonLoading} />;
 }
 
 /** Defers background work (chunk prefetches, speculative repository reads)
@@ -342,15 +349,62 @@ function CommandPalette({
 }
 
 /**
- * Titlebar overflow menu. For now this only exposes Help → About, but the
- * pattern (button + popover, closing on Escape/outside click) mirrors
- * ProjectMenu so more sections can be added later without a rewrite.
+ * Titlebar overflow menu: File, Window, and Help groups, separated by thin
+ * dividers rather than text headings — closer to a native app menu than a
+ * labelled dropdown. The button + popover pattern (closing on
+ * Escape/outside click) can take more groups later without a rewrite.
  */
-function TitlebarMenu({ onOpenAbout }: { onOpenAbout: () => void }): React.JSX.Element {
+export function TitlebarMenu({
+  onOpenAbout,
+  onOpenProject,
+  onCloseProject,
+  onOpenSettings,
+  onOpenShortcuts,
+  hasProject,
+  isOpeningProject,
+  canReloadWindow,
+}: {
+  onOpenAbout: () => void;
+  onOpenProject: () => void;
+  onCloseProject: () => void;
+  onOpenSettings: () => void;
+  onOpenShortcuts: () => void;
+  hasProject: boolean;
+  isOpeningProject: boolean;
+  canReloadWindow: boolean;
+}): React.JSX.Element {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const focusOnOpenRef = useRef<"first" | "last">("first");
+
+  const openMenu = (focus: "first" | "last" = "first"): void => {
+    focusOnOpenRef.current = focus;
+    setIsOpen(true);
+  };
+
+  const closeMenu = (restoreFocus: boolean): void => {
+    setIsOpen(false);
+    if (restoreFocus) {
+      triggerRef.current?.focus();
+    }
+  };
+
+  const runMenuAction = (action: () => void): void => {
+    // Restore focus before mounting a dialog. `useModalFocus` can then retain
+    // the real trigger instead of capturing `<body>` after this menu unmounts.
+    closeMenu(true);
+    action();
+  };
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const items = menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+    if (!items?.length) return;
+    items[focusOnOpenRef.current === "last" ? items.length - 1 : 0]?.focus();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -360,8 +414,7 @@ function TitlebarMenu({ onOpenAbout }: { onOpenAbout: () => void }): React.JSX.E
     };
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== "Escape") return;
-      setIsOpen(false);
-      triggerRef.current?.focus();
+      closeMenu(true);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -372,6 +425,31 @@ function TitlebarMenu({ onOpenAbout }: { onOpenAbout: () => void }): React.JSX.E
     };
   }, [isOpen]);
 
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+    if (items.length === 0) return;
+    const currentIndex = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % items.length;
+    else if (event.key === "ArrowUp") nextIndex = (currentIndex - 1 + items.length) % items.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = items.length - 1;
+    else if (event.key === "Escape") {
+      event.preventDefault();
+      closeMenu(true);
+      return;
+    } else if (event.key === "Tab") {
+      // A menu is a single tab stop. Let the browser move to the next control
+      // while removing the popup from the accessibility tree.
+      setIsOpen(false);
+      return;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    items[nextIndex]?.focus();
+  };
+
   return (
     <div className="titlebar-menu" ref={containerRef}>
       <button
@@ -379,25 +457,118 @@ function TitlebarMenu({ onOpenAbout }: { onOpenAbout: () => void }): React.JSX.E
         className="titlebar-icon-button"
         type="button"
         aria-label={t.titlebarMoreActions}
-        data-tooltip={t.titlebarMoreActions}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={() => (isOpen ? closeMenu(true) : openMenu())}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            openMenu(event.key === "ArrowUp" ? "last" : "first");
+          }
+        }}
       >
-        <Menu aria-hidden="true" />
+        <Ellipsis aria-hidden="true" />
       </button>
       {isOpen && (
-        <div className="titlebar-menu__list" role="menu" aria-label={t.titlebarMoreActions}>
-          <div className="titlebar-menu__heading" aria-hidden="true">{t.titlebarHelpSection}</div>
+        <div
+          ref={menuRef}
+          className="titlebar-menu__list"
+          role="menu"
+          aria-label={t.titlebarMoreActions}
+          onKeyDown={handleMenuKeyDown}
+        >
           <button
+            className="titlebar-menu__item"
             type="button"
             role="menuitem"
+            tabIndex={-1}
+            disabled={isOpeningProject}
             onClick={() => {
-              setIsOpen(false);
-              onOpenAbout();
+              runMenuAction(onOpenProject);
             }}
           >
-            {t.aboutGitOdrile}
+            <FolderOpen aria-hidden="true" />
+            <span>{isOpeningProject ? t.overviewOpening : t.titlebarOpenProject}</span>
+          </button>
+          {hasProject && (
+            <button
+              className="titlebar-menu__item"
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                runMenuAction(onCloseProject);
+              }}
+            >
+              <FolderX aria-hidden="true" />
+              <span>{t.overviewCloseProject}</span>
+            </button>
+          )}
+          <div className="titlebar-menu__divider" role="separator" />
+          <button
+            className="titlebar-menu__item"
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => {
+              runMenuAction(onOpenSettings);
+            }}
+          >
+            <Settings aria-hidden="true" />
+            <span>{t.navSettings}</span>
+          </button>
+          <button
+            className="titlebar-menu__item"
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            aria-disabled={!canReloadWindow}
+            aria-label={canReloadWindow ? t.titlebarReloadWindow : `${t.titlebarReloadWindow}. ${t.titlebarReloadBlocked}`}
+            data-tooltip={canReloadWindow ? undefined : t.titlebarReloadBlocked}
+            onClick={() => {
+              if (!canReloadWindow) return;
+              runMenuAction(() => window.location.reload());
+            }}
+          >
+            <RotateCw aria-hidden="true" />
+            <span>{t.titlebarReloadWindow}</span>
+          </button>
+          <div className="titlebar-menu__divider" role="separator" />
+          <button
+            className="titlebar-menu__item"
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => {
+              runMenuAction(onOpenShortcuts);
+            }}
+          >
+            <Keyboard aria-hidden="true" />
+            <span>{t.titlebarKeyboardShortcuts}</span>
+          </button>
+          <button
+            className="titlebar-menu__item"
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => {
+              runMenuAction(() => void openUrl(ISSUES_URL));
+            }}
+          >
+            <Bug aria-hidden="true" />
+            <span>{t.titlebarReportIssue}</span>
+          </button>
+          <button
+            className="titlebar-menu__item"
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => {
+              runMenuAction(onOpenAbout);
+            }}
+          >
+            <Info aria-hidden="true" />
+            <span>{t.aboutGitOdrile}</span>
           </button>
         </div>
       )}
@@ -407,90 +578,8 @@ function TitlebarMenu({ onOpenAbout }: { onOpenAbout: () => void }): React.JSX.E
 
 const FOLDER_ICON = <FolderOpen />;
 
-/**
- * Infrequent project-level actions. Uses a button + popover rather than
- * `<details>` so it closes on Escape and on an outside click, and exposes the
- * expanded state to assistive technology.
- */
-function ProjectMenu({
-  onOpenProject,
-  onCloseProject,
-  isOpening,
-}: {
-  onOpenProject: () => void;
-  onCloseProject: () => void;
-  isOpening: boolean;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handlePointerDown = (event: MouseEvent): void => {
-      if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      setIsOpen(false);
-      triggerRef.current?.focus();
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
-  return (
-    <div className="project-menu" ref={containerRef}>
-      <button
-        ref={triggerRef}
-        className="project-menu__trigger"
-        type="button"
-        aria-label={t.overviewProjectMenu}
-        data-tooltip={t.overviewProjectMenu}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
-      >
-        <MoreHorizontal aria-hidden="true" />
-      </button>
-      {isOpen && (
-        <div className="project-menu__list" role="menu" aria-label={t.overviewProjectMenu}>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={isOpening}
-            onClick={() => {
-              setIsOpen(false);
-              onOpenProject();
-            }}
-          >
-            {isOpening ? t.overviewOpening : t.overviewOpenAnotherProject}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setIsOpen(false);
-              onCloseProject();
-            }}
-          >
-            {t.overviewCloseProject}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** Truncated paths stay fully available: readable on hover/AT, and copyable. */
-function ProjectPath({ path }: { path: string }): React.JSX.Element {
+export function ProjectPath({ path, onCopyError }: { path: string; onCopyError: () => void }): React.JSX.Element {
   const { t } = useLanguage();
   const [wasCopied, setWasCopied] = useState(false);
 
@@ -505,7 +594,7 @@ function ProjectPath({ path }: { path: string }): React.JSX.Element {
       await navigator.clipboard.writeText(path);
       setWasCopied(true);
     } catch {
-      // Clipboard access can be denied; leave the visible path as the fallback.
+      onCopyError();
     }
   };
 
@@ -654,14 +743,16 @@ function OverviewVersionLineQuickActions({
           aria-label={`${t.overviewChangeVersionLine} (${currentValue})`}
           onClick={() => setIsOpen((value) => !value)}
         >
-          <span className="version-line-selector__value">{currentValue}</span>
+          <span className={`version-line-selector__value${variant === "spotlight" ? " version-line-selector__value--action" : ""}`}>
+            {variant === "spotlight" ? t.overviewChangeVersionLine : currentValue}
+          </span>
           <ChevronDown aria-hidden="true" className="version-line-selector__chevron" />
         </button>
-      ) : (
+      ) : variant === "default" ? (
         <span className="version-line-selector version-line-selector--static">
           <span className="version-line-selector__value">{currentValue}</span>
         </span>
-      )}
+      ) : null}
       <button className={buttonClassName} type="button" onClick={onCreate}>
         {t.overviewNewVersionLine}
       </button>
@@ -720,7 +811,6 @@ function OverviewPanel({
   onCheckChanges,
   onReviewChanges,
   onOpenProject,
-  onCloseProject,
   canPublish,
   onPublish,
   onPublishUpTo,
@@ -732,6 +822,7 @@ function OverviewPanel({
   onQuickSwitchVersionLine,
   onQuickCreateVersionLine,
   onGoToVersionLines,
+  onCopyPathError,
 }: {
   project: RepositoryInfo | null;
   /** Only ever drives the *empty*-state's own loading affordance below —
@@ -749,7 +840,6 @@ function OverviewPanel({
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
   onRetryPendingVersions: () => void;
-  onCloseProject: () => void;
   /** The project session's cached branch inventory, shared with the Version
    * lines screen so Overview's quick-switch menu opens instantly instead of
    * reading branches again every time (task 019). */
@@ -761,6 +851,7 @@ function OverviewPanel({
   onQuickSwitchVersionLine: (target: string) => void;
   onQuickCreateVersionLine: (forceSwitch: boolean) => void;
   onGoToVersionLines: () => void;
+  onCopyPathError: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
@@ -814,9 +905,21 @@ function OverviewPanel({
       <div className="project-overview" aria-busy={isCheckingChanges}>
         <header className="project-overview__header">
           <div className="project-overview__identity">
-            <h1>{project.name}</h1>
+            <div className="project-overview__title-row">
+              <h1>{project.name}</h1>
+              <span className="project-overview__branch-chip">
+                <GitBranch aria-hidden="true" />
+                {versionValue}
+              </span>
+            </div>
+            <ProjectPath path={project.path} onCopyError={onCopyPathError} />
+            {overview.wasOpenedFromNestedFolder && (
+              <p className="project-overview__nested">
+                {t.overviewOpenedFrom}
+                <span data-tooltip={project.selectedPath}>{project.selectedPath}</span>
+              </p>
+            )}
           </div>
-          <ProjectMenu onOpenProject={onOpenProject} onCloseProject={onCloseProject} isOpening={isOpening} />
         </header>
 
         <section
@@ -896,9 +999,17 @@ function OverviewPanel({
             <GitBranch />
           </div>
           <div className="version-line-spotlight__body">
-            <h2 id="version-line-spotlight-heading">{t.overviewCurrentVersionLine}</h2>
-            {overview.isUnborn && <p className="version-line-spotlight__value">{versionValue}</p>}
-            <p className="version-line-spotlight__description">{t[overview.versionDescriptionKey]}</p>
+            <h2 id="version-line-spotlight-heading">
+              {overview.isUnborn ? t.overviewCurrentVersionLine : t.overviewVersionLineActionsTitle}
+            </h2>
+            {overview.isUnborn ? (
+              <>
+                <p className="version-line-spotlight__value">{versionValue}</p>
+                <p className="version-line-spotlight__description">{t[overview.versionDescriptionKey]}</p>
+              </>
+            ) : (
+              <p className="version-line-spotlight__description">{t.overviewVersionLineActionsDescription}</p>
+            )}
           </div>
           {!overview.isUnborn && (
             <OverviewVersionLineQuickActions
@@ -926,24 +1037,6 @@ function OverviewPanel({
             />
           </Suspense>
         )}
-
-        <section className="project-facts" aria-labelledby="project-facts-heading">
-          <h2 className="project-facts__title" id="project-facts-heading">
-            {t.overviewProjectDetails}
-          </h2>
-          <div className="project-facts__grid">
-            <article className="project-fact">
-              <h3>{t.overviewProjectLocation}</h3>
-              <ProjectPath path={project.path} />
-              {overview.wasOpenedFromNestedFolder && (
-                <p className="project-fact__nested">
-                  {t.overviewOpenedFrom}
-                  <span data-tooltip={project.selectedPath}>{project.selectedPath}</span>
-                </p>
-              )}
-            </article>
-          </div>
-        </section>
       </div>
     );
   }
@@ -970,7 +1063,6 @@ function OverviewPanel({
 function SettingsPanel({
   theme,
   setTheme,
-  onOpenAbout,
   gitDiagnostics,
   gitUpdateStatus,
   onCheckGitUpdate,
@@ -984,7 +1076,6 @@ function SettingsPanel({
 }: {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
-  onOpenAbout: () => void;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   onCheckGitUpdate: () => Promise<void>;
@@ -1006,6 +1097,7 @@ function SettingsPanel({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [isStartingGitInstallation, setIsStartingGitInstallation] = useState(false);
   const [isStartingGitUpdate, setIsStartingGitUpdate] = useState(false);
+  const [activeSection, setActiveSection] = useState<"general" | "appearance" | "git" | "safety">("general");
 
   useEffect(() => {
     invoke<GitIdentity>("get_git_identity")
@@ -1092,13 +1184,42 @@ function SettingsPanel({
     }
   };
 
+  const sections = [
+    { id: "general", label: t.settingsGeneralTitle, icon: <Settings /> },
+    { id: "appearance", label: t.settingsAppearanceTitle, icon: <Palette /> },
+    { id: "git", label: t.settingsGitTitle, icon: <GitBranch /> },
+    { id: "safety", label: t.settingsSafetyTitle, icon: <ShieldCheck /> },
+  ] as const;
+
   return (
-    <div className="settings-view">
+    <div className="settings-layout">
+      <nav className="settings-nav" aria-label={t.settingsSectionsAriaLabel}>
+        {sections.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            className={`settings-nav__item${activeSection === section.id ? " settings-nav__item--active" : ""}`}
+            aria-current={activeSection === section.id ? "page" : undefined}
+            onClick={() => setActiveSection(section.id)}
+          >
+            <span aria-hidden="true">{section.icon}</span>
+            {section.label}
+          </button>
+        ))}
+      </nav>
+      <div className="settings-view">
+      {activeSection === "appearance" && (
       <section className="settings-section">
         <div className="settings-section__heading">
           <h2>{t.settingsAppearanceTitle}</h2>
           <p>{t.settingsAppearanceDescription}</p>
         </div>
+        <div className="settings-groups">
+          <section className="settings-group">
+            <header className="settings-group__header">
+              <h3>{t.themeAriaLabel}</h3>
+            </header>
+            <div className="settings-group__body">
         <div className="segmented-control" role="radiogroup" aria-label={t.themeAriaLabel}>
           {THEME_ORDER.map((option) => (
             <button
@@ -1114,32 +1235,84 @@ function SettingsPanel({
             </button>
           ))}
         </div>
+            </div>
+          </section>
+          <section className="settings-group">
+            <header className="settings-group__header">
+              <h3>{t.settingsLanguageTitle}</h3>
+              <p>{t.settingsLanguageDescription}</p>
+            </header>
+            <div className="settings-group__body">
+        <div className="segmented-control" role="radiogroup" aria-label={t.languageAriaLabel}>
+          {LANGUAGE_ORDER.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={languagePreference === option}
+              className={`segmented-control__option${languagePreference === option ? " segmented-control__option--active" : ""}`}
+              onClick={() => setLanguagePreference(option)}
+            >
+              {option === "system" ? t.commonSystem : LANGUAGE_NAMES[option as Language]}
+            </button>
+          ))}
+        </div>
+            </div>
+          </section>
+        </div>
       </section>
+      )}
 
+      {activeSection === "general" && (
+        <>
       <section className="settings-section">
         <div className="settings-section__heading">
           <h2>{t.settingsGeneralTitle}</h2>
           <p>{t.settingsGeneralDescription}</p>
         </div>
-        <div className="settings-row">
-          <div>
-            <strong>{t.commonVersion}</strong>
-            <p>GitOdrile {APP_VERSION}</p>
-          </div>
-          <button className="secondary-button" type="button" onClick={onOpenAbout}>
-            {t.settingsGeneralViewAbout}
-          </button>
+        <div className="settings-groups">
+          <section className="settings-group">
+            <header className="settings-group__header">
+              <h3>{t.settingsStartupTitle}</h3>
+              <p>{t.settingsStartupDescription}</p>
+            </header>
+            <div className="settings-group__body">
+              <div className="settings-row">
+                <div>
+                  <strong>{t.startupReopenLabel}</strong>
+                  <p>{t.startupReopenDescription}</p>
+                </div>
+                <ToggleSwitch label={t.startupReopenLabel} checked={reopenLastProject} onChange={setReopenLastProject} />
+              </div>
+            </div>
+          </section>
         </div>
+      </section>
+        </>
+      )}
+
+      {activeSection === "git" && (
+      <section className="settings-section">
+        <div className="settings-section__heading">
+          <h2>{t.settingsGitTitle}</h2>
+          <p>{t.settingsGitDescription}</p>
+        </div>
+        <div className="settings-groups">
+        <section className="settings-group">
+          <header className="settings-group__header">
+            <h3>{t.settingsGeneralGitLabel}</h3>
+            <p>{t.settingsGitInstallationDescription}</p>
+          </header>
+          <div className="settings-group__body">
         <div className="settings-row">
           <div>
-            <strong>{t.settingsGeneralGitLabel}</strong>
             {gitDiagnostics === null && <p>{t.settingsGeneralChecking}</p>}
             {gitDiagnostics?.state === "available" && (
               <>
                 <p>
                   {gitDiagnostics.version}
                   {gitUpdateStatus?.state === "update_available" && (
-                  <span className="settings-row__badge">{t.settingsGeneralUpdateAvailable}</span>
+                    <span className="settings-row__badge">{t.settingsGeneralUpdateAvailable}</span>
                   )}
                 </p>
                 {gitUpdateStatus === null && <p className="settings-row__hint">{t.gitUpdateNotChecked}</p>}
@@ -1150,9 +1323,7 @@ function SettingsPanel({
                   <p className="settings-row__hint" role="status">{t.gitUpdateUpToDate}</p>
                 )}
                 {gitUpdateStatus?.state === "unavailable" && (
-                  <p className="settings-row__hint settings-row__warning" role="status">
-                    {t.gitUpdateCheckerUnavailable}
-                  </p>
+                  <p className="settings-row__hint settings-row__warning" role="status">{t.gitUpdateCheckerUnavailable}</p>
                 )}
                 {gitUpdateStatus?.state === "failed" && (
                   <p className="settings-row__hint settings-row__warning" role="status">{t.gitUpdateCheckFailed}</p>
@@ -1162,67 +1333,42 @@ function SettingsPanel({
                 )}
               </>
             )}
-            {gitDiagnostics?.state === "missing" && (
-              <p className="settings-row__warning">{t.settingsGeneralGitMissing}</p>
-            )}
-            {gitDiagnostics?.state === "unusable" && (
-              <p className="settings-row__warning">{t.settingsGeneralGitUnusable}</p>
-            )}
-            {gitDiagnostics?.state === "check_failed" && (
-              <p className="settings-row__warning">{t.settingsGeneralGitCheckFailed}</p>
-            )}
+            {gitDiagnostics?.state === "missing" && <p className="settings-row__warning">{t.settingsGeneralGitMissing}</p>}
+            {gitDiagnostics?.state === "unusable" && <p className="settings-row__warning">{t.settingsGeneralGitUnusable}</p>}
+            {gitDiagnostics?.state === "check_failed" && <p className="settings-row__warning">{t.settingsGeneralGitCheckFailed}</p>}
             {gitActionMessage && <p className="settings-row__hint" role="status">{gitActionMessage}</p>}
           </div>
           <div className="settings-row__actions">
             {gitDiagnostics?.state === "missing" && (
-              <button
-                className="primary-button"
-                type="button"
-                disabled={isStartingGitInstallation}
-                onClick={() => void handleInstallGit()}
-              >
+              <button className="primary-button" type="button" disabled={isStartingGitInstallation} onClick={() => void handleInstallGit()}>
                 {isStartingGitInstallation ? t.gitStartingInstaller : t.settingsGeneralInstallGit}
               </button>
             )}
             {gitDiagnostics?.state !== "available" && (
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={isRefreshingGitDiagnostics}
-                onClick={() => void onRefreshGitDiagnostics()}
-              >
+              <button className="secondary-button" type="button" disabled={isRefreshingGitDiagnostics} onClick={() => void onRefreshGitDiagnostics()}>
                 {isRefreshingGitDiagnostics ? t.settingsGeneralChecking : t.settingsGeneralCheckAgain}
               </button>
             )}
             {gitDiagnostics?.state === "available" && (
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={isCheckingGitUpdate}
-                onClick={() => void onCheckGitUpdate()}
-              >
+              <button className="secondary-button" type="button" disabled={isCheckingGitUpdate} onClick={() => void onCheckGitUpdate()}>
                 {isCheckingGitUpdate ? t.gitUpdateChecking : t.gitUpdateCheck}
               </button>
             )}
             {gitDiagnostics?.state === "available" && gitUpdateStatus?.state === "update_available" && (
-              <button
-                className="primary-button"
-                type="button"
-                disabled={isStartingGitUpdate}
-                onClick={() => void handleUpdateGit()}
-              >
+              <button className="primary-button" type="button" disabled={isStartingGitUpdate} onClick={() => void handleUpdateGit()}>
                 {isStartingGitUpdate ? t.gitUpdateStarting : t.settingsGeneralUpdate}
               </button>
             )}
           </div>
         </div>
-      </section>
-
-      <section className="settings-section">
-        <div className="settings-section__heading">
-          <h2>{t.settingsIdentityTitle}</h2>
-          <p>{t.settingsIdentityDescription}</p>
-        </div>
+          </div>
+        </section>
+        <section className="settings-group">
+          <header className="settings-group__header">
+            <h3>{t.settingsIdentityTitle}</h3>
+            <p>{t.settingsIdentityDescription}</p>
+          </header>
+          <div className="settings-group__body">
         <div className="identity-fields">
           <label className="text-field">
             <span>{t.identityNameLabel}</span>
@@ -1271,22 +1417,13 @@ function SettingsPanel({
             </button>
           )}
         </div>
-      </section>
-
-      <section className="settings-section">
-        <div className="settings-section__heading">
-          <h2>{t.settingsStartupTitle}</h2>
-          <p>{t.settingsStartupDescription}</p>
-        </div>
-        <div className="settings-row">
-          <div>
-            <strong>{t.startupReopenLabel}</strong>
-            <p>{t.startupReopenDescription}</p>
           </div>
-          <ToggleSwitch label={t.startupReopenLabel} checked={reopenLastProject} onChange={setReopenLastProject} />
+        </section>
         </div>
       </section>
+      )}
 
+      {activeSection === "safety" && (
       <section className="settings-section">
         <div className="settings-section__heading">
           <h2>{t.settingsSafetyTitle}</h2>
@@ -1300,27 +1437,9 @@ function SettingsPanel({
           <ToggleSwitch label={t.safetyConfirmLabel} checked={confirmCloseProject} onChange={setConfirmCloseProject} />
         </div>
       </section>
+      )}
 
-      <section className="settings-section">
-        <div className="settings-section__heading">
-          <h2>{t.settingsLanguageTitle}</h2>
-          <p>{t.settingsLanguageDescription}</p>
-        </div>
-        <div className="segmented-control" role="radiogroup" aria-label={t.languageAriaLabel}>
-          {LANGUAGE_ORDER.map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={languagePreference === option}
-              className={`segmented-control__option${languagePreference === option ? " segmented-control__option--active" : ""}`}
-              onClick={() => setLanguagePreference(option)}
-            >
-              {option === "system" ? t.commonSystem : LANGUAGE_NAMES[option as Language]}
-            </button>
-          ))}
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
@@ -1351,6 +1470,7 @@ function ToggleSwitch({
 export function App(): React.JSX.Element {
   const { t } = useLanguage();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [view, setView] = useState<View>("overview");
   const [theme, setTheme] = useTheme();
@@ -1398,17 +1518,13 @@ export function App(): React.JSX.Element {
       return;
     }
     markScreenSwitchIntent(view, next);
-    if (next !== "settings" && sessionsState.activeId) {
+    if (sessionsState.activeId) {
       dispatchSessions({ type: "navigate", id: sessionsState.activeId, view: next });
     }
     setView(next);
   };
 
   const goBack = (): void => {
-    if (view === "settings") {
-      setView(activeSession?.lastView ?? "overview");
-      return;
-    }
     if (!activeSession || activeSession.viewHistoryIndex === 0) {
       return;
     }
@@ -1419,7 +1535,6 @@ export function App(): React.JSX.Element {
 
   const goForward = (): void => {
     if (
-      view === "settings" ||
       !activeSession ||
       activeSession.viewHistoryIndex >= activeSession.viewHistory.length - 1
     ) {
@@ -1430,10 +1545,8 @@ export function App(): React.JSX.Element {
     setView(activeSession.viewHistory[nextIndex]);
   };
 
-  const canGoBack =
-    view === "settings" || Boolean(activeSession && activeSession.viewHistoryIndex > 0);
+  const canGoBack = Boolean(activeSession && activeSession.viewHistoryIndex > 0);
   const canGoForward =
-    view !== "settings" &&
     Boolean(
       activeSession &&
         activeSession.viewHistoryIndex < activeSession.viewHistory.length - 1,
@@ -1464,6 +1577,7 @@ export function App(): React.JSX.Element {
   // flight (see the "Decisions" section of task 012): switching and closing
   // the active project are both disabled while either dialog is open.
   const hasBlockingDialog =
+    isSettingsOpen ||
     publishDialogSessionId !== null ||
     saveDialogSessionId !== null ||
     activeSession?.operation?.kind === "version-line";
@@ -1514,15 +1628,20 @@ export function App(): React.JSX.Element {
     readStoredBoolean(CONFIRM_CLOSE_PROJECT_STORAGE_KEY, true),
   );
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const settingsDialogRef = useRef<HTMLDivElement>(null);
   const aboutDialogRef = useRef<HTMLDivElement>(null);
   const closeConfirmDialogRef = useRef<HTMLDivElement>(null);
   const openErrorDialogRef = useRef<HTMLDivElement>(null);
+  const shortcutsDialogRef = useRef<HTMLDivElement>(null);
   const paletteTriggerRef = useRef<HTMLButtonElement>(null);
   const palettePreviouslyFocusedRef = useRef<HTMLElement | null>(null);
 
+  useModalFocus(isSettingsOpen, settingsDialogRef, setIsSettingsOpen);
   useModalFocus(isAboutOpen, aboutDialogRef, setIsAboutOpen);
   useModalFocus(isCloseConfirmOpen, closeConfirmDialogRef, setIsCloseConfirmOpen);
   useModalFocus(isOpenErrorDialogOpen, openErrorDialogRef, setIsOpenErrorDialogOpen);
+  useModalFocus(isShortcutsOpen, shortcutsDialogRef, setIsShortcutsOpen);
 
   // Whichever path closed the confirmation (Cancel, Escape, or confirming
   // the close), the target it referred to stops being relevant.
@@ -1776,7 +1895,7 @@ export function App(): React.JSX.Element {
   // which is application-wide and stays exactly where it is regardless of
   // which project is active underneath it.
   const syncViewToSession = (targetLastView: ProjectView): void => {
-    if (view !== "settings" && view !== targetLastView) {
+    if (view !== targetLastView) {
       setView(targetLastView);
     }
   };
@@ -2030,7 +2149,7 @@ export function App(): React.JSX.Element {
       (versionLinesGenerationsRef.current[id] ?? 0) + 1;
     delete versionLinesRequestsRef.current[id];
     dispatchSessions({ type: "close", id });
-    if (sessionsState.activeId === id && view !== "settings") {
+    if (sessionsState.activeId === id) {
       setView(nextSession?.lastView ?? "overview");
       if (nextSession) {
         setProjectAnnouncement(
@@ -2108,10 +2227,20 @@ export function App(): React.JSX.Element {
     // here. Actions *within* a screen are not destinations and stay explicit.
     ...NAV_DESTINATIONS.flatMap((destination) => {
       const { screen } = destination;
-      if (screen === null || destination.commandLabelKey === null) {
+      if (destination.commandLabelKey === null) {
         return [];
       }
       if (destination.requiresProject && !project) {
+        return [];
+      }
+      if (destination.overlay === "settings") {
+        return [{
+          id: `open-${destination.id}`,
+          label: t[destination.commandLabelKey],
+          action: () => setIsSettingsOpen(true),
+        }];
+      }
+      if (screen === null) {
         return [];
       }
       const entries: Command[] = [
@@ -2242,7 +2371,16 @@ export function App(): React.JSX.Element {
         </div>
 
         <div className="window-titlebar__actions">
-          <TitlebarMenu onOpenAbout={() => setIsAboutOpen(true)} />
+          <TitlebarMenu
+            onOpenAbout={() => setIsAboutOpen(true)}
+            onOpenProject={() => void handleOpenProject()}
+            onCloseProject={requestCloseActiveProject}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenShortcuts={() => setIsShortcutsOpen(true)}
+            hasProject={project !== null}
+            isOpeningProject={isOpening}
+            canReloadWindow={!hasUnsettledOperation(sessionsState)}
+          />
           <button
             className="titlebar-icon-button"
             type="button"
@@ -2398,19 +2536,26 @@ export function App(): React.JSX.Element {
           <div className="sidebar-footer">
             <nav aria-label={t.navApplicationAriaLabel} className="nav--secondary">
               {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map((destination) => {
-                const { screen } = destination;
-                const isActive = screen !== null && view === screen;
+                const { screen, overlay } = destination;
+                const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
+                const label = t[destination.labelKey];
                 return (
                   <button
                     key={destination.id}
                     className={`nav-item${isActive ? " nav-item--active" : ""}`}
                     type="button"
-                    disabled={screen === null}
-                    aria-current={isActive ? "page" : undefined}
-                    onClick={screen ? () => navigateToView(screen) : undefined}
+                    disabled={screen === null && overlay === undefined}
+                    aria-current={screen !== null && isActive ? "page" : undefined}
+                    aria-haspopup={overlay ? "dialog" : undefined}
+                    aria-expanded={overlay ? isSettingsOpen : undefined}
+                    // The visible label folds away with the collapsed rail;
+                    // the accessible name and tooltip keep its icon clear.
+                    aria-label={label}
+                    data-tooltip={label}
+                    onClick={overlay === "settings" ? () => setIsSettingsOpen(true) : screen ? () => navigateToView(screen) : undefined}
                   >
                     <span className="nav-item__icon" aria-hidden="true">{destination.icon}</span>
-                    <span className="nav-item__label">{t[destination.labelKey]}</span>
+                    <span className="nav-item__label">{label}</span>
                   </button>
                 );
               })}
@@ -2469,18 +2614,24 @@ export function App(): React.JSX.Element {
                   expanded nav is where the "open a project first" explanation
                   belongs. */}
               {NAV_DESTINATIONS.flatMap((destination) => {
-                const { screen } = destination;
-                if (!destination.inCompactNav || screen === null || (destination.requiresProject && !project)) {
+                const { screen, overlay } = destination;
+                if (
+                  !destination.inCompactNav ||
+                  (screen === null && overlay === undefined) ||
+                  (destination.requiresProject && !project)
+                ) {
                   return [];
                 }
-                const isActive = view === screen;
+                const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
                 return (
                   <button
                     key={destination.id}
                     className={`compact-nav__item${isActive ? " compact-nav__item--active" : ""}`}
                     type="button"
-                    aria-current={isActive ? "page" : undefined}
-                    onClick={() => navigateToView(screen)}
+                    aria-current={screen !== null && isActive ? "page" : undefined}
+                    aria-haspopup={overlay ? "dialog" : undefined}
+                    aria-expanded={overlay ? isSettingsOpen : undefined}
+                    onClick={overlay === "settings" ? () => setIsSettingsOpen(true) : () => screen && navigateToView(screen)}
                   >
                     <span aria-hidden="true">{destination.icon}</span>
                     {t[destination.labelKey]}
@@ -2489,9 +2640,9 @@ export function App(): React.JSX.Element {
               })}
             </nav>
           </div>
-          {(view === "settings" || (view === "overview" && !project)) && (
+          {view === "overview" && !project && (
             <header className="topbar">
-              <h1>{view === "settings" ? t.navSettings : t.navOverview}</h1>
+              <h1>{t.navOverview}</h1>
             </header>
           )}
 
@@ -2501,7 +2652,6 @@ export function App(): React.JSX.Element {
               <button
                 type="button"
                 aria-label={t.commonClose}
-                data-tooltip={t.commonClose}
                 onClick={() => setSkippedRestoreCount(0)}
               >
                 <X aria-hidden="true" />
@@ -2527,7 +2677,6 @@ export function App(): React.JSX.Element {
                   onCheckChanges={() => projectPath && void checkWorkingTree(projectPath)}
                   onReviewChanges={() => navigateToView("changes")}
                   onOpenProject={() => void handleOpenProject()}
-                  onCloseProject={requestCloseActiveProject}
                   canPublish={canPublish}
                   onPublish={() => openPublishDialog()}
                   onPublishUpTo={(commit) => openPublishDialog(commit)}
@@ -2547,6 +2696,9 @@ export function App(): React.JSX.Element {
                     }
                   }}
                   onGoToVersionLines={() => navigateToView("version-lines")}
+                  onCopyPathError={() =>
+                    showErrorDialog(t.overviewCopyPathFailedTitle, t.overviewCopyPathFailedMessage)
+                  }
                 />
               ),
               // Project-only screens are absent, not disabled, when no
@@ -2617,23 +2769,6 @@ export function App(): React.JSX.Element {
                     ),
                   }
                 : {}),
-              settings: (
-                <SettingsPanel
-                  theme={theme}
-                  setTheme={setTheme}
-                  onOpenAbout={() => setIsAboutOpen(true)}
-                  gitDiagnostics={gitDiagnostics}
-                  gitUpdateStatus={gitUpdateStatus}
-                  onCheckGitUpdate={checkGitUpdate}
-                  isCheckingGitUpdate={isCheckingGitUpdate}
-                  onRefreshGitDiagnostics={refreshGitDiagnostics}
-                  isRefreshingGitDiagnostics={isRefreshingGitDiagnostics}
-                  reopenLastProject={reopenLastProject}
-                  setReopenLastProject={setReopenLastProject}
-                  confirmCloseProject={confirmCloseProject}
-                  setConfirmCloseProject={setConfirmCloseProject}
-                />
-              ),
             }}
           />
         </section>
@@ -2712,6 +2847,50 @@ export function App(): React.JSX.Element {
         </Suspense>
       )}
 
+      {isSettingsOpen && (
+        <div className="settings-backdrop" role="presentation" onMouseDown={() => setIsSettingsOpen(false)}>
+          <div
+            ref={settingsDialogRef}
+            className="settings-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-dialog-title"
+            aria-describedby="settings-dialog-description"
+            tabIndex={-1}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="settings-dialog__header">
+              <div>
+                <h2 id="settings-dialog-title">{t.navSettings}</h2>
+                <p id="settings-dialog-description">{t.settingsDialogDescription}</p>
+              </div>
+              <button
+                className="settings-dialog__close"
+                type="button"
+                aria-label={t.commonClose}
+                onClick={() => setIsSettingsOpen(false)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </header>
+            <SettingsPanel
+              theme={theme}
+              setTheme={setTheme}
+              gitDiagnostics={gitDiagnostics}
+              gitUpdateStatus={gitUpdateStatus}
+              onCheckGitUpdate={checkGitUpdate}
+              isCheckingGitUpdate={isCheckingGitUpdate}
+              onRefreshGitDiagnostics={refreshGitDiagnostics}
+              isRefreshingGitDiagnostics={isRefreshingGitDiagnostics}
+              reopenLastProject={reopenLastProject}
+              setReopenLastProject={setReopenLastProject}
+              confirmCloseProject={confirmCloseProject}
+              setConfirmCloseProject={setConfirmCloseProject}
+            />
+          </div>
+        </div>
+      )}
+
       {isAboutOpen && (
         <div className="about-backdrop" role="presentation" onMouseDown={() => setIsAboutOpen(false)}>
           <div
@@ -2727,7 +2906,6 @@ export function App(): React.JSX.Element {
               className="about-dialog__close"
               type="button"
               aria-label={t.commonClose}
-              data-tooltip={t.commonClose}
               onClick={() => setIsAboutOpen(false)}
             >
               <X aria-hidden="true" />
@@ -2740,6 +2918,48 @@ export function App(): React.JSX.Element {
               <div><dt>{t.commonVersion}</dt><dd>{APP_VERSION}</dd></div>
             </dl>
             <p className="about-dialog__footer">{t.aboutFooterMadeWith}</p>
+          </div>
+        </div>
+      )}
+
+      {isShortcutsOpen && (
+        <div className="about-backdrop" role="presentation" onMouseDown={() => setIsShortcutsOpen(false)}>
+          <div
+            ref={shortcutsDialogRef}
+            className="about-dialog shortcuts-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shortcuts-title"
+            tabIndex={-1}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              className="about-dialog__close"
+              type="button"
+              aria-label={t.commonClose}
+              onClick={() => setIsShortcutsOpen(false)}
+            >
+              <X aria-hidden="true" />
+            </button>
+            <h2 id="shortcuts-title">{t.shortcutsDialogTitle}</h2>
+            <ul className="shortcuts-list">
+              <li>
+                <span>{t.shortcutsOpenPalette}</span>
+                <span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>K</kbd></span>
+              </li>
+              <li>
+                <span>{t.shortcutsNextProject}</span>
+                <span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>Tab</kbd></span>
+              </li>
+              <li>
+                <span>{t.shortcutsPreviousProject}</span>
+                <span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>Shift</kbd><kbd>Tab</kbd></span>
+              </li>
+              <li>
+                <span>{t.shortcutsCloseDialogs}</span>
+                <span className="shortcuts-list__keys"><kbd>Esc</kbd></span>
+              </li>
+            </ul>
           </div>
         </div>
       )}

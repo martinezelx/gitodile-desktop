@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { ChangesPanel } from "./changes";
 import { createDiffCache } from "./diffCache";
@@ -11,6 +11,11 @@ import type { WorkingTreeStatus } from "./repositoryOverview";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const mockedInvoke = vi.mocked(invoke);
+const defaultResizeObserver = globalThis.ResizeObserver;
+
+afterEach(() => {
+  globalThis.ResizeObserver = defaultResizeObserver;
+});
 
 /** `ChangesPanel` no longer owns `selectedPath`, the save-version dialog's
  * open state, or the diff cache — all lifted so a project session can
@@ -296,6 +301,17 @@ describe("ChangesPanel save selection", () => {
     // uses an "unchanged" diff, which never reaches it) under jsdom, which
     // has no real layout engine and no `ResizeObserver` by default — the
     // combination `@tanstack/react-virtual` needs to handle gracefully.
+    let resizeCallback: ResizeObserverCallback | undefined;
+    class CapturingResizeObserver implements ResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    globalThis.ResizeObserver = CapturingResizeObserver;
+
     mockedInvoke.mockImplementation((command) => {
       if (command === "read_file_diff") {
         return Promise.resolve({
@@ -314,6 +330,7 @@ describe("ChangesPanel save selection", () => {
               lines: [
                 { kind: "context", content: "line one", oldLineNumber: 1, newLineNumber: 1 },
                 { kind: "addition", content: "line two changed", oldLineNumber: null, newLineNumber: 2 },
+                { kind: "addition", content: "\twide 界 and emoji 🙂", oldLineNumber: null, newLineNumber: 3 },
               ],
             },
             {
@@ -333,7 +350,7 @@ describe("ChangesPanel save selection", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(
+    const { container } = render(
       <LanguageProvider>
         <ControlledChangesPanel
           projectPath="/repo"
@@ -349,7 +366,16 @@ describe("ChangesPanel save selection", () => {
 
     expect(await screen.findByText("line one")).toBeInTheDocument();
     expect(screen.getByText("line two changed")).toBeInTheDocument();
+    expect(screen.getByText("wide 界 and emoji 🙂", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("47 unchanged lines")).toBeInTheDocument();
     expect(screen.getByText("line fifty removed")).toBeInTheDocument();
+
+    const diffViewport = container.querySelector<HTMLElement>(".diff-code");
+    expect(diffViewport).not.toBeNull();
+    Object.defineProperty(diffViewport, "clientWidth", { configurable: true, value: 360 });
+    await act(async () => {
+      resizeCallback?.([], {} as ResizeObserver);
+    });
+    expect(screen.getByText("wide 界 and emoji 🙂", { exact: false })).toBeInTheDocument();
   });
 });

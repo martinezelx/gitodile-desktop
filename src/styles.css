@@ -246,9 +246,9 @@ button { font: inherit; }
 .titlebar-icon-button svg { width: 16px; height: 16px; }
 .titlebar-history-controls { display: flex; align-items: center; gap: 2px; }
 .titlebar-badge {
-  margin-left: 4px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border-subtle);
-  background: var(--surface-hover); color: var(--text-secondary); font-size: 10.5px; font-weight: 700;
-  letter-spacing: .02em; line-height: 1.4; white-space: nowrap;
+  margin-left: 4px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-subtle);
+  background: var(--surface-hover); color: var(--text-secondary); font-size: 12px; font-weight: 700;
+  letter-spacing: .015em; line-height: 1.2; white-space: nowrap;
 }
 
 .titlebar-theme-toggle { margin-left: 4px; }
@@ -261,24 +261,22 @@ button { font: inherit; }
   z-index: 5;
   top: calc(100% + var(--space-2));
   left: 0;
-  min-width: 190px;
+  min-width: 210px;
   padding: 6px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
+  transform-origin: top left;
+  animation: titlebar-menu-in var(--duration-fast) ease-out;
 }
-.titlebar-menu__heading {
-  padding: 6px 10px 4px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.titlebar-menu__list button {
+.titlebar-menu__divider { height: 1px; margin: 6px 4px; background: var(--border-subtle); }
+.titlebar-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
-  min-height: 36px;
+  min-height: 34px;
   padding: var(--space-2) var(--space-3);
   border: 0;
   border-radius: var(--radius-sm);
@@ -288,7 +286,17 @@ button { font: inherit; }
   cursor: pointer;
   font-size: 13.5px;
 }
-.titlebar-menu__list button:hover { background: var(--surface-hover); }
+.titlebar-menu__item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary); }
+.titlebar-menu__item:hover { background: var(--surface-hover); }
+.titlebar-menu__item:disabled { color: var(--text-secondary); cursor: default; }
+.titlebar-menu__item:disabled:hover { background: transparent; }
+.titlebar-menu__item[aria-disabled="true"] { color: var(--text-secondary); cursor: default; }
+.titlebar-menu__item[aria-disabled="true"]:hover { background: transparent; }
+
+@keyframes titlebar-menu-in {
+  from { opacity: 0; transform: scale(.97) translateY(-2px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
 .window-control {
   width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm);
   color: var(--text-primary); background: transparent; cursor: pointer; transition: background var(--duration-fast);
@@ -362,11 +370,12 @@ button { font: inherit; }
 }
 
 .sidebar-toggle {
-  flex-shrink: 0; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  flex: none; width: 44px; height: 44px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
   border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); cursor: pointer;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.sidebar-toggle svg { width: 16px; height: 16px; }
+.sidebar-toggle svg { width: 18px; height: 18px; }
 .sidebar-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
 
 nav { display: grid; gap: 6px; }
@@ -404,13 +413,17 @@ nav { display: grid; gap: 6px; }
   background: transparent;
 }
 .auto-hide-scrollbar::-webkit-scrollbar-corner { background: transparent; }
+/* Settings is the primary footer action and owns the remaining width. The
+   collapse control stays a compact square around its icon. */
 .sidebar-footer {
   flex-shrink: 0; display: flex; align-items: center; gap: var(--space-1);
 }
-.nav--secondary { flex: 1; min-width: 0; }
-.app-shell--collapsed .sidebar-footer { flex-direction: column; }
+.nav--secondary { flex: 1 1 auto; min-width: 0; }
+.app-shell--collapsed .sidebar-footer { flex-direction: column; justify-content: center; }
 .app-shell--collapsed .nav--secondary { flex: none; width: 44px; }
-.app-shell--collapsed .sidebar-toggle { width: 44px; height: 44px; }
+.app-shell--collapsed .sidebar-toggle {
+  flex: none; width: 44px; height: 44px; padding: 0; justify-content: center;
+}
 .nav-item {
   display: flex; align-items: center; width: 100%; min-width: 0; height: 44px;
   padding: 0 12px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary);
@@ -533,56 +546,59 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   gap: var(--space-4);
 }
 .project-overview__identity { min-width: 0; }
+.project-overview__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
 .project-overview__identity h1 {
   overflow-wrap: anywhere;
-  margin-bottom: var(--space-3);
+  margin-bottom: 0;
   font-size: 28px;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
-
-.project-menu { position: relative; flex-shrink: 0; }
-.project-menu__trigger {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
+.project-overview__branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 9px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-panel);
-  color: var(--text-secondary);
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.project-menu__trigger:hover,
-.project-menu__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary); }
-.project-menu__trigger svg { width: 18px; height: 18px; }
-.project-menu__list {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + var(--space-2));
-  right: 0;
-  min-width: 180px;
-  padding: 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-lg);
-}
-.project-menu__list button {
-  width: 100%;
-  min-height: 36px;
-  padding: var(--space-2) var(--space-3);
-  border: 0;
   border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-primary);
-  text-align: left;
-  cursor: pointer;
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* Optical, not geometric, centring: `align-items: center` lines the chip
+     up with the h1's *line box*, but the title's visual mass (cap top to
+     baseline) sits 1.5px lower than that box's centre, because the line box
+     also reserves room for descenders. Nudging down by that measured
+     difference makes the chip look level with the letters. */
+  transform: translateY(1.5px);
 }
-.project-menu__list button:hover:not(:disabled) { background: var(--surface-hover); }
-.project-menu__list button:disabled { opacity: 0.5; cursor: default; }
+.project-overview__branch-chip svg { width: 13px; height: 13px; flex-shrink: 0; }
+.project-overview__identity .project-path { margin-bottom: 0; }
+/* Revealed on hover (or keyboard focus) rather than sitting there: at rest
+   the copy glyph lands directly under the branch chip's own icon, and the
+   stacked pair reads as clutter beside the title. The button keeps its box
+   either way, so revealing it never shifts the path. Mirrors the
+   hover-reveal already used by `.project-switcher__close`. */
+.project-overview__identity .project-path__copy {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.project-overview__identity .project-path:hover .project-path__copy,
+.project-overview__identity .project-path:focus-within .project-path__copy,
+.project-overview__identity .project-path__copy:focus-visible { opacity: 1; }
+.project-overview__identity .project-path__copy svg { width: 14px; height: 14px; }
 
 /* A soft fade instead of a hard rule: reads as a gap between sections rather
    than a line drawn across the sidebar. */
@@ -727,9 +743,7 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
 .restore-skipped-notice button svg { width: 14px; height: 14px; }
 
 /* Overview's most prominent identity fact: which version line the project
-   is on, with the quick switch/create actions right next to it — elevated
-   out of the generic `.project-facts` grid instead of competing there with
-   secondary details like the project's location. */
+   is on, with the quick switch/create actions right next to it. */
 .version-line-spotlight {
   display: flex;
   align-items: center;
@@ -753,12 +767,11 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
 .version-line-spotlight__icon svg { width: 22px; height: 22px; }
 .version-line-spotlight__body { flex: 1; min-width: 0; }
 .version-line-spotlight__body h2 {
-  margin: 0 0 2px;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  margin: 0 0 3px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 .version-line-spotlight__value {
   margin: 0;
@@ -792,6 +805,11 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   min-width: 0; overflow-wrap: anywhere; color: var(--text-primary);
   font-size: 19px; font-weight: 700;
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+.version-line-selector__value--action {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 650;
 }
 .version-line-selector__chevron {
   flex-shrink: 0; width: 18px; height: 18px; color: var(--text-secondary);
@@ -1098,47 +1116,8 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .pending-versions__diff-status--error { color: var(--status-danger); }
 .pending-versions__diff-status svg { width: 15px; height: 15px; }
 
-.project-facts { display: grid; gap: var(--space-3); }
-.project-facts__title {
-  margin-bottom: 0;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-}
-.project-facts__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--space-3);
-}
-.project-fact {
-  min-width: 0;
-  padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
-}
-.project-fact h3 {
-  margin-bottom: var(--space-2);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-.project-fact p {
-  margin-bottom: 0;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.45;
-}
-.project-fact .project-fact__value {
-  margin-bottom: var(--space-2);
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
 .project-path__value,
-.project-fact__nested span {
+.project-overview__nested span {
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
 
@@ -1160,6 +1139,9 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .project-path__copy {
   width: 32px;
   height: 32px;
+  /* The UA's default button padding eats into the fixed box (border-box),
+     which squeezes the icon off-centre at small sizes. */
+  padding: 0;
   flex-shrink: 0;
   display: grid;
   place-items: center;
@@ -1172,8 +1154,14 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 }
 .project-path__copy:hover { background: var(--surface-hover); color: var(--text-primary); }
 .project-path__copy svg { width: 15px; height: 15px; }
-.project-fact .project-fact__nested { margin-top: var(--space-3); }
-.project-fact__nested span {
+.project-overview__nested {
+  margin-top: var(--space-2);
+  margin-bottom: 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.project-overview__nested span {
   display: block;
   margin-top: var(--space-1);
   overflow: hidden;
@@ -1185,14 +1173,84 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.settings-view { display: grid; gap: var(--space-5); max-width: 640px; }
+.settings-backdrop {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+  padding: 28px; background: var(--overlay); backdrop-filter: blur(8px);
+}
+.settings-dialog {
+  width: min(920px, 100%); height: min(720px, calc(100vh - 56px)); min-height: 480px;
+  display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-xl);
+  outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg);
+}
+.settings-dialog__header {
+  position: relative;
+  min-height: 86px; padding: 20px 24px; display: flex; align-items: center;
+  justify-content: space-between; gap: var(--space-5);
+}
+.settings-dialog__header::after {
+  position: absolute; right: 18px; bottom: 0; left: 18px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
+  content: "";
+}
+.settings-dialog__header h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.015em; }
+.settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
+.settings-dialog__close {
+  flex-shrink: 0; width: 36px; height: 36px; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-sm); background: transparent;
+  color: var(--text-secondary); cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.settings-dialog__close:hover { background: var(--surface-hover); color: var(--text-primary); }
+.settings-dialog__close svg { width: 18px; height: 18px; }
+.settings-layout { min-height: 0; display: grid; grid-template-columns: 184px minmax(0, 1fr); }
+.settings-nav {
+  position: relative;
+  align-content: start; gap: 4px; padding: 18px 12px;
+  background: var(--surface-panel);
+}
+.settings-nav::after {
+  position: absolute; top: 12px; right: 0; bottom: 12px; width: 1px;
+  background: linear-gradient(180deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
+  content: "";
+}
+.settings-nav__item {
+  width: 100%; min-height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 10px;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
+  text-align: left; cursor: pointer; font-size: 13.5px; font-weight: 600;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.settings-nav__item:hover { background: var(--surface-hover); color: var(--text-primary); }
+.settings-nav__item--active { background: var(--surface-active); color: var(--text-primary); }
+.settings-nav__item--active > span { color: var(--accent-primary); }
+.settings-nav__item > span { width: 18px; height: 18px; display: grid; place-items: center; }
+.settings-nav__item svg { width: 18px; height: 18px; }
+.settings-view {
+  min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 0;
+  padding: 8px 32px 32px;
+}
 .settings-section {
-  padding: var(--space-5); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
-  background: var(--surface-raised); box-shadow: var(--shadow-sm);
+  position: relative; padding: 28px 0;
+}
+.settings-section:not(:last-child)::after {
+  position: absolute; right: 0; bottom: 0; left: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
+  content: "";
 }
 .settings-section__heading { margin-bottom: var(--space-4); }
 .settings-section__heading h2 { font-size: 18px; margin-bottom: 4px; }
 .settings-section__heading p { color: var(--text-secondary); font-size: 14px; margin-bottom: 0; }
+.settings-groups { display: grid; gap: 28px; }
+.settings-group { display: grid; gap: 10px; }
+.settings-group__header { padding: 0 4px; }
+.settings-group__header h3 { margin: 0 0 3px; font-size: 14px; }
+.settings-group__header p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.settings-group__body {
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+}
 
 .segmented-control {
   display: inline-flex; padding: 4px; gap: 4px;
@@ -1250,7 +1308,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); cursor: pointer;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.about-dialog__close:hover { background: var(--status-danger); color: var(--status-danger-contrast); }
+.about-dialog__close:hover { background: var(--surface-hover); color: var(--text-primary); }
 .about-dialog__close svg { width: 16px; height: 16px; }
 .about-dialog__mark { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px; border-radius: var(--radius-lg); background: var(--accent-brand); color: var(--brand-mark-foreground); }
 .about-dialog__mark .gitodrile-mark { width: 31px; height: 18px; }
@@ -1261,6 +1319,23 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
 .about-details dt { color: var(--text-secondary); }
 .about-details dd { margin: 0; text-align: right; }
+
+.shortcuts-dialog { width: min(100%, 380px); }
+.shortcuts-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.shortcuts-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-subtle); font-size: 13.5px; color: var(--text-primary); }
+.shortcuts-list li:first-child { border-top: 0; }
+.shortcuts-list__keys { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.shortcuts-list kbd {
+  min-width: 20px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+}
 
 /* ---- Changes screen (task 009) ---- */
 
@@ -1275,8 +1350,45 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .changes-view__actions .primary-button { display: inline-flex; align-items: center; gap: 8px; }
 .changes-view__actions .primary-button svg { width: 16px; height: 16px; }
 
-.changes-loading { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
-.changes-loading svg { width: 22px; height: 22px; }
+/* --- Indeterminate loading bar (see loadingBar.tsx) --------------------- */
+
+.loading-state {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.loading-bar {
+  position: relative;
+  display: block;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-hover);
+}
+.loading-bar__indicator {
+  position: absolute;
+  inset-block: 0;
+  /* Paired with the keyframes below: the sweep ends at 100/40 = 250% of the
+     indicator's own width, which is exactly the point it clears the track's
+     right edge. Changing one without the other leaves a gap or a jump. */
+  width: 40%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+  animation: loading-bar-sweep 1200ms ease-in-out infinite;
+}
+@keyframes loading-bar-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+.loading-state__message {
+  margin: 0;
+  padding: 0 var(--space-4);
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
 
 /* ---- Save version dialog (task 010) ---- */
 
@@ -1907,6 +2019,22 @@ input:focus-visible,
   .empty-state__icon--loading svg,
   .project-hero--loading .project-hero__icon svg,
   .icon--spinning { animation: none; }
+  /* Full width rather than a stopped 40% segment: a frozen partial bar reads
+     as "40% done", which is a claim this indicator can't make. */
+  .loading-bar__indicator { width: 100%; animation: none; }
+  .titlebar-menu__list { animation: none; }
+  .loading-state > .visually-hidden {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    color: var(--text-secondary);
+    font-size: 13px;
+    text-align: center;
+  }
+  .loading-bar__indicator { background: color-mix(in srgb, var(--accent-primary) 32%, transparent); }
 }
 
 @media (max-width: 1100px) {
@@ -1934,6 +2062,20 @@ input:focus-visible,
 }
 
 @media (max-width: 800px) {
+  .settings-backdrop { padding: 12px; }
+  .settings-dialog { height: calc(100vh - 24px); min-height: 0; }
+  .settings-dialog__header { min-height: 78px; padding: 16px 18px; }
+  .settings-dialog__header p { max-width: 46ch; }
+  .settings-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .settings-nav {
+    display: flex; overflow-x: auto; padding: 10px 12px;
+  }
+  .settings-nav::after {
+    top: auto; right: 12px; bottom: 0; left: 12px; width: auto; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
+  }
+  .settings-nav__item { width: auto; flex: 0 0 auto; padding: 0 12px; }
+  .settings-view { padding: 4px 20px 24px; }
   .window-titlebar__brand { display: flex; padding-left: 4px; }
   .titlebar-badge { display: none; }
   .titlebar-history-controls { display: none; }
@@ -1983,7 +2125,6 @@ input:focus-visible,
   }
   .project-hero__actions { grid-column: 1; width: 100%; }
   .project-hero__action { flex: 1 1 auto; }
-  .project-facts__grid { grid-template-columns: 1fr; }
   .version-line-spotlight { flex-direction: column; align-items: stretch; }
   .changes-view__header { flex-direction: column; align-items: stretch; }
   .changes-view__actions { flex-direction: column; align-items: stretch; }
@@ -2002,6 +2143,7 @@ input:focus-visible,
   .project-switcher-icons__add,
   .project-switcher-compact__trigger,
   .compact-history-controls .titlebar-icon-button,
+  .project-overview__identity .project-path__copy,
   .sidebar-toggle {
     width: 44px;
     height: 44px;
@@ -2013,6 +2155,7 @@ input:focus-visible,
 
 @media (hover: none) {
   .project-switcher__close:not(:disabled) { opacity: 1; }
+  .project-overview__identity .project-path__copy { opacity: 1; }
   .auto-hide-scrollbar::-webkit-scrollbar-thumb {
     background-color: color-mix(in srgb, var(--text-secondary) 32%, transparent);
   }

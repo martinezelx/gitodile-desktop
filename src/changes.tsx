@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -10,7 +10,6 @@ import {
   FilePlus,
   FileQuestion,
   FileWarning,
-  LoaderCircle,
   Pencil,
   RefreshCw,
   Save,
@@ -22,6 +21,7 @@ import { getFileTypeIcon } from "./fileIcons";
 import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { SaveVersionDialog } from "./saveVersionDialog";
 import { fetchDiff, getDiffStore, type DiffCache } from "./diffCache";
+import { LoadingBar } from "./loadingBar";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
 // ---- Types mirroring the Rust `FileDiff` contract (src-tauri/src/lib.rs) ----
@@ -222,15 +222,128 @@ export function isFirstRowOfHunk(rows: DiffRow[], index: number): boolean {
   return index === 0 || rows[index - 1].hunkIndex !== rows[index].hunkIndex;
 }
 
-/** Rough starting guesses only: `useVirtualizer`'s `measureElement` corrects
- * each row's real height after its first render, so these never need to
- * track the CSS exactly — they just need to be close enough that the
- * initial scroll position and scrollbar size aren't visibly wrong for a
- * frame. Line rows are always exactly one line tall (`.diff-line__content`
- * is `white-space: pre`, so content never wraps); marker rows are a short,
- * single-line pill. */
-const ESTIMATED_LINE_ROW_HEIGHT = 20;
+/** Starting guesses for `useVirtualizer`. `measureElement` corrects each row
+ * once it has actually rendered, so these only have to be close — but "close"
+ * matters more than it looks: every row the virtualizer has not measured yet
+ * is placed using its estimate, so a systematically wrong estimate offsets
+ * everything below it and the list visibly re-shuffles as real measurements
+ * arrive.
+ *
+ * That is exactly what a flat per-line guess used to cause here. `.diff-line__content`
+ * is `white-space: pre-wrap` with `overflow-wrap: anywhere` (it was `pre` when
+ * this estimate was written), so a long line wraps onto two or three visual
+ * lines and is two or three times taller than a one-line guess. The diff is
+ * monospace, though, which makes the real height computable rather than
+ * guessable: see `estimateLineRows`. */
 const ESTIMATED_MARKER_ROW_HEIGHT = 32;
+/** Fallback for before the first measurement lands, matching the CSS's
+ * `font: 12.5px/1.6` line box. */
+const FALLBACK_LINE_HEIGHT = 20;
+/** Everything in `.diff-line` that isn't the content column: the 48px number
+ * gutter and 16px sign column from its `grid-template-columns`, plus its own
+ * 16px `padding-right`. Kept in sync with that rule in styles.css. */
+const DIFF_CONTENT_GUTTER = 80;
+
+/** Advance width of one character, per resolved font. The diff is monospace,
+ * so a single sample describes every glyph — which is what lets the estimate
+ * below be arithmetic instead of a guess.
+ *
+ * Measured with a throwaway span *inside* the diff element rather than via
+ * canvas: it inherits the real font that way (no shorthand to rebuild and
+ * keep in sync), and it goes through the same layout path that will actually
+ * wrap the lines. Sampled over many characters so sub-pixel advances don't
+ * round away. Cached because a resize would otherwise force a layout on
+ * every frame of a drag. */
+const SAMPLE_TEXT = "0".repeat(100);
+const charWidthByFont = new Map<string, number>();
+
+function measureCharWidth(element: HTMLElement, fontKey: string): number {
+  const cached = charWidthByFont.get(fontKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const probe = document.createElement("span");
+  probe.textContent = SAMPLE_TEXT;
+  probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;pointer-events:none";
+  element.appendChild(probe);
+  const width = probe.getBoundingClientRect().width / SAMPLE_TEXT.length;
+  probe.remove();
+  if (width > 0) {
+    charWidthByFont.set(fontKey, width);
+  }
+  return width;
+}
+
+const COMBINING_MARK = /\p{Mark}/u;
+const EXTENDED_PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
+
+/** Terminal-style display width for the exceptional glyphs that invalidate
+ * JavaScript string length as a wrapping estimate. The ordinary source-code
+ * path stays one column per code point; combining marks and joiners consume
+ * none, while CJK/full-width characters and emoji consume two. */
+function codePointColumns(symbol: string): number {
+  const codePoint = symbol.codePointAt(0) ?? 0;
+  if (
+    COMBINING_MARK.test(symbol) ||
+    codePoint === 0x200d ||
+    (codePoint >= 0xfe00 && codePoint <= 0xfe0f) ||
+    (codePoint >= 0xe0100 && codePoint <= 0xe01ef)
+  ) {
+    return 0;
+  }
+  if (
+    EXTENDED_PICTOGRAPHIC.test(symbol) ||
+    (codePoint >= 0x1100 &&
+      (codePoint <= 0x115f ||
+        codePoint === 0x2329 ||
+        codePoint === 0x232a ||
+        (codePoint >= 0x2e80 && codePoint <= 0xa4cf && codePoint !== 0x303f) ||
+        (codePoint >= 0xac00 && codePoint <= 0xd7a3) ||
+        (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
+        (codePoint >= 0xfe10 && codePoint <= 0xfe19) ||
+        (codePoint >= 0xfe30 && codePoint <= 0xfe6f) ||
+        (codePoint >= 0xff00 && codePoint <= 0xff60) ||
+        (codePoint >= 0xffe0 && codePoint <= 0xffe6) ||
+        (codePoint >= 0x1b000 && codePoint <= 0x1ffff) ||
+        (codePoint >= 0x20000 && codePoint <= 0x3fffd)))
+  ) {
+    return 2;
+  }
+  return 1;
+}
+
+/** How many visual rows a pre-wrapped diff line is likely to occupy before
+ * the browser can measure it. This deliberately models tabs and Unicode
+ * display columns instead of using UTF-16 `string.length`; the live DOM
+ * measurement remains authoritative because font fallback can still vary. */
+export function estimateLineRows(content: string, charsPerLine: number, tabSize = 8): number {
+  if (charsPerLine <= 0) {
+    return 1;
+  }
+  let rows = 1;
+  let column = 0;
+  for (const symbol of content) {
+    const width = symbol === "\t"
+      ? Math.max(1, tabSize - (column % tabSize))
+      : codePointColumns(symbol);
+    if (width === 0) continue;
+    if (column > 0 && column + width > charsPerLine) {
+      rows += 1;
+      column = 0;
+    }
+    column += width;
+    while (column > charsPerLine) {
+      rows += 1;
+      column -= charsPerLine;
+    }
+  }
+  return rows;
+}
+
+export function measureDiffRowHeight(element: HTMLElement): number {
+  return element.getBoundingClientRect().height +
+    (Number.parseFloat(window.getComputedStyle(element).marginTop) || 0);
+}
 
 /** Renders only the diff rows currently scrolled into view (plus a small
  * overscan buffer), instead of the whole file's worth of DOM nodes at once.
@@ -242,14 +355,66 @@ const ESTIMATED_MARKER_ROW_HEIGHT = 32;
 function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): React.JSX.Element {
   const rows = useMemo(() => flattenDiffRows(hunks), [hunks]);
   const scrollRef = useRef<HTMLPreElement>(null);
+  /** Where lines wrap, and how tall a wrapped line is — both read from the
+   * live element rather than hardcoded, so the estimate follows the CSS and
+   * the pane's current width (the sidebar collapsing changes both). */
+  const [metrics, setMetrics] = useState({ charsPerLine: 0, lineHeight: FALLBACK_LINE_HEIGHT, tabSize: 8 });
+
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) {
+      return;
+    }
+    const readMetrics = (): void => {
+      const style = window.getComputedStyle(element);
+      const charWidth = measureCharWidth(element, `${style.font} ${style.letterSpacing}`);
+      const parsedLineHeight = Number.parseFloat(style.lineHeight);
+      const parsedTabSize = Number.parseFloat(style.tabSize);
+      const contentWidth = element.clientWidth - DIFF_CONTENT_GUTTER;
+      setMetrics((previous) => {
+        const next = {
+          charsPerLine: charWidth > 0 && contentWidth > 0 ? Math.floor(contentWidth / charWidth) : 0,
+          lineHeight: Number.isFinite(parsedLineHeight) ? parsedLineHeight : FALLBACK_LINE_HEIGHT,
+          tabSize: Number.isFinite(parsedTabSize) && parsedTabSize > 0 ? parsedTabSize : 8,
+        };
+        // Bail out on no-op resizes: this runs from a ResizeObserver, and
+        // setting state unconditionally there would loop.
+        return previous.charsPerLine === next.charsPerLine &&
+          previous.lineHeight === next.lineHeight &&
+          previous.tabSize === next.tabSize
+          ? previous
+          : next;
+      });
+    };
+
+    readMetrics();
+    const observer = new ResizeObserver(readMetrics);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (index) =>
-      rows[index].kind === "marker" ? ESTIMATED_MARKER_ROW_HEIGHT : ESTIMATED_LINE_ROW_HEIGHT,
+    estimateSize: (index) => {
+      const row = rows[index];
+      if (row.kind === "marker") {
+        return ESTIMATED_MARKER_ROW_HEIGHT;
+      }
+      return estimateLineRows(row.line.content, metrics.charsPerLine, metrics.tabSize) * metrics.lineHeight;
+    },
+    // `getBoundingClientRect` excludes margins, so without this the 12px
+    // `margin-top` on `.diff-row--hunk-start` is missing from every measured
+    // hunk boundary and the rows below it drift up by that much per hunk.
+    measureElement: measureDiffRowHeight,
     overscan: 12,
   });
+
+  // A new wrap point invalidates every estimate, including rows already
+  // measured at the old width.
+  useLayoutEffect(() => {
+    virtualizer.measure();
+  }, [metrics.charsPerLine, metrics.lineHeight, metrics.tabSize]);
 
   return (
     <pre
@@ -416,12 +581,7 @@ function DiffWorkspace({
         {...autoHideScrollbarProps<HTMLDivElement>()}
         className="changes-diff__body auto-hide-scrollbar"
       >
-        {diffState.status === "loading" && (
-          <div className="changes-diff__status" role="status">
-            <LoaderCircle aria-hidden="true" className="icon--spinning" />
-            {t.changesDiffLoadingTitle}
-          </div>
-        )}
+        {diffState.status === "loading" && <LoadingBar label={t.changesDiffLoadingTitle} showLabel />}
         {diffState.status === "error" && (
           <div className="changes-diff__status changes-diff__status--error" role="alert">
             <CircleAlert aria-hidden="true" />
@@ -800,9 +960,7 @@ export function ChangesPanel({
       </header>
 
       {isLoadingList ? (
-        <div className="changes-loading" role="status">
-          <LoaderCircle aria-hidden="true" className="icon--spinning" />
-        </div>
+        <LoadingBar label={t.commonLoading} />
       ) : !workingTree ? null : workingTree.isClean ? (
         <div className="changes-empty">
           <div className="changes-empty__icon" aria-hidden="true">

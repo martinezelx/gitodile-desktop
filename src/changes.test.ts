@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { flattenDiffRows, getOrderedChangeEntries, isFirstRowOfHunk, resolveSelectedPath } from "./changes";
+import {
+  estimateLineRows,
+  flattenDiffRows,
+  getOrderedChangeEntries,
+  isFirstRowOfHunk,
+  measureDiffRowHeight,
+  resolveSelectedPath,
+} from "./changes";
 import type { DiffHunk, DiffLine } from "./changes";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
@@ -131,5 +138,55 @@ describe("isFirstRowOfHunk", () => {
 
     // [line(hunk0), line(hunk0), marker(hunk1), line(hunk1)]
     expect(rows.map((_, index) => isFirstRowOfHunk(rows, index))).toEqual([true, false, true, false]);
+  });
+});
+
+/** `.diff-line__content` is `white-space: pre-wrap` with `overflow-wrap:
+ * anywhere`, so a long line occupies several visual lines. The virtualizer
+ * used to assume one line always meant one row's worth of height, which put
+ * every row below a wrapped one at the wrong offset until it was measured. */
+describe("estimateLineRows", () => {
+  it("keeps a line that fits on one row at one row", () => {
+    expect(estimateLineRows("x".repeat(40), 80)).toBe(1);
+    expect(estimateLineRows("x".repeat(80), 80)).toBe(1);
+  });
+
+  it("counts the extra rows a wrapped line takes", () => {
+    expect(estimateLineRows("x".repeat(81), 80)).toBe(2);
+    expect(estimateLineRows("x".repeat(160), 80)).toBe(2);
+    expect(estimateLineRows("x".repeat(161), 80)).toBe(3);
+  });
+
+  it("never collapses an empty line to zero height", () => {
+    expect(estimateLineRows("", 80)).toBe(1);
+  });
+
+  it("falls back to a single row before the width has been measured", () => {
+    expect(estimateLineRows("x".repeat(500), 0)).toBe(1);
+  });
+
+  it("expands tabs to the next tab stop instead of counting them as one character", () => {
+    expect(estimateLineRows("1234\t9", 8, 8)).toBe(2);
+    expect(estimateLineRows("1\t8", 8, 4)).toBe(1);
+  });
+
+  it("counts CJK and emoji as wide while ignoring combining marks", () => {
+    expect(estimateLineRows("界界界", 4)).toBe(2);
+    expect(estimateLineRows("🙂🙂🙂", 4)).toBe(2);
+    expect(estimateLineRows("e\u0301e\u0301", 2)).toBe(1);
+  });
+});
+
+describe("measureDiffRowHeight", () => {
+  it("includes the hunk boundary margin omitted by getBoundingClientRect", () => {
+    const element = document.createElement("div");
+    element.style.marginTop = "12px";
+    element.getBoundingClientRect = () => ({
+      x: 0, y: 0, top: 0, right: 100, bottom: 28, left: 0, width: 100, height: 28,
+      toJSON: () => ({}),
+    });
+    document.body.appendChild(element);
+    expect(measureDiffRowHeight(element)).toBe(40);
+    element.remove();
   });
 });

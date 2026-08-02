@@ -1,19 +1,18 @@
 import React, { Profiler, lazy, useEffect, useLayoutEffect, useRef } from "react";
-import { GitBranch, GitCommitHorizontal, GitCompare, LayoutDashboard, LifeBuoy, Settings2 } from "lucide-react";
+import { GitBranch, GitCommitHorizontal, GitCompare, LayoutDashboard, LifeBuoy, Settings } from "lucide-react";
 
 import type { Translations } from "./i18n";
 import type { ProjectView } from "./projectSessions";
 
-/** Every screen the app can show. `ProjectView` stays the source of truth for
- * the per-project ones, so `ProjectSession`'s view history keeps type-checking
- * against this. Settings is app-level and never enters that history. */
-export type ScreenId = ProjectView | "settings";
+/** Every workspace screen the app can show. Settings is an app-level dialog,
+ * not a screen, so opening it never changes a project's navigation history. */
+export type ScreenId = ProjectView;
 
 /** Nav destinations include screens that do not exist yet (History, Recovery).
  * They live in the same table so a destination cannot be half-registered: when
  * task 015 builds History, it flips one entry from `screen: null` to a screen
  * id and gets nav, palette, prefetch, and keep-alive at once. */
-export type NavDestinationId = ScreenId | "history" | "recovery";
+export type NavDestinationId = ScreenId | "history" | "recovery" | "settings";
 
 /** Keys of `Translations` whose value is a plain string, so a registry entry
  * can name a label without being able to point at a formatting function. */
@@ -44,6 +43,8 @@ export type NavDestination = {
    * new screen from silently shipping without a prefetch, which is exactly
    * what happened to the Version-lines chunks between tasks 016 and 019. */
   prefetch: (() => Promise<unknown>)[];
+  /** App-level overlay opened without replacing the active workspace. */
+  overlay?: "settings";
 };
 
 /** Lazily loaded: neither is needed for first paint (Overview with no project
@@ -125,15 +126,16 @@ export const NAV_DESTINATIONS: NavDestination[] = [
   },
   {
     id: "settings",
-    screen: "settings",
+    screen: null,
     section: "application",
     labelKey: "navSettings",
     disabledLabelKey: null,
-    icon: <Settings2 />,
+    icon: <Settings />,
     requiresProject: false,
     inCompactNav: true,
     commandLabelKey: "commandGoSettings",
     prefetch: [],
+    overlay: "settings",
   },
 ];
 

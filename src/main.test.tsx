@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { LanguageProvider } from "./i18n";
-import { App } from "./main";
+import { App, ProjectPath, TitlebarMenu } from "./main";
 import type { RepositoryInfo, WorkingTreeStatus } from "./repositoryOverview";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -101,7 +101,137 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+describe("TitlebarMenu", () => {
+  function renderMenu(overrides: Partial<React.ComponentProps<typeof TitlebarMenu>> = {}) {
+    const props: React.ComponentProps<typeof TitlebarMenu> = {
+      onOpenAbout: vi.fn(),
+      onOpenProject: vi.fn(),
+      onCloseProject: vi.fn(),
+      onOpenSettings: vi.fn(),
+      onOpenShortcuts: vi.fn(),
+      hasProject: true,
+      isOpeningProject: false,
+      canReloadWindow: true,
+      ...overrides,
+    };
+    render(
+      <LanguageProvider>
+        <TitlebarMenu {...props} />
+      </LanguageProvider>,
+    );
+    return props;
+  }
+
+  it("implements the expected menu keyboard navigation and restores focus", async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const trigger = screen.getByRole("button", { name: "More actions" });
+
+    await user.click(trigger);
+    const items = screen.getAllByRole("menuitem");
+    expect(items[0]).toHaveFocus();
+
+    await user.keyboard("{End}");
+    expect(items.at(-1)).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(items[0]).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(items.at(-1)).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(items[0]).toHaveFocus();
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(trigger).toHaveFocus();
+
+    await user.keyboard("{ArrowUp}");
+    expect(screen.getAllByRole("menuitem").at(-1)).toHaveFocus();
+    await user.tab();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("restores the trigger before running a menu action", async () => {
+    const user = userEvent.setup();
+    const onOpenShortcuts = vi.fn(() => {
+      expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
+    });
+    renderMenu({ onOpenShortcuts });
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Keyboard shortcuts" }));
+
+    expect(onOpenShortcuts).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("keeps reload focusable but unavailable while an operation is unsettled", async () => {
+    const user = userEvent.setup();
+    renderMenu({ canReloadWindow: false });
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    const reload = screen.getByRole("menuitem", { name: /Reload window.*Finish the current project operation/ });
+    expect(reload).toHaveAttribute("aria-disabled", "true");
+    await user.click(reload);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+});
+
+describe("ProjectPath", () => {
+  it("reports clipboard permission failures through the caller's error surface", async () => {
+    const user = userEvent.setup();
+    const onCopyError = vi.fn();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+    });
+
+    render(
+      <LanguageProvider>
+        <ProjectPath path="C:\\project" onCopyError={onCopyError} />
+      </LanguageProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Copy project path" }));
+
+    expect(onCopyError).toHaveBeenCalledOnce();
+  });
+});
+
 describe("App project restoration", () => {
+  it("opens Settings as a sectioned dialog without replacing the active screen", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") {
+        return Promise.resolve({ name: "", email: "" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    const trigger = screen.getAllByRole("button", { name: "Settings" })[0];
+    expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
+    await user.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    expect(within(dialog).getByRole("navigation", { name: "Settings sections" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "General" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Appearance" }));
+    expect(within(dialog).getByRole("heading", { name: "Language" })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
   it("does not overwrite stored projects before startup revalidation completes", async () => {
     localStorage.setItem("gitodrile-reopen-last-project", "true");
     localStorage.setItem(

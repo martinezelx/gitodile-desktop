@@ -199,6 +199,16 @@ export function shouldRefreshOnWatchEvent(session: ProjectSession | undefined): 
   return phase === undefined || phase === "error" || phase === "success";
 }
 
+/** Reloading the WebView while a project mutation is unsettled would detach
+ * the UI from an operation that may still be changing Git state. Terminal
+ * success/error phases are safe: they no longer own the working tree. */
+export function hasUnsettledOperation(state: ProjectSessionsState): boolean {
+  return state.order.some((id) => {
+    const phase = state.byId[id]?.operation?.phase;
+    return phase !== undefined && phase !== "error" && phase !== "success";
+  });
+}
+
 export function getMutationBlocker(
   state: ProjectSessionsState,
   id: string,
