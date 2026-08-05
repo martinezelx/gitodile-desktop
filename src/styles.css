@@ -31,6 +31,12 @@
   --text-primary: #1c1917;
   --text-secondary: #6f6a64;
   --border-subtle: #e7e5e4;
+  /* A second, dedicated token for lines whose whole job is to be seen — a
+     divider between rows or sections, not a container's own edge. In light
+     mode it's the same value as `--border-subtle` (there was never a
+     visibility problem here); dark mode gives it its own, more visible
+     value below instead of reusing the near-invisible `--border-subtle`. */
+  --border-divider: #e7e5e4;
   /* Two-tone green: --accent-brand is the vivid crocodile lima, reserved for
      punctual brand moments (mark, primary CTA). --accent-primary is the
      everyday tone used for nav/focus/status so the UI isn't awash in green. */
@@ -44,6 +50,12 @@
   --status-warning: #8a5b00;
   --status-danger: #b3261e;
   --status-danger-contrast: #fff7f5;
+  /* Renamed used to borrow --accent-primary, which happens to be the exact
+     same hex as --status-success in this palette — so "renamed" and "added"
+     rendered as literally the same color. A dedicated blue keeps the four
+     change categories (success/warning/danger/renamed) each visually
+     distinct instead of two of them colliding by coincidence. */
+  --status-renamed: #2f6fb3;
   --diff-added: #4f751e;
   --diff-removed: #b3261e;
   --focus-ring: #4f751e;
@@ -94,6 +106,7 @@
     --text-primary: #fafafa;
     --text-secondary: #a1a1aa;
     --border-subtle: #27272a;
+    --border-divider: #3f3f46;
     --accent-brand: #8bc53f;
     --accent-brand-contrast: #14170f;
     --brand-mark-foreground: #14170f;
@@ -104,6 +117,7 @@
     --status-warning: #e8b339;
     --status-danger: #ff6b5b;
     --status-danger-contrast: #14170f;
+    --status-renamed: #6ea8fe;
     --diff-added: #9bd65a;
     --diff-removed: #ff6b5b;
     --focus-ring: #9bd65a;
@@ -124,6 +138,7 @@
   --text-primary: #1c1917;
   --text-secondary: #6f6a64;
   --border-subtle: #e7e5e4;
+  --border-divider: #e7e5e4;
   --accent-brand: #8bc53f;
   --accent-brand-contrast: #14170f;
   --brand-mark-foreground: #faf8f5;
@@ -134,6 +149,7 @@
   --status-warning: #8a5b00;
   --status-danger: #b3261e;
   --status-danger-contrast: #fff7f5;
+  --status-renamed: #2f6fb3;
   --diff-added: #4f751e;
   --diff-removed: #b3261e;
   --focus-ring: #4f751e;
@@ -153,6 +169,7 @@
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
   --border-subtle: #27272a;
+  --border-divider: #3f3f46;
   --accent-brand: #8bc53f;
   --accent-brand-contrast: #14170f;
   --brand-mark-foreground: #14170f;
@@ -163,6 +180,7 @@
   --status-warning: #e8b339;
   --status-danger: #ff6b5b;
   --status-danger-contrast: #14170f;
+  --status-renamed: #6ea8fe;
   --diff-added: #9bd65a;
   --diff-removed: #ff6b5b;
   --focus-ring: #9bd65a;
@@ -246,12 +264,10 @@ button { font: inherit; }
 .titlebar-icon-button svg { width: 16px; height: 16px; }
 .titlebar-history-controls { display: flex; align-items: center; gap: 2px; }
 .titlebar-badge {
-  margin-left: 4px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-subtle);
+  margin-right: 8px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-subtle);
   background: var(--surface-hover); color: var(--text-secondary); font-size: 12px; font-weight: 700;
-  letter-spacing: .015em; line-height: 1.2; white-space: nowrap;
+  letter-spacing: .015em; line-height: 1.2; white-space: nowrap; flex-shrink: 0;
 }
-
-.titlebar-theme-toggle { margin-left: 4px; }
 
 .window-controls { display: flex; align-items: center; gap: 3px; }
 
@@ -270,7 +286,7 @@ button { font: inherit; }
   transform-origin: top left;
   animation: titlebar-menu-in var(--duration-fast) ease-out;
 }
-.titlebar-menu__divider { height: 1px; margin: 6px 4px; background: var(--border-subtle); }
+.titlebar-menu__divider { height: 1px; margin: 6px 4px; background: var(--border-divider); }
 .titlebar-menu__item {
   display: flex;
   align-items: center;
@@ -473,7 +489,27 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
 .secondary-button { background: var(--surface-hover); color: var(--text-primary); }
 .secondary-button:not(:disabled):hover { background: var(--surface-active); }
 .primary-button:disabled, .secondary-button:disabled { opacity: 0.5; cursor: default; }
-.secondary-button--large { padding: 11px 18px; font-size: 14px; font-weight: 600; }
+/* A third, quieter tier below primary/secondary: no fill, no border — for an
+   action that needs to stay reachable without competing for the eye against
+   the button(s) that actually matter in the same row. */
+.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.ghost-button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
+.ghost-button:disabled { opacity: 0.5; cursor: default; }
+.ghost-button svg { width: 14px; height: 14px; flex-shrink: 0; }
 
 /* Default app-wide tooltip (see tooltip.tsx): a single instance portaled to
    <body> with `position: fixed`, driven by any element's `data-tooltip`
@@ -533,60 +569,36 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
 
 .project-overview {
   width: 100%;
-  max-width: 1120px;
-  margin: 0 auto;
   display: grid;
+  align-content: start;
   gap: var(--space-5);
 }
 
+/* Identity on the left, the version line on the right. They wrap onto separate
+   rows before either is squeezed: `flex-basis` gives the identity a floor
+   (320px) it will take a new row rather than go below. */
 .project-overview__header {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  /* Centred, not top-aligned: the control block is taller than the two lines
+     of identity, and matching their optical centres reads as deliberate where
+     a shared top edge just looks like one side ran long. */
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
 }
-.project-overview__identity { min-width: 0; }
-.project-overview__title-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
+.project-overview__identity { flex: 1 1 320px; min-width: 0; }
 .project-overview__identity h1 {
   overflow-wrap: anywhere;
-  margin-bottom: 0;
+  margin-bottom: var(--space-2);
   font-size: 28px;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
-.project-overview__branch-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  height: 26px;
-  padding: 0 9px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-hover);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  /* Optical, not geometric, centring: `align-items: center` lines the chip
-     up with the h1's *line box*, but the title's visual mass (cap top to
-     baseline) sits 1.5px lower than that box's centre, because the line box
-     also reserves room for descenders. Nudging down by that measured
-     difference makes the chip look level with the letters. */
-  transform: translateY(1.5px);
-}
-.project-overview__branch-chip svg { width: 13px; height: 13px; flex-shrink: 0; }
 .project-overview__identity .project-path { margin-bottom: 0; }
 /* Revealed on hover (or keyboard focus) rather than sitting there: at rest
-   the copy glyph lands directly under the branch chip's own icon, and the
-   stacked pair reads as clutter beside the title. The button keeps its box
-   either way, so revealing it never shifts the path. Mirrors the
+   the stacked copy glyph reads as clutter beside the title. The button keeps
+   its box either way, so revealing it never shifts the path. Mirrors the
    hover-reveal already used by `.project-switcher__close`. */
 .project-overview__identity .project-path__copy {
   width: 32px;
@@ -606,7 +618,7 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   height: 1px;
   margin: var(--space-4) 2px;
   border: 0;
-  background: linear-gradient(90deg, transparent, var(--border-subtle) 25%, var(--border-subtle) 75%, transparent);
+  background: linear-gradient(90deg, transparent, var(--border-divider) 25%, var(--border-divider) 75%, transparent);
   flex-shrink: 0;
 }
 /* Project switcher: expanded-sidebar list, collapsed/narrow popover trigger,
@@ -742,87 +754,176 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
 .restore-skipped-notice button:hover { background: var(--surface-hover); color: var(--text-primary); }
 .restore-skipped-notice button svg { width: 14px; height: 14px; }
 
-/* Overview's most prominent identity fact: which version line the project
-   is on, with the quick switch/create actions right next to it. */
-.version-line-spotlight {
+/* Where new work goes, and the two counts that summarize the card below it —
+   sitting opposite the identity it qualifies. A plain inline breadcrumb, not a
+   bordered card: no background or shadow to compete with the status card
+   underneath, which is where this page's visual weight actually belongs.
+   `.version-line-selector` doubles as the value display, so the branch is
+   named once, by the control that changes it. */
+.overview-meta {
+  flex: 0 1 auto;
+  max-width: 100%;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
+  gap: var(--space-2);
 }
-.version-line-spotlight__icon {
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-lg);
-  background: var(--surface-active);
-  color: var(--accent-primary);
+.overview-meta__branch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
-.version-line-spotlight__icon svg { width: 22px; height: 22px; }
-.version-line-spotlight__body { flex: 1; min-width: 0; }
-.version-line-spotlight__body h2 {
-  margin: 0 0 3px;
+/* Stands in for the word "Branch": a glyph reads as "this is about a branch"
+   on its own, the way GitHub/GitLab already do it, so the label added
+   nothing a screen reader's `aria-label` on the group (see `.overview-meta`)
+   doesn't already say. Only reached on an unborn line, where there is no
+   selector to carry the icon instead (see `.version-line-selector__icon`
+   for the normal case). */
+.overview-meta__branch-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  color: var(--text-secondary);
+  vertical-align: -2px;
+}
+/* An unborn line has nothing to switch to and nothing saved to branch from,
+   so the actions give way to the name and why it is not a line yet. */
+.overview-meta__branch-note { max-width: 40ch; color: var(--text-secondary); font-size: 13px; }
+.version-line-card__value {
+  display: inline;
+  margin-right: 4px;
   color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-.version-line-spotlight__value {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 19px;
   font-weight: 700;
   overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
-.version-line-spotlight__description {
-  margin: 4px 0 0;
+.overview-meta__sep { color: var(--border-subtle); font-weight: 700; }
+.overview-meta__stat {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+}
+/* The one count worth a second look: pending, unpublished work. */
+.overview-meta__stat--accent { color: var(--accent-primary); font-weight: 700; }
+
+/* Reserved space for the Overview summaries of the screens that are not built
+   yet. Deliberately the quietest thing on the screen: dashed border, no
+   shadow, muted text — it reads as an outline of what is coming, never as a
+   card that failed to load. */
+.overview-placeholders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-4);
+}
+.overview-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: transparent;
+}
+.overview-placeholder__head { display: flex; align-items: center; gap: var(--space-3); }
+.overview-placeholder__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-lg);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+}
+.overview-placeholder__icon svg { width: 18px; height: 18px; }
+.overview-placeholder__heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.overview-placeholder__heading h2 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.overview-placeholder__badge {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.overview-placeholder__description {
+  margin: 0;
+  max-width: 52ch;
   color: var(--text-secondary);
   font-size: 13px;
+  line-height: 1.5;
 }
-.version-line-spotlight .version-lines-quick-switch { flex-shrink: 0; }
+/* Blocked-out lines, never sample data: the shape of the coming summary
+   without ever showing a number this screen cannot actually compute. */
+.overview-placeholder__rows { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+.overview-placeholder__row {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-panel);
+}
+.overview-placeholder__row:nth-child(2) { width: 82%; }
+.overview-placeholder__row:nth-child(3) { width: 64%; }
 
 /* The trigger IS the current-value display — a recognizable dropdown/select
    shape, not a plain button labeled "Change" sitting next to separate static
    text. The static (non-switchable: detached/checked-out) variant keeps the
    exact same look minus the interactive affordances. */
 .version-line-selector {
-  display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%;
-  padding: 8px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%;
+  padding: 6px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
   background: var(--surface-hover); color: var(--text-primary); cursor: pointer;
   transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 .version-line-selector:hover { background: var(--surface-active); }
 .version-line-selector[aria-expanded="true"] { border-color: var(--accent-primary); background: var(--surface-active); }
 .version-line-selector--static { cursor: default; background: transparent; border-style: dashed; }
+/* Lives inside the pill now, not floating outside it — that put two
+   near-identical branch glyphs flanking the selector (this one, and the
+   "New" button's `GitBranchPlus`), which read as a repeated shape rather
+   than two different things. `currentColor` (the selector's own text color)
+   instead of the accent green it had outside: inside the control it's part
+   of the value's own typography, not a separate colored anchor point. */
+.version-line-selector__icon {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  color: currentColor;
+}
+/* Was 19px/700 — noticeably bigger and bolder than everything around it
+   (the "Branch" label at 13px, the title at 17px). The branch name is a
+   value to scan, not a headline; this keeps it legible and still the
+   heaviest thing in the selector without dominating the whole card. */
 .version-line-selector__value {
   min-width: 0; overflow-wrap: anywhere; color: var(--text-primary);
-  font-size: 19px; font-weight: 700;
+  font-size: 15px; font-weight: 650;
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
-.version-line-selector__value--action {
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 650;
-}
 .version-line-selector__chevron {
-  flex-shrink: 0; width: 18px; height: 18px; color: var(--text-secondary);
+  flex-shrink: 0; width: 15px; height: 15px; color: var(--text-secondary);
   transition: transform var(--duration-fast);
 }
 .version-line-selector[aria-expanded="true"] .version-line-selector__chevron { transform: rotate(180deg); }
 
-/* Dominant status card: one message, one primary action, three variants. */
+/* Dominant status card: one message, one primary action, three variants,
+   with a sample of the changed files as a full-width last row. */
 .project-hero {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-4);
   padding: var(--space-5);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
@@ -830,6 +931,14 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   box-shadow: var(--shadow-md);
 }
 .project-hero__icon {
+  /* Overrides the grid's own `align-items: center`: with the actions column
+     now two tiers tall (the refresh ghost button above Review/Save) the row
+     itself is taller than this icon, and centering against that height sank
+     the icon well below the title it's meant to sit level with. Top-aligning
+     it instead matches how `.pending-versions__icon` already aligns with its
+     own title (`align-items: flex-start`), so both icons sit level with the
+     first line of text beside them. */
+  align-self: start;
   width: 52px;
   height: 52px;
   display: grid;
@@ -868,7 +977,152 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   line-height: 1.5;
   white-space: nowrap;
 }
-.status-breakdown__item--attention { border-color: var(--status-warning); color: var(--status-warning); }
+/* Same tint the file-preview groups use for the same categories
+   (`.changes-preview__group--*`), so a color means the same thing whether
+   it's a summary chip or a column heading. "Edited" stays neutral — the
+   default, expected case doesn't need its own color to stand out. */
+.status-breakdown__item--new { border-color: color-mix(in srgb, var(--status-success) 45%, transparent); color: var(--status-success); }
+.status-breakdown__item--deleted { border-color: color-mix(in srgb, var(--status-danger) 45%, transparent); color: var(--status-danger); }
+.status-breakdown__item--renamed { border-color: color-mix(in srgb, var(--status-renamed) 45%, transparent); color: var(--status-renamed); }
+.status-breakdown__item--conflicted { border-color: var(--status-warning); color: var(--status-warning); }
+
+/* A full-width rule that fades at both ends instead of running edge to edge —
+   the same treatment `.settings-nav::after` uses, applied here to the
+   dividers between the status card's stacked rows. `::before` (not
+   `border-top`) because a gradient can't be a border color. */
+.card-row-divider {
+  position: relative;
+  margin-top: var(--space-2);
+  padding-top: var(--space-4);
+}
+.card-row-divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-divider) 12%, var(--border-divider) 88%, transparent);
+}
+
+/* A sample of the changed files, as the card's last row. It spans the card's
+   full width, so a wider window turns into more columns rather than more
+   empty space. Grouped by category — one column per category, matching the
+   "N edited · N new" chips above it, so the summary and the detail agree on
+   the same grouping instead of the detail mixing everything back together.
+   No divider above it — this is the headline's own detail, not a separate
+   section. The saved-but-unpublished versions below it are a genuinely
+   different state and keep their divider (`.card-row-divider`). */
+.changes-preview {
+  grid-column: 1 / -1;
+  margin-top: var(--space-2);
+}
+/* Side by side, one column per category — `align-items: start` is the part
+   that actually matters: without it, a grid row stretches every cell to
+   match its tallest member, so "Edited (1)" would inherit "Added"'s height
+   and sit mostly empty. With it, each category is only as tall as its own
+   (now capped at 4) files, so a short category just leaves the space below
+   it empty rather than the whole row growing to match a longer neighbor. */
+.changes-preview__groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: start;
+  gap: var(--space-4) var(--space-5);
+}
+/* A plain rule between columns, not the faded `.card-row-divider` treatment —
+   that one marks a break between sections; this one marks columns of the same
+   list, so a short solid line reads as structure rather than a section end.
+   `:not(:first-child)` can't tell a wrapped row's first column from a
+   mid-row one, but with each category capped at 4 files the columns stay
+   narrow enough that wrapping past one row is the rare case, not the norm. */
+.changes-preview__group:not(:first-child) {
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--border-divider);
+}
+.changes-preview__group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--space-1);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.changes-preview__group-icon { display: inline-flex; align-items: center; }
+.changes-preview__group-icon svg { width: 13px; height: 13px; }
+/* Category tints match `.changes-file-item__category-icon--*`, so a color
+   means the same thing here as on the Changes screen. "Edited" stays the
+   neutral default — an edit is the expected case, not one that needs its own
+   tint to stand out. */
+.changes-preview__group--new .changes-preview__group-icon,
+.changes-preview__group--new .changes-preview__icon { color: var(--status-success); }
+.changes-preview__group--deleted .changes-preview__group-icon,
+.changes-preview__group--deleted .changes-preview__icon { color: var(--status-danger); }
+.changes-preview__group--renamed .changes-preview__group-icon,
+.changes-preview__group--renamed .changes-preview__icon { color: var(--status-renamed); }
+.changes-preview__group--conflicted .changes-preview__group-icon,
+.changes-preview__group--conflicted .changes-preview__icon { color: var(--status-warning); }
+.changes-preview__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.changes-preview__item {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+.changes-preview__item:hover { background: var(--surface-hover); }
+.changes-preview__icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+.changes-preview__icon svg { width: 14px; height: 14px; }
+/* Name only, one line: every row is now the same height regardless of nesting
+   depth, so there is no directory line to reserve space for or misalign root
+   files against. The full path is still there — as the tooltip and the
+   accessible name — for whenever the truncated name alone is not enough. */
+.changes-preview__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.changes-preview__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: var(--space-2);
+  padding: 4px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.changes-preview__more:hover { background: var(--surface-hover); }
+.changes-preview__more svg { width: 15px; height: 15px; }
 
 .project-hero__content .project-hero__note {
   margin-top: var(--space-2);
@@ -881,20 +1135,35 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
 .project-hero__content { min-width: 0; }
 .project-hero__content h2 {
   margin-bottom: var(--space-1);
-  font-size: 20px;
-  letter-spacing: -0.015em;
+  font-size: 17px;
+  letter-spacing: -0.01em;
 }
 .project-hero__content > p {
   max-width: 68ch;
   margin-bottom: 0;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.5;
 }
 .project-hero--error .project-hero__content > p { color: var(--text-primary); }
+/* Two tiers stacked: the quiet refresh action at the top, anchored to the
+   card's corner, and the two buttons that actually matter below it — rather
+   than three controls of equal visual weight fighting for the same row. */
 .project-hero__actions {
+  /* Same reasoning as `.project-hero__icon`'s own `align-self: start`: the
+     grid's default `align-items: center` was centering this column against
+     the row's tallest cell instead of pinning it to the card's top-right
+     corner. */
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.project-hero__buttons {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-2);
 }
 .project-hero__action {
@@ -906,28 +1175,66 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   white-space: nowrap;
 }
 
-.pending-versions { display: grid; gap: var(--space-3); }
+/* A row of the status card, sharing its headline and Publish button. Same
+   separator treatment as `.changes-preview`, which it sits beside whenever a
+   project has both unsaved files and unpublished versions. */
+.pending-versions {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-3);
+}
 .pending-versions__heading {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
-.pending-versions__title {
-  margin-bottom: 0;
+/* Same size and type scale as `.project-hero__icon`/`__content h2`/`> p` —
+   the two "what's waiting on you" halves are meant to read as siblings, so
+   nothing here should be a smaller, quieter copy of the card above it. The
+   gap is tighter than `.project-hero`'s own icon-to-content gap on purpose:
+   pulling the icon and text closer together reads as one compact unit
+   instead of the two drifting apart with unclaimed space between them. */
+.pending-versions__icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-lg);
+  background: var(--surface-hover);
+  /* `.project-hero__icon` shows this same muted `--text-secondary` only in
+     its success/error/attention states; the "unsaved changes" state actually
+     shown alongside this section uses `--text-primary` instead (see
+     `.project-hero--neutral .project-hero__icon`), which is why it read
+     brighter. This section has no states to switch between, so it just
+     takes that brighter color outright rather than the muted default. */
   color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 650;
+}
+.pending-versions__icon svg { width: 24px; height: 24px; }
+.pending-versions__heading-text { flex: 1; min-width: 0; }
+.pending-versions__title {
+  margin-bottom: var(--space-1);
+  color: var(--text-primary);
+  font-size: 17px;
+  letter-spacing: -0.01em;
 }
 .pending-versions__guidance {
   max-width: 70ch;
-  margin: 4px 0 0;
+  margin: 0;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  line-height: 1.5;
 }
-.pending-versions__retry { flex-shrink: 0; }
+.pending-versions__retry,
+.pending-versions__publish-all {
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
 .pending-versions__retry svg,
+.pending-versions__publish-all svg,
 .pending-versions__error svg { width: 15px; height: 15px; flex-shrink: 0; }
 .pending-versions__error {
   display: flex;
@@ -941,6 +1248,7 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   font-size: 13px;
 }
 .pending-versions__list {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -950,6 +1258,20 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   max-height: 420px;
   overflow-y: auto;
 }
+/* The connecting line: one shared element behind every node instead of a
+   segment per row, so it never gaps at a row boundary and automatically
+   stretches when a row expands (`top`/`bottom` with no explicit height, so it
+   always spans exactly first-node-center to last-node-center). `left` matches
+   `.pending-versions__node`'s own horizontal center — half its width. */
+.pending-versions__list::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 13px;
+  width: 1px;
+  background: var(--border-divider);
+}
 .pending-versions__item {
   position: relative;
   /* Without this, a flex column with a capped height (`.pending-versions__list`
@@ -958,6 +1280,34 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
      browser default `flex-shrink: 1` fighting the list's `overflow-y: auto`
      for space, rather than letting it win. */
   flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+/* Sits on top of the shared connecting line and needs an opaque background
+   to hide the segment running behind its own center — the same "backdrop
+   punches through the line" trick most commit-graph UIs use. */
+.pending-versions__node {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-top: 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+.pending-versions__node svg { width: 18px; height: 18px; }
+/* The newest saved version — the one a publish would actually reach first —
+   is the only one worth calling out; the rest are all equally "older". */
+.pending-versions__node--active { color: var(--status-success); }
+.pending-versions__card {
+  position: relative;
+  flex: 1;
+  min-width: 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: var(--surface-panel);
@@ -997,6 +1347,41 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   white-space: nowrap;
   font-size: 13.5px;
 }
+.pending-versions__meta {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+/* A small pill, not plain text like `.pending-versions__meta`: the author is
+   an open-ended value (anything Git has configured, any length, any script),
+   where the date is always a short, predictable shape — visually setting it
+   apart signals that up front. Its own `max-width` plus `min-width: 0` and
+   the inner span's `overflow: hidden` is what lets a long name truncate with
+   an ellipsis instead of stealing space from the title next to it or
+   overflowing the row; the full value survives regardless, in the tooltip
+   and as the chip's actual text content. */
+.pending-versions__author {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 140px;
+  padding: 2px 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+.pending-versions__author svg { width: 11px; height: 11px; flex-shrink: 0; }
+.pending-versions__author-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .pending-versions__message-body {
   margin: 0;
   padding-block: 0 var(--space-2);
@@ -1006,14 +1391,6 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-/* Secondary/advanced info by design (see AGENTS.md's UX vocabulary table) —
-   toned down further than the description it sits next to. */
-.pending-versions__hash {
-  flex-shrink: 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
 .pending-versions__publish-button {
   position: absolute;
@@ -1041,7 +1418,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   background: var(--surface-active);
   color: var(--text-primary);
 }
-.pending-versions__publish-button svg { width: 14px; height: 14px; }
+.pending-versions__publish-button svg { width: 15px; height: 15px; }
 
 .pending-versions__files,
 .pending-versions__files-status {
@@ -1211,7 +1588,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 }
 .settings-nav::after {
   position: absolute; top: 12px; right: 0; bottom: 12px; width: 1px;
-  background: linear-gradient(180deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
+  background: linear-gradient(180deg, transparent, var(--border-divider) 18%, var(--border-divider) 82%, transparent);
   content: "";
 }
 .settings-nav__item {
@@ -1315,14 +1692,14 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary); font-size: 12.5px; text-align: center; }
 .about-dialog h2 { margin-bottom: 12px; font-size: 28px; }
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: 1.6; }
-.about-details { margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
+.about-details { margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--border-divider); }
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
 .about-details dt { color: var(--text-secondary); }
 .about-details dd { margin: 0; text-align: right; }
 
 .shortcuts-dialog { width: min(100%, 380px); }
 .shortcuts-list { list-style: none; margin: 4px 0 0; padding: 0; }
-.shortcuts-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-subtle); font-size: 13.5px; color: var(--text-primary); }
+.shortcuts-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-divider); font-size: 13.5px; color: var(--text-primary); }
 .shortcuts-list li:first-child { border-top: 0; }
 .shortcuts-list__keys { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .shortcuts-list kbd {
@@ -1489,7 +1866,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   overflow-y: auto;
   list-style: none;
 }
-.publish-commit-list__item + .publish-commit-list__item { border-top: 1px solid var(--border-subtle); }
+.publish-commit-list__item + .publish-commit-list__item { border-top: 1px solid var(--border-divider); }
 .publish-commit-list__summary {
   display: flex;
   align-items: center;
@@ -1732,7 +2109,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .changes-file-item__category-icon svg { width: 13px; height: 13px; }
 .changes-file-item__category-icon--new { color: var(--status-success); }
 .changes-file-item__category-icon--deleted { color: var(--status-danger); }
-.changes-file-item__category-icon--renamed { color: var(--accent-primary); }
+.changes-file-item__category-icon--renamed { color: var(--status-renamed); }
 .changes-file-item__category-icon--conflicted { color: var(--status-warning); }
 .changes-file-item__details { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
 .changes-file-item__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
@@ -1865,7 +2242,19 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .version-lines-checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin: 4px 0; }
 
 .version-lines-quick-switch { position: relative; display: inline-flex; gap: 8px; }
-.version-lines-quick-switch--spotlight { gap: 10px; }
+/* Square, so it reads as an action on the selector beside it rather than a
+   second value. Its accessible name and tooltip carry the wording the label
+   used to spell out. */
+.version-lines-quick-switch__create {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.version-lines-quick-switch__create svg { width: 15px; height: 15px; }
 .version-lines-quick-switch__menu {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 5; min-width: 220px; max-width: 320px;
   display: flex; flex-direction: column; padding: 6px;
@@ -1931,8 +2320,8 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
   color: var(--status-danger);
 }
 .changes-diff__category--renamed {
-  border-color: transparent; background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
-  color: var(--accent-primary);
+  border-color: transparent; background: color-mix(in srgb, var(--status-renamed) 16%, transparent);
+  color: var(--status-renamed);
 }
 .changes-diff__category--conflicted {
   border-color: transparent; background: color-mix(in srgb, var(--status-warning) 18%, transparent);
@@ -1977,7 +2366,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 /* Marks the first row of every hunk after the first — the flattened,
    virtualized row list's replacement for what a `.diff-hunk + .diff-hunk`
    sibling selector did back when each hunk was its own DOM subtree. */
-.diff-row--hunk-start { margin-top: var(--space-3); border-top: 1px dashed var(--border-subtle); padding-top: var(--space-2); }
+.diff-row--hunk-start { margin-top: var(--space-3); border-top: 1px dashed var(--border-divider); padding-top: var(--space-2); }
 /* Plain-language stand-in for Git's raw `@@ -a,b +c,d @@` hunk header: a
    beginner has no use for that syntax, but "12 unchanged lines" tells them
    why the file jumped from one part to another. Deliberately not monospace —
@@ -2043,9 +2432,17 @@ input:focus-visible,
     grid-template-columns: auto minmax(0, 1fr);
     gap: var(--space-4);
   }
+  /* Dropping the third grid column (see above) leaves the actions block with
+     nowhere to sit beside the content, so it needs a row of its own — full
+     card width, not squeezed into the content column below the text (its
+     old `grid-column: 2; justify-self: start` did exactly that: indented
+     under the description, left-aligned, looking like an orphaned leftover
+     rather than a deliberate row). It keeps its own right-aligned, wrapping
+     button layout (`.project-hero__buttons` already wraps), just spanning
+     the full row now instead of hanging off the text column. */
   .project-hero__actions {
-    grid-column: 2;
-    justify-self: start;
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }
 
@@ -2072,7 +2469,7 @@ input:focus-visible,
   }
   .settings-nav::after {
     top: auto; right: 12px; bottom: 0; left: 12px; width: auto; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
+    background: linear-gradient(90deg, transparent, var(--border-divider) 18%, var(--border-divider) 82%, transparent);
   }
   .settings-nav__item { width: auto; flex: 0 0 auto; padding: 0 12px; }
   .settings-view { padding: 4px 20px 24px; }
@@ -2123,9 +2520,13 @@ input:focus-visible,
     grid-template-columns: 1fr;
     align-items: start;
   }
-  .project-hero__actions { grid-column: 1; width: 100%; }
+  .project-hero__actions { grid-column: 1; width: 100%; align-items: stretch; }
+  .project-hero__refresh { align-self: flex-end; }
+  .project-hero__buttons { width: 100%; }
   .project-hero__action { flex: 1 1 auto; }
-  .version-line-spotlight { flex-direction: column; align-items: stretch; }
+  .overview-meta { width: 100%; }
+  .overview-meta .version-lines-quick-switch { flex: 1 1 auto; }
+  .overview-meta .version-line-selector { flex: 1 1 auto; justify-content: space-between; }
   .changes-view__header { flex-direction: column; align-items: stretch; }
   .changes-view__actions { flex-direction: column; align-items: stretch; }
   .changes-view__refresh { justify-content: center; }

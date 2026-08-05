@@ -11,14 +11,29 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
 
 const versions: SavedVersionSummary[] = [
-  { commit: "aaa111", shortCommit: "aaa111", title: "fix the thing", description: "Useful context." },
-  { commit: "bbb222", shortCommit: "bbb222", title: "add the other thing", description: null },
+  {
+    commit: "aaa111",
+    shortCommit: "aaa111",
+    title: "fix the thing",
+    description: "Useful context.",
+    committedAt: "2026-08-03T10:00:00Z",
+    author: "Luis Test",
+  },
+  {
+    commit: "bbb222",
+    shortCommit: "bbb222",
+    title: "add the other thing",
+    description: null,
+    committedAt: "2026-08-02T10:00:00Z",
+    author: "Luis Test",
+  },
 ];
 const result: PendingVersionsResult = { totalCount: 2, versions, isTruncated: false };
 
 function renderSection(overrides: Partial<React.ComponentProps<typeof PendingVersionsSection>> = {}) {
   const onPublishUpTo = vi.fn();
   const onRetry = vi.fn();
+  const onPublish = vi.fn();
   const utils = render(
     <LanguageProvider>
       <PendingVersionsSection
@@ -27,11 +42,13 @@ function renderSection(overrides: Partial<React.ComponentProps<typeof PendingVer
         error={null}
         onRetry={onRetry}
         onPublishUpTo={onPublishUpTo}
+        canPublish
+        onPublish={onPublish}
         {...overrides}
       />
     </LanguageProvider>,
   );
-  return { onPublishUpTo, onRetry, ...utils };
+  return { onPublishUpTo, onRetry, onPublish, ...utils };
 }
 
 afterEach(() => {
@@ -40,7 +57,7 @@ afterEach(() => {
 });
 
 describe("PendingVersionsSection", () => {
-  it("lists every pending version with its title and hash, with a count in the title, without fetching anything", () => {
+  it("lists every pending version with its title and saved date, with a count in the title, without fetching anything", () => {
     renderSection();
 
     expect(screen.getByText("Saved versions not yet published (2)")).toBeInTheDocument();
@@ -49,8 +66,24 @@ describe("PendingVersionsSection", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("fix the thing")).toBeInTheDocument();
     expect(screen.getByText("add the other thing")).toBeInTheDocument();
-    expect(screen.getByText("aaa111")).toBeInTheDocument();
+    expect(screen.getByText("Aug 3, 2026")).toBeInTheDocument();
     expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("shows each version's author as a chip, and shows no chip at all when Git reports no author", () => {
+    renderSection({
+      result: {
+        totalCount: 2,
+        isTruncated: false,
+        versions: [
+          { ...versions[0], author: "A Very Long Author Name That Should Truncate" },
+          { ...versions[1], author: "" },
+        ],
+      },
+    });
+
+    expect(screen.getByText("A Very Long Author Name That Should Truncate")).toBeInTheDocument();
+    expect(document.querySelectorAll(".pending-versions__author")).toHaveLength(1);
   });
 
   it("shows an existing version's details read-only when expanded", async () => {

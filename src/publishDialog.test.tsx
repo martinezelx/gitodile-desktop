@@ -27,6 +27,8 @@ function plan(overrides: Partial<PublishPlan> = {}): PublishPlan {
       commit: "abc123abc123abc123abc123abc123abc123ab",
       shortCommit: "abc123a",
       title: "fix the thing",
+      committedAt: "2026-08-03T10:00:00Z",
+      author: "Luis Test",
       description: null,
     }],
     hasUnsavedFiles: false,
@@ -79,8 +81,22 @@ describe("PublishDialog", () => {
       plan({
         commitCount: 2,
         commitSummary: [
-          { commit: "aaa111", shortCommit: "aaa111", title: "fix the thing", description: null },
-          { commit: "bbb222", shortCommit: "bbb222", title: "add the other thing", description: null },
+          {
+            commit: "aaa111",
+            shortCommit: "aaa111",
+            title: "fix the thing",
+            description: null,
+            committedAt: "2026-08-03T10:00:00Z",
+            author: "Luis Test",
+          },
+          {
+            commit: "bbb222",
+            shortCommit: "bbb222",
+            title: "add the other thing",
+            description: null,
+            committedAt: "2026-08-02T10:00:00Z",
+            author: "Luis Test",
+          },
         ],
       }),
     );
@@ -97,8 +113,22 @@ describe("PublishDialog", () => {
       plan({
         remainingAfterPublish: 2,
         remainingCommitSummary: [
-          { commit: "newer111", shortCommit: "newer1", title: "polish the empty state", description: null },
-          { commit: "newer222", shortCommit: "newer2", title: "add keyboard navigation", description: null },
+          {
+            commit: "newer111",
+            shortCommit: "newer1",
+            title: "polish the empty state",
+            description: null,
+            committedAt: "2026-08-03T10:00:00Z",
+            author: "Luis Test",
+          },
+          {
+            commit: "newer222",
+            shortCommit: "newer2",
+            title: "add keyboard navigation",
+            description: null,
+            committedAt: "2026-08-02T10:00:00Z",
+            author: "Luis Test",
+          },
         ],
       }),
     );
@@ -119,6 +149,8 @@ describe("PublishDialog", () => {
           shortCommit: "aaa111",
           title: "fix the thing",
           description: null,
+          committedAt: "2026-08-03T10:00:00Z",
+          author: "Luis Test",
         }],
       }),
     );
@@ -153,6 +185,8 @@ describe("PublishDialog", () => {
           shortCommit: "aaa111",
           title: "fix the thing",
           description: "Why it changed.\n\nWhat collaborators should know.",
+          committedAt: "2026-08-03T10:00:00Z",
+          author: "Luis Test",
         }],
       }),
     );

@@ -59,6 +59,13 @@ export type SavedVersionSummary = {
   shortCommit: string;
   title: string;
   description: string | null;
+  /** ISO 8601 (`%cI`, git's own strict form) — the same shape and source as
+   * `VersionLineTip.committedAt`. */
+  committedAt: string;
+  /** `%an` — whatever name Git has configured for the commit's author. Can be
+   * empty on a malformed/legacy commit; render nothing rather than a blank
+   * chip when it is. */
+  author: string;
 };
 
 export type PendingVersionsResult = {

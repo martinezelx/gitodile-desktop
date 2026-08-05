@@ -1,6 +1,16 @@
 import React, { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ChevronDown, ChevronRight, CircleAlert, LoaderCircle, RefreshCw, Send } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  GitCommitVertical,
+  Layers,
+  LoaderCircle,
+  RefreshCw,
+  Send,
+  User,
+} from "lucide-react";
 import { useLanguage, type Translations } from "./i18n";
 import { CATEGORY_ICONS, DiffResultView, type FileDiff } from "./changes";
 import { getFileTypeIcon } from "./fileIcons";
@@ -108,14 +118,22 @@ export function PendingVersionsSection({
   error,
   onRetry,
   onPublishUpTo,
+  canPublish,
+  onPublish,
 }: {
   projectPath: string;
   result: PendingVersionsResult;
   error: string | null;
   onRetry: () => void;
   onPublishUpTo: (commit: string) => void;
+  /** False on a detached HEAD or unborn line — there is nowhere for a publish
+   * to go, so the header's own "Publish all" is withheld even though the
+   * per-version rows (still individually reachable) already guard themselves
+   * the same way one level up, in `main.tsx`'s `canPublish`. */
+  canPublish: boolean;
+  onPublish: () => void;
 }): React.JSX.Element {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [filesByCommit, setFilesByCommit] = useState<Record<string, FilesState>>({});
   const [selectedFileByCommit, setSelectedFileByCommit] = useState<Record<string, string | undefined>>({});
   const [diffsByCommit, setDiffsByCommit] = useState<Record<string, Record<string, DiffState>>>({});
@@ -158,9 +176,15 @@ export function PendingVersionsSection({
   }
 
   return (
-    <section className="pending-versions" aria-labelledby="pending-versions-heading">
+    <section className="pending-versions card-row-divider" aria-labelledby="pending-versions-heading">
       <div className="pending-versions__heading">
-        <div>
+        {/* Mirrors `.project-hero`'s own icon-plus-text opening, so the two
+            halves of "what's waiting on you" read as siblings, not as a card
+            and then an unrelated list bolted on below it. */}
+        <div className="pending-versions__icon" aria-hidden="true">
+          <Layers />
+        </div>
+        <div className="pending-versions__heading-text">
           <h2 className="pending-versions__title" id="pending-versions-heading">
             {t.overviewPendingVersionsTitle(result.totalCount)}
           </h2>
@@ -171,11 +195,18 @@ export function PendingVersionsSection({
             </p>
           )}
         </div>
-        {error && (
+        {error ? (
           <button className="secondary-button pending-versions__retry" type="button" onClick={onRetry}>
             <RefreshCw aria-hidden="true" />
             {t.saveVersionRetry}
           </button>
+        ) : (
+          canPublish && (
+            <button className="primary-button pending-versions__publish-all" type="button" onClick={onPublish}>
+              <Send aria-hidden="true" />
+              {t.overviewPublishAll(result.totalCount)}
+            </button>
+          )
         )}
       </div>
 
@@ -191,39 +222,74 @@ export function PendingVersionsSection({
           {...autoHideScrollbarProps<HTMLUListElement>()}
           className="pending-versions__list auto-hide-scrollbar"
         >
-          {result.versions.map((version) => (
+          {result.versions.map((version, index) => (
             <li key={version.commit} className="pending-versions__item">
-              <details
-                className="pending-versions__details"
-                onToggle={(event) => toggleCommit(version.commit, event.currentTarget.open)}
+              {/* The graph: an off-the-shelf icon (its own stroke already
+                  extends a stub above and below the circle) standing in for a
+                  custom-drawn commit node, plus one shared connecting line
+                  behind the whole column (`.pending-versions__list::before`)
+                  rather than a line segment per row. The newest version — the
+                  one that would actually be at the tip after a publish — is
+                  the only one marked active; the rest are equally "older",
+                  so there is nothing to distinguish between them. */}
+              <div
+                className={`pending-versions__node${index === 0 ? " pending-versions__node--active" : ""}`}
+                aria-hidden="true"
               >
-                <summary className="pending-versions__summary">
-                  <ChevronDown aria-hidden="true" className="pending-versions__chevron" />
-                  <span className="pending-versions__description" data-tooltip={version.title}>
-                    {version.title}
-                  </span>
-                  <code className="pending-versions__hash">{version.shortCommit}</code>
-                </summary>
-                {version.description && (
-                  <p className="pending-versions__message-body">{version.description}</p>
-                )}
-                <CommitFilesList
-                  commit={version.commit}
-                  files={filesByCommit[version.commit]}
-                  selectedPath={selectedFileByCommit[version.commit]}
-                  diffs={diffsByCommit[version.commit]}
-                  onToggleFile={toggleFile}
-                  t={t}
-                />
-              </details>
-              <button
-                type="button"
-                className="pending-versions__publish-button"
-                onClick={() => onPublishUpTo(version.commit)}
-              >
-                <Send aria-hidden="true" />
-                <span>{t.overviewPublishUpTo}</span>
-              </button>
+                <GitCommitVertical />
+              </div>
+              <div className="pending-versions__card">
+                <details
+                  className="pending-versions__details"
+                  onToggle={(event) => toggleCommit(version.commit, event.currentTarget.open)}
+                >
+                  <summary className="pending-versions__summary">
+                    <ChevronDown aria-hidden="true" className="pending-versions__chevron" />
+                    <span className="pending-versions__description" data-tooltip={version.title}>
+                      {version.title}
+                    </span>
+                    <span className="pending-versions__meta">
+                      {new Date(version.committedAt).toLocaleDateString(language, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    {/* Absent, not an empty pill, when Git has no author name
+                        to report (a malformed or very old commit) — a blank
+                        chip would look broken, not just uninformative. The
+                        name itself truncates from the end with an ellipsis
+                        (`.pending-versions__author-name`); the tooltip and
+                        the chip's own text content still carry the full
+                        value for a pointer hover or a screen reader. */}
+                    {version.author && (
+                      <span className="pending-versions__author" data-tooltip={version.author}>
+                        <User aria-hidden="true" />
+                        <span className="pending-versions__author-name">{version.author}</span>
+                      </span>
+                    )}
+                  </summary>
+                  {version.description && (
+                    <p className="pending-versions__message-body">{version.description}</p>
+                  )}
+                  <CommitFilesList
+                    commit={version.commit}
+                    files={filesByCommit[version.commit]}
+                    selectedPath={selectedFileByCommit[version.commit]}
+                    diffs={diffsByCommit[version.commit]}
+                    onToggleFile={toggleFile}
+                    t={t}
+                  />
+                </details>
+                <button
+                  type="button"
+                  className="pending-versions__publish-button"
+                  onClick={() => onPublishUpTo(version.commit)}
+                >
+                  <Send aria-hidden="true" />
+                  <span>{t.overviewPublishUpTo}</span>
+                </button>
+              </div>
             </li>
           ))}
         </ul>

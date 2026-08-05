@@ -75,8 +75,31 @@ export type WorkingTreeSummary = {
   conflicted: number;
 };
 
-/** Category counts worth showing, in a fixed reading order, zeroes omitted. */
-const BREAKDOWN_ORDER: ChangeCategory[] = ["conflicted", "changed", "new", "deleted", "renamed"];
+/** Conflicts need attention, so they lead. The one reading order shared by the
+ * status breakdown chips and every change list, so a file never sits in a
+ * different place depending on which screen is showing it. */
+export const CATEGORY_ORDER: ChangeCategory[] = ["conflicted", "changed", "new", "deleted", "renamed"];
+
+/** `Array.prototype.sort` is stable per spec, so entries within the same
+ * category keep the order the backend returned them in — a documented,
+ * deterministic ordering. */
+export function getOrderedChangeEntries(status: WorkingTreeStatus): WorkingTreeEntry[] {
+  const rank = new Map(CATEGORY_ORDER.map((category, index) => [category, index]));
+  return [...status.entries].sort((a, b) => (rank.get(a.category) ?? 99) - (rank.get(b.category) ?? 99));
+}
+
+/** Splits a repository-relative path into its file name and containing
+ * directory, so a list can show the name prominently with the directory as a
+ * muted second line — the reading order most Git clients (GitHub Desktop,
+ * GitKraken, Sourcetree) use. Paths always use `/` as the porcelain output
+ * separator, regardless of platform. */
+export function splitPath(path: string): { name: string; dir: string | null } {
+  const slash = path.lastIndexOf("/");
+  if (slash === -1) {
+    return { name: path, dir: null };
+  }
+  return { name: path.slice(slash + 1), dir: path.slice(0, slash) };
+}
 
 export function getWorkingTreeSummary(status: WorkingTreeStatus): WorkingTreeSummary {
   const conflicted = status.counts.conflicted;
@@ -92,7 +115,7 @@ export function getWorkingTreeSummary(status: WorkingTreeStatus): WorkingTreeSum
 export function getWorkingTreeBreakdown(
   status: WorkingTreeStatus,
 ): { category: ChangeCategory; count: number }[] {
-  return BREAKDOWN_ORDER.map((category) => ({ category, count: status.counts[category] })).filter(
+  return CATEGORY_ORDER.map((category) => ({ category, count: status.counts[category] })).filter(
     (item) => item.count > 0,
   );
 }

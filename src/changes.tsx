@@ -22,6 +22,7 @@ import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { SaveVersionDialog } from "./saveVersionDialog";
 import { fetchDiff, getDiffStore, type DiffCache } from "./diffCache";
 import { LoadingBar } from "./loadingBar";
+import { getOrderedChangeEntries, splitPath } from "./repositoryOverview";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
 // ---- Types mirroring the Rust `FileDiff` contract (src-tauri/src/lib.rs) ----
@@ -68,15 +69,11 @@ export type FileDiff =
 
 // ---- Pure list ordering ----
 
-/** Conflicts need attention, so they lead. `Array.prototype.sort` is stable
- * per spec, so entries within the same category keep the order the backend
- * returned them in — a documented, deterministic ordering. */
-const CATEGORY_ORDER: ChangeCategory[] = ["conflicted", "changed", "new", "deleted", "renamed"];
-
-export function getOrderedChangeEntries(status: WorkingTreeStatus): WorkingTreeEntry[] {
-  const rank = new Map(CATEGORY_ORDER.map((category, index) => [category, index]));
-  return [...status.entries].sort((a, b) => (rank.get(a.category) ?? 99) - (rank.get(b.category) ?? 99));
-}
+// Ordering and path splitting live in `repositoryOverview` so Overview's
+// changes preview can share them without importing this module — which would
+// pull the whole Changes screen (and the file-type icon set) into the initial
+// bundle. Re-exported here so this screen's own consumers keep their import.
+export { getOrderedChangeEntries };
 
 /** Preserves the current selection if it is still present in `entries`,
  * otherwise falls back to the first entry (or `null` if the list is empty). */
@@ -85,19 +82,6 @@ export function resolveSelectedPath(entries: WorkingTreeEntry[], previousPath: s
     return previousPath;
   }
   return entries[0]?.path ?? null;
-}
-
-/** Splits a repository-relative path into its file name and containing
- * directory, so the list can show the name prominently with the directory as
- * a muted second line — the reading order most Git clients (GitHub Desktop,
- * GitKraken, Sourcetree) use. Paths always use `/` as the porcelain output
- * separator, regardless of platform. */
-function splitPath(path: string): { name: string; dir: string | null } {
-  const slash = path.lastIndexOf("/");
-  if (slash === -1) {
-    return { name: path, dir: null };
-  }
-  return { name: path.slice(slash + 1), dir: path.slice(0, slash) };
 }
 
 function formatByteLimit(bytes: number): string {

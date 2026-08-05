@@ -33,6 +33,7 @@ export interface Translations {
   titlebarReloadWindow: string;
   titlebarReloadBlocked: string;
   titlebarReportIssue: string;
+  titlebarReportIssueTitle: string;
   titlebarKeyboardShortcuts: string;
   shortcutsDialogTitle: string;
   shortcutsOpenPalette: string;
@@ -105,8 +106,6 @@ export interface Translations {
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
   overviewCurrentVersionLine: string;
-  overviewVersionLineActionsTitle: string;
-  overviewVersionLineActionsDescription: string;
   overviewSpecificSavedVersion: string;
   overviewNoSavedVersions: string;
   overviewVersionLineDescription: string;
@@ -129,6 +128,22 @@ export interface Translations {
   overviewOpeningDescription: string;
   overviewOpenFailedTitle: string;
   overviewReviewChanges: string;
+  overviewSaveVersion: string;
+  overviewVersionsAhead: (count: number) => string;
+  overviewChangesPreviewLabel: string;
+  overviewChangesPreviewMore: (remaining: number) => string;
+  overviewChangesPreviewOpenFile: (path: string) => string;
+  overviewCategoryEdited: (count: number) => string;
+  overviewCategoryAdded: (count: number) => string;
+  overviewCategoryDeleted: (count: number) => string;
+  overviewCategoryRenamed: (count: number) => string;
+  overviewCategoryConflicted: (count: number) => string;
+  overviewPublishAll: (count: number) => string;
+  overviewComingSoonBadge: string;
+  overviewHistoryPreviewTitle: string;
+  overviewHistoryPreviewDescription: string;
+  overviewRecoveryPreviewTitle: string;
+  overviewRecoveryPreviewDescription: string;
   statusCleanTitle: string;
   statusCleanMessage: string;
   statusChangesTitle: string;
@@ -483,6 +498,7 @@ const en: Translations = {
   titlebarReloadWindow: "Reload window",
   titlebarReloadBlocked: "Finish the current project operation before reloading.",
   titlebarReportIssue: "Report an issue",
+  titlebarReportIssueTitle: "Report an issue — Coming soon",
   titlebarKeyboardShortcuts: "Keyboard shortcuts",
   shortcutsDialogTitle: "Keyboard shortcuts",
   shortcutsOpenPalette: "Open command palette",
@@ -557,8 +573,6 @@ const en: Translations = {
   projectSwitcherCloseBlocked: (name) =>
     `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
   overviewCurrentVersionLine: "Current version line",
-  overviewVersionLineActionsTitle: "Work separately",
-  overviewVersionLineActionsDescription: "Switch where new work goes, or create a separate version line.",
   overviewSpecificSavedVersion: "Specific saved version",
   overviewNoSavedVersions: "No saved versions yet",
   overviewVersionLineDescription: "New work will stay on this version line.",
@@ -581,6 +595,25 @@ const en: Translations = {
   overviewOpeningDescription: "GitOdrile is checking the selected folder.",
   overviewOpenFailedTitle: "We couldn’t open that project",
   overviewReviewChanges: "Review changes",
+  overviewSaveVersion: "Save version",
+  overviewVersionsAhead: (count) => (count === 1 ? "1 ready to publish" : `${count} ready to publish`),
+  overviewChangesPreviewLabel: "Changed files",
+  overviewChangesPreviewMore: (remaining) =>
+    remaining === 1 ? "See 1 more file" : `See ${remaining} more files`,
+  overviewChangesPreviewOpenFile: (path) => `Review ${path}`,
+  overviewCategoryEdited: (count) => `Edited (${count})`,
+  overviewCategoryAdded: (count) => `Added (${count})`,
+  overviewCategoryDeleted: (count) => `Deleted (${count})`,
+  overviewCategoryRenamed: (count) => `Renamed (${count})`,
+  overviewCategoryConflicted: (count) => `Conflicts (${count})`,
+  overviewPublishAll: (count) => (count === 1 ? "Publish all" : `Publish all ${count}`),
+  overviewComingSoonBadge: "Coming soon",
+  overviewHistoryPreviewTitle: "History",
+  overviewHistoryPreviewDescription:
+    "A timeline of the versions you have saved, so you can see how the project got here.",
+  overviewRecoveryPreviewTitle: "Recovery",
+  overviewRecoveryPreviewDescription:
+    "Get work back after a mistake — restore a file, or undo a version you did not mean to save.",
   statusCleanTitle: "Everything is saved",
   statusCleanMessage: "You have no unsaved changes in this project.",
   statusChangesTitle: "You have unsaved changes",
@@ -986,6 +1019,7 @@ const es: Translations = {
   titlebarReloadWindow: "Recargar ventana",
   titlebarReloadBlocked: "Termina la operación actual del proyecto antes de recargar.",
   titlebarReportIssue: "Reportar un problema",
+  titlebarReportIssueTitle: "Reportar un problema — Próximamente",
   titlebarKeyboardShortcuts: "Atajos de teclado",
   shortcutsDialogTitle: "Atajos de teclado",
   shortcutsOpenPalette: "Abrir la paleta de comandos",
@@ -1062,8 +1096,6 @@ const es: Translations = {
   projectSwitcherCloseBlocked: (name) =>
     `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
   overviewCurrentVersionLine: "Línea de versión actual",
-  overviewVersionLineActionsTitle: "Trabajar por separado",
-  overviewVersionLineActionsDescription: "Cambia dónde irá el trabajo nuevo o crea una línea de versión separada.",
   overviewSpecificSavedVersion: "Versión guardada concreta",
   overviewNoSavedVersions: "Todavía no hay versiones guardadas",
   overviewVersionLineDescription: "El trabajo nuevo permanecerá en esta línea de versión.",
@@ -1086,6 +1118,25 @@ const es: Translations = {
   overviewOpeningDescription: "GitOdrile está comprobando la carpeta seleccionada.",
   overviewOpenFailedTitle: "No hemos podido abrir ese proyecto",
   overviewReviewChanges: "Revisar cambios",
+  overviewSaveVersion: "Guardar versión",
+  overviewVersionsAhead: (count) => (count === 1 ? "1 lista para publicar" : `${count} listas para publicar`),
+  overviewChangesPreviewLabel: "Archivos modificados",
+  overviewChangesPreviewMore: (remaining) =>
+    remaining === 1 ? "Ver 1 archivo más" : `Ver ${remaining} archivos más`,
+  overviewChangesPreviewOpenFile: (path) => `Revisar ${path}`,
+  overviewCategoryEdited: (count) => `Editados (${count})`,
+  overviewCategoryAdded: (count) => `Añadidos (${count})`,
+  overviewCategoryDeleted: (count) => `Eliminados (${count})`,
+  overviewCategoryRenamed: (count) => `Renombrados (${count})`,
+  overviewCategoryConflicted: (count) => `Conflictos (${count})`,
+  overviewPublishAll: (count) => (count === 1 ? "Publicar todo" : `Publicar las ${count}`),
+  overviewComingSoonBadge: "Próximamente",
+  overviewHistoryPreviewTitle: "Historial",
+  overviewHistoryPreviewDescription:
+    "Una línea de tiempo de las versiones que has guardado, para ver cómo llegó el proyecto hasta aquí.",
+  overviewRecoveryPreviewTitle: "Recuperación",
+  overviewRecoveryPreviewDescription:
+    "Recupera trabajo tras un error: restaura un archivo o deshaz una versión que no querías guardar.",
   statusCleanTitle: "Todo está guardado",
   statusCleanMessage: "No tienes cambios sin guardar en este proyecto.",
   statusChangesTitle: "Tienes cambios sin guardar",

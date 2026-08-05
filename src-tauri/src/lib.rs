@@ -3126,6 +3126,15 @@ struct SavedVersionSummary {
     short_commit: String,
     title: String,
     description: Option<String>,
+    /// `%cI` (committer date, ISO 8601 strict) — the same format already used
+    /// for a version line's tip (`committerdate:iso-strict` in
+    /// `for-each-ref`'s format string), so the frontend parses both the same
+    /// way.
+    committed_at: String,
+    /// `%an` — the commit's author name, exactly as Git has it configured
+    /// (may be empty on a malformed/legacy commit; the frontend hides its
+    /// display rather than showing a blank chip).
+    author: String,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -3145,27 +3154,35 @@ const MAX_LISTED_SAVED_VERSIONS: usize = 50;
 fn parse_saved_version_summaries(text: &str) -> Vec<SavedVersionSummary> {
     let fields = text.split('\0').collect::<Vec<_>>();
     fields
-        .chunks_exact(4)
+        .chunks_exact(6)
         .filter_map(|parts| {
             let commit = parts[0].trim();
             let short_commit = parts[1].trim();
             let title = parts[2].trim();
-            if commit.is_empty() || short_commit.is_empty() || title.is_empty() {
+            let committed_at = parts[4].trim();
+            if commit.is_empty()
+                || short_commit.is_empty()
+                || title.is_empty()
+                || committed_at.is_empty()
+            {
                 return None;
             }
             let description = parts[3].trim();
+            let author = parts[5].trim();
             Some(SavedVersionSummary {
                 commit: commit.to_string(),
                 short_commit: short_commit.to_string(),
                 title: title.to_string(),
                 description: (!description.is_empty()).then(|| description.to_string()),
+                committed_at: committed_at.to_string(),
+                author: author.to_string(),
             })
         })
         .collect()
 }
 
-/// Runs `git log` for `range` with hash/short-hash/subject/body in one machine-
-/// parseable pass. NUL separates both fields and records because Git commit
+/// Runs `git log` for `range` with hash/short-hash/subject/body/committer-date/
+/// author-name in one machine-parseable pass. NUL separates both fields and records because Git commit
 /// messages cannot contain NUL bytes, while their bodies may contain any
 /// number of ordinary lines. A failing range (e.g. a configured upstream that has never
 /// been fetched locally, so Git can't resolve it as a revision yet) is
@@ -3179,7 +3196,7 @@ fn git_log_summaries(path: &str, range: &str) -> Result<Vec<SavedVersionSummary>
         &[
             "log",
             "-z",
-            "--pretty=format:%H%x00%h%x00%s%x00%b",
+            "--pretty=format:%H%x00%h%x00%s%x00%b%x00%cI%x00%an",
             "-n",
             &cap,
             range,

@@ -31,7 +31,6 @@ import {
   CircleAlert,
   TriangleAlert,
   FileDiff,
-  Send,
   FolderX,
   RotateCw,
   Info,
@@ -40,12 +39,25 @@ import {
   Keyboard,
   Palette,
   ShieldCheck,
+  ArrowRightLeft,
+  FileMinus,
+  FilePlus,
+  Pencil,
+  GitCommitHorizontal,
+  GitBranchPlus,
+  LifeBuoy,
+  Eye,
+  Save,
+  Layers,
 } from "lucide-react";
 import { LANGUAGE_NAMES, LanguageProvider, useLanguage, type Language, type LanguagePreference } from "./i18n";
 import {
+  CATEGORY_ORDER,
+  getOrderedChangeEntries,
   getRepositoryOverviewState,
   getWorkingTreeBreakdown,
   getWorkingTreeSummary,
+  splitPath,
   type ChangeCategory,
   type RepositoryInfo,
   type WorkingTreeStatus,
@@ -551,6 +563,9 @@ export function TitlebarMenu({
             type="button"
             role="menuitem"
             tabIndex={-1}
+            disabled
+            aria-label={t.titlebarReportIssueTitle}
+            data-tooltip={t.titlebarReportIssueTitle}
             onClick={() => {
               runMenuAction(() => void openUrl(ISSUES_URL));
             }}
@@ -652,6 +667,158 @@ const CATEGORY_LABEL_KEYS = {
   conflicted: "statusCategoryConflicted",
 } as const satisfies Record<ChangeCategory, keyof ReturnType<typeof useLanguage>["t"]>;
 
+/** The lucide glyphs the Changes screen uses for the same categories, kept in
+ * sync by hand rather than imported: `changes.tsx` is lazily loaded precisely
+ * so its file-type icon set stays out of the first-paint bundle. */
+const PREVIEW_CATEGORY_ICONS: Record<ChangeCategory, React.JSX.Element> = {
+  changed: <Pencil aria-hidden="true" />,
+  new: <FilePlus aria-hidden="true" />,
+  deleted: <FileMinus aria-hidden="true" />,
+  renamed: <ArrowRightLeft aria-hidden="true" />,
+  conflicted: <TriangleAlert aria-hidden="true" />,
+};
+
+/** Column headers for the grouped preview below — distinct from
+ * `CATEGORY_LABEL_KEYS` above, which phrases the same categories as the
+ * inline "N edited" chips in the status card's own message. */
+const CATEGORY_COLUMN_LABEL_KEYS = {
+  changed: "overviewCategoryEdited",
+  new: "overviewCategoryAdded",
+  deleted: "overviewCategoryDeleted",
+  renamed: "overviewCategoryRenamed",
+  conflicted: "overviewCategoryConflicted",
+} as const satisfies Record<ChangeCategory, keyof ReturnType<typeof useLanguage>["t"]>;
+
+/** How many files each category column names before deferring to the Changes
+ * screen. Per category, not overall: a project with one edited file and nine
+ * new ones should not spend its whole budget on the edited column having
+ * nothing left to show for "new". Small on purpose: categories sit side by
+ * side (see `.changes-preview__groups`), so a short, fixed cap is what keeps
+ * every column's height in the same ballpark regardless of which category
+ * happens to have the most files. */
+const CHANGES_PREVIEW_CATEGORY_LIMIT = 4;
+
+/** A read-only sample of the working tree, grouped into one column per
+ * category — the same grouping the status chips above already summarize, so
+ * this is where "7 edited, 11 new" turns into which 7 and which 11. Each file
+ * is a shortcut into the Changes screen with that file already selected. */
+function OverviewChangesPreview({
+  workingTree,
+  onOpenFile,
+  onSeeAll,
+}: {
+  workingTree: WorkingTreeStatus;
+  onOpenFile: (path: string) => void;
+  onSeeAll: () => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const groups = CATEGORY_ORDER.map((category) => ({
+    category,
+    // `entries` can already be a backend-truncated sample of a very large
+    // status; `counts` never is, so the column header and the "N more" count
+    // below both read from `counts` and stay honest either way.
+    entries: workingTree.entries.filter((entry) => entry.category === category),
+    count: workingTree.counts[category],
+  })).filter((group) => group.count > 0);
+
+  return (
+    <div className="changes-preview">
+      <div className="changes-preview__groups">
+        {groups.map(({ category, entries, count }) => {
+          const shown = entries.slice(0, CHANGES_PREVIEW_CATEGORY_LIMIT);
+          const remaining = count - shown.length;
+          return (
+            <div className={`changes-preview__group changes-preview__group--${category}`} key={category}>
+              <h3 className="changes-preview__group-title">
+                <span className="changes-preview__group-icon" aria-hidden="true">
+                  {PREVIEW_CATEGORY_ICONS[category]}
+                </span>
+                {t[CATEGORY_COLUMN_LABEL_KEYS[category]](count)}
+              </h3>
+              <ul className="changes-preview__list" aria-label={t[CATEGORY_COLUMN_LABEL_KEYS[category]](count)}>
+                {shown.map((entry) => {
+                  // Name only — the containing folder is one hover (the
+                  // tooltip) or one click (Changes, via `onOpenFile`) away,
+                  // not printed on every row.
+                  const { name } = splitPath(entry.path);
+                  const fullPath =
+                    entry.category === "renamed" && entry.originalPath
+                      ? `${entry.originalPath} → ${entry.path}`
+                      : entry.path;
+                  return (
+                    <li key={entry.path}>
+                      <button
+                        className="changes-preview__item"
+                        type="button"
+                        onClick={() => onOpenFile(entry.path)}
+                        aria-label={t.overviewChangesPreviewOpenFile(fullPath)}
+                        data-tooltip={fullPath}
+                      >
+                        <span className="changes-preview__icon" aria-hidden="true">
+                          {PREVIEW_CATEGORY_ICONS[category]}
+                        </span>
+                        <span className="changes-preview__name">{name}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {remaining > 0 && (
+                <button className="changes-preview__more" type="button" onClick={onSeeAll}>
+                  {t.overviewChangesPreviewMore(remaining)}
+                  <ChevronRight aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** The slot a not-yet-built Overview summary will occupy, shown greyed out so
+ * the screen's final shape is visible while the feature is missing. It shows
+ * *no data at all* — placeholder bars, never plausible-looking numbers — so
+ * there is no moment where the Overview appears to be reporting on a
+ * repository it cannot read yet. Paired with the sidebar's disabled History
+ * and Recovery entries; both go away together when the screens land. */
+function OverviewPlaceholderCard({
+  icon,
+  title,
+  description,
+  rows,
+}: {
+  icon: React.JSX.Element;
+  title: string;
+  description: string;
+  /** How many blocked-out lines to reserve, matching the shape the real
+   * summary will have (History lists versions; Recovery lists one action). */
+  rows: number;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+
+  return (
+    <section className="overview-placeholder" aria-label={`${title} — ${t.overviewComingSoonBadge}`}>
+      <div className="overview-placeholder__head">
+        <div className="overview-placeholder__icon" aria-hidden="true">
+          {icon}
+        </div>
+        <div className="overview-placeholder__heading">
+          <h2>{title}</h2>
+          <span className="overview-placeholder__badge">{t.overviewComingSoonBadge}</span>
+        </div>
+      </div>
+      <p className="overview-placeholder__description">{description}</p>
+      <div className="overview-placeholder__rows" aria-hidden="true">
+        {Array.from({ length: rows }, (_, index) => (
+          <span key={index} className="overview-placeholder__row" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /** Overview's bounded quick-switch/quick-create entry point (task 016). A
  * deliberately small menu — the searchable full list stays on the
  * Version-lines screen (`onSeeAll`). It reads the project session's cached
@@ -663,7 +830,6 @@ function OverviewVersionLineQuickActions({
   isLoadingSnapshot,
   currentValue,
   canSwitch,
-  variant = "default",
   onSwitch,
   onCreate,
   onSeeAll,
@@ -678,10 +844,6 @@ function OverviewVersionLineQuickActions({
    * next to a generic "Change" button. */
   currentValue: string;
   canSwitch: boolean;
-  /** "spotlight" is the larger, more prominent styling used in Overview's
-   * dedicated version-line section; "default" is the compact form other
-   * callers can still use. */
-  variant?: "default" | "spotlight";
   /** Fired each time the menu opens, so the caller can revalidate the shared
    * snapshot behind it. The menu never waits on that: it renders whatever is
    * cached and swaps in the newer answer if one arrives. */
@@ -700,7 +862,6 @@ function OverviewVersionLineQuickActions({
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const buttonClassName = variant === "spotlight" ? "secondary-button secondary-button--large" : "secondary-button";
 
   // Moves focus into the open menu for keyboard/screen-reader users, and
   // gives Escape an explicit place to send focus back to (native outside-
@@ -732,7 +893,7 @@ function OverviewVersionLineQuickActions({
   }, [isOpen]);
 
   return (
-    <div className={`version-lines-quick-switch version-lines-quick-switch--${variant}`} ref={containerRef}>
+    <div className="version-lines-quick-switch" ref={containerRef}>
       {canSwitch ? (
         <button
           ref={triggerRef}
@@ -743,18 +904,28 @@ function OverviewVersionLineQuickActions({
           aria-label={`${t.overviewChangeVersionLine} (${currentValue})`}
           onClick={() => setIsOpen((value) => !value)}
         >
-          <span className={`version-line-selector__value${variant === "spotlight" ? " version-line-selector__value--action" : ""}`}>
-            {variant === "spotlight" ? t.overviewChangeVersionLine : currentValue}
-          </span>
+          <GitBranch aria-hidden="true" className="version-line-selector__icon" />
+          <span className="version-line-selector__value">{currentValue}</span>
           <ChevronDown aria-hidden="true" className="version-line-selector__chevron" />
         </button>
-      ) : variant === "default" ? (
+      ) : (
         <span className="version-line-selector version-line-selector--static">
+          <GitBranch aria-hidden="true" className="version-line-selector__icon" />
           <span className="version-line-selector__value">{currentValue}</span>
         </span>
-      ) : null}
-      <button className={buttonClassName} type="button" onClick={onCreate}>
-        {t.overviewNewVersionLine}
+      )}
+      {/* Icon-only: the branch-with-a-plus glyph carries the meaning, and the
+          name stays reachable as both the accessible name and the tooltip. A
+          text button here would be as wide as the line name beside it, which
+          reads as the more important of the two. */}
+      <button
+        className="secondary-button version-lines-quick-switch__create"
+        type="button"
+        onClick={onCreate}
+        aria-label={t.overviewNewVersionLine}
+        data-tooltip={t.overviewNewVersionLine}
+      >
+        <GitBranchPlus aria-hidden="true" />
       </button>
       {isOpen && (
         <div
@@ -823,6 +994,7 @@ function OverviewPanel({
   onQuickCreateVersionLine,
   onGoToVersionLines,
   onCopyPathError,
+  onOpenSaveVersion,
 }: {
   project: RepositoryInfo | null;
   /** Only ever drives the *empty*-state's own loading affordance below —
@@ -835,7 +1007,9 @@ function OverviewPanel({
   workingTreeError: string | null;
   isCheckingChanges: boolean;
   onCheckChanges: () => void;
-  onReviewChanges: () => void;
+  /** Opens the Changes screen. With a path, that file is selected first, so
+   * the Overview preview is a shortcut *to a file*, not just to the screen. */
+  onReviewChanges: (path?: string) => void;
   onOpenProject: () => void;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
@@ -852,6 +1026,12 @@ function OverviewPanel({
   onQuickCreateVersionLine: (forceSwitch: boolean) => void;
   onGoToVersionLines: () => void;
   onCopyPathError: () => void;
+  /** Opens the save-version flow. Overview has no file-selection UI of its
+   * own to drive `SaveVersionDialog`'s exclusion checkboxes, so — like
+   * `VersionLinesPanel` and `SwitchVersionLineDialog`'s own `onSaveVersion`
+   * — this is expected to navigate to Changes and open the dialog there,
+   * reusing its one existing implementation rather than a second copy of it. */
+  onOpenSaveVersion: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
@@ -905,13 +1085,7 @@ function OverviewPanel({
       <div className="project-overview" aria-busy={isCheckingChanges}>
         <header className="project-overview__header">
           <div className="project-overview__identity">
-            <div className="project-overview__title-row">
-              <h1>{project.name}</h1>
-              <span className="project-overview__branch-chip">
-                <GitBranch aria-hidden="true" />
-                {versionValue}
-              </span>
-            </div>
+            <h1>{project.name}</h1>
             <ProjectPath path={project.path} onCopyError={onCopyPathError} />
             {overview.wasOpenedFromNestedFolder && (
               <p className="project-overview__nested">
@@ -919,6 +1093,57 @@ function OverviewPanel({
                 <span data-tooltip={project.selectedPath}>{project.selectedPath}</span>
               </p>
             )}
+          </div>
+          {/* Fills the header's empty right half, opposite the identity it
+              qualifies: the project, the line its new work goes to, and the
+              two counts that summarize everything below — a scannable
+              breadcrumb rather than a boxed card, so it reads as *about* the
+              project instead of as one more panel competing with the status
+              card underneath it. */}
+          <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
+            <span className="overview-meta__branch">
+              {overview.isUnborn ? (
+                <span className="overview-meta__branch-note">
+                  {/* Icon, not the word "Branch" — GitHub/GitLab both drop
+                      the label too, since a branch glyph next to a value
+                      reads as self-explanatory. `aria-hidden` on the glyph,
+                      the group's own `aria-label` still carries it for a
+                      screen reader. Lives inside `.version-line-selector`
+                      itself in the switchable case below, so there is only
+                      ever one branch glyph in this row, not two flanking it. */}
+                  <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
+                  <span className="version-line-card__value">{versionValue}</span>
+                  {t[overview.versionDescriptionKey]}
+                </span>
+              ) : (
+                <OverviewVersionLineQuickActions
+                  snapshot={versionLines}
+                  isLoadingSnapshot={isLoadingVersionLines}
+                  currentValue={versionValue}
+                  canSwitch={!overview.isDetached}
+                  onSwitch={onQuickSwitchVersionLine}
+                  onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
+                  onSeeAll={onGoToVersionLines}
+                />
+              )}
+            </span>
+            {pendingVersions.totalCount > 0 && (
+              <>
+                <span className="overview-meta__sep" aria-hidden="true">
+                  ·
+                </span>
+                {/* Emphasized, not a link: what makes it actionable is the
+                    "Publish all" button on the saved-versions section
+                    itself, already visible below without any navigation. */}
+                <span className="overview-meta__stat overview-meta__stat--accent">
+                  {t.overviewVersionsAhead(pendingVersions.totalCount)}
+                </span>
+              </>
+            )}
+            {/* Working-change count deliberately left out — the status card
+                right below already opens with it ("N files changed" /
+                the breakdown chips), so repeating it here was the same fact
+                twice with nothing new to add. */}
           </div>
         </header>
 
@@ -960,7 +1185,7 @@ function OverviewPanel({
                 {breakdown.map((item) => (
                   <li
                     key={item.category}
-                    className={`status-breakdown__item${item.category === "conflicted" ? " status-breakdown__item--attention" : ""}`}
+                    className={`status-breakdown__item status-breakdown__item--${item.category}`}
                   >
                     {t[CATEGORY_LABEL_KEYS[item.category]](item.count)}
                   </li>
@@ -969,14 +1194,14 @@ function OverviewPanel({
             )}
           </div>
           <div className="project-hero__actions">
-            {canPublish && (
-              <button className="primary-button project-hero__action" type="button" onClick={onPublish}>
-                <Send aria-hidden="true" />
-                {t.overviewPublishChanges}
-              </button>
-            )}
+            {/* A quiet, secondary corner action — re-reading the working tree
+                isn't the thing this card wants you to do next, so it no longer
+                competes with Review/Save for primary-button weight. Publishing
+                moved out entirely: it now lives with the saved versions it
+                actually publishes (`PendingVersionsSection`'s own "Publish
+                all"), not with the unsaved files above. */}
             <button
-              className={`${canPublish ? "secondary-button" : "primary-button"} project-hero__action`}
+              className="ghost-button project-hero__refresh"
               type="button"
               onClick={onCheckChanges}
               disabled={isCheckingChanges}
@@ -987,56 +1212,76 @@ function OverviewPanel({
               />
               {isCheckingChanges ? t.statusRefreshing : t.statusRefresh}
             </button>
-            <button className="secondary-button project-hero__action" type="button" onClick={onReviewChanges}>
-              {t.overviewReviewChanges}
-            </button>
+            <div className="project-hero__buttons">
+              <button
+                className="secondary-button project-hero__action"
+                type="button"
+                onClick={() => onReviewChanges()}
+              >
+                <Eye aria-hidden="true" />
+                {t.overviewReviewChanges}
+              </button>
+              <button
+                className="primary-button project-hero__action"
+                type="button"
+                onClick={onOpenSaveVersion}
+                disabled={!workingTree || workingTree.counts.total === 0 || isCheckingChanges}
+              >
+                <Save aria-hidden="true" />
+                {t.overviewSaveVersion}
+              </button>
+            </div>
           </div>
+          {/* Named files only once a check has actually produced them: a stale
+              or in-flight status must not put a file list under a headline
+              that no longer describes it. */}
+          {workingTree && !isLoading && workingTree.counts.total > 0 && (
+            <OverviewChangesPreview
+              workingTree={workingTree}
+              onOpenFile={(path) => onReviewChanges(path)}
+              onSeeAll={() => onReviewChanges()}
+            />
+          )}
+          {/* The other half of "what is waiting on you": work already saved
+              but not yet published. Publishing lives here — as "Publish all"
+              — rather than in the actions above: you publish saved versions,
+              not raw working-tree edits, so the action belongs next to the
+              versions it acts on. */}
+          {(pendingVersions.totalCount > 0 || pendingVersionsError) && project && (
+            <Suspense fallback={null}>
+              <PendingVersionsSection
+                key={project.path}
+                projectPath={project.path}
+                result={pendingVersions}
+                error={pendingVersionsError}
+                onRetry={onRetryPendingVersions}
+                onPublishUpTo={onPublishUpTo}
+                canPublish={canPublish}
+                onPublish={onPublish}
+              />
+            </Suspense>
+          )}
           <StatusAnnouncement isBusy={isCheckingChanges} message={`${heroHeadline}. ${heroMessage}`} />
         </section>
 
-        <section className="version-line-spotlight" aria-labelledby="version-line-spotlight-heading">
-          <div className="version-line-spotlight__icon" aria-hidden="true">
-            <GitBranch />
-          </div>
-          <div className="version-line-spotlight__body">
-            <h2 id="version-line-spotlight-heading">
-              {overview.isUnborn ? t.overviewCurrentVersionLine : t.overviewVersionLineActionsTitle}
-            </h2>
-            {overview.isUnborn ? (
-              <>
-                <p className="version-line-spotlight__value">{versionValue}</p>
-                <p className="version-line-spotlight__description">{t[overview.versionDescriptionKey]}</p>
-              </>
-            ) : (
-              <p className="version-line-spotlight__description">{t.overviewVersionLineActionsDescription}</p>
-            )}
-          </div>
-          {!overview.isUnborn && (
-            <OverviewVersionLineQuickActions
-              snapshot={versionLines}
-              isLoadingSnapshot={isLoadingVersionLines}
-              currentValue={versionValue}
-              canSwitch={!overview.isDetached}
-              variant="spotlight"
-              onSwitch={onQuickSwitchVersionLine}
-              onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
-              onSeeAll={onGoToVersionLines}
-            />
-          )}
-        </section>
-
-        {(pendingVersions.totalCount > 0 || pendingVersionsError) && project && (
-          <Suspense fallback={null}>
-            <PendingVersionsSection
-              key={project.path}
-              projectPath={project.path}
-              result={pendingVersions}
-              error={pendingVersionsError}
-              onRetry={onRetryPendingVersions}
-              onPublishUpTo={onPublishUpTo}
-            />
-          </Suspense>
-        )}
+        {/* Last, and in sidebar order: the summaries for the two screens that
+            do not exist yet. Side by side on a wide window so they read as one
+            "not built yet" band rather than two more full-width cards
+            competing with the two that work. */}
+        <div className="overview-placeholders">
+          <OverviewPlaceholderCard
+            icon={<GitCommitHorizontal />}
+            title={t.overviewHistoryPreviewTitle}
+            description={t.overviewHistoryPreviewDescription}
+            rows={3}
+          />
+          <OverviewPlaceholderCard
+            icon={<LifeBuoy />}
+            title={t.overviewRecoveryPreviewTitle}
+            description={t.overviewRecoveryPreviewDescription}
+            rows={3}
+          />
+        </div>
       </div>
     );
   }
@@ -2413,9 +2658,8 @@ export function App(): React.JSX.Element {
               <ChevronRight aria-hidden="true" />
             </button>
           </div>
-          <span className="titlebar-badge" aria-label={t.alphaBadgeAriaLabel}>{t.alphaBadge}</span>
           <button
-            className="titlebar-icon-button titlebar-theme-toggle"
+            className="titlebar-icon-button"
             type="button"
             aria-label={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
             data-tooltip={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
@@ -2430,6 +2674,8 @@ export function App(): React.JSX.Element {
           data-tauri-drag-region
           onDoubleClick={() => performWindowAction(() => appWindow.toggleMaximize())}
         />
+
+        <span className="titlebar-badge" aria-label={t.alphaBadgeAriaLabel}>{t.alphaBadge}</span>
 
         <div className="window-controls" aria-label={t.windowControls}>
           <button
@@ -2675,7 +2921,19 @@ export function App(): React.JSX.Element {
                   workingTreeError={workingTreeError}
                   isCheckingChanges={isCheckingChanges}
                   onCheckChanges={() => projectPath && void checkWorkingTree(projectPath)}
-                  onReviewChanges={() => navigateToView("changes")}
+                  onReviewChanges={(path) => {
+                    if (path && sessionsState.activeId) {
+                      dispatchSessions({
+                        type: "setChangesSelection",
+                        id: sessionsState.activeId,
+                        selection: {
+                          selectedPath: path,
+                          excludedPaths: activeSession?.changesSelection.excludedPaths ?? [],
+                        },
+                      });
+                    }
+                    navigateToView("changes");
+                  }}
                   onOpenProject={() => void handleOpenProject()}
                   canPublish={canPublish}
                   onPublish={() => openPublishDialog()}
@@ -2699,6 +2957,10 @@ export function App(): React.JSX.Element {
                   onCopyPathError={() =>
                     showErrorDialog(t.overviewCopyPathFailedTitle, t.overviewCopyPathFailedMessage)
                   }
+                  onOpenSaveVersion={() => {
+                    startSessionOperation("save");
+                    navigateToView("changes");
+                  }}
                 />
               ),
               // Project-only screens are absent, not disabled, when no
