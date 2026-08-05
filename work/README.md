@@ -21,6 +21,11 @@ Use a zero-padded numeric ID and a short kebab-case title:
 
 IDs are permanent and must not be reused, even after a task moves to `done/`.
 
+A multi-task epic may group its child task files in a subfolder under
+`active/` (e.g. `active/architecture/`) to signal priority and keep the
+folder root readable. The subfolder name matches the epic's theme, not its
+task ID.
+
 ## Workflow
 
 1. Capture rough ideas in `backlog.md`.
