@@ -26,6 +26,17 @@ export type VersionLine = {
   /** Set when this line is checked out in a different linked worktree —
    * this window cannot switch to or delete it. */
   worktreePath: string | null;
+  /** Commits on this line not yet on `upstream`. `null` when there is no
+   * upstream; `0` means fully pushed. Reflects the last local fetch, not a
+   * live remote check. */
+  upstreamAhead: number | null;
+  /** Commits on `upstream` not yet on this line. Same `null`/`0` convention
+   * as `upstreamAhead`. */
+  upstreamBehind: number | null;
+  /** The configured upstream branch was deleted on the remote. `upstream`
+   * stays set (it names what's missing); `upstreamAhead`/`upstreamBehind`
+   * are meaningless in this state. */
+  upstreamGone: boolean;
 };
 
 /** Mirrors the Rust `VersionLinesSnapshot` contract. */

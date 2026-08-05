@@ -148,10 +148,76 @@ describe("DeleteVersionLineDialog", () => {
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(emptySnapshot()));
   });
 
-  it("blocks deletion of unique work and offers no destructive action", async () => {
+  it("explains a blocked deletion of unique work and offers no destructive action", async () => {
     mockedInvoke.mockRejectedValueOnce({
       code: "version_line_unique_work",
       message: "unique work",
+      remediation: null,
+    });
+    const onSwitchInstead = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <DeleteVersionLineDialog
+          isOpen
+          projectPath="/repo"
+          target="feature/x"
+          onClose={vi.fn()}
+          onDeleted={vi.fn()}
+          onSwitchInstead={onSwitchInstead}
+        />
+      </LanguageProvider>,
+    );
+
+    // The refusal is framed as an explanation with a way forward, not as a
+    // failure the user could retry into working.
+    expect(await screen.findByText("“feature/x” can't be deleted yet")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Publish this line to a remote/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Switch to this line" }));
+    expect(onSwitchInstead).toHaveBeenCalled();
+  });
+
+  it("explains an unfinished Git operation and points at the conflicted files", async () => {
+    mockedInvoke.mockRejectedValueOnce({
+      code: "git_operation_in_progress",
+      message: "merge in progress",
+      remediation: null,
+    });
+    const onOpenChanges = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <DeleteVersionLineDialog
+          isOpen
+          projectPath="/repo"
+          target="conflict-a"
+          onClose={vi.fn()}
+          onDeleted={vi.fn()}
+          onOpenChanges={onOpenChanges}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(
+      await screen.findByText(/in the middle of an unfinished Git operation/),
+    ).toBeInTheDocument();
+    // Conflict resolution isn't built yet, so the dialog says so rather than
+    // implying the Changes screen can fix it.
+    expect(screen.getByText(/resolving them isn't supported here yet/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "See the files in conflict" }));
+    expect(onOpenChanges).toHaveBeenCalled();
+  });
+
+  it("keeps the retryable error banner for failures that aren't a refusal", async () => {
+    mockedInvoke.mockRejectedValueOnce({
+      code: "ref_locked",
+      message: "locked",
       remediation: null,
     });
     render(
@@ -166,11 +232,6 @@ describe("DeleteVersionLineDialog", () => {
       </LanguageProvider>,
     );
 
-    expect(
-      await screen.findByText(
-        "This version line has saved work that isn't reachable from any other version line or remote yet.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 });

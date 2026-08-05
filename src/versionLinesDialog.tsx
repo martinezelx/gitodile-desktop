@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { CircleAlert, GitBranch, LoaderCircle, Trash2 } from "lucide-react";
+import { CircleAlert, GitBranch, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
 import { useLanguage, type Translations } from "./i18n";
 import { localizeAppError, isAppError } from "./appError";
 import { useModalFocus } from "./modalFocus";
@@ -532,6 +532,8 @@ export function DeleteVersionLineDialog({
   target,
   onClose,
   onDeleted,
+  onSwitchInstead,
+  onOpenChanges,
   onPhaseChange,
 }: {
   isOpen: boolean;
@@ -539,6 +541,14 @@ export function DeleteVersionLineDialog({
   target: string;
   onClose: () => void;
   onDeleted: (snapshot: VersionLinesSnapshot) => void;
+  /** Offered as the way forward when a line can't be deleted because its work
+   * lives nowhere else: from that line you can publish or merge it, which is
+   * exactly what unblocks the deletion. Absent, the dialog just explains. */
+  onSwitchInstead?: () => void;
+  /** Offered when an unfinished Git operation blocks every version-line
+   * change: the Changes screen is the one place that shows which files are
+   * in conflict, which is as far as GitOdrile goes on conflicts today. */
+  onOpenChanges?: () => void;
   onPhaseChange?: (phase: VersionLineOperationPhase) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
@@ -620,6 +630,17 @@ export function DeleteVersionLineDialog({
   }
 
   const plan = "plan" in state ? state.plan : null;
+  // A refusal to delete is a normal, expected answer here — a line whose work
+  // lives nowhere else *should* survive. Those cases get their own explanation
+  // and a way forward instead of the generic red error banner, which is kept
+  // for failures the user can only retry.
+  const blockedReason =
+    state.status === "blocked" && isAppError(state.error) ? state.error.code : null;
+  const isExplainedBlock =
+    blockedReason === "version_line_unique_work" ||
+    blockedReason === "version_line_checked_out_elsewhere" ||
+    blockedReason === "version_line_is_active" ||
+    blockedReason === "git_operation_in_progress";
 
   return (
     <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
@@ -634,7 +655,11 @@ export function DeleteVersionLineDialog({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id="delete-version-line-title">
-          {state.status === "success" ? t.deleteVersionLineSuccessTitle : t.deleteVersionLineTitle(target)}
+          {state.status === "success"
+            ? t.deleteVersionLineSuccessTitle
+            : isExplainedBlock
+              ? t.deleteVersionLineBlockedTitle(target)
+              : t.deleteVersionLineTitle(target)}
         </h2>
 
         {state.status === "loading" && (
@@ -644,7 +669,62 @@ export function DeleteVersionLineDialog({
           </div>
         )}
 
-        {state.status === "blocked" && (
+        {state.status === "blocked" && isExplainedBlock && (
+          <>
+            <div className="save-version-summary" role="status">
+              <p>
+                {blockedReason === "version_line_unique_work"
+                  ? t.deleteVersionLineBlockedUniqueLead
+                  : blockedReason === "version_line_checked_out_elsewhere"
+                    ? t.deleteVersionLineBlockedElsewhereLead
+                    : blockedReason === "git_operation_in_progress"
+                      ? t.deleteVersionLineBlockedOperationLead
+                      : t.deleteVersionLineBlockedActiveLead}
+              </p>
+              {blockedReason === "git_operation_in_progress" && (
+                <p className="save-version-note">{t.deleteVersionLineBlockedOperationNote}</p>
+              )}
+              {blockedReason === "version_line_unique_work" && (
+                <ul className="delete-version-line-options">
+                  <li>{t.deleteVersionLineBlockedUniqueOptionPublish}</li>
+                  <li>{t.deleteVersionLineBlockedUniqueOptionMerge}</li>
+                  <li>{t.deleteVersionLineBlockedUniqueOptionKeep}</li>
+                </ul>
+              )}
+            </div>
+            <div className="dialog-actions">
+              <button className="secondary-button" type="button" onClick={requestClose}>
+                {t.commonClose}
+              </button>
+              {blockedReason === "git_operation_in_progress" && onOpenChanges && (
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={() => {
+                    onOpenChanges();
+                  }}
+                >
+                  <TriangleAlert aria-hidden="true" />
+                  {t.deleteVersionLineOpenChangesAction}
+                </button>
+              )}
+              {blockedReason === "version_line_unique_work" && onSwitchInstead && (
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={() => {
+                    onSwitchInstead();
+                  }}
+                >
+                  <GitBranch aria-hidden="true" />
+                  {t.deleteVersionLineSwitchAction}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {state.status === "blocked" && !isExplainedBlock && (
           <>
             <ErrorBanner error={state.error} t={t} />
             <div className="dialog-actions">
@@ -661,7 +741,12 @@ export function DeleteVersionLineDialog({
         {plan && state.status !== "success" && (
           <>
             <div className="save-version-summary">
-              <p>{t.deleteVersionLineRetainedBy(plan.retainedBy.join(", "))}</p>
+              <p>{t.deleteVersionLineSafeLead}</p>
+              <ul className="delete-version-line-options">
+                {plan.retainedBy.map((ref) => (
+                  <li key={ref}>{ref}</li>
+                ))}
+              </ul>
               <p className="save-version-note">{t.deleteVersionLineWarning}</p>
             </div>
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -24,6 +24,9 @@ function snapshot(overrides: Partial<VersionLinesSnapshot> = {}): VersionLinesSn
         isRetainedElsewhere: false,
         uniqueCommitCount: null,
         worktreePath: null,
+        upstreamAhead: null,
+        upstreamBehind: null,
+        upstreamGone: false,
       },
       {
         name: "feature/new-thing",
@@ -33,6 +36,9 @@ function snapshot(overrides: Partial<VersionLinesSnapshot> = {}): VersionLinesSn
         isRetainedElsewhere: true,
         uniqueCommitCount: 2,
         worktreePath: null,
+        upstreamAhead: null,
+        upstreamBehind: null,
+        upstreamGone: false,
       },
     ],
     totalCount: 2,
@@ -57,6 +63,9 @@ function withBugfixLine(): VersionLinesSnapshot {
         isRetainedElsewhere: true,
         uniqueCommitCount: 0,
         worktreePath: null,
+        upstreamAhead: null,
+        upstreamBehind: null,
+        upstreamGone: false,
       },
     ],
     totalCount: 3,
@@ -143,18 +152,89 @@ describe("VersionLinesPanel", () => {
     expect(screen.queryAllByText("feature/new-thing")).toHaveLength(0);
   });
 
-  it("filters by a name-prefix chip derived from the actual branch names", async () => {
+  it("filters by a name prefix derived from the actual branch names", async () => {
     const user = userEvent.setup();
     renderPanel({ snapshot: withBugfixLine() });
 
     await screen.findAllByText("feature/new-thing");
-    await user.click(screen.getByRole("button", { name: "bugfix (1)" }));
+    await user.click(screen.getByRole("button", { name: "Filter version lines" }));
+    await user.click(screen.getByRole("checkbox", { name: /bugfix/ }));
 
     expect(screen.getAllByText("bugfix/other").length).toBeGreaterThan(0);
     expect(screen.queryAllByText("feature/new-thing")).toHaveLength(0);
+    // The trigger reports how much narrowing is in effect, so a filtered
+    // list is never a mystery.
+    expect(screen.getByRole("button", { name: "Filter version lines" })).toHaveTextContent("1 filter");
 
-    await user.click(screen.getByRole("button", { name: "All" }));
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getAllByText("feature/new-thing").length).toBeGreaterThan(0);
+  });
+
+  it("combines a state filter with a prefix filter instead of replacing it", async () => {
+    const user = userEvent.setup();
+    renderPanel({ snapshot: withBugfixLine() });
+
+    await screen.findAllByText("feature/new-thing");
+    await user.click(screen.getByRole("button", { name: "Filter version lines" }));
+    await user.click(screen.getByRole("checkbox", { name: /^bugfix/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Local only/ }));
+
+    // Both lines are local-only, so the prefix is what still narrows the
+    // list: the two groups AND together rather than one overriding the other.
+    expect(screen.getAllByText("bugfix/other").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("feature/new-thing")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Filter version lines" })).toHaveTextContent("2 filters");
+  });
+
+  it("sorts the other lines by recency first, and by name when asked", async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      snapshot: snapshot({
+        lines: [
+          snapshot().lines[0],
+          {
+            name: "zeta/newest",
+            tip: { commit: "zzz111", shortCommit: "zzz111a", subject: "newest", committedAt: "2026-07-20T00:00:00Z" },
+            isActive: false,
+            upstream: "origin/zeta/newest",
+            isRetainedElsewhere: true,
+            uniqueCommitCount: 0,
+            worktreePath: null,
+            upstreamAhead: null,
+            upstreamBehind: null,
+            upstreamGone: false,
+          },
+          {
+            name: "alpha/oldest",
+            tip: { commit: "aaa111", shortCommit: "aaa111a", subject: "oldest", committedAt: "2026-07-01T00:00:00Z" },
+            isActive: false,
+            upstream: null,
+            isRetainedElsewhere: true,
+            uniqueCommitCount: 0,
+            worktreePath: null,
+            upstreamAhead: null,
+            upstreamBehind: null,
+            upstreamGone: false,
+          },
+        ],
+        totalCount: 3,
+      }),
+    });
+
+    const otherNames = () =>
+      Array.from(document.querySelectorAll(".version-lines-list:not(.version-lines-list--active) .version-line-row__name"))
+        .map((node) => node.textContent);
+
+    await screen.findByText("zeta/newest");
+    expect(otherNames()).toEqual(["zeta/newest", "alpha/oldest"]);
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sort version lines" }), "Name (A–Z)");
+    expect(otherNames()).toEqual(["alpha/oldest", "zeta/newest"]);
+
+    // "Not published first" keys on having no upstream, which is a fact the
+    // snapshot carries, not on any commit count.
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sort version lines" }), "Not published first");
+    expect(otherNames()).toEqual(["alpha/oldest", "zeta/newest"]);
   });
 
   it("shows a recovery banner and hides Switch/Delete on detached HEAD", async () => {
@@ -167,6 +247,7 @@ describe("VersionLinesPanel", () => {
   });
 
   it("disables Switch and Delete for a line checked out in another worktree", async () => {
+    const user = userEvent.setup();
     renderPanel({
       snapshot: snapshot({
         lines: [snapshot().lines[0], { ...snapshot().lines[1], worktreePath: "/other/workspace" }],
@@ -175,7 +256,10 @@ describe("VersionLinesPanel", () => {
 
     await screen.findAllByText("feature/new-thing");
     expect(screen.getByText(/Open in another workspace at \/other\/workspace/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch to this line" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Switch to “feature/new-thing”" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /“feature\/new-thing” is open in another workspace/ }),
+    ).toBeDisabled();
   });
 
   it("surfaces a retry action when discovery fails with nothing cached", async () => {
@@ -241,6 +325,155 @@ describe("VersionLinesPanel", () => {
       screen.getByText(/2 version lines aren't shown: their names use characters/),
     ).toBeInTheDocument();
     expect(screen.getAllByText("feature/new-thing").length).toBeGreaterThan(0);
+  });
+
+  it("says up front which lines can be deleted and which can't", async () => {
+    renderPanel({
+      snapshot: snapshot({
+        lines: [
+          snapshot().lines[0],
+          snapshot().lines[1],
+          {
+            name: "feature/unmerged",
+            tip: { commit: "jkl012", shortCommit: "jkl012a", subject: "wip", committedAt: "2026-07-04T00:00:00Z" },
+            isActive: false,
+            upstream: null,
+            isRetainedElsewhere: false,
+            uniqueCommitCount: 3,
+            worktreePath: null,
+            upstreamAhead: null,
+            upstreamBehind: null,
+            upstreamGone: false,
+          },
+        ],
+        totalCount: 3,
+      }),
+    });
+
+    expect(await screen.findByText("Safe to delete")).toBeInTheDocument();
+    expect(screen.getByText("Can't be deleted yet")).toBeInTheDocument();
+
+    // The blocked line's Delete stays clickable so the dialog can explain
+    // why and offer the way forward.
+    const blocked = screen.getByRole("button", {
+      name: /“feature\/unmerged” has saved work that isn't kept anywhere else yet/,
+    });
+    expect(blocked).toBeEnabled();
+  });
+
+  it("flags drift from the upstream, and stays quiet when there is none", async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      snapshot: snapshot({
+        lines: [
+          snapshot().lines[0],
+          {
+            name: "feature/ahead",
+            tip: { commit: "aaa111", shortCommit: "aaa111a", subject: "wip", committedAt: "2026-07-04T00:00:00Z" },
+            isActive: false,
+            upstream: "origin/feature/ahead",
+            isRetainedElsewhere: true,
+            uniqueCommitCount: 0,
+            worktreePath: null,
+            upstreamAhead: 2,
+            upstreamBehind: 0,
+            upstreamGone: false,
+          },
+          {
+            name: "feature/diverged",
+            tip: { commit: "bbb222", shortCommit: "bbb222a", subject: "wip", committedAt: "2026-07-04T00:00:00Z" },
+            isActive: false,
+            upstream: "origin/feature/diverged",
+            isRetainedElsewhere: true,
+            uniqueCommitCount: 0,
+            worktreePath: null,
+            upstreamAhead: 1,
+            upstreamBehind: 3,
+            upstreamGone: false,
+          },
+          {
+            name: "feature/gone",
+            tip: { commit: "ccc333", shortCommit: "ccc333a", subject: "wip", committedAt: "2026-07-04T00:00:00Z" },
+            isActive: false,
+            upstream: "origin/feature/gone",
+            isRetainedElsewhere: true,
+            uniqueCommitCount: 0,
+            worktreePath: null,
+            upstreamAhead: 0,
+            upstreamBehind: 0,
+            upstreamGone: true,
+          },
+          {
+            name: "feature/synced",
+            tip: { commit: "ddd444", shortCommit: "ddd444a", subject: "wip", committedAt: "2026-07-04T00:00:00Z" },
+            isActive: false,
+            upstream: "origin/feature/synced",
+            isRetainedElsewhere: true,
+            uniqueCommitCount: 0,
+            worktreePath: null,
+            upstreamAhead: 0,
+            upstreamBehind: 0,
+            upstreamGone: false,
+          },
+        ],
+        totalCount: 5,
+      }),
+    });
+
+    await screen.findByText("2 not pushed");
+    expect(screen.getByText("1 not pushed, 3 not pulled")).toBeInTheDocument();
+    expect(screen.getByText("Remote branch deleted")).toBeInTheDocument();
+    // A line that's fully pushed and pulled gets no drift pill — the
+    // "Tracks x" pill already says it's published.
+    expect(screen.queryByText("Up to date with the remote")).not.toBeInTheDocument();
+
+    // The Details panel spells out the same fact in full, for every line,
+    // including the unremarkable "synced" and "no upstream" cases.
+    const syncedRow = screen.getByText("feature/synced").closest("li")!;
+    await user.click(within(syncedRow).getByRole("button", { name: /Technical details/ }));
+    expect(within(syncedRow).getByText("Up to date with the remote")).toBeInTheDocument();
+    expect(within(syncedRow).getByText("origin/feature/synced")).toBeInTheDocument();
+  });
+
+  it("closes the filter popup on Escape and returns focus to its trigger", async () => {
+    const user = userEvent.setup();
+    renderPanel({ snapshot: withBugfixLine() });
+
+    await screen.findAllByText("feature/new-thing");
+    const trigger = screen.getByRole("button", { name: "Filter version lines" });
+    await user.click(trigger);
+    expect(screen.getByRole("checkbox", { name: /Local only/ })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("checkbox", { name: /Local only/ })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("opens the delete dialog from the row's delete button", async () => {
+    const user = userEvent.setup();
+    const onOperationStart = vi.fn(() => true);
+    renderPanel({ onOperationStart });
+
+    await screen.findAllByText("feature/new-thing");
+    mockedInvoke.mockResolvedValueOnce({
+      operationKind: "destructive",
+      summary: "Delete",
+      steps: [],
+      risks: [],
+      recovery: "Reachable from: refs/heads/main",
+      requiresConfirmation: true,
+      stateToken: "delete-token",
+      name: "feature/new-thing",
+      tipCommit: "def456",
+      retainedBy: ["refs/heads/main"],
+      upstream: null,
+    });
+    await user.click(
+      screen.getByRole("button", { name: /Delete “feature\/new-thing”/ }),
+    );
+
+    expect(onOperationStart).toHaveBeenCalledOnce();
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Delete “feature/new-thing”?");
   });
 
   it("does not open a mutation dialog when another linked workspace owns the repository", async () => {

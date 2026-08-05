@@ -4512,6 +4512,16 @@ struct VersionLine {
     is_retained_elsewhere: bool,
     unique_commit_count: Option<u32>,
     worktree_path: Option<String>,
+    /// Commits on this line not yet on `upstream`. `None` when there is no
+    /// upstream to compare against; `Some(0)` means fully pushed.
+    upstream_ahead: Option<u32>,
+    /// Commits on `upstream` not yet on this line. Same `None`/`Some(0)`
+    /// convention as `upstream_ahead`.
+    upstream_behind: Option<u32>,
+    /// The configured upstream ref was deleted on the remote (Git reports
+    /// this as `[gone]`). `ahead`/`behind` are meaningless in this state —
+    /// there is nothing left to compare against.
+    upstream_gone: bool,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -4537,8 +4547,49 @@ struct VersionLineRaw {
     subject: String,
     committed_at: String,
     upstream: Option<String>,
+    /// Raw `%(upstream:track)` text, e.g. `[ahead 2, behind 1]` or `[gone]`.
+    /// Empty when there is no upstream, or when the upstream is fully in
+    /// sync — those two cases are told apart using `upstream` itself.
+    upstream_track: String,
     unique_commit_count: Option<u32>,
     worktree_path: Option<String>,
+}
+
+/// Parsed form of `%(upstream:track)`.
+struct UpstreamTrack {
+    ahead: u32,
+    behind: u32,
+    gone: bool,
+}
+
+/// Git has printed this atom as `[ahead N]`, `[behind N]`,
+/// `[ahead N, behind M]`, `[gone]`, or empty (no drift, or no upstream —
+/// callers that need to tell those two apart check `upstream` separately)
+/// since long before this app's minimum supported Git version.
+fn parse_upstream_track(raw: &str) -> UpstreamTrack {
+    let inner = raw.trim().trim_start_matches('[').trim_end_matches(']');
+    if inner == "gone" {
+        return UpstreamTrack {
+            ahead: 0,
+            behind: 0,
+            gone: true,
+        };
+    }
+    let mut ahead = 0;
+    let mut behind = 0;
+    for part in inner.split(',') {
+        let part = part.trim();
+        if let Some(count) = part.strip_prefix("ahead ") {
+            ahead = count.trim().parse().unwrap_or(0);
+        } else if let Some(count) = part.strip_prefix("behind ") {
+            behind = count.trim().parse().unwrap_or(0);
+        }
+    }
+    UpstreamTrack {
+        ahead,
+        behind,
+        gone: false,
+    }
 }
 
 /// Parses one `for-each-ref` record per line, fields separated by the literal
@@ -4606,15 +4657,19 @@ fn parse_version_line_refs(bytes: &[u8]) -> ParsedVersionLines {
                 .get(5)
                 .and_then(|field| decode(field))
                 .filter(|value| !value.trim().is_empty()),
+            upstream_track: fields
+                .get(6)
+                .and_then(|field| decode(field))
+                .unwrap_or_default(),
             // Git >= 2.41 can calculate both values inside the inventory's
-            // single graph walk. Older versions return only the first six
+            // single graph walk. Older versions return only the base seven
             // fields and use the compatibility path in `get_version_lines`.
             unique_commit_count: fields
-                .get(6)
+                .get(7)
                 .and_then(|field| decode(field))
                 .and_then(|counts| counts.split_ascii_whitespace().next()?.parse().ok()),
             worktree_path: fields
-                .get(7)
+                .get(8)
                 .and_then(|field| decode(field))
                 .filter(|value| !value.trim().is_empty()),
         });
@@ -4625,8 +4680,12 @@ fn parse_version_line_refs(bytes: &[u8]) -> ParsedVersionLines {
     }
 }
 
+/// `%(upstream:track)` has been available since long before this app's
+/// minimum supported Git version (unlike `ahead-behind`/`worktreepath`
+/// below), so it lives in the base format and is available on the legacy
+/// path too.
 const VERSION_LINE_BASE_FORMAT: &str =
-    "%(refname)%00%(objectname)%00%(objectname:short)%00%(contents:subject)%00%(committerdate:iso-strict)%00%(upstream:short)";
+    "%(refname)%00%(objectname)%00%(objectname:short)%00%(contents:subject)%00%(committerdate:iso-strict)%00%(upstream:short)%00%(upstream:track)";
 
 /// Git 2.41 added `ahead-behind:<committish>` to `for-each-ref`; together
 /// with `worktreepath`, it folds the old one-process-per-line count and the
@@ -4748,6 +4807,13 @@ fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
                     branch_unique_commit_count(&path, branch.as_deref(), &raw.commit)
                 })
         };
+        // Ahead/behind is only meaningful relative to a configured upstream;
+        // an empty `upstream_track` on a line with no upstream must not read
+        // as "0 ahead, 0 behind" (fully in sync), which is a different fact.
+        let track = raw
+            .upstream
+            .is_some()
+            .then(|| parse_upstream_track(&raw.upstream_track));
         lines.push(VersionLine {
             name: raw.name,
             tip: VersionLineTip {
@@ -4761,6 +4827,9 @@ fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
             is_retained_elsewhere,
             unique_commit_count,
             worktree_path,
+            upstream_ahead: track.as_ref().map(|track| track.ahead),
+            upstream_behind: track.as_ref().map(|track| track.behind),
+            upstream_gone: track.as_ref().is_some_and(|track| track.gone),
         });
     }
 
@@ -8849,11 +8918,56 @@ mod tests {
 
     #[test]
     fn parse_version_line_refs_reads_batched_counts_and_worktrees() {
-        let text = b"refs/heads/feature\0def456\0def45\0Feature\x002024-02-02T00:00:00+00:00\0origin/feature\x003 7\0C:/repo-linked\n";
+        let text = b"refs/heads/feature\0def456\0def45\0Feature\x002024-02-02T00:00:00+00:00\0origin/feature\0[ahead 2, behind 1]\x003 7\0C:/repo-linked\n";
         let lines = parse_version_line_refs(text).lines;
         assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].upstream_track, "[ahead 2, behind 1]");
         assert_eq!(lines[0].unique_commit_count, Some(3));
         assert_eq!(lines[0].worktree_path.as_deref(), Some("C:/repo-linked"));
+    }
+
+    #[test]
+    fn parse_upstream_track_reads_ahead_behind_and_gone() {
+        assert!(matches!(
+            parse_upstream_track(""),
+            UpstreamTrack {
+                ahead: 0,
+                behind: 0,
+                gone: false
+            }
+        ));
+        assert!(matches!(
+            parse_upstream_track("[ahead 3]"),
+            UpstreamTrack {
+                ahead: 3,
+                behind: 0,
+                gone: false
+            }
+        ));
+        assert!(matches!(
+            parse_upstream_track("[behind 2]"),
+            UpstreamTrack {
+                ahead: 0,
+                behind: 2,
+                gone: false
+            }
+        ));
+        assert!(matches!(
+            parse_upstream_track("[ahead 2, behind 1]"),
+            UpstreamTrack {
+                ahead: 2,
+                behind: 1,
+                gone: false
+            }
+        ));
+        assert!(matches!(
+            parse_upstream_track("[gone]"),
+            UpstreamTrack {
+                ahead: 0,
+                behind: 0,
+                gone: true
+            }
+        ));
     }
 
     #[test]
@@ -8984,6 +9098,101 @@ mod tests {
         assert!(active.worktree_path.is_none());
 
         let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn get_version_lines_reports_upstream_ahead_and_behind_after_diverging() {
+        let (repo, remote, branch) = published_repo_and_remote("vl-track");
+
+        let synced = get_version_lines(repo.clone()).expect("discovery should succeed");
+        let line = synced
+            .lines
+            .iter()
+            .find(|line| line.name == branch)
+            .unwrap();
+        assert_eq!(line.upstream_ahead, Some(0));
+        assert_eq!(line.upstream_behind, Some(0));
+        assert!(!line.upstream_gone);
+
+        // repo gets an unpublished commit of its own...
+        write_and_commit(&repo, "local.txt", "mine\n", "local only");
+
+        // ...while a second clone publishes one the repo has never fetched.
+        let other = unique_temp_dir("vl-track-other");
+        let clone_status = base_git_command()
+            .args(["clone", "-q", &remote, &other])
+            .status()
+            .expect("run git clone");
+        assert!(clone_status.success());
+        write_and_commit(&other, "theirs.txt", "theirs\n", "from the other clone");
+        let push_status = git_command(&other)
+            .args(["push", "-q", "origin", &branch])
+            .status()
+            .expect("run git push from the other clone");
+        assert!(push_status.success());
+
+        // Ahead/behind reads the locally known remote-tracking ref, so it
+        // only reflects the second clone's push once repo fetches it.
+        let fetch_status = git_command(&repo)
+            .args(["fetch", "-q", "origin"])
+            .status()
+            .expect("run git fetch");
+        assert!(fetch_status.success());
+
+        let diverged = get_version_lines(repo.clone()).expect("discovery should succeed");
+        let line = diverged
+            .lines
+            .iter()
+            .find(|line| line.name == branch)
+            .unwrap();
+        assert_eq!(line.upstream_ahead, Some(1));
+        assert_eq!(line.upstream_behind, Some(1));
+        assert!(!line.upstream_gone);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+        let _ = fs::remove_dir_all(&other);
+    }
+
+    #[test]
+    fn get_version_lines_reports_upstream_gone_after_the_remote_branch_is_deleted() {
+        let (repo, remote, branch) = published_repo_and_remote("vl-track-gone");
+
+        // The bare remote's HEAD still points at the branch this test is
+        // about to delete, which Git refuses by default ("deletion of the
+        // current branch prohibited"). There is no other branch to point it
+        // at instead, so silence the guard the same way a real remote's
+        // "delete branch" button does.
+        let allow_delete_current = git_command(&remote)
+            .args(["config", "receive.denyDeleteCurrent", "ignore"])
+            .status()
+            .expect("run git config receive.denyDeleteCurrent");
+        assert!(allow_delete_current.success());
+
+        let delete_status = git_command(&repo)
+            .args(["push", "-q", "origin", "--delete", &branch])
+            .status()
+            .expect("run git push --delete");
+        assert!(delete_status.success());
+        let prune_status = git_command(&repo)
+            .args(["fetch", "-q", "--prune", "origin"])
+            .status()
+            .expect("run git fetch --prune");
+        assert!(prune_status.success());
+
+        let snapshot = get_version_lines(repo.clone()).expect("discovery should succeed");
+        let line = snapshot
+            .lines
+            .iter()
+            .find(|line| line.name == branch)
+            .unwrap();
+        // The upstream config still points at the deleted ref — that is
+        // exactly the state worth flagging, so it must not disappear.
+        assert!(line.upstream.is_some());
+        assert!(line.upstream_gone);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
     }
 
     #[test]

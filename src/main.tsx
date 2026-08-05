@@ -3024,6 +3024,7 @@ export function App(): React.JSX.Element {
                             startSessionOperation("save");
                             navigateToView("changes");
                           }}
+                          onOpenChanges={() => navigateToView("changes")}
                           autoOpenCreate={versionLinesAutoOpenCreate}
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
                         />
