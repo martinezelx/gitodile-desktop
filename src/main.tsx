@@ -49,6 +49,7 @@ import {
   Eye,
   Save,
   Layers,
+  CircleArrowUp,
 } from "lucide-react";
 import { LANGUAGE_NAMES, LanguageProvider, useLanguage, type Language, type LanguagePreference } from "./i18n";
 import {
@@ -1429,6 +1430,28 @@ function SettingsPanel({
     }
   };
 
+  /* One line instead of a stack of five conditionally rendered hints. Every
+     update state — never checked, checking, up to date, update waiting,
+     checker broken — is the same shape (icon + sentence) with a tone, so the
+     row's height never jumps as the state changes and the icon, not the
+     wording, is what tells them apart at a glance. */
+  const gitUpdateLine: { tone: string; icon: React.JSX.Element; message: string } | null =
+    isCheckingGitUpdate || gitUpdateStatus?.state === "checking"
+      ? { tone: "progress", icon: <LoaderCircle aria-hidden="true" className="icon--spinning" />, message: t.gitUpdateChecking }
+      : gitUpdateStatus === null
+        ? { tone: "neutral", icon: <Info aria-hidden="true" />, message: t.gitUpdateNotChecked }
+        : gitUpdateStatus.state === "up_to_date"
+          ? { tone: "success", icon: <CheckCircle2 aria-hidden="true" />, message: t.gitUpdateUpToDate }
+          : gitUpdateStatus.state === "update_available"
+            ? { tone: "accent", icon: <CircleArrowUp aria-hidden="true" />, message: t.settingsGeneralUpdateAvailable }
+            : gitUpdateStatus.state === "unavailable"
+              ? { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.gitUpdateCheckerUnavailable }
+              : gitUpdateStatus.state === "failed"
+                ? { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.gitUpdateCheckFailed }
+                : gitUpdateStatus.state === "timed_out"
+                  ? { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.gitUpdateCheckTimedOut }
+                  : null;
+
   const sections = [
     { id: "general", label: t.settingsGeneralTitle, icon: <Settings /> },
     { id: "appearance", label: t.settingsAppearanceTitle, icon: <Palette /> },
@@ -1545,43 +1568,60 @@ function SettingsPanel({
         <div className="settings-groups">
         <section className="settings-group">
           <header className="settings-group__header">
-            <h3>{t.settingsGeneralGitLabel}</h3>
+            <h3>{t.settingsGitInstallationTitle}</h3>
             <p>{t.settingsGitInstallationDescription}</p>
           </header>
           <div className="settings-group__body">
         <div className="settings-row">
-          <div>
-            {gitDiagnostics === null && <p>{t.settingsGeneralChecking}</p>}
+          <div className="git-install">
+            {gitDiagnostics === null && (
+              <p className="git-install__status git-install__status--progress">
+                <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                <span>{t.settingsGeneralChecking}</span>
+              </p>
+            )}
             {gitDiagnostics?.state === "available" && (
               <>
-                <p>
-                  {gitDiagnostics.version}
-                  {gitUpdateStatus?.state === "update_available" && (
-                    <span className="settings-row__badge">{t.settingsGeneralUpdateAvailable}</span>
-                  )}
+                {/* The version is the fact this row exists to report, so it
+                    gets the label + monospace value treatment rather than
+                    sitting as a bare paragraph indistinguishable from the
+                    hints under it. */}
+                <p className="git-install__version">
+                  <span className="git-install__version-label">{t.settingsGitInstalledVersionLabel}</span>
+                  <span className="git-install__version-value">{gitDiagnostics.version}</span>
                 </p>
-                {gitUpdateStatus === null && <p className="settings-row__hint">{t.gitUpdateNotChecked}</p>}
-                {(isCheckingGitUpdate || gitUpdateStatus?.state === "checking") && (
-                  <p className="settings-row__hint" role="status">{t.gitUpdateChecking}</p>
-                )}
-                {gitUpdateStatus?.state === "up_to_date" && (
-                  <p className="settings-row__hint" role="status">{t.gitUpdateUpToDate}</p>
-                )}
-                {gitUpdateStatus?.state === "unavailable" && (
-                  <p className="settings-row__hint settings-row__warning" role="status">{t.gitUpdateCheckerUnavailable}</p>
-                )}
-                {gitUpdateStatus?.state === "failed" && (
-                  <p className="settings-row__hint settings-row__warning" role="status">{t.gitUpdateCheckFailed}</p>
-                )}
-                {gitUpdateStatus?.state === "timed_out" && (
-                  <p className="settings-row__hint settings-row__warning" role="status">{t.gitUpdateCheckTimedOut}</p>
+                {gitUpdateLine && (
+                  <p className={`git-install__status git-install__status--${gitUpdateLine.tone}`} role="status">
+                    {gitUpdateLine.icon}
+                    <span>{gitUpdateLine.message}</span>
+                  </p>
                 )}
               </>
             )}
-            {gitDiagnostics?.state === "missing" && <p className="settings-row__warning">{t.settingsGeneralGitMissing}</p>}
-            {gitDiagnostics?.state === "unusable" && <p className="settings-row__warning">{t.settingsGeneralGitUnusable}</p>}
-            {gitDiagnostics?.state === "check_failed" && <p className="settings-row__warning">{t.settingsGeneralGitCheckFailed}</p>}
-            {gitActionMessage && <p className="settings-row__hint" role="status">{gitActionMessage}</p>}
+            {gitDiagnostics?.state === "missing" && (
+              <p className="git-install__status git-install__status--danger">
+                <CircleAlert aria-hidden="true" />
+                <span>{t.settingsGeneralGitMissing}</span>
+              </p>
+            )}
+            {gitDiagnostics?.state === "unusable" && (
+              <p className="git-install__status git-install__status--danger">
+                <CircleAlert aria-hidden="true" />
+                <span>{t.settingsGeneralGitUnusable}</span>
+              </p>
+            )}
+            {gitDiagnostics?.state === "check_failed" && (
+              <p className="git-install__status git-install__status--danger">
+                <CircleAlert aria-hidden="true" />
+                <span>{t.settingsGeneralGitCheckFailed}</span>
+              </p>
+            )}
+            {gitActionMessage && (
+              <p className="git-install__status git-install__status--neutral" role="status">
+                <Info aria-hidden="true" />
+                <span>{gitActionMessage}</span>
+              </p>
+            )}
           </div>
           <div className="settings-row__actions">
             {gitDiagnostics?.state === "missing" && (

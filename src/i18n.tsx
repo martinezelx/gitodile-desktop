@@ -470,7 +470,12 @@ export interface Translations {
   settingsGeneralTitle: string;
   settingsGeneralDescription: string;
   commonVersion: string;
-  settingsGeneralGitLabel: string;
+  /** Heading of the installation subsection *inside* the Git settings section.
+   * Deliberately not "Git": the section it lives in is already called that,
+   * and a subsection repeating its parent's name says nothing about what
+   * distinguishes it from the identity subsection beside it. */
+  settingsGitInstallationTitle: string;
+  settingsGitInstalledVersionLabel: string;
   settingsGeneralChecking: string;
   settingsGeneralUpdateAvailable: string;
   settingsGeneralGitMissing: string;
@@ -1045,7 +1050,8 @@ const en: Translations = {
   settingsGeneralTitle: "General",
   settingsGeneralDescription: "Choose what GitOdrile does when it starts.",
   commonVersion: "Version",
-  settingsGeneralGitLabel: "Git",
+  settingsGitInstallationTitle: "Installation",
+  settingsGitInstalledVersionLabel: "Installed version",
   settingsGeneralChecking: "Checking…",
   settingsGeneralUpdateAvailable: "Update available",
   settingsGeneralGitMissing: "Git isn't installed or isn't available to GitOdrile.",
@@ -1074,7 +1080,7 @@ const en: Translations = {
   gitUpdateAlreadyStarting: "The Git update is already starting.",
   gitCouldntStart: "Couldn't start that.",
 
-  settingsIdentityTitle: "Git identity",
+  settingsIdentityTitle: "Identity",
   settingsIdentityDescription:
     "Used to record you as the author of versions you save. This is a normal, global Git setting — not stored only inside GitOdrile.",
   identityNameLabel: "Name",
@@ -1647,7 +1653,8 @@ const es: Translations = {
   settingsGeneralTitle: "General",
   settingsGeneralDescription: "Elige qué hace GitOdrile cuando se inicia.",
   commonVersion: "Versión",
-  settingsGeneralGitLabel: "Git",
+  settingsGitInstallationTitle: "Instalación",
+  settingsGitInstalledVersionLabel: "Versión instalada",
   settingsGeneralChecking: "Comprobando…",
   settingsGeneralUpdateAvailable: "Actualización disponible",
   settingsGeneralGitMissing: "Git no está instalado o no está disponible para GitOdrile.",
@@ -1682,7 +1689,7 @@ const es: Translations = {
   gitUpdateAlreadyStarting: "La actualización de Git ya se está iniciando.",
   gitCouldntStart: "No se pudo iniciar eso.",
 
-  settingsIdentityTitle: "Identidad de Git",
+  settingsIdentityTitle: "Identidad",
   settingsIdentityDescription:
     "Se usa para indicar que eres el autor de las versiones que guardas. Es un ajuste normal y global de Git, no algo exclusivo de GitOdrile.",
   identityNameLabel: "Nombre",
