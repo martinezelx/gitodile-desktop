@@ -228,12 +228,16 @@ describe("VersionLinesPanel", () => {
     await screen.findByText("zeta/newest");
     expect(otherNames()).toEqual(["zeta/newest", "alpha/oldest"]);
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Sort version lines" }), "Name (A–Z)");
+    // The sort control is the app's own popup, not a native <select>: the
+    // latter hands its option list to the platform, which ignores the theme.
+    await user.click(screen.getByRole("button", { name: "Sort version lines (Recently updated)" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Name (A–Z)" }));
     expect(otherNames()).toEqual(["alpha/oldest", "zeta/newest"]);
 
     // "Not published first" keys on having no upstream, which is a fact the
     // snapshot carries, not on any commit count.
-    await user.selectOptions(screen.getByRole("combobox", { name: "Sort version lines" }), "Not published first");
+    await user.click(screen.getByRole("button", { name: "Sort version lines (Name (A–Z))" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Not published first" }));
     expect(otherNames()).toEqual(["alpha/oldest", "zeta/newest"]);
   });
 

@@ -1,6 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, CircleAlert, Eye, GitBranch, ListFilter, Plus, Search, Trash2 } from "lucide-react";
-import { useLanguage } from "./i18n";
+import {
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  CircleAlert,
+  Eye,
+  GitBranch,
+  ListFilter,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
+import { useLanguage, type Translations } from "./i18n";
 import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
 import { CreateVersionLineDialog, DeleteVersionLineDialog, SwitchVersionLineDialog } from "./versionLinesDialog";
 import { LoadingBar } from "./loadingBar";
@@ -284,6 +295,75 @@ function VersionLineRow({
         </dl>
       )}
     </li>
+  );
+}
+
+const SORT_LABEL_KEYS = {
+  recent: "versionLinesSortRecent",
+  name: "versionLinesSortName",
+  unpublished: "versionLinesSortUnpublished",
+} as const satisfies Record<SortKey, keyof Translations>;
+
+/** The sort picker. Was a native `<select>`, which is the one control the
+ * app cannot theme: `appearance: none` styles the closed trigger, but the
+ * open option list is still drawn by the platform — so it arrived
+ * light-on-light over the dark theme and looked nothing like the app's other
+ * dropdowns. Now the same `.app-menu` popup the Overview branch picker and
+ * the Changes view picker use. */
+function SortMenu({
+  value,
+  onChange,
+}: {
+  value: SortKey;
+  onChange: (sort: SortKey) => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useDismissablePopup(isOpen, (restoreFocus) => {
+    setIsOpen(false);
+    if (restoreFocus) {
+      triggerRef.current?.focus();
+    }
+  });
+
+  return (
+    <div className="version-lines-sort" ref={containerRef}>
+      <button
+        ref={triggerRef}
+        className="version-lines-select"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label={`${t.versionLinesSortAriaLabel} (${t[SORT_LABEL_KEYS[value]]})`}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <ArrowUpDown aria-hidden="true" />
+        <span>{t[SORT_LABEL_KEYS[value]]}</span>
+        <ChevronDown aria-hidden="true" className="version-lines-select__chevron" />
+      </button>
+      {isOpen && (
+        <div className="app-menu version-lines-sort__menu" role="menu" aria-label={t.versionLinesSortAriaLabel}>
+          {(["recent", "name", "unpublished"] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === key}
+              className={`app-menu__item${value === key ? " app-menu__item--selected" : ""}`}
+              onClick={() => {
+                setIsOpen(false);
+                onChange(key);
+                triggerRef.current?.focus();
+              }}
+            >
+              {t[SORT_LABEL_KEYS[key]]}
+              {value === key && <Check aria-hidden="true" className="app-menu__check" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -689,18 +769,7 @@ export function VersionLinesPanel({
               }}
             />
 
-            <div className="version-lines-select version-lines-select--native">
-              <select
-                value={sort}
-                aria-label={t.versionLinesSortAriaLabel}
-                onChange={(event) => setSort(event.target.value as SortKey)}
-              >
-                <option value="recent">{t.versionLinesSortRecent}</option>
-                <option value="name">{t.versionLinesSortName}</option>
-                <option value="unpublished">{t.versionLinesSortUnpublished}</option>
-              </select>
-              <ChevronDown aria-hidden="true" className="version-lines-select__chevron" />
-            </div>
+            <SortMenu value={sort} onChange={setSort} />
           </div>
 
           {active && (

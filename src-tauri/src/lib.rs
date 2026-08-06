@@ -1681,6 +1681,145 @@ fn read_working_tree_diffs(path: String) -> Result<Vec<FileDiff>, AppError> {
     Ok(results)
 }
 
+// ---- Expanding the unchanged lines between hunks (task 035) ----
+//
+// A diff carries only what changed plus its immediate context, so the gap a
+// hunk marker announces ("122 unchanged lines") is not in the payload at all.
+// Making that marker expandable therefore needs the file's own text.
+//
+// The working-tree copy is the right source: these lines are unchanged by
+// definition, so both sides of the diff agree on them, and reading the file
+// on disk needs no Git process. A deleted file has no working-tree copy, but
+// a deletion has no unchanged gaps to expand either.
+//
+// Two bounds, for the same reason `MAX_DIFF_OUTPUT_BYTES` exists: a request
+// is capped at `MAX_EXPANDED_LINES` lines so one click can't pull a whole
+// generated file into the renderer, and the file itself is not opened past
+// `MAX_EXPANDABLE_FILE_BYTES`.
+const MAX_EXPANDED_LINES: usize = 500;
+const MAX_EXPANDABLE_FILE_BYTES: u64 = 8 * 1024 * 1024;
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct FileLines {
+    /// Echoed back 1-based, so a caller can confirm which range it received.
+    start_line: u32,
+    lines: Vec<String>,
+    /// True when the requested range was cut short by `MAX_EXPANDED_LINES`.
+    /// The Changes screen does not read it — it derives what is left from the
+    /// gap size minus what it has already collected, which stays correct
+    /// across repeated expansions — but it keeps the response self-describing
+    /// for any caller that asks for a range in one go.
+    truncated: bool,
+}
+
+#[tauri::command(async)]
+fn read_file_lines(
+    path: String,
+    file_path: String,
+    start_line: u32,
+    end_line: u32,
+) -> Result<FileLines, AppError> {
+    validate_repo_relative_path(&file_path)?;
+    if start_line == 0 || end_line < start_line {
+        return Err(
+            AppError::new(AppErrorCode::PathInvalid, "That line range isn't valid.")
+                .with_remediation("Refresh the changes list and try again."),
+        );
+    }
+
+    // `validate_repo_relative_path` rejects `..` and absolute paths, but it
+    // works on the string alone — a symlink committed inside the repository
+    // would still resolve outside it. Unlike `read_file_diff`, which
+    // re-validates its path against a fresh `git status`, this command runs on
+    // a click and cannot afford a Git process, so it confirms containment by
+    // resolving both ends instead.
+    let repo_root = Path::new(&path).canonicalize().map_err(|_| {
+        AppError::new(
+            AppErrorCode::PathUnusable,
+            "This project's folder can't be read.",
+        )
+        .with_remediation("Open the project again, or choose another folder.")
+    })?;
+    let full_path = repo_root.join(&file_path).canonicalize().map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            AppError::new(AppErrorCode::PathMissing, "This file is no longer there.")
+                .with_remediation("Refresh the changes list.")
+        } else {
+            AppError::new(AppErrorCode::PathUnusable, "This file can't be read.")
+                .with_remediation("Check the file permissions and try again.")
+        }
+    })?;
+    if !full_path.starts_with(&repo_root) {
+        return Err(
+            AppError::new(AppErrorCode::PathInvalid, "That file path isn't valid.")
+                .with_remediation("Refresh the changes list and choose the file again."),
+        );
+    }
+
+    let metadata = full_path.metadata().map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            AppError::new(AppErrorCode::PathMissing, "This file is no longer there.")
+                .with_remediation("Refresh the changes list.")
+        } else {
+            AppError::new(AppErrorCode::PathUnusable, "This file can't be read.")
+                .with_remediation("Check the file permissions and try again.")
+        }
+    })?;
+    if !metadata.is_file() {
+        return Err(
+            AppError::new(AppErrorCode::PathUnusable, "That path isn't a file.")
+                .with_remediation("Refresh the changes list."),
+        );
+    }
+    if metadata.len() > MAX_EXPANDABLE_FILE_BYTES {
+        return Err(AppError::new(
+            AppErrorCode::PathUnusable,
+            "This file is too large to show more of here.",
+        )
+        .with_remediation("Open it in your editor to read the surrounding lines."));
+    }
+
+    let contents = std::fs::read(&full_path).map_err(|_| {
+        AppError::new(AppErrorCode::PathUnusable, "This file can't be read.")
+            .with_remediation("Check the file permissions and try again.")
+    })?;
+    let text = String::from_utf8(contents).map_err(|_| {
+        AppError::new(
+            AppErrorCode::PathEncodingUnsupported,
+            "This file isn't readable as text.",
+        )
+        .with_remediation("Open it in your editor instead.")
+    })?;
+
+    // 1-based, inclusive, and clamped to the file rather than erroring: the
+    // caller's range comes from a diff that may be a moment out of date, and
+    // showing the lines that do exist beats refusing the whole request.
+    let start_index = (start_line - 1) as usize;
+    let end_index = end_line as usize;
+    let all_lines: Vec<&str> = text.lines().collect();
+    if start_index >= all_lines.len() {
+        return Ok(FileLines {
+            start_line,
+            lines: Vec::new(),
+            truncated: false,
+        });
+    }
+    let available = &all_lines[start_index..end_index.min(all_lines.len())];
+    let truncated = available.len() > MAX_EXPANDED_LINES;
+    let lines = available
+        .iter()
+        .take(MAX_EXPANDED_LINES)
+        .map(|line| (*line).to_string())
+        .collect();
+
+    Ok(FileLines {
+        start_line,
+        lines,
+        truncated,
+    })
+}
+
 #[tauri::command(async)]
 fn git_diagnostics() -> GitDiagnostics {
     let attempt = match base_git_command().arg("--version").output() {
@@ -5540,6 +5679,7 @@ pub fn run() {
             open_repository,
             read_working_tree_status,
             read_file_diff,
+            read_file_lines,
             read_working_tree_diffs,
             git_diagnostics,
             install_git,
@@ -6494,6 +6634,99 @@ mod tests {
         }
 
         let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_file_lines_returns_an_inclusive_one_based_range() {
+        let path = unique_temp_dir("expand-range");
+        git_init(&path);
+        write_file(&path, "file.txt", "one\ntwo\nthree\nfour\nfive\n");
+
+        let result = read_file_lines(path.clone(), "file.txt".to_string(), 2, 4)
+            .expect("reading a range should succeed");
+        assert_eq!(result.start_line, 2);
+        assert_eq!(result.lines, vec!["two", "three", "four"]);
+        assert!(!result.truncated);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_file_lines_clamps_a_range_that_runs_past_the_end_of_the_file() {
+        let path = unique_temp_dir("expand-clamp");
+        git_init(&path);
+        write_file(&path, "file.txt", "one\ntwo\n");
+
+        // The caller's range comes from a diff that may be a moment stale, so
+        // overshooting returns what exists rather than failing.
+        let result = read_file_lines(path.clone(), "file.txt".to_string(), 2, 99)
+            .expect("an overshooting range should still succeed");
+        assert_eq!(result.lines, vec!["two"]);
+
+        // Starting past the end is empty, not an error.
+        let past_end = read_file_lines(path.clone(), "file.txt".to_string(), 50, 60)
+            .expect("a range past the end should still succeed");
+        assert!(past_end.lines.is_empty());
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_file_lines_caps_how_much_one_request_can_pull_in() {
+        let path = unique_temp_dir("expand-cap");
+        git_init(&path);
+        let body: String = (0..(MAX_EXPANDED_LINES + 50))
+            .map(|index| format!("line {index}\n"))
+            .collect();
+        write_file(&path, "file.txt", &body);
+
+        let result = read_file_lines(path.clone(), "file.txt".to_string(), 1, 99_999)
+            .expect("a capped range should succeed");
+        assert_eq!(result.lines.len(), MAX_EXPANDED_LINES);
+        assert!(result.truncated);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn read_file_lines_rejects_paths_and_ranges_it_cannot_trust() {
+        let path = unique_temp_dir("expand-reject");
+        git_init(&path);
+        write_file(&path, "file.txt", "one\n");
+
+        assert!(read_file_lines(path.clone(), "../outside.txt".to_string(), 1, 2).is_err());
+        assert!(read_file_lines(path.clone(), "file.txt".to_string(), 0, 2).is_err());
+        assert!(read_file_lines(path.clone(), "file.txt".to_string(), 5, 2).is_err());
+        assert!(read_file_lines(path.clone(), "missing.txt".to_string(), 1, 2).is_err());
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    /// A repository-relative path that passes the string check can still
+    /// resolve outside the repository through a symlink, so containment is
+    /// confirmed against the canonicalized root as well.
+    #[test]
+    fn read_file_lines_refuses_a_symlink_that_escapes_the_repository() {
+        let outside = unique_temp_dir("expand-outside");
+        write_file(&outside, "secret.txt", "not yours\n");
+        let path = unique_temp_dir("expand-symlink");
+        git_init(&path);
+
+        let link = Path::new(&path).join("innocent.txt");
+        let target = Path::new(&outside).join("secret.txt");
+        #[cfg(windows)]
+        let linked = std::os::windows::fs::symlink_file(&target, &link).is_ok();
+        #[cfg(not(windows))]
+        let linked = std::os::unix::fs::symlink(&target, &link).is_ok();
+
+        // Creating a symlink needs a privilege Windows does not grant by
+        // default; skip rather than fail when the platform said no.
+        if linked {
+            assert!(read_file_lines(path.clone(), "innocent.txt".to_string(), 1, 2).is_err());
+        }
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_dir_all(&outside);
     }
 
     #[test]

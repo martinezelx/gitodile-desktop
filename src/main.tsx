@@ -1792,6 +1792,7 @@ export function App(): React.JSX.Element {
   const workingTree = activeSession?.workingTree ?? null;
   const workingTreeError = activeSession?.workingTreeError ?? null;
   const isCheckingChanges = activeSession?.isCheckingChanges ?? false;
+  const workingTreeCheckedAt = activeSession?.workingTreeCheckedAt ?? null;
   const pendingVersions = activeSession?.pendingVersions ?? EMPTY_PENDING_VERSIONS;
   const pendingVersionsError = activeSession?.pendingVersionsError ?? null;
   const [projectAnnouncement, setProjectAnnouncement] = useState("");
@@ -2018,6 +2019,7 @@ export function App(): React.JSX.Element {
         id: path,
         generation,
         workingTree: status,
+        checkedAt: Date.now(),
       });
     } catch (error) {
       // Keep the last known status visible; the card reports the failure only
@@ -3014,6 +3016,7 @@ export function App(): React.JSX.Element {
                           workingTree={workingTree}
                           workingTreeError={workingTreeError}
                           isCheckingChanges={isCheckingChanges}
+                          workingTreeCheckedAt={workingTreeCheckedAt}
                           diffCache={diffCacheRef.current}
                           onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
                           onNavigateOverview={() => navigateToView("overview")}

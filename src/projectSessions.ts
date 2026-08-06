@@ -93,6 +93,12 @@ export type ProjectSession = {
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
+  /** `Date.now()` of the last check that actually returned a status, so the
+   * Changes screen can say how fresh what it shows is. Deliberately not
+   * updated by a failed check: the honest answer there is still the age of
+   * the last snapshot the user is looking at. Stamped by the caller and
+   * passed in, keeping this reducer pure. */
+  workingTreeCheckedAt: number | null;
   /** Sequence number the caller stamps on the request that produced the
    * current `workingTree`/`pendingVersions`. `apply*` actions are rejected
    * unless their `generation` still matches, so a response from a
@@ -140,6 +146,7 @@ export type ProjectSessionsAction =
       id: string;
       generation: number;
       workingTree: WorkingTreeStatus;
+      checkedAt: number;
     }
   | { type: "applyWorkingTreeError"; id: string; generation: number; error: string }
   | { type: "applyPendingVersions"; id: string; generation: number; result: PendingVersionsResult }
@@ -170,6 +177,7 @@ function freshSession(project: RepositoryInfo): ProjectSession {
         workingTree: null,
         workingTreeError: null,
         isCheckingChanges: false,
+    workingTreeCheckedAt: null,
     statusGeneration: 0,
     pendingVersions: EMPTY_PENDING_VERSIONS,
     pendingVersionsError: null,
@@ -320,6 +328,7 @@ export function projectSessionsReducer(
         workingTree: action.workingTree,
         workingTreeError: null,
         isCheckingChanges: false,
+        workingTreeCheckedAt: action.checkedAt,
       }));
     }
 

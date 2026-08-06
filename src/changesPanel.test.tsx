@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -15,6 +15,10 @@ const defaultResizeObserver = globalThis.ResizeObserver;
 
 afterEach(() => {
   globalThis.ResizeObserver = defaultResizeObserver;
+  // Vitest runs without `globals`, so Testing Library never registers its own
+  // automatic cleanup — without this, every render in this file stacks up in
+  // the same document and "get by role" starts finding duplicates.
+  cleanup();
 });
 
 /** `ChangesPanel` no longer owns `selectedPath`, the save-version dialog's
@@ -33,7 +37,11 @@ function ControlledChangesPanel(
     | "onOpenSaveVersion"
     | "onCloseSaveVersion"
     | "onSaveVersionPhaseChange"
-  > & { diffCache?: React.ComponentProps<typeof ChangesPanel>["diffCache"] },
+    | "workingTreeCheckedAt"
+  > & {
+    diffCache?: React.ComponentProps<typeof ChangesPanel>["diffCache"];
+    workingTreeCheckedAt?: number | null;
+  },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [isSaveVersionOpen, setIsSaveVersionOpen] = useState(false);
@@ -42,6 +50,7 @@ function ControlledChangesPanel(
     <ChangesPanel
       {...props}
       diffCache={props.diffCache ?? ownCache.current}
+      workingTreeCheckedAt={props.workingTreeCheckedAt ?? null}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
       isSaveVersionOpen={isSaveVersionOpen}
@@ -129,11 +138,13 @@ describe("ChangesPanel save selection", () => {
     expect(added).toBeChecked();
     expect(screen.getAllByText("Project root")).toHaveLength(2);
 
+    // With nothing selected there is no count to name, so the button falls
+    // back to its plain label — and is disabled.
     await userEvent.click(screen.getByRole("checkbox", { name: "Select none" }));
     expect(screen.getByRole("button", { name: "Save version" })).toBeDisabled();
 
     await userEvent.click(edited);
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save selected (1)" }));
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
@@ -367,7 +378,7 @@ describe("ChangesPanel save selection", () => {
     expect(await screen.findByText("line one")).toBeInTheDocument();
     expect(screen.getByText("line two changed")).toBeInTheDocument();
     expect(screen.getByText("wide 界 and emoji 🙂", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("47 unchanged lines")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeInTheDocument();
     expect(screen.getByText("line fifty removed")).toBeInTheDocument();
 
     const diffViewport = container.querySelector<HTMLElement>(".diff-code");
@@ -377,5 +388,248 @@ describe("ChangesPanel save selection", () => {
       resizeCallback?.([], {} as ResizeObserver);
     });
     expect(screen.getByText("wide 界 and emoji 🙂", { exact: false })).toBeInTheDocument();
+  });
+});
+
+describe("ChangesPanel review controls", () => {
+  /** jsdom has no `ResizeObserver`, which `DiffHunkList` observes to find its
+   * wrap point. A no-op stand-in is enough: the virtualizer falls back to its
+   * estimates, which is all these tests need. */
+  class NoopResizeObserver implements ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+
+  const editedDiff = {
+    kind: "text",
+    path: "edited.txt",
+    originalPath: null,
+    change: "changed",
+    truncated: false,
+    hunks: [
+      {
+        header: "@@ -1,2 +1,2 @@",
+        oldStart: 1,
+        oldLines: 2,
+        newStart: 1,
+        newLines: 2,
+        lines: [
+          { kind: "deletion", content: "before one", oldLineNumber: 1, newLineNumber: null },
+          { kind: "addition", content: "after one", oldLineNumber: null, newLineNumber: 1 },
+        ],
+      },
+      {
+        header: "@@ -50,1 +50,1 @@",
+        oldStart: 50,
+        oldLines: 1,
+        newStart: 50,
+        newLines: 1,
+        lines: [{ kind: "addition", content: "after fifty", oldLineNumber: null, newLineNumber: 50 }],
+      },
+    ],
+  };
+  const newDiff = {
+    kind: "text",
+    path: "new.txt",
+    originalPath: null,
+    change: "new",
+    truncated: false,
+    hunks: [
+      {
+        header: "@@ -0,0 +1,1 @@",
+        oldStart: 0,
+        oldLines: 0,
+        newStart: 1,
+        newLines: 1,
+        lines: [{ kind: "addition", content: "brand new", oldLineNumber: null, newLineNumber: 1 }],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    globalThis.ResizeObserver = NoopResizeObserver;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") {
+        const path = (args as { filePath?: string; path?: string }).filePath;
+        return Promise.resolve(path === "new.txt" ? newDiff : editedDiff);
+      }
+      if (command === "read_working_tree_diffs") {
+        return Promise.resolve([editedDiff, newDiff]);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+  });
+
+  function renderPanel(checkedAt: number | null = null): void {
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={workingTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          workingTreeCheckedAt={checkedAt}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+  }
+
+  it("expands the unchanged lines between hunks, and keeps a marker for the rest", async () => {
+    // The first hunk covers old lines 1-2, the second starts at old line 50,
+    // so the gap is 47 lines starting at new line 3. The stub returns two.
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") {
+        return Promise.resolve(editedDiff);
+      }
+      if (command === "read_working_tree_diffs") {
+        return Promise.resolve([editedDiff, newDiff]);
+      }
+      if (command === "read_file_lines") {
+        expect(args).toMatchObject({ path: "/repo", filePath: "edited.txt", startLine: 3, endLine: 49 });
+        return Promise.resolve({ startLine: 3, lines: ["context three", "context four"], truncated: true });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Show 47 unchanged lines" }));
+
+    expect(await screen.findByText("context three")).toBeInTheDocument();
+    expect(screen.getByText("context four")).toBeInTheDocument();
+    // 47 hidden, 2 fetched — the rest stays openable rather than stranding
+    // the gap half-open.
+    expect(screen.getByRole("button", { name: "Show 45 unchanged lines" })).toBeInTheDocument();
+  });
+
+  it("reports a failed expansion in place instead of losing the diff", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") {
+        return Promise.resolve(editedDiff);
+      }
+      if (command === "read_working_tree_diffs") {
+        return Promise.resolve([editedDiff, newDiff]);
+      }
+      if (command === "read_file_lines") {
+        return Promise.reject(new Error("nope"));
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Show 47 unchanged lines" }));
+
+    expect(await screen.findByText("Couldn’t read those lines.")).toBeInTheDocument();
+    // The diff itself is untouched, and the marker is still a live retry.
+    expect(screen.getByText("before one")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
+  });
+
+  it("says how fresh the check is, and names the count the save button will save", async () => {
+    renderPanel(Date.now() - 3 * 60_000);
+
+    expect(await screen.findByText("Checked 3 minutes ago")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save selected (2)" })).toBeEnabled();
+  });
+
+  it("shows no freshness note before the first check returns", () => {
+    renderPanel(null);
+
+    expect(screen.queryByText(/^Checked/)).not.toBeInTheDocument();
+  });
+
+  it("shows the snapshot's added and removed line totals once the diff cache is warm", async () => {
+    renderPanel();
+
+    expect(await screen.findByText("3 lines added")).toBeInTheDocument();
+    expect(screen.getByText("1 line removed")).toBeInTheDocument();
+  });
+
+  it("narrows the file list as the user searches, and explains an empty result", async () => {
+    renderPanel();
+
+    const search = screen.getByRole("searchbox", { name: "Search changed files" });
+    await userEvent.type(search, "new");
+
+    expect(screen.queryByRole("button", { name: /^edited\.txt/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^new\.txt/ })).toBeInTheDocument();
+
+    await userEvent.clear(search);
+    await userEvent.type(search, "zzz");
+    expect(screen.getByText("No changed file matches your search.")).toBeInTheDocument();
+  });
+
+  it("drops the file counter when a search excludes the file that is open", async () => {
+    renderPanel();
+
+    // "edited.txt" is selected by default; searching for the other file
+    // narrows the list without changing what the diff pane shows.
+    expect(await screen.findByText("File 1 of 2")).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search changed files" }), "new");
+
+    expect(screen.queryByText(/^File \d+ of/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous file" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next file" })).toBeDisabled();
+  });
+
+  it("steps between files with the header's arrows, disabling them at each end", async () => {
+    renderPanel();
+
+    expect(await screen.findByText("File 1 of 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous file" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Next file" }));
+
+    expect(await screen.findByText("File 2 of 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next file" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Previous file" })).toBeEnabled();
+  });
+
+  it("counts the current file's changes and steps through them", async () => {
+    renderPanel();
+
+    expect(await screen.findByText("Change 1 of 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous change" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Next change" }));
+
+    expect(screen.getByText("Change 2 of 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next change" })).toBeDisabled();
+  });
+
+  it("switches the diff to the side-by-side view and keeps the choice across files", async () => {
+    const { container } = render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={workingTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(await screen.findByText("before one")).toBeInTheDocument();
+    expect(container.querySelector(".diff-split-row")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Difference view (Unified)" }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Split" }));
+
+    await waitFor(() => expect(container.querySelector(".diff-split-row")).not.toBeNull());
+
+    await userEvent.click(screen.getByRole("button", { name: "Next file" }));
+
+    expect(await screen.findByText("brand new")).toBeInTheDocument();
+    expect(container.querySelector(".diff-split-row")).not.toBeNull();
   });
 });

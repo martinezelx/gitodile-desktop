@@ -2,17 +2,28 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { invoke } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowRightLeft,
+  ArrowUp,
+  Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsUpDown,
   CircleAlert,
+  Columns2,
   FileMinus,
   FilePlus,
   FileQuestion,
   FileWarning,
+  LoaderCircle,
   Pencil,
   RefreshCw,
+  Rows3,
   Save,
+  Search,
   TriangleAlert,
 } from "lucide-react";
 import { useLanguage, type Translations } from "./i18n";
@@ -82,6 +93,154 @@ export function resolveSelectedPath(entries: WorkingTreeEntry[], previousPath: s
     return previousPath;
   }
   return entries[0]?.path ?? null;
+}
+
+/** Case-insensitive substring match over the whole repository-relative path,
+ * so typing either a file name or a folder narrows the list — the same
+ * behavior the Version lines screen's search box has. An all-whitespace query
+ * is treated as no query at all, rather than as a filter nothing matches. */
+export function filterEntriesBySearch(entries: WorkingTreeEntry[], search: string): WorkingTreeEntry[] {
+  const query = search.trim().toLowerCase();
+  if (query.length === 0) {
+    return entries;
+  }
+  return entries.filter((entry) => entry.path.toLowerCase().includes(query));
+}
+
+export type DiffLineTotals = { added: number; removed: number };
+
+/** Added and removed line counts for one file's diff. Only `text` and
+ * `conflict` diffs carry hunks; the binary/too-large/unchanged kinds
+ * contribute nothing, which is the honest answer — GitOdrile never read their
+ * contents. */
+export function countDiffLines(diff: FileDiff): DiffLineTotals {
+  const totals = { added: 0, removed: 0 };
+  if (diff.kind !== "text" && diff.kind !== "conflict") {
+    return totals;
+  }
+  for (const hunk of diff.hunks) {
+    for (const line of hunk.lines) {
+      if (line.kind === "addition") {
+        totals.added += 1;
+      } else if (line.kind === "deletion") {
+        totals.removed += 1;
+      }
+    }
+  }
+  return totals;
+}
+
+/** Screen-wide totals, summed over whichever diffs the snapshot's cache
+ * currently holds. Returns `null` until every listed file is present, so the
+ * subtitle shows nothing rather than a number that keeps climbing while the
+ * batch prefetch fills in — a total that is briefly wrong is worse than one
+ * that is briefly absent. */
+/** True when a diff's line counts would be a floor rather than the answer:
+ * Git stopped early (`truncated`), or the file was never read at all
+ * (`too-large`). Binary and unchanged files are not in this set — they
+ * genuinely contribute no lines, which is a fact, not a gap. */
+function hasUncountableLines(diff: FileDiff): boolean {
+  if (diff.kind === "too-large") {
+    return true;
+  }
+  return (diff.kind === "text" || diff.kind === "conflict") && diff.truncated;
+}
+
+export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<string, FileDiff>): DiffLineTotals | null {
+  if (entries.length === 0) {
+    return null;
+  }
+  const totals = { added: 0, removed: 0 };
+  for (const entry of entries) {
+    const diff = cache.get(entry.path);
+    // Same rule for "not read yet" and "cannot be counted": show nothing
+    // rather than a total the user would read as exact. A subtitle that
+    // quietly understates a huge change set is worse than one that omits the
+    // number until it can be trusted.
+    if (!diff || hasUncountableLines(diff)) {
+      return null;
+    }
+    const fileTotals = countDiffLines(diff);
+    totals.added += fileTotals.added;
+    totals.removed += fileTotals.removed;
+  }
+  return totals;
+}
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+
+/** How to word "when was this last checked". Coarse buckets on purpose: the
+ * point is confidence that the screen is current, not a stopwatch, and a
+ * label that ticks every second is noise beside a list the user is reading.
+ * Anything past a day stops counting — at that age the number is no longer
+ * the useful part of the answer. */
+export type CheckFreshness =
+  { unit: "now" } | { unit: "minutes"; value: number } | { unit: "hours"; value: number } | { unit: "long-ago" };
+
+export function getCheckFreshness(checkedAt: number, now: number): CheckFreshness {
+  const elapsed = Math.max(0, now - checkedAt);
+  if (elapsed < MINUTE_MS) {
+    return { unit: "now" };
+  }
+  if (elapsed < HOUR_MS) {
+    return { unit: "minutes", value: Math.floor(elapsed / MINUTE_MS) };
+  }
+  if (elapsed < 24 * HOUR_MS) {
+    return { unit: "hours", value: Math.floor(elapsed / HOUR_MS) };
+  }
+  return { unit: "long-ago" };
+}
+
+export function formatCheckFreshness(freshness: CheckFreshness, t: Translations): string {
+  switch (freshness.unit) {
+    case "now":
+      return t.changesCheckedJustNow;
+    case "minutes":
+      return t.changesCheckedMinutesAgo(freshness.value);
+    case "hours":
+      return t.changesCheckedHoursAgo(freshness.value);
+    case "long-ago":
+      return t.changesCheckedLongAgo;
+  }
+}
+
+/** The "Checked just now" line beside the refresh button. Re-renders on its
+ * own timer rather than on the screen's, so the wording ages while the user
+ * reads — a minute-granularity label only needs a minute-granularity tick. */
+function CheckFreshnessNote({
+  checkedAt,
+  isChecking,
+  t,
+}: {
+  checkedAt: number | null;
+  isChecking: boolean;
+  t: Translations;
+}): React.JSX.Element | null {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), MINUTE_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  if (isChecking) {
+    return (
+      <span className="changes-freshness" role="status">
+        <LoaderCircle aria-hidden="true" className="icon--spinning" />
+        {t.statusRefreshing}
+      </span>
+    );
+  }
+  if (checkedAt === null) {
+    return null;
+  }
+  return (
+    <span className="changes-freshness" role="status">
+      {formatCheckFreshness(getCheckFreshness(checkedAt, now), t)}
+      <CheckCircle2 aria-hidden="true" className="changes-freshness__icon" />
+    </span>
+  );
 }
 
 function formatByteLimit(bytes: number): string {
@@ -164,13 +323,46 @@ function DiffLineRow({ line, t }: { line: DiffLine; t: Translations }): React.JS
   );
 }
 
-/** How many unchanged lines sit between this hunk and the previous one (or
- * the start of the file, for the first hunk) — computed from the same
- * `oldStart`/`oldLines` fields Rust already provides, so no raw `@@ -a,b
- * +c,d @@` syntax needs to reach a beginner-facing screen. */
-function hiddenLinesBeforeHunk(hunk: DiffHunk, previousHunk: DiffHunk | null): number {
-  const previousEnd = previousHunk ? previousHunk.oldStart + previousHunk.oldLines : 1;
-  return Math.max(0, hunk.oldStart - previousEnd);
+/** The run of unchanged lines sitting between this hunk and the previous one
+ * (or the start of the file, for the first hunk) — computed from the same
+ * `oldStart`/`oldLines` fields Rust already provides, so no raw `@@ -a,b +c,d
+ * @@` syntax needs to reach a beginner-facing screen.
+ *
+ * Both coordinate systems are carried, not just the count: the gap has to be
+ * *fetched* to be expanded, and the file on disk is the new side, while the
+ * expanded lines still need old-side numbers to render like any other context
+ * line. The two starts differ by however much the hunks above added or
+ * removed. */
+export type HunkGap = { hiddenLines: number; oldStart: number; newStart: number };
+
+export function gapBeforeHunk(hunk: DiffHunk, previousHunk: DiffHunk | null): HunkGap {
+  const previousOldEnd = previousHunk ? previousHunk.oldStart + previousHunk.oldLines : 1;
+  const previousNewEnd = previousHunk ? previousHunk.newStart + previousHunk.newLines : 1;
+  return {
+    hiddenLines: Math.max(0, hunk.oldStart - previousOldEnd),
+    oldStart: previousOldEnd,
+    newStart: previousNewEnd,
+  };
+}
+
+/** Lines already pulled in for one gap, keyed by hunk index. Expansion is
+ * incremental: the backend caps how much one request may return, so a very
+ * large gap fills in over repeated clicks and `lines.length` doubles as the
+ * offset the next request starts from. */
+export type GapExpansion = { lines: string[] };
+export type GapExpansions = Record<number, GapExpansion>;
+
+/** Turns the part of a gap that has been fetched into ordinary context rows.
+ * They are indistinguishable from the context lines Git itself supplied,
+ * which is the point: an expanded gap should read as more of the same file,
+ * not as a separate pasted-in region. */
+function expandedGapLines(gap: HunkGap, expansion: GapExpansion): DiffLine[] {
+  return expansion.lines.map((content, offset) => ({
+    kind: "context" as const,
+    content,
+    oldLineNumber: gap.oldStart + offset,
+    newLineNumber: gap.newStart + offset,
+  }));
 }
 
 /** One renderable row of a diff: either the "N unchanged lines" marker that
@@ -179,15 +371,27 @@ function hiddenLinesBeforeHunk(hunk: DiffHunk, previousHunk: DiffHunk | null): n
  * the list virtualizable below — a virtualizer needs one flat, indexable
  * sequence of same-shaped items, not a tree. */
 export type DiffRow =
-  | { kind: "marker"; hunkIndex: number; hiddenLines: number }
+  | { kind: "marker"; hunkIndex: number; hiddenLines: number; gap: HunkGap }
   | { kind: "line"; hunkIndex: number; line: DiffLine };
 
-export function flattenDiffRows(hunks: DiffHunk[]): DiffRow[] {
+export function flattenDiffRows(hunks: DiffHunk[], expansions: GapExpansions = {}): DiffRow[] {
   const rows: DiffRow[] = [];
   hunks.forEach((hunk, hunkIndex) => {
-    const hiddenLines = hiddenLinesBeforeHunk(hunk, hunks[hunkIndex - 1] ?? null);
-    if (hiddenLines > 0) {
-      rows.push({ kind: "marker", hunkIndex, hiddenLines });
+    const gap = gapBeforeHunk(hunk, hunks[hunkIndex - 1] ?? null);
+    if (gap.hiddenLines > 0) {
+      const expansion = expansions[hunkIndex];
+      if (expansion) {
+        for (const line of expandedGapLines(gap, expansion)) {
+          rows.push({ kind: "line", hunkIndex, line });
+        }
+      }
+      // Whatever is still unfetched keeps its marker, so a gap too big for
+      // one request stays expandable instead of stopping half-open with no
+      // way forward.
+      const remaining = gap.hiddenLines - (expansion?.lines.length ?? 0);
+      if (remaining > 0) {
+        rows.push({ kind: "marker", hunkIndex, hiddenLines: remaining, gap });
+      }
     }
     for (const line of hunk.lines) {
       rows.push({ kind: "line", hunkIndex, line });
@@ -202,8 +406,90 @@ export function flattenDiffRows(hunks: DiffHunk[]): DiffRow[] {
  * free via a `.diff-hunk + .diff-hunk` sibling selector. Flattening for
  * virtualization means every row is now a sibling, so that boundary has to
  * be marked per-row instead. */
-export function isFirstRowOfHunk(rows: DiffRow[], index: number): boolean {
+export function isFirstRowOfHunk(rows: { hunkIndex: number }[], index: number): boolean {
   return index === 0 || rows[index - 1].hunkIndex !== rows[index].hunkIndex;
+}
+
+export type DiffViewMode = "unified" | "split";
+
+/** One row of the side-by-side view: the same "N unchanged lines" marker the
+ * unified view uses, or a pair of cells. A pair is one context line shown in
+ * both columns, or a deletion opposite the addition that replaced it — with
+ * `null` on either side when one run is longer than the other. */
+export type SplitRow =
+  | { kind: "marker"; hunkIndex: number; hiddenLines: number; gap: HunkGap }
+  | {
+      kind: "pair";
+      hunkIndex: number;
+      left: DiffLine | null;
+      right: DiffLine | null;
+    };
+
+/** Pairs each run of deletions with the run of additions that follows it,
+ * which is what makes a side-by-side diff readable: an edited line and its
+ * replacement land on the same row instead of one below the other. Runs are
+ * flushed at every context line (and at the end of a hunk), so an unbalanced
+ * edit — three lines replaced by one — leaves empty cells rather than pairing
+ * across an unrelated section of the file. */
+export function buildSplitRows(hunks: DiffHunk[], expansions: GapExpansions = {}): SplitRow[] {
+  const rows: SplitRow[] = [];
+  hunks.forEach((hunk, hunkIndex) => {
+    const gap = gapBeforeHunk(hunk, hunks[hunkIndex - 1] ?? null);
+    if (gap.hiddenLines > 0) {
+      const expansion = expansions[hunkIndex];
+      if (expansion) {
+        // An unchanged line is identical on both sides, so it fills the row.
+        for (const line of expandedGapLines(gap, expansion)) {
+          rows.push({ kind: "pair", hunkIndex, left: line, right: line });
+        }
+      }
+      const remaining = gap.hiddenLines - (expansion?.lines.length ?? 0);
+      if (remaining > 0) {
+        rows.push({ kind: "marker", hunkIndex, hiddenLines: remaining, gap });
+      }
+    }
+    let deletions: DiffLine[] = [];
+    let additions: DiffLine[] = [];
+    const flush = (): void => {
+      const pairCount = Math.max(deletions.length, additions.length);
+      for (let index = 0; index < pairCount; index += 1) {
+        rows.push({
+          kind: "pair",
+          hunkIndex,
+          left: deletions[index] ?? null,
+          right: additions[index] ?? null,
+        });
+      }
+      deletions = [];
+      additions = [];
+    };
+    for (const line of hunk.lines) {
+      if (line.kind === "deletion") {
+        deletions.push(line);
+      } else if (line.kind === "addition") {
+        additions.push(line);
+      } else {
+        flush();
+        rows.push({ kind: "pair", hunkIndex, left: line, right: line });
+      }
+    }
+    flush();
+  });
+  return rows;
+}
+
+/** Index of the row that opens each hunk, so the toolbar's change navigation
+ * can scroll straight to it. The opening row is the "N unchanged lines"
+ * marker when there is one — it reads as the change's own heading — and the
+ * first line of the hunk otherwise. */
+export function getHunkStartRows(rows: { hunkIndex: number }[], hunkCount: number): number[] {
+  const starts: number[] = new Array(hunkCount).fill(-1);
+  rows.forEach((row, index) => {
+    if (starts[row.hunkIndex] === -1) {
+      starts[row.hunkIndex] = index;
+    }
+  });
+  return starts;
 }
 
 /** Starting guesses for `useVirtualizer`. `measureElement` corrects each row
@@ -296,6 +582,12 @@ function codePointColumns(symbol: string): number {
   return 1;
 }
 
+/** Everything in a `.diff-split-row` that isn't one of its two content
+ * columns: two 40px number gutters, two 14px sign columns, the divider
+ * between the halves, and the row's own right padding. Kept in sync with
+ * `.diff-split-row`'s `grid-template-columns` in styles.css. */
+const DIFF_SPLIT_CONTENT_GUTTER = 125;
+
 /** How many visual rows a pre-wrapped diff line is likely to occupy before
  * the browser can measure it. This deliberately models tabs and Unicode
  * display columns instead of using UTF-16 `string.length`; the live DOM
@@ -336,13 +628,177 @@ export function measureDiffRowHeight(element: HTMLElement): number {
  * out and paint every line up front just to show the first screenful,
  * which is the actual source of "it's a bit laggy to open" — not the Git
  * read, which the caching/prefetch/batching above already made fast. */
-function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): React.JSX.Element {
-  const rows = useMemo(() => flattenDiffRows(hunks), [hunks]);
+function DiffSplitCell({
+  line,
+  side,
+  t,
+}: {
+  line: DiffLine | null;
+  side: "old" | "new";
+  t: Translations;
+}): React.JSX.Element {
+  if (!line) {
+    // A cell with no counterpart still has to occupy its two grid columns, or
+    // the row's other half slides across the divider.
+    return (
+      <>
+        <span className="diff-line__number diff-line__number--empty" />
+        <span className="diff-split-cell diff-split-cell--empty" />
+      </>
+    );
+  }
+  const label =
+    line.kind === "addition" ? t.changesLineAddedLabel : line.kind === "deletion" ? t.changesLineRemovedLabel : null;
+  const lineNumber = side === "old" ? line.oldLineNumber : line.newLineNumber;
+  return (
+    <>
+      <span className="diff-line__number">{lineNumber ?? ""}</span>
+      <span className={`diff-split-cell diff-split-cell--${line.kind}`}>
+        <span className="diff-line__sign" aria-hidden="true">
+          {line.kind === "addition" ? "+" : line.kind === "deletion" ? "-" : " "}
+        </span>
+        {label && <span className="visually-hidden">{label}</span>}
+        <span className="diff-line__content">{line.content}</span>
+      </span>
+    </>
+  );
+}
+
+/** The "Show N unchanged lines" control that opens a gap between hunks.
+ * A button rather than a static caption because the lines behind it are
+ * genuinely fetchable — the diff never carried them, so this is the only way
+ * to read the code around a change without leaving the app. */
+function GapMarker({
+  hiddenLines,
+  state,
+  onExpand,
+  t,
+}: {
+  hiddenLines: number;
+  state: "idle" | "loading" | "error";
+  /** `null` when this diff's gaps can't be fetched — the marker then stays
+   * the caption it always was, rather than offering an action that would
+   * either do nothing or show the wrong lines. */
+  onExpand: (() => void) | null;
+  t: Translations;
+}): React.JSX.Element {
+  if (!onExpand) {
+    return <div className="diff-hunk__marker diff-hunk__marker--static">{t.changesDiffHiddenLines(hiddenLines)}</div>;
+  }
+  return (
+    <div className="diff-hunk__marker">
+      <button
+        type="button"
+        className="diff-hunk__expand"
+        onClick={onExpand}
+        disabled={state === "loading"}
+        aria-label={t.changesDiffShowHiddenLines(hiddenLines)}
+      >
+        <ChevronsUpDown aria-hidden="true" />
+        {state === "loading" ? t.commonLoading : t.changesDiffShowHiddenLines(hiddenLines)}
+      </button>
+      {state === "error" && (
+        <span className="diff-hunk__expand-error" role="alert">
+          {t.changesDiffExpandFailed}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function DiffHunkList({
+  hunks,
+  projectPath,
+  filePath,
+  viewMode,
+  hunkTarget,
+  t,
+}: {
+  hunks: DiffHunk[];
+  /** Both needed to fetch a gap's lines: they are not in the diff at all.
+   * A `null` project path means this diff isn't expandable — see
+   * `DiffResultView`'s note. */
+  projectPath: string | undefined;
+  filePath: string;
+  viewMode: DiffViewMode;
+  /** The hunk the toolbar last navigated to. `token` (rather than the index
+   * alone) is what makes a repeated press of the same button scroll again
+   * instead of silently doing nothing because the index did not change. */
+  hunkTarget: { index: number; token: number };
+  t: Translations;
+}): React.JSX.Element {
+  // Which gaps the user has opened, and how far. Keyed by hunk index, so it
+  // survives switching view modes (both builders read the same map) but is
+  // reset per file below — an expansion describes one file's gaps and means
+  // nothing for the next one.
+  const [expansions, setExpansions] = useState<GapExpansions>({});
+  const [expandingHunk, setExpandingHunk] = useState<number | null>(null);
+  const [expandError, setExpandError] = useState<number | null>(null);
+  // Read inside the request's `.then`, so a response that lands after the
+  // user has moved to another file can be recognized as stale. Without it
+  // the effect below would clear the expansions on the file switch and the
+  // late response would immediately re-fill them — showing one file's lines
+  // inside another's diff, indistinguishable from real context.
+  const filePathRef = useRef(filePath);
+  filePathRef.current = filePath;
+
+  useEffect(() => {
+    setExpansions({});
+    setExpandingHunk(null);
+    setExpandError(null);
+  }, [filePath]);
+
+  const expandGap = (hunkIndex: number, gap: HunkGap): void => {
+    if (projectPath === undefined || expandingHunk !== null) {
+      return;
+    }
+    const requestedPath = filePath;
+    const alreadyLoaded = expansions[hunkIndex]?.lines.length ?? 0;
+    setExpandingHunk(hunkIndex);
+    setExpandError(null);
+    invoke<{ startLine: number; lines: string[]; truncated: boolean }>("read_file_lines", {
+      path: projectPath,
+      filePath: requestedPath,
+      startLine: gap.newStart + alreadyLoaded,
+      endLine: gap.newStart + gap.hiddenLines - 1,
+    })
+      .then((result) => {
+        if (filePathRef.current !== requestedPath) {
+          return;
+        }
+        setExpansions((current) => ({
+          ...current,
+          [hunkIndex]: { lines: [...(current[hunkIndex]?.lines ?? []), ...result.lines] },
+        }));
+      })
+      .catch(() => {
+        // Deliberately not localized through `localizeAppError`: this is a
+        // one-line note inside a diff row, not a screen-level failure, and
+        // the only useful next step is "try again", which the button still is.
+        if (filePathRef.current === requestedPath) {
+          setExpandError(hunkIndex);
+        }
+      })
+      .finally(() => setExpandingHunk(null));
+  };
+
+  const rows = useMemo(
+    () => (viewMode === "split" ? buildSplitRows(hunks, expansions) : flattenDiffRows(hunks, expansions)),
+    [hunks, viewMode, expansions],
+  );
+  const hunkStartRows = useMemo(() => getHunkStartRows(rows, hunks.length), [rows, hunks.length]);
   const scrollRef = useRef<HTMLPreElement>(null);
   /** Where lines wrap, and how tall a wrapped line is — both read from the
    * live element rather than hardcoded, so the estimate follows the CSS and
-   * the pane's current width (the sidebar collapsing changes both). */
-  const [metrics, setMetrics] = useState({ charsPerLine: 0, lineHeight: FALLBACK_LINE_HEIGHT, tabSize: 8 });
+   * the pane's current width (the sidebar collapsing changes both). Split
+   * view halves the space a line has, so it gets its own wrap point rather
+   * than reusing the unified one. */
+  const [metrics, setMetrics] = useState({
+    charsPerLine: 0,
+    splitCharsPerLine: 0,
+    lineHeight: FALLBACK_LINE_HEIGHT,
+    tabSize: 8,
+  });
 
   useLayoutEffect(() => {
     const element = scrollRef.current;
@@ -355,15 +811,18 @@ function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): Rea
       const parsedLineHeight = Number.parseFloat(style.lineHeight);
       const parsedTabSize = Number.parseFloat(style.tabSize);
       const contentWidth = element.clientWidth - DIFF_CONTENT_GUTTER;
+      const splitContentWidth = (element.clientWidth - DIFF_SPLIT_CONTENT_GUTTER) / 2;
       setMetrics((previous) => {
         const next = {
           charsPerLine: charWidth > 0 && contentWidth > 0 ? Math.floor(contentWidth / charWidth) : 0,
+          splitCharsPerLine: charWidth > 0 && splitContentWidth > 0 ? Math.floor(splitContentWidth / charWidth) : 0,
           lineHeight: Number.isFinite(parsedLineHeight) ? parsedLineHeight : FALLBACK_LINE_HEIGHT,
           tabSize: Number.isFinite(parsedTabSize) && parsedTabSize > 0 ? parsedTabSize : 8,
         };
         // Bail out on no-op resizes: this runs from a ResizeObserver, and
         // setting state unconditionally there would loop.
         return previous.charsPerLine === next.charsPerLine &&
+          previous.splitCharsPerLine === next.splitCharsPerLine &&
           previous.lineHeight === next.lineHeight &&
           previous.tabSize === next.tabSize
           ? previous
@@ -385,7 +844,15 @@ function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): Rea
       if (row.kind === "marker") {
         return ESTIMATED_MARKER_ROW_HEIGHT;
       }
-      return estimateLineRows(row.line.content, metrics.charsPerLine, metrics.tabSize) * metrics.lineHeight;
+      if (row.kind === "line") {
+        return estimateLineRows(row.line.content, metrics.charsPerLine, metrics.tabSize) * metrics.lineHeight;
+      }
+      // A split row is as tall as its taller half.
+      const visualRows = Math.max(
+        row.left ? estimateLineRows(row.left.content, metrics.splitCharsPerLine, metrics.tabSize) : 1,
+        row.right ? estimateLineRows(row.right.content, metrics.splitCharsPerLine, metrics.tabSize) : 1,
+      );
+      return visualRows * metrics.lineHeight;
     },
     // `getBoundingClientRect` excludes margins, so without this the 12px
     // `margin-top` on `.diff-row--hunk-start` is missing from every measured
@@ -398,7 +865,28 @@ function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): Rea
   // measured at the old width.
   useLayoutEffect(() => {
     virtualizer.measure();
-  }, [metrics.charsPerLine, metrics.lineHeight, metrics.tabSize]);
+  }, [metrics.charsPerLine, metrics.splitCharsPerLine, metrics.lineHeight, metrics.tabSize, viewMode]);
+
+  // `hunkStartRows` moves whenever the row list does — including when a gap
+  // is expanded, which inserts rows. Reading it through a ref keeps it out of
+  // the effect's dependencies: only an explicit navigation (a new `token`) or
+  // a view-mode switch should scroll. With it as a dependency, expanding a
+  // gap re-ran this and yanked the view back to the last change the toolbar
+  // pointed at — the opposite of what someone who just asked to read the
+  // lines above it wants.
+  const hunkStartRowsRef = useRef(hunkStartRows);
+  hunkStartRowsRef.current = hunkStartRows;
+
+  // Scrolls to whichever change the toolbar last pointed at. `scrollToIndex`
+  // rather than a DOM lookup because the target row is usually not rendered
+  // yet — that is the whole point of virtualizing the list.
+  useEffect(() => {
+    const rowIndex = hunkStartRowsRef.current[hunkTarget.index];
+    if (rowIndex === undefined || rowIndex < 0) {
+      return;
+    }
+    virtualizer.scrollToIndex(rowIndex, { align: "start" });
+  }, [hunkTarget.token, viewMode]);
 
   return (
     <pre
@@ -416,7 +904,7 @@ function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): Rea
           // applying it to the marker row too stacked its own vertical
           // margin with the border's `padding-top`, pushing the chip down
           // and off-center on every hunk after the first.
-          const isHunkStart = row.kind === "line" && row.hunkIndex > 0 && isFirstRowOfHunk(rows, virtualRow.index);
+          const isHunkStart = row.kind !== "marker" && row.hunkIndex > 0 && isFirstRowOfHunk(rows, virtualRow.index);
           return (
             <div
               key={virtualRow.key}
@@ -426,9 +914,25 @@ function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): Rea
               style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
             >
               {row.kind === "marker" ? (
-                <div className="diff-hunk__marker">{t.changesDiffHiddenLines(row.hiddenLines)}</div>
-              ) : (
+                <GapMarker
+                  hiddenLines={row.hiddenLines}
+                  state={
+                    expandingHunk === row.hunkIndex
+                      ? "loading"
+                      : expandError === row.hunkIndex
+                        ? "error"
+                        : "idle"
+                  }
+                  onExpand={projectPath === undefined ? null : () => expandGap(row.hunkIndex, row.gap)}
+                  t={t}
+                />
+              ) : row.kind === "line" ? (
                 <DiffLineRow line={row.line} t={t} />
+              ) : (
+                <div className="diff-split-row">
+                  <DiffSplitCell line={row.left} side="old" t={t} />
+                  <DiffSplitCell line={row.right} side="new" t={t} />
+                </div>
               )}
             </div>
           );
@@ -438,7 +942,24 @@ function DiffHunkList({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): Rea
   );
 }
 
-export function DiffResultView({ diff, t }: { diff: FileDiff; t: Translations }): React.JSX.Element {
+export function DiffResultView({
+  diff,
+  projectPath,
+  viewMode = "unified",
+  hunkTarget = { index: 0, token: 0 },
+  t,
+}: {
+  diff: FileDiff;
+  /** Enables expanding the unchanged gaps between hunks, which reads the
+   * file from the working tree. Omitted by callers showing a *saved*
+   * commit's diff (see `pendingVersions`), where the file on disk may no
+   * longer match what that version recorded — there the gap markers stay
+   * plain captions rather than offering lines that could be wrong. */
+  projectPath?: string;
+  viewMode?: DiffViewMode;
+  hunkTarget?: { index: number; token: number };
+  t: Translations;
+}): React.JSX.Element {
   switch (diff.kind) {
     case "text": {
       const lineCount = diff.hunks.reduce((total, hunk) => total + hunk.lines.length, 0);
@@ -449,7 +970,14 @@ export function DiffResultView({ diff, t }: { diff: FileDiff; t: Translations })
               {t.changesDiffTruncatedNote(lineCount)}
             </p>
           )}
-          <DiffHunkList hunks={diff.hunks} t={t} />
+          <DiffHunkList
+            hunks={diff.hunks}
+            projectPath={projectPath}
+            filePath={diff.path}
+            viewMode={viewMode}
+            hunkTarget={hunkTarget}
+            t={t}
+          />
         </>
       );
     }
@@ -508,7 +1036,14 @@ export function DiffResultView({ diff, t }: { diff: FileDiff; t: Translations })
                   {t.changesDiffTruncatedNote(diff.hunks.reduce((total, hunk) => total + hunk.lines.length, 0))}
                 </p>
               )}
-              <DiffHunkList hunks={diff.hunks} t={t} />
+              <DiffHunkList
+            hunks={diff.hunks}
+            projectPath={projectPath}
+            filePath={diff.path}
+            viewMode={viewMode}
+            hunkTarget={hunkTarget}
+            t={t}
+          />
             </>
           )}
         </>
@@ -516,21 +1051,163 @@ export function DiffResultView({ diff, t }: { diff: FileDiff; t: Translations })
   }
 }
 
+const VIEW_MODE_LABEL_KEYS = {
+  unified: "changesViewUnified",
+  split: "changesViewSplit",
+} as const satisfies Record<DiffViewMode, keyof Translations>;
+
+/** The unified/split picker. Deliberately not a native `<select>`: an
+ * appearance-stripped one renders its option list through the platform, which
+ * ignores the app's theme and drops a light popup on top of the dark one. The
+ * Overview branch picker already solved this the same way, so this reuses its
+ * trigger (`.version-line-selector`) and popup (`.app-menu`) shapes — one
+ * dropdown look across the app rather than a second, native-flavored one. */
+function DiffViewSelector({
+  value,
+  onChange,
+  t,
+}: {
+  value: DiffViewMode;
+  onChange: (mode: DiffViewMode) => void;
+  t: Translations;
+}): React.JSX.Element {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Same dismissal contract as the Overview branch picker: focus moves into
+  // the menu when it opens, Escape sends it back to the trigger, and a click
+  // anywhere outside closes it.
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+    const frame = window.requestAnimationFrame(() => menuRef.current?.focus());
+    const handlePointerDown = (event: MouseEvent): void => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="changes-view-picker" ref={containerRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="version-line-selector changes-view-picker__trigger"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label={`${t.changesViewAriaLabel} (${t[VIEW_MODE_LABEL_KEYS[value]]})`}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        {value === "split" ? (
+          <Columns2 aria-hidden="true" className="version-line-selector__icon" />
+        ) : (
+          <Rows3 aria-hidden="true" className="version-line-selector__icon" />
+        )}
+        <span className="changes-view-picker__value">{t[VIEW_MODE_LABEL_KEYS[value]]}</span>
+        <ChevronDown aria-hidden="true" className="version-line-selector__chevron" />
+      </button>
+      {isOpen && (
+        <div
+          ref={menuRef}
+          className="app-menu changes-view-picker__menu"
+          role="menu"
+          aria-label={t.changesViewAriaLabel}
+          tabIndex={-1}
+        >
+          {(["unified", "split"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === mode}
+              className={`app-menu__item${value === mode ? " app-menu__item--selected" : ""}`}
+              onClick={() => {
+                setIsOpen(false);
+                onChange(mode);
+                triggerRef.current?.focus();
+              }}
+            >
+              {mode === "split" ? <Columns2 aria-hidden="true" /> : <Rows3 aria-hidden="true" />}
+              {t[VIEW_MODE_LABEL_KEYS[mode]]}
+              {value === mode && <Check aria-hidden="true" className="app-menu__check" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** How many hunks the currently shown diff has. Only the two kinds that carry
+ * hunks can be navigated; the rest have nothing to step through. */
+function getHunkCount(diffState: DiffState): number {
+  if (diffState.status !== "ready") {
+    return 0;
+  }
+  const diff = diffState.diff;
+  return diff.kind === "text" || diff.kind === "conflict" ? diff.hunks.length : 0;
+}
+
 function DiffWorkspace({
+  projectPath,
   selectedPath,
   entry,
   diffState,
+  filePosition,
+  fileTotal,
+  onSelectPreviousFile,
+  onSelectNextFile,
   onRetry,
   onBackToList,
   t,
 }: {
+  projectPath: string;
   selectedPath: string | null;
   entry: WorkingTreeEntry | null;
   diffState: DiffState;
+  /** 1-based, matching what the toolbar shows. `0` means the selected file
+   * isn't in the (possibly filtered) list, which disables both arrows. */
+  filePosition: number;
+  fileTotal: number;
+  onSelectPreviousFile: () => void;
+  onSelectNextFile: () => void;
   onRetry: () => void;
   onBackToList: () => void;
   t: Translations;
 }): React.JSX.Element {
+  // Both live here rather than in `ChangesPanel` because they describe how
+  // this pane is being read, not what the screen is showing: the view mode
+  // deliberately survives moving between files, and the change target is
+  // reset per file by the effect below.
+  const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
+  const [hunkTarget, setHunkTarget] = useState({ index: 0, token: 0 });
+  const hunkCount = getHunkCount(diffState);
+
+  useEffect(() => {
+    setHunkTarget({ index: 0, token: 0 });
+  }, [selectedPath]);
+
+  const goToHunk = (index: number): void => {
+    setHunkTarget((current) => ({ index, token: current.token + 1 }));
+  };
+
   if (!selectedPath) {
     // Only reachable transiently, between the list becoming empty and the
     // parent switching to the clean empty state.
@@ -557,10 +1234,85 @@ function DiffWorkspace({
                 {t[CATEGORY_LABEL_KEYS[entry.category]]}
               </span>
             )}
+            {/* Inline, not a second line: a line of its own grew this header
+                past the height it shares with the file list's, putting the
+                two panels' rules back out of step for exactly the renamed
+                files this text appears on. It truncates like the path, with
+                the full value on the tooltip. */}
+            {entry?.originalPath && (
+              <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
+                {t.changesRenamedFrom(entry.originalPath)}
+              </span>
+            )}
           </div>
-          {entry?.originalPath && <p className="changes-diff__origin">{t.changesRenamedFrom(entry.originalPath)}</p>}
         </div>
+        {fileTotal > 0 && (
+          <div className="changes-diff__file-nav">
+            {/* `0` means the open file is not in the list being shown — a
+                search can narrow the list without changing the selection —
+                and "File 0 of 3" is not a position. The arrows stay
+                (disabled) so the control does not jump in and out while
+                someone types. */}
+            {filePosition > 0 && (
+              <span className="changes-diff__position">{t.changesFilePosition(filePosition, fileTotal)}</span>
+            )}
+            <button
+              type="button"
+              className="changes-diff__step"
+              aria-label={t.changesPreviousFile}
+              data-tooltip={t.changesPreviousFile}
+              disabled={filePosition <= 1}
+              onClick={onSelectPreviousFile}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="changes-diff__step"
+              aria-label={t.changesNextFile}
+              data-tooltip={t.changesNextFile}
+              disabled={filePosition === 0 || filePosition >= fileTotal}
+              onClick={onSelectNextFile}
+            >
+              <ChevronRight aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </header>
+      {/* Paired with the file list's search strip: same height, same bottom
+          rule, so the two panels keep reading as one grid. See the note on
+          `--changes-toolbar-height` in styles.css. */}
+      <div className="changes-diff__toolbar">
+        <div className="changes-diff__view">
+          <span className="changes-diff__view-label">{t.changesViewLabel}</span>
+          <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />
+        </div>
+        {hunkCount > 0 && (
+          <div className="changes-diff__hunk-nav">
+            <span className="changes-diff__position">{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span>
+            <button
+              type="button"
+              className="changes-diff__step"
+              aria-label={t.changesPreviousHunk}
+              data-tooltip={t.changesPreviousHunk}
+              disabled={hunkTarget.index <= 0}
+              onClick={() => goToHunk(hunkTarget.index - 1)}
+            >
+              <ArrowUp aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="changes-diff__step"
+              aria-label={t.changesNextHunk}
+              data-tooltip={t.changesNextHunk}
+              disabled={hunkTarget.index >= hunkCount - 1}
+              onClick={() => goToHunk(hunkTarget.index + 1)}
+            >
+              <ArrowDown aria-hidden="true" />
+            </button>
+          </div>
+        )}
+      </div>
       <div
         {...autoHideScrollbarProps<HTMLDivElement>()}
         className="changes-diff__body auto-hide-scrollbar"
@@ -575,7 +1327,15 @@ function DiffWorkspace({
             </button>
           </div>
         )}
-        {diffState.status === "ready" && <DiffResultView diff={diffState.diff} t={t} />}
+        {diffState.status === "ready" && (
+          <DiffResultView
+            diff={diffState.diff}
+            projectPath={projectPath}
+            viewMode={viewMode}
+            hunkTarget={hunkTarget}
+            t={t}
+          />
+        )}
       </div>
     </div>
   );
@@ -652,6 +1412,7 @@ export function ChangesPanel({
   workingTree,
   workingTreeError,
   isCheckingChanges,
+  workingTreeCheckedAt,
   diffCache,
   onRefresh,
   onNavigateOverview,
@@ -667,6 +1428,9 @@ export function ChangesPanel({
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
+  /** When the last successful check landed, for the freshness note beside
+   * the refresh button. `null` before the first one returns. */
+  workingTreeCheckedAt: number | null;
   /** Owned by the caller, not this component, so already-read diffs survive
    * navigating away from Changes and back within the same project (see task
    * 019). Invalidation is unchanged: `getDiffStore` replaces the store
@@ -692,6 +1456,12 @@ export function ChangesPanel({
   const { t } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
   const [announcement, setAnnouncement] = useState("");
+  const [search, setSearch] = useState("");
+  // The list the user is actually looking at. Selection, the save-version
+  // checkboxes, and the totals all keep working off the full `entries`: a
+  // search narrows what is *shown*, it does not silently drop files from the
+  // version being saved.
+  const visibleEntries = useMemo(() => filterEntriesBySearch(entries, search), [entries, search]);
   const store = getDiffStore(diffCache, projectPath, workingTree);
   // Seeded from the cache rather than starting at `idle`: on a remount with a
   // warm cache (navigating back to this screen) that difference is the one
@@ -701,6 +1471,10 @@ export function ChangesPanel({
     return cached ? { status: "ready", diff: cached } : { status: "idle" };
   });
   const [retryToken, setRetryToken] = useState(0);
+  // The diff cache is a plain Map that the batch prefetch mutates, so nothing
+  // re-renders when it fills. Bumped once that batch lands, which is what
+  // lets the subtitle's line totals appear.
+  const [cacheVersion, setCacheVersion] = useState(0);
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(() => new Set());
   // Below ~1024px the list and the diff can't sit side by side legibly, so
   // the layout becomes list/detail: this tracks which one is showing.
@@ -735,6 +1509,7 @@ export function ChangesPanel({
   // exclusions applied to a different one's file list.
   useEffect(() => {
     setExcludedPaths(new Set());
+    setSearch("");
   }, [projectPath]);
 
   useEffect(() => {
@@ -829,6 +1604,7 @@ export function ChangesPanel({
             setDiffState({ status: "ready", diff });
           }
         }
+        setCacheVersion((version) => version + 1);
       })
       .catch(() => {
         // Silent: a best-effort cache warm-up, not the file the user is
@@ -880,6 +1656,21 @@ export function ChangesPanel({
     }
   }, [includedCount, totalCount]);
 
+  // `cacheVersion` is the dependency that matters here — `store.cache` is a
+  // mutable Map whose identity never changes as the batch fills it.
+  const lineTotals = useMemo(() => sumCachedDiffLines(entries, store.cache), [entries, store, cacheVersion]);
+
+  // File-to-file navigation walks the list the user can actually see, so
+  // "next file" during a search means the next match, not the next file
+  // hidden behind the filter.
+  const visibleIndex = visibleEntries.findIndex((entry) => entry.path === selectedPath);
+  const selectFileAt = (index: number): void => {
+    const next = visibleEntries[index];
+    if (next) {
+      onSelectedPathChange(next.path);
+    }
+  };
+
   let headerMessage: React.ReactNode = null;
   if (isLoadingList) {
     headerMessage = <p>{t.statusCheckingMessage}</p>;
@@ -892,12 +1683,31 @@ export function ChangesPanel({
   } else if (workingTree) {
     const { conflicted, total } = workingTree.counts;
     headerMessage = (
-      <p>
-        {workingTree.isClean
-          ? t.changesSummaryClean
-          : conflicted > 0
-            ? t.changesSummaryWithConflicts(conflicted, total)
-            : t.changesSummaryTotal(total)}
+      <p className="changes-view__summary">
+        <span>
+          {workingTree.isClean
+            ? t.changesSummaryClean
+            : conflicted > 0
+              ? t.changesSummaryWithConflicts(conflicted, total)
+              : t.changesSummaryTotal(total)}
+        </span>
+        {!workingTree.isClean && lineTotals && (
+          <>
+            <span className="changes-view__summary-separator" aria-hidden="true">
+              ·
+            </span>
+            <span className="changes-view__line-totals">
+              <span className="changes-view__lines changes-view__lines--added">
+                <span aria-hidden="true">{t.changesLinesAddedTotal(lineTotals.added)}</span>
+                <span className="visually-hidden">{t.changesLinesAddedTotalAriaLabel(lineTotals.added)}</span>
+              </span>
+              <span className="changes-view__lines changes-view__lines--removed">
+                <span aria-hidden="true">{t.changesLinesRemovedTotal(lineTotals.removed)}</span>
+                <span className="visually-hidden">{t.changesLinesRemovedTotalAriaLabel(lineTotals.removed)}</span>
+              </span>
+            </span>
+          </>
+        )}
       </p>
     );
   }
@@ -915,31 +1725,42 @@ export function ChangesPanel({
           )}
         </div>
         <div className="changes-view__actions">
-          <button
-            className="secondary-button changes-view__refresh"
-            type="button"
-            onClick={onRefresh}
-            disabled={isCheckingChanges}
-          >
-            <RefreshCw aria-hidden="true" className={isCheckingChanges ? "icon--spinning" : undefined} />
-            {isCheckingChanges ? t.statusRefreshing : t.statusRefresh}
-          </button>
-          <button
-            className="primary-button"
-            type="button"
-            onClick={onOpenSaveVersion}
-            disabled={!workingTree || workingTree.isClean || isCheckingChanges || !canSaveSelection}
-            data-tooltip={
-              !workingTree || workingTree.isClean
-                ? t.changesSaveVersionDisabledHint
-                : !canSaveSelection
-                  ? t.changesSaveVersionNoSelectionHint
-                  : undefined
-            }
-          >
-            <Save aria-hidden="true" />
-            {t.changesSaveVersion}
-          </button>
+          {/* The button says only "Refresh" here, unlike Overview's fuller
+              "Check for changes": the note beside it already establishes that
+              checking is what just happened, so the verb alone is enough. */}
+          <CheckFreshnessNote checkedAt={workingTreeCheckedAt} isChecking={isCheckingChanges} t={t} />
+          {/* The two buttons are one group; the freshness note beside them is
+              status text, not a third action, so it sits further out. */}
+          <div className="changes-view__buttons">
+            <button
+              className="secondary-button changes-view__refresh"
+              type="button"
+              onClick={onRefresh}
+              disabled={isCheckingChanges}
+            >
+              <RefreshCw aria-hidden="true" className={isCheckingChanges ? "icon--spinning" : undefined} />
+              {t.changesRefresh}
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={onOpenSaveVersion}
+              disabled={!workingTree || workingTree.isClean || isCheckingChanges || !canSaveSelection}
+              data-tooltip={
+                !workingTree || workingTree.isClean
+                  ? t.changesSaveVersionDisabledHint
+                  : !canSaveSelection
+                    ? t.changesSaveVersionNoSelectionHint
+                    : undefined
+              }
+            >
+              <Save aria-hidden="true" />
+              {/* Names what it will actually save. Without a per-file choice
+                (a truncated status) there is no selection to count, so it
+                falls back to the plain label. */}
+              {canChooseFiles && canSaveSelection ? t.changesSaveSelected(includedCount) : t.changesSaveVersion}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -988,6 +1809,20 @@ export function ChangesPanel({
               </span>
               <span>{t.changesSelectionSummary(includedCount, workingTree.counts.total)}</span>
             </div>
+            {/* Paired with `.changes-diff__toolbar` — see the note on
+                `--changes-toolbar-height` in styles.css. */}
+            <div className="changes-file-list__search">
+              <label className="changes-search-box">
+                <Search aria-hidden="true" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={t.changesSearchPlaceholder}
+                  aria-label={t.changesSearchAriaLabel}
+                />
+              </label>
+            </div>
             <div
               {...autoHideScrollbarProps<HTMLDivElement>()}
               className="changes-file-list__scroll auto-hide-scrollbar"
@@ -997,8 +1832,13 @@ export function ChangesPanel({
                   {t.statusTruncatedNote(entries.length)}
                 </p>
               )}
+              {visibleEntries.length === 0 && (
+                <p className="changes-file-list__empty" role="status">
+                  {t.changesNoSearchMatches}
+                </p>
+              )}
               <ul>
-                {entries.map((entry) => (
+                {visibleEntries.map((entry) => (
                   <FileListItem
                     key={entry.path}
                     entry={entry}
@@ -1027,9 +1867,14 @@ export function ChangesPanel({
             </div>
           </nav>
           <DiffWorkspace
+            projectPath={projectPath}
             selectedPath={selectedPath}
             entry={selectedEntry}
             diffState={diffState}
+            filePosition={visibleIndex + 1}
+            fileTotal={visibleEntries.length}
+            onSelectPreviousFile={() => selectFileAt(visibleIndex - 1)}
+            onSelectNextFile={() => selectFileAt(visibleIndex + 1)}
             onRetry={() => setRetryToken((token) => token + 1)}
             onBackToList={() => setIsDetailFocused(false)}
             t={t}

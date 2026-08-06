@@ -197,9 +197,34 @@ export interface Translations {
   changesDiffConflictTooLarge: string;
   changesDiffAriaLabel: (path: string) => string;
   changesDiffHiddenLines: (count: number) => string;
+  changesDiffShowHiddenLines: (count: number) => string;
+  changesDiffExpandFailed: string;
   changesDiffTruncatedNote: (shownLines: number) => string;
   changesLineAddedLabel: string;
   changesLineRemovedLabel: string;
+  changesLinesAddedTotal: (count: number) => string;
+  changesLinesRemovedTotal: (count: number) => string;
+  changesLinesAddedTotalAriaLabel: (count: number) => string;
+  changesLinesRemovedTotalAriaLabel: (count: number) => string;
+  changesSearchPlaceholder: string;
+  changesSearchAriaLabel: string;
+  changesNoSearchMatches: string;
+  changesFilePosition: (position: number, total: number) => string;
+  changesPreviousFile: string;
+  changesNextFile: string;
+  changesViewLabel: string;
+  changesViewUnified: string;
+  changesViewSplit: string;
+  changesViewAriaLabel: string;
+  changesHunkPosition: (position: number, total: number) => string;
+  changesPreviousHunk: string;
+  changesNextHunk: string;
+  changesRefresh: string;
+  changesSaveSelected: (count: number) => string;
+  changesCheckedJustNow: string;
+  changesCheckedMinutesAgo: (minutes: number) => string;
+  changesCheckedHoursAgo: (hours: number) => string;
+  changesCheckedLongAgo: string;
 
   changesSaveVersion: string;
   changesSaveVersionDisabledHint: string;
@@ -731,9 +756,36 @@ const en: Translations = {
   changesDiffConflictTooLarge: "The conflict is too large to preview safely here.",
   changesDiffAriaLabel: (path) => `Difference for ${path}`,
   changesDiffHiddenLines: (count) => (count === 1 ? "1 unchanged line" : `${count} unchanged lines`),
+  changesDiffShowHiddenLines: (count) =>
+    count === 1 ? "Show 1 unchanged line" : `Show ${count} unchanged lines`,
+  changesDiffExpandFailed: "Couldn’t read those lines.",
   changesDiffTruncatedNote: (shownLines) => `Showing the first ${shownLines} lines of this difference.`,
   changesLineAddedLabel: "Added:",
   changesLineRemovedLabel: "Removed:",
+  changesLinesAddedTotal: (count) => `+${count}`,
+  changesLinesRemovedTotal: (count) => `−${count}`,
+  changesLinesAddedTotalAriaLabel: (count) => (count === 1 ? "1 line added" : `${count} lines added`),
+  changesLinesRemovedTotalAriaLabel: (count) => (count === 1 ? "1 line removed" : `${count} lines removed`),
+  changesSearchPlaceholder: "Search files…",
+  changesSearchAriaLabel: "Search changed files",
+  changesNoSearchMatches: "No changed file matches your search.",
+  changesFilePosition: (position, total) => `File ${position} of ${total}`,
+  changesPreviousFile: "Previous file",
+  changesNextFile: "Next file",
+  changesViewLabel: "View:",
+  changesViewUnified: "Unified",
+  changesViewSplit: "Split",
+  changesViewAriaLabel: "Difference view",
+  changesHunkPosition: (position, total) => `Change ${position} of ${total}`,
+  changesPreviousHunk: "Previous change",
+  changesNextHunk: "Next change",
+  changesRefresh: "Refresh",
+  changesSaveSelected: (count) => `Save selected (${count})`,
+  changesCheckedJustNow: "Checked just now",
+  changesCheckedMinutesAgo: (minutes) =>
+    minutes === 1 ? "Checked 1 minute ago" : `Checked ${minutes} minutes ago`,
+  changesCheckedHoursAgo: (hours) => (hours === 1 ? "Checked 1 hour ago" : `Checked ${hours} hours ago`),
+  changesCheckedLongAgo: "Checked a while ago",
 
   changesSaveVersion: "Save version",
   changesSaveVersionDisabledHint: "Make some changes first, then come back to save a version.",
@@ -1321,9 +1373,36 @@ const es: Translations = {
   changesDiffConflictTooLarge: "El conflicto es demasiado grande para previsualizarlo aquí de forma segura.",
   changesDiffAriaLabel: (path) => `Diferencia de ${path}`,
   changesDiffHiddenLines: (count) => (count === 1 ? "1 línea sin cambios" : `${count} líneas sin cambios`),
+  changesDiffShowHiddenLines: (count) =>
+    count === 1 ? "Mostrar 1 línea sin cambios" : `Mostrar ${count} líneas sin cambios`,
+  changesDiffExpandFailed: "No pudimos leer esas líneas.",
   changesDiffTruncatedNote: (shownLines) => `Mostrando las primeras ${shownLines} líneas de esta diferencia.`,
   changesLineAddedLabel: "Añadida:",
   changesLineRemovedLabel: "Eliminada:",
+  changesLinesAddedTotal: (count) => `+${count}`,
+  changesLinesRemovedTotal: (count) => `−${count}`,
+  changesLinesAddedTotalAriaLabel: (count) => (count === 1 ? "1 línea añadida" : `${count} líneas añadidas`),
+  changesLinesRemovedTotalAriaLabel: (count) => (count === 1 ? "1 línea eliminada" : `${count} líneas eliminadas`),
+  changesSearchPlaceholder: "Buscar archivos…",
+  changesSearchAriaLabel: "Buscar archivos con cambios",
+  changesNoSearchMatches: "Ningún archivo con cambios coincide con tu búsqueda.",
+  changesFilePosition: (position, total) => `Archivo ${position} de ${total}`,
+  changesPreviousFile: "Archivo anterior",
+  changesNextFile: "Archivo siguiente",
+  changesViewLabel: "Vista:",
+  changesViewUnified: "Unificada",
+  changesViewSplit: "Dividida",
+  changesViewAriaLabel: "Vista de la diferencia",
+  changesHunkPosition: (position, total) => `Cambio ${position} de ${total}`,
+  changesPreviousHunk: "Cambio anterior",
+  changesNextHunk: "Cambio siguiente",
+  changesRefresh: "Actualizar",
+  changesSaveSelected: (count) => `Guardar selección (${count})`,
+  changesCheckedJustNow: "Comprobado ahora mismo",
+  changesCheckedMinutesAgo: (minutes) =>
+    minutes === 1 ? "Comprobado hace 1 minuto" : `Comprobado hace ${minutes} minutos`,
+  changesCheckedHoursAgo: (hours) => (hours === 1 ? "Comprobado hace 1 hora" : `Comprobado hace ${hours} horas`),
+  changesCheckedLongAgo: "Comprobado hace un rato",
 
   changesSaveVersion: "Guardar versión",
   changesSaveVersionDisabledHint: "Haz algún cambio primero y vuelve para guardar una versión.",

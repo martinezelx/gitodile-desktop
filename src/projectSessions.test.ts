@@ -176,6 +176,7 @@ describe("projectSessionsReducer", () => {
       id: "/a",
       generation: 1,
       workingTree: staleWorkingTree,
+      checkedAt: 1_700_000_000_000,
     });
     expect(afterStale).toBe(state);
     expect(afterStale.byId["/a"].workingTree).toBeNull();
@@ -188,6 +189,7 @@ describe("projectSessionsReducer", () => {
       id: "/a",
       generation: 2,
       workingTree: freshWorkingTree,
+      checkedAt: 1_700_000_000_000,
     });
     expect(afterFresh.byId["/a"].workingTree).toEqual(freshWorkingTree);
     expect(afterFresh.byId["/a"].isCheckingChanges).toBe(false);
@@ -205,7 +207,7 @@ describe("projectSessionsReducer", () => {
       upstream: { branch: null, upstream: null, ahead: 0, behind: 0 },
     };
     state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 1 });
-    state = projectSessionsReducer(state, { type: "applyWorkingTree", id: "/a", generation: 1, workingTree });
+    state = projectSessionsReducer(state, { type: "applyWorkingTree", id: "/a", generation: 1, workingTree, checkedAt: 1_700_000_000_000 });
     state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 2 });
     state = projectSessionsReducer(state, {
       type: "applyWorkingTreeError",
@@ -214,6 +216,10 @@ describe("projectSessionsReducer", () => {
       error: "network blip",
     });
     expect(state.byId["/a"].workingTree).toEqual(workingTree);
+    // The freshness stamp belongs to the snapshot still on screen, so a
+    // failed refresh must not advance it — the Changes screen would then
+    // claim "checked just now" about data the failed check never replaced.
+    expect(state.byId["/a"].workingTreeCheckedAt).toBe(1_700_000_000_000);
     expect(state.byId["/a"].workingTreeError).toBe("network blip");
     expect(state.byId["/a"].isCheckingChanges).toBe(false);
   });

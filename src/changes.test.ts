@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSplitRows,
+  countDiffLines,
   estimateLineRows,
+  filterEntriesBySearch,
   flattenDiffRows,
+  gapBeforeHunk,
+  getCheckFreshness,
+  getHunkStartRows,
   getOrderedChangeEntries,
   isFirstRowOfHunk,
   measureDiffRowHeight,
   resolveSelectedPath,
+  sumCachedDiffLines,
 } from "./changes";
-import type { DiffHunk, DiffLine } from "./changes";
+import type { DiffHunk, DiffLine, FileDiff } from "./changes";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
 function entry(path: string, category: ChangeCategory, originalPath: string | null = null): WorkingTreeEntry {
@@ -114,7 +121,7 @@ describe("flattenDiffRows", () => {
 
     expect(rows).toEqual([
       { kind: "line", hunkIndex: 0, line: hunks[0].lines[0] },
-      { kind: "marker", hunkIndex: 1, hiddenLines: 8 },
+      { kind: "marker", hunkIndex: 1, hiddenLines: 8, gap: { hiddenLines: 8, oldStart: 2, newStart: 2 } },
       { kind: "line", hunkIndex: 1, line: hunks[1].lines[0] },
     ]);
   });
@@ -123,6 +130,263 @@ describe("flattenDiffRows", () => {
     const hunks = [hunk(1, 1, [line("context", "a")]), hunk(2, 1, [line("context", "b")])];
 
     expect(flattenDiffRows(hunks).map((row) => row.kind)).toEqual(["line", "line"]);
+  });
+});
+
+describe("filterEntriesBySearch", () => {
+  const entries = [entry("src/main.tsx", "changed"), entry("docs/README.md", "new"), entry("src/Styles.css", "changed")];
+
+  it("returns every entry for an empty or whitespace-only query", () => {
+    expect(filterEntriesBySearch(entries, "")).toEqual(entries);
+    expect(filterEntriesBySearch(entries, "   ")).toEqual(entries);
+  });
+
+  it("matches anywhere in the path, ignoring case", () => {
+    expect(filterEntriesBySearch(entries, "SRC/").map((item) => item.path)).toEqual([
+      "src/main.tsx",
+      "src/Styles.css",
+    ]);
+    expect(filterEntriesBySearch(entries, "styles").map((item) => item.path)).toEqual(["src/Styles.css"]);
+  });
+
+  it("returns nothing when no path matches", () => {
+    expect(filterEntriesBySearch(entries, "nothing-here")).toEqual([]);
+  });
+});
+
+function textDiff(path: string, hunks: DiffHunk[]): FileDiff {
+  return { kind: "text", path, originalPath: null, change: "changed", hunks, truncated: false };
+}
+
+describe("countDiffLines", () => {
+  it("counts additions and deletions, ignoring context lines", () => {
+    const diff = textDiff("a.txt", [
+      hunk(1, 2, [line("context", "keep"), line("addition", "new"), line("deletion", "old"), line("addition", "new2")]),
+    ]);
+
+    expect(countDiffLines(diff)).toEqual({ added: 2, removed: 1 });
+  });
+
+  it("reports zero for kinds whose contents were never read", () => {
+    const binary: FileDiff = { kind: "binary", path: "logo.png", originalPath: null, change: "changed" };
+    expect(countDiffLines(binary)).toEqual({ added: 0, removed: 0 });
+  });
+});
+
+describe("sumCachedDiffLines", () => {
+  const entries = [entry("a.txt", "changed"), entry("b.txt", "changed")];
+
+  it("sums every file once the whole snapshot is cached", () => {
+    const cache = new Map<string, FileDiff>([
+      ["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])],
+      ["b.txt", textDiff("b.txt", [hunk(1, 1, [line("deletion", "y"), line("addition", "z")])])],
+    ]);
+
+    expect(sumCachedDiffLines(entries, cache)).toEqual({ added: 2, removed: 1 });
+  });
+
+  it("returns null while any file is still missing, rather than a partial total", () => {
+    const cache = new Map<string, FileDiff>([["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])]]);
+
+    expect(sumCachedDiffLines(entries, cache)).toBeNull();
+  });
+
+  it("returns null for an empty change set", () => {
+    expect(sumCachedDiffLines([], new Map())).toBeNull();
+  });
+
+  it("returns null when a file's own count would only be a floor", () => {
+    const truncated: FileDiff = {
+      kind: "text",
+      path: "b.txt",
+      originalPath: null,
+      change: "changed",
+      hunks: [hunk(1, 1, [line("addition", "y")])],
+      truncated: true,
+    };
+    const withTruncated = new Map<string, FileDiff>([
+      ["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])],
+      ["b.txt", truncated],
+    ]);
+    expect(sumCachedDiffLines(entries, withTruncated)).toBeNull();
+
+    const tooLarge: FileDiff = {
+      kind: "too-large",
+      path: "b.txt",
+      originalPath: null,
+      change: "changed",
+      limitBytes: 1024,
+    };
+    const withTooLarge = new Map<string, FileDiff>([
+      ["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])],
+      ["b.txt", tooLarge],
+    ]);
+    expect(sumCachedDiffLines(entries, withTooLarge)).toBeNull();
+  });
+
+  it("still counts files that genuinely contribute no lines", () => {
+    const binary: FileDiff = { kind: "binary", path: "b.txt", originalPath: null, change: "changed" };
+    const cache = new Map<string, FileDiff>([
+      ["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])],
+      ["b.txt", binary],
+    ]);
+
+    expect(sumCachedDiffLines(entries, cache)).toEqual({ added: 1, removed: 0 });
+  });
+});
+
+describe("gapBeforeHunk", () => {
+  it("measures the gap from the end of the previous hunk in both coordinate systems", () => {
+    // The first hunk adds a line, so everything after it sits one line later
+    // on the new side than on the old one.
+    const first = { ...hunk(1, 2, [line("context", "a"), line("addition", "b")]), newStart: 1, newLines: 3 };
+    const second = hunk(10, 1, [line("context", "c")]);
+
+    expect(gapBeforeHunk(second, first)).toEqual({ hiddenLines: 7, oldStart: 3, newStart: 4 });
+  });
+
+  it("measures from line 1 for the first hunk", () => {
+    expect(gapBeforeHunk(hunk(5, 1, [line("context", "a")]), null)).toEqual({
+      hiddenLines: 4,
+      oldStart: 1,
+      newStart: 1,
+    });
+  });
+});
+
+describe("flattenDiffRows with expanded gaps", () => {
+  const hunks = [hunk(1, 1, [line("context", "a")]), hunk(10, 1, [line("context", "b")])];
+
+  it("turns fetched gap lines into ordinary context rows, numbered from the gap's start", () => {
+    const rows = flattenDiffRows(hunks, { 1: { lines: ["two", "three"] } });
+
+    expect(rows[1]).toEqual({
+      kind: "line",
+      hunkIndex: 1,
+      line: { kind: "context", content: "two", oldLineNumber: 2, newLineNumber: 2 },
+    });
+    expect(rows[2]).toEqual({
+      kind: "line",
+      hunkIndex: 1,
+      line: { kind: "context", content: "three", oldLineNumber: 3, newLineNumber: 3 },
+    });
+  });
+
+  it("keeps a marker for the part of the gap still unfetched", () => {
+    const rows = flattenDiffRows(hunks, { 1: { lines: ["two", "three"] } });
+    const marker = rows.find((row) => row.kind === "marker");
+
+    // 8 hidden, 2 pulled in, 6 to go — so the gap stays openable.
+    expect(marker).toMatchObject({ kind: "marker", hiddenLines: 6 });
+  });
+
+  it("drops the marker once the whole gap has been fetched", () => {
+    const rows = flattenDiffRows(hunks, {
+      1: { lines: ["2", "3", "4", "5", "6", "7", "8", "9"] },
+    });
+
+    expect(rows.some((row) => row.kind === "marker")).toBe(false);
+  });
+});
+
+describe("buildSplitRows with expanded gaps", () => {
+  it("fills both columns with each expanded line, since it is unchanged", () => {
+    const hunks = [hunk(1, 1, [line("context", "a")]), hunk(10, 1, [line("context", "b")])];
+
+    const rows = buildSplitRows(hunks, { 1: { lines: ["two"] } });
+    const expanded = rows[1];
+
+    expect(expanded).toEqual({
+      kind: "pair",
+      hunkIndex: 1,
+      left: { kind: "context", content: "two", oldLineNumber: 2, newLineNumber: 2 },
+      right: { kind: "context", content: "two", oldLineNumber: 2, newLineNumber: 2 },
+    });
+  });
+});
+
+describe("getCheckFreshness", () => {
+  const now = 1_700_000_000_000;
+
+  it("calls anything under a minute 'just now'", () => {
+    expect(getCheckFreshness(now, now)).toEqual({ unit: "now" });
+    expect(getCheckFreshness(now - 59_000, now)).toEqual({ unit: "now" });
+  });
+
+  it("counts whole minutes, then whole hours", () => {
+    expect(getCheckFreshness(now - 60_000, now)).toEqual({ unit: "minutes", value: 1 });
+    expect(getCheckFreshness(now - 59 * 60_000, now)).toEqual({ unit: "minutes", value: 59 });
+    expect(getCheckFreshness(now - 60 * 60_000, now)).toEqual({ unit: "hours", value: 1 });
+    expect(getCheckFreshness(now - 23 * 60 * 60_000, now)).toEqual({ unit: "hours", value: 23 });
+  });
+
+  it("stops counting past a day", () => {
+    expect(getCheckFreshness(now - 24 * 60 * 60_000, now)).toEqual({ unit: "long-ago" });
+  });
+
+  it("treats a clock that jumped backwards as 'just now' rather than a negative age", () => {
+    expect(getCheckFreshness(now + 5_000, now)).toEqual({ unit: "now" });
+  });
+});
+
+describe("buildSplitRows", () => {
+  it("shows a context line in both columns", () => {
+    const hunks = [hunk(1, 1, [line("context", "a")])];
+
+    expect(buildSplitRows(hunks)).toEqual([
+      { kind: "pair", hunkIndex: 0, left: hunks[0].lines[0], right: hunks[0].lines[0] },
+    ]);
+  });
+
+  it("pairs a run of deletions with the additions that replaced them", () => {
+    const lines = [line("deletion", "old1"), line("deletion", "old2"), line("addition", "new1"), line("addition", "new2")];
+    const hunks = [hunk(1, 2, lines)];
+
+    expect(buildSplitRows(hunks)).toEqual([
+      { kind: "pair", hunkIndex: 0, left: lines[0], right: lines[2] },
+      { kind: "pair", hunkIndex: 0, left: lines[1], right: lines[3] },
+    ]);
+  });
+
+  it("leaves the shorter side empty when a run is unbalanced", () => {
+    const lines = [line("deletion", "old1"), line("deletion", "old2"), line("addition", "new1")];
+    const hunks = [hunk(1, 2, lines)];
+
+    expect(buildSplitRows(hunks)).toEqual([
+      { kind: "pair", hunkIndex: 0, left: lines[0], right: lines[2] },
+      { kind: "pair", hunkIndex: 0, left: lines[1], right: null },
+    ]);
+  });
+
+  it("does not pair across a context line", () => {
+    const lines = [line("deletion", "old"), line("context", "keep"), line("addition", "new")];
+    const hunks = [hunk(1, 3, lines)];
+
+    expect(buildSplitRows(hunks)).toEqual([
+      { kind: "pair", hunkIndex: 0, left: lines[0], right: null },
+      { kind: "pair", hunkIndex: 0, left: lines[1], right: lines[1] },
+      { kind: "pair", hunkIndex: 0, left: null, right: lines[2] },
+    ]);
+  });
+
+  it("keeps the unchanged-lines marker between hunks", () => {
+    const hunks = [hunk(1, 1, [line("context", "a")]), hunk(10, 1, [line("context", "b")])];
+
+    expect(buildSplitRows(hunks).map((row) => row.kind)).toEqual(["pair", "marker", "pair"]);
+  });
+});
+
+describe("getHunkStartRows", () => {
+  it("points at each hunk's first row, marker included", () => {
+    const hunks = [hunk(1, 1, [line("context", "a")]), hunk(10, 2, [line("context", "b"), line("addition", "c")])];
+    const rows = flattenDiffRows(hunks);
+
+    // [0] line (hunk 0), [1] marker (hunk 1), [2] line, [3] line
+    expect(getHunkStartRows(rows, hunks.length)).toEqual([0, 1]);
+  });
+
+  it("reports -1 for a hunk with no rows at all", () => {
+    expect(getHunkStartRows([], 2)).toEqual([-1, -1]);
   });
 });
 
