@@ -42,7 +42,8 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 
 ## Sync and collaboration
 
-- Guide users through overlapping changes.
+- Guide users through overlapping changes. *(Promoted to epic 037; implementation
+  begins after the modular architecture epic.)*
 - Support GitHub authentication after the local workflow is stable.
 
 ## Quality and verification
