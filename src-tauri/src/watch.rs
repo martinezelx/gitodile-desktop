@@ -191,6 +191,17 @@ impl WatcherRegistry {
         self.unwatch(root);
 
         let (sender, receiver) = channel::<WatchSignal>();
+        // Watch backends may report canonical paths even when the watched
+        // path used an OS alias. macOS is the notable case: `temp_dir()` can
+        // return `/var/...`, while FSEvents reports the same files below
+        // `/private/var/...`. Keep the filter in the backend's coordinate
+        // space so Git-internal paths are not mistaken for worktree files.
+        #[cfg(target_os = "macos")]
+        let filter_dirs = git_dirs
+            .iter()
+            .map(|path| path.canonicalize().unwrap_or_else(|_| path.clone()))
+            .collect::<Vec<_>>();
+        #[cfg(not(target_os = "macos"))]
         let filter_dirs = git_dirs.clone();
         let watcher = notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
             let signal = match result {
