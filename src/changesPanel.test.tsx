@@ -534,7 +534,8 @@ describe("ChangesPanel review controls", () => {
   it("says how fresh the check is, and names the count the save button will save", async () => {
     renderPanel(Date.now() - 3 * 60_000);
 
-    expect(await screen.findByText("Checked 3 minutes ago")).toBeInTheDocument();
+    const freshness = await screen.findByText("Checked 3 minutes ago");
+    expect(freshness).not.toHaveAttribute("role");
     expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Save selected (2)" })).toBeEnabled();
   });
@@ -631,5 +632,24 @@ describe("ChangesPanel review controls", () => {
 
     expect(await screen.findByText("brand new")).toBeInTheDocument();
     expect(container.querySelector(".diff-split-row")).not.toBeNull();
+  });
+
+  it("offers the complete diff as accessible text and supports menu keyboard navigation", async () => {
+    renderPanel();
+
+    await screen.findByText("before one");
+    await userEvent.click(screen.getByRole("button", { name: "Difference view (Unified)" }));
+
+    const unified = screen.getByRole("menuitemradio", { name: "Unified" });
+    expect(unified).toHaveFocus();
+    await userEvent.keyboard("{End}");
+    expect(screen.getByRole("menuitemradio", { name: "Accessible text" })).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+
+    const completeDiff = screen.getByLabelText("Complete difference as accessible text");
+    expect(completeDiff).toHaveTextContent("@@ -1,2 +1,2 @@");
+    expect(completeDiff).toHaveTextContent("-before one");
+    expect(completeDiff).toHaveTextContent("+after fifty");
+    expect(screen.queryByRole("button", { name: "Next change" })).not.toBeInTheDocument();
   });
 });

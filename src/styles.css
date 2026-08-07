@@ -1051,18 +1051,13 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
 }
 .changes-preview__group-icon { display: inline-flex; align-items: center; }
 .changes-preview__group-icon svg { width: 13px; height: 13px; }
-/* Category tints match `.changes-file-item__category-icon--*`, so a color
-   means the same thing here as on the Changes screen. "Edited" stays the
-   neutral default — an edit is the expected case, not one that needs its own
-   tint to stand out. */
-.changes-preview__group--new .changes-preview__group-icon,
-.changes-preview__group--new .changes-preview__icon { color: var(--status-success); }
-.changes-preview__group--deleted .changes-preview__group-icon,
-.changes-preview__group--deleted .changes-preview__icon { color: var(--status-danger); }
-.changes-preview__group--renamed .changes-preview__group-icon,
-.changes-preview__group--renamed .changes-preview__icon { color: var(--status-renamed); }
-.changes-preview__group--conflicted .changes-preview__group-icon,
-.changes-preview__group--conflicted .changes-preview__icon { color: var(--status-warning); }
+/* Category color belongs to the group heading. File rows use their real type
+   icon, matching Changes, while grouping and accessible names keep the Git
+   state unambiguous. */
+.changes-preview__group--new .changes-preview__group-icon { color: var(--status-success); }
+.changes-preview__group--deleted .changes-preview__group-icon { color: var(--status-danger); }
+.changes-preview__group--renamed .changes-preview__group-icon { color: var(--status-renamed); }
+.changes-preview__group--conflicted .changes-preview__group-icon { color: var(--status-warning); }
 .changes-preview__list {
   display: flex;
   flex-direction: column;
@@ -1094,6 +1089,7 @@ h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
   color: var(--text-secondary);
 }
 .changes-preview__icon svg { width: 14px; height: 14px; }
+.changes-preview__file-type-icon { display: block; }
 /* Name only, one line: every row is now the same height regardless of nesting
    depth, so there is no directory line to reserve space for or misalign root
    files against. The full path is still there — as the tooltip and the
@@ -2315,9 +2311,8 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .version-lines-search-box__input input {
   flex: 1; border: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: 14px; outline: none;
 }
-/* Both dropdown triggers share one shell so the toolbar reads as a set: the
-   filter one is a custom popup (it multi-selects), the sort one wraps a
-   native <select> to keep its keyboard and platform behavior for free. */
+/* Both custom dropdown triggers share one shell so the toolbar reads as a
+   set. Filter is a small form dialog; sort follows the ARIA menu pattern. */
 .version-lines-select {
   position: relative; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
   padding: 8px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
@@ -2336,10 +2331,12 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 
 .version-lines-filter { position: relative; display: inline-flex; }
 .version-lines-filter__popup {
-  position: absolute; z-index: 20; top: calc(100% + var(--space-2)); right: 0; min-width: 240px; padding: 8px;
+  position: absolute; z-index: 20; top: calc(100% + var(--space-2)); right: 0; min-width: 240px;
+  max-height: min(420px, calc(100vh - 300px)); padding: 8px; display: flex; flex-direction: column; overflow: hidden;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
   background: var(--surface-raised); box-shadow: var(--shadow-md);
 }
+.version-lines-filter__options { min-height: 0; overflow-y: auto; }
 .version-lines-filter__group-label {
   margin: 6px 8px 4px; color: var(--text-secondary); font-size: 11px; font-weight: 650;
   text-transform: uppercase; letter-spacing: 0.04em;
@@ -2352,7 +2349,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .version-lines-filter__option > span:first-of-type { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .version-lines-filter__count { color: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
 .version-lines-filter__clear {
-  width: 100%; margin-top: 6px; padding: 7px 8px; border: 0; border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0; width: 100%; margin-top: 6px; padding: 7px 8px; border: 0; border-top: 1px solid var(--border-subtle);
   background: transparent; color: var(--accent-primary); font: inherit; font-size: 13px; cursor: pointer;
 }
 
@@ -2691,6 +2688,10 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
      which would defeat virtualization by keeping every row mounted. */
   flex: 1; min-height: 0; margin: 0; padding: var(--space-3) 0; overflow-x: hidden; overflow-y: auto;
   background: var(--surface-code); font: 12.5px/1.6 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+.diff-code--accessible {
+  padding: var(--space-3) var(--space-4); overflow: auto; white-space: pre;
+  color: var(--text-primary); tab-size: 8;
 }
 /* Marks the first row of every hunk after the first — the flattened,
    virtualized row list's replacement for what a `.diff-hunk + .diff-hunk`

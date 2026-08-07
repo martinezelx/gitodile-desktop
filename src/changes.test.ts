@@ -5,6 +5,7 @@ import {
   estimateLineRows,
   filterEntriesBySearch,
   flattenDiffRows,
+  formatDiffAsAccessibleText,
   gapBeforeHunk,
   getCheckFreshness,
   getHunkStartRows,
@@ -130,6 +131,36 @@ describe("flattenDiffRows", () => {
     const hunks = [hunk(1, 1, [line("context", "a")]), hunk(2, 1, [line("context", "b")])];
 
     expect(flattenDiffRows(hunks).map((row) => row.kind)).toEqual(["line", "line"]);
+  });
+});
+
+describe("formatDiffAsAccessibleText", () => {
+  it("includes every hunk and line in one selectable document", () => {
+    const hunks: DiffHunk[] = [
+      {
+        header: "@@ -1,2 +1,2 @@",
+        oldStart: 1,
+        oldLines: 2,
+        newStart: 1,
+        newLines: 2,
+        lines: [
+          { kind: "deletion", content: "before", oldLineNumber: 1, newLineNumber: null },
+          { kind: "addition", content: "after", oldLineNumber: null, newLineNumber: 1 },
+        ],
+      },
+      {
+        header: "@@ -8,1 +8,1 @@",
+        oldStart: 8,
+        oldLines: 1,
+        newStart: 8,
+        newLines: 1,
+        lines: [{ kind: "context", content: "kept", oldLineNumber: 8, newLineNumber: 8 }],
+      },
+    ];
+
+    expect(formatDiffAsAccessibleText(hunks)).toBe(
+      "@@ -1,2 +1,2 @@\n-before\n+after\n\n@@ -8,1 +8,1 @@\n kept",
+    );
   });
 });
 

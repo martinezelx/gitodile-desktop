@@ -200,7 +200,7 @@ describe("VersionLinesPanel", () => {
             isRetainedElsewhere: true,
             uniqueCommitCount: 0,
             worktreePath: null,
-            upstreamAhead: null,
+            upstreamAhead: 2,
             upstreamBehind: null,
             upstreamGone: false,
           },
@@ -234,10 +234,10 @@ describe("VersionLinesPanel", () => {
     await user.click(screen.getByRole("menuitemradio", { name: "Name (A–Z)" }));
     expect(otherNames()).toEqual(["alpha/oldest", "zeta/newest"]);
 
-    // "Not published first" keys on having no upstream, which is a fact the
-    // snapshot carries, not on any commit count.
+    // "Local-only first" is deliberately narrower than "not pushed": the
+    // tracked zeta line is ahead, but the no-upstream alpha line comes first.
     await user.click(screen.getByRole("button", { name: "Sort version lines (Name (A–Z))" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "Not published first" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Local-only first" }));
     expect(otherNames()).toEqual(["alpha/oldest", "zeta/newest"]);
   });
 
@@ -446,11 +446,32 @@ describe("VersionLinesPanel", () => {
     await screen.findAllByText("feature/new-thing");
     const trigger = screen.getByRole("button", { name: "Filter version lines" });
     await user.click(trigger);
-    expect(screen.getByRole("checkbox", { name: /Local only/ })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Filter version lines" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Local only/ })).toHaveFocus();
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("checkbox", { name: /Local only/ })).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+  });
+
+  it("navigates the sort menu with arrows, Home, End, and first-letter search", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findAllByText("feature/new-thing");
+    const trigger = screen.getByRole("button", { name: "Sort version lines (Recently updated)" });
+    await user.click(trigger);
+    expect(screen.getByRole("menuitemradio", { name: "Recently updated" })).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: /Name/ })).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(screen.getByRole("menuitemradio", { name: "Local-only first" })).toHaveFocus();
+    await user.keyboard("{Home}n");
+    expect(screen.getByRole("menuitemradio", { name: /Name/ })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(trigger).toHaveFocus();
+    expect(screen.getByRole("button", { name: /Sort version lines \(Name/ })).toBeInTheDocument();
   });
 
   it("opens the delete dialog from the row's delete button", async () => {

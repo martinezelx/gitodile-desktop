@@ -215,6 +215,8 @@ export interface Translations {
   changesViewLabel: string;
   changesViewUnified: string;
   changesViewSplit: string;
+  changesViewAccessible: string;
+  changesViewAccessibleAriaLabel: string;
   changesViewAriaLabel: string;
   changesHunkPosition: (position: number, total: number) => string;
   changesPreviousHunk: string;
@@ -775,6 +777,8 @@ const en: Translations = {
   changesViewLabel: "View:",
   changesViewUnified: "Unified",
   changesViewSplit: "Split",
+  changesViewAccessible: "Accessible text",
+  changesViewAccessibleAriaLabel: "Complete difference as accessible text",
   changesViewAriaLabel: "Difference view",
   changesHunkPosition: (position, total) => `Change ${position} of ${total}`,
   changesPreviousHunk: "Previous change",
@@ -947,7 +951,7 @@ const en: Translations = {
   versionLinesSortAriaLabel: "Sort version lines",
   versionLinesSortRecent: "Recently updated",
   versionLinesSortName: "Name (A–Z)",
-  versionLinesSortUnpublished: "Not published first",
+  versionLinesSortUnpublished: "Local-only first",
   versionLinesSwitchShort: "Switch",
   versionLinesSwitchToLineLabel: (name) => `Switch to “${name}”`,
   versionLinesDetailsToggle: "Details",
@@ -1392,6 +1396,8 @@ const es: Translations = {
   changesViewLabel: "Vista:",
   changesViewUnified: "Unificada",
   changesViewSplit: "Dividida",
+  changesViewAccessible: "Texto accesible",
+  changesViewAccessibleAriaLabel: "Diferencia completa como texto accesible",
   changesViewAriaLabel: "Vista de la diferencia",
   changesHunkPosition: (position, total) => `Cambio ${position} de ${total}`,
   changesPreviousHunk: "Cambio anterior",
@@ -1569,7 +1575,7 @@ const es: Translations = {
   versionLinesSortAriaLabel: "Ordenar las líneas de versión",
   versionLinesSortRecent: "Actualizadas recientemente",
   versionLinesSortName: "Nombre (A–Z)",
-  versionLinesSortUnpublished: "Sin publicar primero",
+  versionLinesSortUnpublished: "Solo locales primero",
   versionLinesSwitchShort: "Cambiar",
   versionLinesSwitchToLineLabel: (name) => `Cambiar a «${name}»`,
   versionLinesDetailsToggle: "Detalles",

@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
   CircleAlert,
   Columns2,
+  FileText,
   FileMinus,
   FilePlus,
   FileQuestion,
@@ -33,6 +34,7 @@ import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { SaveVersionDialog } from "./saveVersionDialog";
 import { fetchDiff, getDiffStore, type DiffCache } from "./diffCache";
 import { LoadingBar } from "./loadingBar";
+import { handlePopupMenuKeyDown, useAnchoredPopup } from "./popupMenu";
 import { getOrderedChangeEntries, splitPath } from "./repositoryOverview";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
 
@@ -236,7 +238,7 @@ function CheckFreshnessNote({
     return null;
   }
   return (
-    <span className="changes-freshness" role="status">
+    <span className="changes-freshness">
       {formatCheckFreshness(getCheckFreshness(checkedAt, now), t)}
       <CheckCircle2 aria-hidden="true" className="changes-freshness__icon" />
     </span>
@@ -410,7 +412,33 @@ export function isFirstRowOfHunk(rows: { hunkIndex: number }[], index: number): 
   return index === 0 || rows[index - 1].hunkIndex !== rows[index].hunkIndex;
 }
 
-export type DiffViewMode = "unified" | "split";
+type VisualDiffViewMode = "unified" | "split";
+export type DiffViewMode = VisualDiffViewMode | "accessible";
+
+/** Plain-text representation of every loaded diff row. Unlike the visual
+ * virtualizer, this is one complete document, so assistive technology,
+ * find-in-page and ordinary text selection can reach the whole diff. */
+export function formatDiffAsAccessibleText(hunks: DiffHunk[]): string {
+  return hunks
+    .map((hunk) => [
+      hunk.header,
+      ...hunk.lines.map((line) => `${line.kind === "addition" ? "+" : line.kind === "deletion" ? "-" : " "}${line.content}`),
+    ].join("\n"))
+    .join("\n\n");
+}
+
+function AccessibleDiffText({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): React.JSX.Element {
+  return (
+    <pre
+      {...autoHideScrollbarProps<HTMLPreElement>()}
+      className="diff-code diff-code--accessible auto-hide-scrollbar"
+      tabIndex={0}
+      aria-label={t.changesViewAccessibleAriaLabel}
+    >
+      <code>{formatDiffAsAccessibleText(hunks)}</code>
+    </pre>
+  );
+}
 
 /** One row of the side-by-side view: the same "N unchanged lines" marker the
  * unified view uses, or a pair of cells. A pair is one context line shown in
@@ -720,7 +748,7 @@ function DiffHunkList({
    * `DiffResultView`'s note. */
   projectPath: string | undefined;
   filePath: string;
-  viewMode: DiffViewMode;
+  viewMode: VisualDiffViewMode;
   /** The hunk the toolbar last navigated to. `token` (rather than the index
    * alone) is what makes a repeated press of the same button scroll again
    * instead of silently doing nothing because the index did not change. */
@@ -970,14 +998,18 @@ export function DiffResultView({
               {t.changesDiffTruncatedNote(lineCount)}
             </p>
           )}
-          <DiffHunkList
-            hunks={diff.hunks}
-            projectPath={projectPath}
-            filePath={diff.path}
-            viewMode={viewMode}
-            hunkTarget={hunkTarget}
-            t={t}
-          />
+          {viewMode === "accessible" ? (
+            <AccessibleDiffText hunks={diff.hunks} t={t} />
+          ) : (
+            <DiffHunkList
+              hunks={diff.hunks}
+              projectPath={projectPath}
+              filePath={diff.path}
+              viewMode={viewMode}
+              hunkTarget={hunkTarget}
+              t={t}
+            />
+          )}
         </>
       );
     }
@@ -1036,14 +1068,18 @@ export function DiffResultView({
                   {t.changesDiffTruncatedNote(diff.hunks.reduce((total, hunk) => total + hunk.lines.length, 0))}
                 </p>
               )}
-              <DiffHunkList
-            hunks={diff.hunks}
-            projectPath={projectPath}
-            filePath={diff.path}
-            viewMode={viewMode}
-            hunkTarget={hunkTarget}
-            t={t}
-          />
+              {viewMode === "accessible" ? (
+                <AccessibleDiffText hunks={diff.hunks} t={t} />
+              ) : (
+                <DiffHunkList
+                  hunks={diff.hunks}
+                  projectPath={projectPath}
+                  filePath={diff.path}
+                  viewMode={viewMode}
+                  hunkTarget={hunkTarget}
+                  t={t}
+                />
+              )}
             </>
           )}
         </>
@@ -1054,9 +1090,10 @@ export function DiffResultView({
 const VIEW_MODE_LABEL_KEYS = {
   unified: "changesViewUnified",
   split: "changesViewSplit",
+  accessible: "changesViewAccessible",
 } as const satisfies Record<DiffViewMode, keyof Translations>;
 
-/** The unified/split picker. Deliberately not a native `<select>`: an
+/** The visual/accessible diff picker. Deliberately not a native `<select>`: an
  * appearance-stripped one renders its option list through the platform, which
  * ignores the app's theme and drops a light popup on top of the dark one. The
  * Overview branch picker already solved this the same way, so this reuses its
@@ -1072,37 +1109,19 @@ function DiffViewSelector({
   t: Translations;
 }): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Same dismissal contract as the Overview branch picker: focus moves into
-  // the menu when it opens, Escape sends it back to the trigger, and a click
-  // anywhere outside closes it.
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
+  const closeMenu = (restoreFocus: boolean): void => {
+    setIsOpen(false);
+    if (restoreFocus) {
+      triggerRef.current?.focus();
     }
-    const frame = window.requestAnimationFrame(() => menuRef.current?.focus());
-    const handlePointerDown = (event: MouseEvent): void => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    const handleKey = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [isOpen]);
+  };
+  const { containerRef, popupRef: menuRef } = useAnchoredPopup(
+    isOpen,
+    triggerRef,
+    closeMenu,
+    "selected-menu-item",
+  );
 
   return (
     <div className="changes-view-picker" ref={containerRef}>
@@ -1117,6 +1136,8 @@ function DiffViewSelector({
       >
         {value === "split" ? (
           <Columns2 aria-hidden="true" className="version-line-selector__icon" />
+        ) : value === "accessible" ? (
+          <FileText aria-hidden="true" className="version-line-selector__icon" />
         ) : (
           <Rows3 aria-hidden="true" className="version-line-selector__icon" />
         )}
@@ -1129,22 +1150,29 @@ function DiffViewSelector({
           className="app-menu changes-view-picker__menu"
           role="menu"
           aria-label={t.changesViewAriaLabel}
-          tabIndex={-1}
+          onKeyDown={(event) => handlePopupMenuKeyDown(event, menuRef.current, () => closeMenu(false))}
         >
-          {(["unified", "split"] as const).map((mode) => (
+          {(["unified", "split", "accessible"] as const).map((mode) => (
             <button
               key={mode}
               type="button"
               role="menuitemradio"
+              tabIndex={-1}
               aria-checked={value === mode}
               className={`app-menu__item${value === mode ? " app-menu__item--selected" : ""}`}
               onClick={() => {
-                setIsOpen(false);
+                closeMenu(false);
                 onChange(mode);
                 triggerRef.current?.focus();
               }}
             >
-              {mode === "split" ? <Columns2 aria-hidden="true" /> : <Rows3 aria-hidden="true" />}
+              {mode === "split" ? (
+                <Columns2 aria-hidden="true" />
+              ) : mode === "accessible" ? (
+                <FileText aria-hidden="true" />
+              ) : (
+                <Rows3 aria-hidden="true" />
+              )}
               {t[VIEW_MODE_LABEL_KEYS[mode]]}
               {value === mode && <Check aria-hidden="true" className="app-menu__check" />}
             </button>
@@ -1287,7 +1315,7 @@ function DiffWorkspace({
           <span className="changes-diff__view-label">{t.changesViewLabel}</span>
           <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />
         </div>
-        {hunkCount > 0 && (
+        {hunkCount > 0 && viewMode !== "accessible" && (
           <div className="changes-diff__hunk-nav">
             <span className="changes-diff__position">{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span>
             <button

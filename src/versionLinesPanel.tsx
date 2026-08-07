@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useLanguage, type Translations } from "./i18n";
+import { handlePopupMenuKeyDown, useAnchoredPopup } from "./popupMenu";
 import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
 import { CreateVersionLineDialog, DeleteVersionLineDialog, SwitchVersionLineDialog } from "./versionLinesDialog";
 import { LoadingBar } from "./loadingBar";
@@ -73,41 +74,6 @@ function syncStatusOf(line: VersionLine): SyncStatus {
     return { kind: "behind", count: behind };
   }
   return { kind: "synced" };
-}
-
-/** Closes a popup on outside click and on Escape, restoring focus to its
- * trigger — the same contract the titlebar's menu follows. */
-function useDismissablePopup(
-  isOpen: boolean,
-  close: (restoreFocus: boolean) => void,
-): React.RefObject<HTMLDivElement | null> {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef(close);
-  closeRef.current = close;
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-    const handlePointerDown = (event: MouseEvent): void => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        closeRef.current(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        closeRef.current(true);
-      }
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
-  return containerRef;
 }
 
 function VersionLineRow({
@@ -320,12 +286,18 @@ function SortMenu({
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const containerRef = useDismissablePopup(isOpen, (restoreFocus) => {
+  const closeMenu = (restoreFocus: boolean): void => {
     setIsOpen(false);
     if (restoreFocus) {
       triggerRef.current?.focus();
     }
-  });
+  };
+  const { containerRef, popupRef: menuRef } = useAnchoredPopup(
+    isOpen,
+    triggerRef,
+    closeMenu,
+    "selected-menu-item",
+  );
 
   return (
     <div className="version-lines-sort" ref={containerRef}>
@@ -343,16 +315,23 @@ function SortMenu({
         <ChevronDown aria-hidden="true" className="version-lines-select__chevron" />
       </button>
       {isOpen && (
-        <div className="app-menu version-lines-sort__menu" role="menu" aria-label={t.versionLinesSortAriaLabel}>
+        <div
+          ref={menuRef}
+          className="app-menu version-lines-sort__menu"
+          role="menu"
+          aria-label={t.versionLinesSortAriaLabel}
+          onKeyDown={(event) => handlePopupMenuKeyDown(event, menuRef.current, () => closeMenu(false))}
+        >
           {(["recent", "name", "unpublished"] as const).map((key) => (
             <button
               key={key}
               type="button"
               role="menuitemradio"
+              tabIndex={-1}
               aria-checked={value === key}
               className={`app-menu__item${value === key ? " app-menu__item--selected" : ""}`}
               onClick={() => {
-                setIsOpen(false);
+                closeMenu(false);
                 onChange(key);
                 triggerRef.current?.focus();
               }}
@@ -390,12 +369,13 @@ function FilterMenu({
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const containerRef = useDismissablePopup(isOpen, (restoreFocus) => {
+  const closePopup = (restoreFocus: boolean): void => {
     setIsOpen(false);
     if (restoreFocus) {
       triggerRef.current?.focus();
     }
-  });
+  };
+  const { containerRef, popupRef } = useAnchoredPopup(isOpen, triggerRef, closePopup, "first-control");
   const activeCount = selectedPrefixes.length + selectedStates.length;
   const stateLabels: Record<StateFilter, string> = {
     "local-only": t.versionLinesNoUpstreamLabel,
@@ -421,36 +401,44 @@ function FilterMenu({
         <ChevronDown aria-hidden="true" className="version-lines-select__chevron" />
       </button>
       {isOpen && (
-        <div className="version-lines-filter__popup" role="group" aria-label={t.versionLinesFilterAriaLabel}>
-          <p className="version-lines-filter__group-label">{t.versionLinesFilterStateGroup}</p>
-          {(Object.keys(stateLabels) as StateFilter[]).map((state) => (
-            <label key={state} className="version-lines-filter__option">
-              <input
-                type="checkbox"
-                checked={selectedStates.includes(state)}
-                onChange={() => onToggleState(state)}
-              />
-              <span>{stateLabels[state]}</span>
-              <span className="version-lines-filter__count">{stateCounts[state]}</span>
-            </label>
-          ))}
+        <div
+          ref={popupRef}
+          className="version-lines-filter__popup"
+          role="dialog"
+          aria-modal="false"
+          aria-label={t.versionLinesFilterAriaLabel}
+        >
+          <div className="version-lines-filter__options">
+            <p className="version-lines-filter__group-label">{t.versionLinesFilterStateGroup}</p>
+            {(Object.keys(stateLabels) as StateFilter[]).map((state) => (
+              <label key={state} className="version-lines-filter__option">
+                <input
+                  type="checkbox"
+                  checked={selectedStates.includes(state)}
+                  onChange={() => onToggleState(state)}
+                />
+                <span>{stateLabels[state]}</span>
+                <span className="version-lines-filter__count">{stateCounts[state]}</span>
+              </label>
+            ))}
 
-          {prefixCounts.length > 0 && (
-            <>
-              <p className="version-lines-filter__group-label">{t.versionLinesFilterPrefixGroup}</p>
-              {prefixCounts.map(([prefix, count]) => (
-                <label key={prefix} className="version-lines-filter__option">
-                  <input
-                    type="checkbox"
-                    checked={selectedPrefixes.includes(prefix)}
-                    onChange={() => onTogglePrefix(prefix)}
-                  />
-                  <span>{prefix}</span>
-                  <span className="version-lines-filter__count">{count}</span>
-                </label>
-              ))}
-            </>
-          )}
+            {prefixCounts.length > 0 && (
+              <>
+                <p className="version-lines-filter__group-label">{t.versionLinesFilterPrefixGroup}</p>
+                {prefixCounts.map(([prefix, count]) => (
+                  <label key={prefix} className="version-lines-filter__option">
+                    <input
+                      type="checkbox"
+                      checked={selectedPrefixes.includes(prefix)}
+                      onChange={() => onTogglePrefix(prefix)}
+                    />
+                    <span>{prefix}</span>
+                    <span className="version-lines-filter__count">{count}</span>
+                  </label>
+                ))}
+              </>
+            )}
+          </div>
 
           {activeCount > 0 && (
             <button className="version-lines-filter__clear" type="button" onClick={onClear}>

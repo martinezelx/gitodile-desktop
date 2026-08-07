@@ -382,18 +382,23 @@ mod tests {
 
     /// Polls instead of sleeping a fixed amount: filesystem notifications are
     /// delivered on the OS's schedule, so a fixed wait is either flaky or
-    /// slow. Returns the count as soon as it stops changing for one full
-    /// quiet period, or when `budget` runs out.
+    /// slow. A count is only settled after it stays unchanged for a complete
+    /// maximum burst plus its trailing quiet period. That matters on macOS,
+    /// where FSEvents may deliver another event for the same write after the
+    /// first debounce report.
     fn settled_count(counter: &Arc<AtomicUsize>, budget: Duration) -> usize {
         let deadline = Instant::now() + budget;
         let mut last = counter.load(Ordering::SeqCst);
+        let mut unchanged_since = Instant::now();
         while Instant::now() < deadline {
-            thread::sleep(QUIET_PERIOD + Duration::from_millis(200));
+            thread::sleep(Duration::from_millis(50));
             let current = counter.load(Ordering::SeqCst);
-            if current == last && current > 0 {
+            if current != last {
+                last = current;
+                unchanged_since = Instant::now();
+            } else if current > 0 && unchanged_since.elapsed() >= MAX_BURST + QUIET_PERIOD {
                 return current;
             }
-            last = current;
         }
         last
     }
@@ -430,10 +435,9 @@ mod tests {
         // Git's own object churn must not add to it.
         fs::write(root.join(".git/objects/abcdef"), "loose object").expect("write git object");
         fs::write(root.join(".git/index.lock"), "lock").expect("write index lock");
-        thread::sleep(QUIET_PERIOD * 3);
+        let after_git_churn = settled_count(&counter, Duration::from_secs(10));
         assert_eq!(
-            counter.load(Ordering::SeqCst),
-            after_write,
+            after_git_churn, after_write,
             "Git's internal churn must not trigger a refresh"
         );
 

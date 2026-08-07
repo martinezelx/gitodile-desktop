@@ -668,9 +668,10 @@ const CATEGORY_LABEL_KEYS = {
   conflicted: "statusCategoryConflicted",
 } as const satisfies Record<ChangeCategory, keyof ReturnType<typeof useLanguage>["t"]>;
 
-/** The lucide glyphs the Changes screen uses for the same categories, kept in
- * sync by hand rather than imported: `changes.tsx` is lazily loaded precisely
- * so its file-type icon set stays out of the first-paint bundle. */
+/** Category glyphs stay local because they are also the immediate Suspense
+ * fallback for file-type icons. The full vscode-icons catalog is loaded only
+ * when an Overview preview actually has files, so it does not block the app's
+ * first paint. */
 const PREVIEW_CATEGORY_ICONS: Record<ChangeCategory, React.JSX.Element> = {
   changed: <Pencil aria-hidden="true" />,
   new: <FilePlus aria-hidden="true" />,
@@ -678,6 +679,16 @@ const PREVIEW_CATEGORY_ICONS: Record<ChangeCategory, React.JSX.Element> = {
   renamed: <ArrowRightLeft aria-hidden="true" />,
   conflicted: <TriangleAlert aria-hidden="true" />,
 };
+
+const OverviewFileTypeIcon = lazy(async () => {
+  const { getFileTypeIcon } = await import("./fileIcons");
+  return {
+    default: function OverviewFileTypeIconComponent({ path }: { path: string }): React.JSX.Element {
+      const FileTypeIcon = getFileTypeIcon(path);
+      return <FileTypeIcon className="changes-preview__file-type-icon" />;
+    },
+  };
+});
 
 /** Column headers for the grouped preview below — distinct from
  * `CATEGORY_LABEL_KEYS` above, which phrases the same categories as the
@@ -756,7 +767,9 @@ function OverviewChangesPreview({
                         data-tooltip={fullPath}
                       >
                         <span className="changes-preview__icon" aria-hidden="true">
-                          {PREVIEW_CATEGORY_ICONS[category]}
+                          <Suspense fallback={PREVIEW_CATEGORY_ICONS[category]}>
+                            <OverviewFileTypeIcon path={entry.path} />
+                          </Suspense>
                         </span>
                         <span className="changes-preview__name">{name}</span>
                       </button>

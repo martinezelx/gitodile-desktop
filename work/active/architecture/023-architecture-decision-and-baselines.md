@@ -37,6 +37,9 @@ risk of a long rewrite whose regressions are discovered only at the end.
   subsystems inspected, and principles that may be independently reimplemented.
 - Record current file/test/command/chunk baselines and a reproducible desktop
   measurement protocol.
+- Record the current screen-owned `read_working_tree_diffs` warm-up separately:
+  trigger point, elapsed time, Git process count, output size and behavior on a
+  first Changes visit versus a warmed revisit.
 - Select numeric warning/failure budgets for startup ordering, entry and screen
   chunks, warmed switch p50/p95, memory after visiting all screens, DOM bounds,
   and Git process counts.
@@ -59,6 +62,9 @@ risk of a long rewrite whose regressions are discovered only at the end.
       transport boundaries and identifies every existing cycle.
 - [ ] Baseline records exact test counts, 29-command inventory, chunk sizes,
       startup sequence, process counts, screen timings and memory protocol.
+- [ ] The Changes baseline identifies `read_working_tree_diffs` as speculative
+      screen-mount work and captures its first-visit/warmed timing and process
+      cost before ownership moves.
 - [ ] Numeric budgets and measurement environment are recorded.
 - [ ] GitButler research is tied to an exact revision and includes a clear
       no-copy/FSL constraint.

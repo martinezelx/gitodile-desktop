@@ -64,6 +64,9 @@ hidden work or repository reads caused by visiting a screen.
 - [ ] Lazy load and primary preload cannot refer to different modules.
 - [ ] Minimal screen test proves first-visit lazy mount, idle preload, warmed
       identity, `hidden`/`inert`, project eviction and no arrival IPC call.
+- [ ] The runtime exposes an activation/invalidation-owned, idle-deferred path
+      for speculative cache warming; visibility alone never starts
+      `read_working_tree_diffs` or another repository read.
 - [ ] Internal timer/store updates prove a hidden screen does not poll,
       announce or rerender; it synchronizes correctly on activation.
 - [ ] Selector tests prove unrelated project/feature state does not rerender an

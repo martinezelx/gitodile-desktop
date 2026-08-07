@@ -38,6 +38,9 @@ truthful while their implementation gains clear ownership.
 - Keep large diff output caps, binary/large/malformed states and virtualization.
 - Preserve cached content during background refresh and stable identity for
   unchanged snapshots.
+- Move the full working-tree diff warm-up out of the Changes component. Project
+  activation or repository invalidation owns it, speculative execution is
+  idle-deferred, and the screen only consumes the bounded cache.
 - Move focused parsers/tests with their owning Rust domains and keep Tauri
   adapters thin.
 
@@ -53,6 +56,9 @@ truthful while their implementation gains clear ownership.
       visual components.
 - [ ] Corresponding parsers/workflows no longer live in Rust `lib.rs`.
 - [ ] Repeated navigation performs no repository IPC calls.
+- [ ] First arrival at Changes does not start `read_working_tree_diffs`; the
+      session runtime warms or invalidates that cache independently of screen
+      visibility and retains the batching/output bounds measured in task 023.
 - [ ] Watcher bursts coalesce and refresh only the affected feature scopes.
 - [ ] Close/reopen and project-switch success/failure races are covered.
 - [ ] Diff caches are bounded, released on epoch eviction and never return a
