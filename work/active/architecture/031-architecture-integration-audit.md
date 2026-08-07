@@ -28,7 +28,7 @@ and the next screen can be built from a trustworthy blueprint.
 
 # Scope
 
-- Verify every core epic invariant and tasks 023–029 against the final code
+- Verify every epic invariant and tasks 023–030 against the final code
   rather than their implementation notes alone.
 - Compare dependency graph, file ownership, command contracts, tests, chunks,
   startup ordering, warmed switch p50/p95, memory, DOM bounds and process counts
@@ -44,8 +44,11 @@ and the next screen can be built from a trustworthy blueprint.
 - Update `AGENTS.md`, `docs/ARCHITECTURE.md`, ADR consequences and the new-screen
   implementation guide with the final tree and rules.
 - Create a minimal throwaway History-shaped test module proving a greenfield
-  screen can register, preload, subscribe, invalidate and evict without editing
-  `main.tsx` or Rust `lib.rs`; do not implement task 015 behavior.
+  screen can register, preload, subscribe, invalidate and evict without adding
+  workflow logic to `main.tsx` or Rust `lib.rs`; do not implement task 015
+  behavior. One declarative entry in a neutral screen/command registry is
+  expected and must not be replaced by macros, IoC or dynamic registration
+  solely to achieve a literal zero-file-edit claim.
 - Remove the test module after the architectural proof unless the ADR chooses a
   permanent fixture.
 
@@ -69,12 +72,13 @@ and the next screen can be built from a trustworthy blueprint.
       available and remaining risks are concrete, owned and bounded.
 - [ ] Tauri capability/CSP audit finds no broadened authority.
 - [ ] Greenfield screen proof requires no composition-root workflow logic.
+- [ ] A new Rust feature needs at most declarative command registration; the
+      proof introduces no registry framework or indirection with one consumer.
 - [ ] Durable documentation describes ownership, dependency direction,
       execution safety, request lifecycle and screen creation.
 - [ ] Full frontend and Rust validation from `AGENTS.md` passes.
-- [ ] Epic 022 is updated accurately: its core architecture is marked validated
-      and task 015 is unblocked; the epic remains open until task 030 also
-      completes.
+- [ ] Epic 022 is marked done and task 015 is unblocked only after tasks
+      023–030 and this final audit are complete.
 
 # Relevant files
 
@@ -86,7 +90,8 @@ and the next screen can be built from a trustworthy blueprint.
 
 # Dependencies
 
-Tasks 023–029. Task 030 is deliberately not a History prerequisite.
+Tasks 023–030. This audit is deliberately last so it validates and closes the
+complete epic in one task boundary.
 
 # Decisions
 

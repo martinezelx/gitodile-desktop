@@ -30,13 +30,15 @@ performance instrumentation from supported architectural contracts.
 
 # Context
 
-The current application has outgrown its scaffold:
+The current application has outgrown its scaffold. At the `bce8db0` starting
+point for this epic (exact reproducible measurements belong to task 023):
 
-- `src-tauri/src/lib.rs` is 9,438 lines and combines transport, Git execution,
-  parsing, domain decisions, mutations, errors, and tests.
-- `src/main.tsx` is 2,828 lines and combines shell UI, project sessions,
-  request lifecycles, navigation, dialogs, and feature composition.
-- `src/styles.css` is 2,023 lines and `src/i18n.tsx` is 1,531 lines.
+- `src-tauri/src/lib.rs` is approximately 9,900 lines and combines transport,
+  Git execution, parsing, domain decisions, mutations, errors, and tests.
+- `src/main.tsx` is approximately 3,370 lines and combines shell UI, project
+  sessions, request lifecycles, navigation, dialogs, and feature composition.
+- `src/styles.css` is approximately 2,950 lines and `src/i18n.tsx` is
+  approximately 1,880 lines. These counts are context, not success metrics.
 - tasks 018–021 established performance and freshness guarantees that must not
   be rediscovered or weakened during each feature migration.
 
@@ -112,13 +114,27 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | 028 | Repository/status/changes/diff reads migrated | 027 |
 | 029 | Save and publish mutation flows migrated without weakening safety | 027, 028 |
 | 030 | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
-| 031 | Core cross-platform integration audit, final measurements and History unlock | 023–029 |
+| 031 | Complete cross-platform integration audit, final measurements, epic closure and History unlock | 023–030 |
 
 Execute dependency-ready tasks one at a time unless the user explicitly
-approves parallel work. Task 031 may validate and unlock History before the
-mechanical CSS/i18n migration in task 030; epic 022 itself closes only after
-both are complete. Keep the application buildable and tests green at every
-boundary.
+approves parallel work. The preferred closure order is 023 through 031,
+including task 030 before the final audit, so task 031 validates the complete
+result and closes this epic once. Keep the application buildable and tests
+green at every task/commit boundary.
+
+## Task and commit boundaries
+
+- One child task is one reviewed commit on `main`; epic-status and task-file
+  updates belong to that same commit.
+- Compatibility adapters stay in place until every consumer they protect has
+  migrated. A task may not leave `main` requiring the next task to compile or
+  restore existing behavior.
+- Run the task's focused checks and the complete `AGENTS.md` command set before
+  committing. Push and confirm CI before starting the next dependency step.
+- Mark and move only the completed child task to `work/done/`; update this epic
+  honestly without marking downstream criteria complete early.
+- Commits are independently buildable checkpoints, not reorderable changes:
+  dependency order remains authoritative.
 
 # Out of scope
 

@@ -44,6 +44,8 @@ refreshes, linked worktrees or slow remote operations overlap the UI.
   rejection classification, no-terminal-prompt behavior and publish
   uncertainty.
 - Keep current command names/payloads compatible.
+- Retire the mutation-side epoch compatibility bypass from task 025: legacy
+  payload support may remain only where it cannot authorize a mutation.
 
 # Out of scope
 
@@ -59,6 +61,8 @@ refreshes, linked worktrees or slow remote operations overlap the UI.
 - [ ] Direct concurrent IPC mutations against related worktrees serialize or
       fail safely under the Rust coordinator.
 - [ ] Stale session epochs and state tokens reject execution before mutation.
+- [ ] Every save/publish/version-line mutation requires a Rust-validated epoch;
+      invoking a legacy payload directly cannot bypass that check.
 - [ ] Mutation results supersede older discovery reads and invalidate every
       affected feature exactly once.
 - [ ] Cancel/timeout behavior does not claim a remote mutation failed when its

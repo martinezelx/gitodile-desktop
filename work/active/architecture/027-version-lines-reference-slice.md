@@ -41,6 +41,10 @@ new read and mutation features.
 - Preserve command names/payloads through task 025's compatibility contracts.
 - Keep create/switch/delete previews, common-Git-dir exclusion, dirty-tree
   checks, state tokens and unique-work safety intact.
+- Preserve the closed Version-lines interaction contract: search, filters,
+  `Local-only first` semantics, viewport-bounded filter content, shared popup
+  focus/dismissal behavior, Arrow/Home/End/Escape/typeahead keyboard support,
+  and English/Spanish copy.
 - Document the reference slice and which parts are mandatory versus
   feature-specific.
 
@@ -65,6 +69,8 @@ new read and mutation features.
       IPC calls.
 - [ ] Hidden screen behavior, memory, chunks, switch timings and Git process
       counts satisfy task 023's budgets.
+- [ ] Popup, filtering, sorting, keyboard and focus tests remain behaviorally
+      equivalent after UI/controller ownership moves.
 - [ ] A short implementation guide explains how History should use the proven
       contracts without copying feature-specific policy.
 
@@ -73,6 +79,9 @@ new read and mutation features.
 - `src/versionLines.ts`
 - `src/versionLinesPanel.tsx`
 - `src/versionLinesDialog.tsx`
+- `src/popupMenu.tsx`
+- `src/versionLinesPanel.test.tsx`
+- `work/done/036-three-screen-closure-audit.md`
 - `src/projectSessions.ts`
 - `src/main.tsx`
 - `src-tauri/src/lib.rs`

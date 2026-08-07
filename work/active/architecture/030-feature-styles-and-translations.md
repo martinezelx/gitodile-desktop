@@ -28,6 +28,9 @@ their styles and language strings without editing global monoliths.
   primitives and feature-owned styles.
 - Preserve cascade order, specificity, light/dark behavior, reduced motion and
   opaque dense-data surfaces.
+- Preserve the closed three-screen visual contracts, including file-type icon
+  sizing/tinting, Accessible text diff presentation, viewport-bounded popups,
+  focus styles and shared popup layering.
 - Split translations into typed feature dictionaries/namespaces while
   preserving compile-time English/Spanish parity and `useLanguage` ergonomics.
 - Keep core shell labels available synchronously; feature chunks may not show
@@ -51,6 +54,8 @@ their styles and language strings without editing global monoliths.
       language or shift after a lazy dictionary arrives.
 - [ ] Light/dark, reduced motion, narrow/large layouts and dense diff surfaces
       are visually equivalent.
+- [ ] Overview, Changes and Version lines match the task-036 closure baseline,
+      including both diff modes and every popup state.
 - [ ] CSS and JavaScript chunks satisfy task 023 budgets.
 
 # Relevant files
@@ -59,6 +64,7 @@ their styles and language strings without editing global monoliths.
 - `src/styles.css`
 - `src/i18n.tsx`
 - `src/i18n.test.ts`
+- `work/done/036-three-screen-closure-audit.md`
 - feature modules produced by tasks 026–029
 
 # Dependencies

@@ -33,6 +33,11 @@ event corrupt the newly active project, including linked worktrees.
 - Introduce an opaque session epoch/incarnation distinct from canonical project
   path. Bind requests, responses, caches, operations and events to it while
   preserving compatibility wrappers for current IPC payloads during migration.
+- Define the epoch rollout explicitly: Rust creates or validates the epoch;
+  additive/optional compatibility fields may bridge unmigrated consumers, but
+  the compatibility path must be inventoried and removed or restricted to
+  safe reads once its consumer migrates. By task 029, no mutation may bypass
+  epoch validation through a legacy payload.
 - Define a typed watcher event envelope containing project identity, session
   epoch, monotonic sequence and domain event kind.
 - Replace the ambiguous boolean invalidation with the smallest useful event
@@ -45,6 +50,10 @@ event corrupt the newly active project, including linked worktrees.
   session, and reject events after unwatch/close/reopen.
 - Test listener teardown, watcher replacement, late callbacks and unavailable
   platform watchers.
+- Preserve platform-specific watcher path matching: macOS FSEvents may report
+  `/private/var/...` for a `/var/...` watch, while Windows canonicalization may
+  add a `\\?\` prefix that its watcher does not report. Git-internal churn must
+  remain filtered under both representations.
 
 # Out of scope
 
@@ -65,6 +74,10 @@ event corrupt the newly active project, including linked worktrees.
 - [ ] Watcher payloads are typed, bounded and contain no raw source content.
 - [ ] Sequence/coalescing tests cover long bursts without UI starvation.
 - [ ] Current manual refresh behavior remains available when watching fails.
+- [ ] Compatibility wrappers have named consumers and a removal task; direct
+      IPC mutation cannot use a missing/stale epoch after task 029.
+- [ ] macOS and Windows watcher tests prove path aliases do not turn
+      `.git/objects`, lock files or other Git churn into repository refreshes.
 
 # Relevant files
 

@@ -1,7 +1,7 @@
 ---
 id: 036
 title: Close-out audit for Overview, Changes, and Version lines
-status: completed
+status: done
 priority: high
 type: audit
 areas:

@@ -37,6 +37,12 @@ risk of a long rewrite whose regressions are discovered only at the end.
   subsystems inspected, and principles that may be independently reimplemented.
 - Record current file/test/command/chunk baselines and a reproducible desktop
   measurement protocol.
+- Use `bce8db0` as the architecture-refactor starting point. Its known sanity
+  snapshot is 206 frontend tests, 180 Rust tests and 30 registered Tauri
+  commands; remeasure rather than copying these numbers into final evidence.
+- Record the current lazy-boundary shape, including the separately deferred
+  `fileIcons` chunk used by Overview and Changes, so feature extraction cannot
+  pull the icon set back into the entry chunk unnoticed.
 - Record the current screen-owned `read_working_tree_diffs` warm-up separately:
   trigger point, elapsed time, Git process count, output size and behavior on a
   first Changes visit versus a warmed revisit.
@@ -60,8 +66,10 @@ risk of a long rewrite whose regressions are discovered only at the end.
       migration sequence, rejected alternatives, and dependency policy.
 - [ ] Dependency map distinguishes production, tests, dynamic imports and
       transport boundaries and identifies every existing cycle.
-- [ ] Baseline records exact test counts, 29-command inventory, chunk sizes,
+- [ ] Baseline records exact test counts, 30-command inventory, chunk sizes,
       startup sequence, process counts, screen timings and memory protocol.
+- [ ] Baseline records the entry/Changes/`fileIcons` chunk relationship and
+      detects a feature migration that makes the icon set eager.
 - [ ] The Changes baseline identifies `read_working_tree_diffs` as speculative
       screen-mount work and captures its first-visit/warmed timing and process
       cost before ownership moves.

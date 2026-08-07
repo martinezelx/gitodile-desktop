@@ -31,6 +31,10 @@ operations, hang indefinitely, consume unbounded output, or expose secrets.
 - Introduce a validated repository context retaining worktree root, Git dir,
   common Git dir, bare state and platform/path facts. Do not rediscover a
   repository inside domain helpers.
+- Define path normalization per platform instead of assuming one canonical
+  spelling is accepted by every backend. Preserve macOS `/var` versus
+  `/private/var` aliases and Windows normal versus `\\?\` path behavior when
+  matching repository identities and filesystem events.
 - Add a Rust repository-access coordinator keyed by canonical `commonGitDir`:
   shared/read access where safe and exclusive access for mutations.
 - Acquire guards at the command/application boundary and pass narrow read/write
@@ -75,6 +79,8 @@ operations, hang indefinitely, consume unbounded output, or expose secrets.
 - [ ] No shell string is constructed from user or repository data.
 - [ ] Windows process behavior passes; macOS/Linux cleanup limitations are
       tested where available or explicitly documented for task 031.
+- [ ] Repository/path tests cover platform aliases without introducing a path
+      representation that a watcher or command backend cannot match.
 
 # Relevant files
 
