@@ -142,6 +142,57 @@ Do not assume the selected folder is the repository root. Resolve and retain:
 - remotes;
 - case-sensitivity and filesystem capabilities where relevant.
 
+## Rust execution and repository access boundary
+
+Task 024 establishes the first Rust strangler boundary without changing any
+public command name or payload:
+
+```text
+ipc.rs (Tauri extraction/serialization only)
+  -> application.rs (command policy + repository authorization)
+    -> repository_access.rs (RepositoryContext + fair commonGitDir lock)
+      -> git.rs (bounded process runner)
+```
+
+`RepositoryContext` retains distinct worktree-root, Git-directory and common
+Git-directory identities plus bare state. A path identity has a backend path
+and a comparison key instead of assuming one spelling works everywhere.
+Windows verbatim (`\\?\`) and normal paths compare together while commands use
+the normal spelling; macOS keeps the selected `/var` alias alongside its
+canonical `/private/var` spelling so watcher events can match either form.
+Opening a project registers the resolved context, so later domain helpers do
+not repeat repository discovery. A compatibility lookup exists for tests and
+legacy callers that did not first open the project.
+
+The in-process access coordinator is keyed by the canonical common Git
+directory. Reads may overlap; mutations are exclusive. A queued writer blocks
+later readers, avoiding writer starvation. Related worktrees therefore share
+mutation exclusion, while unrelated repositories have independent locks.
+Raw lock re-entry is rejected in debug/tests; a workflow that deliberately
+calls another authorized read inherits its existing permission rather than
+acquiring recursively. State-token validation remains immediately before each
+existing mutation and is not replaced by locking.
+
+Every registered command has exactly one checked `ExecutionPolicy` in
+`src-tauri/src/application.rs`: operation class, stdout/stderr caps, timeout,
+cancellation, prompt and concurrency policy. All production Git launches go
+through `src-tauri/src/git.rs` as argument vectors with an explicit working
+directory and deterministic locale. Both pipes are drained concurrently and
+retained only to their caps. Newer equivalent reads cancel the process token
+of a superseded read; frontend generation/state-token rejection remains a
+separate logical stale-result mechanism. Mutations do not auto-cancel one
+another because an interrupted commit or publish can have uncertain effects.
+
+On timeout/cancellation, Windows first requests descendant cleanup with a
+direct `taskkill /T /F` invocation and then kills/reaps the tracked child.
+macOS and Linux currently kill and reap the tracked child; descendants created
+by hooks, credential helpers or signing tools are best-effort OS behavior and
+are not guaranteed to join the child lifecycle. Task 031 must exercise and
+record those platform limitations before the epic closes. Hooks and signing
+are otherwise preserved: the runner does not add bypass flags, and mutation
+policies retain Git's prompt behavior. Diagnostics use lossy decoding for
+malformed bytes, bounded excerpts and URL credential/query/fragment redaction.
+
 ## State management
 
 Keep persistent application preferences separate from repository-derived state.

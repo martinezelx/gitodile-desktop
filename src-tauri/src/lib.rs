@@ -1,10 +1,22 @@
 #![allow(linker_messages)]
 
+mod application;
+mod error;
+mod git;
+mod ipc;
+mod repository_access;
 mod watch;
 
-use std::io::{ErrorKind, Read};
+use error::{AppError, AppErrorCode};
+
+use std::ffi::OsStr;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus, Output, Stdio};
+#[cfg(any(test, target_os = "windows"))]
+use std::process::Command;
+#[cfg(target_os = "windows")]
+use std::process::Stdio;
+use std::process::{ExitStatus, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -17,128 +29,62 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 #[cfg(target_os = "windows")]
 const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
 
+#[cfg(test)]
 fn base_git_command() -> Command {
-    // `mut` is only exercised on Windows (creation_flags below); harmless
-    // elsewhere, but clippy flags it as unused on non-Windows targets.
-    #[allow(unused_mut)]
-    let mut command = Command::new("git");
-    // Domain parsers and error classifiers need deterministic diagnostics on
-    // localized installations.
-    command.env("LC_ALL", "C").env("LANG", "C");
-    // Stops read commands from taking the *optional* index lock and rewriting
-    // `.git/index` just to refresh its stat cache. Without this, every status
-    // read is itself a filesystem change, which the watcher in `watch.rs`
-    // would see and answer with another status read — a loop that never
-    // settles. Required locks (commit, checkout) are unaffected.
-    command.env("GIT_OPTIONAL_LOCKS", "0");
-    #[cfg(target_os = "windows")]
-    command.creation_flags(CREATE_NO_WINDOW);
-    command
+    git::command()
 }
 
+#[cfg(test)]
 fn git_command(repo_path: &str) -> Command {
     let mut command = base_git_command();
     command.arg("-C").arg(repo_path);
     command
 }
 
-#[derive(serde::Serialize, Debug, PartialEq)]
-#[serde(rename_all = "camelCase")]
-struct AppError {
-    code: AppErrorCode,
-    message: String,
-    remediation: Option<String>,
-    /// A bounded, secondary excerpt for failures whose primary cause is
-    /// something GitOdrile can only classify heuristically (a rejecting hook,
-    /// a signing failure) — never the sole or primary user-facing message.
-    detail: Option<String>,
-}
-
-#[derive(serde::Serialize, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
-enum AppErrorCode {
-    PathMissing,
-    PathUnusable,
-    NotRepository,
-    BareRepository,
-    GitMissing,
-    GitUnusable,
-    GitCommandFailed,
-    InvalidIdentity,
-    GitConfigWriteFailed,
-    PathInvalid,
-    PathNotChanged,
-    PathEncodingUnsupported,
-    NothingToSave,
-    UnresolvedConflicts,
-    DetachedHead,
-    GitOperationInProgress,
-    MissingIdentity,
-    EmptyTitle,
-    InvalidTitle,
-    StalePreview,
-    HookRejected,
-    SigningFailed,
-    IndexUnavailable,
-    IndexRestoreFailed,
-    InvalidSelection,
-    NoRemoteConfigured,
-    RemoteSelectionRequired,
-    UnbornBranchNoVersion,
-    NothingToPublish,
-    BehindRemote,
-    DivergedHistories,
-    StalePublishPlan,
-    InvalidRefName,
-    AuthenticationFailed,
-    NetworkTimeout,
-    RemoteRejected,
-    PublishUncertain,
-    GitVersionTooOld,
-    VersionLineNameTaken,
-    VersionLineNameCollides,
-    VersionLineCheckedOutElsewhere,
-    VersionLineIsActive,
-    VersionLineUniqueWork,
-    VersionLineSwitchObstructed,
-    StaleVersionLinePlan,
-    DirtyWorkingTree,
-    RefLocked,
-}
-
-impl AppError {
-    fn new(code: AppErrorCode, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-            remediation: None,
-            detail: None,
-        }
-    }
-
-    fn with_remediation(mut self, remediation: impl Into<String>) -> Self {
-        self.remediation = Some(remediation.into());
-        self
-    }
-
-    fn with_detail(mut self, detail: impl Into<String>) -> Self {
-        self.detail = Some(detail.into());
-        self
-    }
-}
-
 fn run_git(repo_path: &str, args: &[&str]) -> Result<Output, AppError> {
-    git_command(repo_path).args(args).output().map_err(|error| {
-        if error.kind() == ErrorKind::NotFound {
-            AppError::new(
-                AppErrorCode::GitMissing,
-                "Git isn't installed, or isn't available on PATH.",
-            )
-            .with_remediation("Install Git, then reopen GitOdrile and try again.")
-        } else {
-            AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
-                .with_remediation("Check the Git installation and try again.")
-        }
+    run_git_with_env(repo_path, args, &[])
+}
+
+fn run_git_with_env<I, S>(
+    repo_path: &str,
+    args: I,
+    envs: &[(&str, &str)],
+) -> Result<Output, AppError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let policy = application::current_policy()
+        .unwrap_or_else(|| git::ExecutionPolicy::repository_read("compatibility_git_read"));
+    let cancellation = application::current_cancellation();
+    let output = git::run_with_env(
+        Some(Path::new(repo_path)),
+        args,
+        envs,
+        policy,
+        cancellation.as_ref(),
+    )?;
+    let _diagnostics_were_truncated = output.stderr_truncated;
+    Ok(Output {
+        status: output.status,
+        stdout: output.stdout,
+        stderr: output.stderr,
+    })
+}
+
+fn run_global_git_with_env<I, S>(args: I, envs: &[(&str, &str)]) -> Result<Output, AppError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let policy = application::current_policy()
+        .unwrap_or_else(|| git::ExecutionPolicy::repository_read("compatibility_global_git"));
+    let cancellation = application::current_cancellation();
+    let output = git::run_with_env(None, args, envs, policy, cancellation.as_ref())?;
+    Ok(Output {
+        status: output.status,
+        stdout: output.stdout,
+        stderr: output.stderr,
     })
 }
 
@@ -148,82 +94,21 @@ struct CappedOutput {
     limit_exceeded: bool,
 }
 
-/// Reads at most `limit + 1` stdout bytes and stops Git as soon as the cap is
-/// crossed. `Command::output` cannot be used here because it buffers the whole
-/// patch before callers can inspect its length.
 fn run_git_capped(repo_path: &str, args: &[&str], limit: usize) -> Result<CappedOutput, AppError> {
-    let mut child = git_command(repo_path)
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| {
-            if error.kind() == ErrorKind::NotFound {
-                AppError::new(
-                    AppErrorCode::GitMissing,
-                    "Git isn't installed, or isn't available on PATH.",
-                )
-                .with_remediation("Install Git, then reopen GitOdrile and try again.")
-            } else {
-                AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
-                    .with_remediation("Check the Git installation and try again.")
-            }
-        })?;
-
-    let stdout = child.stdout.take().ok_or_else(|| {
-        AppError::new(AppErrorCode::GitUnusable, "Git's output couldn't be read.")
-            .with_remediation("Check the Git installation and try again.")
-    })?;
-    let mut stderr = child.stderr.take().ok_or_else(|| {
-        AppError::new(AppErrorCode::GitUnusable, "Git's errors couldn't be read.")
-            .with_remediation("Check the Git installation and try again.")
-    })?;
-
-    // Drain stderr concurrently so a noisy Git process cannot fill that pipe
-    // and deadlock while stdout is being capped. Diagnostics are deliberately
-    // bounded and are not exposed as the primary user-facing error.
-    let stderr_reader = std::thread::spawn(move || {
-        let mut buffer = [0u8; 8192];
-        while let Ok(read) = stderr.read(&mut buffer) {
-            if read == 0 {
-                break;
-            }
-        }
-    });
-
-    let mut stdout_bytes = Vec::with_capacity(limit.saturating_add(1));
-    let read_result = stdout
-        .take(limit.saturating_add(1) as u64)
-        .read_to_end(&mut stdout_bytes);
-    let limit_exceeded = stdout_bytes.len() > limit;
-
-    if read_result.is_err() || limit_exceeded {
-        let _ = child.kill();
-    }
-    let status = child.wait().map_err(|_| {
-        AppError::new(
-            AppErrorCode::GitCommandFailed,
-            "Git couldn't finish reading this file.",
-        )
-        .with_remediation("Check that the project is readable and try again.")
-    })?;
-    let _ = stderr_reader.join();
-
-    if read_result.is_err() {
-        return Err(AppError::new(
-            AppErrorCode::GitCommandFailed,
-            "Git's output couldn't be read.",
-        )
-        .with_remediation("Check that the project is readable and try again."));
-    }
-
-    if limit_exceeded {
-        stdout_bytes.truncate(limit);
-    }
+    let mut policy = application::current_policy()
+        .unwrap_or_else(|| git::ExecutionPolicy::repository_read("compatibility_capped_git_read"));
+    policy.stdout_cap = limit;
+    let cancellation = application::current_cancellation();
+    let output = git::run(
+        Some(Path::new(repo_path)),
+        args,
+        policy,
+        cancellation.as_ref(),
+    )?;
     Ok(CappedOutput {
-        status,
-        stdout: stdout_bytes,
-        limit_exceeded,
+        status: output.status,
+        stdout: output.stdout,
+        limit_exceeded: output.stdout_truncated,
     })
 }
 
@@ -351,7 +236,6 @@ fn git_diagnostics_from_attempt(attempt: ProcessAttempt) -> GitDiagnostics {
     }
 }
 
-#[tauri::command]
 fn app_status() -> &'static str {
     "GitOdrile is ready"
 }
@@ -359,7 +243,6 @@ fn app_status() -> &'static str {
 /// The main window starts hidden (see `tauri.conf.json`) so the OS-level
 /// window never appears blank while the webview loads and React mounts.
 /// The frontend calls this once the first frame has actually painted.
-#[tauri::command]
 fn show_main_window(window: tauri::Window) {
     if let Some(main) = window.get_webview_window("main") {
         let _ = main.show();
@@ -367,8 +250,8 @@ fn show_main_window(window: tauri::Window) {
     }
 }
 
-#[tauri::command(async)]
 fn open_repository(path: String) -> Result<RepositoryInfo, AppError> {
+    let _command = application::enter("open_repository");
     let repo_path = Path::new(&path);
     let metadata = repo_path.metadata().map_err(|error| {
         if error.kind() == ErrorKind::NotFound {
@@ -425,6 +308,22 @@ fn open_repository(path: String) -> Result<RepositoryInfo, AppError> {
     // misclassified a normal repository when the user selected a nested
     // folder (for example, `src` yields `../.git`).
     let common_dir_path = normalized_path(&selected_path_buf, &common_dir_raw);
+
+    let repository_context = repository_access::RepositoryContext::from_parts(
+        &root_path,
+        &git_dir_path,
+        &common_dir_path,
+        false,
+    )?;
+    repository_access::global().register(
+        repository_context.clone(),
+        &[selected_path_buf.as_path(), root_path.as_path()],
+    );
+    let _access = repository_access::global().acquire(
+        &repository_context,
+        repository_access::AccessMode::Read,
+        None,
+    )?;
 
     // A linked worktree has its own Git directory but shares a common Git
     // directory with the main checkout.
@@ -818,8 +717,23 @@ fn find_status_entry(stdout: &[u8], file_path: &str) -> Result<Option<RawStatusE
         .find(|entry| entry.path == file_path))
 }
 
-#[tauri::command(async)]
 fn read_working_tree_status(path: String) -> Result<WorkingTreeStatus, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_working_tree_status", None).map_err(
+            |error| match error.code {
+                AppErrorCode::PathUnusable if !Path::new(&path).exists() => AppError::new(
+                    AppErrorCode::PathMissing,
+                    "That project folder doesn't exist anymore.",
+                )
+                .with_remediation("Reopen the project or remove it from the project list."),
+                AppErrorCode::NotRepository => AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "Git couldn't read the changes in this project.",
+                )
+                .with_remediation("Check that this is still a Git project and try again."),
+                _ => error,
+            },
+        )?;
     let repo_path = Path::new(&path);
     let metadata = repo_path.metadata().map_err(|error| {
         if error.kind() == ErrorKind::NotFound {
@@ -1311,8 +1225,8 @@ fn validate_repo_relative_path(file_path: &str) -> Result<(), AppError> {
     Ok(())
 }
 
-#[tauri::command(async)]
 fn read_file_diff(path: String, file_path: String) -> Result<FileDiff, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "read_file_diff", None)?;
     validate_repo_relative_path(&file_path)?;
 
     let repo_path = Path::new(&path);
@@ -1620,8 +1534,9 @@ fn batch_tracked_diffs(
     Ok(results)
 }
 
-#[tauri::command(async)]
 fn read_working_tree_diffs(path: String) -> Result<Vec<FileDiff>, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_working_tree_diffs", None)?;
     let repo_path = Path::new(&path);
     let metadata = repo_path.metadata().map_err(|error| {
         if error.kind() == ErrorKind::NotFound {
@@ -1713,13 +1628,13 @@ struct FileLines {
     truncated: bool,
 }
 
-#[tauri::command(async)]
 fn read_file_lines(
     path: String,
     file_path: String,
     start_line: u32,
     end_line: u32,
 ) -> Result<FileLines, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "read_file_lines", None)?;
     validate_repo_relative_path(&file_path)?;
     if start_line == 0 || end_line < start_line {
         return Err(
@@ -1820,14 +1735,14 @@ fn read_file_lines(
     })
 }
 
-#[tauri::command(async)]
 fn git_diagnostics() -> GitDiagnostics {
-    let attempt = match base_git_command().arg("--version").output() {
+    let _command = application::enter("git_diagnostics");
+    let attempt = match run_global_git_with_env(["--version"], &[]) {
         Ok(output) => ProcessAttempt::Completed {
             success: output.status.success(),
             stdout: git_stdout(&output),
         },
-        Err(error) if error.kind() == ErrorKind::NotFound => ProcessAttempt::Missing,
+        Err(error) if error.code == AppErrorCode::GitMissing => ProcessAttempt::Missing,
         Err(_) => ProcessAttempt::FailedToStart,
     };
     git_diagnostics_from_attempt(attempt)
@@ -1973,8 +1888,8 @@ fn spawn_git_installer() -> InstallSpawnResult {
     }
 }
 
-#[tauri::command(async)]
 fn install_git() -> GitInstallationResult {
+    let _command = application::enter("install_git");
     if INSTALL_STARTING.swap(true, Ordering::AcqRel) {
         return GitInstallationResult {
             outcome: GitInstallationOutcome::AlreadyStarting,
@@ -2032,8 +1947,8 @@ fn spawn_git_update() -> GitUpdateLaunchOutcome {
     }
 }
 
-#[tauri::command(async)]
 fn update_git() -> GitUpdateLaunchResult {
+    let _command = application::enter("update_git");
     if UPDATE_STARTING.swap(true, Ordering::AcqRel) {
         return GitUpdateLaunchResult {
             outcome: GitUpdateLaunchOutcome::AlreadyStarting,
@@ -2176,8 +2091,8 @@ fn run_winget_update_check(timeout: Duration) -> UpdateCheckAttempt {
     }
 }
 
-#[tauri::command(async)]
 fn check_git_update() -> GitUpdateStatus {
+    let _command = application::enter("check_git_update");
     let now = Instant::now();
     if let Some(cached) = cached_update_status(now) {
         return cached;
@@ -2211,14 +2126,10 @@ struct GitIdentity {
 // Production calls always pass `None` (the user's real global config); tests
 // pass a temporary file so they never touch the machine's real Git identity.
 fn read_global_git_config(key: &str, config_override: Option<&str>) -> Option<String> {
-    let mut command = base_git_command();
-    if let Some(path) = config_override {
-        command.env("GIT_CONFIG_GLOBAL", path);
-    }
-    let output = command
-        .args(["config", "--global", "--get", key])
-        .output()
-        .ok()?;
+    let envs = config_override
+        .map(|path| vec![("GIT_CONFIG_GLOBAL", path)])
+        .unwrap_or_default();
+    let output = run_global_git_with_env(["config", "--global", "--get", key], &envs).ok()?;
     if !output.status.success() {
         return None;
     }
@@ -2235,23 +2146,11 @@ fn write_global_git_config(
     value: &str,
     config_override: Option<&str>,
 ) -> Result<(), AppError> {
-    let mut command = base_git_command();
-    if let Some(path) = config_override {
-        command.env("GIT_CONFIG_GLOBAL", path);
-    }
-    let status = command
-        .args(["config", "--global", key, value])
-        .status()
-        .map_err(|error| {
-            if error.kind() == ErrorKind::NotFound {
-                AppError::new(AppErrorCode::GitMissing, "Git isn't available.")
-                    .with_remediation("Install Git and try again.")
-            } else {
-                AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
-                    .with_remediation("Check the Git installation and try again.")
-            }
-        })?;
-    if !status.success() {
+    let envs = config_override
+        .map(|path| vec![("GIT_CONFIG_GLOBAL", path)])
+        .unwrap_or_default();
+    let output = run_global_git_with_env(["config", "--global", key, value], &envs)?;
+    if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitConfigWriteFailed,
             format!("Git couldn't save {key}."),
@@ -2280,16 +2179,16 @@ fn set_git_identity_with_override(
     Ok(())
 }
 
-#[tauri::command(async)]
 fn get_git_identity() -> GitIdentity {
+    let _command = application::enter("get_git_identity");
     GitIdentity {
         name: read_global_git_config("user.name", None),
         email: read_global_git_config("user.email", None),
     }
 }
 
-#[tauri::command(async)]
 fn set_git_identity(name: String, email: String) -> Result<(), AppError> {
+    let _command = application::enter("set_git_identity");
     set_git_identity_with_override(&name, &email, None)
 }
 
@@ -2400,22 +2299,10 @@ fn run_git_with_global_override(
     args: &[&str],
     config_override: Option<&str>,
 ) -> Result<Output, AppError> {
-    let mut command = git_command(repo_path);
-    if let Some(global) = config_override {
-        command.env("GIT_CONFIG_GLOBAL", global);
-    }
-    command.args(args).output().map_err(|error| {
-        if error.kind() == ErrorKind::NotFound {
-            AppError::new(
-                AppErrorCode::GitMissing,
-                "Git isn't installed, or isn't available on PATH.",
-            )
-            .with_remediation("Install Git, then reopen GitOdrile and try again.")
-        } else {
-            AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
-                .with_remediation("Check the Git installation and try again.")
-        }
-    })
+    let envs = config_override
+        .map(|global| vec![("GIT_CONFIG_GLOBAL", global)])
+        .unwrap_or_default();
+    run_git_with_env(repo_path, args, &envs)
 }
 
 /// Checks the *effective* identity (local config overriding global, exactly
@@ -2519,30 +2406,30 @@ fn prepare_index(
         std::process::id()
     ));
 
-    let mut read_tree = git_command(path);
-    read_tree.env("GIT_INDEX_FILE", &index_path);
-    if *head_state == HeadState::Unborn {
-        read_tree.args(["read-tree", "--empty"]);
+    let index_value = index_path.to_string_lossy().to_string();
+    let envs = [("GIT_INDEX_FILE", index_value.as_str())];
+    let read_tree_args = if *head_state == HeadState::Unborn {
+        ["read-tree", "--empty"]
     } else {
-        read_tree.args(["read-tree", "HEAD"]);
-    }
-    let output = read_tree.output().map_err(|_| index_unavailable_error())?;
+        ["read-tree", "HEAD"]
+    };
+    let output =
+        run_git_with_env(path, read_tree_args, &envs).map_err(|_| index_unavailable_error())?;
     if !output.status.success() {
         return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
     }
 
-    let mut add = git_command(path);
-    add.env("GIT_INDEX_FILE", &index_path).args(["add", "-A"]);
+    let mut add_args = vec!["add".to_string(), "-A".to_string()];
     if let Some(entries) = selected_entries {
-        add.arg("--");
+        add_args.push("--".to_string());
         for entry in entries {
-            add.arg(&entry.path);
+            add_args.push(entry.path.clone());
             if let Some(original) = &entry.original_path {
-                add.arg(original);
+                add_args.push(original.clone());
             }
         }
     }
-    let output = add.output().map_err(|_| index_unavailable_error())?;
+    let output = run_git_with_env(path, &add_args, &envs).map_err(|_| index_unavailable_error())?;
     if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
@@ -2552,12 +2439,8 @@ fn prepare_index(
         .with_detail(truncate_detail(&stderr_text(&output))));
     }
 
-    let mut write_tree = git_command(path);
-    let output = write_tree
-        .env("GIT_INDEX_FILE", &index_path)
-        .args(["write-tree"])
-        .output()
-        .map_err(|_| index_unavailable_error())?;
+    let output =
+        run_git_with_env(path, ["write-tree"], &envs).map_err(|_| index_unavailable_error())?;
     if !output.status.success() {
         return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
     }
@@ -2807,11 +2690,12 @@ fn plan_save_version_selection_with_identity_override(
     // folded into `state_token` above.
 }
 
-#[tauri::command(async)]
 fn plan_save_version(
     path: String,
     selected_paths: Option<Vec<String>>,
 ) -> Result<SaveVersionPlan, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "plan_save_version", None)?;
     plan_save_version_selection_with_identity_override(path, selected_paths, None)
 }
 
@@ -2947,17 +2831,11 @@ const MAX_FAILURE_DETAIL_BYTES: usize = 4000;
 
 fn truncate_detail(text: &str) -> String {
     let trimmed = text.trim();
-    if trimmed.len() <= MAX_FAILURE_DETAIL_BYTES {
-        trimmed.to_string()
-    } else {
-        let mut truncated = trimmed
-            .char_indices()
-            .take_while(|(index, _)| *index < MAX_FAILURE_DETAIL_BYTES)
-            .map(|(_, ch)| ch)
-            .collect::<String>();
-        truncated.push('…');
-        truncated
+    let mut redacted = git::redact_diagnostic(trimmed.as_bytes(), MAX_FAILURE_DETAIL_BYTES);
+    if trimmed.len() > MAX_FAILURE_DETAIL_BYTES {
+        redacted.push('…');
     }
+    redacted
 }
 
 /// A hook's presence doesn't guarantee it fired, and a missing one doesn't
@@ -3073,28 +2951,16 @@ fn save_version_selection_with_identity_override(
         return Err(restore_or_report(&backup, primary));
     }
 
-    let mut commit_command = git_command(&path);
-    if let Some(global) = identity_override {
-        commit_command.env("GIT_CONFIG_GLOBAL", global);
-    }
-    let commit_output = match commit_command
-        .args(["commit", "-m", &commit_message])
-        .output()
-    {
+    let commit_env = identity_override
+        .map(|global| vec![("GIT_CONFIG_GLOBAL", global)])
+        .unwrap_or_default();
+    let commit_output = match run_git_with_env(
+        &path,
+        ["commit", "-m", commit_message.as_str()],
+        &commit_env,
+    ) {
         Ok(output) => output,
-        Err(error) => {
-            let primary = if error.kind() == ErrorKind::NotFound {
-                AppError::new(
-                    AppErrorCode::GitMissing,
-                    "Git isn't installed, or isn't available on PATH.",
-                )
-                .with_remediation("Install Git, then reopen GitOdrile and try again.")
-            } else {
-                AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
-                    .with_remediation("Check the Git installation and try again.")
-            };
-            return Err(restore_or_report(&backup, primary));
-        }
+        Err(error) => return Err(restore_or_report(&backup, error)),
     };
 
     if !commit_output.status.success() {
@@ -3137,6 +3003,7 @@ fn save_version_with_identity_override(
     state_token: String,
     identity_override: Option<&str>,
 ) -> Result<SaveVersionResult, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "save_version", None)?;
     save_version_selection_with_identity_override(
         path,
         title,
@@ -3147,7 +3014,6 @@ fn save_version_with_identity_override(
     )
 }
 
-#[tauri::command(async)]
 fn save_version(
     path: String,
     title: String,
@@ -3155,6 +3021,7 @@ fn save_version(
     state_token: String,
     selected_paths: Option<Vec<String>>,
 ) -> Result<SaveVersionResult, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "save_version", None)?;
     save_version_selection_with_identity_override(
         path,
         title,
@@ -3247,8 +3114,9 @@ fn list_remotes(path: &str) -> Result<Vec<RemoteInfo>, AppError> {
     Ok(parse_remote_v_output(&output))
 }
 
-#[tauri::command(async)]
 fn discover_remotes(path: String) -> Result<RemoteDiscovery, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "discover_remotes", None)?;
     let status = read_working_tree_status(path.clone())?;
     let remotes = list_remotes(&path)?;
     Ok(RemoteDiscovery {
@@ -3354,8 +3222,9 @@ fn git_log_summaries(path: &str, range: &str) -> Result<Vec<SavedVersionSummary>
 /// documented for the Overview's publish entry point, not a fresh preflight.
 /// With no upstream configured yet, every local saved version is reported as
 /// unpublished, since nothing is locally known to contradict that.
-#[tauri::command(async)]
 fn list_unpublished_versions(path: String) -> Result<PendingVersionsResult, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "list_unpublished_versions", None)?;
     let status = read_working_tree_status(path.clone())?;
     let (head_state, _) = resolve_head_state(&path, status.upstream.branch.clone())?;
     if head_state != HeadState::Branch {
@@ -3453,11 +3322,12 @@ fn validate_commit_ish(commit: &str) -> Result<(), AppError> {
 /// deliberately not the full line-by-line diff the Changes screen shows.
 /// `git show` handles a root commit (no parent) the same way it handles any
 /// other commit, listing every file as added, so no special case is needed.
-#[tauri::command(async)]
 fn read_commit_file_changes(
     path: String,
     commit: String,
 ) -> Result<Vec<CommitFileChange>, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_commit_file_changes", None)?;
     validate_commit_ish(&commit)?;
     let output = run_git(
         &path,
@@ -3491,12 +3361,13 @@ fn read_commit_file_changes(
 /// can never disagree between an unsaved change and an already-saved one —
 /// only the `git show`/`--name-status` step that determined `category` and
 /// `original_path` here comes from a commit instead of the working tree.
-#[tauri::command(async)]
 fn read_commit_file_diff(
     path: String,
     commit: String,
     file_path: String,
 ) -> Result<FileDiff, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_commit_file_diff", None)?;
     validate_repo_relative_path(&file_path)?;
     validate_commit_ish(&commit)?;
 
@@ -3654,65 +3525,30 @@ fn run_git_networked(
     args: &[&str],
     timeout: Duration,
 ) -> Result<NetworkOutput, AppError> {
-    let mut command = git_command(repo_path);
-    command
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    let mut child = command.spawn().map_err(|error| {
-        if error.kind() == ErrorKind::NotFound {
-            AppError::new(
-                AppErrorCode::GitMissing,
-                "Git isn't installed, or isn't available on PATH.",
-            )
-            .with_remediation("Install Git, then reopen GitOdrile and try again.")
-        } else {
-            AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
-                .with_remediation("Check the Git installation and try again.")
-        }
-    })?;
-
-    let started_at = Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) => {
-                let output = child.wait_with_output().map_err(|_| {
-                    AppError::new(
-                        AppErrorCode::GitCommandFailed,
-                        "Git's output couldn't be read.",
-                    )
-                    .with_remediation("Check the Git installation and try again.")
-                })?;
-                return Ok(NetworkOutput {
-                    status: Some(output.status),
-                    stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-                    stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-                    timed_out: false,
-                });
-            }
-            Ok(None) if started_at.elapsed() < timeout => {
-                std::thread::sleep(Duration::from_millis(50));
-            }
-            Ok(None) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Ok(NetworkOutput {
-                    status: None,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                    timed_out: true,
-                });
-            }
-            Err(_) => {
-                return Err(AppError::new(
-                    AppErrorCode::GitCommandFailed,
-                    "GitOdrile lost track of a running Git process.",
-                )
-                .with_remediation("Try again."));
-            }
-        }
+    let mut policy = application::current_policy()
+        .unwrap_or_else(|| git::ExecutionPolicy::repository_read("network_git"));
+    policy.timeout = timeout;
+    let cancellation = application::current_cancellation();
+    match git::run_with_env(
+        Some(Path::new(repo_path)),
+        args,
+        &[("GIT_TERMINAL_PROMPT", "0")],
+        policy,
+        cancellation.as_ref(),
+    ) {
+        Ok(output) => Ok(NetworkOutput {
+            status: Some(output.status),
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            timed_out: false,
+        }),
+        Err(error) if error.message.contains("too long") => Ok(NetworkOutput {
+            status: None,
+            stdout: String::new(),
+            stderr: String::new(),
+            timed_out: true,
+        }),
+        Err(error) => Err(error),
     }
 }
 
@@ -4080,12 +3916,12 @@ fn commit_summary_entries(
     git_log_summaries(path, &range).unwrap_or_default()
 }
 
-#[tauri::command(async)]
 fn plan_publish(
     path: String,
     remote: Option<String>,
     up_to: Option<String>,
 ) -> Result<PublishPlan, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "plan_publish", None)?;
     let validated = validate_and_prepare_publish(&path, remote, up_to)?;
     let commit_summary = commit_summary_entries(
         &path,
@@ -4285,13 +4121,13 @@ fn publish_selection(
     })
 }
 
-#[tauri::command(async)]
 fn publish(
     path: String,
     remote: String,
     state_token: String,
     up_to: Option<String>,
 ) -> Result<PublishResult, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "publish", None)?;
     publish_selection(path, remote, state_token, up_to)
 }
 
@@ -4877,8 +4713,9 @@ fn read_version_line_refs(
 /// upstream/reachability information reflects only what is already known
 /// from local refs, exactly like the rest of the app's "no fresh remote
 /// truth" convention for non-network commands.
-#[tauri::command(async)]
 fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "get_version_lines", None)?;
     let symbolic_head = run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
     let branch = symbolic_head
         .status
@@ -5093,12 +4930,13 @@ fn validate_and_prepare_create(
     })
 }
 
-#[tauri::command(async)]
 fn plan_create_version_line(
     path: String,
     name: String,
     switch: bool,
 ) -> Result<CreateVersionLinePlan, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "plan_create_version_line", None)?;
     let validated = validate_and_prepare_create(&path, &name, switch)?;
     let mut steps = vec![format!(
         "Create the version line \"{}\" at the current commit.",
@@ -5166,13 +5004,14 @@ fn classify_ref_mutation_failure(output: &Output, generic_message: &str) -> AppE
     }
 }
 
-#[tauri::command(async)]
 fn create_version_line(
     path: String,
     name: String,
     switch: bool,
     state_token: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "create_version_line", None)?;
     let validated = validate_and_prepare_create(&path, &name, switch)?;
     if validated.state_token != state_token {
         return Err(AppError::new(
@@ -5341,11 +5180,12 @@ fn validate_and_prepare_switch(path: &str, target: &str) -> Result<ValidatedSwit
     })
 }
 
-#[tauri::command(async)]
 fn plan_switch_version_line(
     path: String,
     target: String,
 ) -> Result<SwitchVersionLinePlan, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "plan_switch_version_line", None)?;
     let validated = validate_and_prepare_switch(&path, &target)?;
     Ok(SwitchVersionLinePlan {
         operation_kind: OperationKind::LocalMutation,
@@ -5404,12 +5244,13 @@ fn classify_switch_failure(output: &Output) -> AppError {
     }
 }
 
-#[tauri::command(async)]
 fn switch_version_line(
     path: String,
     target: String,
     state_token: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "switch_version_line", None)?;
     let validated = validate_and_prepare_switch(&path, &target)?;
     if validated.state_token != state_token {
         return Err(AppError::new(
@@ -5543,8 +5384,9 @@ fn validate_and_prepare_delete(path: &str, name: &str) -> Result<ValidatedDelete
     })
 }
 
-#[tauri::command(async)]
 fn plan_delete_version_line(path: String, name: String) -> Result<DeleteVersionLinePlan, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "plan_delete_version_line", None)?;
     let validated = validate_and_prepare_delete(&path, &name)?;
     Ok(DeleteVersionLinePlan {
         operation_kind: OperationKind::Destructive,
@@ -5595,12 +5437,13 @@ fn classify_delete_failure(output: &Output) -> AppError {
     }
 }
 
-#[tauri::command(async)]
 fn delete_version_line(
     path: String,
     name: String,
     state_token: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "delete_version_line", None)?;
     let validated = validate_and_prepare_delete(&path, &name)?;
     if validated.state_token != state_token {
         return Err(AppError::new(
@@ -5627,12 +5470,12 @@ fn delete_version_line(
 /// and an exhausted inotify budget all leave a project on the manual "Check
 /// changes" path, which keeps working exactly as before. A real `Err` is
 /// reserved for a path that isn't a usable repository at all.
-#[tauri::command(async)]
 fn watch_repository(
     app: tauri::AppHandle,
     registry: tauri::State<'_, watch::WatcherRegistry>,
     path: String,
 ) -> Result<bool, AppError> {
+    let (repository, _access) = application::authorize_repository(&path, "watch_repository", None)?;
     let root = Path::new(&path);
     if !root.is_dir() {
         return Err(
@@ -5644,13 +5487,10 @@ fn watch_repository(
     // directory (HEAD/index), its `<root>/.git` pointer file, and the shared
     // common Git directory (branches/packed refs). Name all of them so an
     // external branch create/delete is visible from linked worktrees too.
-    let git_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"])?)?;
-    let common_git_dir_raw =
-        checked_git_stdout(run_git(&path, &["rev-parse", "--git-common-dir"])?)?;
     let mut git_dirs = vec![
-        normalized_path(root, &git_dir_raw),
+        repository.git_dir.backend_path().to_path_buf(),
         root.join(".git"),
-        normalized_path(root, &common_git_dir_raw),
+        repository.common_git_dir.backend_path().to_path_buf(),
     ];
     // Order is deliberately not significant here: a linked worktree's private
     // directory lives inside the common one, and the event filter resolves
@@ -5661,7 +5501,6 @@ fn watch_repository(
     Ok(registry.watch(app, &path, git_dirs))
 }
 
-#[tauri::command(async)]
 fn unwatch_repository(registry: tauri::State<'_, watch::WatcherRegistry>, path: String) {
     registry.unwatch(&path);
 }
@@ -5674,36 +5513,36 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .invoke_handler(tauri::generate_handler![
-            app_status,
-            show_main_window,
-            open_repository,
-            read_working_tree_status,
-            read_file_diff,
-            read_file_lines,
-            read_working_tree_diffs,
-            git_diagnostics,
-            install_git,
-            update_git,
-            check_git_update,
-            get_git_identity,
-            set_git_identity,
-            plan_save_version,
-            save_version,
-            discover_remotes,
-            list_unpublished_versions,
-            read_commit_file_changes,
-            read_commit_file_diff,
-            plan_publish,
-            publish,
-            get_version_lines,
-            plan_create_version_line,
-            create_version_line,
-            plan_switch_version_line,
-            switch_version_line,
-            plan_delete_version_line,
-            delete_version_line,
-            watch_repository,
-            unwatch_repository
+            ipc::app_status,
+            ipc::show_main_window,
+            ipc::open_repository,
+            ipc::read_working_tree_status,
+            ipc::read_file_diff,
+            ipc::read_file_lines,
+            ipc::read_working_tree_diffs,
+            ipc::git_diagnostics,
+            ipc::install_git,
+            ipc::update_git,
+            ipc::check_git_update,
+            ipc::get_git_identity,
+            ipc::set_git_identity,
+            ipc::plan_save_version,
+            ipc::save_version,
+            ipc::discover_remotes,
+            ipc::list_unpublished_versions,
+            ipc::read_commit_file_changes,
+            ipc::read_commit_file_diff,
+            ipc::plan_publish,
+            ipc::publish,
+            ipc::get_version_lines,
+            ipc::plan_create_version_line,
+            ipc::create_version_line,
+            ipc::plan_switch_version_line,
+            ipc::switch_version_line,
+            ipc::plan_delete_version_line,
+            ipc::delete_version_line,
+            ipc::watch_repository,
+            ipc::unwatch_repository
         ])
         .run(tauri::generate_context!())
         .expect("error while running GitOdrile");

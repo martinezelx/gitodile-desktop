@@ -107,7 +107,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | Task | Status | Outcome | Depends on |
 | --- | --- | --- | --- |
 | 023 | Done 2026-08-08 | ADR, dependency map, legal research record, reproducible baselines and budgets | tasks 018–021 |
-| 024 | Not started | Rust application boundary, repository access coordinator and bounded Git execution | 023 |
+| 024 | Done 2026-08-08 | Rust application boundary, repository access coordinator and bounded Git execution | 023 |
 | 025 | Not started | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
 | 026 | Not started | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
 | 027 | Not started | Version lines migrated as the reference vertical slice | 024–026 |
@@ -198,7 +198,17 @@ session runtime and strangler sequence. Its
 [dependency map](../../../docs/architecture/023-dependency-map.md),
 [performance baseline](../../../docs/architecture/023-performance-baseline.md)
 and [GitButler research record](../../../docs/architecture/023-gitbutler-research.md)
-are the comparison evidence for tasks 024-031. Task 024 has not been started.
+are the comparison evidence for tasks 024-031.
+
+Task 024 established thin Tauri adapters in `src-tauri/src/ipc.rs`, a checked
+30-command execution-policy inventory and application authorization boundary,
+a fair coordinator keyed by canonical `commonGitDir`, retained worktree/Git
+path identities, bounded/cancellable Git execution, and the stable error owner.
+Related worktree mutations are serialized in Rust while unrelated repositories
+remain independent. Existing IPC, state-token, recovery, hook and signing
+behavior remains compatible. Windows descendant cleanup is covered; the
+documented macOS/Linux descendant limitation remains an explicit task-031
+audit item. Task 025 has not been started.
 
 # Validation
 
