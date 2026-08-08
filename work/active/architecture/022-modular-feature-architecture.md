@@ -104,17 +104,17 @@ stable concept; `shared/` must not become a miscellaneous directory.
 
 # Child tasks and order
 
-| Task | Outcome | Depends on |
-| --- | --- | --- |
-| 023 | ADR, dependency map, legal research record, reproducible baselines and budgets | tasks 018–021 |
-| 024 | Rust application boundary, repository access coordinator and bounded Git execution | 023 |
-| 025 | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
-| 026 | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
-| 027 | Version lines migrated as the reference vertical slice | 024–026 |
-| 028 | Repository/status/changes/diff reads migrated | 027 |
-| 029 | Save and publish mutation flows migrated without weakening safety | 027, 028 |
-| 030 | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
-| 031 | Complete cross-platform integration audit, final measurements, epic closure and History unlock | 023–030 |
+| Task | Status | Outcome | Depends on |
+| --- | --- | --- | --- |
+| 023 | Done 2026-08-08 | ADR, dependency map, legal research record, reproducible baselines and budgets | tasks 018–021 |
+| 024 | Not started | Rust application boundary, repository access coordinator and bounded Git execution | 023 |
+| 025 | Not started | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
+| 026 | Not started | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
+| 027 | Not started | Version lines migrated as the reference vertical slice | 024–026 |
+| 028 | Not started | Repository/status/changes/diff reads migrated | 027 |
+| 029 | Not started | Save and publish mutation flows migrated without weakening safety | 027, 028 |
+| 030 | Not started | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
+| 031 | Not started | Complete cross-platform integration audit, final measurements, epic closure and History unlock | 023–030 |
 
 Execute dependency-ready tasks one at a time unless the user explicitly
 approves parallel work. The preferred closure order is 023 through 031,
@@ -190,6 +190,15 @@ green at every task/commit boundary.
 
 Child tasks own their detailed notes. Keep this file updated with task status,
 material scope changes, and the final architecture summary.
+
+Task 023 confirmed the proposed child boundaries and order without a scope
+change. [ADR 0003](../../../docs/adr/0003-adopt-a-modular-feature-architecture.md)
+accepts the vertical-feature/Rust-domain modular monolith, project-scoped
+session runtime and strangler sequence. Its
+[dependency map](../../../docs/architecture/023-dependency-map.md),
+[performance baseline](../../../docs/architecture/023-performance-baseline.md)
+and [GitButler research record](../../../docs/architecture/023-gitbutler-research.md)
+are the comparison evidence for tasks 024-031. Task 024 has not been started.
 
 # Validation
 

@@ -1,7 +1,7 @@
 ---
 id: 023
 title: Decide module boundaries and record reproducible architecture baselines
-status: active
+status: done
 priority: high
 type: chore
 areas:
@@ -9,7 +9,7 @@ areas:
   - performance
   - security
 created: 2026-08-01
-completed:
+completed: 2026-08-08
 ---
 
 # Goal
@@ -62,21 +62,21 @@ risk of a long rewrite whose regressions are discovered only at the end.
 
 # Acceptance criteria
 
-- [ ] ADR records module structure, dependency rules, state approach,
+- [x] ADR records module structure, dependency rules, state approach,
       migration sequence, rejected alternatives, and dependency policy.
-- [ ] Dependency map distinguishes production, tests, dynamic imports and
+- [x] Dependency map distinguishes production, tests, dynamic imports and
       transport boundaries and identifies every existing cycle.
-- [ ] Baseline records exact test counts, 30-command inventory, chunk sizes,
+- [x] Baseline records exact test counts, 30-command inventory, chunk sizes,
       startup sequence, process counts, screen timings and memory protocol.
-- [ ] Baseline records the entry/Changes/`fileIcons` chunk relationship and
+- [x] Baseline records the entry/Changes/`fileIcons` chunk relationship and
       detects a feature migration that makes the icon set eager.
-- [ ] The Changes baseline identifies `read_working_tree_diffs` as speculative
+- [x] The Changes baseline identifies `read_working_tree_diffs` as speculative
       screen-mount work and captures its first-visit/warmed timing and process
       cost before ownership moves.
-- [ ] Numeric budgets and measurement environment are recorded.
-- [ ] GitButler research is tied to an exact revision and includes a clear
+- [x] Numeric budgets and measurement environment are recorded.
+- [x] GitButler research is tied to an exact revision and includes a clear
       no-copy/FSL constraint.
-- [ ] Proposed child-task boundaries are confirmed or updated in epic 022.
+- [x] Proposed child-task boundaries are confirmed or updated in epic 022.
 
 # Relevant files
 
@@ -99,10 +99,45 @@ Tasks 018–021.
 
 # Implementation notes
 
-Record the ADR path, dependency tooling decision, baseline artifacts and exact
-GitButler revision inspected.
+- Accepted [ADR 0003](../../docs/adr/0003-adopt-a-modular-feature-architecture.md):
+  vertical frontend features, durable Rust application domains, thin
+  transport/composition roots, a project-scoped reducer runtime with session
+  epochs, and an incremental strangler migration.
+- Recorded the pre-migration
+  [dependency/responsibility map](../../docs/architecture/023-dependency-map.md)
+  and [performance baseline](../../docs/architecture/023-performance-baseline.md).
+- Selected a pinned `dependency-cruiser` development dependency for frontend
+  rules and a repository-owned `syn`-based Rust architecture test, both to be
+  introduced with enforceable boundaries in task 026 rather than task 023.
+  No runtime dependency was added.
+- Inspected GitButler revision
+  `b98b6dc84a6d8a33332eb41543f20d97cab676a9`; the exact files, independent
+  principles and FSL-1.1-MIT no-copy constraint are in the
+  [research record](../../docs/architecture/023-gitbutler-research.md).
+- Confirmed the 023-031 child order in epic 022. No production module moved and
+  task 024 was not started.
 
 # Validation
 
-Record commands and desktop measurement protocol; no implementation checks may
-be claimed merely from this planning task.
+Completed on Windows 11 Home 10.0.26200 with the detailed environment and
+fixture recorded in the baseline:
+
+- `pnpm run typecheck`: passed.
+- `pnpm run test`: passed, 16 files and 206 tests.
+- `pnpm run build`: passed, 1,881 modules; entry 360.36 kB raw / 104.60 kB
+  gzip, Changes 59.86 kB and deferred `fileIcons` 255.22 kB.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`: passed.
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
+  --all-features -- -D warnings`: passed.
+- `cargo test --manifest-path src-tauri/Cargo.toml --all-targets
+  --all-features`: passed, 180 library tests and 0 binary tests.
+- `pnpm run tauri build --no-bundle`: passed during baseline capture; its
+  production chunks are recorded separately from the comparison build.
+- Desktop probe: 60 warmed screen transitions, p50 32.4 ms and p95 35.5 ms;
+  maximum visible descendants 340 on the standard fixture.
+- Changes probe: nine native batch samples, median 196.204 ms and p95
+  234.607 ms; 15 diffs / 7,731 serialized bytes / 2 Git processes. First
+  selected-file visit used 5 Git processes; warmed revisit used 0.
+- Instrumented debug memory was 487.4 MiB working set / 299.9 MiB private.
+  It is explicitly not reported as a packaged-release baseline; task 031 owns
+  the documented five-sample cross-platform release protocol.

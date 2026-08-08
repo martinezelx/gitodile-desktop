@@ -4,6 +4,10 @@
 
 GitOdrile uses a web frontend inside a Tauri desktop shell, with Rust responsible for filesystem access, process execution, Git operations, platform integration, and security-sensitive behavior.
 
+The accepted migration design is [ADR 0003](adr/0003-adopt-a-modular-feature-architecture.md).
+Its measured starting point, current dependency graph and external-reference
+record live under [`architecture/`](architecture/023-performance-baseline.md).
+
 ```text
 React UI
   -> typed frontend service layer
@@ -22,31 +26,51 @@ React UI
 - Make platform differences explicit.
 - Prevent arbitrary shell execution from the frontend.
 
-## Proposed Rust modules
+## Accepted module boundaries
+
+The frontend is a modular monolith organized by product feature:
+
+```text
+src/
+  app/                    # bootstrap, shell, screen registry and wiring
+  features/               # repository, status, changes, version-lines,
+                          # save-version, publish and later product domains
+  platform/tauri/         # typed invoke/listen adapters
+  shared/ui/              # stable primitives with multiple real consumers
+  shared/i18n/            # translation runtime and shared plumbing
+```
+
+Each feature exposes an explicit `index.ts`. Visual components receive values
+and callbacks; they do not invoke Tauri. Features do not import `app/` or
+another feature's internals. Product-domain types stay with their owner rather
+than moving to a generic shared-types directory.
+
+The corresponding Rust target is:
 
 ```text
 src-tauri/src/
-  app/
-  git/
-    command_runner.rs
-    repository.rs
-    status.rs
-    diff.rs
-    history.rs
-    branches.rs
-    remotes.rs
-  operations/
-    save_version.rs
-    publish.rs
-    update.rs
-    restore.rs
-  recovery/
-  credentials/
-  platform/
-  errors.rs
+  lib.rs                  # builder and command registration only
+  ipc/                    # validation and Tauri serialization adapters
+  application/            # product-domain use cases
+  repository_access/      # authorization and commonGitDir scheduling
+  git/                    # bounded process runner and Git adapter
+  watch/                  # filesystem adapter and typed invalidations
+  platform/               # OS-specific adapters
+  error.rs                # stable application error contract
 ```
 
-The current scaffold is smaller. Introduce modules as real behavior appears; do not create empty abstractions solely to match this diagram.
+Introduce these boundaries incrementally as tasks 024-030 move real behavior;
+do not create empty abstractions solely to match the diagram. IPC stays thin,
+application modules own product decisions, and infrastructure never imports
+IPC. The complete dependency matrix and migration order are normative in ADR
+0003; significant deviations require another ADR.
+
+Dependency direction will be executable in CI: a pinned
+`dependency-cruiser` configuration will classify frontend runtime, type-only,
+dynamic and test edges, while a repository-owned Rust architecture test will
+parse module/import declarations with `syn`. Compiler privacy still protects
+module internals. These development-only guards land with the modules they can
+meaningfully enforce, not as runtime dependencies.
 
 ## Operation planning
 
@@ -102,7 +126,9 @@ reference using the process in [`../AGENTS.md`](../AGENTS.md): start from a
 specific GitOdrile problem, understand the reason behind the relevant pattern,
 and reimplement only the smallest appropriate principle. Its mature monorepo,
 workflow abstractions, cloud services, and accumulated crate structure are not
-the target architecture for GitOdrile's MVP.
+the target architecture for GitOdrile's MVP. The pinned revision, inspected
+files and FSL-1.1-MIT no-copy constraint for this migration are recorded in
+[`architecture/023-gitbutler-research.md`](architecture/023-gitbutler-research.md).
 
 ## Repository identity
 
@@ -120,7 +146,14 @@ Do not assume the selected folder is the repository root. Resolve and retain:
 
 Keep persistent application preferences separate from repository-derived state.
 
-Candidate categories:
+Each open project owns an immutable reducer-backed runtime with a distinct
+session epoch and selector subscriptions through `useSyncExternalStore`. The
+canonical path identifies the worktree, not an open incarnation: responses and
+watcher events must match the epoch created for that open/reopen. Feature
+controllers expose narrow commands and selectors; arbitrary visual components
+cannot write Git-derived state.
+
+State categories remain explicit:
 
 - application preferences;
 - recent repositories;
@@ -129,7 +162,10 @@ Candidate categories:
 - in-progress operation state;
 - diagnostics.
 
-Avoid making Git state writable from arbitrary frontend components.
+No state library is introduced for this migration. Redux, Zustand, XState and
+React Query were evaluated in ADR 0003 and do not currently justify their
+runtime/conceptual cost. A future need for cache semantics, statecharts or
+devtools must be measured and recorded before revisiting that decision.
 
 ## Screen shell and navigation cost
 
@@ -182,6 +218,13 @@ session restore having finished.
 Screen-switch profiling is opt-in because measurement itself adds work. Run
 the development app with `VITE_PROFILE_SCREEN_SWITCHES=true` when collecting
 navigation timings; normal development and production builds omit it.
+
+The task-022 comparison protocol, exact starting chunks/process counts and
+numeric warning/failure budgets are recorded in
+[`architecture/023-performance-baseline.md`](architecture/023-performance-baseline.md).
+Child tasks use the same fixture and build mode and must explain warnings;
+crossing a failure budget blocks the task unless an ADR deliberately revises
+the contract.
 
 ## Security model
 
@@ -252,7 +295,8 @@ Focus on critical workflows and state rendering rather than brittle visual snaps
 ## Future decisions requiring ADRs
 
 - system Git versus embedded Git implementation;
-- state management library;
+- a state management library if project-runtime measurements outgrow the
+  accepted built-in approach;
 - credential storage strategy;
 - update mechanism;
 - AI provider architecture;
