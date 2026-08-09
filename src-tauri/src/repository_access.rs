@@ -41,6 +41,14 @@ impl PathIdentity {
         &self.match_key
     }
 
+    pub(crate) fn watch_paths(&self) -> Vec<PathBuf> {
+        let mut paths = self.aliases.clone();
+        if !paths.contains(&self.backend_path) {
+            paths.push(self.backend_path.clone());
+        }
+        paths
+    }
+
     #[allow(dead_code)]
     pub(crate) fn matches(&self, path: &Path) -> bool {
         self.aliases.iter().any(|alias| alias == path)

@@ -108,7 +108,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | --- | --- | --- | --- |
 | 023 | Done 2026-08-08 | ADR, dependency map, legal research record, reproducible baselines and budgets | tasks 018–021 |
 | 024 | Done 2026-08-08 | Rust application boundary, repository access coordinator and bounded Git execution | 023 |
-| 025 | Not started | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
+| 025 | Done 2026-08-09 | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
 | 026 | Not started | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
 | 027 | Not started | Version lines migrated as the reference vertical slice | 024–026 |
 | 028 | Not started | Repository/status/changes/diff reads migrated | 027 |
@@ -208,7 +208,17 @@ Related worktree mutations are serialized in Rust while unrelated repositories
 remain independent. Existing IPC, state-token, recovery, hook and signing
 behavior remains compatible. Windows descendant cleanup is covered; the
 documented macOS/Linux descendant limitation remains an explicit task-031
-audit item. Task 025 has not been started.
+audit item.
+
+Task 025 added a shared, versioned 31-command IPC contract checked from Rust
+and TypeScript, a Rust-issued session epoch with explicit close invalidation,
+and a typed/sequenced repository invalidation envelope. Migrated responses,
+operations, caches and watcher events reject old incarnations. Worktree events
+stay isolated while common-ref/config events coalesce and fan out once to all
+related open worktrees. Windows verbatim and macOS `/private/var` watcher
+aliases preserve Git-churn filtering. The checked compatibility inventory
+names the remaining direct consumers and requires reads to retire during
+026-028 and mutations by 029. Task 026 has not been started.
 
 # Validation
 

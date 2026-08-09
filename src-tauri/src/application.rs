@@ -15,9 +15,13 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 const fn no_process(command: &'static str) -> ExecutionPolicy {
+    no_process_with_class(command, OperationClass::ReadOnly)
+}
+
+const fn no_process_with_class(command: &'static str, class: OperationClass) -> ExecutionPolicy {
     ExecutionPolicy {
         command,
-        class: OperationClass::ReadOnly,
+        class,
         stdout_cap: 0,
         stderr_cap: 0,
         timeout: Duration::ZERO,
@@ -79,6 +83,7 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     ExecutionPolicy::repository_write("delete_version_line", OperationClass::Destructive),
     read("watch_repository"),
     no_process("unwatch_repository"),
+    no_process_with_class("close_project_session", OperationClass::LocalMutation),
 ];
 
 pub(crate) fn policy(command: &str) -> &'static ExecutionPolicy {
@@ -271,6 +276,7 @@ mod tests {
         "delete_version_line",
         "watch_repository",
         "unwatch_repository",
+        "close_project_session",
     ];
 
     #[test]
@@ -304,6 +310,14 @@ mod tests {
             );
             assert_eq!(policy(command).prompt, PromptPolicy::PreserveGitBehavior);
         }
+        assert_eq!(
+            policy("close_project_session").class,
+            OperationClass::LocalMutation
+        );
+        assert_eq!(
+            policy("close_project_session").concurrency,
+            ConcurrencyClass::None
+        );
     }
 
     #[test]

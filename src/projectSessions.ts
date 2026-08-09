@@ -18,6 +18,7 @@ export type ProjectMutationPhase =
 export type ProjectMutation = {
   kind: ProjectMutationKind;
   phase: ProjectMutationPhase;
+  epoch: string;
 };
 
 export type ChangesSelectionState = {
@@ -80,11 +81,13 @@ export function versionLinesSnapshotsEqual(
  * (`RepositoryInfo.path`) — already stable across nested-folder selections,
  * path aliases, symlinks, and filesystem case variants (see
  * `open_repository`'s tests), and distinct per linked worktree. Using it
- * directly as the identifier means there is no separate opaque id to keep in
- * sync with the descriptor Rust can revalidate on the next launch.
+ * directly as the project identifier keeps path aliases stable. `epoch` is a
+ * separate opaque open-incarnation identity, so close/reopen races cannot be
+ * mistaken for another response belonging to the same session.
  */
 export type ProjectSession = {
   id: string;
+  epoch: string;
   project: RepositoryInfo;
   lastView: ProjectView;
   viewHistory: ProjectView[];
@@ -140,24 +143,26 @@ export type ProjectSessionsAction =
   | { type: "activate"; id: string }
   | { type: "close"; id: string }
   | { type: "reorder"; id: string; toIndex: number }
-  | { type: "startStatusCheck"; id: string; generation: number }
+  | { type: "startStatusCheck"; id: string; generation: number; epoch: string }
   | {
       type: "applyWorkingTree";
       id: string;
       generation: number;
+      epoch: string;
       workingTree: WorkingTreeStatus;
       checkedAt: number;
     }
-  | { type: "applyWorkingTreeError"; id: string; generation: number; error: string }
-  | { type: "applyPendingVersions"; id: string; generation: number; result: PendingVersionsResult }
-  | { type: "applyPendingVersionsError"; id: string; generation: number; error: string }
+  | { type: "applyWorkingTreeError"; id: string; generation: number; epoch: string; error: string }
+  | { type: "applyPendingVersions"; id: string; generation: number; epoch: string; result: PendingVersionsResult }
+  | { type: "applyPendingVersionsError"; id: string; generation: number; epoch: string; error: string }
   | { type: "startVersionLinesLoad"; id: string }
   | {
       type: "applyVersionLines";
       id: string;
       snapshot: VersionLinesSnapshot;
+      epoch: string;
     }
-  | { type: "applyVersionLinesError"; id: string; error: string }
+  | { type: "applyVersionLinesError"; id: string; epoch: string; error: string }
   | { type: "navigate"; id: string; view: ProjectView }
   | { type: "goBack"; id: string }
   | { type: "goForward"; id: string }
@@ -166,17 +171,22 @@ export type ProjectSessionsAction =
   | { type: "finishOperation"; id: string }
   | { type: "setChangesSelection"; id: string; selection: ChangesSelectionState };
 
+export function repositorySessionEpoch(project: RepositoryInfo): string {
+  return project.sessionEpoch;
+}
+
 function freshSession(project: RepositoryInfo): ProjectSession {
   return {
     id: project.path,
+    epoch: repositorySessionEpoch(project),
     project,
     lastView: "overview",
     viewHistory: ["overview"],
     viewHistoryIndex: 0,
     changesSelection: EMPTY_CHANGES_SELECTION,
-        workingTree: null,
-        workingTreeError: null,
-        isCheckingChanges: false,
+    workingTree: null,
+    workingTreeError: null,
+    isCheckingChanges: false,
     workingTreeCheckedAt: null,
     statusGeneration: 0,
     pendingVersions: EMPTY_PENDING_VERSIONS,
@@ -251,6 +261,13 @@ function updateSession(
   return { ...state, byId: { ...state.byId, [id]: update(session) } };
 }
 
+function actionMatchesEpoch(
+  session: ProjectSession | undefined,
+  epoch: string,
+): session is ProjectSession {
+  return Boolean(session) && session?.epoch === epoch;
+}
+
 export function projectSessionsReducer(
   state: ProjectSessionsState,
   action: ProjectSessionsAction,
@@ -260,12 +277,22 @@ export function projectSessionsReducer(
       const id = action.project.path;
       const existing = state.byId[id];
       if (existing) {
+        if (action.project.sessionEpoch !== existing.epoch) {
+          return state;
+        }
         // Already open: activate it instead of duplicating, but refresh the
         // repository facts (branch, head state) since `open_repository` just
         // re-read them.
         return {
           ...state,
-          byId: { ...state.byId, [id]: { ...existing, project: action.project } },
+          byId: {
+            ...state.byId,
+            [id]: {
+              ...existing,
+              project: action.project,
+              epoch: action.project.sessionEpoch,
+            },
+          },
           activeId: id,
         };
       }
@@ -312,6 +339,9 @@ export function projectSessionsReducer(
     }
 
     case "startStatusCheck":
+      if (!actionMatchesEpoch(state.byId[action.id], action.epoch)) {
+        return state;
+      }
       return updateSession(state, action.id, (session) => ({
         ...session,
         statusGeneration: action.generation,
@@ -320,7 +350,7 @@ export function projectSessionsReducer(
 
     case "applyWorkingTree": {
       const session = state.byId[action.id];
-      if (!session || session.statusGeneration !== action.generation) {
+      if (!actionMatchesEpoch(session, action.epoch) || session?.statusGeneration !== action.generation) {
         return state;
       }
       return updateSession(state, action.id, (current) => ({
@@ -334,7 +364,7 @@ export function projectSessionsReducer(
 
     case "applyWorkingTreeError": {
       const session = state.byId[action.id];
-      if (!session || session.statusGeneration !== action.generation) {
+      if (!actionMatchesEpoch(session, action.epoch) || session?.statusGeneration !== action.generation) {
         return state;
       }
       // Keeps the last known `workingTree` visible; only the error and the
@@ -350,7 +380,7 @@ export function projectSessionsReducer(
 
     case "applyPendingVersions": {
       const session = state.byId[action.id];
-      if (!session || session.statusGeneration !== action.generation) {
+      if (!actionMatchesEpoch(session, action.epoch) || session?.statusGeneration !== action.generation) {
         return state;
       }
       return updateSession(state, action.id, (current) => ({
@@ -362,7 +392,7 @@ export function projectSessionsReducer(
 
     case "applyPendingVersionsError": {
       const session = state.byId[action.id];
-      if (!session || session.statusGeneration !== action.generation) {
+      if (!actionMatchesEpoch(session, action.epoch) || session?.statusGeneration !== action.generation) {
         return state;
       }
       return updateSession(state, action.id, (current) => ({
@@ -383,7 +413,7 @@ export function projectSessionsReducer(
 
     case "applyVersionLines": {
       const session = state.byId[action.id];
-      if (!session) {
+      if (!actionMatchesEpoch(session, action.epoch)) {
         return state;
       }
       const isSameSnapshot = versionLinesSnapshotsEqual(session.versionLines, action.snapshot);
@@ -400,7 +430,7 @@ export function projectSessionsReducer(
 
     case "applyVersionLinesError": {
       const session = state.byId[action.id];
-      if (!session) {
+      if (!actionMatchesEpoch(session, action.epoch)) {
         return state;
       }
       if (session.versionLinesError === action.error && !session.isLoadingVersionLines) {
@@ -463,7 +493,7 @@ export function projectSessionsReducer(
       }
       return updateSession(state, action.id, (session) => ({
         ...session,
-        operation: { kind: action.kind, phase: "planning" },
+        operation: { kind: action.kind, phase: "planning", epoch: session.epoch },
       }));
     }
 

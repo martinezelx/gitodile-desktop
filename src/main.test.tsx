@@ -29,6 +29,7 @@ const restoredProject: RepositoryInfo = {
   branch: "main",
   headState: "branch",
   kind: "repository",
+  sessionEpoch: "restored-epoch",
 };
 
 const cleanStatus: WorkingTreeStatus = {
@@ -77,6 +78,7 @@ const secondProject: RepositoryInfo = {
   selectedPath: "C:\\projects\\second-project",
   gitDir: "C:\\projects\\second-project\\.git",
   commonGitDir: "C:\\projects\\second-project\\.git",
+  sessionEpoch: "second-epoch",
 };
 
 beforeEach(() => {
@@ -511,13 +513,21 @@ describe("App project restoration", () => {
     let resolveOldRequest: ((snapshot: typeof staleVersionLines) => void) | undefined;
     let resolveNewRequest: ((snapshot: typeof freshVersionLines) => void) | undefined;
     let versionLinesCallCount = 0;
+    let openCallCount = 0;
 
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") {
         return Promise.resolve({ state: "available", version: "2.50.0" });
       }
       if (command === "open_repository") {
-        return Promise.resolve(restoredProject);
+        openCallCount += 1;
+        return Promise.resolve({
+          ...restoredProject,
+          sessionEpoch: openCallCount === 1 ? "old-epoch" : "new-epoch",
+        });
+      }
+      if (command === "close_project_session") {
+        return Promise.resolve();
       }
       if (command === "read_working_tree_status") {
         return Promise.resolve(cleanStatus);
@@ -560,6 +570,12 @@ describe("App project restoration", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: `Close ${restoredProject.name}` }));
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("close_project_session", {
+        path: restoredProject.path,
+        sessionEpoch: "old-epoch",
+      }),
+    );
     await userEvent.click(screen.getAllByRole("button", { name: "Open a project" })[0]);
 
     await waitFor(

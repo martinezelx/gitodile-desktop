@@ -1,62 +1,47 @@
-//! Filesystem watching for live working-tree updates (task 020).
+//! Typed, session-scoped repository invalidation events.
 //!
-//! Deliberately narrow: this module decides *when* something in a repository
-//! changed and says so once. It never reads Git state, never parses anything,
-//! and never sends a path list to the frontend — the existing
-//! `read_working_tree_status` command stays the single source of truth for
-//! what actually changed, so a watch event can only ever cause the same read
-//! the "Check changes" button already performs.
+//! Raw filesystem paths never cross IPC. Backends are normalized into a
+//! bounded domain taxonomy, coalesced with a starvation ceiling, sequenced per
+//! open incarnation, and checked again when a callback is delivered.
 
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::collections::HashMap;
-use std::path::{Component, Path, PathBuf};
+use serde::Serialize;
+use std::collections::{BTreeSet, HashMap};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{channel, RecvTimeoutError};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
-/// Emitted at most once per quiet period, per watched project.
 pub const REPOSITORY_CHANGED_EVENT: &str = "repository-changed";
-
-/// How long the watcher waits for the filesystem to go quiet before reporting
-/// a burst. Long enough that saving a file in an editor (write, rename,
-/// truncate — several events) is one refresh; short enough to feel immediate.
 const QUIET_PERIOD: Duration = Duration::from_millis(300);
-
-/// The ceiling on a single burst. A build or a package install can keep the
-/// filesystem busy for minutes; without this, the quiet period would keep
-/// being pushed back and the user would see nothing until it finished.
 const MAX_BURST: Duration = Duration::from_secs(2);
 
-/// Names directly inside a Git directory that mean the repository's state
-/// changed in a way the working-tree status would show: a commit, a branch
-/// switch, a staged file, or an operation in progress. Everything else under
-/// a Git directory — `objects`, `logs`, `hooks`, `modules`, the `*.lock`
-/// files Git writes constantly — is noise this must not answer.
-const GIT_DIR_ALLOWLIST: [&str; 8] = [
-    "HEAD",
-    "index",
-    "refs",
-    "packed-refs",
-    "MERGE_HEAD",
-    "CHERRY_PICK_HEAD",
-    "REVERT_HEAD",
-    "REBASE_HEAD",
-];
+#[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum RepositoryInvalidationKind {
+    Worktree,
+    HeadOrRefs,
+    SharedRepository,
+}
 
-/// What the watcher thread should do with an incoming signal.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RepositoryInvalidation {
+    pub(crate) project_id: String,
+    pub(crate) session_epoch: String,
+    pub(crate) sequence: u64,
+    pub(crate) kind: RepositoryInvalidationKind,
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BurstStep {
-    /// Keep collecting: wait up to this long for the next signal.
     Wait(Duration),
-    /// The burst is over (quiet, or it hit `MAX_BURST`) — report it.
     Report,
 }
 
-/// Trailing debounce with a ceiling. Each new signal restarts the quiet
-/// period, but never past `max` from the burst's first signal, so continuous
-/// churn still reports on a fixed cadence instead of starving.
 pub fn burst_step(elapsed: Duration, quiet: Duration, max: Duration) -> BurstStep {
     if elapsed >= max {
         return BurstStep::Report;
@@ -64,240 +49,325 @@ pub fn burst_step(elapsed: Duration, quiet: Duration, max: Duration) -> BurstSte
     BurstStep::Wait(quiet.min(max - elapsed))
 }
 
-/// The Git directory that most specifically contains `path`, or `None` when
-/// the path is ordinary working-tree content.
-///
-/// "Most specific" — the longest match, not the first — is what makes the
-/// caller's ordering irrelevant. A linked worktree's private directory
-/// (`<common>/worktrees/<name>`) sits *inside* the common one, so matching the
-/// first entry instead would read every private `HEAD`/`index` event as
-/// `worktrees/...`, which is not on the allowlist, and drop it. That failure
-/// is silent: the worktree simply stops updating.
-fn innermost_git_dir<'a>(path: &Path, git_dirs: &'a [PathBuf]) -> Option<&'a PathBuf> {
-    git_dirs
-        .iter()
-        .filter(|git_dir| path.starts_with(git_dir))
-        .max_by_key(|git_dir| git_dir.as_os_str().len())
+#[derive(Clone, Debug)]
+pub(crate) struct WatchPaths {
+    pub(crate) worktree: Vec<PathBuf>,
+    pub(crate) git_dir: Vec<PathBuf>,
+    pub(crate) common_git_dir: Vec<PathBuf>,
 }
 
-/// Whether a changed path should wake the app up.
-///
-/// `git_dirs` holds every Git directory that belongs to this project: the
-/// resolved one, plus the worktree's own `.git` entry, which is a *file* (not
-/// a directory) for a linked worktree, plus the shared common directory.
-pub fn is_relevant_path(path: &Path, git_dirs: &[PathBuf]) -> bool {
-    if let Some(git_dir) = innermost_git_dir(path, git_dirs) {
-        if path == git_dir {
-            // The Git directory reported as itself, which Windows does for
-            // the parent of every child write — including all the `objects`
-            // and `*.lock` churn the allowlist below exists to filter. Left
-            // out entirely: the only genuine signal here is a linked
-            // worktree's `.git` *file* being rewritten, which happens on a
-            // `git worktree repair` and is picked up by the next real change
-            // anyway. Answering it would mean answering everything.
-            return false;
-        }
-        let Ok(inside) = path.strip_prefix(git_dir) else {
-            return true;
-        };
-        let Some(Component::Normal(first)) = inside.components().next() else {
-            return false;
-        };
-        // Git writes `*.lock` files as part of ordinary operations, including
-        // ones this app itself starts. Answering them would mean refreshing
-        // mid-write, on state that is about to change again.
-        if path
-            .extension()
-            .map(|extension| extension == "lock")
-            .unwrap_or(false)
-        {
-            return false;
-        }
-        return GIT_DIR_ALLOWLIST
-            .iter()
-            .any(|allowed| first.eq_ignore_ascii_case(allowed));
+impl WatchPaths {
+    fn all_git_dirs(&self) -> Vec<PathBuf> {
+        let mut paths = self.git_dir.clone();
+        paths.extend(self.common_git_dir.iter().cloned());
+        paths.sort();
+        paths.dedup();
+        paths
     }
-    true
 }
 
-/// Whether a relevant Git-directory event can change the active line or ref
-/// inventory, rather than only the working-tree/index status. This lets the
-/// frontend avoid re-reading repository metadata for ordinary file saves.
-pub fn is_repository_state_path(path: &Path, git_dirs: &[PathBuf]) -> bool {
-    let Some(git_dir) = innermost_git_dir(path, git_dirs) else {
-        return false;
-    };
-    let Ok(inside) = path.strip_prefix(git_dir) else {
-        return false;
-    };
-    let Some(Component::Normal(first)) = inside.components().next() else {
-        return false;
-    };
-    first.eq_ignore_ascii_case("HEAD")
-        || first.eq_ignore_ascii_case("refs")
-        || first.eq_ignore_ascii_case("packed-refs")
+fn portable_path_key(path: &Path) -> String {
+    let mut value = path.to_string_lossy().replace('\\', "/");
+    if let Some(rest) = value.strip_prefix("//?/UNC/") {
+        value = format!("//{rest}");
+    } else if let Some(rest) = value.strip_prefix("//?/") {
+        value = rest.to_string();
+    }
+    if let Some(rest) = value.strip_prefix("/private/var/") {
+        value = format!("/var/{rest}");
+    }
+    #[cfg(target_os = "windows")]
+    {
+        value.make_ascii_lowercase();
+    }
+    value.trim_end_matches('/').to_string()
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-struct WatchSignal {
-    repository_state_changed: bool,
+fn relative_to_alias<'a>(path: &Path, aliases: &'a [PathBuf]) -> Option<&'a PathBuf> {
+    let key = portable_path_key(path);
+    aliases
+        .iter()
+        .filter(|alias| {
+            let alias_key = portable_path_key(alias);
+            key == alias_key || key.strip_prefix(&format!("{alias_key}/")).is_some()
+        })
+        .max_by_key(|alias| portable_path_key(alias).len())
 }
 
-/// One project's live watch. Dropping it stops the OS-level watch, which
-/// closes the channel and ends the debounce thread.
+fn first_component(path: &Path, base: &Path) -> Option<String> {
+    let path_key = portable_path_key(path);
+    let base_key = portable_path_key(base);
+    path_key
+        .strip_prefix(&base_key)
+        .and_then(|rest| rest.trim_start_matches('/').split('/').next())
+        .filter(|part| !part.is_empty())
+        .map(str::to_ascii_lowercase)
+}
+
+fn is_lock(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("lock"))
+}
+
+pub(crate) fn classify_path(path: &Path, paths: &WatchPaths) -> Option<RepositoryInvalidationKind> {
+    let git_match = relative_to_alias(path, &paths.git_dir);
+    let common_match = relative_to_alias(path, &paths.common_git_dir);
+    let most_specific = [
+        git_match.map(|path| (path, false)),
+        common_match.map(|path| (path, true)),
+    ]
+    .into_iter()
+    .flatten()
+    .max_by_key(|(base, _)| portable_path_key(base).len());
+
+    if let Some((base, is_common)) = most_specific {
+        if portable_path_key(path) == portable_path_key(base) || is_lock(path) {
+            return None;
+        }
+        let first = first_component(path, base)?;
+        if matches!(first.as_str(), "objects" | "logs" | "hooks" | "modules") {
+            return None;
+        }
+        if is_common && matches!(first.as_str(), "refs" | "packed-refs" | "config") {
+            return Some(RepositoryInvalidationKind::SharedRepository);
+        }
+        return match first.as_str() {
+            "head" => Some(RepositoryInvalidationKind::HeadOrRefs),
+            "index" | "merge_head" | "cherry_pick_head" | "revert_head" | "rebase_head" => {
+                Some(RepositoryInvalidationKind::Worktree)
+            }
+            "refs" | "packed-refs" => Some(RepositoryInvalidationKind::HeadOrRefs),
+            _ => None,
+        };
+    }
+
+    relative_to_alias(path, &paths.worktree).map(|_| RepositoryInvalidationKind::Worktree)
+}
+
+type Callback = Arc<dyn Fn(RepositoryInvalidation) + Send + Sync>;
+
 struct RepositoryWatch {
     _watcher: RecommendedWatcher,
+    epoch: String,
+    common_key: String,
+    generation: u64,
+    sequence: u64,
+    callback: Callback,
 }
 
-/// Every active watch, keyed by the canonical worktree root — the same string
-/// the frontend uses as a project session id.
 #[derive(Default)]
+struct RegistryState {
+    watches: HashMap<String, RepositoryWatch>,
+    last_shared_report: HashMap<String, Instant>,
+}
+
+#[derive(Clone, Default)]
 pub struct WatcherRegistry {
-    watches: Mutex<HashMap<String, RepositoryWatch>>,
+    state: Arc<Mutex<RegistryState>>,
+    next_generation: Arc<AtomicU64>,
 }
 
 impl WatcherRegistry {
-    /// Starts watching `root`, replacing any existing watch for it. Returns
-    /// `false` when the platform refused to establish a watch (a network
-    /// share, a permission failure, an exhausted inotify budget) — the caller
-    /// treats that as "this project stays manual", never as an error to show.
-    pub fn watch(&self, app: AppHandle, root: &str, git_dirs: Vec<PathBuf>) -> bool {
-        let owner = root.to_string();
-        self.watch_with(root, git_dirs, move |repository_state_changed| {
-            // Only the project's identity travels to the frontend. What
-            // changed is answered by the status read it triggers there, so no
-            // path, name, or file content leaves this process.
-            let _ = app.emit(
-                REPOSITORY_CHANGED_EVENT,
-                RepositoryChanged {
-                    path: &owner,
-                    repository_state_changed,
-                },
-            );
+    pub(crate) fn watch(
+        &self,
+        app: AppHandle,
+        project_id: &str,
+        session_epoch: &str,
+        common_key: &str,
+        paths: WatchPaths,
+    ) -> bool {
+        self.watch_with(project_id, session_epoch, common_key, paths, move |event| {
+            let _ = app.emit(REPOSITORY_CHANGED_EVENT, event);
         })
     }
 
-    /// The whole pipeline — OS watch, event filter, debounce — with the
-    /// reporting step left to the caller. `watch` above is the one-line
-    /// wrapper that reports by emitting a Tauri event; tests use this
-    /// directly, since an `AppHandle` needs a running app and the interesting
-    /// behavior has nothing to do with Tauri.
-    pub fn watch_with<F>(&self, root: &str, git_dirs: Vec<PathBuf>, on_change: F) -> bool
+    pub(crate) fn watch_with<F>(
+        &self,
+        project_id: &str,
+        session_epoch: &str,
+        common_key: &str,
+        paths: WatchPaths,
+        on_change: F,
+    ) -> bool
     where
-        F: Fn(bool) + Send + 'static,
+        F: Fn(RepositoryInvalidation) + Send + Sync + 'static,
     {
-        // Dropped before the new one is inserted, so a re-watch never leaves
-        // two watchers running against the same tree.
-        self.unwatch(root);
-
-        let (sender, receiver) = channel::<WatchSignal>();
-        // Watch backends may report canonical paths even when the watched
-        // path used an OS alias. macOS is the notable case: `temp_dir()` can
-        // return `/var/...`, while FSEvents reports the same files below
-        // `/private/var/...`. Keep the filter in the backend's coordinate
-        // space so Git-internal paths are not mistaken for worktree files.
-        #[cfg(target_os = "macos")]
-        let filter_dirs = git_dirs
-            .iter()
-            .map(|path| path.canonicalize().unwrap_or_else(|_| path.clone()))
-            .collect::<Vec<_>>();
-        #[cfg(not(target_os = "macos"))]
-        let filter_dirs = git_dirs.clone();
+        self.unwatch(project_id, None);
+        let generation = self.next_generation.fetch_add(1, Ordering::Relaxed) + 1;
+        let (sender, receiver) = channel::<RepositoryInvalidationKind>();
+        let filter_paths = paths.clone();
         let watcher = notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
-            let signal = match result {
-                // A dropped-events notice (Windows' ReadDirectoryChangesW
-                // buffer overflowing under heavy churn is the common case)
-                // means the watcher no longer knows what changed. The only
-                // safe answer is to assume something did.
-                Err(_) => Some(WatchSignal {
-                    repository_state_changed: true,
-                }),
-                Ok(event) => {
-                    if matches!(event.kind, EventKind::Access(_)) {
-                        None
-                    } else {
-                        let relevant_paths = event
-                            .paths
-                            .iter()
-                            .filter(|path| is_relevant_path(path, &filter_dirs))
-                            .collect::<Vec<_>>();
-                        (!relevant_paths.is_empty()).then(|| WatchSignal {
-                            repository_state_changed: relevant_paths
-                                .iter()
-                                .any(|path| is_repository_state_path(path, &filter_dirs)),
-                        })
-                    }
-                }
+            let kinds = match result {
+                Err(_) => vec![
+                    RepositoryInvalidationKind::Worktree,
+                    RepositoryInvalidationKind::SharedRepository,
+                ],
+                Ok(event) if matches!(event.kind, EventKind::Access(_)) => Vec::new(),
+                Ok(event) => event
+                    .paths
+                    .iter()
+                    .filter_map(|path| classify_path(path, &filter_paths))
+                    .collect(),
             };
-            if let Some(signal) = signal {
-                let _ = sender.send(signal);
+            for kind in kinds {
+                let _ = sender.send(kind);
             }
         });
         let Ok(mut watcher) = watcher else {
             return false;
         };
-        if watcher
-            .watch(Path::new(root), RecursiveMode::Recursive)
-            .is_err()
-        {
+        let Some(root) = paths.worktree.first() else {
+            return false;
+        };
+        if watcher.watch(root, RecursiveMode::Recursive).is_err() {
             return false;
         }
-
-        // A linked worktree stores HEAD and its index in the main repository's
-        // `.git/worktrees/<name>` directory, outside the worktree root. Watch
-        // that directory too so `git add` and external line switches are not
-        // invisible. Failure here is best-effort: the root watch still covers
-        // ordinary file edits and remains a valid manual-refresh fallback.
-        for git_dir in &git_dirs {
-            if git_dir.is_dir() && !git_dir.starts_with(Path::new(root)) {
-                let _ = watcher.watch(git_dir, RecursiveMode::Recursive);
+        for git_dir in paths.all_git_dirs() {
+            if git_dir.is_dir() && relative_to_alias(&git_dir, &paths.worktree).is_none() {
+                let _ = watcher.watch(&git_dir, RecursiveMode::Recursive);
             }
         }
 
+        let callback: Callback = Arc::new(on_change);
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .watches
+            .insert(
+                project_id.to_string(),
+                RepositoryWatch {
+                    _watcher: watcher,
+                    epoch: session_epoch.to_string(),
+                    common_key: common_key.to_string(),
+                    generation,
+                    sequence: 0,
+                    callback,
+                },
+            );
+
+        let registry = self.clone();
+        let owner = project_id.to_string();
         thread::spawn(move || {
-            // Ends when the watcher is dropped and the sender with it.
-            while let Ok(first_signal) = receiver.recv() {
+            while let Ok(first) = receiver.recv() {
                 let started = Instant::now();
-                let mut repository_state_changed = first_signal.repository_state_changed;
+                let mut kinds = BTreeSet::from([first]);
                 loop {
                     match burst_step(started.elapsed(), QUIET_PERIOD, MAX_BURST) {
                         BurstStep::Report => break,
                         BurstStep::Wait(wait) => match receiver.recv_timeout(wait) {
-                            Ok(signal) => {
-                                repository_state_changed |= signal.repository_state_changed;
-                                continue;
+                            Ok(kind) => {
+                                kinds.insert(kind);
                             }
                             Err(RecvTimeoutError::Timeout) => break,
                             Err(RecvTimeoutError::Disconnected) => return,
                         },
                     }
                 }
-                on_change(repository_state_changed);
+                registry.dispatch(&owner, generation, &kinds);
             }
         });
-
-        let mut watches = match self.watches.lock() {
-            Ok(watches) => watches,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        watches.insert(root.to_string(), RepositoryWatch { _watcher: watcher });
         true
     }
 
-    pub fn unwatch(&self, root: &str) {
-        let mut watches = match self.watches.lock() {
-            Ok(watches) => watches,
-            Err(poisoned) => poisoned.into_inner(),
+    fn dispatch(&self, owner: &str, generation: u64, kinds: &BTreeSet<RepositoryInvalidationKind>) {
+        let mut deliveries: Vec<(Callback, RepositoryInvalidation)> = Vec::new();
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(source) = state.watches.get(owner) else {
+            return;
         };
-        watches.remove(root);
-    }
-}
+        if source.generation != generation {
+            return;
+        }
+        let common_key = source.common_key.clone();
+        let has_shared = kinds.contains(&RepositoryInvalidationKind::SharedRepository);
 
-#[derive(serde::Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct RepositoryChanged<'a> {
-    path: &'a str,
-    repository_state_changed: bool,
+        for kind in kinds {
+            // A shared invalidation already asks the source worktree for the
+            // full repository refresh. Collapse lesser kinds from the same
+            // burst so a backend overflow or mixed save/ref change produces
+            // one renderer event per affected session.
+            if has_shared && *kind != RepositoryInvalidationKind::SharedRepository {
+                continue;
+            }
+            if *kind == RepositoryInvalidationKind::SharedRepository {
+                let now = Instant::now();
+                if state
+                    .last_shared_report
+                    .get(&common_key)
+                    .is_some_and(|last| now.duration_since(*last) < QUIET_PERIOD)
+                {
+                    continue;
+                }
+                state.last_shared_report.insert(common_key.clone(), now);
+                for (project_id, watch) in state.watches.iter_mut() {
+                    if watch.common_key == common_key {
+                        watch.sequence += 1;
+                        deliveries.push((
+                            Arc::clone(&watch.callback),
+                            RepositoryInvalidation {
+                                project_id: project_id.clone(),
+                                session_epoch: watch.epoch.clone(),
+                                sequence: watch.sequence,
+                                kind: *kind,
+                            },
+                        ));
+                    }
+                }
+            } else if let Some(watch) = state.watches.get_mut(owner) {
+                watch.sequence += 1;
+                deliveries.push((
+                    Arc::clone(&watch.callback),
+                    RepositoryInvalidation {
+                        project_id: owner.to_string(),
+                        session_epoch: watch.epoch.clone(),
+                        sequence: watch.sequence,
+                        kind: *kind,
+                    },
+                ));
+            }
+        }
+        drop(state);
+        for (callback, event) in deliveries {
+            callback(event);
+        }
+    }
+
+    pub(crate) fn unwatch(&self, project_id: &str, session_epoch: Option<&str>) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let should_remove = state
+            .watches
+            .get(project_id)
+            .is_some_and(|watch| session_epoch.is_none_or(|epoch| watch.epoch == epoch));
+        if !should_remove {
+            return;
+        }
+        let removed = state.watches.remove(project_id);
+        if let Some(common_key) = removed.as_ref().map(|watch| watch.common_key.clone()) {
+            if !state
+                .watches
+                .values()
+                .any(|watch| watch.common_key == common_key)
+            {
+                state.last_shared_report.remove(&common_key);
+            }
+        }
+        // Dropping a platform watcher may wait for its callback thread. Never
+        // do that while holding the registry mutex a late callback needs in
+        // order to observe that this generation was removed.
+        drop(state);
+        drop(removed);
+    }
+
+    #[cfg(test)]
+    fn inject(&self, owner: &str, generation: u64, kinds: &[RepositoryInvalidationKind]) {
+        self.dispatch(owner, generation, &kinds.iter().copied().collect());
+    }
 }
 
 #[cfg(test)]
@@ -305,99 +375,97 @@ mod tests {
     use super::*;
     use std::fs;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
 
-    fn git_dirs(root: &Path) -> Vec<PathBuf> {
-        vec![root.join(".git")]
+    fn paths(root: &Path) -> WatchPaths {
+        WatchPaths {
+            worktree: vec![root.to_path_buf()],
+            git_dir: vec![root.join(".git")],
+            common_git_dir: vec![root.join(".git")],
+        }
     }
 
     #[test]
-    fn a_working_file_is_relevant() {
+    fn taxonomy_filters_git_churn_and_lock_files() {
         let root = Path::new("/repo");
-        assert!(is_relevant_path(&root.join("src/main.rs"), &git_dirs(root)));
+        let paths = paths(root);
+        assert_eq!(
+            classify_path(&root.join("src/main.rs"), &paths),
+            Some(RepositoryInvalidationKind::Worktree)
+        );
+        assert_eq!(
+            classify_path(&root.join(".git/HEAD"), &paths),
+            Some(RepositoryInvalidationKind::HeadOrRefs)
+        );
+        assert_eq!(
+            classify_path(&root.join(".git/refs/heads/main"), &paths),
+            Some(RepositoryInvalidationKind::SharedRepository)
+        );
+        assert_eq!(
+            classify_path(&root.join(".git/objects/ab/cd"), &paths),
+            None
+        );
+        assert_eq!(classify_path(&root.join(".git/index.lock"), &paths), None);
     }
 
     #[test]
-    fn a_file_whose_name_ends_in_lock_outside_the_git_dir_is_still_relevant() {
-        // `Cargo.lock`, `pnpm-lock.yaml`, and friends are ordinary tracked
-        // files; only Git's own `*.lock` files are noise.
-        let root = Path::new("/repo");
-        assert!(is_relevant_path(&root.join("Cargo.lock"), &git_dirs(root)));
+    fn windows_and_macos_aliases_keep_git_churn_filtered() {
+        let windows = WatchPaths {
+            worktree: vec![PathBuf::from(r"C:\repo")],
+            git_dir: vec![PathBuf::from(r"C:\repo\.git")],
+            common_git_dir: vec![PathBuf::from(r"C:\repo\.git")],
+        };
+        assert_eq!(
+            classify_path(Path::new(r"\\?\C:\repo\.git\objects\ab\cd"), &windows),
+            None
+        );
+        assert_eq!(
+            classify_path(Path::new(r"C:\repo\.git\refs\heads\main.lock"), &windows),
+            None
+        );
+        let mac = WatchPaths {
+            worktree: vec![PathBuf::from("/var/folders/repo")],
+            git_dir: vec![PathBuf::from("/var/folders/repo/.git")],
+            common_git_dir: vec![PathBuf::from("/var/folders/repo/.git")],
+        };
+        assert_eq!(
+            classify_path(
+                Path::new("/private/var/folders/repo/.git/objects/ab/cd"),
+                &mac
+            ),
+            None
+        );
+        assert_eq!(
+            classify_path(Path::new("/private/var/folders/repo/.git/index.lock"), &mac),
+            None
+        );
     }
 
     #[test]
-    fn git_object_and_log_churn_is_ignored() {
-        let root = Path::new("/repo");
-        let dirs = git_dirs(root);
-        assert!(!is_relevant_path(&root.join(".git/objects/ab/cdef"), &dirs));
-        assert!(!is_relevant_path(&root.join(".git/logs/HEAD"), &dirs));
-        assert!(!is_relevant_path(
-            &root.join(".git/hooks/pre-commit"),
-            &dirs
-        ));
+    fn burst_ceiling_prevents_starvation() {
+        assert_eq!(
+            burst_step(MAX_BURST, QUIET_PERIOD, MAX_BURST),
+            BurstStep::Report
+        );
+        assert_eq!(
+            burst_step(
+                MAX_BURST - Duration::from_millis(100),
+                QUIET_PERIOD,
+                MAX_BURST
+            ),
+            BurstStep::Wait(Duration::from_millis(100))
+        );
     }
 
     #[test]
-    fn git_lock_files_are_ignored() {
-        let root = Path::new("/repo");
-        let dirs = git_dirs(root);
-        assert!(!is_relevant_path(&root.join(".git/index.lock"), &dirs));
-        assert!(!is_relevant_path(
-            &root.join(".git/refs/heads/main.lock"),
-            &dirs
-        ));
+    fn unavailable_watcher_keeps_manual_refresh_available() {
+        let registry = WatcherRegistry::default();
+        let missing =
+            std::env::temp_dir().join(format!("gitodrile-missing-watch-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&missing);
+        assert!(!registry.watch_with("missing", "epoch", "common", paths(&missing), |_| {}));
     }
 
-    #[test]
-    fn head_index_and_refs_are_relevant() {
-        let root = Path::new("/repo");
-        let dirs = git_dirs(root);
-        assert!(is_relevant_path(&root.join(".git/HEAD"), &dirs));
-        assert!(is_relevant_path(&root.join(".git/index"), &dirs));
-        assert!(is_relevant_path(&root.join(".git/refs/heads/main"), &dirs));
-        assert!(is_relevant_path(&root.join(".git/MERGE_HEAD"), &dirs));
-        assert!(is_repository_state_path(&root.join(".git/HEAD"), &dirs));
-        assert!(is_repository_state_path(
-            &root.join(".git/refs/heads/main"),
-            &dirs
-        ));
-        assert!(!is_repository_state_path(&root.join(".git/index"), &dirs));
-    }
-
-    #[test]
-    fn a_linked_worktrees_own_git_dir_is_filtered_too() {
-        let root = Path::new("/repo/wt");
-        let dirs = vec![
-            PathBuf::from("/repo/.git/worktrees/wt"),
-            root.join(".git"),
-            PathBuf::from("/repo/.git"),
-        ];
-        assert!(is_relevant_path(
-            Path::new("/repo/.git/worktrees/wt/HEAD"),
-            &dirs
-        ));
-        assert!(!is_relevant_path(
-            Path::new("/repo/.git/worktrees/wt/index.lock"),
-            &dirs
-        ));
-        assert!(is_relevant_path(
-            Path::new("/repo/.git/refs/heads/new"),
-            &dirs
-        ));
-        assert!(is_repository_state_path(
-            Path::new("/repo/.git/refs/heads/new"),
-            &dirs
-        ));
-        assert!(is_relevant_path(&root.join("src/main.rs"), &dirs));
-    }
-
-    /// Polls instead of sleeping a fixed amount: filesystem notifications are
-    /// delivered on the OS's schedule, so a fixed wait is either flaky or
-    /// slow. A count is only settled after it stays unchanged for a complete
-    /// maximum burst plus its trailing quiet period. That matters on macOS,
-    /// where FSEvents may deliver another event for the same write after the
-    /// first debounce report.
-    fn settled_count(counter: &Arc<AtomicUsize>, budget: Duration) -> usize {
+    fn settled_count(counter: &AtomicUsize, budget: Duration) -> usize {
         let deadline = Instant::now() + budget;
         let mut last = counter.load(Ordering::SeqCst);
         let mut unchanged_since = Instant::now();
@@ -415,107 +483,152 @@ mod tests {
     }
 
     #[test]
-    fn a_written_file_reports_once_and_git_churn_reports_not_at_all() {
-        let mut root = std::env::temp_dir();
-        root.push(format!("gitodrile-watch-test-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join(".git/objects")).expect("create temp repo layout");
-
+    fn real_watcher_coalesces_file_writes_and_filters_git_churn() {
         let registry = WatcherRegistry::default();
-        let counter = Arc::new(AtomicUsize::new(0));
-        let reported = Arc::clone(&counter);
-        let display_root = root.to_string_lossy().to_string();
-        let watching = registry.watch_with(&display_root, vec![root.join(".git")], move |_| {
+        let root =
+            std::env::temp_dir().join(format!("gitodrile-watch-real-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join(".git/objects")).unwrap();
+        let count = Arc::new(AtomicUsize::new(0));
+        let reported = Arc::clone(&count);
+        if !registry.watch_with("project", "epoch", "common", paths(&root), move |event| {
+            assert_eq!(event.project_id, "project");
+            assert_eq!(event.session_epoch, "epoch");
+            assert_eq!(event.kind, RepositoryInvalidationKind::Worktree);
             reported.fetch_add(1, Ordering::SeqCst);
-        });
-        // Some sandboxes and filesystems refuse to watch at all; that path is
-        // a supported outcome, not a test failure.
-        if !watching {
+        }) {
             let _ = fs::remove_dir_all(&root);
             return;
         }
 
-        // A burst of writes to one file: several OS events, one report.
         for index in 0..5 {
-            fs::write(root.join("notes.txt"), format!("line {index}"))
-                .expect("write worktree file");
+            fs::write(root.join("notes.txt"), format!("line {index}")).unwrap();
         }
-        let after_write = settled_count(&counter, Duration::from_secs(10));
-        assert!(after_write >= 1, "a working-tree write must be reported");
+        let after_write = settled_count(&count, Duration::from_secs(10));
+        assert!(after_write >= 1, "a worktree write must be reported");
 
-        // Git's own object churn must not add to it.
-        fs::write(root.join(".git/objects/abcdef"), "loose object").expect("write git object");
-        fs::write(root.join(".git/index.lock"), "lock").expect("write index lock");
-        let after_git_churn = settled_count(&counter, Duration::from_secs(10));
-        assert_eq!(
-            after_git_churn, after_write,
-            "Git's internal churn must not trigger a refresh"
-        );
+        fs::write(root.join(".git/objects/abcdef"), "object").unwrap();
+        fs::write(root.join(".git/index.lock"), "lock").unwrap();
+        let after_churn = settled_count(&count, Duration::from_secs(10));
+        assert_eq!(after_churn, after_write, "Git churn must stay filtered");
 
-        registry.unwatch(&display_root);
+        registry.unwatch("project", Some("epoch"));
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn the_git_dir_list_order_does_not_change_the_answer() {
-        // A linked worktree's private directory sits inside the common one.
-        // Matching the first entry that prefixes the path instead of the most
-        // specific one would read every private HEAD/index event as
-        // `worktrees/...`, drop it, and stop that worktree updating -- with
-        // nothing to show for it, since the root watch still delivers
-        // ordinary file edits. Both orders must agree.
-        let private = PathBuf::from("/repo/.git/worktrees/wt");
-        let common = PathBuf::from("/repo/.git");
-        let pointer = PathBuf::from("/repo/wt/.git");
-        let common_first = vec![common.clone(), pointer.clone(), private.clone()];
-        let private_first = vec![private, pointer, common];
-
-        for dirs in [&common_first, &private_first] {
-            let head = Path::new("/repo/.git/worktrees/wt/HEAD");
-            assert!(is_relevant_path(head, dirs));
-            assert!(is_repository_state_path(head, dirs));
-            assert!(is_relevant_path(
-                Path::new("/repo/.git/worktrees/wt/index"),
-                dirs
-            ));
-            assert!(!is_relevant_path(
-                Path::new("/repo/.git/worktrees/wt/index.lock"),
-                dirs
-            ));
-            assert!(!is_relevant_path(
-                Path::new("/repo/.git/objects/ab/cdef"),
-                dirs
-            ));
+    fn replacement_and_late_callbacks_cannot_reach_the_new_session() {
+        let registry = WatcherRegistry::default();
+        let root =
+            std::env::temp_dir().join(format!("gitodrile-watch-replace-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let old_count = Arc::new(AtomicUsize::new(0));
+        let old_reported = Arc::clone(&old_count);
+        if !registry.watch_with("project", "old", "common", paths(&root), move |_| {
+            old_reported.fetch_add(1, Ordering::SeqCst);
+        }) {
+            return;
         }
+        let old_generation = registry.state.lock().unwrap().watches["project"].generation;
+        let new_count = Arc::new(AtomicUsize::new(0));
+        let new_reported = Arc::clone(&new_count);
+        assert!(
+            registry.watch_with("project", "new", "common", paths(&root), move |_| {
+                new_reported.fetch_add(1, Ordering::SeqCst);
+            })
+        );
+        registry.inject(
+            "project",
+            old_generation,
+            &[RepositoryInvalidationKind::Worktree],
+        );
+        assert_eq!(old_count.load(Ordering::SeqCst), 0);
+        assert_eq!(new_count.load(Ordering::SeqCst), 0);
+        registry.unwatch("project", Some("old"));
+        assert!(registry
+            .state
+            .lock()
+            .unwrap()
+            .watches
+            .contains_key("project"));
+        registry.unwatch("project", Some("new"));
+        assert!(!registry
+            .state
+            .lock()
+            .unwrap()
+            .watches
+            .contains_key("project"));
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn a_quiet_gap_ends_the_burst() {
-        assert_eq!(
-            burst_step(Duration::from_millis(0), QUIET_PERIOD, MAX_BURST),
-            BurstStep::Wait(QUIET_PERIOD)
+    fn shared_changes_fan_out_once_and_sequences_are_monotonic() {
+        let registry = WatcherRegistry::default();
+        let first = std::env::temp_dir().join(format!("gitodrile-watch-a-{}", std::process::id()));
+        let second = std::env::temp_dir().join(format!("gitodrile-watch-b-{}", std::process::id()));
+        for root in [&first, &second] {
+            let _ = fs::remove_dir_all(root);
+            fs::create_dir_all(root.join(".git")).unwrap();
+        }
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let a_events = Arc::clone(&events);
+        if !registry.watch_with("a", "ea", "shared", paths(&first), move |event| {
+            a_events.lock().unwrap().push(event)
+        }) {
+            return;
+        }
+        let b_events = Arc::clone(&events);
+        assert!(
+            registry.watch_with("b", "eb", "shared", paths(&second), move |event| b_events
+                .lock()
+                .unwrap()
+                .push(event))
         );
-    }
-
-    #[test]
-    fn a_long_burst_reports_at_the_ceiling_instead_of_starving() {
+        let generation = registry.state.lock().unwrap().watches["a"].generation;
+        registry.inject(
+            "a",
+            generation,
+            &[
+                RepositoryInvalidationKind::Worktree,
+                RepositoryInvalidationKind::SharedRepository,
+            ],
+        );
+        registry.inject(
+            "a",
+            generation,
+            &[RepositoryInvalidationKind::SharedRepository],
+        );
+        registry.inject("a", generation, &[RepositoryInvalidationKind::Worktree]);
+        let events = events.lock().unwrap();
         assert_eq!(
-            burst_step(MAX_BURST, QUIET_PERIOD, MAX_BURST),
-            BurstStep::Report
+            events
+                .iter()
+                .filter(|event| event.kind == RepositoryInvalidationKind::SharedRepository)
+                .count(),
+            2
         );
         assert_eq!(
-            burst_step(Duration::from_secs(30), QUIET_PERIOD, MAX_BURST),
-            BurstStep::Report
+            events
+                .iter()
+                .filter(|event| event.project_id == "a"
+                    && event.kind == RepositoryInvalidationKind::Worktree)
+                .count(),
+            1
         );
-    }
-
-    #[test]
-    fn the_last_wait_of_a_burst_never_overshoots_the_ceiling() {
-        // 100 ms left of the budget must not become a 300 ms wait.
-        let elapsed = MAX_BURST - Duration::from_millis(100);
-        assert_eq!(
-            burst_step(elapsed, QUIET_PERIOD, MAX_BURST),
-            BurstStep::Wait(Duration::from_millis(100))
-        );
+        for project in ["a", "b"] {
+            let sequences = events
+                .iter()
+                .filter(|event| event.project_id == project)
+                .map(|event| event.sequence)
+                .collect::<Vec<_>>();
+            assert!(sequences.windows(2).all(|pair| pair[0] < pair[1]));
+        }
+        drop(events);
+        registry.unwatch("a", None);
+        registry.unwatch("b", None);
+        for root in [&first, &second] {
+            let _ = fs::remove_dir_all(root);
+        }
     }
 }

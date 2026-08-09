@@ -17,6 +17,7 @@ const baseProject: RepositoryInfo = {
   branch: "main",
   headState: "branch",
   kind: "repository",
+  sessionEpoch: "overview-test-epoch",
 };
 
 describe("getRepositoryOverviewState", () => {

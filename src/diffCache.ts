@@ -13,6 +13,7 @@ import type { WorkingTreeStatus } from "./repositoryOverview";
  * processes. */
 export type DiffStore = {
   projectPath: string;
+  sessionEpoch: string | undefined;
   /** Identity, not contents: a re-read working tree produces a new object even
    * when the file list is unchanged, and the file *contents* behind an
    * unchanged status line may well have changed. Comparing by identity is the
@@ -29,18 +30,23 @@ export type DiffStore = {
   batchStarted: boolean;
 };
 
-/** One store per project path. Owned by the app (see `main.tsx`), not by the
- * Changes screen, so its lifetime matches the project session rather than the
- * mounted component. */
+/** One store per project epoch. Owned by the app (see `main.tsx`), not by the
+ * Changes screen, so its lifetime matches the open incarnation rather than
+ * the mounted component or canonical path alone. */
 export type DiffCache = Map<string, DiffStore>;
 
 export function createDiffCache(): DiffCache {
   return new Map();
 }
 
-function freshStore(projectPath: string, workingTree: WorkingTreeStatus | null): DiffStore {
+function cacheKey(projectPath: string, sessionEpoch: string | undefined): string {
+  return `${projectPath}\0${sessionEpoch ?? "legacy"}`;
+}
+
+function freshStore(projectPath: string, sessionEpoch: string | undefined, workingTree: WorkingTreeStatus | null): DiffStore {
   return {
     projectPath,
+    sessionEpoch,
     workingTree,
     cache: new Map(),
     requests: new Map(),
@@ -55,21 +61,27 @@ function freshStore(projectPath: string, workingTree: WorkingTreeStatus | null):
 export function getDiffStore(
   cache: DiffCache,
   projectPath: string,
+  sessionEpoch: string | undefined,
   workingTree: WorkingTreeStatus | null,
 ): DiffStore {
-  const existing = cache.get(projectPath);
-  if (existing && existing.projectPath === projectPath && existing.workingTree === workingTree) {
+  const key = cacheKey(projectPath, sessionEpoch);
+  const existing = cache.get(key);
+  if (existing && existing.workingTree === workingTree) {
     return existing;
   }
-  const store = freshStore(projectPath, workingTree);
-  cache.set(projectPath, store);
+  const store = freshStore(projectPath, sessionEpoch, workingTree);
+  cache.set(key, store);
   return store;
 }
 
 /** Drops everything remembered for one project — used when its session
  * closes, so a closed project's diffs don't stay in memory. */
 export function releaseDiffCache(cache: DiffCache, projectPath: string): void {
-  cache.delete(projectPath);
+  for (const [key, store] of cache) {
+    if (store.projectPath === projectPath) {
+      cache.delete(key);
+    }
+  }
 }
 
 /** Single point of truth for turning a path into a diff: checks the cache,
@@ -85,7 +97,11 @@ export function fetchDiff(store: DiffStore, projectPath: string, path: string): 
   }
   let request = store.requests.get(path);
   if (!request) {
-    request = invoke<FileDiff>("read_file_diff", { path: projectPath, filePath: path }).then(
+    request = invoke<FileDiff>("read_file_diff", {
+      path: projectPath,
+      filePath: path,
+      sessionEpoch: store.sessionEpoch,
+    }).then(
       (diff) => {
         store.cache.set(path, diff);
         store.requests.delete(path);

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "commands": [
+    { "name": "app_status", "arguments": [], "response": "string" },
+    { "name": "show_main_window", "arguments": [], "response": "void" },
+    { "name": "open_repository", "arguments": ["path", "sessionEpoch?"], "response": "RepositoryInfo" },
+    { "name": "read_working_tree_status", "arguments": ["path", "sessionEpoch?"], "response": "WorkingTreeStatus" },
+    { "name": "read_file_diff", "arguments": ["path", "filePath", "sessionEpoch?"], "response": "FileDiff" },
+    { "name": "read_file_lines", "arguments": ["path", "filePath", "startLine", "endLine", "sessionEpoch?"], "response": "FileLines" },
+    { "name": "read_working_tree_diffs", "arguments": ["path", "sessionEpoch?"], "response": "FileDiff[]" },
+    { "name": "git_diagnostics", "arguments": [], "response": "GitDiagnostics" },
+    { "name": "install_git", "arguments": [], "response": "GitInstallationResult" },
+    { "name": "update_git", "arguments": [], "response": "GitUpdateLaunchResult" },
+    { "name": "check_git_update", "arguments": [], "response": "GitUpdateStatus" },
+    { "name": "get_git_identity", "arguments": [], "response": "GitIdentity" },
+    { "name": "set_git_identity", "arguments": ["name", "email"], "response": "void" },
+    { "name": "plan_save_version", "arguments": ["path", "selectedPaths?", "sessionEpoch?"], "response": "SaveVersionPlan" },
+    { "name": "save_version", "arguments": ["path", "title", "description?", "stateToken", "selectedPaths?", "sessionEpoch?"], "response": "SaveVersionResult" },
+    { "name": "discover_remotes", "arguments": ["path", "sessionEpoch?"], "response": "RemoteDiscovery" },
+    { "name": "list_unpublished_versions", "arguments": ["path", "sessionEpoch?"], "response": "PendingVersionsResult" },
+    { "name": "read_commit_file_changes", "arguments": ["path", "commit", "sessionEpoch?"], "response": "CommitFileChange[]" },
+    { "name": "read_commit_file_diff", "arguments": ["path", "commit", "filePath", "sessionEpoch?"], "response": "FileDiff" },
+    { "name": "plan_publish", "arguments": ["path", "remote?", "upTo?", "sessionEpoch?"], "response": "PublishPlan" },
+    { "name": "publish", "arguments": ["path", "remote", "stateToken", "upTo?", "sessionEpoch?"], "response": "PublishResult" },
+    { "name": "get_version_lines", "arguments": ["path", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
+    { "name": "plan_create_version_line", "arguments": ["path", "name", "switch", "sessionEpoch?"], "response": "CreateVersionLinePlan" },
+    { "name": "create_version_line", "arguments": ["path", "name", "switch", "stateToken", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
+    { "name": "plan_switch_version_line", "arguments": ["path", "target", "sessionEpoch?"], "response": "SwitchVersionLinePlan" },
+    { "name": "switch_version_line", "arguments": ["path", "target", "stateToken", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
+    { "name": "plan_delete_version_line", "arguments": ["path", "name", "sessionEpoch?"], "response": "DeleteVersionLinePlan" },
+    { "name": "delete_version_line", "arguments": ["path", "name", "stateToken", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
+    { "name": "watch_repository", "arguments": ["path", "sessionEpoch?"], "response": "boolean" },
+    { "name": "unwatch_repository", "arguments": ["path", "sessionEpoch?"], "response": "void" },
+    { "name": "close_project_session", "arguments": ["path", "sessionEpoch"], "response": "void" }
+  ],
+  "errorCodes": [
+    "stale_session", "path_missing", "path_unusable", "not_repository", "bare_repository",
+    "git_missing", "git_unusable", "git_command_failed", "invalid_identity",
+    "git_config_write_failed", "path_invalid", "path_not_changed", "path_encoding_unsupported",
+    "nothing_to_save", "unresolved_conflicts", "detached_head", "git_operation_in_progress",
+    "missing_identity", "empty_title", "invalid_title", "stale_preview", "hook_rejected",
+    "signing_failed", "index_unavailable", "index_restore_failed", "invalid_selection",
+    "no_remote_configured", "remote_selection_required", "unborn_branch_no_version",
+    "nothing_to_publish", "behind_remote", "diverged_histories", "stale_publish_plan",
+    "invalid_ref_name", "authentication_failed", "network_timeout", "remote_rejected",
+    "publish_uncertain", "git_version_too_old", "version_line_name_taken",
+    "version_line_name_collides", "version_line_checked_out_elsewhere", "version_line_is_active",
+    "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
+    "dirty_working_tree", "ref_locked"
+  ],
+  "watchEvent": {
+    "name": "repository-changed",
+    "fields": ["projectId", "sessionEpoch", "sequence", "kind"],
+    "kinds": ["worktree", "head_or_refs", "shared_repository"]
+  },
+  "compatibility": {
+    "optionalSessionEpochConsumers": [
+      "src/pendingVersions.tsx", "src/publishDialog.tsx", "src/saveVersionDialog.tsx",
+      "src/versionLinesDialog.tsx"
+    ],
+    "removalTasks": {
+      "reads": "026-028",
+      "mutations": "029"
+    }
+  }
+}

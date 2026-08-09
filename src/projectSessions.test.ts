@@ -24,6 +24,7 @@ function makeProject(path: string, overrides: Partial<RepositoryInfo> = {}): Rep
     branch: "main",
     headState: "branch",
     kind: "repository",
+    sessionEpoch: `epoch:${path}`,
     ...overrides,
   };
 }
@@ -109,6 +110,33 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/a"]).toBeUndefined();
   });
 
+  it("rejects responses from the previous epoch after close and reopen", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, {
+      type: "open",
+      project: makeProject("/a", { sessionEpoch: "old" }),
+    });
+    state = projectSessionsReducer(state, { type: "close", id: "/a" });
+    state = projectSessionsReducer(state, {
+      type: "open",
+      project: makeProject("/a", { sessionEpoch: "new" }),
+    });
+    state = projectSessionsReducer(state, {
+      type: "startStatusCheck",
+      id: "/a",
+      epoch: "new",
+      generation: 1,
+    });
+    const stale = projectSessionsReducer(state, {
+      type: "applyWorkingTreeError",
+      id: "/a",
+      epoch: "old",
+      generation: 1,
+      error: "late old result",
+    });
+    expect(stale).toBe(state);
+    expect(stale.byId["/a"].workingTreeError).toBeNull();
+  });
+
   it("closing an inactive session leaves the active session untouched", () => {
     let state = initialProjectSessionsState;
     for (const path of ["/a", "/b"]) {
@@ -155,11 +183,11 @@ describe("projectSessionsReducer", () => {
 
   it("applies a status result only when its generation still matches", () => {
     let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
-    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 1 });
+    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", epoch: "epoch:/a", generation: 1 });
     expect(state.byId["/a"].isCheckingChanges).toBe(true);
 
     // A second, newer refresh starts before the first resolves.
-    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 2 });
+    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", epoch: "epoch:/a", generation: 2 });
 
     // The stale (generation 1) response arrives late and must be ignored.
     const staleWorkingTree = {
@@ -174,6 +202,7 @@ describe("projectSessionsReducer", () => {
     const afterStale = projectSessionsReducer(state, {
       type: "applyWorkingTree",
       id: "/a",
+      epoch: "epoch:/a",
       generation: 1,
       workingTree: staleWorkingTree,
       checkedAt: 1_700_000_000_000,
@@ -187,6 +216,7 @@ describe("projectSessionsReducer", () => {
     const afterFresh = projectSessionsReducer(state, {
       type: "applyWorkingTree",
       id: "/a",
+      epoch: "epoch:/a",
       generation: 2,
       workingTree: freshWorkingTree,
       checkedAt: 1_700_000_000_000,
@@ -206,12 +236,13 @@ describe("projectSessionsReducer", () => {
       hasUnpreparedChanges: false,
       upstream: { branch: null, upstream: null, ahead: 0, behind: 0 },
     };
-    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 1 });
-    state = projectSessionsReducer(state, { type: "applyWorkingTree", id: "/a", generation: 1, workingTree, checkedAt: 1_700_000_000_000 });
-    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 2 });
+    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", epoch: "epoch:/a", generation: 1 });
+    state = projectSessionsReducer(state, { type: "applyWorkingTree", id: "/a", epoch: "epoch:/a", generation: 1, workingTree, checkedAt: 1_700_000_000_000 });
+    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", epoch: "epoch:/a", generation: 2 });
     state = projectSessionsReducer(state, {
       type: "applyWorkingTreeError",
       id: "/a",
+      epoch: "epoch:/a",
       generation: 2,
       error: "network blip",
     });
@@ -233,6 +264,7 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, {
       type: "applyVersionLines",
       id: "/a",
+      epoch: "epoch:/a",
       snapshot: versionLines,
     });
     expect(state.byId["/a"].versionLines).toEqual(versionLines);
@@ -242,6 +274,7 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, {
       type: "applyVersionLinesError",
       id: "/a",
+      epoch: "epoch:/a",
       error: "git blip",
     });
     expect(state.byId["/a"].versionLines).toEqual(versionLines);
@@ -254,11 +287,13 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, {
       type: "applyVersionLines",
       id: "/a",
+      epoch: "epoch:/a",
       snapshot: versionLines,
     });
     const unchanged = projectSessionsReducer(state, {
       type: "applyVersionLines",
       id: "/a",
+      epoch: "epoch:/a",
       snapshot: structuredClone(versionLines),
     });
     expect(unchanged).toBe(state);
@@ -270,10 +305,11 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a" });
     // A working-tree refresh runs its own counter; it must not invalidate the
     // version-lines read already in flight.
-    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", generation: 7 });
+    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", epoch: "epoch:/a", generation: 7 });
     state = projectSessionsReducer(state, {
       type: "applyVersionLines",
       id: "/a",
+      epoch: "epoch:/a",
       snapshot: versionLines,
     });
     expect(state.byId["/a"].versionLines).toEqual(versionLines);
@@ -386,6 +422,7 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/worktree-b"].operation).toEqual({
       kind: "publish",
       phase: "planning",
+      epoch: "epoch:/worktree-b",
     });
   });
 });

@@ -5,6 +5,7 @@ mod error;
 mod git;
 mod ipc;
 mod repository_access;
+mod session;
 mod watch;
 
 use error::{AppError, AppErrorCode};
@@ -165,6 +166,7 @@ struct RepositoryInfo {
     branch: Option<String>,
     head_state: HeadState,
     kind: RepositoryKind,
+    session_epoch: String,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -250,7 +252,10 @@ fn show_main_window(window: tauri::Window) {
     }
 }
 
-fn open_repository(path: String) -> Result<RepositoryInfo, AppError> {
+fn open_repository(
+    path: String,
+    session_epoch: Option<String>,
+) -> Result<RepositoryInfo, AppError> {
     let _command = application::enter("open_repository");
     let repo_path = Path::new(&path);
     let metadata = repo_path.metadata().map_err(|error| {
@@ -356,15 +361,18 @@ fn open_repository(path: String) -> Result<RepositoryInfo, AppError> {
         .map(|value| value.to_string_lossy().to_string())
         .unwrap_or_else(|| display_path(root_path.clone()));
 
+    let canonical_path = display_path(root_path.clone());
+    let session_epoch = session::global().open(&canonical_path, session_epoch.as_deref())?;
     Ok(RepositoryInfo {
         name,
-        path: display_path(root_path),
+        path: canonical_path,
         selected_path,
         git_dir: display_path(git_dir_path),
         common_git_dir: display_path(common_dir_path),
         branch,
         head_state,
         kind,
+        session_epoch,
     })
 }
 
@@ -5474,9 +5482,10 @@ fn watch_repository(
     app: tauri::AppHandle,
     registry: tauri::State<'_, watch::WatcherRegistry>,
     path: String,
+    session_epoch: Option<String>,
 ) -> Result<bool, AppError> {
     let (repository, _access) = application::authorize_repository(&path, "watch_repository", None)?;
-    let root = Path::new(&path);
+    let root = repository.worktree_root.backend_path();
     if !root.is_dir() {
         return Err(
             AppError::new(AppErrorCode::PathMissing, "That folder doesn't exist.")
@@ -5487,22 +5496,30 @@ fn watch_repository(
     // directory (HEAD/index), its `<root>/.git` pointer file, and the shared
     // common Git directory (branches/packed refs). Name all of them so an
     // external branch create/delete is visible from linked worktrees too.
-    let mut git_dirs = vec![
-        repository.git_dir.backend_path().to_path_buf(),
-        root.join(".git"),
-        repository.common_git_dir.backend_path().to_path_buf(),
-    ];
-    // Order is deliberately not significant here: a linked worktree's private
-    // directory lives inside the common one, and the event filter resolves
-    // that overlap itself by matching the most specific entry (see
-    // `watch::is_relevant_path`). `dedup` collapses the normal-repository
-    // case, where all three resolve to the same `.git`.
-    git_dirs.dedup();
-    Ok(registry.watch(app, &path, git_dirs))
+    let mut git_dir = repository.git_dir.watch_paths();
+    git_dir.push(root.join(".git"));
+    git_dir.sort();
+    git_dir.dedup();
+    let epoch = session_epoch.ok_or_else(session::stale_session_error)?;
+    Ok(registry.watch(
+        app,
+        &path,
+        &epoch,
+        repository.common_git_dir.match_key(),
+        watch::WatchPaths {
+            worktree: repository.worktree_root.watch_paths(),
+            git_dir,
+            common_git_dir: repository.common_git_dir.watch_paths(),
+        },
+    ))
 }
 
-fn unwatch_repository(registry: tauri::State<'_, watch::WatcherRegistry>, path: String) {
-    registry.unwatch(&path);
+fn unwatch_repository(
+    registry: tauri::State<'_, watch::WatcherRegistry>,
+    path: String,
+    session_epoch: Option<String>,
+) {
+    registry.unwatch(&path, session_epoch.as_deref());
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -5542,7 +5559,8 @@ pub fn run() {
             ipc::plan_delete_version_line,
             ipc::delete_version_line,
             ipc::watch_repository,
-            ipc::unwatch_repository
+            ipc::unwatch_repository,
+            ipc::close_project_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running GitOdrile");
@@ -5592,7 +5610,7 @@ mod tests {
         let path = unique_temp_dir("valid-repo");
         git_init(&path);
 
-        let info = open_repository(path.clone()).expect("a git init'd folder should open");
+        let info = open_repository(path.clone(), None).expect("a git init'd folder should open");
         assert!(matches!(info.kind, RepositoryKind::Repository));
         assert_eq!(
             info.path,
@@ -5612,7 +5630,7 @@ mod tests {
         let nested = Path::new(&path).join("one").join("two");
         fs::create_dir_all(&nested).expect("create nested folder");
 
-        let info = open_repository(nested.to_string_lossy().to_string())
+        let info = open_repository(nested.to_string_lossy().to_string(), None)
             .expect("a folder inside a repository should open");
         assert_eq!(
             info.name,
@@ -5636,7 +5654,7 @@ mod tests {
     fn open_repository_rejects_a_non_repository_folder() {
         let path = unique_temp_dir("non-repo");
 
-        let error = open_repository(path.clone()).expect_err("a plain folder isn't a repo");
+        let error = open_repository(path.clone(), None).expect_err("a plain folder isn't a repo");
         assert_eq!(error.code, AppErrorCode::NotRepository);
         assert!(error.remediation.is_some());
 
@@ -5652,7 +5670,7 @@ mod tests {
         ));
         let path = path.to_string_lossy().to_string();
 
-        let error = open_repository(path).expect_err("a missing folder can't be opened");
+        let error = open_repository(path, None).expect_err("a missing folder can't be opened");
         assert_eq!(error.code, AppErrorCode::PathMissing);
         assert!(error.remediation.is_some());
     }
@@ -5666,7 +5684,8 @@ mod tests {
             .expect("run git init --bare");
         assert!(status.success(), "git init --bare should succeed");
 
-        let error = open_repository(path.clone()).expect_err("a bare repo has no working files");
+        let error =
+            open_repository(path.clone(), None).expect_err("a bare repo has no working files");
         assert_eq!(error.code, AppErrorCode::BareRepository);
 
         let _ = fs::remove_dir_all(&path);
@@ -5699,7 +5718,8 @@ mod tests {
             .expect("run git worktree add");
         assert!(status.success(), "git worktree add should succeed");
 
-        let info = open_repository(worktree_path.clone()).expect("the linked worktree should open");
+        let info =
+            open_repository(worktree_path.clone(), None).expect("the linked worktree should open");
         assert!(matches!(info.kind, RepositoryKind::Worktree));
         assert_eq!(info.head_state, HeadState::Branch);
         assert_eq!(info.branch.as_deref(), Some("gitodrile-test-branch"));
@@ -5723,7 +5743,7 @@ mod tests {
             .expect("detach HEAD");
         assert!(status.success(), "git checkout --detach should succeed");
 
-        let info = open_repository(path.clone()).expect("a detached repository should open");
+        let info = open_repository(path.clone(), None).expect("a detached repository should open");
         assert_eq!(info.head_state, HeadState::Detached);
         assert_eq!(info.branch, None);
 

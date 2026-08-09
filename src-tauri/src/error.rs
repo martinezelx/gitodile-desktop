@@ -12,6 +12,7 @@ pub(crate) struct AppError {
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum AppErrorCode {
+    StaleSession,
     PathMissing,
     PathUnusable,
     NotRepository,

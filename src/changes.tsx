@@ -737,6 +737,7 @@ function GapMarker({
 function DiffHunkList({
   hunks,
   projectPath,
+  sessionEpoch,
   filePath,
   viewMode,
   hunkTarget,
@@ -747,6 +748,7 @@ function DiffHunkList({
    * A `null` project path means this diff isn't expandable — see
    * `DiffResultView`'s note. */
   projectPath: string | undefined;
+  sessionEpoch?: string;
   filePath: string;
   viewMode: VisualDiffViewMode;
   /** The hunk the toolbar last navigated to. `token` (rather than the index
@@ -789,6 +791,7 @@ function DiffHunkList({
       filePath: requestedPath,
       startLine: gap.newStart + alreadyLoaded,
       endLine: gap.newStart + gap.hiddenLines - 1,
+      sessionEpoch,
     })
       .then((result) => {
         if (filePathRef.current !== requestedPath) {
@@ -973,6 +976,7 @@ function DiffHunkList({
 export function DiffResultView({
   diff,
   projectPath,
+  sessionEpoch,
   viewMode = "unified",
   hunkTarget = { index: 0, token: 0 },
   t,
@@ -984,6 +988,7 @@ export function DiffResultView({
    * longer match what that version recorded — there the gap markers stay
    * plain captions rather than offering lines that could be wrong. */
   projectPath?: string;
+  sessionEpoch?: string;
   viewMode?: DiffViewMode;
   hunkTarget?: { index: number; token: number };
   t: Translations;
@@ -1004,6 +1009,7 @@ export function DiffResultView({
             <DiffHunkList
               hunks={diff.hunks}
               projectPath={projectPath}
+              sessionEpoch={sessionEpoch}
               filePath={diff.path}
               viewMode={viewMode}
               hunkTarget={hunkTarget}
@@ -1074,6 +1080,7 @@ export function DiffResultView({
                 <DiffHunkList
                   hunks={diff.hunks}
                   projectPath={projectPath}
+                  sessionEpoch={sessionEpoch}
                   filePath={diff.path}
                   viewMode={viewMode}
                   hunkTarget={hunkTarget}
@@ -1195,6 +1202,7 @@ function getHunkCount(diffState: DiffState): number {
 
 function DiffWorkspace({
   projectPath,
+  sessionEpoch,
   selectedPath,
   entry,
   diffState,
@@ -1207,6 +1215,7 @@ function DiffWorkspace({
   t,
 }: {
   projectPath: string;
+  sessionEpoch?: string;
   selectedPath: string | null;
   entry: WorkingTreeEntry | null;
   diffState: DiffState;
@@ -1359,6 +1368,7 @@ function DiffWorkspace({
           <DiffResultView
             diff={diffState.diff}
             projectPath={projectPath}
+            sessionEpoch={sessionEpoch}
             viewMode={viewMode}
             hunkTarget={hunkTarget}
             t={t}
@@ -1442,6 +1452,7 @@ export function ChangesPanel({
   isCheckingChanges,
   workingTreeCheckedAt,
   diffCache,
+  sessionEpoch,
   onRefresh,
   onNavigateOverview,
   onPublishNow,
@@ -1464,6 +1475,7 @@ export function ChangesPanel({
    * 019). Invalidation is unchanged: `getDiffStore` replaces the store
    * whenever the project or the working-tree snapshot changes. */
   diffCache: DiffCache;
+  sessionEpoch?: string;
   onRefresh: () => void;
   onNavigateOverview: () => void;
   onPublishNow: () => void;
@@ -1490,7 +1502,7 @@ export function ChangesPanel({
   // search narrows what is *shown*, it does not silently drop files from the
   // version being saved.
   const visibleEntries = useMemo(() => filterEntriesBySearch(entries, search), [entries, search]);
-  const store = getDiffStore(diffCache, projectPath, workingTree);
+  const store = getDiffStore(diffCache, projectPath, sessionEpoch, workingTree);
   // Seeded from the cache rather than starting at `idle`: on a remount with a
   // warm cache (navigating back to this screen) that difference is the one
   // frame of empty detail pane between mounting and the effect below running.
@@ -1610,7 +1622,7 @@ export function ChangesPanel({
       return undefined;
     }
     store.batchStarted = true;
-    invoke<FileDiff[]>("read_working_tree_diffs", { path: projectPath })
+    invoke<FileDiff[]>("read_working_tree_diffs", { path: projectPath, sessionEpoch })
       .then((diffs) => {
         // Guards against a real project/snapshot switch that happened while
         // this was in flight — deliberately *not* an effect-cleanup
@@ -1896,6 +1908,7 @@ export function ChangesPanel({
           </nav>
           <DiffWorkspace
             projectPath={projectPath}
+            sessionEpoch={sessionEpoch}
             selectedPath={selectedPath}
             entry={selectedEntry}
             diffState={diffState}

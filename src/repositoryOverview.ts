@@ -9,6 +9,8 @@ export type RepositoryInfo = {
   branch: string | null;
   headState: HeadState;
   kind: "repository" | "worktree";
+  /** Opaque Rust-issued identity for this open incarnation. */
+  sessionEpoch: string;
 };
 
 /**

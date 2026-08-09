@@ -218,6 +218,50 @@ React Query were evaluated in ADR 0003 and do not currently justify their
 runtime/conceptual cost. A future need for cache semantics, statecharts or
 devtools must be measured and recorded before revisiting that decision.
 
+### IPC sessions and repository invalidation
+
+Task 025 snapshots the public command surface in
+[`025-ipc-contract.json`](architecture/025-ipc-contract.json). Rust tests tie
+that inventory to every registered adapter and its argument/response type,
+serialize representative repository, error and watcher envelopes, and compare
+the complete error-code set. TypeScript tests consume the same snapshot. An
+intentional contract change therefore updates one reviewed artifact together
+with both sides; an accidental command, argument, response or error-code drift
+fails CI.
+
+`open_repository` returns an opaque `sessionEpoch` for the current open
+incarnation. The canonical worktree path remains project identity, while the
+epoch gates migrated requests and reducer responses. `close_project_session`
+invalidates it before the frontend discards the session. Opening the same path
+afterward creates a different epoch, so a response that began before close
+cannot populate the reopened project. Optional epoch arguments are a temporary
+strangler bridge for the named direct-invoke consumers recorded in the
+contract: read consumers retire it during tasks 026-028 and task 029 makes the
+field mandatory for every mutation.
+
+The `repository-changed` event is a bounded domain envelope:
+
+```ts
+type RepositoryInvalidation = {
+  projectId: string;
+  sessionEpoch: string;
+  sequence: number;
+  kind: "worktree" | "head_or_refs" | "shared_repository";
+};
+```
+
+No raw changed path or repository content leaves Rust. Events are trailing-
+debounced for 300 ms with a two-second starvation ceiling. Sequence numbers
+increase within an epoch; replacement, unwatch and close invalidate queued
+callbacks. Worktree/index and private-HEAD events stay with their worktree.
+Shared refs, packed refs and shared configuration are coalesced by canonical
+`commonGitDir` and fanned out once to each related open worktree. Path matching
+keeps backend and watcher spellings distinct: Windows verbatim prefixes and
+macOS `/private/var` aliases normalize only for comparison, so Git objects,
+logs, modules, hooks and lock files remain filtered. If an OS watcher cannot
+be established, commands return `false` and the existing explicit refresh
+continues to work.
+
 ## Screen shell and navigation cost
 
 Moving between screens of an already-open project must cost nothing the user
