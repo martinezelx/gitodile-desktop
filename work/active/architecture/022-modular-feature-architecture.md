@@ -109,7 +109,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | 023 | Done 2026-08-08 | ADR, dependency map, legal research record, reproducible baselines and budgets | tasks 018–021 |
 | 024 | Done 2026-08-08 | Rust application boundary, repository access coordinator and bounded Git execution | 023 |
 | 025 | Done 2026-08-09 | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
-| 026 | Not started | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
+| 026 | Done 2026-08-09 | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
 | 027 | Not started | Version lines migrated as the reference vertical slice | 024–026 |
 | 028 | Not started | Repository/status/changes/diff reads migrated | 027 |
 | 029 | Not started | Save and publish mutation flows migrated without weakening safety | 027, 028 |
@@ -157,7 +157,7 @@ green at every task/commit boundary.
       and native-execution policies.
 - [ ] IPC payloads, error codes, session epochs, and watcher events have
       compatibility/serialization tests.
-- [ ] All functional screens inherit navigation, palette, lazy/preload,
+- [x] All functional screens inherit navigation, palette, lazy/preload,
       project guard, keep-alive, lifecycle, accessibility and profiling from
       one typed registration path.
 - [ ] Version lines proves the complete vertical slice and request lifecycle;
@@ -218,7 +218,18 @@ stay isolated while common-ref/config events coalesce and fan out once to all
 related open worktrees. Windows verbatim and macOS `/private/var` watcher
 aliases preserve Git-churn filtering. The checked compatibility inventory
 names the remaining direct consumers and requires reads to retire during
-026-028 and mutations by 029. Task 026 has not been started.
+026-028 and mutations by 029.
+
+Task 026 established an explicit selector-capable project runtime, the typed
+`ScreenModule` registration path, single-source lazy/preload declarations and
+active/hidden/evicted lifecycle semantics. Current functional screens now
+inherit navigation, command-palette metadata, project guards, keep-alive,
+accessibility and profiling from feature-owned descriptors. Speculative cache
+warming is owned by project activation or repository invalidation and deferred
+until idle; screen arrival does not start whole-tree diff reads. Automated
+dependency-direction and cycle checks, a seeded forbidden-edge fixture and the
+new-screen guide make the contract enforceable. Version lines retains its
+pre-existing data lifecycle for task 027, which has not been started.
 
 # Validation
 

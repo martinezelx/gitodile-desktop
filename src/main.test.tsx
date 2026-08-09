@@ -427,6 +427,7 @@ describe("App project restoration", () => {
       await screen.findByRole("heading", { name: "Changes" }, { timeout: 5000 })
     ).closest(".changes-view");
     expect(changesScreen).not.toBeNull();
+    expect(mockedInvoke.mock.calls.some(([command]) => command === "read_working_tree_diffs")).toBe(false);
 
     await userEvent.click(within(nav).getByRole("button", { name: "Overview" }));
 

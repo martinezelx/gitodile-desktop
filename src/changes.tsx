@@ -279,7 +279,6 @@ const DIFF_LOADING_DELAY_MS = 140;
  * of extra background processes for near-instant "next file" clicks during
  * the common sequential-review flow, without eagerly fetching an entire
  * (possibly huge) change set up front. */
-const PREFETCH_RADIUS = 2;
 
 function EmptyDiffNote({
   icon,
@@ -1511,25 +1510,10 @@ export function ChangesPanel({
     return cached ? { status: "ready", diff: cached } : { status: "idle" };
   });
   const [retryToken, setRetryToken] = useState(0);
-  // The diff cache is a plain Map that the batch prefetch mutates, so nothing
-  // re-renders when it fills. Bumped once that batch lands, which is what
-  // lets the subtitle's line totals appear.
-  const [cacheVersion, setCacheVersion] = useState(0);
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(() => new Set());
   // Below ~1024px the list and the diff can't sit side by side legibly, so
   // the layout becomes list/detail: this tracks which one is showing.
   const [isDetailFocused, setIsDetailFocused] = useState(false);
-  // Read inside the batch-prefetch effect's `.then`, so it reacts to
-  // whichever file is selected *when the batch resolves* rather than
-  // whichever was selected when the effect last ran.
-  const selectedPathRef = useRef(selectedPath);
-  selectedPathRef.current = selectedPath;
-  // Lets the batch effect below tell "the store this call belongs to is still
-  // the current one" from "a real project/snapshot switch happened while it
-  // was in flight", now that the store is no longer this component's own ref.
-  const storeRef = useRef(store);
-  storeRef.current = store;
-
   // Preserves the current selection across a refresh when it is still
   // present; otherwise moves to the next available file and announces the
   // material change without stealing focus.
@@ -1605,78 +1589,6 @@ export function ChangesPanel({
     };
   }, [store, projectPath, selectedPath, workingTree, retryToken, t]);
 
-  // Warms the entire cache in one Git process per working-tree snapshot
-  // (`read_working_tree_diffs`), instead of one process per file
-  // (`read_file_diff`) — the dominant cost of switching between files
-  // quickly. Best-effort and additive: a path this doesn't cover (a
-  // conflict, an oversized section, or the call failing outright) simply
-  // falls back to the on-demand fetch above, so this can never make things
-  // worse, only faster. `selectedPathRef` reads whichever file is current
-  // *when the batch resolves*, not whichever was selected when the effect
-  // started, so a same-tick reselection is still handled correctly.
-  useEffect(() => {
-    if (!workingTree || workingTree.isClean) {
-      return undefined;
-    }
-    if (store.batchStarted) {
-      return undefined;
-    }
-    store.batchStarted = true;
-    invoke<FileDiff[]>("read_working_tree_diffs", { path: projectPath, sessionEpoch })
-      .then((diffs) => {
-        // Guards against a real project/snapshot switch that happened while
-        // this was in flight — deliberately *not* an effect-cleanup
-        // `cancelled` flag. Combined with the one-shot `batchStarted` guard
-        // above, that pattern breaks under React's development StrictMode:
-        // its synchronous mount → cleanup → mount would cancel this exact
-        // call, and the guard would then block the second mount from ever
-        // starting a real replacement, permanently discarding the result.
-        // Comparing store identity survives that double-invoke correctly
-        // while still discarding a result that genuinely no longer applies.
-        if (storeRef.current !== store) {
-          return;
-        }
-        for (const diff of diffs) {
-          if (!store.cache.has(diff.path)) {
-            store.cache.set(diff.path, diff);
-          }
-          if (diff.path === selectedPathRef.current) {
-            setDiffState({ status: "ready", diff });
-          }
-        }
-        setCacheVersion((version) => version + 1);
-      })
-      .catch(() => {
-        // Silent: a best-effort cache warm-up, not the file the user is
-        // actually looking at. Its own fetch (above) reports real errors.
-      });
-  }, [store, projectPath, workingTree]);
-
-  // Quietly warms the cache for files near the current selection, so the
-  // common "review sequentially, click next" flow finds a warm cache instead
-  // of paying a fresh Git process spawn on every click. Never touches
-  // `diffState`: a slow or failed prefetch is invisible unless the user
-  // actually selects that file, at which point the effect above handles it
-  // (and reports the error) normally.
-  useEffect(() => {
-    if (!selectedPath) {
-      return;
-    }
-    const index = entries.findIndex((entry) => entry.path === selectedPath);
-    if (index === -1) {
-      return;
-    }
-    for (let offset = 1; offset <= PREFETCH_RADIUS; offset += 1) {
-      for (const neighbor of [entries[index - offset], entries[index + offset]]) {
-        if (neighbor && !store.cache.has(neighbor.path) && !store.requests.has(neighbor.path)) {
-          fetchDiff(store, projectPath, neighbor.path).catch(() => {
-            // Silent: this path isn't visible to the user yet.
-          });
-        }
-      }
-    }
-  }, [store, entries, projectPath, selectedPath]);
-
   const isLoadingList = isCheckingChanges && !workingTree;
   const selectedEntry = entries.find((entry) => entry.path === selectedPath) ?? null;
   const canChooseFiles = !workingTree?.truncated;
@@ -1696,9 +1608,7 @@ export function ChangesPanel({
     }
   }, [includedCount, totalCount]);
 
-  // `cacheVersion` is the dependency that matters here — `store.cache` is a
-  // mutable Map whose identity never changes as the batch fills it.
-  const lineTotals = useMemo(() => sumCachedDiffLines(entries, store.cache), [entries, store, cacheVersion]);
+  const lineTotals = sumCachedDiffLines(entries, store.cache);
 
   // File-to-file navigation walks the list the user can actually see, so
   // "next file" during a search means the next match, not the next file

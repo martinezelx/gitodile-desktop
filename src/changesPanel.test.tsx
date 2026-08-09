@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { ChangesPanel } from "./changes";
-import { createDiffCache } from "./diffCache";
+import { createDiffCache, getDiffStore, warmDiffStore } from "./diffCache";
 import { LanguageProvider } from "./i18n";
 import type { WorkingTreeStatus } from "./repositoryOverview";
 
@@ -93,12 +93,6 @@ describe("ChangesPanel save selection", () => {
       if (command === "read_file_diff") {
         return Promise.resolve({ kind: "unchanged", path: "edited.txt" });
       }
-      if (command === "read_working_tree_diffs") {
-        // The background batch warm-up; returning nothing keeps this
-        // suite's per-file cache behavior easy to reason about, since it
-        // still counts as one invoke call per snapshot either way.
-        return Promise.resolve([]);
-      }
       if (command === "plan_save_version") {
         return Promise.resolve({
           operationKind: "history-mutation",
@@ -171,15 +165,14 @@ describe("ChangesPanel save selection", () => {
     );
     const panel = within(container);
 
-    // 3, not 1: selecting "edited.txt" fetches it directly, prefetches its
-    // one neighbor ("new.txt") in the background, and the whole-snapshot
-    // batch warm-up (`read_working_tree_diffs`) fires once per snapshot too.
-    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(3));
+    // Screen arrival fetches only the file it actually presents. Whole-tree
+    // speculative warming is activation/invalidation-owned by the runtime.
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(1));
     await userEvent.click(panel.getByRole("button", { name: /new\.txt/ }));
-    expect(mockedInvoke).toHaveBeenCalledTimes(3);
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(2));
 
     await userEvent.click(panel.getByRole("button", { name: /edited\.txt/ }));
-    expect(mockedInvoke).toHaveBeenCalledTimes(3);
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
 
     rerender(
       <LanguageProvider>
@@ -195,9 +188,9 @@ describe("ChangesPanel save selection", () => {
       </LanguageProvider>,
     );
 
-    // A new working-tree snapshot resets the store, so the selected file,
-    // its prefetched neighbor, and the batch warm-up all fire again: 3 more.
-    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(6));
+    // A new working-tree snapshot resets the store, so the selected file is
+    // read again while speculative warming remains outside the screen.
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(3));
   });
 
   it("re-reads nothing when the screen is left and reopened on the same snapshot", async () => {
@@ -221,7 +214,7 @@ describe("ChangesPanel save selection", () => {
     );
 
     const first = render(panelElement);
-    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(1));
     first.unmount();
 
     const { container } = render(panelElement);
@@ -231,13 +224,12 @@ describe("ChangesPanel save selection", () => {
     // already on screen and the count is unchanged.
     expect(await panel.findByText("No content changed")).toBeInTheDocument();
     expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument();
-    expect(mockedInvoke).toHaveBeenCalledTimes(3);
+    expect(mockedInvoke).toHaveBeenCalledTimes(1);
   });
 
   it("only shows diff loading feedback when a read remains pending", async () => {
-    // Keyed by path, not a single shared resolver: the background prefetch
-    // of the neighboring file starts a second, concurrent invoke call, so a
-    // single "last call wins" resolver would resolve the wrong one.
+    // Keyed by path so the same helper also models returning to an in-flight
+    // selection without relying on a fragile "last call wins" resolver.
     const resolvers = new Map<string, (diff: { kind: "unchanged"; path: string }) => void>();
     mockedInvoke.mockImplementation((_command, args) => {
       const filePath = (args as { filePath: string }).filePath;
@@ -291,16 +283,11 @@ describe("ChangesPanel save selection", () => {
     );
     const panel = within(container);
 
-    // 3, not 1: selecting "edited.txt" also kicks off a background prefetch
-    // of its neighbor ("new.txt") and the whole-snapshot batch warm-up.
-    // (The batch call's `args` has no `filePath`, so it lands under the
-    // `undefined` key here and is simply never resolved — harmless, since
-    // nothing in this test awaits it.)
-    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(1));
     await userEvent.click(panel.getByRole("button", { name: /new\.txt/ }));
-    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(2));
     await userEvent.click(panel.getByRole("button", { name: /edited\.txt/ }));
-    expect(mockedInvoke).toHaveBeenCalledTimes(3);
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
 
     resolvers.get("edited.txt")?.({ kind: "unchanged", path: "edited.txt" });
     resolvers.get("new.txt")?.({ kind: "unchanged", path: "new.txt" });
@@ -462,7 +449,7 @@ describe("ChangesPanel review controls", () => {
     });
   });
 
-  function renderPanel(checkedAt: number | null = null): void {
+  function renderPanel(checkedAt: number | null = null, diffCache = createDiffCache()): void {
     render(
       <LanguageProvider>
         <ControlledChangesPanel
@@ -471,6 +458,7 @@ describe("ChangesPanel review controls", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           workingTreeCheckedAt={checkedAt}
+          diffCache={diffCache}
           onRefresh={vi.fn()}
           onNavigateOverview={vi.fn()}
           onPublishNow={vi.fn()}
@@ -547,7 +535,9 @@ describe("ChangesPanel review controls", () => {
   });
 
   it("shows the snapshot's added and removed line totals once the diff cache is warm", async () => {
-    renderPanel();
+    const diffCache = createDiffCache();
+    await warmDiffStore(getDiffStore(diffCache, "/repo", undefined, workingTree));
+    renderPanel(null, diffCache);
 
     expect(await screen.findByText("3 lines added")).toBeInTheDocument();
     expect(screen.getByText("1 line removed")).toBeInTheDocument();

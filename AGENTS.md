@@ -83,6 +83,9 @@ Secondary:
   idle chunk prefetching, the open-project guard, and keep-alive mounting all
   derive from that table; a screen wired up by hand will silently miss them.
   See "Screen shell and navigation cost" in `docs/ARCHITECTURE.md`.
+- Follow `docs/architecture/frontend-feature-guide.md`: feature-owned screen
+  descriptors use the neutral runtime/lifecycle contracts, and hidden screens
+  must suspend polling, costly effects, subscriptions, and announcements.
 - Never fetch merely because a screen became visible. Render the cached
   snapshot; refresh on project activation or an explicit repository
   invalidation, idle-deferred where it is speculative.

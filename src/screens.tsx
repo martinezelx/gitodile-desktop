@@ -1,8 +1,17 @@
-import React, { Profiler, lazy, useEffect, useLayoutEffect, useRef } from "react";
-import { GitBranch, GitCommitHorizontal, GitCompare, LayoutDashboard, LifeBuoy, Settings } from "lucide-react";
+import React, { Profiler, useEffect, useLayoutEffect, useRef } from "react";
+import { GitCommitHorizontal, LifeBuoy, Settings } from "lucide-react";
 
-import type { Translations } from "./i18n";
+import { changesScreenModule, ChangesPanel } from "./features/changes";
+import { overviewScreenModule } from "./features/overview";
+import { versionLinesScreenModule, VersionLinesPanel } from "./features/version-lines";
 import type { ProjectView } from "./projectSessions";
+import {
+  ScreenLifecycleProvider,
+  createScreenLifecycleController,
+  defineScreenModules,
+  type ScreenModule,
+  type TextKey,
+} from "./screenModule";
 
 /** Every workspace screen the app can show. Settings is an app-level dialog,
  * not a screen, so opening it never changes a project's navigation history. */
@@ -16,8 +25,6 @@ export type NavDestinationId = ScreenId | "history" | "recovery" | "settings";
 
 /** Keys of `Translations` whose value is a plain string, so a registry entry
  * can name a label without being able to point at a formatting function. */
-type TextKey = { [K in keyof Translations]: Translations[K] extends string ? K : never }[keyof Translations];
-
 export type NavDestination = {
   id: NavDestinationId;
   /** `null` for a destination that is announced but not built yet. Anything
@@ -47,103 +54,103 @@ export type NavDestination = {
   overlay?: "settings";
 };
 
-/** Lazily loaded: neither is needed for first paint (Overview with no project
- * open), and both pull in the file-type icon set. Owned here rather than in
- * `main.tsx` so the registry entry and the component it refers to sit
- * together. */
-export const ChangesPanel = lazy(() => import("./changes").then((m) => ({ default: m.ChangesPanel })));
-export const VersionLinesPanel = lazy(() =>
-  import("./versionLinesPanel").then((m) => ({ default: m.VersionLinesPanel })),
-);
+export { ChangesPanel, VersionLinesPanel };
 
 /** The single place a screen is registered. Nav (expanded and compact), the
  * command palette, idle prefetching, the "leave if the project closed" guard,
  * and the keep-alive host all derive from this array — adding a screen means
  * adding an entry here and a component, and nothing else. Order is the order
  * the sidebar shows. */
-export const NAV_DESTINATIONS: NavDestination[] = [
+export const SCREEN_MODULES = defineScreenModules([
+  overviewScreenModule,
+  changesScreenModule,
+  versionLinesScreenModule,
   {
-    id: "overview",
-    screen: "overview",
-    section: "project",
-    labelKey: "navOverview",
-    disabledLabelKey: null,
-    icon: <LayoutDashboard />,
-    requiresProject: false,
-    inCompactNav: true,
-    commandLabelKey: "commandGoOverview",
-    // Overview hosts the pending-versions section, the publish flow, and the
-    // quick switch/create dialogs, so those chunks belong to it.
-    prefetch: [() => import("./pendingVersions"), () => import("./publishDialog"), () => import("./versionLinesDialog")],
-  },
-  {
-    id: "changes",
-    screen: "changes",
-    section: "project",
-    labelKey: "navChanges",
-    disabledLabelKey: "navChangesTitle",
-    icon: <GitCompare />,
-    requiresProject: true,
-    inCompactNav: true,
-    commandLabelKey: "navChanges",
-    prefetch: [() => import("./changes")],
-  },
-  {
-    id: "version-lines",
-    screen: "version-lines",
-    section: "project",
-    labelKey: "navVersionLines",
-    disabledLabelKey: "navVersionLinesTitle",
-    icon: <GitBranch />,
-    requiresProject: true,
-    inCompactNav: true,
-    commandLabelKey: "commandGoVersionLines",
-    prefetch: [() => import("./versionLinesPanel"), () => import("./versionLinesDialog")],
-  },
-  {
+    kind: "placeholder",
     id: "history",
-    screen: null,
     section: "project",
     labelKey: "navHistory",
     disabledLabelKey: "navHistoryTitle",
     icon: <GitCommitHorizontal />,
     requiresProject: true,
     inCompactNav: false,
-    commandLabelKey: null,
-    prefetch: [],
   },
   {
+    kind: "placeholder",
     id: "recovery",
-    screen: null,
     section: "project",
     labelKey: "navRecovery",
     disabledLabelKey: "navRecoveryTitle",
     icon: <LifeBuoy />,
     requiresProject: true,
     inCompactNav: false,
-    commandLabelKey: null,
-    prefetch: [],
   },
   {
+    kind: "overlay",
     id: "settings",
-    screen: null,
     section: "application",
     labelKey: "navSettings",
-    disabledLabelKey: null,
     icon: <Settings />,
-    requiresProject: false,
     inCompactNav: true,
     commandLabelKey: "commandGoSettings",
-    prefetch: [],
     overlay: "settings",
   },
-];
+] as const satisfies readonly ScreenModule[]);
+
+/** Compatibility-shaped navigation view. It is derived from the functional
+ * module descriptors, never authored separately. */
+export const NAV_DESTINATIONS: readonly NavDestination[] = SCREEN_MODULES.map((module) => {
+  if (module.kind === "screen") {
+    return {
+      id: module.id as ScreenId,
+      screen: module.id as ScreenId,
+      section: module.section,
+      labelKey: module.labelKey,
+      disabledLabelKey: module.disabledLabelKey,
+      icon: module.icon,
+      requiresProject: module.requiresProject,
+      inCompactNav: module.inCompactNav,
+      commandLabelKey: module.commandLabelKey,
+      prefetch: [],
+    };
+  }
+  if (module.kind === "overlay") {
+    return {
+      id: module.id as NavDestinationId,
+      screen: null,
+      section: module.section,
+      labelKey: module.labelKey,
+      disabledLabelKey: null,
+      icon: module.icon,
+      requiresProject: false,
+      inCompactNav: module.inCompactNav,
+      commandLabelKey: module.commandLabelKey,
+      prefetch: [],
+      overlay: module.overlay,
+    };
+  }
+  return {
+    id: module.id as NavDestinationId,
+    screen: null,
+    section: module.section,
+    labelKey: module.labelKey,
+    disabledLabelKey: module.disabledLabelKey,
+    icon: module.icon,
+    requiresProject: module.requiresProject,
+    inCompactNav: module.inCompactNav,
+    commandLabelKey: null,
+    prefetch: [],
+  };
+});
+
+type RegisteredFunctionalModule = Extract<(typeof SCREEN_MODULES)[number], { kind: "screen" }>;
+const FUNCTIONAL_SCREEN_MODULES = SCREEN_MODULES.filter(
+  (module): module is RegisteredFunctionalModule => module.kind === "screen",
+);
 
 /** Screen ids in nav order, which is also the DOM order the keep-alive host
  * mounts them in. */
-export const SCREEN_ORDER: ScreenId[] = NAV_DESTINATIONS.flatMap((destination) =>
-  destination.screen ? [destination.screen] : [],
-);
+export const SCREEN_ORDER: ScreenId[] = FUNCTIONAL_SCREEN_MODULES.map((module) => module.id as ScreenId);
 
 const SCREENS_REQUIRING_PROJECT = new Set<ScreenId>(
   NAV_DESTINATIONS.flatMap((destination) =>
@@ -159,8 +166,11 @@ export function screenRequiresProject(screen: ScreenId): boolean {
  * after first paint — never before it, which would defeat the code splitting
  * this exists to compensate for. */
 export function prefetchScreenChunks(): void {
-  for (const destination of NAV_DESTINATIONS) {
-    for (const load of destination.prefetch) {
+  for (const module of FUNCTIONAL_SCREEN_MODULES) {
+    if (!("kind" in module.container)) {
+      void module.container.preload();
+    }
+    for (const load of module.additionalPreloads) {
       void load();
     }
   }
@@ -364,14 +374,19 @@ function KeepAliveScreenSlot({
 }): React.JSX.Element | null {
   const hasCommittedVisit = useRef(false);
   const lastCommittedElement = useRef<React.ReactNode>(null);
+  const lifecycle = useRef(createScreenLifecycleController(isActive ? "active" : "hidden")).current;
 
   useLayoutEffect(() => {
     if (!isAvailable) {
       hasCommittedVisit.current = false;
       lastCommittedElement.current = null;
+      lifecycle.evict();
     } else if (isActive) {
       hasCommittedVisit.current = true;
       lastCommittedElement.current = children;
+    }
+    if (isAvailable) {
+      lifecycle.transition(isActive ? "active" : "hidden");
     }
   }, [children, isActive, isAvailable]);
 
@@ -381,7 +396,9 @@ function KeepAliveScreenSlot({
 
   return (
     <div className="screen-slot" hidden={!isActive} inert={!isActive}>
-      {isActive ? children : lastCommittedElement.current}
+      <ScreenLifecycleProvider controller={lifecycle}>
+        {isActive ? children : lastCommittedElement.current}
+      </ScreenLifecycleProvider>
     </div>
   );
 }

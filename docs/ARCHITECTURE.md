@@ -204,6 +204,13 @@ watcher events must match the epoch created for that open/reopen. Feature
 controllers expose narrow commands and selectors; arbitrary visual components
 cannot write Git-derived state.
 
+The concrete neutral runtime lives in `src/projectRuntime.ts`. Callers pass a
+runtime instance explicitly; there is no ambient current-project store.
+Selector equality preserves the selected value's identity across unrelated
+transitions, and React reads one immutable snapshot for concurrent rendering.
+Repository cache warming is exposed only for project activation and typed
+repository invalidation, is idle-deferred and deduplicated by key.
+
 State categories remain explicit:
 
 - application preferences;
@@ -268,14 +275,17 @@ Moving between screens of an already-open project must cost nothing the user
 can perceive. That is a property of the shell, not something each screen earns
 for itself, and it rests on four rules.
 
-**One registry.** `src/screens.tsx` holds every navigation destination: its
-label, icon, section, whether it needs an open project, its command-palette
-entry, and the chunks it needs. The expanded nav, the compact nav, the palette,
+**One registry.** `src/screens.tsx` collects dependency-neutral
+`ScreenModule` descriptors from `src/screenModule.tsx`. A functional
+descriptor owns its stable id, translated labels, icon/section, project
+requirement, container, lifecycle/eviction and accessibility policy, plus an
+optional numeric performance budget. The expanded nav, the compact nav, the palette,
 the idle prefetch, the "leave this screen if the project closed" guard, and the
 keep-alive host all read from that table. A screen is added by adding an entry
 and a component; anything wired up by hand will be missed by one of them.
-Destinations that are announced but unbuilt (History, Recovery) live in the
-same table with `screen: null`.
+Destinations that are announced but unbuilt (History, Recovery) are explicit
+placeholder descriptors. Lazy mounting and primary preload share one loader
+promise; only additional chunks have separate declarations.
 
 **Visited screens stay mounted.** `KeepAliveScreens` mounts a screen the first
 time it is opened and thereafter hides it rather than unmounting it, so
@@ -290,6 +300,14 @@ revealing a `display: none` subtree, so keep-alive removes application work but
 does not claim that CSS work is literally zero. Keep-alive is scoped to the
 active project session by keying the host on it, so switching or closing a
 project drops that session's screens.
+
+Lifecycle is behavioral, not merely visual. `active` screens may subscribe and
+run active effects. `hidden` screens retain DOM and local UI state but detach
+project selectors, clean up polling/costly effects and silence announcements.
+`evicted` screens unmount with the owning project epoch. The hooks
+`useActiveProjectSelector` and `useActiveScreenEffect` implement that contract;
+plain `hidden`/`inert` attributes remain the accessibility half only. See the
+[frontend feature guide](architecture/frontend-feature-guide.md).
 
 **Screens render from state, never fetch on arrival.** Per-project repository
 data belongs to `ProjectSession` and stays on screen while it is revalidated.

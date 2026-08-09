@@ -1,5 +1,4 @@
-import React, { Suspense, lazy, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import ReactDOM from "react-dom/client";
+import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -51,7 +50,7 @@ import {
   Layers,
   CircleArrowUp,
 } from "lucide-react";
-import { LANGUAGE_NAMES, LanguageProvider, useLanguage, type Language, type LanguagePreference } from "./i18n";
+import { LANGUAGE_NAMES, useLanguage, type Language, type LanguagePreference } from "./i18n";
 import {
   CATEGORY_ORDER,
   getOrderedChangeEntries,
@@ -82,7 +81,6 @@ import {
   getMutationBlocker,
   hasUnsettledOperation,
   initialProjectSessionsState,
-  projectSessionsReducer,
   projectSessionsStateToStored,
   readStoredProjects,
   repositorySessionEpoch,
@@ -90,6 +88,8 @@ import {
   writeStoredProjects,
   type ProjectView,
 } from "./projectSessions";
+import { createProjectRuntime, scheduleIdleTask, useProjectSelector } from "./projectRuntime";
+import { useProjectCacheWarming } from "./projectCacheWarming";
 import {
   ProjectSwitcher,
   ProjectSwitcherCompact,
@@ -100,7 +100,6 @@ import {
   ChangesPanel,
   KeepAliveScreens,
   NAV_DESTINATIONS,
-  SwitchMeasurementRoot,
   VersionLinesPanel,
   markScreenSwitchIntent,
   prefetchScreenChunks,
@@ -237,21 +236,6 @@ const CROCODILE_MARK = (
 function ViewLoadingFallback(): React.JSX.Element {
   const { t } = useLanguage();
   return <LoadingBar label={t.commonLoading} />;
-}
-
-/** Defers background work (chunk prefetches, speculative repository reads)
- * until the app is idle, so none of it competes with first paint or with a
- * user action already in flight — the rule task 018 established for launch
- * performance. Returns a canceller for use as an effect cleanup. */
-function scheduleIdleTask(task: () => void): () => void {
-  if ("requestIdleCallback" in window) {
-    const handle = window.requestIdleCallback(task, { timeout: 2000 });
-    return () => window.cancelIdleCallback(handle);
-  }
-  // Not `window.setTimeout`: the `in` check above narrows `window` itself, so
-  // reaching for a member of it here is a type error. The global works.
-  const handle = setTimeout(task, 1000);
-  return () => clearTimeout(handle);
 }
 
 type Command = { id: string; label: string; hint?: string; action: () => void };
@@ -1783,7 +1767,9 @@ export function App(): React.JSX.Element {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true",
   );
-  const [sessionsState, dispatchSessions] = useReducer(projectSessionsReducer, initialProjectSessionsState);
+  const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
+  const sessionsState = useProjectSelector(projectRuntime, (snapshot) => snapshot);
+  const dispatchSessions = projectRuntime.dispatch;
   // Owns the "which response is still current" counter per session. Lives
   // outside the reducer so a caller can read "the next generation" as a
   // plain synchronous value before the async status/pending-versions calls
@@ -2451,14 +2437,14 @@ export function App(): React.JSX.Element {
   // visited. This covers startup and changes made while another project was
   // active; repository-watch events keep the active session fresh afterward.
   // Deferred so startup and the project-switch frame remain uncontested.
-  useEffect(() => {
-    if (!hasCompletedSessionRestore || !projectPath) {
-      return undefined;
-    }
-    return scheduleIdleTask(() => {
-      void refreshVersionLines(projectPath);
-    });
-  }, [hasCompletedSessionRestore, projectPath]);
+  useProjectCacheWarming({
+    runtime: projectRuntime,
+    hasCompletedSessionRestore,
+    projectPath,
+    session: activeSession,
+    diffCache: diffCacheRef.current,
+    refreshVersionLines,
+  });
 
   // Some screens only exist for an opened project; if the project closes
   // while one is showing, leave immediately rather than rendering it against
@@ -3408,30 +3394,4 @@ export function App(): React.JSX.Element {
       <TooltipHost />
     </div>
   );
-}
-
-document.addEventListener("contextmenu", (event) => event.preventDefault());
-
-const rootElement = document.getElementById("root");
-if (rootElement) {
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <SwitchMeasurementRoot>
-        <LanguageProvider>
-          <App />
-        </LanguageProvider>
-      </SwitchMeasurementRoot>
-    </React.StrictMode>,
-  );
-}
-
-// The main window starts hidden (see `tauri.conf.json`) so it never shows a
-// blank frame while the webview loads. Two rAFs guarantee the browser has
-// actually painted the mounted UI before the window becomes visible.
-if ("__TAURI_INTERNALS__" in window) {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      void invoke("show_main_window");
-    });
-  });
 }

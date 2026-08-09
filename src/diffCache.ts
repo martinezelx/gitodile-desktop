@@ -21,7 +21,7 @@ export type DiffStore = {
   workingTree: WorkingTreeStatus | null;
   cache: Map<string, FileDiff>;
   requests: Map<string, Promise<FileDiff>>;
-  /** Guards the one-shot `read_working_tree_diffs` warm-up in `ChangesPanel`.
+  /** Guards the activation/invalidation-owned `read_working_tree_diffs` warm-up.
    * Unlike per-file fetches, that call has no per-path key to dedupe through
    * `requests`, so without this flag React re-running the effect for the same
    * store (development's StrictMode double-invoke, a fast-refresh, a remount
@@ -30,7 +30,7 @@ export type DiffStore = {
   batchStarted: boolean;
 };
 
-/** One store per project epoch. Owned by the app (see `main.tsx`), not by the
+/** One store per project epoch. Owned by the app runtime, not by the
  * Changes screen, so its lifetime matches the open incarnation rather than
  * the mounted component or canonical path alone. */
 export type DiffCache = Map<string, DiffStore>;
@@ -84,12 +84,12 @@ export function releaseDiffCache(cache: DiffCache, projectPath: string): void {
   }
 }
 
-/** Single point of truth for turning a path into a diff: checks the cache,
+/** Single point of truth for turning a selected path into a diff: checks the cache,
  * then joins an in-flight request for that path if one exists, otherwise
  * starts one. Every caller (the active selection and the background
  * prefetcher in `ChangesPanel`) shares the same cache and in-flight map, so
  * two simultaneous callers for the same path only ever spawn one Git
- * process. */
+ * process. Speculative whole-tree warming uses `warmDiffStore` below. */
 export function fetchDiff(store: DiffStore, projectPath: string, path: string): Promise<FileDiff> {
   const cached = store.cache.get(path);
   if (cached) {
@@ -115,4 +115,29 @@ export function fetchDiff(store: DiffStore, projectPath: string, path: string): 
     store.requests.set(path, request);
   }
   return request;
+}
+
+/**
+ * Best-effort whole-snapshot warming owned by project activation or a typed
+ * repository invalidation. Screens consume the cache but never start this
+ * speculative repository read merely because they became visible.
+ */
+export async function warmDiffStore(store: DiffStore): Promise<void> {
+  if (!store.workingTree || store.workingTree.isClean || store.batchStarted) {
+    return;
+  }
+  store.batchStarted = true;
+  try {
+    const diffs = await invoke<FileDiff[]>("read_working_tree_diffs", {
+      path: store.projectPath,
+      sessionEpoch: store.sessionEpoch,
+    });
+    for (const diff of diffs) {
+      if (!store.cache.has(diff.path)) {
+        store.cache.set(diff.path, diff);
+      }
+    }
+  } catch {
+    // Speculative only. The selected-file request owns user-visible errors.
+  }
 }
