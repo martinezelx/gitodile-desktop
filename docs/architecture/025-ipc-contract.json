@@ -55,7 +55,7 @@
   },
   "compatibility": {
     "optionalSessionEpochConsumers": [
-      "src/pendingVersions.tsx", "src/publishDialog.tsx", "src/saveVersionDialog.tsx"
+      "src/publishDialog.tsx", "src/saveVersionDialog.tsx"
     ],
     "removalTasks": {
       "reads": "026-028",

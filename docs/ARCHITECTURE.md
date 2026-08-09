@@ -340,6 +340,25 @@ planners, workflows and focused tests live in `src-tauri/src/version_lines.rs`.
 The mandatory mechanics and feature-specific policy are separated in
 [`architecture/version-lines-reference-slice.md`](architecture/version-lines-reference-slice.md).
 
+Repository read ownership follows that slice without sharing domain policy.
+`src/features/repository/` owns discovery, identity refresh and typed
+invalidation coordination; `src/features/status/` owns working-tree and
+unpublished-version snapshots, request generations and structural equality;
+`src/features/changes/` owns the Changes UI, typed read port and epoch-scoped
+diff caches. Diff retention is capped at four project epochs and 256 file
+diffs / approximately 40 MiB per epoch. Whole-tree warming starts only from
+project activation or repository invalidation and retains the native batch
+caps. Overview owns saved-version file/diff expansion and supplies the session
+epoch on every read. Root compatibility facades remain only for task 029's
+unmigrated mutation consumers.
+
+The Rust owners are `repository.rs`, `status.rs` and `changes.rs`. They contain
+discovery, porcelain/status parsing, pending-summary reads, diff parsing and
+batching, and bounded file reads. `ipc.rs` validates the session and delegates;
+`lib.rs` temporarily re-exports crate-private read contracts needed by task
+029's mutation workflows. Architecture tests reject read workflows returning
+to `lib.rs`, outward transport dependencies and crate-root glob imports.
+
 The task-022 comparison protocol, exact starting chunks/process counts and
 numeric warning/failure budgets are recorded in
 [`architecture/023-performance-baseline.md`](architecture/023-performance-baseline.md).

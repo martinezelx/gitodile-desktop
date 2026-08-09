@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { ChangesPanel } from "./changes";
-import { createDiffCache, getDiffStore, warmDiffStore } from "./diffCache";
+import { changesPort, createChangesController, type ChangesController } from "./features/changes";
 import { LanguageProvider } from "./i18n";
 import type { WorkingTreeStatus } from "./repositoryOverview";
 
@@ -30,7 +30,8 @@ afterEach(() => {
 function ControlledChangesPanel(
   props: Omit<
     React.ComponentProps<typeof ChangesPanel>,
-    | "diffCache"
+    | "controller"
+    | "sessionEpoch"
     | "selectedPath"
     | "onSelectedPathChange"
     | "isSaveVersionOpen"
@@ -39,17 +40,18 @@ function ControlledChangesPanel(
     | "onSaveVersionPhaseChange"
     | "workingTreeCheckedAt"
   > & {
-    diffCache?: React.ComponentProps<typeof ChangesPanel>["diffCache"];
+    controller?: ChangesController;
     workingTreeCheckedAt?: number | null;
   },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [isSaveVersionOpen, setIsSaveVersionOpen] = useState(false);
-  const ownCache = useRef(createDiffCache());
+  const ownController = useRef(createChangesController(changesPort));
   return (
     <ChangesPanel
       {...props}
-      diffCache={props.diffCache ?? ownCache.current}
+      controller={props.controller ?? ownController.current}
+      sessionEpoch="test-epoch"
       workingTreeCheckedAt={props.workingTreeCheckedAt ?? null}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
@@ -197,7 +199,7 @@ describe("ChangesPanel save selection", () => {
     // The regression this guards: the cache used to live in a ref inside
     // `ChangesPanel`, so navigating to another screen and back discarded it
     // and re-ran every read (task 019).
-    const diffCache = createDiffCache();
+    const controller = createChangesController(changesPort);
     const panelElement = (
       <LanguageProvider>
         <ControlledChangesPanel
@@ -205,7 +207,7 @@ describe("ChangesPanel save selection", () => {
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
-          diffCache={diffCache}
+          controller={controller}
           onRefresh={vi.fn()}
           onNavigateOverview={vi.fn()}
           onPublishNow={vi.fn()}
@@ -449,7 +451,7 @@ describe("ChangesPanel review controls", () => {
     });
   });
 
-  function renderPanel(checkedAt: number | null = null, diffCache = createDiffCache()): void {
+  function renderPanel(checkedAt: number | null = null, controller = createChangesController(changesPort)): void {
     render(
       <LanguageProvider>
         <ControlledChangesPanel
@@ -458,7 +460,7 @@ describe("ChangesPanel review controls", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           workingTreeCheckedAt={checkedAt}
-          diffCache={diffCache}
+          controller={controller}
           onRefresh={vi.fn()}
           onNavigateOverview={vi.fn()}
           onPublishNow={vi.fn()}
@@ -535,9 +537,9 @@ describe("ChangesPanel review controls", () => {
   });
 
   it("shows the snapshot's added and removed line totals once the diff cache is warm", async () => {
-    const diffCache = createDiffCache();
-    await warmDiffStore(getDiffStore(diffCache, "/repo", undefined, workingTree));
-    renderPanel(null, diffCache);
+    const controller = createChangesController(changesPort);
+    await controller.warmStore(controller.getStore("/repo", "test-epoch", workingTree));
+    renderPanel(null, controller);
 
     expect(await screen.findByText("3 lines added")).toBeInTheDocument();
     expect(screen.getByText("1 line removed")).toBeInTheDocument();

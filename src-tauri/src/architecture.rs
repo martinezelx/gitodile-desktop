@@ -30,7 +30,7 @@ fn use_paths(tree: &UseTree, prefix: &str, paths: &mut Vec<String>) {
 }
 
 #[test]
-fn rust_module_direction_keeps_version_lines_out_of_transport_and_infrastructure() {
+fn rust_module_direction_keeps_read_features_out_of_transport_and_infrastructure() {
     let source_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let root = parse(&source_dir.join("lib.rs"));
     let modules = root
@@ -43,9 +43,12 @@ fn rust_module_direction_keeps_version_lines_out_of_transport_and_infrastructure
         .collect::<BTreeSet<_>>();
     for required in [
         "application",
+        "changes",
         "git",
         "ipc",
+        "repository",
         "repository_access",
+        "status",
         "version_lines",
     ] {
         assert!(
@@ -54,17 +57,31 @@ fn rust_module_direction_keeps_version_lines_out_of_transport_and_infrastructure
         );
     }
 
-    let feature = parse(&source_dir.join("version_lines.rs"));
-    let mut imports = Vec::new();
-    for item in &feature.items {
-        if let Item::Use(import) = item {
-            use_paths(&import.tree, "", &mut imports);
+    for owner in ["repository", "status", "changes", "version_lines"] {
+        let feature = parse(&source_dir.join(format!("{owner}.rs")));
+        let mut imports = Vec::new();
+        for item in &feature.items {
+            if let Item::Use(import) = item {
+                use_paths(&import.tree, "", &mut imports);
+            }
         }
-    }
-    for forbidden in ["crate::ipc", "crate::watch", "crate::session", "tauri"] {
+        for forbidden in ["crate::ipc", "crate::watch", "tauri"] {
+            assert!(
+                imports.iter().all(|path| !path.starts_with(forbidden)),
+                "{owner}.rs may not depend on {forbidden}; imports were {imports:?}",
+            );
+        }
+        if owner != "repository" {
+            assert!(
+                imports
+                    .iter()
+                    .all(|path| !path.starts_with("crate::session")),
+                "{owner}.rs may not depend on session transport state; imports were {imports:?}",
+            );
+        }
         assert!(
-            imports.iter().all(|path| !path.starts_with(forbidden)),
-            "version_lines.rs may not depend on {forbidden}; imports were {imports:?}",
+            imports.iter().all(|path| path != "crate::*"),
+            "{owner}.rs must name its inward dependencies instead of importing the crate root: {imports:?}",
         );
     }
 
@@ -74,10 +91,19 @@ fn rust_module_direction_keeps_version_lines_out_of_transport_and_infrastructure
         "fn plan_create_version_line",
         "fn switch_version_line",
         "fn delete_version_line",
+        "pub(crate) fn open_repository",
+        "pub(crate) fn parse_status_records",
+        "pub(crate) fn read_working_tree_status",
+        "pub(crate) fn parse_diff_body",
+        "pub(crate) fn read_file_diff",
+        "pub(crate) fn read_working_tree_diffs",
+        "pub(crate) fn list_unpublished_versions",
+        "pub(crate) fn read_commit_file_changes",
+        "pub(crate) fn read_commit_file_diff",
     ] {
         assert!(
             !root_source.contains(legacy_marker),
-            "Version-lines domain behavior must stay in its owning module: found {legacy_marker} in lib.rs",
+            "Domain behavior must stay in its owning module: found {legacy_marker} in lib.rs",
         );
     }
 }

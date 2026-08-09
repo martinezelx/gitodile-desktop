@@ -51,25 +51,22 @@ import {
   CircleArrowUp,
 } from "lucide-react";
 import { LANGUAGE_NAMES, useLanguage, type Language, type LanguagePreference } from "./i18n";
+import { getRepositoryOverviewState, type RepositoryInfo } from "./features/repository";
 import {
   CATEGORY_ORDER,
   getOrderedChangeEntries,
-  getRepositoryOverviewState,
   getWorkingTreeBreakdown,
   getWorkingTreeSummary,
   splitPath,
   type ChangeCategory,
-  type RepositoryInfo,
   type WorkingTreeStatus,
-} from "./repositoryOverview";
+} from "./features/status";
 import { localizeAppError } from "./appError";
-import {
-  acceptsRepositoryInvalidation,
-  invalidationNeedsSharedRefresh,
-  type RepositoryInvalidation,
-} from "./repositoryInvalidation";
+import type { RepositoryInvalidation } from "./repositoryInvalidation";
 import { autoHideScrollbarProps } from "./autoHideScrollbar";
-import { createDiffCache, releaseDiffCache } from "./diffCache";
+import { createChangesController, changesPort } from "./features/changes";
+import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
+import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
 import type { PendingVersionsResult } from "./publish";
 import {
   createVersionLinesController,
@@ -89,13 +86,11 @@ import {
   initialProjectSessionsState,
   projectSessionsStateToStored,
   readStoredProjects,
-  repositorySessionEpoch,
-  shouldRefreshOnWatchEvent,
   writeStoredProjects,
   type ProjectView,
 } from "./projectSessions";
 import { createProjectRuntime, scheduleIdleTask, useProjectSelector } from "./projectRuntime";
-import { useProjectCacheWarming } from "./projectCacheWarming";
+import { useProjectCacheWarming } from "./features/repository";
 import {
   ProjectSwitcher,
   ProjectSwitcherCompact,
@@ -122,7 +117,7 @@ import "./styles.css";
 // which are not screens.
 const PublishDialog = lazy(() => import("./publishDialog").then((m) => ({ default: m.PublishDialog })));
 const PendingVersionsSection = lazy(() =>
-  import("./pendingVersions").then((m) => ({ default: m.PendingVersionsSection })),
+  import("./features/overview/PendingVersionsSection").then((m) => ({ default: m.PendingVersionsSection })),
 );
 const CreateVersionLineDialog = lazy(() =>
   import("./features/version-lines/VersionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
@@ -1262,6 +1257,7 @@ function OverviewPanel({
               <PendingVersionsSection
                 key={project.path}
                 projectPath={project.path}
+                sessionEpoch={project.sessionEpoch}
                 result={pendingVersions}
                 error={pendingVersionsError}
                 onRetry={onRetryPendingVersions}
@@ -1775,22 +1771,17 @@ export function App(): React.JSX.Element {
   );
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
+  const [repositoryController] = useState(() => createRepositoryController(repositoryPort));
+  const [statusController] = useState(() => createStatusController(statusPort));
+  const [changesController] = useState(() => createChangesController(changesPort));
+  const [repositoryReads] = useState(() =>
+    createRepositoryReadCoordinator(repositoryController, statusController, versionLinesController),
+  );
   const sessionsState = useProjectSelector(projectRuntime, (snapshot) => snapshot);
   const dispatchSessions = projectRuntime.dispatch;
-  // Owns the "which response is still current" counter per session. Lives
-  // outside the reducer so a caller can read "the next generation" as a
-  // plain synchronous value before the async status/pending-versions calls
-  // even start (see `checkWorkingTree` below).
-  const statusGenerationsRef = useRef<Record<string, number>>({});
-  // Watch events that arrive while a mutation owns the working tree are not
-  // discarded. They are coalesced here and replayed when the dialog closes.
-  const pendingWatchRefreshesRef = useRef<Record<string, { repositoryStateChanged: boolean }>>({});
-  const watcherSequencesRef = useRef<Record<string, number>>({});
+  // Tracks only native watcher registrations. Read generations, mutation
+  // deferral and diff retention belong to the feature controllers above.
   const watchedSessionsRef = useRef<Record<string, string>>({});
-  // Read diffs, kept per project across screen changes. Owned here rather
-  // than by `ChangesPanel` so leaving Changes and coming back is a cache hit
-  // (see task 019); entries are dropped when their session closes.
-  const diffCacheRef = useRef(createDiffCache());
   const activeSession = sessionsState.activeId ? sessionsState.byId[sessionsState.activeId] : null;
   const activeVersionLinesQuery = useMemo(
     () => ({ projectId: activeSession?.id ?? "", sessionEpoch: activeSession?.epoch ?? "" }),
@@ -1804,6 +1795,15 @@ export function App(): React.JSX.Element {
   const workingTreeCheckedAt = activeSession?.workingTreeCheckedAt ?? null;
   const pendingVersions = activeSession?.pendingVersions ?? EMPTY_PENDING_VERSIONS;
   const pendingVersionsError = activeSession?.pendingVersionsError ?? null;
+  const mapStatusError = useMemo<StatusErrorMapper>(
+    () => (error, area) =>
+      localizeAppError(
+        error,
+        t,
+        area === "working-tree" ? t.statusCouldntCheck : t.overviewPendingVersionsError,
+      ),
+    [t],
+  );
   const [projectAnnouncement, setProjectAnnouncement] = useState("");
   const [storedProjectsOnLaunch] = useState(readStoredProjects);
   const [hasCompletedSessionRestore, setHasCompletedSessionRestore] = useState(false);
@@ -2018,49 +2018,7 @@ export function App(): React.JSX.Element {
 
   const checkWorkingTree = async (path: string, requestedEpoch?: string): Promise<void> => {
     const epoch = requestedEpoch ?? sessionsState.byId[path]?.epoch;
-    if (!epoch) {
-      return;
-    }
-    const generation = (statusGenerationsRef.current[path] ?? 0) + 1;
-    statusGenerationsRef.current[path] = generation;
-    dispatchSessions({ type: "startStatusCheck", id: path, generation, epoch });
-    try {
-      const status = await invoke<WorkingTreeStatus>("read_working_tree_status", { path, sessionEpoch: epoch });
-      dispatchSessions({
-        type: "applyWorkingTree",
-        id: path,
-        generation,
-        epoch,
-        workingTree: status,
-        checkedAt: Date.now(),
-      });
-    } catch (error) {
-      // Keep the last known status visible; the card reports the failure only
-      // when it has nothing truthful to show instead.
-      dispatchSessions({
-        type: "applyWorkingTreeError",
-        id: path,
-        generation,
-        epoch,
-        error: localizeAppError(error, t, t.statusCouldntCheck),
-      });
-    }
-    // Independent of the status outcome above: a failure here must never
-    // blank out or corrupt the primary working-tree status. Guarded by the
-    // same generation as the status call above so a superseded refresh's
-    // pending-versions result can't land after a newer one either.
-    try {
-      const result = await invoke<PendingVersionsResult>("list_unpublished_versions", { path, sessionEpoch: epoch });
-      dispatchSessions({ type: "applyPendingVersions", id: path, generation, epoch, result });
-    } catch (error) {
-      dispatchSessions({
-        type: "applyPendingVersionsError",
-        id: path,
-        generation,
-        epoch,
-        error: localizeAppError(error, t, t.overviewPendingVersionsError),
-      });
-    }
+    if (epoch) await statusController.refresh(projectRuntime, { projectId: path, sessionEpoch: epoch }, mapStatusError);
   };
 
   // A successful create/switch/delete on a version line changes `HEAD`, the
@@ -2076,37 +2034,9 @@ export function App(): React.JSX.Element {
   // Version-lines feature controller by both the screen and Overview dialogs,
   // so this callback only refreshes repository facts shared by features.
   const handleVersionLineChanged = async (path: string): Promise<void> => {
-    delete pendingWatchRefreshesRef.current[path];
-    try {
-      const info = await invoke<RepositoryInfo>("open_repository", {
-        path,
-        sessionEpoch: sessionsState.byId[path]?.epoch,
-      });
-      dispatchSessions({ type: "open", project: info });
-    } catch {
-      // Best-effort: the working-tree refresh below still runs, and the
-      // next status check will eventually re-derive the branch too.
-    }
+    repositoryReads.discardDeferred(path);
     dispatchSessions({ type: "setChangesSelection", id: path, selection: EMPTY_CHANGES_SELECTION });
-    await checkWorkingTree(path);
-  };
-
-  const refreshRepositoryState = async (path: string): Promise<void> => {
-    try {
-      const info = await invoke<RepositoryInfo>("open_repository", {
-        path,
-        sessionEpoch: sessionsState.byId[path]?.epoch,
-      });
-      dispatchSessions({ type: "open", project: info });
-    } catch {
-      // Keep the last known identity visible; the working-tree refresh below
-      // still runs and the next repository event/navigation can retry.
-    }
-    const epoch = sessionsState.byId[path]?.epoch;
-    if (epoch) {
-      void versionLinesController.refresh({ projectId: path, sessionEpoch: epoch });
-    }
-    await checkWorkingTree(path);
+    await repositoryReads.refreshAll(projectRuntime, sessionsState, path, mapStatusError);
   };
 
   const startVersionLineOperation = (path: string): boolean => {
@@ -2128,16 +2058,7 @@ export function App(): React.JSX.Element {
 
   const finishSessionOperation = (path: string): void => {
     dispatchSessions({ type: "finishOperation", id: path });
-    const pending = pendingWatchRefreshesRef.current[path];
-    if (!pending) {
-      return;
-    }
-    delete pendingWatchRefreshesRef.current[path];
-    if (pending.repositoryStateChanged) {
-      void refreshRepositoryState(path);
-    } else {
-      void checkWorkingTree(path);
-    }
+    repositoryReads.finishDeferred(projectRuntime, sessionsState, path, mapStatusError);
   };
 
   const setVersionLineOperationPhase = (
@@ -2182,7 +2103,7 @@ export function App(): React.JSX.Element {
         return;
       }
       setIsOpening(true);
-      const info = await invoke<RepositoryInfo>("open_repository", { path: selected });
+      const info = await repositoryController.open({ selectedPath: selected });
       // Opening an already-open worktree activates it instead of duplicating
       // it — `existing` is read before dispatching so its (possibly stale)
       // `lastView` is available for `syncViewToSession` below.
@@ -2190,9 +2111,7 @@ export function App(): React.JSX.Element {
       dispatchSessions({ type: "open", project: info });
       syncViewToSession(existing?.lastView ?? "overview");
       setProjectAnnouncement(t.projectSwitcherActiveAnnouncement(info.name));
-      if (!existing) {
-        void checkWorkingTree(info.path, repositorySessionEpoch(info));
-      }
+      if (!existing) void checkWorkingTree(info.path, info.sessionEpoch);
     } catch (error) {
       // Opening failures belong only to the attempted path; existing
       // sessions are never touched by a failed `open_repository` call. When
@@ -2231,9 +2150,9 @@ export function App(): React.JSX.Element {
           return;
         }
         try {
-          const info = await invoke<RepositoryInfo>("open_repository", { path });
+          const info = await repositoryController.open({ selectedPath: path });
           dispatchSessions({ type: "open", project: info });
-          void checkWorkingTree(info.path, repositorySessionEpoch(info));
+          void checkWorkingTree(info.path, info.sessionEpoch);
         } catch {
           skipped += 1;
         }
@@ -2276,27 +2195,7 @@ export function App(): React.JSX.Element {
   // it pointed at the current immutable session state.
   const handleRepositoryChangedRef = useRef<(event: RepositoryInvalidation) => void>(() => {});
   handleRepositoryChangedRef.current = (event: RepositoryInvalidation) => {
-    const path = event.projectId;
-    const session = sessionsState.byId[path];
-    const sequenceKey = `${path}\0${event.sessionEpoch}`;
-    const previousSequence = watcherSequencesRef.current[sequenceKey] ?? 0;
-    if (!acceptsRepositoryInvalidation(session, event, previousSequence)) {
-      return;
-    }
-    watcherSequencesRef.current[sequenceKey] = event.sequence;
-    const repositoryStateChanged = invalidationNeedsSharedRefresh(event.kind);
-    if (!shouldRefreshOnWatchEvent(session)) {
-      const pending = pendingWatchRefreshesRef.current[path];
-      pendingWatchRefreshesRef.current[path] = {
-        repositoryStateChanged: repositoryStateChanged || Boolean(pending?.repositoryStateChanged),
-      };
-      return;
-    }
-    if (repositoryStateChanged) {
-      void refreshRepositoryState(path);
-    } else {
-      void checkWorkingTree(path);
-    }
+    repositoryReads.handleInvalidation(projectRuntime, sessionsState, event, mapStatusError);
   };
 
   useEffect(() => {
@@ -2383,7 +2282,7 @@ export function App(): React.JSX.Element {
     hasCompletedSessionRestore,
     projectPath,
     session: activeSession,
-    diffCache: diffCacheRef.current,
+    changesController,
     versionLinesController,
   });
 
@@ -2425,22 +2324,12 @@ export function App(): React.JSX.Element {
         ? remainingOrder[Math.min(index, remainingOrder.length - 1)]
         : sessionsState.activeId;
     const nextSession = nextActiveId ? sessionsState.byId[nextActiveId] : null;
-    // The session's own state goes with the reducer; the diff cache lives
-    // outside it and has to be dropped explicitly, or a closed project's
-    // file contents would stay in memory for the rest of the run.
-    // Generation counters deliberately survive and are advanced here: a
-    // response started by the closed session must never be accepted by a
-    // later session that reopens the same canonical path. Dropping the request
-    // entry lets that reopened session start a fresh read; the old request's
-    // conditional cleanup cannot erase the replacement.
-    releaseDiffCache(diffCacheRef.current, id);
-    delete pendingWatchRefreshesRef.current[id];
+    // Explicitly evict feature-owned state for this session incarnation.
+    // Their generations reject late responses from the closed epoch.
+    changesController.close(id, closingSession.epoch);
+    statusController.close({ projectId: id, sessionEpoch: closingSession.epoch });
+    repositoryReads.close(id, closingSession.epoch);
     delete watchedSessionsRef.current[id];
-    for (const key of Object.keys(watcherSequencesRef.current)) {
-      if (key.startsWith(`${id}\0`)) {
-        delete watcherSequencesRef.current[key];
-      }
-    }
     versionLinesController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id) {
@@ -3024,8 +2913,8 @@ export function App(): React.JSX.Element {
                           workingTreeError={workingTreeError}
                           isCheckingChanges={isCheckingChanges}
                           workingTreeCheckedAt={workingTreeCheckedAt}
-                          diffCache={diffCacheRef.current}
-                          sessionEpoch={activeSession?.epoch}
+                          controller={changesController}
+                          sessionEpoch={activeSession?.epoch ?? ""}
                           onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
                           onNavigateOverview={() => navigateToView("overview")}
                           onPublishNow={() => openPublishDialog()}

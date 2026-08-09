@@ -92,3 +92,9 @@ owning-module error.
 For the complete read-and-mutation example, including epoch-keyed request
 deduplication, mutation supersession, bounded eviction and the Rust service
 boundary, see [the Version-lines reference slice](version-lines-reference-slice.md).
+
+For read-only repository state, use the task-028 ownership split: repository
+identity/invalidation coordination, status snapshot equality/generations and
+Changes diff caching remain separate feature policies. Do not generalize the
+four-epoch, 256-entry and approximate 40 MiB diff limits to small metadata
+snapshots, and do not move the whole-tree warm-up into a screen effect.

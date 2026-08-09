@@ -111,7 +111,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | 025 | Done 2026-08-09 | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
 | 026 | Done 2026-08-09 | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
 | 027 | Done 2026-08-09 | Version lines migrated as the reference vertical slice | 024–026 |
-| 028 | Not started | Repository/status/changes/diff reads migrated | 027 |
+| 028 | Done 2026-08-09 | Repository/status/changes/diff reads migrated | 027 |
 | 029 | Not started | Save and publish mutation flows migrated without weakening safety | 027, 028 |
 | 030 | Not started | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
 | 031 | Not started | Complete cross-platform integration audit, final measurements, epic closure and History unlock | 023–030 |
@@ -241,7 +241,18 @@ Windows profiling recorded warm switch p95 values of 32.4/32.6 ms, bounded DOM
 counts and zero Git process starts during navigation; build chunks remained
 inside task 023's budgets. The durable reference-slice guide identifies the
 mandatory contracts History can reuse without inheriting branch-specific
-policy. Task 028 remains unstarted.
+policy.
+
+Task 028 moved repository identity, status/pending summaries and working-tree
+changes/diffs into owned frontend controllers and Rust domain modules. Project
+activation and typed invalidation now own idle-deferred batch diff warming;
+screen navigation performs no read IPC. Epoch/generation isolation, stable
+unchanged snapshot identity and bounded four-epoch/256-entry/approximately
+40-MiB diff caches are covered by focused races and eviction tests. Existing
+virtualized and Accessible text diff modes, popup behavior and exceptional
+native output states remain intact. Windows build chunks stayed below task
+023 warning budgets and the file-icon implementation remains lazy. Task 029
+remains unstarted and the root compatibility re-exports it needs are retained.
 
 # Validation
 

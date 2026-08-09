@@ -1,16 +1,16 @@
 import { useEffect } from "react";
 
-import { getDiffStore, warmDiffStore, type DiffCache } from "./diffCache";
-import type { VersionLinesController } from "./features/version-lines";
-import type { ProjectRuntime } from "./projectRuntime";
-import type { ProjectSession } from "./projectSessions";
+import type { ChangesController } from "../changes";
+import type { VersionLinesController } from "../version-lines";
+import type { ProjectRuntime } from "../../projectRuntime";
+import type { ProjectSession } from "../../projectSessions";
 
 type ProjectCacheWarmingOptions = {
   runtime: ProjectRuntime;
   hasCompletedSessionRestore: boolean;
   projectPath: string | null;
   session: ProjectSession | null;
-  diffCache: DiffCache;
+  changesController: ChangesController;
   versionLinesController: VersionLinesController;
 };
 
@@ -24,7 +24,7 @@ export function useProjectCacheWarming({
   hasCompletedSessionRestore,
   projectPath,
   session,
-  diffCache,
+  changesController,
   versionLinesController,
 }: ProjectCacheWarmingOptions): void {
   useEffect(() => {
@@ -42,14 +42,15 @@ export function useProjectCacheWarming({
     if (!hasCompletedSessionRestore || !projectPath || !session?.workingTree) {
       return undefined;
     }
-    const store = getDiffStore(diffCache, projectPath, session.epoch, session.workingTree);
-    return runtime.scheduleCacheWarm({
-      key: `working-tree-diffs:${session.epoch}:${session.statusGeneration}`,
-      reason: "repository-invalidation",
-      run: () => warmDiffStore(store),
-    });
+    return changesController.scheduleWarm(
+      runtime,
+      projectPath,
+      session.epoch,
+      session.workingTree,
+      "repository-invalidation",
+    );
   }, [
-    diffCache,
+    changesController,
     hasCompletedSessionRestore,
     projectPath,
     runtime,

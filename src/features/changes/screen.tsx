@@ -3,7 +3,7 @@ import { GitCompare } from "lucide-react";
 import { createLazyScreenContainer, type ScreenModule } from "../../screenModule";
 
 const container = createLazyScreenContainer(
-  () => import("../../changes"),
+  () => import("./ChangesPanel"),
   (module) => module.ChangesPanel,
 );
 

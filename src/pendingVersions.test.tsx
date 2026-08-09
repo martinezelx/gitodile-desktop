@@ -38,6 +38,7 @@ function renderSection(overrides: Partial<React.ComponentProps<typeof PendingVer
     <LanguageProvider>
       <PendingVersionsSection
         projectPath="/repo"
+        sessionEpoch="test-epoch"
         result={result}
         error={null}
         onRetry={onRetry}
@@ -107,7 +108,11 @@ describe("PendingVersionsSection", () => {
 
     expect(await screen.findByText("src/foo.ts")).toBeInTheDocument();
     expect(screen.getByText("src/new.ts")).toBeInTheDocument();
-    expect(mockedInvoke).toHaveBeenCalledWith("read_commit_file_changes", { path: "/repo", commit: "aaa111" });
+    expect(mockedInvoke).toHaveBeenCalledWith("read_commit_file_changes", {
+      path: "/repo",
+      sessionEpoch: "test-epoch",
+      commit: "aaa111",
+    });
 
     // Collapsing and reopening must not refetch — cached per commit.
     await userEvent.click(screen.getByText("fix the thing"));
@@ -143,6 +148,7 @@ describe("PendingVersionsSection", () => {
     expect(await screen.findByText("No content changed")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenLastCalledWith("read_commit_file_diff", {
       path: "/repo",
+      sessionEpoch: "test-epoch",
       commit: "aaa111",
       filePath: "src/foo.ts",
     });

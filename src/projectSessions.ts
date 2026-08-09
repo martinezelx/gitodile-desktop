@@ -1,5 +1,6 @@
 import type { PendingVersionsResult } from "./publish";
-import type { RepositoryInfo, WorkingTreeStatus } from "./repositoryOverview";
+import type { RepositoryInfo } from "./features/repository";
+import type { WorkingTreeStatus } from "./features/status";
 
 /** Per-project view: `settings` lives outside any session (see main.tsx), so
  * a session only ever remembers which of these two it was last showing. */
@@ -64,9 +65,9 @@ export type ProjectSession = {
    * unless their `generation` still matches, so a response from a
    * superseded request (a second refresh started before the first
    * returned) can never clobber a newer one. Ownership of the counter
-   * itself lives with the caller (see `main.tsx`'s `statusGenerationsRef`),
-   * not this reducer — that keeps "what's the next generation" a plain
-   * synchronous read the caller can use before the async call even starts. */
+   * itself lives with the status feature controller, not this reducer —
+   * that keeps "what's the next generation" a plain synchronous read the
+   * controller can use before the async call even starts. */
   statusGeneration: number;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;

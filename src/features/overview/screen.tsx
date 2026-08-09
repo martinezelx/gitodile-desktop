@@ -12,10 +12,11 @@ export const overviewScreenModule = {
   icon: <LayoutDashboard />,
   requiresProject: false,
   inCompactNav: true,
-  // Overview remains host-owned until its read lifecycle migrates in task 028.
+  // The shell still composes the visual Overview panel, while repository,
+  // status and pending-version reads are owned by their feature controllers.
   container: { kind: "host-owned" },
   additionalPreloads: [
-    () => import("../../pendingVersions"),
+    () => import("./PendingVersionsSection"),
     () => import("../../publishDialog"),
     () => import("../version-lines/VersionLinesDialog"),
   ],
