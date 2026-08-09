@@ -112,6 +112,11 @@ export function createVersionLinesController(port: VersionLinesPort) {
     },
     refresh,
     commit,
+    supersede(query: VersionLinesQuery): void {
+      const entry = entryFor(query);
+      publish(entry, { ...entry.state, generation: entry.state.generation + 1 });
+      entry.inFlight = null;
+    },
     scheduleWarm(runtime: ProjectRuntime, query: VersionLinesQuery, reason: ProjectCacheWarmReason): () => void {
       return runtime.scheduleCacheWarm({
         key: `version-lines:${query.sessionEpoch}`,

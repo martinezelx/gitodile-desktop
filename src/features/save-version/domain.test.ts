@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getSaveVersionBreakdown } from "./saveVersion";
-import type { WorkingTreeCounts } from "./repositoryOverview";
+import { getSaveVersionBreakdown } from "./domain";
+import type { WorkingTreeCounts } from "../status";
 
 function counts(overrides: Partial<WorkingTreeCounts>): WorkingTreeCounts {
   return { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 0, ...overrides };

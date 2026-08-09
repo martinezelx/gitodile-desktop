@@ -10,6 +10,10 @@ fn validate_session(path: &str, session_epoch: Option<&str>) -> Result<(), AppEr
     session::global().validate(path, session_epoch)
 }
 
+fn validate_mutation_session(path: &str, session_epoch: &str) -> Result<(), AppError> {
+    session::global().validate(path, Some(session_epoch))
+}
+
 #[tauri::command]
 pub(crate) fn app_status() -> &'static str {
     crate::app_status()
@@ -102,9 +106,9 @@ pub(crate) fn set_git_identity(name: String, email: String) -> Result<(), AppErr
 pub(crate) fn plan_save_version(
     path: String,
     selected_paths: Option<Vec<String>>,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<SaveVersionPlan, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::plan_save_version(path, selected_paths)
 }
 
@@ -115,9 +119,9 @@ pub(crate) fn save_version(
     description: Option<String>,
     state_token: String,
     selected_paths: Option<Vec<String>>,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<SaveVersionResult, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::save_version(path, title, description, state_token, selected_paths)
 }
 
@@ -165,9 +169,9 @@ pub(crate) fn plan_publish(
     path: String,
     remote: Option<String>,
     up_to: Option<String>,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<PublishPlan, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::plan_publish(path, remote, up_to)
 }
 
@@ -177,9 +181,9 @@ pub(crate) fn publish(
     remote: String,
     state_token: String,
     up_to: Option<String>,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<PublishResult, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::publish(path, remote, state_token, up_to)
 }
 
@@ -197,9 +201,9 @@ pub(crate) fn plan_create_version_line(
     path: String,
     name: String,
     switch: bool,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<CreateVersionLinePlan, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::plan_create_version_line(path, name, switch)
 }
 
@@ -209,9 +213,9 @@ pub(crate) fn create_version_line(
     name: String,
     switch: bool,
     state_token: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::create_version_line(path, name, switch, state_token)
 }
 
@@ -219,9 +223,9 @@ pub(crate) fn create_version_line(
 pub(crate) fn plan_switch_version_line(
     path: String,
     target: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<SwitchVersionLinePlan, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::plan_switch_version_line(path, target)
 }
 
@@ -230,9 +234,9 @@ pub(crate) fn switch_version_line(
     path: String,
     target: String,
     state_token: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::switch_version_line(path, target, state_token)
 }
 
@@ -240,9 +244,9 @@ pub(crate) fn switch_version_line(
 pub(crate) fn plan_delete_version_line(
     path: String,
     name: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<DeleteVersionLinePlan, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::plan_delete_version_line(path, name)
 }
 
@@ -251,9 +255,9 @@ pub(crate) fn delete_version_line(
     path: String,
     name: String,
     state_token: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_mutation_session(&path, &session_epoch)?;
     crate::delete_version_line(path, name, state_token)
 }
 
@@ -372,6 +376,7 @@ mod contract_tests {
             let tail = &source[start..];
             let end = tail.find('{').unwrap_or(tail.len());
             let signature = &tail[..end];
+            let compact_signature = signature.split_whitespace().collect::<String>();
             for argument in &command.arguments {
                 let rust_name = snake_case(argument);
                 assert!(
@@ -379,6 +384,15 @@ mod contract_tests {
                     "{} missing argument {argument}",
                     command.name
                 );
+                if argument.trim_end_matches('?') == "sessionEpoch" {
+                    let is_optional = compact_signature.contains("session_epoch:Option<String>");
+                    assert_eq!(
+                        is_optional,
+                        argument.ends_with('?'),
+                        "{} sessionEpoch optionality must match the checked contract",
+                        command.name,
+                    );
+                }
             }
             assert_eq!(
                 response_name(signature),

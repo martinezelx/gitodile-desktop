@@ -3,9 +3,9 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { LanguageProvider } from "./i18n";
-import { PublishDialog } from "./publishDialog";
-import type { PublishPlan, PublishResult, RemoteDiscovery } from "./publish";
+import { LanguageProvider } from "../../i18n";
+import { PublishDialog } from "./PublishDialog";
+import type { PublishPlan, PublishResult, RemoteDiscovery } from "./domain";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
@@ -43,7 +43,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof PublishDialog>>
   const onPublished = vi.fn(async () => undefined);
   const utils = render(
     <LanguageProvider>
-      <PublishDialog isOpen projectPath="/repo" onClose={onClose} onPublished={onPublished} {...props} />
+      <PublishDialog isOpen projectPath="/repo" sessionEpoch="epoch-1" onClose={onClose} onPublished={onPublished} {...props} />
     </LanguageProvider>,
   );
   return { onClose, onPublished, ...utils };
@@ -58,7 +58,7 @@ describe("PublishDialog", () => {
   it("renders nothing when closed, and never calls the planner", () => {
     const { container } = render(
       <LanguageProvider>
-        <PublishDialog isOpen={false} projectPath="/repo" onClose={vi.fn()} onPublished={vi.fn()} />
+        <PublishDialog isOpen={false} projectPath="/repo" sessionEpoch="epoch-1" onClose={vi.fn()} onPublished={vi.fn()} />
       </LanguageProvider>,
     );
     expect(container).toBeEmptyDOMElement();
@@ -73,7 +73,7 @@ describe("PublishDialog", () => {
     expect(screen.getByText("origin")).toBeInTheDocument();
     expect(screen.getByText("main")).toBeInTheDocument();
     expect(screen.getByText("1 saved version will be published.")).toBeInTheDocument();
-    expect(mockedInvoke).toHaveBeenCalledWith("plan_publish", { path: "/repo", remote: undefined });
+    expect(mockedInvoke).toHaveBeenCalledWith("plan_publish", { path: "/repo", sessionEpoch: "epoch-1", remote: undefined, upTo: undefined });
   });
 
   it("lists each version being published with its title and short hash", async () => {
@@ -138,7 +138,7 @@ describe("PublishDialog", () => {
     expect(screen.getByText("add keyboard navigation")).toHaveClass("publish-stays__pill");
     expect(screen.queryByText("newer1")).not.toBeInTheDocument();
     expect(screen.queryByText("newer2")).not.toBeInTheDocument();
-    expect(mockedInvoke).toHaveBeenCalledWith("plan_publish", { path: "/repo", remote: undefined, upTo: "abc123" });
+    expect(mockedInvoke).toHaveBeenCalledWith("plan_publish", { path: "/repo", sessionEpoch: "epoch-1", remote: undefined, upTo: "abc123" });
   });
 
   it("lazily loads and shows a commit's changed files only once it is expanded", async () => {
@@ -168,6 +168,7 @@ describe("PublishDialog", () => {
     expect(screen.getByText("src/new.ts")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenLastCalledWith("read_commit_file_changes", {
       path: "/repo",
+      sessionEpoch: "epoch-1",
       commit: "aaa111",
     });
 
@@ -246,13 +247,13 @@ describe("PublishDialog", () => {
 
     expect(await screen.findByText("origin")).toBeInTheDocument();
     expect(screen.getByText("upstream")).toBeInTheDocument();
-    expect(mockedInvoke).toHaveBeenCalledWith("discover_remotes", { path: "/repo" });
+    expect(mockedInvoke).toHaveBeenCalledWith("discover_remotes", { path: "/repo", sessionEpoch: "epoch-1" });
 
     mockedInvoke.mockResolvedValueOnce(plan({ target: { remote: "upstream", destinationBranch: "main" } }));
     await userEvent.click(screen.getByText("upstream"));
 
     expect(await screen.findByText("upstream")).toBeInTheDocument();
-    expect(mockedInvoke).toHaveBeenLastCalledWith("plan_publish", { path: "/repo", remote: "upstream" });
+    expect(mockedInvoke).toHaveBeenLastCalledWith("plan_publish", { path: "/repo", sessionEpoch: "epoch-1", remote: "upstream", upTo: undefined });
   });
 
   it("publishes successfully and refreshes the caller", async () => {
@@ -276,8 +277,10 @@ describe("PublishDialog", () => {
     expect(onPublished).toHaveBeenCalledTimes(1);
     expect(mockedInvoke).toHaveBeenLastCalledWith("publish", {
       path: "/repo",
+      sessionEpoch: "epoch-1",
       remote: "origin",
       stateToken: "publish-token-1",
+      upTo: undefined,
     });
   });
 
@@ -341,6 +344,7 @@ describe("PublishDialog", () => {
     await screen.findByRole("heading", { name: "Destination" });
     expect(mockedInvoke).toHaveBeenLastCalledWith("plan_publish", {
       path: "/repo",
+      sessionEpoch: "epoch-1",
       remote: undefined,
       upTo: undefined,
     });
@@ -406,6 +410,7 @@ describe("PublishDialog", () => {
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenLastCalledWith("plan_publish", {
         path: "/repo",
+        sessionEpoch: "epoch-1",
         remote: undefined,
         upTo: undefined,
       }),
@@ -422,7 +427,7 @@ describe("PublishDialog", () => {
           <button type="button" onClick={() => setIsOpen(true)}>
             open
           </button>
-          <PublishDialog isOpen={isOpen} projectPath="/repo" onClose={() => setIsOpen(false)} onPublished={vi.fn()} />
+          <PublishDialog isOpen={isOpen} projectPath="/repo" sessionEpoch="epoch-1" onClose={() => setIsOpen(false)} onPublished={vi.fn()} />
         </>
       );
     }

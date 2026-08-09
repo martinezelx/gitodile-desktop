@@ -4,7 +4,7 @@ import { LayoutDashboard } from "lucide-react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createProjectRuntime } from "./projectRuntime";
-import type { RepositoryInfo } from "./repositoryOverview";
+import type { RepositoryInfo } from "./features/repository";
 import { KeepAliveScreens } from "./screens";
 import {
   createLazyScreenContainer,

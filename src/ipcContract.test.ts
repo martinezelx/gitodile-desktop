@@ -18,9 +18,19 @@ describe("IPC contract snapshot", () => {
     ]);
     expect(contract.commands.find((command) => command.name === "save_version")).toEqual({
       name: "save_version",
-      arguments: ["path", "title", "description?", "stateToken", "selectedPaths?", "sessionEpoch?"],
+      arguments: ["path", "title", "description?", "stateToken", "selectedPaths?", "sessionEpoch"],
       response: "SaveVersionResult",
     });
+    for (const commandName of [
+      "plan_save_version", "save_version", "plan_publish", "publish",
+      "plan_create_version_line", "create_version_line", "plan_switch_version_line",
+      "switch_version_line", "plan_delete_version_line", "delete_version_line",
+    ]) {
+      const command = contract.commands.find(({ name }) => name === commandName);
+      expect(command?.arguments, commandName).toContain("sessionEpoch");
+      expect(command?.arguments, commandName).not.toContain("sessionEpoch?");
+    }
+    expect(contract.compatibility.optionalSessionEpochConsumers).toEqual([]);
     expect(contract.errorCodes).toEqual(APP_ERROR_CODES);
     expect(contract.watchEvent).toEqual({
       name: "repository-changed",

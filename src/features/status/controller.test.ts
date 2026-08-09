@@ -73,4 +73,25 @@ describe("status controller", () => {
     expect(runtime.getSnapshot().byId["/repo"].epoch).toBe("new");
     expect(runtime.getSnapshot().byId["/repo"].workingTree?.counts.total).toBe(2);
   });
+
+  it("lets a mutation result supersede an older read before the follow-up refresh", async () => {
+    const runtime = createProjectRuntime(initialProjectSessionsState);
+    runtime.dispatch({ type: "open", project: info("epoch-1") });
+    let resolveOld!: (value: WorkingTreeStatus) => void;
+    let workingRead = 0;
+    const controller = createStatusController({
+      readWorkingTree: () => ++workingRead === 1
+        ? new Promise((resolve) => { resolveOld = resolve; })
+        : Promise.resolve(status(2)),
+      readPendingVersions: async () => ({ totalCount: workingRead, versions: [], isTruncated: false }),
+    });
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    const oldRequest = controller.refresh(runtime, query, () => "error");
+    controller.supersede(query);
+    await controller.refresh(runtime, query, () => "error");
+    resolveOld(status(9));
+    await oldRequest;
+    expect(runtime.getSnapshot().byId["/repo"].workingTree?.counts.total).toBe(2);
+    expect(workingRead).toBe(2);
+  });
 });

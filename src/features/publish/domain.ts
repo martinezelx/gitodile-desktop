@@ -1,4 +1,4 @@
-import type { ChangeCategory } from "./repositoryOverview";
+import type { ChangeCategory } from "../status";
 
 /** Mirrors the Rust `RemoteInfo` contract. The url is already redacted on
  * the Rust side; nothing here should ever see embedded credentials. */

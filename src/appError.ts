@@ -26,7 +26,7 @@ export type AppError = {
   remediation: string | null;
   /** A bounded, secondary excerpt (e.g. raw hook or signing output) for
    * failures GitOdrile can only classify heuristically. Never the primary
-   * message — see `saveVersionDialog.tsx`'s optional "technical details". */
+   * message — see Save version's optional "technical details". */
   detail?: string | null;
 };
 

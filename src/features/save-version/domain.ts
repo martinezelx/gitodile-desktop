@@ -1,6 +1,6 @@
-import type { ChangeCategory, WorkingTreeCounts } from "./repositoryOverview";
+import type { ChangeCategory, WorkingTreeCounts } from "../status";
 
-/** Mirrors the Rust `SaveVersionPlan` (src-tauri/src/lib.rs). `summary`,
+/** Mirrors the Rust `SaveVersionPlan` (src-tauri/src/save_version.rs). `summary`,
  * `steps`, `risks`, and `recovery` are deliberately not part of this type:
  * Rust's copy for those fields is English-only prose meant for its own
  * planning logic, not a localized user-facing string. The dialog builds its
@@ -28,8 +28,8 @@ export type SaveVersionResult = {
   savedFiles: number;
 };
 
-/** Same fixed reading order as `getWorkingTreeBreakdown` in
- * `repositoryOverview.ts`, applied to a plan's counts instead of a full
+/** Same fixed reading order as the status feature's
+ * `getWorkingTreeBreakdown`, applied to a plan's counts instead of a full
  * status — the confirmation screen only ever has the former. */
 const BREAKDOWN_ORDER: ChangeCategory[] = ["conflicted", "changed", "new", "deleted", "renamed"];
 

@@ -3,10 +3,10 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { ChangesPanel } from "./changes";
+import { ChangesPanel } from "./features/changes/ChangesPanel";
 import { changesPort, createChangesController, type ChangesController } from "./features/changes";
 import { LanguageProvider } from "./i18n";
-import type { WorkingTreeStatus } from "./repositoryOverview";
+import type { WorkingTreeStatus } from "./features/status";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -38,6 +38,7 @@ function ControlledChangesPanel(
     | "onOpenSaveVersion"
     | "onCloseSaveVersion"
     | "onSaveVersionPhaseChange"
+    | "onSaveCompleted"
     | "workingTreeCheckedAt"
   > & {
     controller?: ChangesController;
@@ -59,6 +60,7 @@ function ControlledChangesPanel(
       onOpenSaveVersion={() => setIsSaveVersionOpen(true)}
       onCloseSaveVersion={() => setIsSaveVersionOpen(false)}
       onSaveVersionPhaseChange={() => {}}
+      onSaveCompleted={() => {}}
     />
   );
 }
@@ -145,6 +147,7 @@ describe("ChangesPanel save selection", () => {
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
         path: "/repo",
+        sessionEpoch: "test-epoch",
         selectedPaths: ["edited.txt"],
       }),
     );

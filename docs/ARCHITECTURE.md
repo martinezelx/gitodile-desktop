@@ -355,9 +355,30 @@ unmigrated mutation consumers.
 The Rust owners are `repository.rs`, `status.rs` and `changes.rs`. They contain
 discovery, porcelain/status parsing, pending-summary reads, diff parsing and
 batching, and bounded file reads. `ipc.rs` validates the session and delegates;
-`lib.rs` temporarily re-exports crate-private read contracts needed by task
-029's mutation workflows. Architecture tests reject read workflows returning
-to `lib.rs`, outward transport dependencies and crate-root glob imports.
+architecture tests reject read workflows returning to `lib.rs`, outward
+transport dependencies and crate-root glob imports.
+
+Save version and Publish changes follow the same ownership boundary. Their
+frontend domain types, typed ports, Tauri adapters, controllers and dialogs
+live under `src/features/save-version/` and `src/features/publish/`; neither
+dialog names an IPC command. Rust planning, state-token validation and
+execution live in `save_version.rs` and `publish.rs`, while `ipc.rs` only
+requires and validates the session epoch before delegating. The checked IPC
+contract makes `sessionEpoch` non-optional for every save, publish and
+Version-lines plan/execution call. Legacy epoch-free payloads may remain only
+on non-authorizing reads.
+
+Planning and execution independently revalidate repository state under task
+024's common-Git-dir coordinator. Save continues to build a temporary index,
+restore the real index byte-for-byte on failure and preserve hooks/signing.
+Publish remains non-cancellable after invocation: a timeout or lost connection
+after the remote may have accepted the update is `publish_uncertain`, never a
+claimed failure. Frontend mutation phases suppress and coalesce watcher work
+during planning, execution, verification and uncertainty. A successful result
+first supersedes older status/Version-lines generations; publish also commits
+its authoritative remaining-version count directly. One shared follow-up
+refresh then updates repository identity and every dependent cache, replacing
+rather than duplicating any deferred watcher invalidation.
 
 The task-022 comparison protocol, exact starting chunks/process counts and
 numeric warning/failure budgets are recorded in

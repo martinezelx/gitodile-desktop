@@ -14,9 +14,9 @@ import {
   measureDiffRowHeight,
   resolveSelectedPath,
   sumCachedDiffLines,
-} from "./changes";
-import type { DiffHunk, DiffLine, FileDiff } from "./changes";
-import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./repositoryOverview";
+} from "./features/changes/ChangesPanel";
+import type { DiffHunk, DiffLine, FileDiff } from "./features/changes";
+import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "./features/status";
 
 function entry(path: string, category: ChangeCategory, originalPath: string | null = null): WorkingTreeEntry {
   return { path, originalPath, category, isPrepared: false, hasUnpreparedChanges: true };

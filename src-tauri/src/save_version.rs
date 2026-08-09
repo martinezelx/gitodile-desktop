@@ -1,0 +1,849 @@
+use crate::{
+    application, checked_git_stdout, display_path, git, git_stdout, normalized_path,
+    read_working_tree_status, run_git, run_git_with_env, AppError, AppErrorCode, ChangeCategory,
+    HeadState, WorkingTreeCounts, WorkingTreeEntry, WorkingTreeStatus,
+};
+use std::{
+    path::{Path, PathBuf},
+    process::Output,
+};
+
+// ---- Save version planning (task 010) ----
+//
+// This is the read-only preview half of the save-version flow. It never
+// mutates the repository; `save_version` (execution) is a separate, narrower
+// command so the risky, history-mutating code path stays small and auditable
+// on its own.
+
+/// Shared by every planned operation, so the frontend can classify any
+/// GitOdrile operation from one field without a lookup table.
+#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum OperationKind {
+    HistoryMutation,
+    RemoteMutation,
+    LocalMutation,
+    Destructive,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SaveVersionPlan {
+    pub(crate) operation_kind: OperationKind,
+    pub(crate) summary: String,
+    pub(crate) steps: Vec<String>,
+    pub(crate) risks: Vec<String>,
+    pub(crate) recovery: String,
+    pub(crate) requires_confirmation: bool,
+    /// Opaque fingerprint of everything that would change the outcome of a
+    /// save. Execution must refuse to proceed if a freshly computed token no
+    /// longer matches this one.
+    pub(crate) state_token: String,
+    pub(crate) branch: Option<String>,
+    pub(crate) is_first_version: bool,
+    pub(crate) total_files: usize,
+    pub(crate) remaining_files: usize,
+    pub(crate) is_partial: bool,
+    pub(crate) has_prepared_changes: bool,
+    pub(crate) counts: WorkingTreeCounts,
+}
+
+/// Resolves branch/detached/unborn state and the current HEAD sha for a
+/// project whose branch name is *already known* — the status call
+/// `validate_and_prepare_save` already made (`--branch` reports `#
+/// branch.head <name-or-"(detached)">`, parsed into exactly this same
+/// `Option<String>` shape) says exactly what `git symbolic-ref` would, so
+/// resolving it again here would just be the same Git process a second
+/// time. Only one further call (`rev-parse --verify HEAD`) is needed, to
+/// tell an unborn branch (no commits yet) apart from a real one, and its
+/// stdout doubles as the sha the state-token fingerprint needs — a second
+/// `resolve_head_sha` call used to read that same output again separately.
+pub(crate) fn resolve_head_state(
+    path: &str,
+    branch: Option<String>,
+) -> Result<(HeadState, Option<String>), AppError> {
+    let verified_head = run_git(path, &["rev-parse", "--verify", "HEAD"])?;
+    let head_sha = verified_head
+        .status
+        .success()
+        .then(|| git_stdout(&verified_head));
+
+    let head_state = if branch.is_some() {
+        if head_sha.is_some() {
+            HeadState::Branch
+        } else {
+            HeadState::Unborn
+        }
+    } else if head_sha.is_some() {
+        HeadState::Detached
+    } else {
+        HeadState::Unborn
+    };
+    Ok((head_state, head_sha))
+}
+
+/// Detects an in-progress merge, rebase, cherry-pick, revert, or bisect by
+/// the marker files/directories Git itself uses, rather than parsing porcelain
+/// status (which reports the resulting conflicts but not *why* they exist).
+pub(crate) fn git_operation_in_progress(path: &str) -> Result<Option<&'static str>, AppError> {
+    let git_dir_raw = checked_git_stdout(run_git(path, &["rev-parse", "--absolute-git-dir"])?)?;
+    let git_dir = Path::new(&git_dir_raw);
+    if git_dir.join("MERGE_HEAD").is_file() {
+        return Ok(Some("merge"));
+    }
+    if git_dir.join("CHERRY_PICK_HEAD").is_file() {
+        return Ok(Some("cherry-pick"));
+    }
+    if git_dir.join("REVERT_HEAD").is_file() {
+        return Ok(Some("revert"));
+    }
+    if git_dir.join("rebase-merge").is_dir() || git_dir.join("rebase-apply").is_dir() {
+        return Ok(Some("rebase"));
+    }
+    if git_dir.join("BISECT_LOG").is_file() {
+        return Ok(Some("bisect"));
+    }
+    Ok(None)
+}
+
+/// Same env-override pattern as `write_global_git_config`: production always
+/// passes `None` (the user's real global config); tests point `GIT_CONFIG_GLOBAL`
+/// at a temporary file so they never depend on, or mutate, the machine's real
+/// Git identity.
+fn run_git_with_global_override(
+    repo_path: &str,
+    args: &[&str],
+    config_override: Option<&str>,
+) -> Result<Output, AppError> {
+    let envs = config_override
+        .map(|global| vec![("GIT_CONFIG_GLOBAL", global)])
+        .unwrap_or_default();
+    run_git_with_env(repo_path, args, &envs)
+}
+
+/// Checks the *effective* identity (local config overriding global, exactly
+/// like `git commit` resolves it), not just the global identity `get_git_identity`
+/// exposes in Settings. A single `--get-regexp` call resolves both keys at
+/// once — same effective-value precedence as two separate `--get` calls,
+/// one fewer Git process on a path that runs on every plan and save.
+fn identity_configured(path: &str, config_override: Option<&str>) -> Result<bool, AppError> {
+    let output = run_git_with_global_override(
+        path,
+        &["config", "--get-regexp", "^user\\.(name|email)$"],
+        config_override,
+    )?;
+    if !output.status.success() {
+        // A nonzero exit means no matching keys at all (git's convention for
+        // `--get`/`--get-regexp` when nothing matches), not a real failure.
+        return Ok(false);
+    }
+
+    let mut has_name = false;
+    let mut has_email = false;
+    for line in git_stdout(&output).lines() {
+        let Some((key, value)) = line.split_once(' ') else {
+            continue;
+        };
+        if value.trim().is_empty() {
+            continue;
+        }
+        match key {
+            "user.name" => has_name = true,
+            "user.email" => has_email = true,
+            _ => {}
+        }
+    }
+    Ok(has_name && has_email)
+}
+
+/// A compact fingerprint of everything that would change the outcome of a
+/// save between preview and execution. Counts are folded in alongside the
+/// (possibly capped) entry list, so drift beyond the reported-entries cap on
+/// a very large changeset still invalidates the token. This only needs to
+/// detect drift, not to be reversible or collision-proof, so a non-cryptographic
+/// hash of a deterministic string is enough — no extra crate required.
+fn compute_state_token(
+    head: Option<&str>,
+    branch: Option<&str>,
+    tree: &str,
+    selected_paths: Option<&[String]>,
+) -> String {
+    use std::hash::{Hash, Hasher};
+
+    let mut fingerprint = format!(
+        "head:{}|branch:{}|tree:{}|selection:{}|",
+        head.unwrap_or("unborn"),
+        branch.unwrap_or("detached"),
+        tree,
+        if selected_paths.is_some() {
+            "partial"
+        } else {
+            "all"
+        },
+    );
+    if let Some(paths) = selected_paths {
+        for path in paths {
+            fingerprint.push_str(path);
+            fingerprint.push('\0');
+        }
+    }
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    fingerprint.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+pub(crate) struct PreparedIndex {
+    path: PathBuf,
+    pub(crate) tree: String,
+}
+
+impl Drop for PreparedIndex {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+        let mut lock = self.path.as_os_str().to_os_string();
+        lock.push(".lock");
+        let _ = std::fs::remove_file(PathBuf::from(lock));
+    }
+}
+
+pub(crate) fn prepare_index(
+    path: &str,
+    head_state: &HeadState,
+    selected_entries: Option<&[WorkingTreeEntry]>,
+) -> Result<PreparedIndex, AppError> {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let mut index_path = std::env::temp_dir();
+    index_path.push(format!(
+        "gitodrile-selection-index-{}-{nanos}",
+        std::process::id()
+    ));
+
+    let index_value = index_path.to_string_lossy().to_string();
+    let envs = [("GIT_INDEX_FILE", index_value.as_str())];
+    let read_tree_args = if *head_state == HeadState::Unborn {
+        ["read-tree", "--empty"]
+    } else {
+        ["read-tree", "HEAD"]
+    };
+    let output =
+        run_git_with_env(path, read_tree_args, &envs).map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
+    }
+
+    let mut add_args = vec!["add".to_string(), "-A".to_string()];
+    if let Some(entries) = selected_entries {
+        add_args.push("--".to_string());
+        for entry in entries {
+            add_args.push(entry.path.clone());
+            if let Some(original) = &entry.original_path {
+                add_args.push(original.clone());
+            }
+        }
+    }
+    let output = run_git_with_env(path, &add_args, &envs).map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't prepare the selected changes.",
+        )
+        .with_remediation("Refresh the project and check that the selected files are readable.")
+        .with_detail(truncate_detail(&stderr_text(&output))));
+    }
+
+    let output =
+        run_git_with_env(path, ["write-tree"], &envs).map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
+    }
+
+    Ok(PreparedIndex {
+        path: index_path,
+        tree: git_stdout(&output),
+    })
+}
+
+fn counts_for_entries(entries: &[WorkingTreeEntry]) -> WorkingTreeCounts {
+    let mut counts = WorkingTreeCounts::default();
+    for entry in entries {
+        match entry.category {
+            ChangeCategory::Changed => counts.changed += 1,
+            ChangeCategory::New => counts.new_files += 1,
+            ChangeCategory::Deleted => counts.deleted += 1,
+            ChangeCategory::Renamed => counts.renamed += 1,
+            ChangeCategory::Conflicted => counts.conflicted += 1,
+        }
+        counts.total += 1;
+    }
+    counts
+}
+
+struct ResolvedSelection {
+    paths: Option<Vec<String>>,
+    entries: Option<Vec<WorkingTreeEntry>>,
+}
+
+fn resolve_selection(
+    status: &WorkingTreeStatus,
+    selected_paths: Option<Vec<String>>,
+) -> Result<ResolvedSelection, AppError> {
+    let Some(mut paths) = selected_paths else {
+        return Ok(ResolvedSelection {
+            paths: None,
+            entries: None,
+        });
+    };
+    paths.sort();
+    paths.dedup();
+    if paths.is_empty() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "Choose at least one file to save.",
+        ));
+    }
+
+    let mut entries = Vec::with_capacity(paths.len());
+    for selected in &paths {
+        let Some(entry) = status.entries.iter().find(|entry| entry.path == *selected) else {
+            return Err(AppError::new(
+                AppErrorCode::StalePreview,
+                "The selected files changed since they were shown.",
+            )
+            .with_remediation("Refresh the changes and choose the files again."));
+        };
+        entries.push(entry.clone());
+    }
+    Ok(ResolvedSelection {
+        paths: Some(paths),
+        entries: Some(entries),
+    })
+}
+
+/// Everything a fresh plan/execution pass needs, plus the live temporary
+/// index (`prepared`) that produced its tree hash. Both `plan_save_version`
+/// and `save_version` call `validate_and_prepare_save` exactly once each —
+/// they used to run this whole sequence independently (execution re-checked
+/// every blocker *and* rebuilt a second temporary index from scratch after
+/// already calling the full planning function once), doubling roughly ten
+/// Git process spawns into twenty for a single save. Sharing one function
+/// keeps the safety property ("execution revalidates everything fresh
+/// immediately before mutating") while only ever doing that validation once
+/// per call.
+struct ValidatedSave {
+    branch: Option<String>,
+    is_first_version: bool,
+    selected_counts: WorkingTreeCounts,
+    remaining_files: usize,
+    is_partial: bool,
+    has_prepared_changes: bool,
+    state_token: String,
+    prepared: PreparedIndex,
+}
+
+fn validate_and_prepare_save(
+    path: &str,
+    selected_paths: Option<Vec<String>>,
+    identity_override: Option<&str>,
+) -> Result<ValidatedSave, AppError> {
+    // Reuses task 007's status command for path/repository validation and for
+    // the same categorized counts the Changes screen already shows, so both
+    // surfaces can never disagree about what "current changes" means.
+    let status = read_working_tree_status(path.to_string())?;
+
+    if let Some(operation) = git_operation_in_progress(path)? {
+        return Err(AppError::new(
+            AppErrorCode::GitOperationInProgress,
+            format!("A Git {operation} is already in progress in this project."),
+        )
+        .with_remediation(
+            "Finish or abort that operation in Git, then try saving a version again.",
+        ));
+    }
+
+    let branch = status.upstream.branch.clone();
+    let (head_state, head) = resolve_head_state(path, branch.clone())?;
+    if head_state == HeadState::Detached {
+        return Err(AppError::new(
+            AppErrorCode::DetachedHead,
+            "This project isn't on a version line right now.",
+        )
+        .with_remediation("Switch to a version line before saving a version."));
+    }
+
+    if status.counts.conflicted > 0 {
+        return Err(AppError::new(
+            AppErrorCode::UnresolvedConflicts,
+            "Some files have overlapping changes that need to be resolved first.",
+        )
+        .with_remediation("Resolve the overlapping changes, then try saving again."));
+    }
+
+    if status.is_clean {
+        return Err(AppError::new(
+            AppErrorCode::NothingToSave,
+            "There's nothing to save right now.",
+        )
+        .with_remediation("Make some changes, then come back to save a version."));
+    }
+
+    if !identity_configured(path, identity_override)? {
+        return Err(AppError::new(
+            AppErrorCode::MissingIdentity,
+            "GitOdrile doesn't know who is saving this version yet.",
+        )
+        .with_remediation("Add a name and email for Git, then try again."));
+    }
+
+    let selection = resolve_selection(&status, selected_paths)?;
+    let selected_paths = selection.paths;
+    let selected_entries = selection.entries;
+    let selected_counts = selected_entries
+        .as_deref()
+        .map(counts_for_entries)
+        .unwrap_or_else(|| status.counts.clone());
+    if selected_counts.conflicted > 0 {
+        return Err(AppError::new(
+            AppErrorCode::UnresolvedConflicts,
+            "Some selected files have overlapping changes that need to be resolved first.",
+        )
+        .with_remediation("Resolve the overlapping changes, then try saving again."));
+    }
+
+    let is_first_version = head_state == HeadState::Unborn;
+    let prepared = prepare_index(path, &head_state, selected_entries.as_deref())?;
+    let state_token = compute_state_token(
+        head.as_deref(),
+        branch.as_deref(),
+        &prepared.tree,
+        selected_paths.as_deref(),
+    );
+    let is_partial = selected_paths.is_some() && selected_counts.total < status.counts.total;
+    let remaining_files = status.counts.total.saturating_sub(selected_counts.total);
+    let has_prepared_changes = selected_entries
+        .as_deref()
+        .map(|entries| entries.iter().any(|entry| entry.is_prepared))
+        .unwrap_or(status.has_prepared_changes);
+
+    Ok(ValidatedSave {
+        branch,
+        is_first_version,
+        selected_counts,
+        remaining_files,
+        is_partial,
+        has_prepared_changes,
+        state_token,
+        prepared,
+    })
+}
+
+pub(crate) fn plan_save_version_selection_with_identity_override(
+    path: String,
+    selected_paths: Option<Vec<String>>,
+    identity_override: Option<&str>,
+) -> Result<SaveVersionPlan, AppError> {
+    let validated = validate_and_prepare_save(&path, selected_paths, identity_override)?;
+    let is_first_version = validated.is_first_version;
+    let is_partial = validated.is_partial;
+
+    let summary = if is_first_version {
+        if is_partial {
+            "This creates the project's first saved version from the selected changes."
+        } else {
+            "This creates the project's first saved version from every current change."
+        }
+    } else if is_partial {
+        "This saves the selected changes as one new version."
+    } else {
+        "This saves every current change as one new version."
+    }
+    .to_string();
+
+    let mut steps = vec![
+        if is_partial {
+            "Include only the selected changed, new, deleted, renamed, and copied files."
+                .to_string()
+        } else {
+            "Include every changed, new, deleted, renamed, and copied file that isn't ignored."
+                .to_string()
+        },
+        "Create one new saved version with the description you write.".to_string(),
+    ];
+    if !is_first_version {
+        steps.push("Keep the project's earlier saved version reachable for recovery.".to_string());
+    }
+
+    let recovery = if is_first_version {
+        "This is the first saved version, so there's no earlier version to recover.".to_string()
+    } else {
+        "The save is additive: the earlier saved version stays reachable through Git's history if you need to go back."
+            .to_string()
+    };
+
+    Ok(SaveVersionPlan {
+        operation_kind: OperationKind::HistoryMutation,
+        summary,
+        steps,
+        risks: vec![
+            "This only affects local history; nothing is sent to a remote project.".to_string(),
+        ],
+        recovery,
+        requires_confirmation: true,
+        state_token: validated.state_token,
+        branch: validated.branch,
+        is_first_version,
+        total_files: validated.selected_counts.total,
+        remaining_files: validated.remaining_files,
+        is_partial,
+        has_prepared_changes: validated.has_prepared_changes,
+        counts: validated.selected_counts,
+    })
+    // `validated.prepared`'s temporary index is dropped (and its backing
+    // file removed) here — the plan only ever needed its tree hash, already
+    // folded into `state_token` above.
+}
+
+pub(crate) fn plan_save_version(
+    path: String,
+    selected_paths: Option<Vec<String>>,
+) -> Result<SaveVersionPlan, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "plan_save_version", None)?;
+    plan_save_version_selection_with_identity_override(path, selected_paths, None)
+}
+
+#[cfg(test)]
+pub(crate) fn plan_save_version_with_identity_override(
+    path: String,
+    identity_override: Option<&str>,
+) -> Result<SaveVersionPlan, AppError> {
+    plan_save_version_selection_with_identity_override(path, None, identity_override)
+}
+
+// ---- Save version execution (task 010) ----
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SaveVersionResult {
+    pub(crate) commit: String,
+    pub(crate) short_commit: String,
+    pub(crate) title: String,
+    pub(crate) description: Option<String>,
+    pub(crate) branch: Option<String>,
+    pub(crate) saved_files: usize,
+}
+
+/// Resolves the *effective* index file for `path`, which may be a linked
+/// worktree's own index rather than `.git/index`. `--git-path` already
+/// accounts for that; it just doesn't guarantee an absolute result, so the
+/// raw value is resolved relative to `path` the same way `open_repository`
+/// resolves `--absolute-git-dir`'s output.
+pub(crate) fn resolve_index_path(path: &str) -> Result<PathBuf, AppError> {
+    let raw = checked_git_stdout(run_git(path, &["rev-parse", "--git-path", "index"])?)?;
+    Ok(normalized_path(Path::new(path), &raw))
+}
+
+fn index_unavailable_error() -> AppError {
+    AppError::new(
+        AppErrorCode::IndexUnavailable,
+        "GitOdrile couldn't safely prepare this project's Git index.",
+    )
+    .with_remediation("Check available disk space and file permissions (antivirus tools can lock this file on Windows), then try again.")
+}
+
+/// Holds what's needed to put the repository's index back exactly as it was,
+/// including the case where no index file existed yet (a fresh, never-staged
+/// repository) — restoring then means removing whatever `git add` created,
+/// not overwriting it with empty content.
+pub(crate) struct IndexBackup {
+    pub(crate) index_path: PathBuf,
+    pub(crate) backup_path: Option<PathBuf>,
+}
+
+fn backup_index(index_path: &Path) -> Result<IndexBackup, AppError> {
+    if !index_path.exists() {
+        return Ok(IndexBackup {
+            index_path: index_path.to_path_buf(),
+            backup_path: None,
+        });
+    }
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let mut backup_path = std::env::temp_dir();
+    backup_path.push(format!(
+        "gitodrile-index-backup-{}-{nanos}.bak",
+        std::process::id()
+    ));
+    std::fs::copy(index_path, &backup_path).map_err(|_| index_unavailable_error())?;
+    Ok(IndexBackup {
+        index_path: index_path.to_path_buf(),
+        backup_path: Some(backup_path),
+    })
+}
+
+/// Restores the index to its pre-save state. Errors here are reported but
+/// deliberately not layered onto an already-in-flight failure: callers treat
+/// this as best-effort cleanup after the primary error has been decided.
+fn restore_index(backup: &IndexBackup) -> Result<(), AppError> {
+    match &backup.backup_path {
+        Some(backup_path) => {
+            std::fs::copy(backup_path, &backup.index_path)
+                .map_err(|_| index_unavailable_error())?;
+            let _ = std::fs::remove_file(backup_path);
+        }
+        None => {
+            let _ = std::fs::remove_file(&backup.index_path);
+        }
+    }
+    Ok(())
+}
+
+fn cleanup_backup(backup: &IndexBackup) {
+    if let Some(backup_path) = &backup.backup_path {
+        let _ = std::fs::remove_file(backup_path);
+    }
+}
+
+pub(crate) fn restore_or_report(backup: &IndexBackup, primary: AppError) -> AppError {
+    match restore_index(backup) {
+        Ok(()) => primary,
+        Err(_) => AppError::new(
+            AppErrorCode::IndexRestoreFailed,
+            "GitOdrile couldn't restore the project's prepared changes after the save failed.",
+        )
+        .with_remediation(
+            "Your working files are still there. Keep the project open and review Git's prepared changes before trying again.",
+        )
+        .with_detail(
+            backup
+                .backup_path
+                .as_ref()
+                .map(|path| {
+                    format!(
+                        "The original index backup was kept at {}.",
+                        display_path(path.clone())
+                    )
+                })
+                .unwrap_or_else(|| {
+                    "The project did not have an index before this save attempt.".to_string()
+                }),
+        ),
+    }
+}
+
+fn stderr_text(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stderr).to_string()
+}
+
+/// Long enough to be useful as a secondary detail, short enough that a noisy
+/// hook can't balloon the error payload.
+const MAX_FAILURE_DETAIL_BYTES: usize = 4000;
+
+pub(crate) fn truncate_detail(text: &str) -> String {
+    let trimmed = text.trim();
+    let mut redacted = git::redact_diagnostic(trimmed.as_bytes(), MAX_FAILURE_DETAIL_BYTES);
+    if trimmed.len() > MAX_FAILURE_DETAIL_BYTES {
+        redacted.push('…');
+    }
+    redacted
+}
+
+/// A hook's presence doesn't guarantee it fired, and a missing one doesn't
+/// rule out a server-side equivalent — this is a best-effort classification
+/// hint, not a guarantee. Git gives no structured signal for "a hook
+/// rejected this commit" versus any other nonzero exit.
+fn hook_exists(path: &str) -> bool {
+    let Ok(output) = run_git(path, &["rev-parse", "--absolute-git-dir"]) else {
+        return false;
+    };
+    let Ok(git_dir_raw) = checked_git_stdout(output) else {
+        return false;
+    };
+    let hooks_dir = Path::new(&git_dir_raw).join("hooks");
+    ["pre-commit", "commit-msg"]
+        .iter()
+        .any(|name| hooks_dir.join(name).is_file())
+}
+
+/// Best-effort classification of a failed `git commit`. Git does not expose a
+/// structured reason for a nonzero exit, so this pattern-matches known GPG/SSH
+/// signing failure text before falling back to "a hook rejected this" (when a
+/// hook is actually present) and finally a generic failure. The raw stderr
+/// always rides along as `detail`, never as the primary `message`.
+fn classify_commit_failure(path: &str, stderr: &str) -> AppError {
+    let lowered = stderr.to_lowercase();
+    let looks_like_signing_failure = lowered.contains("gpg failed to sign")
+        || lowered.contains("unable to sign")
+        || (lowered.contains("sign") && lowered.contains("fail"));
+
+    if looks_like_signing_failure {
+        return AppError::new(
+            AppErrorCode::SigningFailed,
+            "Git couldn't sign this version.",
+        )
+        .with_remediation("Check your Git commit-signing setup (GPG or SSH key), then try again.")
+        .with_detail(truncate_detail(stderr));
+    }
+
+    if hook_exists(path) {
+        return AppError::new(
+            AppErrorCode::HookRejected,
+            "A Git hook rejected this version.",
+        )
+        .with_remediation("Check the hook's output, address what it's flagging, then try again.")
+        .with_detail(truncate_detail(stderr));
+    }
+
+    AppError::new(
+        AppErrorCode::GitCommandFailed,
+        "Git couldn't save this version.",
+    )
+    .with_remediation("Check the project's Git configuration and try again.")
+    .with_detail(truncate_detail(stderr))
+}
+
+pub(crate) fn save_version_selection_with_identity_override(
+    path: String,
+    title: String,
+    description: Option<String>,
+    state_token: String,
+    selected_paths: Option<Vec<String>>,
+    identity_override: Option<&str>,
+) -> Result<SaveVersionResult, AppError> {
+    let trimmed_title = title.trim();
+    if trimmed_title.is_empty() {
+        return Err(AppError::new(
+            AppErrorCode::EmptyTitle,
+            "Write a short name before saving.",
+        ));
+    }
+    if trimmed_title.contains(['\r', '\n']) {
+        return Err(AppError::new(
+            AppErrorCode::InvalidTitle,
+            "Keep the version name on one line.",
+        ));
+    }
+    // `None`/empty/whitespace-only all collapse to "no details" — the caller
+    // (an optional textarea) can produce any of the three, and none of them
+    // should append an empty trailing paragraph to the commit message.
+    let trimmed_description = description
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty());
+    let commit_message = match trimmed_description {
+        Some(details) => format!("{trimmed_title}\n\n{details}"),
+        None => trimmed_title.to_string(),
+    };
+
+    // Revalidates every planning blocker (clean tree, conflicts, detached
+    // HEAD, an operation in progress, missing identity) against the
+    // *current* repository, so execution can never proceed on a state
+    // preview already rejected. Comparing `state_token` on top of that
+    // catches drift the blockers alone wouldn't (e.g. the same files
+    // changed again). This used to happen twice — once via a full call to
+    // the planning function, then again independently to get a fresh
+    // temporary index to actually use — doubling roughly ten Git process
+    // spawns into twenty. One call now does both jobs.
+    let validated = validate_and_prepare_save(&path, selected_paths, identity_override)?;
+    if validated.state_token != state_token {
+        return Err(AppError::new(
+            AppErrorCode::StalePreview,
+            "This project changed since the preview was shown.",
+        )
+        .with_remediation("Review the updated changes, then try saving again."));
+    }
+
+    let index_path = resolve_index_path(&path)?;
+    let backup = backup_index(&index_path)?;
+
+    if let Err(error) = std::fs::copy(&validated.prepared.path, &index_path) {
+        let primary = index_unavailable_error().with_detail(error.to_string());
+        return Err(restore_or_report(&backup, primary));
+    }
+
+    let commit_env = identity_override
+        .map(|global| vec![("GIT_CONFIG_GLOBAL", global)])
+        .unwrap_or_default();
+    let commit_output = match run_git_with_env(
+        &path,
+        ["commit", "-m", commit_message.as_str()],
+        &commit_env,
+    ) {
+        Ok(output) => output,
+        Err(error) => return Err(restore_or_report(&backup, error)),
+    };
+
+    if !commit_output.status.success() {
+        let primary = classify_commit_failure(&path, &stderr_text(&commit_output));
+        return Err(restore_or_report(&backup, primary));
+    }
+
+    cleanup_backup(&backup);
+
+    let full_commit = match run_git(&path, &["rev-parse", "HEAD"]) {
+        Ok(output) if output.status.success() => git_stdout(&output),
+        _ => {
+            return Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "The version was saved, but GitOdrile couldn't read its identifier.",
+            )
+            .with_remediation("Refresh the project to see the saved version."));
+        }
+    };
+    let short_commit = match run_git(&path, &["rev-parse", "--short", "HEAD"]) {
+        Ok(output) if output.status.success() => git_stdout(&output),
+        _ => full_commit.chars().take(7).collect(),
+    };
+
+    Ok(SaveVersionResult {
+        commit: full_commit,
+        short_commit,
+        title: trimmed_title.to_string(),
+        description: trimmed_description.map(str::to_string),
+        branch: validated.branch,
+        saved_files: validated.selected_counts.total,
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn save_version_with_identity_override(
+    path: String,
+    title: String,
+    description: Option<String>,
+    state_token: String,
+    identity_override: Option<&str>,
+) -> Result<SaveVersionResult, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "save_version", None)?;
+    save_version_selection_with_identity_override(
+        path,
+        title,
+        description,
+        state_token,
+        None,
+        identity_override,
+    )
+}
+
+pub(crate) fn save_version(
+    path: String,
+    title: String,
+    description: Option<String>,
+    state_token: String,
+    selected_paths: Option<Vec<String>>,
+) -> Result<SaveVersionResult, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "save_version", None)?;
+    save_version_selection_with_identity_override(
+        path,
+        title,
+        description,
+        state_token,
+        selected_paths,
+        None,
+    )
+}

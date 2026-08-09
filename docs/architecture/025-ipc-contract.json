@@ -14,21 +14,21 @@
     { "name": "check_git_update", "arguments": [], "response": "GitUpdateStatus" },
     { "name": "get_git_identity", "arguments": [], "response": "GitIdentity" },
     { "name": "set_git_identity", "arguments": ["name", "email"], "response": "void" },
-    { "name": "plan_save_version", "arguments": ["path", "selectedPaths?", "sessionEpoch?"], "response": "SaveVersionPlan" },
-    { "name": "save_version", "arguments": ["path", "title", "description?", "stateToken", "selectedPaths?", "sessionEpoch?"], "response": "SaveVersionResult" },
+    { "name": "plan_save_version", "arguments": ["path", "selectedPaths?", "sessionEpoch"], "response": "SaveVersionPlan" },
+    { "name": "save_version", "arguments": ["path", "title", "description?", "stateToken", "selectedPaths?", "sessionEpoch"], "response": "SaveVersionResult" },
     { "name": "discover_remotes", "arguments": ["path", "sessionEpoch?"], "response": "RemoteDiscovery" },
     { "name": "list_unpublished_versions", "arguments": ["path", "sessionEpoch?"], "response": "PendingVersionsResult" },
     { "name": "read_commit_file_changes", "arguments": ["path", "commit", "sessionEpoch?"], "response": "CommitFileChange[]" },
     { "name": "read_commit_file_diff", "arguments": ["path", "commit", "filePath", "sessionEpoch?"], "response": "FileDiff" },
-    { "name": "plan_publish", "arguments": ["path", "remote?", "upTo?", "sessionEpoch?"], "response": "PublishPlan" },
-    { "name": "publish", "arguments": ["path", "remote", "stateToken", "upTo?", "sessionEpoch?"], "response": "PublishResult" },
+    { "name": "plan_publish", "arguments": ["path", "remote?", "upTo?", "sessionEpoch"], "response": "PublishPlan" },
+    { "name": "publish", "arguments": ["path", "remote", "stateToken", "upTo?", "sessionEpoch"], "response": "PublishResult" },
     { "name": "get_version_lines", "arguments": ["path", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
-    { "name": "plan_create_version_line", "arguments": ["path", "name", "switch", "sessionEpoch?"], "response": "CreateVersionLinePlan" },
-    { "name": "create_version_line", "arguments": ["path", "name", "switch", "stateToken", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
-    { "name": "plan_switch_version_line", "arguments": ["path", "target", "sessionEpoch?"], "response": "SwitchVersionLinePlan" },
-    { "name": "switch_version_line", "arguments": ["path", "target", "stateToken", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
-    { "name": "plan_delete_version_line", "arguments": ["path", "name", "sessionEpoch?"], "response": "DeleteVersionLinePlan" },
-    { "name": "delete_version_line", "arguments": ["path", "name", "stateToken", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
+    { "name": "plan_create_version_line", "arguments": ["path", "name", "switch", "sessionEpoch"], "response": "CreateVersionLinePlan" },
+    { "name": "create_version_line", "arguments": ["path", "name", "switch", "stateToken", "sessionEpoch"], "response": "VersionLinesSnapshot" },
+    { "name": "plan_switch_version_line", "arguments": ["path", "target", "sessionEpoch"], "response": "SwitchVersionLinePlan" },
+    { "name": "switch_version_line", "arguments": ["path", "target", "stateToken", "sessionEpoch"], "response": "VersionLinesSnapshot" },
+    { "name": "plan_delete_version_line", "arguments": ["path", "name", "sessionEpoch"], "response": "DeleteVersionLinePlan" },
+    { "name": "delete_version_line", "arguments": ["path", "name", "stateToken", "sessionEpoch"], "response": "VersionLinesSnapshot" },
     { "name": "watch_repository", "arguments": ["path", "sessionEpoch?"], "response": "boolean" },
     { "name": "unwatch_repository", "arguments": ["path", "sessionEpoch?"], "response": "void" },
     { "name": "close_project_session", "arguments": ["path", "sessionEpoch"], "response": "void" }
@@ -54,9 +54,7 @@
     "kinds": ["worktree", "head_or_refs", "shared_repository"]
   },
   "compatibility": {
-    "optionalSessionEpochConsumers": [
-      "src/publishDialog.tsx", "src/saveVersionDialog.tsx"
-    ],
+    "optionalSessionEpochConsumers": [],
     "removalTasks": {
       "reads": "026-028",
       "mutations": "029"

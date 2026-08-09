@@ -112,7 +112,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | 026 | Done 2026-08-09 | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
 | 027 | Done 2026-08-09 | Version lines migrated as the reference vertical slice | 024–026 |
 | 028 | Done 2026-08-09 | Repository/status/changes/diff reads migrated | 027 |
-| 029 | Not started | Save and publish mutation flows migrated without weakening safety | 027, 028 |
+| 029 | Done 2026-08-09 | Save and publish mutation flows migrated without weakening safety | 027, 028 |
 | 030 | Not started | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
 | 031 | Not started | Complete cross-platform integration audit, final measurements, epic closure and History unlock | 023–030 |
 
@@ -252,7 +252,19 @@ unchanged snapshot identity and bounded four-epoch/256-entry/approximately
 virtualized and Accessible text diff modes, popup behavior and exceptional
 native output states remain intact. Windows build chunks stayed below task
 023 warning budgets and the file-icon implementation remains lazy. Task 029
-remains unstarted and the root compatibility re-exports it needs are retained.
+was the final consumer of the temporary root read compatibility re-exports.
+
+Task 029 moved Save version and Publish changes UI/orchestration into owned
+frontend features and their planners/workflows into Rust domain modules. Every
+save, publish and version-line planner/executor now requires a Rust-validated
+session epoch; the legacy mutation compatibility inventory is empty, while
+immutable state tokens still reject repository drift. Successful mutations
+supersede older reads and coalesce follow-up invalidation once; publish commits
+its authoritative pending result directly, and save performs a safe readback
+because hooks may alter files. Related worktrees remain serialized by the
+common-Git-directory coordinator, temporary-index/recovery guarantees and
+redacted structured failures remain covered, and uncertain remote outcomes are
+still reported truthfully. Task 030 remains unstarted.
 
 # Validation
 

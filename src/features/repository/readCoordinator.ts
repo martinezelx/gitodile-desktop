@@ -39,6 +39,18 @@ export function createRepositoryReadCoordinator(
   return {
     refreshStatus,
     refreshAll,
+    /** Mutation results win over older discovery reads. Discard coalesced
+     * watcher work, supersede every affected generation, then invalidate each
+     * dependent feature once through the ordinary shared refresh path. */
+    refreshAfterMutation(runtime: ProjectRuntime, state: ProjectSessionsState, path: string, mapError: StatusErrorMapper): Promise<void> {
+      const epoch = state.byId[path]?.epoch;
+      if (!epoch) return Promise.resolve();
+      deferred.delete(path);
+      const query = { projectId: path, sessionEpoch: epoch };
+      status.supersede(query);
+      versionLines.supersede(query);
+      return refreshAll(runtime, state, path, mapError);
+    },
     handleInvalidation(runtime: ProjectRuntime, state: ProjectSessionsState, event: RepositoryInvalidation, mapError: StatusErrorMapper): void {
       const key = `${event.projectId}\0${event.sessionEpoch}`;
       const previous = sequences.get(key) ?? 0;

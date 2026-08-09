@@ -1,4 +1,4 @@
-import type { PendingVersionsResult } from "./publish";
+import type { PendingVersionsResult } from "./features/publish";
 import type { RepositoryInfo } from "./features/repository";
 import type { WorkingTreeStatus } from "./features/status";
 
@@ -104,6 +104,7 @@ export type ProjectSessionsAction =
     }
   | { type: "applyWorkingTreeError"; id: string; generation: number; epoch: string; error: string }
   | { type: "applyPendingVersions"; id: string; generation: number; epoch: string; result: PendingVersionsResult }
+  | { type: "commitPublishedVersions"; id: string; generation: number; epoch: string; remaining: number }
   | { type: "applyPendingVersionsError"; id: string; generation: number; epoch: string; error: string }
   | { type: "navigate"; id: string; view: ProjectView }
   | { type: "goBack"; id: string }
@@ -325,6 +326,24 @@ export function projectSessionsReducer(
       return updateSession(state, action.id, (current) => ({
         ...current,
         pendingVersions: action.result,
+        pendingVersionsError: null,
+      }));
+    }
+
+    case "commitPublishedVersions": {
+      const session = state.byId[action.id];
+      if (!actionMatchesEpoch(session, action.epoch)) {
+        return state;
+      }
+      const versions = session.pendingVersions.versions.slice(0, action.remaining);
+      return updateSession(state, action.id, (current) => ({
+        ...current,
+        statusGeneration: action.generation,
+        pendingVersions: {
+          totalCount: action.remaining,
+          versions,
+          isTruncated: versions.length < action.remaining,
+        },
         pendingVersionsError: null,
       }));
     }

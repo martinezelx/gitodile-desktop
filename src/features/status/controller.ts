@@ -80,8 +80,27 @@ export function createStatusController(port: StatusPort, now: () => number = Dat
     return promise;
   };
 
+  const supersede = (query: StatusQuery): void => {
+    const key = keyOf(query);
+    generations.set(key, (generations.get(key) ?? 0) + 1);
+    inFlight.delete(key);
+  };
+
   return {
     refresh,
+    commitPublishedResult(runtime: ProjectRuntime, query: StatusQuery, remaining: number): void {
+      supersede(query);
+      runtime.dispatch({
+        type: "commitPublishedVersions",
+        id: query.projectId,
+        epoch: query.sessionEpoch,
+        generation: generations.get(keyOf(query))!,
+        remaining,
+      });
+    },
+    /** A successful mutation is authoritative over reads that started before
+     * it. Advance the generation before the single follow-up refresh. */
+    supersede,
     scheduleWarm(runtime: ProjectRuntime, query: StatusQuery, mapError: StatusErrorMapper): () => void {
       return runtime.scheduleCacheWarm({
         key: `status:${query.sessionEpoch}`,
@@ -90,9 +109,7 @@ export function createStatusController(port: StatusPort, now: () => number = Dat
       });
     },
     close(query: StatusQuery): void {
-      const key = keyOf(query);
-      generations.set(key, (generations.get(key) ?? 0) + 1);
-      inFlight.delete(key);
+      supersede(query);
     },
   };
 }

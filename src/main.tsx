@@ -67,7 +67,7 @@ import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { createChangesController, changesPort } from "./features/changes";
 import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
-import type { PendingVersionsResult } from "./publish";
+import type { PendingVersionsResult } from "./features/publish";
 import {
   createVersionLinesController,
   useVersionLinesState,
@@ -115,7 +115,7 @@ import "./styles.css";
 // bundle — and therefore first-paint time — small. The two screen panels live
 // in `screens.tsx` next to their registry entries; these are the dialogs,
 // which are not screens.
-const PublishDialog = lazy(() => import("./publishDialog").then((m) => ({ default: m.PublishDialog })));
+const PublishDialog = lazy(() => import("./features/publish/PublishDialog").then((m) => ({ default: m.PublishDialog })));
 const PendingVersionsSection = lazy(() =>
   import("./features/overview/PendingVersionsSection").then((m) => ({ default: m.PendingVersionsSection })),
 );
@@ -2039,6 +2039,9 @@ export function App(): React.JSX.Element {
     await repositoryReads.refreshAll(projectRuntime, sessionsState, path, mapStatusError);
   };
 
+  const handleMutationSucceeded = (path: string): Promise<void> =>
+    repositoryReads.refreshAfterMutation(projectRuntime, sessionsState, path, mapStatusError);
+
   const startVersionLineOperation = (path: string): boolean => {
     const session = sessionsState.byId[path];
     if (!session) {
@@ -2916,6 +2919,7 @@ export function App(): React.JSX.Element {
                           controller={changesController}
                           sessionEpoch={activeSession?.epoch ?? ""}
                           onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
+                          onSaveCompleted={() => void handleMutationSucceeded(project.path)}
                           onNavigateOverview={() => navigateToView("overview")}
                           onPublishNow={() => openPublishDialog()}
                           selectedPath={activeSession?.changesSelection.selectedPath ?? null}
@@ -2981,12 +2985,23 @@ export function App(): React.JSX.Element {
           <PublishDialog
             isOpen
             projectPath={publishDialogSession.project.path}
+            sessionEpoch={publishDialogSession.epoch}
             upTo={publishUpTo ?? undefined}
             onClose={() => {
               finishSessionOperation(publishDialogSession.id);
               setPublishDialogSessionId(null);
             }}
-            onPublished={() => checkWorkingTree(publishDialogSession.project.path)}
+            onPublished={(result) => {
+              statusController.commitPublishedResult(
+                projectRuntime,
+                {
+                  projectId: publishDialogSession.project.path,
+                  sessionEpoch: publishDialogSession.epoch,
+                },
+                result.remainingAfterPublish,
+              );
+              return handleMutationSucceeded(publishDialogSession.project.path);
+            }}
             onPhaseChange={(phase) =>
               dispatchSessions({
                 type: "setOperationPhase",

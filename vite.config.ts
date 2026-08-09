@@ -21,7 +21,7 @@ export default defineConfig({
   },
   test: {
     // Only the dialog/component tests touch the DOM; the pure-logic tests
-    // (i18n, repositoryOverview, changes, saveVersion) run just as well
+    // (i18n and the repository/status/change/save domains) run just as well
     // under jsdom, so one shared environment keeps this config simple.
     environment: "jsdom",
     setupFiles: ["./src/testSetup.ts"],

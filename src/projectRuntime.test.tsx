@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createProjectRuntime, useProjectSelector } from "./projectRuntime";
 import { initialProjectSessionsState, projectSessionsReducer } from "./projectSessions";
-import type { RepositoryInfo } from "./repositoryOverview";
+import type { RepositoryInfo } from "./features/repository";
 
 function makeProject(path: string): RepositoryInfo {
   return {

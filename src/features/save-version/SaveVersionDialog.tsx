@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { CircleAlert, LoaderCircle, Save, Send } from "lucide-react";
-import { useLanguage, type Translations } from "./i18n";
-import { localizeAppError, isAppError } from "./appError";
-import { useModalFocus } from "./modalFocus";
-import { autoHideScrollbarProps } from "./autoHideScrollbar";
-import { getSaveVersionBreakdown, type SaveVersionPlan, type SaveVersionResult } from "./saveVersion";
-import type { ChangeCategory } from "./repositoryOverview";
+import { useLanguage, type Translations } from "../../i18n";
+import { localizeAppError, isAppError } from "../../appError";
+import { useModalFocus } from "../../modalFocus";
+import { autoHideScrollbarProps } from "../../autoHideScrollbar";
+import { getSaveVersionBreakdown, type SaveVersionPlan, type SaveVersionResult } from "./domain";
+import type { ChangeCategory } from "../status";
+import type { SaveVersionController } from "./controller";
+import { createSaveVersionController } from "./controller";
+import { saveVersionPort } from "./tauriAdapter";
+
+const defaultController = createSaveVersionController(saveVersionPort);
 
 const BREAKDOWN_LABEL_KEYS = {
   changed: "statusCategoryChanged",
@@ -76,7 +80,9 @@ function FailureDetail({ error, t }: { error: unknown; t: Translations }): React
 
 export function SaveVersionDialog({
   isOpen,
+  controller = defaultController,
   projectPath,
+  sessionEpoch,
   selectedPaths,
   onClose,
   onSaved,
@@ -84,7 +90,9 @@ export function SaveVersionDialog({
   onPhaseChange,
 }: {
   isOpen: boolean;
+  controller?: SaveVersionController;
   projectPath: string;
+  sessionEpoch: string;
   selectedPaths: string[] | null;
   onClose: () => void;
   onSaved: () => void;
@@ -156,7 +164,7 @@ export function SaveVersionDialog({
     let cancelled = false;
     onPhaseChangeRef.current?.("planning");
     setState({ status: "loading" });
-    invoke<SaveVersionPlan>("plan_save_version", { path: projectPath, selectedPaths: selectedPathsRef.current })
+    controller.plan({ projectId: projectPath, sessionEpoch, selectedPaths: selectedPathsRef.current })
       .then((plan) => {
         if (!cancelled) {
           setState({ status: "ready", plan });
@@ -174,7 +182,7 @@ export function SaveVersionDialog({
     // above. Re-running this effect must only ever be triggered by the
     // dialog actually (re)opening or a manual retry, never by a live prop
     // reference change while it's already open.
-  }, [isOpen, projectPath, retryToken]);
+  }, [controller, isOpen, projectPath, retryToken, sessionEpoch]);
 
   useEffect(() => {
     if (!isOpen || state.status === "loading") {
@@ -218,8 +226,9 @@ export function SaveVersionDialog({
     const trimmedDetails = details.trim();
     setState({ status: "submitting", plan });
     onPhaseChangeRef.current?.("executing");
-    invoke<SaveVersionResult>("save_version", {
-      path: projectPath,
+    controller.save({
+      projectId: projectPath,
+      sessionEpoch,
       title: trimmedTitle,
       description: trimmedDetails ? trimmedDetails : null,
       stateToken: plan.stateToken,

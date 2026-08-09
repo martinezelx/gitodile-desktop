@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { ChevronDown, CircleAlert, LoaderCircle, Send } from "lucide-react";
-import { useLanguage, type Translations } from "./i18n";
-import { localizeAppError, isAppError } from "./appError";
-import { useModalFocus } from "./modalFocus";
-import { autoHideScrollbarProps } from "./autoHideScrollbar";
-import { CATEGORY_ICONS } from "./changes";
-import { getFileTypeIcon } from "./fileIcons";
-import type { CommitFileChange, PublishPlan, PublishResult, RemoteDiscovery, RemoteInfo } from "./publish";
+import { useLanguage, type Translations } from "../../i18n";
+import { localizeAppError, isAppError } from "../../appError";
+import { useModalFocus } from "../../modalFocus";
+import { autoHideScrollbarProps } from "../../autoHideScrollbar";
+import { CHANGE_CATEGORY_ICONS } from "../status";
+import { getFileTypeIcon } from "../../fileIcons";
+import type { CommitFileChange, PublishPlan, PublishResult, RemoteInfo } from "./domain";
+import type { PublishController } from "./controller";
+import { createPublishController } from "./controller";
+import { publishPort } from "./tauriAdapter";
+
+const defaultController = createPublishController(publishPort);
 
 type DialogState =
   | { status: "loading" }
@@ -59,7 +63,7 @@ function CommitFilesPanel({
             <FileTypeIcon aria-hidden="true" className="publish-commit-list__file-type-icon" />
             <span className="publish-commit-list__file-path">{file.path}</span>
             <span className="publish-commit-list__file-category" aria-hidden="true">
-              {CATEGORY_ICONS[file.category]}
+              {CHANGE_CATEGORY_ICONS[file.category]}
             </span>
           </div>
         );
@@ -70,11 +74,15 @@ function CommitFilesPanel({
 
 function PublishSummary({
   plan,
+  controller = defaultController,
   projectPath,
+  sessionEpoch,
   t,
 }: {
   plan: PublishPlan;
+  controller?: PublishController;
   projectPath: string;
+  sessionEpoch: string;
   t: Translations;
 }): React.JSX.Element {
   const [fileChanges, setFileChanges] = useState<Record<string, FileChangesState>>({});
@@ -85,11 +93,11 @@ function PublishSummary({
         return;
       }
       setFileChanges((current) => ({ ...current, [commit]: "loading" }));
-      invoke<CommitFileChange[]>("read_commit_file_changes", { path: projectPath, commit })
+      controller.readCommitFileChanges({ projectId: projectPath, sessionEpoch, commit })
         .then((files) => setFileChanges((current) => ({ ...current, [commit]: files })))
         .catch(() => setFileChanges((current) => ({ ...current, [commit]: "error" })));
     },
-    [fileChanges, projectPath],
+    [controller, fileChanges, projectPath, sessionEpoch],
   );
 
   return (
@@ -184,20 +192,24 @@ function FailureDetail({ error, t }: { error: unknown; t: Translations }): React
 
 export function PublishDialog({
   isOpen,
+  controller = defaultController,
   projectPath,
+  sessionEpoch,
   upTo,
   onClose,
   onPublished,
   onPhaseChange,
 }: {
   isOpen: boolean;
+  controller?: PublishController;
   projectPath: string;
+  sessionEpoch: string;
   /** Publish only up to (and including) this commit, leaving any newer
    * pending saved versions unpublished for now. `undefined` publishes
    * everything pending, same as before this existed. */
   upTo?: string;
   onClose: () => void;
-  onPublished: () => Promise<void>;
+  onPublished: (result: PublishResult) => Promise<void>;
   onPhaseChange?: (
     phase: "planning" | "executing" | "verifying" | "uncertain" | "error" | "success"
   ) => void;
@@ -240,7 +252,7 @@ export function PublishDialog({
     let cancelled = false;
     onPhaseChangeRef.current?.("planning");
     setState({ status: "loading" });
-    invoke<PublishPlan>("plan_publish", { path: projectPath, remote: selectedRemote ?? undefined, upTo })
+    controller.plan({ projectId: projectPath, sessionEpoch, remote: selectedRemote ?? undefined, upTo })
       .then((plan) => {
         if (!cancelled) {
           setState({ status: "ready", plan });
@@ -251,7 +263,7 @@ export function PublishDialog({
           return;
         }
         if (isAppError(error) && error.code === "remote_selection_required") {
-          invoke<RemoteDiscovery>("discover_remotes", { path: projectPath })
+          controller.discoverRemotes({ projectId: projectPath, sessionEpoch })
             .then((discovery) => {
               if (!cancelled) {
                 setState({ status: "remote-selection", remotes: discovery.remotes });
@@ -269,7 +281,7 @@ export function PublishDialog({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, projectPath, retryToken, selectedRemote, upTo]);
+  }, [controller, isOpen, projectPath, retryToken, selectedRemote, sessionEpoch, upTo]);
 
   if (!isOpen) {
     return null;
@@ -304,8 +316,9 @@ export function PublishDialog({
     }
     setState({ status: "submitting", plan });
     onPhaseChangeRef.current?.("executing");
-    invoke<PublishResult>("publish", {
-      path: projectPath,
+    controller.publish({
+      projectId: projectPath,
+      sessionEpoch,
       remote: plan.target.remote,
       stateToken: plan.stateToken,
       upTo,
@@ -313,7 +326,7 @@ export function PublishDialog({
       .then(async (result) => {
         setState({ status: "verifying", plan, result });
         onPhaseChangeRef.current?.("verifying");
-        await onPublished();
+        await onPublished(result);
         setState({ status: "success", result });
         onPhaseChangeRef.current?.("success");
       })
@@ -396,7 +409,13 @@ export function PublishDialog({
 
         {plan && state.status !== "success" && (
           <>
-            <PublishSummary plan={plan} projectPath={projectPath} t={t} />
+            <PublishSummary
+              plan={plan}
+              controller={controller}
+              projectPath={projectPath}
+              sessionEpoch={sessionEpoch}
+              t={t}
+            />
 
             {state.status === "publish-error" && (
               <div>

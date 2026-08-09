@@ -3,7 +3,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDown,
   ArrowLeft,
-  ArrowRightLeft,
   ArrowUp,
   Check,
   CheckCircle2,
@@ -14,8 +13,6 @@ import {
   CircleAlert,
   Columns2,
   FileText,
-  FileMinus,
-  FilePlus,
   FileQuestion,
   FileWarning,
   LoaderCircle,
@@ -30,10 +27,10 @@ import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError } from "../../appError";
 import { getFileTypeIcon } from "../../fileIcons";
 import { autoHideScrollbarProps } from "../../autoHideScrollbar";
-import { SaveVersionDialog } from "../../saveVersionDialog";
+import { SaveVersionDialog } from "../save-version";
 import { LoadingBar } from "../../loadingBar";
 import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../popupMenu";
-import { getOrderedChangeEntries, splitPath } from "../status";
+import { CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";
 import type { DiffHunk, DiffLine, DiffLineKind, FileDiff } from "./domain";
@@ -46,7 +43,7 @@ export type { DiffHunk, DiffLine, DiffLineKind, FileDiff } from "./domain";
 
 // ---- Pure list ordering ----
 
-// Ordering and path splitting live in `repositoryOverview` so Overview's
+// Ordering and path splitting live with the status domain so Overview's
 // changes preview can share them without importing this module — which would
 // pull the whole Changes screen (and the file-type icon set) into the initial
 // bundle. Re-exported here so this screen's own consumers keep their import.
@@ -213,14 +210,6 @@ function formatByteLimit(bytes: number): string {
   const megabytes = bytes / (1024 * 1024);
   return `${Number.isInteger(megabytes) ? megabytes.toFixed(0) : megabytes.toFixed(1)} MB`;
 }
-
-export const CATEGORY_ICONS: Record<ChangeCategory, React.JSX.Element> = {
-  changed: <Pencil aria-hidden="true" />,
-  new: <FilePlus aria-hidden="true" />,
-  deleted: <FileMinus aria-hidden="true" />,
-  renamed: <ArrowRightLeft aria-hidden="true" />,
-  conflicted: <TriangleAlert aria-hidden="true" />,
-};
 
 const CATEGORY_LABEL_KEYS = {
   changed: "changesCategoryLabelChanged",
@@ -1224,7 +1213,7 @@ function DiffWorkspace({
       </button>
       <header className="changes-diff__header">
         <span className="changes-diff__header-icon" aria-hidden="true">
-          {entry ? CATEGORY_ICONS[entry.category] : null}
+          {entry ? CHANGE_CATEGORY_ICONS[entry.category] : null}
         </span>
         <div className="changes-diff__header-text">
           <div className="changes-diff__title-row">
@@ -1406,7 +1395,7 @@ function FileListItem({
           )}
         </span>
         <span className={`changes-file-item__category-icon changes-file-item__category-icon--${entry.category}`} aria-hidden="true">
-          {CATEGORY_ICONS[entry.category]}
+          {CHANGE_CATEGORY_ICONS[entry.category]}
         </span>
       </button>
     </li>
@@ -1422,6 +1411,7 @@ export function ChangesPanel({
   controller,
   sessionEpoch,
   onRefresh,
+  onSaveCompleted,
   onNavigateOverview,
   onPublishNow,
   selectedPath,
@@ -1445,6 +1435,7 @@ export function ChangesPanel({
   controller: ChangesController;
   sessionEpoch: string;
   onRefresh: () => void;
+  onSaveCompleted: () => void;
   onNavigateOverview: () => void;
   onPublishNow: () => void;
   /** Which file is selected, lifted to the caller so it survives switching
@@ -1810,9 +1801,10 @@ export function ChangesPanel({
       <SaveVersionDialog
         isOpen={isSaveVersionOpen}
         projectPath={projectPath}
+        sessionEpoch={sessionEpoch}
         selectedPaths={selectedPathsForSave}
         onClose={onCloseSaveVersion}
-        onSaved={onRefresh}
+        onSaved={onSaveCompleted}
         onPublishNow={onPublishNow}
         onPhaseChange={onSaveVersionPhaseChange}
       />

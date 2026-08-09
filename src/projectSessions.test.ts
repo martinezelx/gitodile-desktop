@@ -11,7 +11,7 @@ import {
   writeStoredProjects,
   type ProjectSessionsState,
 } from "./projectSessions";
-import type { RepositoryInfo } from "./repositoryOverview";
+import type { RepositoryInfo } from "./features/repository";
 
 function makeProject(path: string, overrides: Partial<RepositoryInfo> = {}): RepositoryInfo {
   return {
@@ -229,6 +229,46 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/a"].workingTreeCheckedAt).toBe(1_700_000_000_000);
     expect(state.byId["/a"].workingTreeError).toBe("network blip");
     expect(state.byId["/a"].isCheckingChanges).toBe(false);
+  });
+
+  it("commits a publish result to the matching epoch before follow-up reads", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
+    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", epoch: "epoch:/a", generation: 1 });
+    const version = (commit: string) => ({
+      commit,
+      shortCommit: commit,
+      title: commit,
+      description: null,
+      committedAt: "2026-08-09T10:00:00Z",
+      author: "Test",
+    });
+    state = projectSessionsReducer(state, {
+      type: "applyPendingVersions",
+      id: "/a",
+      epoch: "epoch:/a",
+      generation: 1,
+      result: { totalCount: 3, versions: [version("new"), version("middle"), version("old")], isTruncated: false },
+    });
+    state = projectSessionsReducer(state, {
+      type: "commitPublishedVersions",
+      id: "/a",
+      epoch: "epoch:/a",
+      generation: 2,
+      remaining: 1,
+    });
+    expect(state.byId["/a"].pendingVersions).toEqual({
+      totalCount: 1,
+      versions: [version("new")],
+      isTruncated: false,
+    });
+    const staleEpoch = projectSessionsReducer(state, {
+      type: "commitPublishedVersions",
+      id: "/a",
+      epoch: "old-epoch",
+      generation: 3,
+      remaining: 0,
+    });
+    expect(staleEpoch).toBe(state);
   });
 
   it("answers a watch event only when no operation owns the working tree", () => {

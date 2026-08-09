@@ -17,7 +17,7 @@ export const overviewScreenModule = {
   container: { kind: "host-owned" },
   additionalPreloads: [
     () => import("./PendingVersionsSection"),
-    () => import("../../publishDialog"),
+    () => import("../publish/PublishDialog"),
     () => import("../version-lines/VersionLinesDialog"),
   ],
   lifecycle: { hidden: "retain-suspended", evict: "project-session" },

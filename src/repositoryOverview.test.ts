@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { getRepositoryOverviewState, type RepositoryInfo } from "./features/repository";
 import {
-  getRepositoryOverviewState,
   getWorkingTreeBreakdown,
   getWorkingTreeSummary,
-  type RepositoryInfo,
   type WorkingTreeCounts,
   type WorkingTreeStatus,
-} from "./repositoryOverview";
+} from "./features/status";
 
 const baseProject: RepositoryInfo = {
   name: "example",

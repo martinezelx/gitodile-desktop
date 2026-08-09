@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { LanguageProvider } from "./i18n";
-import { PendingVersionsSection } from "./pendingVersions";
-import type { PendingVersionsResult, SavedVersionSummary } from "./publish";
+import { PendingVersionsSection } from "./features/overview/PendingVersionsSection";
+import type { PendingVersionsResult, SavedVersionSummary } from "./features/publish";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);

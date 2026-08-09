@@ -11,7 +11,8 @@ import {
   User,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { CATEGORY_ICONS, DiffResultView } from "../changes/ChangesPanel";
+import { DiffResultView } from "../changes/ChangesPanel";
+import { CHANGE_CATEGORY_ICONS } from "../status";
 import type { FileDiff } from "../changes";
 import { getFileTypeIcon } from "../../fileIcons";
 import type { PendingVersionsResult } from "./pendingVersionsDomain";
@@ -83,7 +84,7 @@ function CommitFilesList({
               <FileTypeIcon aria-hidden="true" className="pending-versions__file-type-icon" />
               <span className="pending-versions__file-path">{file.path}</span>
               <span className="pending-versions__file-category" aria-hidden="true">
-                {CATEGORY_ICONS[file.category]}
+                {CHANGE_CATEGORY_ICONS[file.category]}
               </span>
             </button>
             {isSelected && (

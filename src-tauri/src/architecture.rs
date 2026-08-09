@@ -46,8 +46,10 @@ fn rust_module_direction_keeps_read_features_out_of_transport_and_infrastructure
         "changes",
         "git",
         "ipc",
+        "publish_domain",
         "repository",
         "repository_access",
+        "save_version",
         "status",
         "version_lines",
     ] {
@@ -57,8 +59,15 @@ fn rust_module_direction_keeps_read_features_out_of_transport_and_infrastructure
         );
     }
 
-    for owner in ["repository", "status", "changes", "version_lines"] {
-        let feature = parse(&source_dir.join(format!("{owner}.rs")));
+    for (owner, file) in [
+        ("repository", "repository.rs"),
+        ("status", "status.rs"),
+        ("changes", "changes.rs"),
+        ("version_lines", "version_lines.rs"),
+        ("save_version", "save_version.rs"),
+        ("publish", "publish.rs"),
+    ] {
+        let feature = parse(&source_dir.join(file));
         let mut imports = Vec::new();
         for item in &feature.items {
             if let Item::Use(import) = item {
@@ -100,6 +109,10 @@ fn rust_module_direction_keeps_read_features_out_of_transport_and_infrastructure
         "pub(crate) fn list_unpublished_versions",
         "pub(crate) fn read_commit_file_changes",
         "pub(crate) fn read_commit_file_diff",
+        "pub(crate) fn plan_save_version",
+        "pub(crate) fn save_version",
+        "pub(crate) fn plan_publish",
+        "pub(crate) fn publish",
     ] {
         assert!(
             !root_source.contains(legacy_marker),

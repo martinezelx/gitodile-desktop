@@ -5,7 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { LanguageProvider } from "./i18n";
 import { App, ProjectPath, TitlebarMenu } from "./main";
-import type { RepositoryInfo, WorkingTreeStatus } from "./repositoryOverview";
+import type { RepositoryInfo } from "./features/repository";
+import type { WorkingTreeStatus } from "./features/status";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));

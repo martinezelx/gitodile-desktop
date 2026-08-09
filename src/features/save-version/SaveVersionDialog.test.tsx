@@ -3,9 +3,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { LanguageProvider } from "./i18n";
-import { SaveVersionDialog } from "./saveVersionDialog";
-import type { SaveVersionPlan, SaveVersionResult } from "./saveVersion";
+import { LanguageProvider } from "../../i18n";
+import { SaveVersionDialog } from "./SaveVersionDialog";
+import type { SaveVersionPlan, SaveVersionResult } from "./domain";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
@@ -47,6 +47,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof SaveVersionDial
       <SaveVersionDialog
         isOpen
         projectPath="/repo"
+        sessionEpoch="epoch-1"
         selectedPaths={null}
         onClose={onClose}
         onSaved={onSaved}
@@ -70,6 +71,7 @@ describe("SaveVersionDialog", () => {
         <SaveVersionDialog
           isOpen={false}
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           selectedPaths={null}
           onClose={vi.fn()}
           onSaved={vi.fn()}
@@ -87,7 +89,7 @@ describe("SaveVersionDialog", () => {
 
     expect(await screen.findByText("2 files will be saved.")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Version name")).toHaveFocus());
-    expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", { path: "/repo", selectedPaths: null });
+    expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", { path: "/repo", sessionEpoch: "epoch-1", selectedPaths: null });
   });
 
   it("shows both the version name and the optional details fields", async () => {
@@ -206,6 +208,7 @@ describe("SaveVersionDialog", () => {
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
       path: "/repo",
+      sessionEpoch: "epoch-1",
       title: "fix the thing",
       description: null,
       stateToken: "token-1",
@@ -234,6 +237,7 @@ describe("SaveVersionDialog", () => {
     );
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
       path: "/repo",
+      sessionEpoch: "epoch-1",
       title: "fix the thing",
       description: "line one\n\nline two",
       stateToken: "token-1",
@@ -274,6 +278,7 @@ describe("SaveVersionDialog", () => {
     await screen.findByText(`Saved "${longTitle}" as abc123a.`);
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
       path: "/repo",
+      sessionEpoch: "epoch-1",
       title: longTitle,
       description: longDetails,
       stateToken: "token-1",
@@ -294,6 +299,7 @@ describe("SaveVersionDialog", () => {
     await screen.findByText('Saved "fix the thing" as abc123a.');
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
       path: "/repo",
+      sessionEpoch: "epoch-1",
       title: "fix the thing",
       description: "details",
       stateToken: "token-1",
@@ -329,6 +335,7 @@ describe("SaveVersionDialog", () => {
         <SaveVersionDialog
           isOpen
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           selectedPaths={["a.txt"]}
           onClose={vi.fn()}
           onSaved={vi.fn()}
@@ -348,6 +355,7 @@ describe("SaveVersionDialog", () => {
         <SaveVersionDialog
           isOpen
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           selectedPaths={["a.txt"]}
           onClose={vi.fn()}
           onSaved={vi.fn()}
@@ -426,6 +434,7 @@ describe("SaveVersionDialog", () => {
           <SaveVersionDialog
             isOpen={isOpen}
             projectPath="/repo"
+            sessionEpoch="epoch-1"
             selectedPaths={null}
             onClose={() => setIsOpen(false)}
             onSaved={vi.fn()}
