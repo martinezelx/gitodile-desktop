@@ -98,3 +98,22 @@ identity/invalidation coordination, status snapshot equality/generations and
 Changes diff caching remain separate feature policies. Do not generalize the
 four-epoch, 256-entry and approximate 40 MiB diff limits to small metadata
 snapshots, and do not move the whole-tree warm-up into a screen effect.
+
+## 7. Own styles and translations
+
+Put feature CSS in `src/features/<feature>/<feature>.css` and register it in
+`src/styles.css`. That entry file is the single eager cascade manifest; its
+order is tokens, base, app shell, shared primitives, then the listed feature
+owners. Do not import screen CSS from a lazy component: an eager manifest keeps
+the first feature frame styled and makes production ordering reviewable and
+testable. Keep responsive, reduced-motion, forced-color, focus and dense-data
+rules with the selector owner unless the rule is genuinely shared.
+
+Put English and Spanish strings in the feature's `translations.ts`. Export one
+namespace with a feature-local interface and exact `en`/`es` object literals,
+then compose it eagerly in `src/i18n.tsx`. This keeps per-feature missing/extra
+keys and formatter signatures compile-checked while preserving the complete
+`Translations` type and `useLanguage()` ergonomics. Navigation, palette and
+other shell strings remain in `src/app/translations.ts`; shared errors and
+common actions live in `src/shared/i18n/translations.ts`. Do not load a
+dictionary from a screen effect or render translation keys while it arrives.

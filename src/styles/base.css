@@ -1,0 +1,28 @@
+* { box-sizing: border-box; }
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--text-primary);
+  background: var(--surface-app);
+  transition: color var(--duration-normal), background var(--duration-normal);
+}
+button { font: inherit; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
+
+button:focus-visible,
+summary:focus-visible,
+input:focus-visible,
+.about-dialog:focus-visible,
+.palette-dialog:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  body, .window-control, .nav-item, .sidebar-toggle, .titlebar-icon-button, .sidebar, .primary-button, .secondary-button, .segmented-control__option, .project-switcher__button, .project-switcher__close, .project-switcher__add, .project-switcher-icons__button, .project-switcher-icons__add, .project-switcher-compact__trigger {
+    transition: none;
+  }
+}

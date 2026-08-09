@@ -45,6 +45,17 @@ and callbacks; they do not invoke Tauri. Features do not import `app/` or
 another feature's internals. Product-domain types stay with their owner rather
 than moving to a generic shared-types directory.
 
+The eager frontend presentation entry points follow the same ownership model.
+`src/styles.css` declares one deterministic production order: tokens, base,
+app shell, shared UI primitives, then feature-owned styles. Imports stay eager
+so a lazy screen never arrives before its CSS, and feature files retain their
+responsive, theme, focus and dense-data rules. `src/i18n.tsx` likewise composes
+the app, shared and feature dictionaries synchronously. Each namespace defines
+an English/Spanish interface and two exact object literals, so missing, extra
+or formatter-incompatible keys fail beside their owner at compile time; the
+provider still exposes the complete `Translations` object through the existing
+`useLanguage` API.
+
 The corresponding Rust target is:
 
 ```text

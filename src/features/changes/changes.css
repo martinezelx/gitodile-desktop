@@ -1,0 +1,463 @@
+.workspace--changes { overflow-y: hidden; }
+.changes-preview {
+  grid-column: 1 / -1;
+  margin-top: var(--space-2);
+}
+.changes-preview__groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: start;
+  gap: var(--space-4) var(--space-5);
+}
+.changes-preview__group:not(:first-child) {
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--border-divider);
+}
+.changes-preview__group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--space-1);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.changes-preview__group-icon { display: inline-flex; align-items: center; }
+.changes-preview__group-icon svg { width: 13px; height: 13px; }
+.changes-preview__group--new .changes-preview__group-icon { color: var(--status-success); }
+.changes-preview__group--deleted .changes-preview__group-icon { color: var(--status-danger); }
+.changes-preview__group--renamed .changes-preview__group-icon { color: var(--status-renamed); }
+.changes-preview__group--conflicted .changes-preview__group-icon { color: var(--status-warning); }
+.changes-preview__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.changes-preview__item {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+.changes-preview__item:hover { background: var(--surface-hover); }
+.changes-preview__icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+.changes-preview__icon svg { width: 14px; height: 14px; }
+.changes-preview__file-type-icon { display: block; }
+.changes-preview__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.changes-preview__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: var(--space-2);
+  padding: 4px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.changes-preview__more:hover { background: var(--surface-hover); }
+.changes-preview__more svg { width: 15px; height: 15px; }
+.pending-versions__diff .diff-code {
+  height: 100%;
+  min-height: 0;
+}
+
+.changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.changes-view__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
+.changes-view__header p { margin: 4px 0 0; color: var(--text-secondary); font-size: 14px; }
+.changes-view__summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.changes-view__summary-separator { color: var(--text-secondary); opacity: 0.6; }
+.changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 10px; }
+.changes-view__lines { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13.5px; }
+.changes-view__lines--added { color: var(--diff-added); }
+.changes-view__lines--removed { color: var(--diff-removed); }
+.changes-header__error { color: var(--status-danger) !important; }
+.changes-header__note { color: var(--status-warning) !important; font-size: 13px !important; }
+.changes-view__actions { flex-shrink: 0; display: flex; align-items: center; gap: var(--space-4); }
+.changes-view__buttons { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.changes-freshness {
+  display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0;
+  color: var(--text-secondary); font-size: 13px; white-space: nowrap;
+}
+.changes-freshness svg { width: 15px; height: 15px; }
+.changes-freshness__icon { color: var(--status-success); }
+.changes-view__refresh { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; }
+.changes-view__refresh svg { width: 16px; height: 16px; }
+.changes-view__actions .primary-button { display: inline-flex; align-items: center; gap: 8px; }
+.changes-view__actions .primary-button svg { width: 16px; height: 16px; }
+
+.changes-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; max-width: 380px; margin: 0 auto; padding: 40px 24px; text-align: center;
+}
+.changes-empty__icon {
+  width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 14px;
+  border-radius: var(--radius-lg); background: var(--surface-active); color: var(--status-success); box-shadow: var(--shadow-sm);
+}
+.changes-empty__icon svg { width: 20px; height: 20px; }
+.changes-empty h2 { font-size: 17px; margin-bottom: 6px; }
+.changes-empty p { color: var(--text-secondary); font-size: 14px; line-height: 1.55; margin-bottom: 22px; }
+.changes-layout {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: var(--space-4);
+  /* Both panels open with a header strip closed by a bottom rule, and those
+     two rules have to land on the same pixel row or the pair looks skewed.
+     Their natural heights differ — the left strip's tallest child is the
+     18px round checkbox, the right's is the ~23px category badge — so equal
+     padding alone is not enough. Pinning both to one height here makes them
+     match by construction instead of by a measured padding fudge, and it
+     stays correct if either strip's content changes. Sized a hair above the
+     taller strip's natural height so it always wins. */
+  --changes-header-height: 57px;
+  /* The second paired strip, below the two headers: the file list's search
+     box on the left, the diff's view/change toolbar on the right. Same
+     contract as `--changes-header-height` — both strips wrap one 34px-tall
+     control with 9px of breathing room above and below, so pinning the
+     height here keeps their bottom rules on one pixel row even when only one
+     side has content (a file with no hunks hides the change navigation).
+     Exactly 34 + 9 + 9 + 1px border, and applied as a fixed `height` rather
+     than a `min-height`: both strips are flex items in a column whose other
+     child is a scroller, so a `min-height` let whichever side was under
+     shrink pressure settle 1px shorter than the other — the two rules landing
+     one pixel apart is precisely what a paired header is supposed to prevent.
+     `flex: 0 0 auto` below is the other half of that fix. */
+  --changes-toolbar-height: 53px;
+  --changes-toolbar-control-height: 34px;
+}
+.changes-file-list {
+  min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); background: var(--surface-panel);
+  /* This panel is a <nav>, and the global `nav { display: grid; gap: 6px }`
+     rule's gap survives the switch to flex — it was silently adding 6px
+     between every strip here, which is exactly what stopped this column from
+     lining up with the diff panel's (a plain <div>, so no such gap). The
+     strips own their spacing through padding. */
+  gap: 0;
+}
+.changes-file-list__selection {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  /* Right inset matches where the file rows' trailing category icon actually
+     sits: the scroll viewport's own margin (`--space-2`) plus the file item's
+     own right padding (`--space-3`) — not just the viewport margin alone,
+     or the count reads closer to the edge than the icons below it. */
+  padding: var(--space-4) calc(var(--space-2) + var(--space-3)) var(--space-4) var(--space-2);
+  /* Paired with `.changes-diff__header`: same height, same bottom rule, so
+     the two panels read as one matched header band. See the note on
+     `--changes-header-height`. `min-height` (not a fixed height) because the
+     opposite strip can legitimately grow — a long wrapped path, or the
+     renamed-from line — and this one has to follow. `flex-shrink: 0` so it
+     can only ever grow: as a flex item beside a scroller it would otherwise
+     be squeezed back to the minimum while its partner kept its natural
+     height, which is the same 1px mismatch the toolbar strips had. */
+  flex-shrink: 0;
+  min-height: var(--changes-header-height);
+  color: var(--text-secondary); font-size: 12px;
+}
+.changes-file-list__select-all {
+  display: inline-flex;
+}
+.changes-file-list__select-all .changes-file-row__checkbox { margin: 0 0 0 6px; }
+.changes-file-list__search {
+  display: flex; align-items: center;
+  flex: 0 0 auto; height: var(--changes-toolbar-height);
+  /* Asymmetric on purpose: the strip's total height is fixed (paired with
+     the diff toolbar on the right), so this is what actually moves the
+     search box within it — less room above than below shifts it up. */
+  padding: 4px var(--space-2) 15px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.changes-search-box {
+  flex: 1; min-width: 0; box-sizing: border-box; height: var(--changes-toolbar-control-height);
+  display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  background: var(--surface-hover); transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.changes-search-box:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
+.changes-search-box svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary); }
+.changes-search-box input {
+  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text-primary);
+  font: inherit; font-size: 13.5px; outline: none;
+}
+.changes-file-list__empty {
+  margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-secondary); font-size: 13px; text-align: center;
+}
+.changes-file-list__scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: var(--space-2);
+}
+.changes-file-list ul {
+  list-style: none; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+}
+.changes-file-row { min-width: 0; display: flex; align-items: center; gap: 4px; }
+.changes-file-row__checkbox {
+  appearance: none; display: grid; place-content: center; flex: 0 0 auto;
+  width: 18px; height: 18px; margin: 0 2px 0 6px;
+  border: 1px solid var(--border-subtle); border-radius: 50%;
+  background: var(--surface-raised); cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.changes-file-row__checkbox::before {
+  content: ""; width: 8px; height: 4px;
+  border-inline-start: 2px solid var(--accent-primary-contrast);
+  border-bottom: 2px solid var(--accent-primary-contrast);
+  transform: translate(0.25px, -1px) rotate(-45deg) scale(0);
+  transform-origin: center;
+  transition: transform var(--duration-fast);
+}
+.changes-file-row__checkbox:hover { border-color: var(--accent-primary); }
+.changes-file-row__checkbox:checked {
+  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
+}
+.changes-file-row__checkbox:checked::before { transform: translate(0.25px, -1px) rotate(-45deg) scale(1); }
+.changes-file-row__checkbox:indeterminate {
+  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
+}
+.changes-file-row__checkbox:indeterminate::before {
+  width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary-contrast);
+  transform: translate(0, 0) rotate(0deg) scale(1);
+}
+.changes-file-row__checkbox:disabled { cursor: default; opacity: 0.55; }
+.changes-file-row__checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.changes-file-row .changes-file-item { flex: 1; width: auto; }
+.changes-file-list__truncated {
+  margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-hover);
+  color: var(--text-secondary); font-size: 12.5px;
+}
+.changes-file-item {
+  width: 100%; min-width: 0; display: flex; align-items: flex-start; gap: 13px; padding: 9px var(--space-3);
+  border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-primary); text-align: left;
+  cursor: pointer; font: inherit;
+}
+.changes-file-item:hover { background: var(--surface-hover); }
+.changes-file-item--active { background: var(--surface-active); }
+.changes-file-item--attention .changes-file-item__name { color: var(--status-danger); }
+.changes-file-item__icon { display: grid; place-items: center; flex-shrink: 0; align-self: center; }
+.changes-file-item__type-icon { width: 15px; height: 15px; }
+.changes-file-item__category-icon {
+  display: grid; place-items: center; flex-shrink: 0; align-self: center; margin-left: auto; color: var(--text-secondary);
+}
+.changes-file-item__category-icon svg { width: 13px; height: 13px; }
+.changes-file-item__category-icon--new { color: var(--status-success); }
+.changes-file-item__category-icon--deleted { color: var(--status-danger); }
+.changes-file-item__category-icon--renamed { color: var(--status-renamed); }
+.changes-file-item__category-icon--conflicted { color: var(--status-warning); }
+.changes-file-item__details { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.changes-file-item__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.changes-file-item--active .changes-file-item__name { font-weight: 600; }
+.changes-file-item__dir {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;
+  font-size: 11.5px; color: var(--text-secondary);
+}
+@media (forced-colors: active) {
+  .changes-file-row__checkbox { appearance: auto; }
+}
+.changes-file-item__origin {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--text-secondary);
+}
+
+.changes-diff {
+  min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); background: var(--surface-panel); overflow: hidden;
+}
+.changes-diff__back {
+  display: none; align-items: center; gap: 6px; margin: var(--space-3) var(--space-3) 0; padding: 4px 0;
+  border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; font: inherit; font-size: 13px;
+  align-self: flex-start;
+}
+.changes-diff__back svg { width: 16px; height: 16px; }
+.changes-diff__header {
+  display: flex; align-items: flex-start; gap: 10px; padding: var(--space-4);
+  /* Paired with `.changes-file-list__selection` — see the note on
+     `--changes-header-height`. `min-height` rather than `height` so a long
+     path that wraps, or the renamed-from line, can still push this taller;
+     `flex-shrink: 0` so nothing can push it shorter. */
+  flex-shrink: 0;
+  min-height: var(--changes-header-height);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.changes-diff__header-icon { display: grid; place-items: center; color: var(--text-secondary); margin-top: 2px; }
+.changes-diff__header-icon svg { width: 16px; height: 16px; }
+.changes-diff__header-text { min-width: 0; flex: 1; }
+.changes-diff__title-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex-wrap: nowrap; }
+.changes-diff__path {
+  min-width: 0; margin: 0; font-weight: 600; font-size: 14px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  direction: rtl; unicode-bidi: plaintext; text-align: left;
+}
+.changes-diff__category {
+  flex-shrink: 0; padding: 3px 8px; border: 1px solid var(--border-subtle); border-radius: 999px;
+  background: var(--surface-hover); color: var(--text-secondary); font-size: 11.5px; font-weight: 650; line-height: 1.3;
+}
+.changes-diff__category--new {
+  border-color: transparent; background: color-mix(in srgb, var(--status-success) 16%, transparent);
+  color: var(--status-success);
+}
+.changes-diff__category--deleted {
+  border-color: transparent; background: color-mix(in srgb, var(--status-danger) 14%, transparent);
+  color: var(--status-danger);
+}
+.changes-diff__category--renamed {
+  border-color: transparent; background: color-mix(in srgb, var(--status-renamed) 16%, transparent);
+  color: var(--status-renamed);
+}
+.changes-diff__category--conflicted {
+  border-color: transparent; background: color-mix(in srgb, var(--status-warning) 18%, transparent);
+  color: var(--status-warning);
+}
+.changes-diff__origin {
+  min-width: 0; flex: 0 1 auto; margin: 0; font-size: 12px; color: var(--text-secondary);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.changes-diff__file-nav,
+.changes-diff__hunk-nav { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.changes-diff__file-nav { align-self: center; }
+.changes-diff__position {
+  margin-right: 4px; color: var(--text-secondary); font-size: 12.5px; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.changes-diff__step {
+  width: 24px; height: 24px; display: grid; place-items: center; flex-shrink: 0;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+.changes-diff__step svg { width: 15px; height: 15px; }
+.changes-diff__step:hover:not(:disabled) {
+  background: var(--surface-hover); border-color: var(--border-subtle); color: var(--text-primary);
+}
+.changes-diff__step:disabled { opacity: 0.35; cursor: default; }
+.changes-diff__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.changes-diff__toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  flex: 0 0 auto; height: var(--changes-toolbar-height);
+  padding: 9px var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.changes-diff__view { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.changes-diff__view-label { color: var(--text-secondary); font-size: 12.5px; white-space: nowrap; }
+.changes-view-picker { position: relative; display: inline-flex; }
+.changes-view-picker__trigger {
+  box-sizing: border-box; height: var(--changes-toolbar-control-height);
+  padding: 0 10px; gap: 7px; border-radius: var(--radius-sm);
+}
+.changes-view-picker__value { font-size: 13.5px; font-weight: 500; white-space: nowrap; }
+.changes-view-picker__menu { right: auto; left: 0; min-width: 180px; }
+.changes-diff__body {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; margin-bottom: var(--space-2);
+  background: var(--surface-code);
+}
+.changes-diff__status {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: var(--space-6); color: var(--text-secondary); text-align: center;
+}
+.changes-diff__status svg { width: 22px; height: 22px; }
+.changes-diff__status--error { color: var(--status-danger); }
+.changes-diff__truncated {
+  margin: var(--space-3) var(--space-4) 0; padding: 8px 10px; border-radius: var(--radius-sm);
+  background: var(--surface-hover); color: var(--text-secondary); font-size: 12.5px;
+}
+
+.changes-diff__note { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: var(--space-6); text-align: center; color: var(--text-secondary); }
+.changes-diff__note-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-lg); background: var(--surface-hover); margin-bottom: 6px; }
+.changes-diff__note-icon svg { width: 18px; height: 18px; }
+.changes-diff__note h3 { font-size: 15px; color: var(--text-primary); }
+.changes-diff__note--attention .changes-diff__note-icon { background: var(--surface-active); color: var(--status-warning); }
+
+.diff-code {
+  /* `flex: 1; min-height: 0` (rather than a percentage height) so this
+     becomes the actual scrolling viewport the virtualizer measures, sized to
+     whatever room is left after any sibling (e.g. the truncated-diff note)
+     in `.changes-diff__body` — a fixed/percentage height here would ignore
+     that sibling and either overlap it or hand scrolling back to the parent,
+     which would defeat virtualization by keeping every row mounted. */
+  flex: 1; min-height: 0; margin: 0; padding: var(--space-3) 0; overflow-x: hidden; overflow-y: auto;
+  background: var(--surface-code); font: 12.5px/1.6 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+.diff-code--accessible {
+  padding: var(--space-3) var(--space-4); overflow: auto; white-space: pre;
+  color: var(--text-primary); tab-size: 8;
+}
+.diff-row--hunk-start { margin-top: var(--space-3); border-top: 1px dashed var(--border-divider); padding-top: var(--space-2); }
+.diff-hunk__marker {
+  margin: 6px var(--space-4); padding: 0; border-radius: var(--radius-md);
+  background: var(--surface-hover); color: var(--text-secondary); text-align: left;
+  font: 11.5px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: flex; align-items: center; gap: var(--space-2); overflow: hidden;
+}
+.diff-hunk__expand {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+  padding: 5px 14px; border: 0; border-radius: inherit; background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.diff-hunk__expand svg { width: 13px; height: 13px; flex-shrink: 0; }
+.diff-hunk__expand:hover:not(:disabled) { background: var(--surface-active); color: var(--text-primary); }
+.diff-hunk__expand:disabled { cursor: progress; }
+.diff-hunk__expand:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.diff-hunk__expand-error { flex-shrink: 0; padding-right: 14px; color: var(--status-danger); }
+.diff-hunk__marker--static { display: block; padding: 5px 14px; }
+.diff-line { display: grid; grid-template-columns: 48px 16px 1fr; align-items: baseline; padding-right: var(--space-4); }
+.diff-line__number { padding: 0 6px; text-align: right; color: var(--text-secondary); opacity: 0.55; font-size: 11px; user-select: none; }
+.diff-line__sign { text-align: center; user-select: none; }
+.diff-line__content { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+.diff-line--addition { background: color-mix(in srgb, var(--diff-added) 12%, transparent); }
+.diff-line--addition .diff-line__sign, .diff-line--addition .diff-line__content { color: var(--diff-added); }
+.diff-line--deletion { background: color-mix(in srgb, var(--diff-removed) 12%, transparent); }
+.diff-line--deletion .diff-line__sign, .diff-line--deletion .diff-line__content { color: var(--diff-removed); }
+.diff-split-row {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr);
+  align-items: stretch; padding-right: var(--space-4);
+}
+.diff-split-row > :nth-child(3) { border-inline-start: 1px solid var(--border-divider); }
+.diff-split-cell {
+  display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: baseline; min-width: 0;
+}
+.diff-split-cell--addition { background: color-mix(in srgb, var(--diff-added) 12%, transparent); }
+.diff-split-cell--addition .diff-line__sign, .diff-split-cell--addition .diff-line__content { color: var(--diff-added); }
+.diff-split-cell--deletion { background: color-mix(in srgb, var(--diff-removed) 12%, transparent); }
+.diff-split-cell--deletion .diff-line__sign, .diff-split-cell--deletion .diff-line__content { color: var(--diff-removed); }
+.diff-split-cell--empty { background: var(--surface-hover); opacity: 0.35; }
+.diff-line__number--empty { user-select: none; }
+@media (max-width: 1024px) {
+  .changes-layout { grid-template-columns: 1fr; }
+  .changes-layout .changes-diff { display: none; }
+  .changes-layout--detail .changes-file-list { display: none; }
+  .changes-layout--detail .changes-diff { display: flex; }
+  .changes-layout--detail .changes-diff__back { display: inline-flex; }
+}
+
+@media (max-width: 800px) {
+  .changes-view__header { flex-direction: column; align-items: stretch; }
+  .changes-view__actions { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+  .changes-freshness { justify-content: flex-end; }
+  .changes-view__buttons { width: 100%; }
+  .changes-view__buttons > button { flex: 1 1 auto; justify-content: center; }
+  .changes-view__refresh { justify-content: center; }
+}

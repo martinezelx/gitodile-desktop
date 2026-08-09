@@ -113,7 +113,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | 027 | Done 2026-08-09 | Version lines migrated as the reference vertical slice | 024–026 |
 | 028 | Done 2026-08-09 | Repository/status/changes/diff reads migrated | 027 |
 | 029 | Done 2026-08-09 | Save and publish mutation flows migrated without weakening safety | 027, 028 |
-| 030 | Not started | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
+| 030 | Done 2026-08-09 | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
 | 031 | Not started | Complete cross-platform integration audit, final measurements, epic closure and History unlock | 023–030 |
 
 Execute dependency-ready tasks one at a time unless the user explicitly
@@ -264,7 +264,17 @@ its authoritative pending result directly, and save performs a safe readback
 because hooks may alter files. Related worktrees remain serialized by the
 common-Git-directory coordinator, temporary-index/recovery guarantees and
 redacted structured failures remain covered, and uncertain remote outcomes are
-still reported truthfully. Task 030 remains unstarted.
+still reported truthfully.
+
+Task 030 turned `styles.css` and `i18n.tsx` into eager composition entries.
+The tested CSS order is tokens/base, app shell, shared primitives and
+feature-owned styles; all 796 rules remain represented once and the closed
+three-screen visual contracts retain their rendered regression coverage.
+App/shared/feature translation namespaces compose synchronously, while exact
+English/Spanish interfaces enforce per-owner key and formatter parity without
+changing `useLanguage` or copy. Production CSS/JavaScript chunks remain below
+task-023 warning budgets and `fileIcons` stays deferred. Task 031 is still
+unstarted and owns the final cross-platform audit and epic closure.
 
 # Validation
 

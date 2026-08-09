@@ -1,0 +1,191 @@
+:root {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+
+  /* Light theme values (default). Dark values are applied via the
+     prefers-color-scheme query below, and either can be pinned with
+     the data-theme attribute set from the in-app toggle. Panels are
+     opaque; depth comes from --shadow-*, not translucency/blur. */
+  --surface-app: #faf8f5;
+  --surface-panel: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-code: #f5f5f4;
+  --surface-hover: rgba(28, 25, 23, 0.05);
+  --surface-active: rgba(107, 155, 46, 0.12);
+  --text-primary: #1c1917;
+  --text-secondary: #6f6a64;
+  --border-subtle: #e7e5e4;
+  /* A second, dedicated token for lines whose whole job is to be seen — a
+     divider between rows or sections, not a container's own edge. In light
+     mode it's the same value as `--border-subtle` (there was never a
+     visibility problem here); dark mode gives it its own, more visible
+     value below instead of reusing the near-invisible `--border-subtle`. */
+  --border-divider: #e7e5e4;
+  /* Two-tone green: --accent-brand is the vivid crocodile lima, reserved for
+     punctual brand moments (mark, primary CTA). --accent-primary is the
+     everyday tone used for nav/focus/status so the UI isn't awash in green. */
+  --accent-brand: #8bc53f;
+  --accent-brand-contrast: #14170f;
+  --brand-mark-foreground: #faf8f5;
+  --accent-primary: #4f751e;
+  --accent-primary-contrast: #14170f;
+  --accent-primary-fill: #9bd65a;
+  --status-success: #4f751e;
+  --status-warning: #8a5b00;
+  --status-danger: #b3261e;
+  --status-danger-contrast: #fff7f5;
+  /* Renamed used to borrow --accent-primary, which happens to be the exact
+     same hex as --status-success in this palette — so "renamed" and "added"
+     rendered as literally the same color. A dedicated blue keeps the four
+     change categories (success/warning/danger/renamed) each visually
+     distinct instead of two of them colliding by coincidence. */
+  --status-renamed: #2f6fb3;
+  --diff-added: #4f751e;
+  --diff-removed: #b3261e;
+  --focus-ring: #4f751e;
+  --overlay: rgba(28, 25, 23, 0.4);
+  --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
+  --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
+  --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+  /* Deliberately theme-independent (unlike every other --surface-* token):
+     a tooltip that flips light/dark with the app loses the one property
+     that makes this style work — reliable contrast over *anything* behind
+     it. Defined once here rather than in each theme block below. */
+  --tooltip-surface: #171717;
+  --tooltip-text: #f5f5f5;
+  /* Small offset, near-zero blur, low opacity: just enough to read as
+     "resting slightly above the page," not a glow or a cast shadow. */
+  --tooltip-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+
+  /* Project avatar identity colors: fixed regardless of theme (like a
+     person's avatar color in Slack/Linear/GitHub) — assigned per project by
+     hashing its path (see projectAvatar.ts), not by theme or status, so a
+     project's color stays recognizable across light/dark and restarts.
+     Evenly spaced across the cyan→pink arc, well clear of the brand green
+     (~89°) and the warning/danger hues (~5–45°) used elsewhere for status.
+     Each was picked to keep its white avatar text at >=4.5:1 contrast (WCAG
+     AA for small text) *and* the chip itself at >=3.7:1 against the dark
+     theme's near-black panels (WCAG's 3:1 minimum for non-text UI
+     components) — the same swatch works unmodified in both themes, no
+     light/dark override needed. */
+  --avatar-color-0: #278657; /* teal   — cw 4.53:1, cd 3.84:1 */
+  --avatar-color-1: #26827e; /* cyan   — cw 4.59:1, cd 3.79:1 */
+  --avatar-color-2: #317aaa; /* sky    — cw 4.67:1, cd 3.73:1 */
+  --avatar-color-3: #5c6ed6; /* blue   — cw 4.51:1, cd 3.86:1 */
+  --avatar-color-4: #765eed; /* violet — cw 4.57:1, cd 3.81:1 */
+  --avatar-color-5: #b242d7; /* purple — cw 4.51:1, cd 3.86:1 */
+  --avatar-color-6: #c639aa; /* fuchsia— cw 4.60:1, cd 3.78:1 */
+  --avatar-color-7: #c94573; /* pink   — cw 4.58:1, cd 3.80:1 */
+  --avatar-foreground: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-app: #0a0a0a;
+    --surface-panel: #1a1a1a;
+    --surface-raised: #242424;
+    --surface-code: #1a1a1a;
+    --surface-hover: rgba(255, 255, 255, 0.06);
+    --surface-active: rgba(155, 214, 90, 0.14);
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --border-subtle: #27272a;
+    --border-divider: #3f3f46;
+    --accent-brand: #8bc53f;
+    --accent-brand-contrast: #14170f;
+    --brand-mark-foreground: #14170f;
+    --accent-primary: #9bd65a;
+    --accent-primary-contrast: #0a0a0a;
+    --accent-primary-fill: #9bd65a;
+    --status-success: #9bd65a;
+    --status-warning: #e8b339;
+    --status-danger: #ff6b5b;
+    --status-danger-contrast: #14170f;
+    --status-renamed: #6ea8fe;
+    --diff-added: #9bd65a;
+    --diff-removed: #ff6b5b;
+    --focus-ring: #9bd65a;
+    --overlay: rgba(0, 0, 0, 0.68);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+  }
+}
+
+:root[data-theme="light"] {
+  --surface-app: #faf8f5;
+  --surface-panel: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-code: #f5f5f4;
+  --surface-hover: rgba(28, 25, 23, 0.05);
+  --surface-active: rgba(107, 155, 46, 0.12);
+  --text-primary: #1c1917;
+  --text-secondary: #6f6a64;
+  --border-subtle: #e7e5e4;
+  --border-divider: #e7e5e4;
+  --accent-brand: #8bc53f;
+  --accent-brand-contrast: #14170f;
+  --brand-mark-foreground: #faf8f5;
+  --accent-primary: #4f751e;
+  --accent-primary-contrast: #14170f;
+  --accent-primary-fill: #9bd65a;
+  --status-success: #4f751e;
+  --status-warning: #8a5b00;
+  --status-danger: #b3261e;
+  --status-danger-contrast: #fff7f5;
+  --status-renamed: #2f6fb3;
+  --diff-added: #4f751e;
+  --diff-removed: #b3261e;
+  --focus-ring: #4f751e;
+  --overlay: rgba(28, 25, 23, 0.4);
+  --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
+  --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
+  --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+}
+
+:root[data-theme="dark"] {
+  --surface-app: #0a0a0a;
+  --surface-panel: #1a1a1a;
+  --surface-raised: #242424;
+  --surface-code: #1a1a1a;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface-active: rgba(155, 214, 90, 0.14);
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --border-subtle: #27272a;
+  --border-divider: #3f3f46;
+  --accent-brand: #8bc53f;
+  --accent-brand-contrast: #14170f;
+  --brand-mark-foreground: #14170f;
+  --accent-primary: #9bd65a;
+  --accent-primary-contrast: #0a0a0a;
+  --accent-primary-fill: #9bd65a;
+  --status-success: #9bd65a;
+  --status-warning: #e8b339;
+  --status-danger: #ff6b5b;
+  --status-danger-contrast: #14170f;
+  --status-renamed: #6ea8fe;
+  --diff-added: #9bd65a;
+  --diff-removed: #ff6b5b;
+  --focus-ring: #9bd65a;
+  --overlay: rgba(0, 0, 0, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
