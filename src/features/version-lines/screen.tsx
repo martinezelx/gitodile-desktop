@@ -3,11 +3,11 @@ import { GitBranch } from "lucide-react";
 import { createLazyScreenContainer, type ScreenModule } from "../../screenModule";
 
 const container = createLazyScreenContainer(
-  () => import("../../versionLinesPanel"),
-  (module) => module.VersionLinesPanel,
+  () => import("./VersionLinesScreen"),
+  (module) => module.VersionLinesScreen,
 );
 
-export const VersionLinesPanel = container.Component;
+export const VersionLinesScreen = container.Component;
 
 export const versionLinesScreenModule = {
   kind: "screen",
@@ -20,7 +20,7 @@ export const versionLinesScreenModule = {
   requiresProject: true,
   inCompactNav: true,
   container,
-  additionalPreloads: [() => import("../../versionLinesDialog")],
+  additionalPreloads: [() => import("./VersionLinesDialog")],
   lifecycle: { hidden: "retain-suspended", evict: "project-session" },
   accessibility: { inactive: "hidden-inert", announcements: "active-only" },
   performanceBudget: { warmSwitchWarningMs: 40, warmSwitchFailureMs: 50, maxVisibleDescendants: 1200 },

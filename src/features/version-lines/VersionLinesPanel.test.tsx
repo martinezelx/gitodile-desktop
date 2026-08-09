@@ -3,9 +3,9 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { LanguageProvider } from "./i18n";
-import { VersionLinesPanel } from "./versionLinesPanel";
-import type { VersionLinesSnapshot } from "./versionLines";
+import { LanguageProvider } from "../../i18n";
+import { VersionLinesPanel } from "./VersionLinesPanel";
+import type { VersionLinesSnapshot } from "./domain";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
@@ -85,6 +85,7 @@ function renderPanel(props: Partial<React.ComponentProps<typeof VersionLinesPane
     <LanguageProvider>
       <VersionLinesPanel
         projectPath="/repo"
+        sessionEpoch="epoch-1"
         snapshot={snapshot()}
         error={null}
         isLoading={false}

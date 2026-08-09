@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -71,7 +71,13 @@ import {
 import { autoHideScrollbarProps } from "./autoHideScrollbar";
 import { createDiffCache, releaseDiffCache } from "./diffCache";
 import type { PendingVersionsResult } from "./publish";
-import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
+import {
+  createVersionLinesController,
+  useVersionLinesState,
+  versionLinesPort,
+  type VersionLine,
+  type VersionLinesSnapshot,
+} from "./features/version-lines";
 import { useModalFocus } from "./modalFocus";
 import { TooltipHost } from "./tooltip";
 import { LoadingBar } from "./loadingBar";
@@ -100,7 +106,7 @@ import {
   ChangesPanel,
   KeepAliveScreens,
   NAV_DESTINATIONS,
-  VersionLinesPanel,
+  VersionLinesScreen,
   markScreenSwitchIntent,
   prefetchScreenChunks,
   screenRequiresProject,
@@ -119,10 +125,10 @@ const PendingVersionsSection = lazy(() =>
   import("./pendingVersions").then((m) => ({ default: m.PendingVersionsSection })),
 );
 const CreateVersionLineDialog = lazy(() =>
-  import("./versionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
+  import("./features/version-lines/VersionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
 );
 const SwitchVersionLineDialog = lazy(() =>
-  import("./versionLinesDialog").then((m) => ({ default: m.SwitchVersionLineDialog })),
+  import("./features/version-lines/VersionLinesDialog").then((m) => ({ default: m.SwitchVersionLineDialog })),
 );
 
 type ThemePreference = "system" | "light" | "dark";
@@ -1768,6 +1774,7 @@ export function App(): React.JSX.Element {
     () => localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true",
   );
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
+  const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
   const sessionsState = useProjectSelector(projectRuntime, (snapshot) => snapshot);
   const dispatchSessions = projectRuntime.dispatch;
   // Owns the "which response is still current" counter per session. Lives
@@ -1775,16 +1782,6 @@ export function App(): React.JSX.Element {
   // plain synchronous value before the async status/pending-versions calls
   // even start (see `checkWorkingTree` below).
   const statusGenerationsRef = useRef<Record<string, number>>({});
-  // The same idea for the version-lines read, on its own counter: that read
-  // and the working-tree read start independently, so one counter would let
-  // either refresh discard the other's in-flight result.
-  const versionLinesGenerationsRef = useRef<Record<string, number>>({});
-  // Dedupes concurrent version-lines reads for the same project, so the idle
-  // prefetch and a user who reaches the screen before it finishes share one
-  // Git process instead of racing.
-  const versionLinesRequestsRef = useRef<
-    Record<string, { generation: number; promise: Promise<void> }>
-  >({});
   // Watch events that arrive while a mutation owns the working tree are not
   // discarded. They are coalesced here and replayed when the dialog closes.
   const pendingWatchRefreshesRef = useRef<Record<string, { repositoryStateChanged: boolean }>>({});
@@ -1795,6 +1792,11 @@ export function App(): React.JSX.Element {
   // (see task 019); entries are dropped when their session closes.
   const diffCacheRef = useRef(createDiffCache());
   const activeSession = sessionsState.activeId ? sessionsState.byId[sessionsState.activeId] : null;
+  const activeVersionLinesQuery = useMemo(
+    () => ({ projectId: activeSession?.id ?? "", sessionEpoch: activeSession?.epoch ?? "" }),
+    [activeSession?.epoch, activeSession?.id],
+  );
+  const activeVersionLines = useVersionLinesState(versionLinesController, activeVersionLinesQuery);
   const project = activeSession?.project ?? null;
   const workingTree = activeSession?.workingTree ?? null;
   const workingTreeError = activeSession?.workingTreeError ?? null;
@@ -1856,9 +1858,8 @@ export function App(): React.JSX.Element {
   const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
   const [saveDialogSessionId, setSaveDialogSessionId] = useState<string | null>(null);
   // Overview's bounded quick-switch/quick-create: distinct from the
-  // Version-lines screen's own dialogs (see `versionLinesPanel.tsx`) because
-  // Overview isn't that screen's React subtree — both ultimately drive the
-  // same Rust plan/execute commands through the same dialog components.
+  // Version-lines feature screen's own dialog state because Overview isn't
+  // that screen's React subtree. Both use the feature-owned dialogs and port.
   const [overviewSwitchTarget, setOverviewSwitchTarget] = useState<string | null>(null);
   const [overviewCreateRequest, setOverviewCreateRequest] = useState<{ forceSwitch: boolean } | null>(null);
   const [versionLinesAutoOpenCreate, setVersionLinesAutoOpenCreate] = useState(false);
@@ -2062,66 +2063,6 @@ export function App(): React.JSX.Element {
     }
   };
 
-  /** Re-reads the branch inventory into the project's session. Concurrent
-   * calls for the same project share one request. A cached refresh does not
-   * publish a loading state, and an unchanged answer is ignored by the reducer,
-   * so repository-watch events cannot make the visible screen churn. */
-  const refreshVersionLines = (path: string): Promise<void> => {
-    const epoch = sessionsState.byId[path]?.epoch;
-    if (!epoch) {
-      return Promise.resolve();
-    }
-    const inFlight = versionLinesRequestsRef.current[path];
-    if (inFlight) {
-      return inFlight.promise;
-    }
-    const generation = (versionLinesGenerationsRef.current[path] ?? 0) + 1;
-    versionLinesGenerationsRef.current[path] = generation;
-    if (!sessionsState.byId[path]?.versionLines) {
-      dispatchSessions({ type: "startVersionLinesLoad", id: path });
-    }
-    const request = invoke<VersionLinesSnapshot>("get_version_lines", { path, sessionEpoch: epoch })
-      .then((snapshot) => {
-        if (versionLinesGenerationsRef.current[path] === generation) {
-          dispatchSessions({ type: "applyVersionLines", id: path, epoch, snapshot });
-        }
-      })
-      .catch((error: unknown) => {
-        if (versionLinesGenerationsRef.current[path] !== generation) {
-          return;
-        }
-        dispatchSessions({
-          type: "applyVersionLinesError",
-          id: path,
-          epoch,
-          error: localizeAppError(error, t, t.versionLinesErrorLoading),
-        });
-      })
-      .finally(() => {
-        // A close/reopen or mutation may have invalidated this request and
-        // installed a newer one for the same canonical path. Only the entry
-        // that still owns this generation may clear itself.
-        if (versionLinesRequestsRef.current[path]?.generation === generation) {
-          delete versionLinesRequestsRef.current[path];
-        }
-      });
-    versionLinesRequestsRef.current[path] = { generation, promise: request };
-    return request;
-  };
-
-  /** Stores a snapshot a mutation already returned, skipping a re-read. The
-   * generation bump makes an older in-flight discovery response harmless. */
-  const commitVersionLines = (path: string, snapshot: VersionLinesSnapshot): void => {
-    const epoch = sessionsState.byId[path]?.epoch;
-    if (!epoch) {
-      return;
-    }
-    const generation = (versionLinesGenerationsRef.current[path] ?? 0) + 1;
-    versionLinesGenerationsRef.current[path] = generation;
-    delete versionLinesRequestsRef.current[path];
-    dispatchSessions({ type: "applyVersionLines", id: path, epoch, snapshot });
-  };
-
   // A successful create/switch/delete on a version line changes `HEAD`, the
   // index, and the working tree — every one of task 016's "Operation
   // coordination and refresh" invalidation targets that already exist in
@@ -2131,12 +2072,9 @@ export function App(): React.JSX.Element {
   // `checkWorkingTree` covers both the working-tree status and the pending-
   // versions list save/publish depend on. Clearing the Changes selection
   // stops a diff/file that may not exist on the new line from staying
-  // "selected". The branch inventory is re-read too, now that it is cached
-  // per session rather than owned by the Version-lines screen: the screen's
-  // own dialogs hand their fresh snapshot straight back (see
-  // `commitVersionLines`), but Overview's quick switch/create reach the same
-  // commands from outside that screen, and their result must not be left
-  // behind in the cache.
+  // "selected". The mutation result is committed directly to the
+  // Version-lines feature controller by both the screen and Overview dialogs,
+  // so this callback only refreshes repository facts shared by features.
   const handleVersionLineChanged = async (path: string): Promise<void> => {
     delete pendingWatchRefreshesRef.current[path];
     try {
@@ -2164,7 +2102,10 @@ export function App(): React.JSX.Element {
       // Keep the last known identity visible; the working-tree refresh below
       // still runs and the next repository event/navigation can retry.
     }
-    void refreshVersionLines(path);
+    const epoch = sessionsState.byId[path]?.epoch;
+    if (epoch) {
+      void versionLinesController.refresh({ projectId: path, sessionEpoch: epoch });
+    }
     await checkWorkingTree(path);
   };
 
@@ -2443,7 +2384,7 @@ export function App(): React.JSX.Element {
     projectPath,
     session: activeSession,
     diffCache: diffCacheRef.current,
-    refreshVersionLines,
+    versionLinesController,
   });
 
   // Some screens only exist for an opened project; if the project closes
@@ -2500,9 +2441,7 @@ export function App(): React.JSX.Element {
         delete watcherSequencesRef.current[key];
       }
     }
-    versionLinesGenerationsRef.current[id] =
-      (versionLinesGenerationsRef.current[id] ?? 0) + 1;
-    delete versionLinesRequestsRef.current[id];
+    versionLinesController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id) {
       setView(nextSession?.lastView ?? "overview");
@@ -3020,7 +2959,7 @@ export function App(): React.JSX.Element {
               screens instead of keeping them alive against a project the
               user has left. */}
           <KeepAliveScreens
-            key={sessionsState.activeId ?? "no-project"}
+            key={activeSession?.epoch ?? "no-project"}
             active={view}
             screens={{
               overview: (
@@ -3051,8 +2990,8 @@ export function App(): React.JSX.Element {
                   pendingVersions={pendingVersions}
                   pendingVersionsError={pendingVersionsError}
                   onRetryPendingVersions={() => projectPath && void checkWorkingTree(projectPath)}
-                  versionLines={activeSession?.versionLines ?? null}
-                  isLoadingVersionLines={activeSession?.isLoadingVersionLines ?? false}
+                  versionLines={activeVersionLines.snapshot}
+                  isLoadingVersionLines={activeVersionLines.isLoading}
                   onQuickSwitchVersionLine={(target) => {
                     if (projectPath && startVersionLineOperation(projectPath)) {
                       setOverviewSwitchTarget(target);
@@ -3121,13 +3060,10 @@ export function App(): React.JSX.Element {
                     ),
                     "version-lines": (
                       <Suspense fallback={<ViewLoadingFallback />}>
-                        <VersionLinesPanel
+                        <VersionLinesScreen
+                          controller={versionLinesController}
                           projectPath={project.path}
-                          snapshot={activeSession?.versionLines ?? null}
-                          error={activeSession?.versionLinesError ?? null}
-                          isLoading={activeSession?.isLoadingVersionLines ?? false}
-                          onRefresh={() => void refreshVersionLines(project.path)}
-                          onSnapshot={(snapshot) => commitVersionLines(project.path, snapshot)}
+                          sessionEpoch={activeSession?.epoch ?? ""}
                           onChanged={() => void handleVersionLineChanged(project.path)}
                           onOperationStart={() => startVersionLineOperation(project.path)}
                           onOperationFinish={() => finishSessionOperation(project.path)}
@@ -3178,12 +3114,14 @@ export function App(): React.JSX.Element {
           <SwitchVersionLineDialog
             isOpen
             projectPath={project.path}
+            sessionEpoch={activeSession?.epoch ?? ""}
             target={overviewSwitchTarget}
             onClose={() => {
               setOverviewSwitchTarget(null);
               finishSessionOperation(project.path);
             }}
-            onSwitched={() => {
+            onSwitched={(snapshot) => {
+              versionLinesController.commit(activeVersionLinesQuery, snapshot);
               setOverviewSwitchTarget(null);
               void handleVersionLineChanged(project.path);
               finishSessionOperation(project.path);
@@ -3207,12 +3145,14 @@ export function App(): React.JSX.Element {
           <CreateVersionLineDialog
             isOpen
             projectPath={project.path}
+            sessionEpoch={activeSession?.epoch ?? ""}
             forceSwitch={overviewCreateRequest.forceSwitch}
             onClose={() => {
               setOverviewCreateRequest(null);
               finishSessionOperation(project.path);
             }}
-            onCreated={() => {
+            onCreated={(snapshot) => {
+              versionLinesController.commit(activeVersionLinesQuery, snapshot);
               setOverviewCreateRequest(null);
               void handleVersionLineChanged(project.path);
               finishSessionOperation(project.path);

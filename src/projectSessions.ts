@@ -1,6 +1,5 @@
 import type { PendingVersionsResult } from "./publish";
 import type { RepositoryInfo, WorkingTreeStatus } from "./repositoryOverview";
-import type { VersionLinesSnapshot } from "./versionLines";
 
 /** Per-project view: `settings` lives outside any session (see main.tsx), so
  * a session only ever remembers which of these two it was last showing. */
@@ -33,48 +32,6 @@ export const EMPTY_PENDING_VERSIONS: PendingVersionsResult = {
   versions: [],
   isTruncated: false,
 };
-
-/** Structural equality for repository-derived branch inventories. Rust
- * serializes a fresh object for every read, even when no ref changed. Keeping
- * the previous object in that case lets React bail out instead of reconciling
- * every version-line row after a background watcher refresh. */
-export function versionLinesSnapshotsEqual(
-  left: VersionLinesSnapshot | null,
-  right: VersionLinesSnapshot | null,
-): boolean {
-  if (left === right) {
-    return true;
-  }
-  if (!left || !right) {
-    return false;
-  }
-  if (
-    left.branch !== right.branch ||
-    left.headState !== right.headState ||
-    left.currentCommit !== right.currentCommit ||
-    left.totalCount !== right.totalCount ||
-    left.isTruncated !== right.isTruncated ||
-    left.unreadableCount !== right.unreadableCount ||
-    left.lines.length !== right.lines.length
-  ) {
-    return false;
-  }
-  return left.lines.every((line, index) => {
-    const other = right.lines[index];
-    return (
-      line.name === other.name &&
-      line.tip.commit === other.tip.commit &&
-      line.tip.shortCommit === other.tip.shortCommit &&
-      line.tip.subject === other.tip.subject &&
-      line.tip.committedAt === other.tip.committedAt &&
-      line.isActive === other.isActive &&
-      line.upstream === other.upstream &&
-      line.isRetainedElsewhere === other.isRetainedElsewhere &&
-      line.uniqueCommitCount === other.uniqueCommitCount &&
-      line.worktreePath === other.worktreePath
-    );
-  });
-}
 
 /**
  * One open project. `id` is the Rust-resolved canonical worktree root
@@ -113,14 +70,6 @@ export type ProjectSession = {
   statusGeneration: number;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
-  /** Last known branch inventory, kept here rather than inside the Version
-   * lines screen so leaving that screen and coming back renders the previous
-   * answer immediately while a refresh runs behind it (see task 019).
-   * `null` means "never loaded for this project", which is the only case
-   * that warrants a full-screen loading state. */
-  versionLines: VersionLinesSnapshot | null;
-  versionLinesError: string | null;
-  isLoadingVersionLines: boolean;
   operation: ProjectMutation | null;
 };
 
@@ -155,14 +104,6 @@ export type ProjectSessionsAction =
   | { type: "applyWorkingTreeError"; id: string; generation: number; epoch: string; error: string }
   | { type: "applyPendingVersions"; id: string; generation: number; epoch: string; result: PendingVersionsResult }
   | { type: "applyPendingVersionsError"; id: string; generation: number; epoch: string; error: string }
-  | { type: "startVersionLinesLoad"; id: string }
-  | {
-      type: "applyVersionLines";
-      id: string;
-      snapshot: VersionLinesSnapshot;
-      epoch: string;
-    }
-  | { type: "applyVersionLinesError"; id: string; epoch: string; error: string }
   | { type: "navigate"; id: string; view: ProjectView }
   | { type: "goBack"; id: string }
   | { type: "goForward"; id: string }
@@ -191,9 +132,6 @@ function freshSession(project: RepositoryInfo): ProjectSession {
     statusGeneration: 0,
     pendingVersions: EMPTY_PENDING_VERSIONS,
     pendingVersionsError: null,
-    versionLines: null,
-    versionLinesError: null,
-    isLoadingVersionLines: false,
     operation: null,
   };
 }
@@ -398,52 +336,6 @@ export function projectSessionsReducer(
       return updateSession(state, action.id, (current) => ({
         ...current,
         pendingVersionsError: action.error,
-      }));
-    }
-
-    case "startVersionLinesLoad":
-      return updateSession(state, action.id, (session) =>
-        session.isLoadingVersionLines
-          ? session
-          : {
-              ...session,
-              isLoadingVersionLines: true,
-            },
-      );
-
-    case "applyVersionLines": {
-      const session = state.byId[action.id];
-      if (!actionMatchesEpoch(session, action.epoch)) {
-        return state;
-      }
-      const isSameSnapshot = versionLinesSnapshotsEqual(session.versionLines, action.snapshot);
-      if (isSameSnapshot && session.versionLinesError === null && !session.isLoadingVersionLines) {
-        return state;
-      }
-      return updateSession(state, action.id, (current) => ({
-        ...current,
-        versionLines: isSameSnapshot ? current.versionLines : action.snapshot,
-        versionLinesError: null,
-        isLoadingVersionLines: false,
-      }));
-    }
-
-    case "applyVersionLinesError": {
-      const session = state.byId[action.id];
-      if (!actionMatchesEpoch(session, action.epoch)) {
-        return state;
-      }
-      if (session.versionLinesError === action.error && !session.isLoadingVersionLines) {
-        return state;
-      }
-      // Mirrors `applyWorkingTreeError`: the last known snapshot stays
-      // visible and only the error and the busy flag change, so a failed
-      // background refresh degrades to "this may be stale" rather than
-      // blanking a screen the user was already reading.
-      return updateSession(state, action.id, (current) => ({
-        ...current,
-        versionLinesError: action.error,
-        isLoadingVersionLines: false,
       }));
     }
 

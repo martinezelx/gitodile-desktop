@@ -88,3 +88,7 @@ Run `pnpm run check:architecture`. It analyzes runtime, type-only, dynamic and
 test edges, rejects production cycles/directions, protects the deferred
 `fileIcons` path and self-tests a seeded forbidden feature-to-app edge with an
 owning-module error.
+
+For the complete read-and-mutation example, including epoch-keyed request
+deduplication, mutation supersession, bounded eviction and the Rust service
+boundary, see [the Version-lines reference slice](version-lines-reference-slice.md).

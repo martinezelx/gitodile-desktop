@@ -3,7 +3,7 @@ import { GitCommitHorizontal, LifeBuoy, Settings } from "lucide-react";
 
 import { changesScreenModule, ChangesPanel } from "./features/changes";
 import { overviewScreenModule } from "./features/overview";
-import { versionLinesScreenModule, VersionLinesPanel } from "./features/version-lines";
+import { versionLinesScreenModule, VersionLinesScreen } from "./features/version-lines";
 import type { ProjectView } from "./projectSessions";
 import {
   ScreenLifecycleProvider,
@@ -54,7 +54,7 @@ export type NavDestination = {
   overlay?: "settings";
 };
 
-export { ChangesPanel, VersionLinesPanel };
+export { ChangesPanel, VersionLinesScreen };
 
 /** The single place a screen is registered. Nav (expanded and compact), the
  * command palette, idle prefetching, the "leave if the project closed" guard,

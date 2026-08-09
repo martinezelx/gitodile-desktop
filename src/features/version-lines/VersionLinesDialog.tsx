@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { CircleAlert, GitBranch, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
-import { useLanguage, type Translations } from "./i18n";
-import { localizeAppError, isAppError } from "./appError";
-import { useModalFocus } from "./modalFocus";
-import { autoHideScrollbarProps } from "./autoHideScrollbar";
+import { useLanguage, type Translations } from "../../i18n";
+import { localizeAppError, isAppError } from "../../appError";
+import { useModalFocus } from "../../modalFocus";
+import { autoHideScrollbarProps } from "../../autoHideScrollbar";
 import type {
   CreateVersionLinePlan,
   DeleteVersionLinePlan,
   SwitchVersionLinePlan,
   VersionLinesSnapshot,
-} from "./versionLines";
+} from "./domain";
+import { versionLinesPort } from "./tauriAdapter";
 
 type VersionLineOperationPhase = "planning" | "executing" | "error" | "success";
 
@@ -66,6 +66,7 @@ type CreateState =
 export function CreateVersionLineDialog({
   isOpen,
   projectPath,
+  sessionEpoch,
   /** Detached `HEAD`, or explicitly invoked to carry unsaved work: the
    * switch choice is locked on and explained rather than offered. */
   forceSwitch,
@@ -75,6 +76,7 @@ export function CreateVersionLineDialog({
 }: {
   isOpen: boolean;
   projectPath: string;
+  sessionEpoch: string;
   forceSwitch?: boolean;
   onClose: () => void;
   onCreated: (snapshot: VersionLinesSnapshot) => void;
@@ -133,10 +135,11 @@ export function CreateVersionLineDialog({
     setState({ status: "planning" });
     onPhaseChangeRef.current?.("planning");
     try {
-      const plan = await invoke<CreateVersionLinePlan>("plan_create_version_line", {
-        path: projectPath,
+      const plan = await versionLinesPort.planCreate({
+        projectId: projectPath,
+        sessionEpoch,
         name: trimmed,
-        switch: effectiveSwitch,
+        switchToNew: effectiveSwitch,
       });
       if (!plan.requiresConfirmation) {
         await execute(plan);
@@ -153,10 +156,11 @@ export function CreateVersionLineDialog({
     setState({ status: "creating", plan });
     onPhaseChangeRef.current?.("executing");
     try {
-      const snapshot = await invoke<VersionLinesSnapshot>("create_version_line", {
-        path: projectPath,
+      const snapshot = await versionLinesPort.create({
+        projectId: projectPath,
+        sessionEpoch,
         name: plan.name,
-        switch: plan.willSwitch,
+        switchToNew: plan.willSwitch,
         stateToken: plan.stateToken,
       });
       setState({ status: "success", snapshot, name: plan.name, switched: plan.willSwitch });
@@ -302,6 +306,7 @@ type SwitchState =
 export function SwitchVersionLineDialog({
   isOpen,
   projectPath,
+  sessionEpoch,
   target,
   onClose,
   onSwitched,
@@ -311,6 +316,7 @@ export function SwitchVersionLineDialog({
 }: {
   isOpen: boolean;
   projectPath: string;
+  sessionEpoch: string;
   target: string;
   onClose: () => void;
   onSwitched: (snapshot: VersionLinesSnapshot) => void;
@@ -343,7 +349,7 @@ export function SwitchVersionLineDialog({
     let cancelled = false;
     setState({ status: "loading" });
     onPhaseChangeRef.current?.("planning");
-    invoke<SwitchVersionLinePlan>("plan_switch_version_line", { path: projectPath, target })
+    versionLinesPort.planSwitch({ projectId: projectPath, sessionEpoch, target })
       .then((plan) => {
         if (!cancelled) {
           setState({ status: "ready", plan });
@@ -358,7 +364,7 @@ export function SwitchVersionLineDialog({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, projectPath, target, retryToken]);
+  }, [isOpen, projectPath, sessionEpoch, target, retryToken]);
 
   if (!isOpen) {
     return null;
@@ -381,8 +387,9 @@ export function SwitchVersionLineDialog({
     const plan = state.plan;
     setState({ status: "switching", plan });
     onPhaseChangeRef.current?.("executing");
-    invoke<VersionLinesSnapshot>("switch_version_line", {
-      path: projectPath,
+    versionLinesPort.switch({
+      projectId: projectPath,
+      sessionEpoch,
       target: plan.to,
       stateToken: plan.stateToken,
     })
@@ -529,6 +536,7 @@ type DeleteState =
 export function DeleteVersionLineDialog({
   isOpen,
   projectPath,
+  sessionEpoch,
   target,
   onClose,
   onDeleted,
@@ -538,6 +546,7 @@ export function DeleteVersionLineDialog({
 }: {
   isOpen: boolean;
   projectPath: string;
+  sessionEpoch: string;
   target: string;
   onClose: () => void;
   onDeleted: (snapshot: VersionLinesSnapshot) => void;
@@ -576,7 +585,7 @@ export function DeleteVersionLineDialog({
     let cancelled = false;
     setState({ status: "loading" });
     onPhaseChangeRef.current?.("planning");
-    invoke<DeleteVersionLinePlan>("plan_delete_version_line", { path: projectPath, name: target })
+    versionLinesPort.planDelete({ projectId: projectPath, sessionEpoch, name: target })
       .then((plan) => {
         if (!cancelled) {
           setState({ status: "ready", plan });
@@ -591,7 +600,7 @@ export function DeleteVersionLineDialog({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, projectPath, target, retryToken]);
+  }, [isOpen, projectPath, sessionEpoch, target, retryToken]);
 
   if (!isOpen) {
     return null;
@@ -613,8 +622,9 @@ export function DeleteVersionLineDialog({
     const plan = state.plan;
     setState({ status: "deleting", plan });
     onPhaseChangeRef.current?.("executing");
-    invoke<VersionLinesSnapshot>("delete_version_line", {
-      path: projectPath,
+    versionLinesPort.delete({
+      projectId: projectPath,
+      sessionEpoch,
       name: plan.name,
       stateToken: plan.stateToken,
     })

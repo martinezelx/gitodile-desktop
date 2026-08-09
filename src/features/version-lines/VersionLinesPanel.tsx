@@ -11,11 +11,11 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useLanguage, type Translations } from "./i18n";
-import { handlePopupMenuKeyDown, useAnchoredPopup } from "./popupMenu";
-import type { VersionLine, VersionLinesSnapshot } from "./versionLines";
-import { CreateVersionLineDialog, DeleteVersionLineDialog, SwitchVersionLineDialog } from "./versionLinesDialog";
-import { LoadingBar } from "./loadingBar";
+import { useLanguage, type Translations } from "../../i18n";
+import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../popupMenu";
+import type { VersionLine, VersionLinesSnapshot } from "./domain";
+import { CreateVersionLineDialog, DeleteVersionLineDialog, SwitchVersionLineDialog } from "./VersionLinesDialog";
+import { LoadingBar } from "../../loadingBar";
 
 type DialogRequest =
   | { kind: "create"; forceSwitch: boolean }
@@ -453,6 +453,7 @@ function FilterMenu({
 
 export function VersionLinesPanel({
   projectPath,
+  sessionEpoch,
   snapshot,
   error,
   isLoading,
@@ -468,6 +469,7 @@ export function VersionLinesPanel({
   onAutoOpenCreateHandled,
 }: {
   projectPath: string;
+  sessionEpoch: string;
   /** The project session's cached branch inventory, or `null` if this project
    * has never loaded one. Reading it (and the refresh that keeps it current)
    * belongs to `main.tsx`, so navigating away from this screen and back
@@ -815,6 +817,7 @@ export function VersionLinesPanel({
       <CreateVersionLineDialog
         isOpen={dialog?.kind === "create"}
         projectPath={projectPath}
+        sessionEpoch={sessionEpoch}
         forceSwitch={dialog?.kind === "create" ? dialog.forceSwitch : undefined}
         onClose={closeDialog}
         onCreated={handleMutated}
@@ -823,6 +826,7 @@ export function VersionLinesPanel({
       <SwitchVersionLineDialog
         isOpen={dialog?.kind === "switch"}
         projectPath={projectPath}
+        sessionEpoch={sessionEpoch}
         target={dialog?.kind === "switch" ? dialog.target : ""}
         onClose={closeDialog}
         onSwitched={handleMutated}
@@ -833,6 +837,7 @@ export function VersionLinesPanel({
       <DeleteVersionLineDialog
         isOpen={dialog?.kind === "delete"}
         projectPath={projectPath}
+        sessionEpoch={sessionEpoch}
         target={dialog?.kind === "delete" ? dialog.target : ""}
         onClose={closeDialog}
         onDeleted={handleMutated}

@@ -3,9 +3,9 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { LanguageProvider } from "./i18n";
-import { DeleteVersionLineDialog, SwitchVersionLineDialog } from "./versionLinesDialog";
-import type { DeleteVersionLinePlan, SwitchVersionLinePlan, VersionLinesSnapshot } from "./versionLines";
+import { LanguageProvider } from "../../i18n";
+import { DeleteVersionLineDialog, SwitchVersionLineDialog } from "./VersionLinesDialog";
+import type { DeleteVersionLinePlan, SwitchVersionLinePlan, VersionLinesSnapshot } from "./domain";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
@@ -61,6 +61,7 @@ describe("SwitchVersionLineDialog", () => {
         <SwitchVersionLineDialog
           isOpen
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           target="feature/x"
           onClose={onClose}
           onSwitched={vi.fn()}
@@ -86,6 +87,7 @@ describe("SwitchVersionLineDialog", () => {
         <SwitchVersionLineDialog
           isOpen
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           target="feature/x"
           onClose={vi.fn()}
           onSwitched={onSwitched}
@@ -101,6 +103,7 @@ describe("SwitchVersionLineDialog", () => {
     await waitFor(() => expect(onSwitched).toHaveBeenCalledWith(emptySnapshot()));
     expect(mockedInvoke).toHaveBeenCalledWith("switch_version_line", {
       path: "/repo",
+      sessionEpoch: "epoch-1",
       target: "feature/x",
       stateToken: "switch-token",
     });
@@ -135,6 +138,7 @@ describe("DeleteVersionLineDialog", () => {
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           target="feature/x"
           onClose={vi.fn()}
           onDeleted={onDeleted}
@@ -161,6 +165,7 @@ describe("DeleteVersionLineDialog", () => {
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           target="feature/x"
           onClose={vi.fn()}
           onDeleted={vi.fn()}
@@ -195,6 +200,7 @@ describe("DeleteVersionLineDialog", () => {
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           target="conflict-a"
           onClose={vi.fn()}
           onDeleted={vi.fn()}
@@ -225,6 +231,7 @@ describe("DeleteVersionLineDialog", () => {
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
+          sessionEpoch="epoch-1"
           target="feature/x"
           onClose={vi.fn()}
           onDeleted={vi.fn()}

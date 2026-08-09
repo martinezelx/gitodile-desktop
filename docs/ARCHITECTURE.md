@@ -332,6 +332,14 @@ Screen-switch profiling is opt-in because measurement itself adds work. Run
 the development app with `VITE_PROFILE_SCREEN_SWITCHES=true` when collecting
 navigation timings; normal development and production builds omit it.
 
+Version lines is the first complete vertical reference slice. Its frontend
+controller owns epoch-keyed deduplication, stale rejection, stable equality,
+last-snapshot errors and bounded eviction; its typed adapter is the only
+frontend owner of the seven Version-lines IPC calls. Rust DTOs, parsers,
+planners, workflows and focused tests live in `src-tauri/src/version_lines.rs`.
+The mandatory mechanics and feature-specific policy are separated in
+[`architecture/version-lines-reference-slice.md`](architecture/version-lines-reference-slice.md).
+
 The task-022 comparison protocol, exact starting chunks/process counts and
 numeric warning/failure budgets are recorded in
 [`architecture/023-performance-baseline.md`](architecture/023-performance-baseline.md).

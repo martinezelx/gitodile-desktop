@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 import { getDiffStore, warmDiffStore, type DiffCache } from "./diffCache";
+import type { VersionLinesController } from "./features/version-lines";
 import type { ProjectRuntime } from "./projectRuntime";
 import type { ProjectSession } from "./projectSessions";
 
@@ -10,7 +11,7 @@ type ProjectCacheWarmingOptions = {
   projectPath: string | null;
   session: ProjectSession | null;
   diffCache: DiffCache;
-  refreshVersionLines: (path: string) => Promise<void>;
+  versionLinesController: VersionLinesController;
 };
 
 /**
@@ -24,21 +25,18 @@ export function useProjectCacheWarming({
   projectPath,
   session,
   diffCache,
-  refreshVersionLines,
+  versionLinesController,
 }: ProjectCacheWarmingOptions): void {
-  const refreshVersionLinesRef = useRef(refreshVersionLines);
-  refreshVersionLinesRef.current = refreshVersionLines;
-
   useEffect(() => {
-    if (!hasCompletedSessionRestore || !projectPath) {
+    if (!hasCompletedSessionRestore || !projectPath || !session?.epoch) {
       return undefined;
     }
-    return runtime.scheduleCacheWarm({
-      key: `version-lines:${session?.epoch ?? "closed"}`,
-      reason: "project-activation",
-      run: () => refreshVersionLinesRef.current(projectPath),
-    });
-  }, [hasCompletedSessionRestore, projectPath, runtime, session?.epoch]);
+    return versionLinesController.scheduleWarm(
+      runtime,
+      { projectId: projectPath, sessionEpoch: session.epoch },
+      "project-activation",
+    );
+  }, [hasCompletedSessionRestore, projectPath, runtime, session?.epoch, versionLinesController]);
 
   useEffect(() => {
     if (!hasCompletedSessionRestore || !projectPath || !session?.workingTree) {

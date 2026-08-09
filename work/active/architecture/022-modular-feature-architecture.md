@@ -110,7 +110,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | 024 | Done 2026-08-08 | Rust application boundary, repository access coordinator and bounded Git execution | 023 |
 | 025 | Done 2026-08-09 | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
 | 026 | Done 2026-08-09 | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
-| 027 | Not started | Version lines migrated as the reference vertical slice | 024–026 |
+| 027 | Done 2026-08-09 | Version lines migrated as the reference vertical slice | 024–026 |
 | 028 | Not started | Repository/status/changes/diff reads migrated | 027 |
 | 029 | Not started | Save and publish mutation flows migrated without weakening safety | 027, 028 |
 | 030 | Not started | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
@@ -160,7 +160,7 @@ green at every task/commit boundary.
 - [x] All functional screens inherit navigation, palette, lazy/preload,
       project guard, keep-alive, lifecycle, accessibility and profiling from
       one typed registration path.
-- [ ] Version lines proves the complete vertical slice and request lifecycle;
+- [x] Version lines proves the complete vertical slice and request lifecycle;
       History can be implemented without adding responsibilities to a
       composition root.
 - [ ] Existing behavior and safety tests remain intact.
@@ -228,8 +228,20 @@ accessibility and profiling from feature-owned descriptors. Speculative cache
 warming is owned by project activation or repository invalidation and deferred
 until idle; screen arrival does not start whole-tree diff reads. Automated
 dependency-direction and cycle checks, a seeded forbidden-edge fixture and the
-new-screen guide make the contract enforceable. Version lines retains its
-pre-existing data lifecycle for task 027, which has not been started.
+new-screen guide make the contract enforceable.
+
+Task 027 completed the first full read-and-mutation vertical slice. Version
+lines now owns its domain types, typed port and Tauri adapter, epoch-keyed
+bounded snapshot controller, hidden-screen lifecycle and UI under
+`src/features/version-lines/`; navigation performs no feature read. Rust
+parser/planner/workflow code and 31 focused tests moved from `lib.rs` to the
+domain module while task 024's authorization/coordinator and task 025's IPC
+contract remain intact. Automated architecture checks protect both sides.
+Windows profiling recorded warm switch p95 values of 32.4/32.6 ms, bounded DOM
+counts and zero Git process starts during navigation; build chunks remained
+inside task 023's budgets. The durable reference-slice guide identifies the
+mandatory contracts History can reuse without inheriting branch-specific
+policy. Task 028 remains unstarted.
 
 # Validation
 

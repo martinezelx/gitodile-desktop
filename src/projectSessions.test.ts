@@ -12,7 +12,6 @@ import {
   type ProjectSessionsState,
 } from "./projectSessions";
 import type { RepositoryInfo } from "./repositoryOverview";
-import type { VersionLinesSnapshot } from "./versionLines";
 
 function makeProject(path: string, overrides: Partial<RepositoryInfo> = {}): RepositoryInfo {
   return {
@@ -28,29 +27,6 @@ function makeProject(path: string, overrides: Partial<RepositoryInfo> = {}): Rep
     ...overrides,
   };
 }
-
-const versionLines: VersionLinesSnapshot = {
-  branch: "main",
-  headState: "branch",
-  currentCommit: "abc123",
-  lines: [
-    {
-      name: "main",
-      tip: { commit: "abc123", shortCommit: "abc123a", subject: "first", committedAt: "2026-07-01T00:00:00Z" },
-      isActive: true,
-      upstream: null,
-      isRetainedElsewhere: false,
-      uniqueCommitCount: null,
-      worktreePath: null,
-      upstreamAhead: null,
-      upstreamBehind: null,
-      upstreamGone: false,
-    },
-  ],
-  totalCount: 1,
-  isTruncated: false,
-  unreadableCount: 0,
-};
 
 describe("projectSessionsReducer", () => {
   it("opens a new project as the active session", () => {
@@ -253,66 +229,6 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/a"].workingTreeCheckedAt).toBe(1_700_000_000_000);
     expect(state.byId["/a"].workingTreeError).toBe("network blip");
     expect(state.byId["/a"].isCheckingChanges).toBe(false);
-  });
-
-  it("keeps the last known version lines visible when a refresh fails", () => {
-    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
-    expect(state.byId["/a"].versionLines).toBeNull();
-
-    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a" });
-    expect(state.byId["/a"].isLoadingVersionLines).toBe(true);
-    state = projectSessionsReducer(state, {
-      type: "applyVersionLines",
-      id: "/a",
-      epoch: "epoch:/a",
-      snapshot: versionLines,
-    });
-    expect(state.byId["/a"].versionLines).toEqual(versionLines);
-    expect(state.byId["/a"].isLoadingVersionLines).toBe(false);
-
-    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a" });
-    state = projectSessionsReducer(state, {
-      type: "applyVersionLinesError",
-      id: "/a",
-      epoch: "epoch:/a",
-      error: "git blip",
-    });
-    expect(state.byId["/a"].versionLines).toEqual(versionLines);
-    expect(state.byId["/a"].versionLinesError).toBe("git blip");
-    expect(state.byId["/a"].isLoadingVersionLines).toBe(false);
-  });
-
-  it("preserves state identity when a branch refresh returns the same snapshot", () => {
-    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
-    state = projectSessionsReducer(state, {
-      type: "applyVersionLines",
-      id: "/a",
-      epoch: "epoch:/a",
-      snapshot: versionLines,
-    });
-    const unchanged = projectSessionsReducer(state, {
-      type: "applyVersionLines",
-      id: "/a",
-      epoch: "epoch:/a",
-      snapshot: structuredClone(versionLines),
-    });
-    expect(unchanged).toBe(state);
-    expect(unchanged.byId["/a"].versionLines).toBe(versionLines);
-  });
-
-  it("keeps each session's version lines separate from the working-tree generation", () => {
-    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
-    state = projectSessionsReducer(state, { type: "startVersionLinesLoad", id: "/a" });
-    // A working-tree refresh runs its own counter; it must not invalidate the
-    // version-lines read already in flight.
-    state = projectSessionsReducer(state, { type: "startStatusCheck", id: "/a", epoch: "epoch:/a", generation: 7 });
-    state = projectSessionsReducer(state, {
-      type: "applyVersionLines",
-      id: "/a",
-      epoch: "epoch:/a",
-      snapshot: versionLines,
-    });
-    expect(state.byId["/a"].versionLines).toEqual(versionLines);
   });
 
   it("answers a watch event only when no operation owns the working tree", () => {

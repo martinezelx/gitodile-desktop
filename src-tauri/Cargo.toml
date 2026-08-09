@@ -28,6 +28,11 @@ serde_json = "1"
 # whose size task 018 worked to reduce.
 notify = { version = "8.2.0", default-features = false, features = ["macos_fsevent"] }
 
+[dev-dependencies]
+# Repository-owned module-direction guard from ADR 0003. Development-only;
+# production artifacts keep no parser dependency.
+syn = { version = "2", features = ["full"] }
+
 # Smaller binary loads (and pages in from disk) faster on launch; this app is
 # I/O-bound (spawning git, not number-crunching), so trading opt-level 3 for
 # "s" costs nothing noticeable at runtime. See https://v2.tauri.app/concept/size/.

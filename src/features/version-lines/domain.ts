@@ -1,4 +1,4 @@
-import type { HeadState } from "./repositoryOverview";
+import type { HeadState } from "../../repositoryOverview";
 
 /** Mirrors the Rust `VersionLineTip` contract. */
 export type VersionLineTip = {
