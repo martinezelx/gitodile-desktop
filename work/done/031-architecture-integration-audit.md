@@ -266,14 +266,27 @@ retention regression the budget was written to catch.
 
 ## Follow-ups this audit deliberately did not do
 
+All of these, plus four further residues found in a later pass over the child
+task files and the code, are scheduled as
+[epic 038](../active/architecture/038-close-out-the-architecture-migration.md).
+
 1. Give Overview its own screen container so `main.tsx` becomes
-   composition-only.
+   composition-only. → task 040
 2. Convert the read coordinator's invalidation fan-out to registered
-   subscribers.
+   subscribers. → task 042
 3. Move Settings CSS and translations to the feature once the shell's
-   responsive block is untangled.
-4. Measure macOS and Linux desktop behavior and memory.
-5. Make the Settings panel lazy to reclaim entry-chunk headroom.
+   responsive block is untangled. → task 046
+4. Measure macOS and Linux desktop behavior and memory. → task 045
+5. Make the Settings panel lazy to reclaim entry-chunk headroom. → task 046
+
+Found afterwards and also scheduled: the `compatibility_*` execution-policy
+fallbacks that silently hand an unregistered Git call a read policy (task 039,
+the highest-risk item on the list), `shared/ui` holding only a stylesheet while
+five primitives past ADR 0003's two-consumer bar sit at the repository root
+(task 041), architecture documents still showing a `platform/tauri` directory
+that was never built and an `application.rs` header describing the finished
+strangler migration as ongoing (task 043), and a test-only module living where
+the architecture guard classifies it as production (task 044).
 
 # Validation
 

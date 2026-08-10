@@ -305,8 +305,14 @@ bytes settle at 221.8 MiB against a 400 MiB failure threshold.
 
 The epic closes with one criterion partially met and said so plainly: `lib.rs`
 is a thin composition root, `main.tsx` is not yet, because no child task ever
-owned the Overview and Settings screens. Task 015 (History) is unblocked; the
-four named follow-ups live in task 031.
+owned the Overview and Settings screens. Task 015 (History) is unblocked.
+
+The residue is scheduled as
+[epic 038](../active/architecture/038-close-out-the-architecture-migration.md),
+which carries the composition-root criterion to completion. Two patterns caused
+most of it and are the transferable lesson: work assigned by layer leaves
+anything nobody named unowned, and scaffolding outlives the scaffold unless
+retiring it is somebody's task.
 
 # Validation
 
