@@ -198,18 +198,28 @@ pub(crate) fn authorize_repository(
         }
     };
     let repository_key = context.common_git_dir.match_key().to_string();
-    let guard = match repository_access::held_mode(&repository_key) {
-        Some(AccessMode::Write) => None,
-        Some(AccessMode::Read) if requested == AccessMode::Read => None,
+    let (guard, inherited_access) = match repository_access::held_mode(&repository_key) {
+        Some(AccessMode::Write) => (None, true),
+        Some(AccessMode::Read) if requested == AccessMode::Read => (None, true),
         Some(AccessMode::Read) => {
             return Err(AppError::new(
                 AppErrorCode::GitCommandFailed,
                 "A repository read cannot be upgraded to a mutation.",
             ))
         }
-        None => Some(repository_access::global().acquire(&context, requested, cancellation)?),
+        None => (
+            Some(repository_access::global().acquire(&context, requested, cancellation)?),
+            false,
+        ),
     };
-    let (cancellation_key, command_cancellation) = if requested == AccessMode::Read {
+    let (cancellation_key, command_cancellation) = if inherited_access {
+        // A domain workflow may call another authorized helper while it owns
+        // the repository permit. That helper is part of the same command, not
+        // a newer equivalent renderer request. Reuse the parent's token so an
+        // internal status read cannot cancel a concurrent visible status
+        // refresh (or the workflow that called it).
+        (None, current_cancellation())
+    } else if requested == AccessMode::Read {
         let key = (repository_key, command);
         let token = CancellationToken::default();
         let mut active = cancellations()
@@ -351,6 +361,50 @@ mod tests {
         assert!(first_token.is_cancelled());
         finish_tx.send(()).unwrap();
         assert!(first.join().unwrap());
+        let _ = fs::remove_dir_all(path);
+    }
+
+    #[test]
+    fn an_inherited_read_does_not_supersede_an_independent_peer() {
+        let path =
+            std::env::temp_dir().join(format!("gitodrile-inherited-read-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).unwrap();
+        assert!(Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .arg(&path)
+            .status()
+            .unwrap()
+            .success());
+
+        let path_text = path.to_string_lossy().to_string();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (finish_tx, finish_rx) = mpsc::channel();
+        let peer_path = path_text.clone();
+        let peer = thread::spawn(move || {
+            let (_context, _access) =
+                authorize_repository(&peer_path, "read_working_tree_status", None).unwrap();
+            let token = current_cancellation().unwrap();
+            ready_tx.send(token.clone()).unwrap();
+            finish_rx.recv().unwrap();
+            token.is_cancelled()
+        });
+        let peer_token = ready_rx.recv().unwrap();
+
+        let (_context, _outer) =
+            authorize_repository(&path_text, "list_unpublished_versions", None).unwrap();
+        let outer_token = current_cancellation().unwrap();
+        {
+            let (_context, _nested) =
+                authorize_repository(&path_text, "read_working_tree_status", None).unwrap();
+            let nested_token = current_cancellation().unwrap();
+            assert!(nested_token.same_instance(&outer_token));
+            assert!(!peer_token.is_cancelled());
+        }
+
+        finish_tx.send(()).unwrap();
+        assert!(!peer.join().unwrap());
         let _ = fs::remove_dir_all(path);
     }
 }
