@@ -629,6 +629,48 @@ describe("ChangesPanel review controls", () => {
     expect(container.querySelector(".diff-split-row")).not.toBeNull();
   });
 
+  it("keeps a thousand-file truncated project below the DOM row budget", async () => {
+    const entries = Array.from({ length: 1000 }, (_, index) => ({
+      path: `file-${index.toString().padStart(4, "0")}.txt`,
+      originalPath: null,
+      category: "changed" as const,
+      isPrepared: false,
+      hasUnpreparedChanges: true,
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") {
+        return Promise.resolve({ kind: "unchanged", path: entries[0].path });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    const { container } = render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/large-repo"
+          workingTree={{
+            ...workingTree,
+            counts: { changed: 5000, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 5000 },
+            entries,
+            truncated: true,
+          }}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /file-0000\.txt/ });
+    const rows = container.querySelectorAll(".changes-file-row");
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThanOrEqual(40);
+    expect(rows[0]).toHaveAttribute("aria-setsize", "1000");
+    expect(screen.queryByRole("button", { name: /file-0999\.txt/ })).not.toBeInTheDocument();
+  });
+
   it("offers the complete diff as accessible text and supports menu keyboard navigation", async () => {
     renderPanel();
 

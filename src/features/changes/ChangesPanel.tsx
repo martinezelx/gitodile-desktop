@@ -1343,6 +1343,10 @@ function FileListItem({
   canChoose,
   onSelect,
   onToggleIncluded,
+  virtualPosition,
+  virtualIndex,
+  virtualCount,
+  measureElement,
   t,
 }: {
   entry: WorkingTreeEntry;
@@ -1351,6 +1355,10 @@ function FileListItem({
   canChoose: boolean;
   onSelect: () => void;
   onToggleIncluded: () => void;
+  virtualPosition?: number;
+  virtualIndex?: number;
+  virtualCount?: number;
+  measureElement?: (node: Element | null) => void;
   t: Translations;
 }): React.JSX.Element {
   const { name, dir } = splitPath(entry.path);
@@ -1366,7 +1374,14 @@ function FileListItem({
     : `${entry.path} — ${categoryLabel}`;
 
   return (
-    <li className="changes-file-row">
+    <li
+      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}`}
+      data-index={virtualIndex}
+      ref={measureElement}
+      aria-posinset={virtualIndex === undefined ? undefined : virtualIndex + 1}
+      aria-setsize={virtualCount}
+      style={virtualPosition === undefined ? undefined : { transform: `translateY(${virtualPosition}px)` }}
+    >
       <input
         className="changes-file-row__checkbox"
         type="checkbox"
@@ -1400,6 +1415,95 @@ function FileListItem({
       </button>
     </li>
   );
+}
+
+const FILE_LIST_VIRTUALIZATION_THRESHOLD = 100;
+const FILE_LIST_ESTIMATED_ROW_HEIGHT = 54;
+
+type FileListRowsProps = {
+  entries: WorkingTreeEntry[];
+  selectedPath: string | null;
+  excludedPaths: Set<string>;
+  canChoose: boolean;
+  scrollElement: React.RefObject<HTMLDivElement | null>;
+  onSelect: (entry: WorkingTreeEntry) => void;
+  onToggleIncluded: (entry: WorkingTreeEntry) => void;
+  t: Translations;
+};
+
+function fileListItem(
+  entry: WorkingTreeEntry,
+  props: FileListRowsProps,
+  virtual?: {
+    index: number;
+    start: number;
+    count: number;
+    measureElement: (node: Element | null) => void;
+  },
+): React.JSX.Element {
+  return (
+    <FileListItem
+      key={entry.path}
+      entry={entry}
+      isSelected={entry.path === props.selectedPath}
+      isIncluded={!props.excludedPaths.has(entry.path)}
+      canChoose={props.canChoose}
+      onSelect={() => props.onSelect(entry)}
+      onToggleIncluded={() => props.onToggleIncluded(entry)}
+      virtualPosition={virtual?.start}
+      virtualIndex={virtual?.index}
+      virtualCount={virtual?.count}
+      measureElement={virtual?.measureElement}
+      t={props.t}
+    />
+  );
+}
+
+function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
+  const virtualizer = useVirtualizer({
+    count: props.entries.length,
+    getScrollElement: () => props.scrollElement.current,
+    getItemKey: (index) => props.entries[index]?.path ?? index,
+    estimateSize: () => FILE_LIST_ESTIMATED_ROW_HEIGHT,
+    overscan: 6,
+    // jsdom and the first pre-layout render have no measured viewport yet.
+    // A conservative initial desktop rect makes that frame useful; the real
+    // ResizeObserver measurement replaces it immediately in WebView2/WebKit.
+    initialRect: { width: 320, height: 480 },
+  });
+  const selectedIndex = props.entries.findIndex((entry) => entry.path === props.selectedPath);
+
+  useEffect(() => {
+    if (selectedIndex >= 0) {
+      virtualizer.scrollToIndex(selectedIndex, { align: "auto" });
+    }
+  }, [selectedIndex, virtualizer]);
+
+  return (
+    <ul
+      className="changes-file-list__virtual"
+      style={{ height: virtualizer.getTotalSize() }}
+    >
+      {virtualizer.getVirtualItems().map((virtualRow) => {
+        const entry = props.entries[virtualRow.index];
+        return entry
+          ? fileListItem(entry, props, {
+              index: virtualRow.index,
+              start: virtualRow.start,
+              count: props.entries.length,
+              measureElement: virtualizer.measureElement,
+            })
+          : null;
+      })}
+    </ul>
+  );
+}
+
+function FileListRows(props: FileListRowsProps): React.JSX.Element {
+  if (props.entries.length > FILE_LIST_VIRTUALIZATION_THRESHOLD) {
+    return <VirtualizedFileListRows {...props} />;
+  }
+  return <ul>{props.entries.map((entry) => fileListItem(entry, props))}</ul>;
 }
 
 export function ChangesPanel({
@@ -1562,6 +1666,7 @@ export function ChangesPanel({
   const totalCount = workingTree?.counts.total ?? 0;
   const allSelected = totalCount > 0 && includedCount === totalCount;
   const selectAllRef = useRef<HTMLInputElement>(null);
+  const fileListScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (selectAllRef.current) {
       selectAllRef.current.indeterminate = includedCount > 0 && includedCount < totalCount;
@@ -1735,6 +1840,7 @@ export function ChangesPanel({
             </div>
             <div
               {...autoHideScrollbarProps<HTMLDivElement>()}
+              ref={fileListScrollRef}
               className="changes-file-list__scroll auto-hide-scrollbar"
             >
               {workingTree.truncated && (
@@ -1747,33 +1853,29 @@ export function ChangesPanel({
                   {t.changesNoSearchMatches}
                 </p>
               )}
-              <ul>
-                {visibleEntries.map((entry) => (
-                  <FileListItem
-                    key={entry.path}
-                    entry={entry}
-                    isSelected={entry.path === selectedPath}
-                    isIncluded={!excludedPaths.has(entry.path)}
-                    canChoose={canChooseFiles}
-                    onSelect={() => {
-                      onSelectedPathChange(entry.path);
-                      setIsDetailFocused(true);
-                    }}
-                    onToggleIncluded={() =>
-                      setExcludedPaths((current) => {
-                        const next = new Set(current);
-                        if (next.has(entry.path)) {
-                          next.delete(entry.path);
-                        } else {
-                          next.add(entry.path);
-                        }
-                        return next;
-                      })
+              <FileListRows
+                entries={visibleEntries}
+                selectedPath={selectedPath}
+                excludedPaths={excludedPaths}
+                canChoose={canChooseFiles}
+                scrollElement={fileListScrollRef}
+                onSelect={(entry) => {
+                  onSelectedPathChange(entry.path);
+                  setIsDetailFocused(true);
+                }}
+                onToggleIncluded={(entry) =>
+                  setExcludedPaths((current) => {
+                    const next = new Set(current);
+                    if (next.has(entry.path)) {
+                      next.delete(entry.path);
+                    } else {
+                      next.add(entry.path);
                     }
-                    t={t}
-                  />
-                ))}
-              </ul>
+                    return next;
+                  })
+                }
+                t={t}
+              />
             </div>
           </nav>
           <DiffWorkspace
