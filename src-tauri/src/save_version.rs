@@ -6,6 +6,7 @@ use crate::{
 use std::{
     path::{Path, PathBuf},
     process::Output,
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 // ---- Save version planning (task 010) ----
@@ -207,20 +208,37 @@ impl Drop for PreparedIndex {
     }
 }
 
+/// A private temporary index path for one `prepare_index` call.
+///
+/// The clock alone does not make this unique. Windows' system time advances in
+/// roughly 15 ms ticks, so every call inside one tick reports identical nanos;
+/// two saves in the same process would then agree on a path and collide on
+/// Git's `index.lock`. That is reachable in production, not only under a
+/// parallel test runner: the repository coordinator serializes per common Git
+/// directory, so two *different* projects saving at the same moment run
+/// genuinely in parallel. The process-wide counter makes the name unique within
+/// the process and the pid makes it unique across processes.
+fn selection_index_path() -> PathBuf {
+    static INDEX_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let sequence = INDEX_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let mut index_path = std::env::temp_dir();
+    index_path.push(format!(
+        "gitodrile-selection-index-{}-{nanos}-{sequence}",
+        std::process::id()
+    ));
+    index_path
+}
+
 pub(crate) fn prepare_index(
     path: &str,
     head_state: &HeadState,
     selected_entries: Option<&[WorkingTreeEntry]>,
 ) -> Result<PreparedIndex, AppError> {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0);
-    let mut index_path = std::env::temp_dir();
-    index_path.push(format!(
-        "gitodrile-selection-index-{}-{nanos}",
-        std::process::id()
-    ));
+    let index_path = selection_index_path();
 
     let index_value = index_path.to_string_lossy().to_string();
     let envs = [("GIT_INDEX_FILE", index_value.as_str())];
@@ -846,4 +864,31 @@ pub(crate) fn save_version(
         selected_paths,
         None,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeSet;
+    use std::thread;
+
+    #[test]
+    fn concurrent_saves_never_share_a_temporary_index_path() {
+        // Regression: the path was pid + `SystemTime` nanos only. Windows'
+        // ~15 ms clock granularity made every call inside one tick produce the
+        // same name, so a second save failed with `IndexUnavailable` because
+        // Git's `index.lock` already existed. Threads here stand in for two
+        // projects saving at once; the assertion is on uniqueness, not timing,
+        // so it fails deterministically if the counter is removed.
+        let handles: Vec<_> = (0..8)
+            .map(|_| thread::spawn(|| (0..64).map(|_| selection_index_path()).collect::<Vec<_>>()))
+            .collect();
+        let paths: Vec<PathBuf> = handles
+            .into_iter()
+            .flat_map(|handle| handle.join().unwrap())
+            .collect();
+
+        let unique: BTreeSet<&PathBuf> = paths.iter().collect();
+        assert_eq!(unique.len(), paths.len(), "temporary index paths collided");
+    }
 }
