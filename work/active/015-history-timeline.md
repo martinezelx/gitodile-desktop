@@ -199,12 +199,15 @@ Use temporary repositories for:
 
 # Dependencies
 
-- Epic 022's core architecture and its integration audit in task 031 must land
-  before implementation starts. Task 030's mechanical CSS/i18n split is not a
-  History blocker. History is the first real greenfield screen that should
-  consume the proven modular feature, session-epoch, native-execution,
-  typed-invalidation, and performance-safe screen contracts rather than adding
-  responsibilities to `main.tsx`/`lib.rs`.
+- **Unblocked 2026-08-10.** Epic 022 and its task-031 audit landed. History is
+  the first real greenfield screen and consumes the proven modular feature,
+  session-epoch, native-execution, typed-invalidation and performance-safe
+  screen contracts rather than adding responsibilities to `main.tsx`/`lib.rs`.
+  Task 031 built and removed a History-shaped proof of exactly this path;
+  follow the measured footprint table in
+  `docs/architecture/frontend-feature-guide.md` §8 and expect no edit outside
+  it. One known gap: refreshing on watcher invalidation still requires adding
+  the controller to `createRepositoryReadCoordinator` by hand.
 - Task 010 for the save-version vocabulary and result.
 - Task 012 for per-project history continuity and request isolation.
 - Tasks 011/013 for optional published/local reachability. The timeline must

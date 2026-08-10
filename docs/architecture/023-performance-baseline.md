@@ -179,8 +179,15 @@ immediately after measurement.
 - all-sample median: 196.204 ms;
 - nearest-rank p95: 234.607 ms;
 - result: 15 `FileDiff` records, 7,731 serialized JSON bytes;
-- native process cost: exactly 2 Git processes (one porcelain status and one
-  batched tracked diff); untracked contents are read from the filesystem;
+- native process cost: **4 Git processes**, corrected by the task-031 audit.
+  This section originally claimed 2, counting one porcelain status and one
+  "batched tracked diff". The batch was never one process: `diff_base_rev`
+  runs `rev-parse --verify -q HEAD`, and `batch_tracked_diffs` makes two passes
+  (`diff --name-only -z` for the ordered path list, then the patch text from
+  identical flags). Reading the same function at this document's own baseline
+  commit `159d25f` shows all four calls already present, so the number was a
+  counting error here rather than a later regression. Untracked contents are
+  still read from the filesystem with no process;
 - warmed revisit: 0 batch calls, 0 selected-file calls and 0 Git processes.
 
 The complete first Changes mount has a five-process Git cost for a selected
@@ -275,21 +282,65 @@ new ADR deliberately changes the budget.
 | Warm switch p50, two-rAF | 32.4 ms | > 40 ms | > 50 ms |
 | Warm switch p95, two-rAF | 35.5 ms | > 50 ms | > 75 ms |
 | First Changes selected diff visible | 646 ms (one sample) | > 750 ms median | > 1,500 ms p95 |
-| Release all-screens process-tree memory | not yet measured | > 300 MiB working set | > 400 MiB working set |
+| Release all-screens process-tree memory | 221.8 MiB private (415.6 MiB working set, informational) | > 300 MiB private | > 400 MiB private |
 | Visible screen descendants, standard fixture | max 340 | > 1,200 | > 2,000 |
 | Rendered diff lines at once, large fixture | virtualized; standard fixture 4 | > 300 | > 500 |
 | Rendered file rows at once, large fixture | bounded/virtualized contract | > 200 | > 400 |
 | `read_working_tree_status` Git processes | 1 | none | > 1 |
-| `read_working_tree_diffs` Git processes | 2 with tracked changes | > 2 | > 3 |
+| `read_working_tree_diffs` Git processes | 4 with tracked changes (corrected) | > 4 | > 5 |
 | First Changes mount Git processes, tracked selection | 5 | > 5 | > 7 |
 | Warmed Changes revisit Git processes | 0 | none | > 0 |
 | Modern-Git Version-lines inventory, four branches | 5 | > 5 | > 7 |
 | Settled idle Git processes after watcher quiet period | 0 | none | any repeating process |
 
-Memory has no comparable release baseline yet, so task 024-030 may report it
-as informational if they do not change screen retention. Task 031 cannot close
-the epic without obtaining the release number and satisfying or explicitly
-revising the budget.
+Memory had no comparable release baseline when this table was written. Task 031
+measured it and revised the metric: summed working set double-counts pages
+shared across a seven-process WebView2 tree, so an Overview-only session already
+read 405.1 MiB while keep-alive for all three screens added only 10.5 MiB. The
+budget is now stated in private bytes, which responds to GitOdrile's own
+allocations. See [ADR 0004](../adr/0004-measure-desktop-memory-as-private-bytes.md)
+for the measurement rules; scope every sample to the app's own process tree and
+confirm a single running instance.
+
+## Task 031 closing measurements
+
+Windows 11, release build (`pnpm tauri build --no-bundle`), remote debugging
+port enabled for navigation, standard fixture unless noted.
+
+| Measure | Budget | Result | Verdict |
+| --- | --- | ---: | --- |
+| Warm switch p50, 60 samples | warn > 40 ms | 30.4 ms | pass |
+| Warm switch p95, 60 samples | warn > 50 ms | 31.8 ms | pass |
+| First Changes selected diff visible | warn > 750 ms | 427 ms | pass |
+| Warmed revisit Git processes | fail > 0 | 0 | pass |
+| Visible descendants, standard fixture | warn > 1,200 | 340 | pass |
+| Rendered diff lines, standard fixture | warn > 300 | 4 | pass |
+| Console errors | any | 0 | pass |
+| Rendered file rows, large fixture (5,000 changes) | fail > 400 | 21 | pass |
+| Visible descendants, large fixture | warn > 1,200 | 391 | pass |
+| Warm switch p95, large fixture | warn > 50 ms | 42.2 ms | pass |
+| Settled idle Git processes | fail: any repeating | 0 over ~15 s | pass |
+| All-screens memory | fail > 400 MiB private | 221.8 MiB | pass |
+
+Per-command Git process counts, invoked directly over IPC against the standard
+fixture:
+
+| Command | Budget | Result | Verdict |
+| --- | --- | ---: | --- |
+| `open_repository` | none recorded | 6 | new baseline |
+| `read_working_tree_status` | fail > 1 | 1 | pass |
+| `read_working_tree_diffs` | see correction above | 4 | pass against the corrected number |
+| `read_file_diff`, tracked selection | documented 3-process path | 3 | pass |
+| `get_version_lines`, single branch | warn > 5 | 5 | pass |
+
+The large fixture's `overview -> changes` p95 of 44.3 ms exceeds the Changes
+screen's own `warmSwitchWarningMs: 40` while staying under its 50 ms failure
+threshold. That is a warning on a fixture with 333 times the standard fixture's
+changed files, recorded rather than waived.
+
+Before task 031's virtualization the large fixture rendered 1,000 file rows —
+Rust caps the payload at 1,000 entries and React mounted every one — which
+failed the 400-row budget outright.
 
 ## Reproducible desktop protocol for child tasks
 

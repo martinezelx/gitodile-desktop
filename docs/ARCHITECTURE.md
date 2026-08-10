@@ -76,6 +76,55 @@ application modules own product decisions, and infrastructure never imports
 IPC. The complete dependency matrix and migration order are normative in ADR
 0003; significant deviations require another ADR.
 
+### The tree epic 022 actually produced
+
+Task 031 audited the result against the target above. Two shapes differ, both
+deliberately and both recorded here rather than quietly reconciled.
+
+```text
+src/
+  main.tsx                # 2,730 lines: app shell, Overview panel, App wiring
+  screens.tsx             # screen registry, keep-alive host, switch profiler
+  screenModule.tsx        # neutral screen/lifecycle contract
+  projectRuntime.ts       # project-scoped store and selectors
+  projectSessions.ts      # session reducer and persistence shape
+  app/                    # shell CSS and shell translations
+  features/               # changes, overview, publish, repository, save-version,
+                          # settings, status, version-lines
+  shared/ui/, shared/i18n/
+  styles/                 # tokens and base
+
+src-tauri/src/
+  lib.rs                  # 762 production lines + 3,013 test lines
+  ipc.rs                  # 31 command adapters and the checked contract test
+  application.rs          # execution policy inventory and authorization
+  repository_access.rs    # commonGitDir coordinator
+  git.rs, watch.rs, session.rs, error.rs, architecture.rs
+  changes.rs, publish.rs, repository.rs, save_version.rs, status.rs,
+  version_lines.rs        # product domains
+```
+
+**Flat modules instead of directories.** Rust domains are single files rather
+than `application/<domain>/mod.rs`, and the frontend's app-level runtime files
+sit at `src/` rather than under `src/app/`. Compiler privacy and the
+`architecture.rs` / `check:frontend-architecture` guards enforce the same
+boundaries either way, so the directories were not created merely to match the
+diagram. Move a module into a directory when it needs internal submodules, not
+before.
+
+**The composition roots are not equally thin.** `lib.rs` reached the intended
+shape: its 762 production lines are the Tauri builder, command registration and
+the Git process/platform adapters that ADR 0003 places in `git/` and
+`platform/`, with no product decisions left. `main.tsx` did not: it still
+renders the Overview panel and owns `App`'s ~30 pieces of shell state.
+
+Overview's screen descriptor declares this explicitly with
+`container: { kind: "host-owned" }`. Its repository, status and pending-version
+reads are already owned by feature controllers, so the residue is composition,
+not product logic — but `main.tsx` is not a composition-only file and this
+document should not claim it is. The bounded follow-up is to give Overview its
+own container like every other functional screen.
+
 Dependency direction will be executable in CI: a pinned
 `dependency-cruiser` configuration will classify frontend runtime, type-only,
 dynamic and test edges, while a repository-owned Rust architecture test will

@@ -89,6 +89,16 @@ Secondary:
 - Never fetch merely because a screen became visible. Render the cached
   snapshot; refresh on project activation or an explicit repository
   invalidation, idle-deferred where it is speculative.
+- Visual components do not call `invoke`. A feature reaches Rust through its own
+  typed port and `tauriAdapter.ts`. The only direct calls left in `main.tsx` are
+  watcher and session lifecycle wiring, which the composition root owns.
+- `main.tsx` is not yet composition-only: it still renders the Overview panel,
+  which declares `container: { kind: "host-owned" }`. Do not add to it. A new
+  screen owns its own container; see the measured footprint table in
+  `docs/architecture/frontend-feature-guide.md` §8 before starting one.
+- Lists that can grow with repository size must stay virtualized. Rust caps the
+  working-tree payload at 1,000 entries and the DOM budget is 400 rendered rows,
+  so a cap is not a substitute for virtualization.
 
 ### Desktop shell
 

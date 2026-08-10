@@ -288,6 +288,38 @@ Dependencies considered for this migration:
 - Cross-feature workflows require deliberate orchestration rather than a
   convenient import from another component.
 
+### Observed after the task-031 audit
+
+The migration produced the intended contracts. It did not produce the intended
+frontend composition root, and this decision record should say so.
+
+- **Rust met the decision.** `lib.rs` went from 9,897 lines to 762 production
+  lines (plus 3,013 test lines): the builder, 31 command registrations and the
+  Git process/platform adapters. `architecture.rs` fails the build if a named
+  domain function reappears there.
+- **`main.tsx` did not.** It went from 3,367 to 2,730 lines. Task 031 extracted
+  the Settings overlay into `features/settings` behind a port, removing seven
+  direct `invoke` calls; the Overview panel and `App`'s shell state remain.
+  Overview declares this as `container: { kind: "host-owned" }`, so it is a
+  named residue rather than a silent one, and its reads already belong to
+  feature controllers.
+- **No task owned this.** Tasks 023-030 assigned migrations for version lines,
+  reads, mutations, styles and translations. Overview and Settings were never
+  assigned to anyone, which is why they survived a nine-task refactor. Future
+  epics should enumerate every screen, not every layer.
+- **"Thin composition root" was never measurable.** This ADR said "composition
+  only" and epic 022 asked for "thin", which no reviewer could pass or fail.
+  The testable property is the one that matters and it holds: task 031 built and
+  removed a greenfield screen that required three registration lines in `lib.rs`
+  and three wiring points in `main.tsx`, with no workflow logic in either. State
+  future criteria as behavior a test can check, not as a size adjective.
+- **Invalidation fan-out is not open for extension.** Each feature that consumes
+  watcher invalidation is a positional parameter of
+  `createRepositoryReadCoordinator` and a hardcoded call inside it. It is
+  compile-checked and it works, but the repository feature knows about every
+  dependent feature. Convert it to registered subscribers when the next consumer
+  arrives.
+
 ### Constraints
 
 - Command names, payloads, error codes, safety previews, state tokens, hooks,

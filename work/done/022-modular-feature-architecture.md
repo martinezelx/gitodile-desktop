@@ -1,7 +1,7 @@
 ---
 id: 022
 title: Introduce a modular feature architecture and a performance-safe screen blueprint
-status: active
+status: done
 priority: high
 type: epic
 areas:
@@ -11,7 +11,7 @@ areas:
   - performance
   - security
 created: 2026-08-01
-completed:
+completed: 2026-08-10
 ---
 
 # Goal
@@ -114,7 +114,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | 028 | Done 2026-08-09 | Repository/status/changes/diff reads migrated | 027 |
 | 029 | Done 2026-08-09 | Save and publish mutation flows migrated without weakening safety | 027, 028 |
 | 030 | Done 2026-08-09 | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
-| 031 | Not started | Complete cross-platform integration audit, final measurements, epic closure and History unlock | 023–030 |
+| 031 | Done 2026-08-10 | Integration audit, two defect fixes, Settings extraction, greenfield proof, measured closure and History unlock | 023–030 |
 
 Execute dependency-ready tasks one at a time unless the user explicitly
 approves parallel work. The preferred closure order is 023 through 031,
@@ -149,13 +149,16 @@ green at every task/commit boundary.
 
 # Epic acceptance criteria
 
-- [ ] Tasks 023–031 are complete with their own validation recorded.
-- [ ] `main.tsx` and `src-tauri/src/lib.rs` are thin composition roots.
-- [ ] Frontend and Rust dependency directions are enforced automatically and
+- [x] Tasks 023–031 are complete with their own validation recorded.
+- [~] `main.tsx` and `src-tauri/src/lib.rs` are thin composition roots.
+      `lib.rs` met it (9,897 → 762 production lines). `main.tsx` reached 2,730
+      from 3,367 and still renders the Overview panel; recorded honestly in
+      task 031 and ADR 0003 with a named follow-up, not marked complete.
+- [x] Frontend and Rust dependency directions are enforced automatically and
       have no production cycles.
-- [ ] Every command is classified and governed by Rust-side repository access
+- [x] Every command is classified and governed by Rust-side repository access
       and native-execution policies.
-- [ ] IPC payloads, error codes, session epochs, and watcher events have
+- [x] IPC payloads, error codes, session epochs, and watcher events have
       compatibility/serialization tests.
 - [x] All functional screens inherit navigation, palette, lazy/preload,
       project guard, keep-alive, lifecycle, accessibility and profiling from
@@ -163,10 +166,12 @@ green at every task/commit boundary.
 - [x] Version lines proves the complete vertical slice and request lifecycle;
       History can be implemented without adding responsibilities to a
       composition root.
-- [ ] Existing behavior and safety tests remain intact.
-- [ ] Before/after bundle, startup, screen-switch, memory, process-count and
-      cross-platform results satisfy the budgets selected in task 023.
-- [ ] Final module tree and new-feature guide are recorded in durable docs.
+- [x] Existing behavior and safety tests remain intact.
+- [x] Before/after bundle, startup, screen-switch, memory, process-count and
+      cross-platform results satisfy the budgets selected in task 023. The
+      memory metric was revised by ADR 0004; macOS and Linux desktop runs
+      remain an owned, bounded gap.
+- [x] Final module tree and new-feature guide are recorded in durable docs.
 
 # Dependencies
 
@@ -273,8 +278,35 @@ three-screen visual contracts retain their rendered regression coverage.
 App/shared/feature translation namespaces compose synchronously, while exact
 English/Spanish interfaces enforce per-owner key and formatter parity without
 changing `useLanguage` or copy. Production CSS/JavaScript chunks remain below
-task-023 warning budgets and `fileIcons` stays deferred. Task 031 is still
-unstarted and owns the final cross-platform audit and epic closure.
+task-023 warning budgets and `fileIcons` stays deferred.
+
+Task 031 audited the finished result rather than the implementation notes, and
+found two defects the migration had introduced or left standing. A nested
+authorized read inside `list_unpublished_versions` cancelled the concurrent
+visible status read, so every project failed its first "check for changes" with
+a generic error; nested frames now inherit the parent's cancellation token. The
+working-tree file list was never virtualized, so the mandatory 5,000-change
+fixture mounted 1,000 rows against a 400-row failure budget; it now renders 21.
+The audit also extracted the Settings overlay into `features/settings` behind a
+typed port, removing the last seven direct `invoke` calls from a visual
+component.
+
+A throwaway History-shaped screen proved the greenfield contract end to end and
+was removed: `lib.rs` needed three declarative registration lines and `main.tsx`
+three wiring points, with no workflow logic in either. One gap is recorded
+rather than fixed — a screen consuming watcher invalidation must still be added
+to the repository read coordinator by hand.
+
+Every task-023 budget passes on the release build. The memory metric was revised
+by ADR 0004 after measurement showed summed working set double-counts pages
+shared across a seven-process WebView2 tree: an Overview-only session already
+read 405.1 MiB, while keep-alive for all three screens added 10.5 MiB. Private
+bytes settle at 221.8 MiB against a 400 MiB failure threshold.
+
+The epic closes with one criterion partially met and said so plainly: `lib.rs`
+is a thin composition root, `main.tsx` is not yet, because no child task ever
+owned the Overview and Settings screens. Task 015 (History) is unblocked; the
+four named follow-ups live in task 031.
 
 # Validation
 

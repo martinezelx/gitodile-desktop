@@ -117,3 +117,40 @@ keys and formatter signatures compile-checked while preserving the complete
 other shell strings remain in `src/app/translations.ts`; shared errors and
 common actions live in `src/shared/i18n/translations.ts`. Do not load a
 dictionary from a screen effect or render translation keys while it arrives.
+
+## 8. What a greenfield screen actually costs
+
+Task 031 built a throwaway History-shaped screen end to end — registry entry,
+lazy container, epoch-keyed controller, runtime subscription, invalidation and
+project eviction, plus a new Rust command — and then removed it. This is the
+measured footprint outside the new feature's own directory. Expect the same
+list; anything longer means a contract is missing rather than that your screen
+is unusual.
+
+| File | Edit | Kind |
+| --- | --- | --- |
+| `src/screens.tsx` | import + one `SCREEN_MODULES` entry | declarative registration |
+| `src/projectSessions.ts` | widen the `ProjectView` union by one id | declarative |
+| `src/app/translations.ts` | one palette label in the interface and both locales | shell copy |
+| `src/main.tsx` | create the controller, pass it to the read coordinator, add one entry to the `screens` record | composition wiring |
+| `src/ipcContract.test.ts` | command count and name list | pinned contract |
+| `src-tauri/src/lib.rs` | `mod`, `use`, one `generate_handler!` entry | declarative registration |
+| `src-tauri/src/ipc.rs` | one transport adapter | transport |
+| `src-tauri/src/application.rs` | one `EXECUTION_INVENTORY` policy + registry test entry | declarative policy |
+| `docs/architecture/025-ipc-contract.json` | one command entry | declarative contract |
+
+Neither composition root gained workflow logic: `lib.rs` grew by three
+registration lines and `main.tsx` by three wiring points, none of which decide
+anything about the screen's behavior. No macro, container or dynamic
+registration was introduced to shrink that list, per ADR 0003's rejection of
+indirection with one consumer.
+
+**One real gap remains.** A screen that must refresh on watcher invalidation
+has to be added to `createRepositoryReadCoordinator` in
+`src/features/repository/readCoordinator.ts`: a constructor parameter plus a
+hardcoded `refresh`/`supersede` call per dependent feature. That makes the
+repository feature know about every other feature that consumes invalidation,
+and it grows with each screen. It is wiring rather than product logic, and it is
+compile-checked, so it does not block History — but the next feature to need it
+should convert the fan-out into a list of registered invalidation subscribers
+rather than adding a fifth positional parameter.
