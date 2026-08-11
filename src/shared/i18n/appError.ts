@@ -1,9 +1,13 @@
-import type { Translations } from "./i18n";
+import type { SharedTranslations } from "./translations";
 
-/** Mirrors the Rust `AppError` / `AppErrorCode` contract shared by every
- * Tauri command. Kept separate from `main.tsx` so other view modules (e.g.
- * `changes.tsx`) can localize command failures without importing the app
- * shell. */
+/** Mirrors the Rust `AppError` / `AppErrorCode` contract shared by every Tauri
+ * command.
+ *
+ * This lives with the shared translation runtime rather than in `shared/ui`
+ * because it is error localization, not a visual primitive — and every one of
+ * the 47 codes below maps to a key `SharedTranslations` already owns, so it
+ * depends on that interface rather than on the composed `Translations`. A
+ * caller passing the full dictionary still satisfies it. */
 export const APP_ERROR_CODES = [
   "stale_session", "path_missing", "path_unusable", "not_repository", "bare_repository",
   "git_missing", "git_unusable", "git_command_failed", "invalid_identity",
@@ -34,7 +38,7 @@ export function isAppError(value: unknown): value is AppError {
   return typeof value === "object" && value !== null && "code" in value && "message" in value;
 }
 
-export function localizeAppError(error: unknown, t: Translations, fallback: string): string {
+export function localizeAppError(error: unknown, t: SharedTranslations, fallback: string): string {
   if (!isAppError(error)) {
     return typeof error === "string" ? error : fallback;
   }

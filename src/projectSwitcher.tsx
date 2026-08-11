@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { CircleAlert, FileDiff, FolderPlus, LoaderCircle, X } from "lucide-react";
 import { useLanguage } from "./i18n";
 import { avatarColorVar, avatarInitials } from "./projectAvatar";
-import { autoHideScrollbarProps } from "./autoHideScrollbar";
+import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 
 export type ProjectSwitcherEntry = {
   id: string;

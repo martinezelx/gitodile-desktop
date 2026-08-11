@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { localizeAppError } from "../../appError";
+import { localizeAppError } from "../../shared/i18n";
 import { useLanguage } from "../../i18n";
 import type { VersionLinesController } from "./controller";
 import { useActiveVersionLinesState } from "./hooks";

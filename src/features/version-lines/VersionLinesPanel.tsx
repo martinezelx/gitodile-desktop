@@ -12,10 +12,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../popupMenu";
+import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
 import type { VersionLine, VersionLinesSnapshot } from "./domain";
 import { CreateVersionLineDialog, DeleteVersionLineDialog, SwitchVersionLineDialog } from "./VersionLinesDialog";
-import { LoadingBar } from "../../loadingBar";
+import { LoadingBar } from "../../shared/ui";
 
 type DialogRequest =
   | { kind: "create"; forceSwitch: boolean }

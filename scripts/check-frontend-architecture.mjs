@@ -18,6 +18,15 @@ function featureOwner(filePath) {
   return normalize(filePath).match(/(?:^|\/)features\/([^/]+)\//)?.[1] ?? null;
 }
 
+/** `ui` or `i18n` for anything inside `shared/<module>/`. */
+function sharedOwner(filePath) {
+  return normalize(filePath).match(/(?:^|\/)shared\/([^/]+)\//)?.[1] ?? null;
+}
+
+function isPublicEntry(filePath) {
+  return /\/index\.[cm]?[jt]sx?$/.test(normalize(filePath));
+}
+
 function isTypeOnly(dependency) {
   return dependency.dependencyTypes?.some((kind) => kind === "type-only" || kind === "type-import") ?? false;
 }
@@ -57,6 +66,32 @@ export function findArchitectureViolations(cruiseResult) {
         violations.push(
           `Feature "${sourceOwner}" imports internal module ${target} owned by feature "${targetOwner}". ` +
             `Import features/${targetOwner}/index.ts instead.`,
+        );
+      }
+      // A feature takes a shared module through its public entry point, so a
+      // primitive can be reshaped without hunting for deep imports.
+      //
+      // Scoped to features on purpose, exactly like the rule above. The app
+      // shell imports primitives by file because the barrel would otherwise
+      // pull every primitive into the entry chunk: `shared/ui/index.ts` is
+      // imported by lazy feature chunks too, and one shared module reachable
+      // from both ends up eagerly bundled. Measured, not assumed — routing
+      // `main.tsx` through the barrel moved popupMenu's 1.8 kB into the entry
+      // and left 0.45 kB under the task-023 warning.
+      //
+      // Stylesheets are exempt because `styles.css` is a deliberate, tested
+      // cascade manifest that names files directly.
+      const targetShared = sharedOwner(target);
+      if (
+        sourceOwner &&
+        targetShared &&
+        sharedOwner(source) !== targetShared &&
+        !isPublicEntry(target) &&
+        !/\.css$/.test(target)
+      ) {
+        violations.push(
+          `Feature "${sourceOwner}" imports internal module ${target} owned by shared/${targetShared}. ` +
+            `Import shared/${targetShared}/index.ts instead.`,
         );
       }
       if (!sourceIsTest && dependency.circular && !isTypeOnly(dependency)) {
@@ -122,18 +157,37 @@ function main() {
     return;
   }
 
+  // Every rule that protects a boundary carries a seeded violation, because a
+  // rule nobody has seen fail is a rule nobody knows still works.
   const seeded = cruise("scripts/architecture-fixtures", false);
   const seededViolations = findArchitectureViolations(seeded);
-  const expected = seededViolations.find((message) =>
-    message.includes('Feature "history" owns') && message.includes("may not import app composition"),
-  );
-  if (!expected) {
-    process.stderr.write("Frontend architecture guard self-test failed: the seeded history -> app edge was not reported.\n");
-    process.exitCode = 1;
-    return;
+  const selfTests = [
+    {
+      label: "feature -> app composition",
+      match: (message) =>
+        message.includes('Feature "history" owns') && message.includes("may not import app composition"),
+    },
+    {
+      label: "deep import past shared/ui",
+      match: (message) => message.includes("owned by shared/ui"),
+    },
+  ];
+  const reported = [];
+  for (const selfTest of selfTests) {
+    const found = seededViolations.find(selfTest.match);
+    if (!found) {
+      process.stderr.write(
+        `Frontend architecture guard self-test failed: the seeded ${selfTest.label} edge was not reported.\n`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    reported.push(found);
   }
 
-  process.stdout.write(`Frontend architecture check passed. Seeded guard: ${expected}\n`);
+  process.stdout.write(
+    `Frontend architecture check passed. Seeded guards:\n- ${reported.join("\n- ")}\n`,
+  );
 }
 
 main();

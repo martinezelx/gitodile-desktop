@@ -7,7 +7,7 @@ import { publishTranslations } from "./features/publish/translations";
 import { saveVersionTranslations } from "./features/save-version/translations";
 import { statusTranslations } from "./features/status/translations";
 import { versionLinesTranslations } from "./features/version-lines/translations";
-import { sharedTranslations } from "./shared/i18n/translations";
+import { sharedTranslations } from "./shared/i18n";
 
 export type Language = "en" | "es";
 export type LanguagePreference = "system" | Language;

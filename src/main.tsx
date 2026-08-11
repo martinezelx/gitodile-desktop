@@ -29,9 +29,9 @@ import {
   Keyboard,
 } from "lucide-react";
 import { useLanguage } from "./i18n";
-import { localizeAppError } from "./appError";
+import { localizeAppError } from "./shared/i18n";
 import type { RepositoryInvalidation } from "./repositoryInvalidation";
-import { autoHideScrollbarProps } from "./autoHideScrollbar";
+import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 import { createChangesController, changesPort } from "./features/changes";
 import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
@@ -41,9 +41,9 @@ import {
   useVersionLinesState,
   versionLinesPort,
 } from "./features/version-lines";
-import { useModalFocus } from "./modalFocus";
+import { useModalFocus } from "./shared/ui/modalFocus";
 import { TooltipHost } from "./tooltip";
-import { LoadingBar } from "./loadingBar";
+import { LoadingBar } from "./shared/ui/loadingBar";
 import {
   EMPTY_CHANGES_SELECTION,
   EMPTY_PENDING_VERSIONS,

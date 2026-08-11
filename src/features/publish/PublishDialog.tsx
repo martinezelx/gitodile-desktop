@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, CircleAlert, LoaderCircle, Send } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { localizeAppError, isAppError } from "../../appError";
-import { useModalFocus } from "../../modalFocus";
-import { autoHideScrollbarProps } from "../../autoHideScrollbar";
+import { localizeAppError, isAppError } from "../../shared/i18n";
+import { useModalFocus } from "../../shared/ui";
+import { autoHideScrollbarProps } from "../../shared/ui";
 import { CHANGE_CATEGORY_ICONS } from "../status";
 import { getFileTypeIcon } from "../../fileIcons";
 import type { CommitFileChange, PublishPlan, PublishResult, RemoteInfo } from "./domain";

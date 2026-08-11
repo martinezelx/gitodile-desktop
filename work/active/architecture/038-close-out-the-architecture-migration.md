@@ -56,12 +56,13 @@ recur:
 | --- | --- | --- | --- |
 | 039 | Done 2026-08-11 | A Git call without a command frame fails instead of silently getting a read policy | none |
 | 040 | Done 2026-08-11 | Overview owns its screen container; `main.tsx` becomes composition-only | none |
-| 041 | normal, not started | Proven shared primitives live in `shared/ui` behind named exports | none |
+| 041 | Done 2026-08-11 | Proven shared primitives live in `shared/ui` behind named exports | none |
 | 042 | normal, not started | Repository invalidation accepts registered subscribers instead of positional parameters | none |
-| 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041 |
+| 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041, 047 |
 | 044 | low, not started | The test-only screen module leaves production space and the guard can see it | none |
 | 045 | high, not started | macOS and Linux desktop behavior and memory are measured | none |
 | 046 | low, not started | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
+| 047 | high, not started | The architecture guard inspects `src` instead of cruising zero modules | none |
 
 039, 040, 041, 042, 044 and 045 are independent and may run in any order. 043
 runs last of the structural tasks so it documents the finished tree once
@@ -80,7 +81,7 @@ that needs hardware this project has not used.
 
 # Epic acceptance criteria
 
-- [ ] Tasks 039–046 are complete with their own validation recorded. 039 and 040 done.
+- [ ] Tasks 039–047 are complete with their own validation recorded. 039, 040 and 041 done.
 - [x] Epic 022's partially-met "thin composition roots" criterion is satisfied
       or a new ADR records why it will not be. Satisfied by task 040.
 - [x] No production code path can execute Git without an execution policy.

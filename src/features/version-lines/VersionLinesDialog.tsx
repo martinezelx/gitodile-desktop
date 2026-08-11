@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CircleAlert, GitBranch, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { localizeAppError, isAppError } from "../../appError";
-import { useModalFocus } from "../../modalFocus";
-import { autoHideScrollbarProps } from "../../autoHideScrollbar";
+import { localizeAppError, isAppError } from "../../shared/i18n";
+import { useModalFocus } from "../../shared/ui";
+import { autoHideScrollbarProps } from "../../shared/ui";
 import type {
   CreateVersionLinePlan,
   DeleteVersionLinePlan,

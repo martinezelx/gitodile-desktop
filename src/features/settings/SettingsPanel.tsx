@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { LANGUAGE_NAMES, useLanguage, type Language, type LanguagePreference } from "../../i18n";
-import { localizeAppError } from "../../appError";
+import { localizeAppError } from "../../shared/i18n";
 import type { GitDiagnostics, GitUpdateStatus, ThemePreference } from "./domain";
 import type { SettingsPort } from "./port";
 import { settingsPort } from "./tauriAdapter";

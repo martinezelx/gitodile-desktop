@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CircleAlert, LoaderCircle, Save, Send } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { localizeAppError, isAppError } from "../../appError";
-import { useModalFocus } from "../../modalFocus";
-import { autoHideScrollbarProps } from "../../autoHideScrollbar";
+import { localizeAppError, isAppError } from "../../shared/i18n";
+import { useModalFocus } from "../../shared/ui";
+import { autoHideScrollbarProps } from "../../shared/ui";
 import { getSaveVersionBreakdown, type SaveVersionPlan, type SaveVersionResult } from "./domain";
 import type { ChangeCategory } from "../status";
 import type { SaveVersionController } from "./controller";

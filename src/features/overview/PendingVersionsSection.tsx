@@ -17,7 +17,7 @@ import type { FileDiff } from "../changes";
 import { getFileTypeIcon } from "../../fileIcons";
 import type { PendingVersionsResult } from "./pendingVersionsDomain";
 import { usePendingVersionDetails, type DiffState, type FilesState } from "./pendingVersionDetails";
-import { autoHideScrollbarProps } from "../../autoHideScrollbar";
+import { autoHideScrollbarProps } from "../../shared/ui";
 
 function diffPanelHeight(diff: DiffState | undefined): number {
   if (typeof diff !== "object") {

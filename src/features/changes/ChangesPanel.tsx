@@ -24,12 +24,12 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { localizeAppError } from "../../appError";
+import { localizeAppError } from "../../shared/i18n";
 import { getFileTypeIcon } from "../../fileIcons";
-import { autoHideScrollbarProps } from "../../autoHideScrollbar";
+import { autoHideScrollbarProps } from "../../shared/ui";
 import { SaveVersionDialog } from "../save-version";
-import { LoadingBar } from "../../loadingBar";
-import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../popupMenu";
+import { LoadingBar } from "../../shared/ui";
+import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
 import { CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";

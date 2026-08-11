@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import contract from "../docs/architecture/025-ipc-contract.json";
-import { APP_ERROR_CODES } from "./appError";
+import { APP_ERROR_CODES } from "./shared/i18n";
 
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
