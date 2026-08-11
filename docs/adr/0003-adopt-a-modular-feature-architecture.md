@@ -321,7 +321,25 @@ intended frontend composition root, and this decision record should say so.
   `createRepositoryReadCoordinator` and a hardcoded call inside it. It is
   compile-checked and it works, but the repository feature knows about every
   dependent feature. Convert it to registered subscribers when the next consumer
-  arrives.
+  arrives. *Resolved by task 042: subscribers are a registered list, and
+  `readCoordinator.ts` imports no other feature.*
+- **The frontend guard this ADR specified never ran.** Task 026 added
+  `dependency-cruiser` as decided below, and it cruised **zero** modules for
+  `src` from that day until task 047 in 2026-08-11 — a bare directory argument
+  is expanded with a default extension list that excludes `.ts`/`.tsx`, because
+  the tool cannot load TypeScript 7's compiler API. It degraded silently instead
+  of failing, and the seeded `.mjs` fixtures kept the self-test green, so the
+  vacuum was invisible. Every dependency-direction claim in epic 022 rested on
+  it.
+
+  Two consequences worth keeping. First, the `tsPreCompilationDeps` requirement
+  in this ADR cannot be met by the tool: type-only edges are now classified by
+  reading the import statements that produced them, which is not the rejected
+  "custom parser" — it only labels edges dependency-cruiser already found. Until
+  that landed, 88 barrel cycles were reported that do not exist at runtime, and
+  the real findings were buried in them. Second, a rule with a self-test that
+  only exercises fixtures proves the rule, not the wiring; task 047 added cases
+  that run the rules against `src`-shaped input.
 
 ### Constraints
 

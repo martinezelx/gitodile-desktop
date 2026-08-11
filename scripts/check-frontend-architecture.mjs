@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cruiserBin = path.join(repositoryRoot, "node_modules", "dependency-cruiser", "bin", "dependency-cruise.mjs");
@@ -27,19 +28,118 @@ function isPublicEntry(filePath) {
   return /\/index\.[cm]?[jt]sx?$/.test(normalize(filePath));
 }
 
-function isTypeOnly(dependency) {
-  return dependency.dependencyTypes?.some((kind) => kind === "type-only" || kind === "type-import") ?? false;
+/**
+ * Specifiers a file imports **only** as types, read from its own source.
+ *
+ * dependency-cruiser cannot tell us. It documents a `typeOnly` attribute and a
+ * `tsPreCompilationDeps` option, and neither has any effect here: this project
+ * is on TypeScript 7, whose compiler API is a rewrite, while dependency-cruiser
+ * 18 is built against TypeScript 5's. It degrades silently rather than failing,
+ * so every `import type` edge looked like a runtime edge and 88 barrel cycles
+ * were reported that do not exist at runtime.
+ *
+ * ADR 0003 rejected writing a parser against TypeScript 7's unstable API, and
+ * this is not one: it only classifies edges dependency-cruiser already found,
+ * by looking at whether the import statement that produced them was erased at
+ * compile time.
+ *
+ * An import counts as type-only when every statement for that specifier is
+ * `import type`. A mixed `import { type A, B }` binds a value, so it stays a
+ * runtime edge — which is the conservative direction.
+ */
+function typeOnlySpecifiers(source, readSource) {
+  const contents = readSource(source);
+  if (contents === null) return new Set();
+  const typeOnly = new Set();
+  const runtime = new Set();
+  const statement = /(?:^|\n)\s*(import|export)(\s+type)?\s+([^;\n]*?)\bfrom\s*["']([^"']+)["']/g;
+  for (const [, , typeKeyword, clause, specifier] of contents.matchAll(statement)) {
+    (typeKeyword ? typeOnly : runtime).add(specifier);
+    void clause;
+  }
+  // A bare `import "./side-effect"` has no `from`, and is always runtime.
+  for (const [, specifier] of contents.matchAll(/(?:^|\n)\s*import\s*["']([^"']+)["']/g)) {
+    runtime.add(specifier);
+  }
+  for (const specifier of runtime) typeOnly.delete(specifier);
+  return typeOnly;
 }
 
 function isDynamic(dependency) {
   return dependency.dynamic || dependency.dependencyTypes?.includes("dynamic-import");
 }
 
-export function findArchitectureViolations(cruiseResult) {
+/**
+ * Cross-feature edges allowed against the ownership rule, each with a reason.
+ *
+ * Keep this list at zero or near it. An entry is a debt, not a pattern: it says
+ * two rules disagree and the code has not been reshaped yet.
+ */
+const ALLOWED_FEATURE_EDGES = [
+  {
+    // Overview renders the same diff for a pending version that Changes renders
+    // for a working-tree file. Exporting `DiffResultView` from
+    // `features/changes/index.ts` is the correct ownership fix and was tried:
+    // it puts a *static* edge from the barrel to `ChangesPanel.tsx`, which
+    // imports the 255 kB icon set, so the entry chunk gains a static path to
+    // `fileIcons` and the bundle rule fails instead. Both modules here are
+    // lazy, so nothing reaches the entry chunk today.
+    //
+    // The real fix is to split the diff renderer out of `ChangesPanel.tsx`
+    // (~800 lines, and its subtree does not touch `fileIcons`) or to make the
+    // file-list icon lazy the way Overview already does. Task 048.
+    from: /(?:^|\/)src\/features\/overview\/PendingVersionsSection\.tsx$/,
+    to: /(?:^|\/)src\/features\/changes\/ChangesPanel\.tsx$/,
+  },
+];
+
+function isAllowedFeatureEdge(source, target) {
+  return ALLOWED_FEATURE_EDGES.some((edge) => edge.from.test(source) && edge.to.test(target));
+}
+
+function defaultReadSource(source) {
+  try {
+    return readFileSync(path.join(repositoryRoot, source), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** `->` rather than a raw separator byte: paths never contain it, and it keeps
+ * this file readable to `grep`, which reports a NUL as a binary match. */
+const edgeKey = (from, to) => `${normalize(from)}->${normalize(to)}`;
+
+export function findArchitectureViolations(cruiseResult, readSource = defaultReadSource) {
   const violations = [];
   const productionStaticGraph = new Map();
+  const modules = cruiseResult.modules ?? [];
 
-  for (const module of cruiseResult.modules ?? []) {
+  // Pass one classifies every edge, because a cycle is only real when *every*
+  // hop survives compilation. dependency-cruiser marks an edge `circular` using
+  // its own graph, in which erased type imports still connect modules, so a
+  // runtime edge can be reported as circular purely because the path home runs
+  // through an `import type`. Checking only the reported edge left 46 such
+  // cycles standing.
+  const typeOnlyEdges = new Set();
+  for (const module of modules) {
+    const erased = typeOnlySpecifiers(module.source, readSource);
+    for (const dependency of module.dependencies ?? []) {
+      if (erased.has(dependency.module)) {
+        typeOnlyEdges.add(edgeKey(module.source, dependency.resolved || dependency.module || ""));
+      }
+    }
+  }
+
+  /** A cycle survives compilation only if no hop in it was erased. */
+  const isRuntimeCycle = (source, cycle) => {
+    const hops = [normalize(source), ...(cycle ?? []).map((hop) => normalize(hop.name))];
+    for (let index = 0; index < hops.length - 1; index += 1) {
+      if (typeOnlyEdges.has(edgeKey(hops[index], hops[index + 1]))) return false;
+    }
+    return true;
+  };
+
+  for (const module of modules) {
     const source = normalize(module.source);
     const sourceIsTest = isTestFile(source);
     const sourceOwner = featureOwner(source);
@@ -47,6 +147,7 @@ export function findArchitectureViolations(cruiseResult) {
 
     for (const dependency of module.dependencies ?? []) {
       const target = normalize(dependency.resolved || dependency.module || "");
+      const isTypeOnlyEdge = typeOnlyEdges.has(edgeKey(module.source, dependency.resolved || dependency.module || ""));
       const targetIsTest = isTestFile(target);
       const targetOwner = featureOwner(target);
 
@@ -62,7 +163,13 @@ export function findArchitectureViolations(cruiseResult) {
             "Depend on the neutral runtime contract or an owning feature public API.",
         );
       }
-      if (sourceOwner && targetOwner && sourceOwner !== targetOwner && !/(?:^|\/)features\/[^/]+\/index\.[jt]sx?$/.test(target)) {
+      if (
+        sourceOwner &&
+        targetOwner &&
+        sourceOwner !== targetOwner &&
+        !/(?:^|\/)features\/[^/]+\/index\.[jt]sx?$/.test(target) &&
+        !isAllowedFeatureEdge(source, target)
+      ) {
         violations.push(
           `Feature "${sourceOwner}" imports internal module ${target} owned by feature "${targetOwner}". ` +
             `Import features/${targetOwner}/index.ts instead.`,
@@ -94,10 +201,12 @@ export function findArchitectureViolations(cruiseResult) {
             `Import shared/${targetShared}/index.ts instead.`,
         );
       }
-      if (!sourceIsTest && dependency.circular && !isTypeOnly(dependency)) {
+      // Cycle and bundle-eagerness rules use runtime edges only; ownership
+      // rules above deliberately apply to type imports too (ADR 0003).
+      if (!sourceIsTest && dependency.circular && !isTypeOnlyEdge && isRuntimeCycle(module.source, dependency.cycle)) {
         violations.push(`Production cycle: ${source} -> ${target}. Move orchestration to the owning module.`);
       }
-      if (!sourceIsTest && !targetIsTest && !isTypeOnly(dependency) && !isDynamic(dependency) && target) {
+      if (!sourceIsTest && !targetIsTest && !isTypeOnlyEdge && !isDynamic(dependency) && target) {
         staticTargets.push(target);
       }
     }
@@ -148,8 +257,28 @@ function cruise(target, useConfig) {
   return graph;
 }
 
+/**
+ * dependency-cruiser expands a bare directory with its own default extension
+ * list, which excludes `.ts`/`.tsx` — because it cannot load TypeScript 7's
+ * compiler API. Passing `src` therefore cruised **zero** modules, and every
+ * rule below passed vacuously from task 026 until task 047 caught it. The glob
+ * is load-bearing, so `main` asserts the count rather than trusting it again.
+ */
+const SOURCE_GLOB = "src/**/*.{ts,tsx}";
+const MINIMUM_EXPECTED_MODULES = 150;
+
 function main() {
-  const actual = cruise("src", true);
+  const actual = cruise(SOURCE_GLOB, true);
+  const cruised = (actual.modules ?? []).length;
+  if (cruised < MINIMUM_EXPECTED_MODULES) {
+    process.stderr.write(
+      `Frontend architecture check aborted: cruised ${cruised} modules, expected at least ` +
+        `${MINIMUM_EXPECTED_MODULES}. The target "${SOURCE_GLOB}" is matching almost nothing, ` +
+        "which would make every rule below pass without inspecting anything.\n",
+    );
+    process.exitCode = 1;
+    return;
+  }
   const violations = findArchitectureViolations(actual);
   if (violations.length > 0) {
     process.stderr.write(`Frontend architecture check failed:\n- ${violations.join("\n- ")}\n`);
@@ -190,8 +319,11 @@ function main() {
   }
 
   process.stdout.write(
-    `Frontend architecture check passed. Seeded guards:\n- ${reported.join("\n- ")}\n`,
+    `Frontend architecture check passed over ${cruised} modules. Seeded guards:\n- ${reported.join("\n- ")}\n`,
   );
 }
 
-main();
+// Importable for tests and tooling; only the CLI entry runs the check.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

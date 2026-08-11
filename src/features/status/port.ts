@@ -1,4 +1,4 @@
-import type { PendingVersionsResult } from "../overview/pendingVersionsDomain";
+import type { PendingVersionsResult } from "../publish";
 import type { WorkingTreeStatus } from "./domain";
 
 export type StatusQuery = { projectId: string; sessionEpoch: string };

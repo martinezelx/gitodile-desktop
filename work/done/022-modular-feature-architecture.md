@@ -156,7 +156,12 @@ green at every task/commit boundary.
       extracted Settings and task 040 extracted Overview, taking it from 3,367
       to 1,958 lines of app shell with no screen body. Satisfied 2026-08-11.
 - [x] Frontend and Rust dependency directions are enforced automatically and
-      have no production cycles.
+      have no production cycles. **This was marked complete prematurely.** The
+      Rust guard was always real; the frontend guard cruised zero modules from
+      the day task 026 created it, because dependency-cruiser cannot load
+      TypeScript 7's compiler API and silently scanned nothing. Task 047 found
+      it, made the guard inspect 202 real modules, and cleared the four genuine
+      violations it then reported. True as of 2026-08-11.
 - [x] Every command is classified and governed by Rust-side repository access
       and native-execution policies.
 - [x] IPC payloads, error codes, session epochs, and watcher events have

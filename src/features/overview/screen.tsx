@@ -24,8 +24,8 @@ export const overviewScreenModule = {
   container,
   additionalPreloads: [
     () => import("./PendingVersionsSection"),
-    () => import("../publish/PublishDialog"),
-    () => import("../version-lines/VersionLinesDialog"),
+    () => import("../publish"),
+    () => import("../version-lines"),
   ],
   lifecycle: { hidden: "retain-suspended", evict: "project-session" },
   accessibility: { inactive: "hidden-inert", announcements: "active-only" },

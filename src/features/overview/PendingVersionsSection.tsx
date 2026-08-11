@@ -15,7 +15,7 @@ import { DiffResultView } from "../changes/ChangesPanel";
 import { CHANGE_CATEGORY_ICONS } from "../status";
 import type { FileDiff } from "../changes";
 import { getFileTypeIcon } from "../../fileIcons";
-import type { PendingVersionsResult } from "./pendingVersionsDomain";
+import type { PendingVersionsResult } from "../publish";
 import { usePendingVersionDetails, type DiffState, type FilesState } from "./pendingVersionDetails";
 import { autoHideScrollbarProps } from "../../shared/ui";
 
