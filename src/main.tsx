@@ -525,8 +525,26 @@ export function App(): React.JSX.Element {
   const [repositoryController] = useState(() => createRepositoryController(repositoryPort));
   const [statusController] = useState(() => createStatusController(statusPort));
   const [changesController] = useState(() => createChangesController(changesPort));
+  // The error mapper is rebuilt whenever the language changes, so subscribers
+  // read it through a ref rather than closing over the first render's copy.
+  const mapStatusErrorRef = useRef<StatusErrorMapper>(() => "");
   const [repositoryReads] = useState(() =>
-    createRepositoryReadCoordinator(repositoryController, statusController, versionLinesController),
+    createRepositoryReadCoordinator(repositoryController, [
+      {
+        id: "status",
+        refreshOn: "worktree-change",
+        blocking: true,
+        refresh: (query) => statusController.refresh(projectRuntime, query, mapStatusErrorRef.current),
+        supersede: (query) => statusController.supersede(query),
+      },
+      {
+        id: "version-lines",
+        refreshOn: "shared-change",
+        blocking: false,
+        refresh: (query) => versionLinesController.refresh(query),
+        supersede: (query) => versionLinesController.supersede(query),
+      },
+    ]),
   );
   const sessionsState = useProjectSelector(projectRuntime, (snapshot) => snapshot);
   const dispatchSessions = projectRuntime.dispatch;
@@ -555,6 +573,7 @@ export function App(): React.JSX.Element {
       ),
     [t],
   );
+  mapStatusErrorRef.current = mapStatusError;
   const [projectAnnouncement, setProjectAnnouncement] = useState("");
   const [storedProjectsOnLaunch] = useState(readStoredProjects);
   const [hasCompletedSessionRestore, setHasCompletedSessionRestore] = useState(false);
@@ -753,11 +772,11 @@ export function App(): React.JSX.Element {
   const handleVersionLineChanged = async (path: string): Promise<void> => {
     repositoryReads.discardDeferred(path);
     dispatchSessions({ type: "setChangesSelection", id: path, selection: EMPTY_CHANGES_SELECTION });
-    await repositoryReads.refreshAll(projectRuntime, sessionsState, path, mapStatusError);
+    await repositoryReads.refreshAll(projectRuntime, sessionsState, path);
   };
 
   const handleMutationSucceeded = (path: string): Promise<void> =>
-    repositoryReads.refreshAfterMutation(projectRuntime, sessionsState, path, mapStatusError);
+    repositoryReads.refreshAfterMutation(projectRuntime, sessionsState, path);
 
   const startVersionLineOperation = (path: string): boolean => {
     const session = sessionsState.byId[path];
@@ -778,7 +797,7 @@ export function App(): React.JSX.Element {
 
   const finishSessionOperation = (path: string): void => {
     dispatchSessions({ type: "finishOperation", id: path });
-    repositoryReads.finishDeferred(projectRuntime, sessionsState, path, mapStatusError);
+    repositoryReads.finishDeferred(projectRuntime, sessionsState, path);
   };
 
   const setVersionLineOperationPhase = (
@@ -915,7 +934,7 @@ export function App(): React.JSX.Element {
   // it pointed at the current immutable session state.
   const handleRepositoryChangedRef = useRef<(event: RepositoryInvalidation) => void>(() => {});
   handleRepositoryChangedRef.current = (event: RepositoryInvalidation) => {
-    repositoryReads.handleInvalidation(projectRuntime, sessionsState, event, mapStatusError);
+    repositoryReads.handleInvalidation(projectRuntime, sessionsState, event);
   };
 
   useEffect(() => {

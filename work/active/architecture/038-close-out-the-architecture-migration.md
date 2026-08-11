@@ -57,7 +57,7 @@ recur:
 | 039 | Done 2026-08-11 | A Git call without a command frame fails instead of silently getting a read policy | none |
 | 040 | Done 2026-08-11 | Overview owns its screen container; `main.tsx` becomes composition-only | none |
 | 041 | Done 2026-08-11 | Proven shared primitives live in `shared/ui` behind named exports | none |
-| 042 | normal, not started | Repository invalidation accepts registered subscribers instead of positional parameters | none |
+| 042 | Done 2026-08-11 | Repository invalidation accepts registered subscribers instead of positional parameters | none |
 | 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041, 047 |
 | 044 | Done 2026-08-11 | The test-only screen module leaves production space and the guard can see it | none |
 | 045 | high, not started | macOS and Linux desktop behavior and memory are measured | none |

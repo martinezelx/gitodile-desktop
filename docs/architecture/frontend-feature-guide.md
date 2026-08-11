@@ -132,7 +132,7 @@ is unusual.
 | `src/screens.tsx` | import + one `SCREEN_MODULES` entry | declarative registration |
 | `src/projectSessions.ts` | widen the `ProjectView` union by one id | declarative |
 | `src/app/translations.ts` | one palette label in the interface and both locales | shell copy |
-| `src/main.tsx` | create the controller, pass it to the read coordinator, add one entry to the `screens` record | composition wiring |
+| `src/main.tsx` | create the controller, register a read subscriber (§9), add one entry to the `screens` record | composition wiring |
 | `src/ipcContract.test.ts` | command count and name list | pinned contract |
 | `src-tauri/src/lib.rs` | `mod`, `use`, one `generate_handler!` entry | declarative registration |
 | `src-tauri/src/ipc.rs` | one transport adapter | transport |
@@ -145,12 +145,46 @@ anything about the screen's behavior. No macro, container or dynamic
 registration was introduced to shrink that list, per ADR 0003's rejection of
 indirection with one consumer.
 
-**One real gap remains.** A screen that must refresh on watcher invalidation
-has to be added to `createRepositoryReadCoordinator` in
-`src/features/repository/readCoordinator.ts`: a constructor parameter plus a
-hardcoded `refresh`/`supersede` call per dependent feature. That makes the
-repository feature know about every other feature that consumes invalidation,
-and it grows with each screen. It is wiring rather than product logic, and it is
-compile-checked, so it does not block History — but the next feature to need it
-should convert the fan-out into a list of registered invalidation subscribers
-rather than adding a fifth positional parameter.
+## 9. Staying fresh without editing another feature
+
+A screen whose snapshot must survive an external repository change registers a
+`RepositoryReadSubscriber` with the coordinator, in `main.tsx`, beside the
+existing ones:
+
+```ts
+{
+  id: "history",
+  refreshOn: "shared-change",
+  blocking: false,
+  refresh: (query) => historyController.refresh(query),
+  supersede: (query) => historyController.supersede(query),
+}
+```
+
+Nothing inside `features/repository` changes. Task 042 replaced the positional
+per-feature parameters that made the repository feature know about every
+dependent feature.
+
+Two fields carry the behavior, and both used to be invisible:
+
+- **`refreshOn`** is the narrowest invalidation that should refresh you.
+  `worktree-change` also fires on shared changes, because a `HEAD` or ref change
+  moves the working tree too. `shared-change` is skipped for worktree-only
+  events, so saving a file does not re-read the branch inventory.
+- **`blocking`** is whether `refreshAll` waits for you. Only the working-tree
+  snapshot does. Choose `false` unless a caller awaiting "the refresh finished"
+  genuinely needs your read included — the mutation callbacks await that
+  promise, so a blocking subscriber lengthens what the user waits through.
+
+The coordinator dispatches repository identity first and awaited, then starts
+background subscribers, then awaits the blocking ones in registration order.
+`readCoordinator.test.ts` pins that sequence: three of its tests fail if the
+fan-out becomes a concurrent `Promise.all`.
+
+**Cache warming is a separate seam and still needs an edit.** Speculative
+warming on project activation lives in
+`src/features/repository/cacheWarming.ts`, which takes controllers as named
+options. A feature that wants idle-deferred warming — as opposed to
+invalidation-driven refresh — still adds itself there. Task 042 deliberately
+scoped itself to the fan-out; the same treatment for warming has no consumer
+demanding it yet.

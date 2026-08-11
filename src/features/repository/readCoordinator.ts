@@ -1,57 +1,120 @@
 import { acceptsRepositoryInvalidation, invalidationNeedsSharedRefresh, type RepositoryInvalidation } from "../../repositoryInvalidation";
 import type { ProjectRuntime } from "../../projectRuntime";
 import { shouldRefreshOnWatchEvent, type ProjectSessionsState } from "../../projectSessions";
-import type { StatusController, StatusErrorMapper } from "../status";
-import type { VersionLinesController } from "../version-lines";
 import type { RepositoryController } from "./controller";
+
+export type RepositoryReadQuery = { projectId: string; sessionEpoch: string };
+
+/**
+ * A feature that keeps a repository-derived snapshot fresh.
+ *
+ * The coordinator decides *when* and *in what order* to refresh; this contract
+ * is how it stops needing to know *who*. Before task 042 each dependent feature
+ * was a positional parameter with a hardcoded call inside `refreshAll`, so the
+ * repository feature knew about every other feature and the list grew with each
+ * screen.
+ *
+ * Deliberately narrow: a query in, a refresh or supersede out. Anything a
+ * feature needs beyond that — a project runtime, an error mapper — is captured
+ * by the closure the composition root registers, so it never widens this type.
+ */
+export type RepositoryReadSubscriber = {
+  /** Names the subscriber in ordering assertions and debugging. */
+  readonly id: string;
+  /**
+   * The narrowest invalidation that should refresh this snapshot.
+   *
+   * `worktree-change` also refreshes on shared changes, because a change to
+   * `HEAD` or refs changes the working tree too. `shared-change` is skipped for
+   * worktree-only events, which is what keeps a file save from re-reading the
+   * branch inventory.
+   */
+  readonly refreshOn: "worktree-change" | "shared-change";
+  /**
+   * Whether `refreshAll` waits for this refresh before resolving.
+   *
+   * Only the working-tree snapshot is awaited. Version lines is a background
+   * dependent read that callers do not block on, and that distinction used to
+   * be a single `void` keyword in the middle of `refreshAll` — stating it here
+   * is the point of the field.
+   */
+  readonly blocking: boolean;
+  refresh(query: RepositoryReadQuery): Promise<void> | void;
+  supersede(query: RepositoryReadQuery): void;
+};
 
 export type RepositoryReadCoordinator = ReturnType<typeof createRepositoryReadCoordinator>;
 
-/** Coordinates freshness across repository identity, status and dependent
- * read snapshots. Watch bursts and mutation deferral live here rather than in
- * the app shell or a screen. */
+/** Coordinates freshness across repository identity and every registered
+ * dependent snapshot. Watch bursts and mutation deferral live here rather than
+ * in the app shell or a screen. */
 export function createRepositoryReadCoordinator(
   repository: RepositoryController,
-  status: StatusController,
-  versionLines: VersionLinesController,
+  subscribers: readonly RepositoryReadSubscriber[],
 ) {
   const sequences = new Map<string, number>();
   const deferred = new Map<string, boolean>();
 
-  const refreshStatus = async (runtime: ProjectRuntime, state: ProjectSessionsState, path: string, mapError: StatusErrorMapper): Promise<void> => {
-    const epoch = state.byId[path]?.epoch;
-    if (epoch) await status.refresh(runtime, { projectId: path, sessionEpoch: epoch }, mapError);
+  /**
+   * Background reads start first and are left running; blocking reads are
+   * awaited in registration order.
+   *
+   * The two passes are not a style choice. Starting every subscriber and
+   * awaiting them all would make `refreshAll` resolve only once the branch
+   * inventory returned, changing what "the refresh finished" means for the
+   * mutation callers that await it.
+   */
+  const notify = async (query: RepositoryReadQuery, includeSharedReads: boolean): Promise<void> => {
+    const selected = subscribers.filter(
+      (subscriber) => includeSharedReads || subscriber.refreshOn === "worktree-change",
+    );
+    for (const subscriber of selected) {
+      if (!subscriber.blocking) void subscriber.refresh(query);
+    }
+    for (const subscriber of selected) {
+      if (subscriber.blocking) await subscriber.refresh(query);
+    }
   };
 
-  const refreshAll = async (runtime: ProjectRuntime, state: ProjectSessionsState, path: string, mapError: StatusErrorMapper): Promise<void> => {
+  const queryFor = (state: ProjectSessionsState, path: string): RepositoryReadQuery | null => {
     const epoch = state.byId[path]?.epoch;
-    if (!epoch) return;
+    return epoch ? { projectId: path, sessionEpoch: epoch } : null;
+  };
+
+  /** Worktree-only refresh: file contents changed, nothing about `HEAD` did. */
+  const refreshWorktree = async (state: ProjectSessionsState, path: string): Promise<void> => {
+    const query = queryFor(state, path);
+    if (query) await notify(query, false);
+  };
+
+  const refreshAll = async (runtime: ProjectRuntime, state: ProjectSessionsState, path: string): Promise<void> => {
+    const query = queryFor(state, path);
+    if (!query) return;
+    // Identity first, and awaited: every subscriber's snapshot is scoped to the
+    // project this dispatch establishes.
     try {
-      const project = await repository.open({ selectedPath: path, sessionEpoch: epoch });
+      const project = await repository.open({ selectedPath: path, sessionEpoch: query.sessionEpoch });
       runtime.dispatch({ type: "open", project });
     } catch {
       // Preserve the last truthful identity; other scoped reads still run.
     }
-    void versionLines.refresh({ projectId: path, sessionEpoch: epoch });
-    await refreshStatus(runtime, state, path, mapError);
+    await notify(query, true);
   };
 
   return {
-    refreshStatus,
+    refreshWorktree,
     refreshAll,
     /** Mutation results win over older discovery reads. Discard coalesced
      * watcher work, supersede every affected generation, then invalidate each
      * dependent feature once through the ordinary shared refresh path. */
-    refreshAfterMutation(runtime: ProjectRuntime, state: ProjectSessionsState, path: string, mapError: StatusErrorMapper): Promise<void> {
-      const epoch = state.byId[path]?.epoch;
-      if (!epoch) return Promise.resolve();
+    refreshAfterMutation(runtime: ProjectRuntime, state: ProjectSessionsState, path: string): Promise<void> {
+      const query = queryFor(state, path);
+      if (!query) return Promise.resolve();
       deferred.delete(path);
-      const query = { projectId: path, sessionEpoch: epoch };
-      status.supersede(query);
-      versionLines.supersede(query);
-      return refreshAll(runtime, state, path, mapError);
+      for (const subscriber of subscribers) subscriber.supersede(query);
+      return refreshAll(runtime, state, path);
     },
-    handleInvalidation(runtime: ProjectRuntime, state: ProjectSessionsState, event: RepositoryInvalidation, mapError: StatusErrorMapper): void {
+    handleInvalidation(runtime: ProjectRuntime, state: ProjectSessionsState, event: RepositoryInvalidation): void {
       const key = `${event.projectId}\0${event.sessionEpoch}`;
       const previous = sequences.get(key) ?? 0;
       const session = state.byId[event.projectId];
@@ -63,14 +126,14 @@ export function createRepositoryReadCoordinator(
         return;
       }
       void (shared
-        ? refreshAll(runtime, state, event.projectId, mapError)
-        : refreshStatus(runtime, state, event.projectId, mapError));
+        ? refreshAll(runtime, state, event.projectId)
+        : refreshWorktree(state, event.projectId));
     },
-    finishDeferred(runtime: ProjectRuntime, state: ProjectSessionsState, path: string, mapError: StatusErrorMapper): void {
+    finishDeferred(runtime: ProjectRuntime, state: ProjectSessionsState, path: string): void {
       const shared = deferred.get(path);
       if (shared === undefined) return;
       deferred.delete(path);
-      void (shared ? refreshAll(runtime, state, path, mapError) : refreshStatus(runtime, state, path, mapError));
+      void (shared ? refreshAll(runtime, state, path) : refreshWorktree(state, path));
     },
     discardDeferred(path: string): void {
       deferred.delete(path);
