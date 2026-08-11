@@ -55,7 +55,7 @@ recur:
 | Task | Status | Outcome | Depends on |
 | --- | --- | --- | --- |
 | 039 | Done 2026-08-11 | A Git call without a command frame fails instead of silently getting a read policy | none |
-| 040 | high, not started | Overview owns its screen container; `main.tsx` becomes composition-only | none |
+| 040 | Done 2026-08-11 | Overview owns its screen container; `main.tsx` becomes composition-only | none |
 | 041 | normal, not started | Proven shared primitives live in `shared/ui` behind named exports | none |
 | 042 | normal, not started | Repository invalidation accepts registered subscribers instead of positional parameters | none |
 | 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041 |
@@ -80,9 +80,9 @@ that needs hardware this project has not used.
 
 # Epic acceptance criteria
 
-- [ ] Tasks 039–046 are complete with their own validation recorded. 039 done.
-- [ ] Epic 022's partially-met "thin composition roots" criterion is satisfied
-      or a new ADR records why it will not be.
+- [ ] Tasks 039–046 are complete with their own validation recorded. 039 and 040 done.
+- [x] Epic 022's partially-met "thin composition roots" criterion is satisfied
+      or a new ADR records why it will not be. Satisfied by task 040.
 - [x] No production code path can execute Git without an execution policy.
 - [ ] Every architecture document describes the tree that exists.
 - [ ] Windows, macOS and Linux desktop behavior is measured or its absence is

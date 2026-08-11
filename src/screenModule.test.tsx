@@ -7,6 +7,7 @@ import { createProjectRuntime } from "./projectRuntime";
 import type { RepositoryInfo } from "./features/repository";
 import { KeepAliveScreens } from "./screens";
 import {
+  createEagerScreenContainer,
   createLazyScreenContainer,
   defineScreenModules,
   type ScreenModule,
@@ -37,7 +38,7 @@ const completeModule = {
   icon: <LayoutDashboard />,
   requiresProject: false,
   inCompactNav: true,
-  container: { kind: "host-owned" },
+  container: createEagerScreenContainer(() => null),
   additionalPreloads: [],
   lifecycle: { hidden: "retain-suspended", evict: "project-session" },
   accessibility: { inactive: "hidden-inert", announcements: "active-only" },
@@ -78,6 +79,22 @@ describe("ScreenModule runtime", () => {
 
     expect(await screen.findByRole("region", { name: "Runtime test screen" })).toBeInTheDocument();
     expect(loader).toHaveBeenCalledTimes(1);
+  });
+
+  it("mounts an eager screen without a Suspense boundary and preloads to itself", async () => {
+    // Overview is registered eagerly because it paints before any project is
+    // open; a chunk fetch there would sit in front of first paint. It still has
+    // to be a real container so the shell composes it like every other screen,
+    // and `prefetchScreenChunks` must be able to call `preload` blindly.
+    function EagerProbe({ label }: { label: string }): React.JSX.Element {
+      return <section aria-label={label} />;
+    }
+    const container = createEagerScreenContainer(EagerProbe);
+
+    render(<container.Component label="Eager test screen" />);
+
+    expect(screen.getByRole("region", { name: "Eager test screen" })).toBeInTheDocument();
+    await expect(container.preload()).resolves.toBe(EagerProbe);
   });
 
   it("freezes hidden work, synchronizes on activation, and evicts with the project host", async () => {

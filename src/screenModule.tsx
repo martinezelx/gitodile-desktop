@@ -31,6 +31,11 @@ export type ScreenContainer<Props extends object = Record<string, never>> = {
   readonly preload: () => Promise<React.ComponentType<Props>>;
 };
 
+export type EagerScreenContainer<Props extends object = Record<string, never>> = {
+  readonly Component: React.ComponentType<Props>;
+  readonly preload: () => Promise<React.ComponentType<Props>>;
+};
+
 type RegisteredScreenContainer = {
   readonly Component: object;
   readonly preload: () => Promise<unknown>;
@@ -46,7 +51,7 @@ export type FunctionalScreenModule<Id extends string = string> = {
   readonly icon: React.JSX.Element;
   readonly requiresProject: boolean;
   readonly inCompactNav: boolean;
-  readonly container: RegisteredScreenContainer | { readonly kind: "host-owned" };
+  readonly container: RegisteredScreenContainer;
   readonly additionalPreloads: readonly (() => Promise<unknown>)[];
   readonly lifecycle: {
     readonly hidden: "retain-suspended";
@@ -97,6 +102,23 @@ export function createLazyScreenContainer<Module, Props extends object>(
     Component: lazy(() => preload().then((Component) => ({ default: Component }))),
     preload,
   };
+}
+
+/** A screen whose code must already be in the entry chunk.
+ *
+ * Overview is the screen the app paints with no project open, so deferring it
+ * would put a chunk fetch in front of first paint — the cost task 018 exists to
+ * avoid. Registering it through a container anyway is what stops it from being
+ * the one screen the shell composes by hand: nav, palette, keep-alive,
+ * lifecycle and eviction all still derive from the descriptor.
+ *
+ * `preload` resolves immediately, so `prefetchScreenChunks` treats an eager
+ * screen exactly like a lazy one and no caller needs to know the difference.
+ */
+export function createEagerScreenContainer<Props extends object>(
+  Component: React.ComponentType<Props>,
+): EagerScreenContainer<Props> {
+  return { Component, preload: () => Promise.resolve(Component) };
 }
 
 export function defineScreenModules<const Modules extends readonly ScreenModule[]>(modules: Modules): Modules {

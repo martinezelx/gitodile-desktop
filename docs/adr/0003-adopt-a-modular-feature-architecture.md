@@ -290,19 +290,22 @@ Dependencies considered for this migration:
 
 ### Observed after the task-031 audit
 
-The migration produced the intended contracts. It did not produce the intended
-frontend composition root, and this decision record should say so.
+The migration produced the intended contracts. It did not, at first, produce the
+intended frontend composition root, and this decision record should say so.
 
 - **Rust met the decision.** `lib.rs` went from 9,897 lines to 762 production
   lines (plus 3,013 test lines): the builder, 31 command registrations and the
   Git process/platform adapters. `architecture.rs` fails the build if a named
   domain function reappears there.
-- **`main.tsx` did not.** It went from 3,367 to 2,730 lines. Task 031 extracted
-  the Settings overlay into `features/settings` behind a port, removing seven
-  direct `invoke` calls; the Overview panel and `App`'s shell state remain.
-  Overview declares this as `container: { kind: "host-owned" }`, so it is a
-  named residue rather than a silent one, and its reads already belong to
-  feature controllers.
+- **`main.tsx` needed two more tasks.** Epic 022 left it at 2,730 lines from
+  3,367, still rendering the Overview panel. Task 031 extracted the Settings
+  overlay behind a port, removing seven direct `invoke` calls; task 040
+  extracted Overview and took the file to 1,958 lines of app shell with no
+  screen body. The `host-owned` container variant is gone from the contract, so
+  a screen the shell composes by hand is now a type error rather than a
+  convention. Overview registers eagerly — it paints before any project is open,
+  so a lazy chunk would sit in front of first paint — which is why
+  `createEagerScreenContainer` exists alongside the lazy one.
 - **No task owned this.** Tasks 023-030 assigned migrations for version lines,
   reads, mutations, styles and translations. Overview and Settings were never
   assigned to anyone, which is why they survived a nine-task refactor. Future

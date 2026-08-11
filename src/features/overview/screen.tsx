@@ -1,6 +1,15 @@
 import { LayoutDashboard } from "lucide-react";
 
-import type { ScreenModule } from "../../screenModule";
+import { createEagerScreenContainer, type ScreenModule } from "../../screenModule";
+import { OverviewPanel as OverviewPanelComponent } from "./OverviewPanel";
+
+/** Eager, not lazy. Overview is what the app paints with no project open, so a
+ * chunk fetch here would sit in front of first paint. It is still registered
+ * through a container so nav, palette, keep-alive, lifecycle and eviction come
+ * from this descriptor rather than from the shell composing it by hand. */
+const container = createEagerScreenContainer(OverviewPanelComponent);
+
+export const OverviewPanel = container.Component;
 
 export const overviewScreenModule = {
   kind: "screen",
@@ -12,9 +21,7 @@ export const overviewScreenModule = {
   icon: <LayoutDashboard />,
   requiresProject: false,
   inCompactNav: true,
-  // The shell still composes the visual Overview panel, while repository,
-  // status and pending-version reads are owned by their feature controllers.
-  container: { kind: "host-owned" },
+  container,
   additionalPreloads: [
     () => import("./PendingVersionsSection"),
     () => import("../publish/PublishDialog"),

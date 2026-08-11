@@ -83,7 +83,7 @@ deliberately and both recorded here rather than quietly reconciled.
 
 ```text
 src/
-  main.tsx                # 2,730 lines: app shell, Overview panel, App wiring
+  main.tsx                # 1,958 lines: app shell, palette, titlebar, App wiring
   screens.tsx             # screen registry, keep-alive host, switch profiler
   screenModule.tsx        # neutral screen/lifecycle contract
   projectRuntime.ts       # project-scoped store and selectors
@@ -112,18 +112,26 @@ boundaries either way, so the directories were not created merely to match the
 diagram. Move a module into a directory when it needs internal submodules, not
 before.
 
-**The composition roots are not equally thin.** `lib.rs` reached the intended
-shape: its 762 production lines are the Tauri builder, command registration and
-the Git process/platform adapters that ADR 0003 places in `git/` and
-`platform/`, with no product decisions left. `main.tsx` did not: it still
-renders the Overview panel and owns `App`'s ~30 pieces of shell state.
+**Both composition roots are thin.** `lib.rs` holds 762 production lines: the
+Tauri builder, command registration and the Git process/platform adapters that
+ADR 0003 places in `git/` and `platform/`, with no product decisions left.
+`main.tsx` holds the app shell — command palette, titlebar menu, theme, project
+session wiring and screen composition — and no screen body.
 
-Overview's screen descriptor declares this explicitly with
-`container: { kind: "host-owned" }`. Its repository, status and pending-version
-reads are already owned by feature controllers, so the residue is composition,
-not product logic — but `main.tsx` is not a composition-only file and this
-document should not claim it is. The bounded follow-up is to give Overview its
-own container like every other functional screen.
+Epic 022 closed with this criterion only partially met, because no child task
+had been assigned the Overview or Settings screens and both survived a
+nine-task refactor. Task 031 extracted Settings behind a port; task 040
+extracted Overview. The screen contract has no `host-owned` container any more:
+every functional screen registers a real container, and the type system rejects
+a descriptor that tries to have the shell compose it instead.
+
+Overview's container is **eager**, not lazy. It is the screen the app paints
+with no project open, so deferring its chunk would put a fetch in front of first
+paint and break task 018's guarantee. `createEagerScreenContainer` exists for
+exactly that case: its `preload` resolves immediately, so `prefetchScreenChunks`
+treats it like any other screen and no caller needs to know the difference.
+Measured after the move: 0 Git processes at the first content frame, with the
+first one starting 24 ms after content is painted.
 
 Dependency direction will be executable in CI: a pinned
 `dependency-cruiser` configuration will classify frontend runtime, type-only,

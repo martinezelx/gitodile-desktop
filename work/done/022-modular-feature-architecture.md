@@ -150,10 +150,11 @@ green at every task/commit boundary.
 # Epic acceptance criteria
 
 - [x] Tasks 023–031 are complete with their own validation recorded.
-- [~] `main.tsx` and `src-tauri/src/lib.rs` are thin composition roots.
-      `lib.rs` met it (9,897 → 762 production lines). `main.tsx` reached 2,730
-      from 3,367 and still renders the Overview panel; recorded honestly in
-      task 031 and ADR 0003 with a named follow-up, not marked complete.
+- [x] `main.tsx` and `src-tauri/src/lib.rs` are thin composition roots.
+      `lib.rs` met it inside this epic (9,897 → 762 production lines).
+      `main.tsx` needed two follow-up tasks it never assigned: task 031
+      extracted Settings and task 040 extracted Overview, taking it from 3,367
+      to 1,958 lines of app shell with no screen body. Satisfied 2026-08-11.
 - [x] Frontend and Rust dependency directions are enforced automatically and
       have no production cycles.
 - [x] Every command is classified and governed by Rust-side repository access
@@ -303,9 +304,11 @@ shared across a seven-process WebView2 tree: an Overview-only session already
 read 405.1 MiB, while keep-alive for all three screens added 10.5 MiB. Private
 bytes settle at 221.8 MiB against a 400 MiB failure threshold.
 
-The epic closes with one criterion partially met and said so plainly: `lib.rs`
-is a thin composition root, `main.tsx` is not yet, because no child task ever
-owned the Overview and Settings screens. Task 015 (History) is unblocked.
+The epic closed with one criterion partially met and said so plainly: `lib.rs`
+was a thin composition root, `main.tsx` was not, because no child task ever
+owned the Overview and Settings screens. Epic 038 finished the job — task 031
+extracted Settings, task 040 extracted Overview — and the criterion is now met.
+Task 015 (History) is unblocked.
 
 The residue is scheduled as
 [epic 038](../active/architecture/038-close-out-the-architecture-migration.md),
