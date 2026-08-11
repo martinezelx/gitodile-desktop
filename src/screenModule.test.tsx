@@ -12,7 +12,7 @@ import {
   defineScreenModules,
   type ScreenModule,
 } from "./screenModule";
-import { RuntimeTestScreen } from "./testScreenModule";
+import { RuntimeTestScreen } from "./test-fixtures/runtimeTestScreen";
 
 function makeProject(path: string, epoch = `epoch:${path}`): RepositoryInfo {
   return {

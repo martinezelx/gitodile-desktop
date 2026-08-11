@@ -24,6 +24,6 @@ export default defineConfig({
     // (i18n and the repository/status/change/save domains) run just as well
     // under jsdom, so one shared environment keeps this config simple.
     environment: "jsdom",
-    setupFiles: ["./src/testSetup.ts"],
+    setupFiles: ["./src/test-fixtures/testSetup.ts"],
   },
 });

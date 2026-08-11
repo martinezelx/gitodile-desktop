@@ -1,14 +1,14 @@
 ---
 id: 044
 title: Keep test-only modules out of production space and teach the guard to see them
-status: active
+status: done
 priority: low
 type: chore
 areas:
   - frontend
   - architecture
 created: 2026-08-10
-completed:
+completed: 2026-08-11
 ---
 
 # Goal
@@ -63,12 +63,12 @@ it needs the same treatment.
 
 # Acceptance criteria
 
-- [ ] No module that exists solely for tests is classified as production by the
+- [x] No module that exists solely for tests is classified as production by the
       architecture check.
-- [ ] A seeded fixture proves the production-imports-test rule fires, and the
+- [x] A seeded fixture proves the production-imports-test rule fires, and the
       check fails if that self-test stops reporting.
-- [ ] All 241 frontend tests still pass.
-- [ ] Full `AGENTS.md` validation passes.
+- [x] All 242 frontend tests still pass, across the same 28 files.
+- [x] Full `AGENTS.md` validation passes.
 
 # Relevant files
 
@@ -89,8 +89,52 @@ None.
 
 # Implementation notes
 
-Complete during implementation.
+## What moved
+
+`src/test-fixtures/` now holds both modules that exist only for tests:
+
+- `runtimeTestScreen.tsx`, formerly `src/testScreenModule.tsx`, imported by
+  `screenModule.test.tsx`.
+- `testSetup.ts`, named by `vite.config.ts` as the vitest `setupFiles` entry.
+
+`testSetup.ts` was not found by an import search — nothing in `src` imports it,
+because the test runner loads it from config. It had exactly the same hole the
+task was filed about: the guard classified it as production, so a production
+file importing it would not have been reported. Moving it was the consistent
+call rather than leaving one of the two behind.
+
+`test-fixtures` is already in the guard's test-file pattern, so no rule needed
+changing — the modules simply stopped lying about what they are.
+
+## The seeded self-test caught its own mistake
+
+The first attempt named the fixture `probe.test.mjs`. That satisfies the guard's
+pattern, but it also matches vitest's collection glob, so vitest picked it up
+and failed with "No test suite found" — and the failure was invisible because
+`package.json`'s test script passes `--passWithNoTests`. The suite silently went
+from 28 files to 29.
+
+The fixture now lives in `features/history/test-fixtures/probe.mjs`: test-only
+by directory for the guard, invisible to vitest. Worth recording because
+`--passWithNoTests` will mask the same mistake again for anyone who adds a
+fixture with a `.test.` name. Left in place rather than removed speculatively;
+it is not this task's call.
+
+## Honest scope of the guarantee
+
+The seeded fixture proves the rule fires, and the guard fails if that self-test
+ever stops reporting. It does **not** yet protect `src`, because the guard
+cruises zero modules there — the defect task 041 found and task 047 owns. When
+047 lands, this rule starts guarding production with no further work here.
+
+Three seeded self-tests now run: feature to app composition, deep import past
+`shared/ui`, and production to test-only.
 
 # Validation
 
-Run the complete `AGENTS.md` command set.
+```text
+pnpm run check:frontend                   pass (242 tests, 28 files, 3 seeded guards)
+pnpm run build                            entry 375.83 kB raw / 107.78 kB gzip
+cargo fmt --check / clippy -D warnings    pass
+cargo test --all-targets --all-features   pass (199 tests)
+```

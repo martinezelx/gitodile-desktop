@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 
-import type { ProjectRuntime } from "./projectRuntime";
+import type { ProjectRuntime } from "../projectRuntime";
 import {
   useActiveProjectSelector,
   useActiveScreenEffect,
   useScreenLifecycle,
-} from "./screenModule";
+} from "../screenModule";
 
 const selectActiveProject = (snapshot: ReturnType<ProjectRuntime["getSnapshot"]>): string | null =>
   snapshot.activeId;

@@ -171,6 +171,10 @@ function main() {
       label: "deep import past shared/ui",
       match: (message) => message.includes("owned by shared/ui"),
     },
+    {
+      label: "production -> test-only module",
+      match: (message) => message.includes("imports test-only module"),
+    },
   ];
   const reported = [];
   for (const selfTest of selfTests) {

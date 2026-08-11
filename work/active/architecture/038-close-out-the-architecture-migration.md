@@ -59,7 +59,7 @@ recur:
 | 041 | Done 2026-08-11 | Proven shared primitives live in `shared/ui` behind named exports | none |
 | 042 | normal, not started | Repository invalidation accepts registered subscribers instead of positional parameters | none |
 | 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041, 047 |
-| 044 | low, not started | The test-only screen module leaves production space and the guard can see it | none |
+| 044 | Done 2026-08-11 | The test-only screen module leaves production space and the guard can see it | none |
 | 045 | high, not started | macOS and Linux desktop behavior and memory are measured | none |
 | 046 | low, not started | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
 | 047 | high, not started | The architecture guard inspects `src` instead of cruising zero modules | none |
