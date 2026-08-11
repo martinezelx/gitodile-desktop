@@ -237,7 +237,19 @@ Every registered command has exactly one checked `ExecutionPolicy` in
 `src-tauri/src/application.rs`: operation class, stdout/stderr caps, timeout,
 cancellation, prompt and concurrency policy. All production Git launches go
 through `src-tauri/src/git.rs` as argument vectors with an explicit working
-directory and deterministic locale. Both pipes are drained concurrently and
+directory and deterministic locale.
+
+There is no default policy. A Git call reached without first entering
+`application::enter` or `application::authorize_repository` panics in debug and
+test builds and returns a structured failure in release. Task 024 shipped a
+fallback that quietly supplied a repository-read policy while domain workflows
+were still being moved out of `lib.rs`; task 039 removed it, because a call
+that inherited that fallback would also have skipped the commonGitDir
+coordinator and run without a repository permit — a failure that would not
+surface until two worktrees collided. Tests that read repository state to
+assert what a workflow did use the `#[cfg(test)]` helpers `test_git` and
+`in_test_frame`, which supply an explicit test-only frame rather than a
+registered command's policy. Both pipes are drained concurrently and
 retained only to their caps. Newer equivalent reads cancel the process token
 of a superseded read; frontend generation/state-token rejection remains a
 separate logical stale-result mechanism. Mutations do not auto-cancel one

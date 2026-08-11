@@ -59,6 +59,58 @@ fn git_command(repo_path: &str) -> Command {
     command
 }
 
+/// The execution policy of the command this thread is currently running.
+///
+/// There is deliberately no fallback. Until task 039 this returned a default
+/// repository-read policy when no command frame was on the stack, which was
+/// strangler scaffolding from task 024 and outlived its purpose: a Git call
+/// added without a frame did not fail, it silently received read concurrency
+/// and never acquired a repository permit, bypassing the commonGitDir
+/// coordinator that serializes related worktrees. A missing frame is a
+/// programming error, so it panics where a programmer will see it and degrades
+/// to a reported failure in release rather than crashing a user's session.
+fn require_policy() -> Result<git::ExecutionPolicy, AppError> {
+    match application::current_policy() {
+        Some(policy) => Ok(policy),
+        None => {
+            debug_assert!(
+                false,
+                "a Git process was started outside a registered command; \
+                 enter `application::enter` or `application::authorize_repository` first",
+            );
+            Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "GitOdrile couldn't run this Git command safely.",
+            )
+            .with_remediation("Restart GitOdrile, and please report this if it happens again."))
+        }
+    }
+}
+
+/// Runs Git to assert what a workflow did, from any module's tests.
+///
+/// Test assertions are not a registered command, so they carry an explicit
+/// test-only frame rather than relying on a default policy — the default is
+/// what task 039 removed. Production code must reach Git through a command that
+/// entered `application::enter` or `application::authorize_repository`.
+#[cfg(test)]
+pub(crate) fn test_git(repo_path: &str, args: &[&str]) -> Result<Output, AppError> {
+    let _frame = application::enter_test_frame();
+    run_git(repo_path, args)
+}
+
+/// Calls an internal helper that expects to run inside a command.
+///
+/// Helpers like `resolve_index_path` and `list_branch_names` are reached in
+/// production through a command that already authorized the repository. A unit
+/// test calling one directly is legitimate, but it has to supply the frame the
+/// helper's Git call requires rather than leaning on a default.
+#[cfg(test)]
+pub(crate) fn in_test_frame<T>(run: impl FnOnce() -> T) -> T {
+    let _frame = application::enter_test_frame();
+    run()
+}
+
 fn run_git(repo_path: &str, args: &[&str]) -> Result<Output, AppError> {
     run_git_with_env(repo_path, args, &[])
 }
@@ -72,8 +124,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    let policy = application::current_policy()
-        .unwrap_or_else(|| git::ExecutionPolicy::repository_read("compatibility_git_read"));
+    let policy = require_policy()?;
     let cancellation = application::current_cancellation();
     let output = git::run_with_env(
         Some(Path::new(repo_path)),
@@ -95,8 +146,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    let policy = application::current_policy()
-        .unwrap_or_else(|| git::ExecutionPolicy::repository_read("compatibility_global_git"));
+    let policy = require_policy()?;
     let cancellation = application::current_cancellation();
     let output = git::run_with_env(None, args, envs, policy, cancellation.as_ref())?;
     Ok(Output {
@@ -113,8 +163,7 @@ struct CappedOutput {
 }
 
 fn run_git_capped(repo_path: &str, args: &[&str], limit: usize) -> Result<CappedOutput, AppError> {
-    let mut policy = application::current_policy()
-        .unwrap_or_else(|| git::ExecutionPolicy::repository_read("compatibility_capped_git_read"));
+    let mut policy = require_policy()?;
     policy.stdout_cap = limit;
     let cancellation = application::current_cancellation();
     let output = git::run(
@@ -952,6 +1001,35 @@ mod tests {
         assert!(diagnostics.version.is_some());
     }
 
+    // Until task 039 this silently returned a repository-read policy, so a Git
+    // call that forgot its frame ran with read concurrency and never acquired a
+    // repository permit — bypassing the commonGitDir coordinator that keeps
+    // related worktrees from colliding. Both branches are pinned: debug panics
+    // where a programmer sees it, release reports a structured failure rather
+    // than crashing a user's session. The release half needs
+    // `cargo test --release` to run.
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "outside a registered command")]
+    fn starting_git_without_a_command_frame_is_rejected() {
+        let _ = require_policy();
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn starting_git_without_a_command_frame_is_rejected() {
+        let error = require_policy().expect_err("a frameless Git call must not be allowed");
+        assert_eq!(error.code, AppErrorCode::GitCommandFailed);
+    }
+
+    #[test]
+    fn a_command_frame_supplies_the_policy_its_git_calls_run_under() {
+        let _frame = application::enter_test_frame();
+        let policy = require_policy().expect("a frame must supply a policy");
+        assert_eq!(policy.concurrency, git::ConcurrencyClass::RepositoryRead);
+        assert!(policy.stdout_cap > 0 && !policy.timeout.is_zero());
+    }
+
     #[test]
     fn git_diagnostic_states_are_mapped_without_running_processes() {
         assert_eq!(
@@ -1095,20 +1173,29 @@ mod tests {
         let _ = fs::remove_file(&config_path);
         let config_override = config_path.to_string_lossy().to_string();
 
+        // `get_git_identity` and `set_git_identity` enter their own frames; the
+        // override variants exercised here sit below that entry point, so the
+        // test supplies one.
         assert_eq!(
-            read_global_git_config("user.name", Some(&config_override)),
+            in_test_frame(|| read_global_git_config("user.name", Some(&config_override))),
             None
         );
 
-        set_git_identity_with_override("Ada Lovelace", "ada@example.com", Some(&config_override))
-            .expect("set identity should succeed");
+        in_test_frame(|| {
+            set_git_identity_with_override(
+                "Ada Lovelace",
+                "ada@example.com",
+                Some(&config_override),
+            )
+        })
+        .expect("set identity should succeed");
 
         assert_eq!(
-            read_global_git_config("user.name", Some(&config_override)),
+            in_test_frame(|| read_global_git_config("user.name", Some(&config_override))),
             Some("Ada Lovelace".to_string())
         );
         assert_eq!(
-            read_global_git_config("user.email", Some(&config_override)),
+            in_test_frame(|| read_global_git_config("user.email", Some(&config_override))),
             Some("ada@example.com".to_string())
         );
 
@@ -1839,7 +1926,7 @@ mod tests {
         git_add_all(&path);
         git_commit(&path, "base");
         let original_branch =
-            git_stdout(&run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"]).unwrap());
+            git_stdout(&test_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"]).unwrap());
 
         let status = git_command(&path)
             .args(["checkout", "-q", "-b", "feature"])
@@ -1884,7 +1971,7 @@ mod tests {
         // fires for unmerged index entries left by other means (e.g. a
         // conflicting `stash pop`, which never sets `MERGE_HEAD`).
         let git_dir_raw =
-            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+            checked_git_stdout(test_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
                 .unwrap();
         fs::remove_file(Path::new(&git_dir_raw).join("MERGE_HEAD"))
             .expect("remove MERGE_HEAD to isolate the conflict blocker");
@@ -1905,7 +1992,7 @@ mod tests {
         git_commit_empty(&path);
         write_file(&path, "readme.md", "hello\n");
         let git_dir_raw =
-            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+            checked_git_stdout(test_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
                 .unwrap();
         fs::write(Path::new(&git_dir_raw).join("MERGE_HEAD"), "deadbeef\n")
             .expect("simulate an in-progress merge");
@@ -2089,7 +2176,7 @@ mod tests {
             "a blank details field is no details"
         );
 
-        let full_message = git_stdout(&run_git(&path, &["log", "-1", "--format=%B"]).unwrap());
+        let full_message = git_stdout(&test_git(&path, &["log", "-1", "--format=%B"]).unwrap());
         assert_eq!(
             full_message.trim_end(),
             "title only",
@@ -2124,7 +2211,7 @@ mod tests {
             Some("Primera línea.\n\nSegunda línea con más contexto.")
         );
 
-        let full_message = git_stdout(&run_git(&path, &["log", "-1", "--format=%B"]).unwrap());
+        let full_message = git_stdout(&test_git(&path, &["log", "-1", "--format=%B"]).unwrap());
         assert_eq!(
             full_message.trim_end(),
             "Añadir soporte de emojis 🎉\n\nPrimera línea.\n\nSegunda línea con más contexto."
@@ -2156,7 +2243,7 @@ mod tests {
 
         assert_eq!(result.saved_files, 1);
         assert_eq!(
-            git_stdout(&run_git(&path, &["rev-list", "--count", "HEAD"]).unwrap()),
+            git_stdout(&test_git(&path, &["rev-list", "--count", "HEAD"]).unwrap()),
             "1"
         );
 
@@ -2222,7 +2309,7 @@ mod tests {
         let status_after = read_working_tree_status(path.clone()).expect("status after save");
         assert!(status_after.is_clean, "everything should be committed");
 
-        let tracked = git_stdout(&run_git(&path, &["ls-files"]).unwrap());
+        let tracked = git_stdout(&test_git(&path, &["ls-files"]).unwrap());
         assert!(
             !tracked.contains("ignored.txt"),
             "ignored files must never be committed"
@@ -2247,32 +2334,39 @@ mod tests {
         let identity = write_test_identity_config("save-selection");
         let selected = Some(vec!["selected.txt".to_string()]);
 
-        let plan = plan_save_version_selection_with_identity_override(
-            path.clone(),
-            selected.clone(),
-            Some(&identity),
-        )
+        // The inner selection functions are exercised directly here, below the
+        // entry points that would authorize the repository, so the frame their
+        // Git calls require is supplied explicitly.
+        let plan = in_test_frame(|| {
+            plan_save_version_selection_with_identity_override(
+                path.clone(),
+                selected.clone(),
+                Some(&identity),
+            )
+        })
         .expect("partial plan should succeed");
         assert!(plan.is_partial);
         assert_eq!(plan.total_files, 1);
         assert_eq!(plan.remaining_files, 1);
 
-        save_version_selection_with_identity_override(
-            path.clone(),
-            "save one file".to_string(),
-            None,
-            plan.state_token,
-            selected,
-            Some(&identity),
-        )
+        in_test_frame(|| {
+            save_version_selection_with_identity_override(
+                path.clone(),
+                "save one file".to_string(),
+                None,
+                plan.state_token,
+                selected,
+                Some(&identity),
+            )
+        })
         .expect("partial save should succeed");
 
         assert_eq!(
-            git_stdout(&run_git(&path, &["show", "HEAD:selected.txt"]).unwrap()),
+            git_stdout(&test_git(&path, &["show", "HEAD:selected.txt"]).unwrap()),
             "saved"
         );
         assert_eq!(
-            git_stdout(&run_git(&path, &["show", "HEAD:pending.txt"]).unwrap()),
+            git_stdout(&test_git(&path, &["show", "HEAD:pending.txt"]).unwrap()),
             "before"
         );
         assert_eq!(
@@ -2313,7 +2407,7 @@ mod tests {
         .expect("mixed save should succeed");
 
         assert_eq!(
-            git_stdout(&run_git(&path, &["show", "HEAD:file.txt"]).unwrap()),
+            git_stdout(&test_git(&path, &["show", "HEAD:file.txt"]).unwrap()),
             "ONE\nTWO"
         );
         assert!(
@@ -2409,7 +2503,7 @@ mod tests {
         let identity = write_test_identity_config("save-hook-rejection");
 
         let git_dir_raw =
-            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+            checked_git_stdout(test_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
                 .unwrap();
         write_failing_hook(Path::new(&git_dir_raw), "pre-commit");
 
@@ -2431,7 +2525,7 @@ mod tests {
         let status_after = read_working_tree_status(path.clone()).expect("status after");
         assert_eq!(status_before, status_after);
         assert_eq!(
-            git_stdout(&run_git(&path, &["rev-list", "--count", "HEAD"]).unwrap()),
+            git_stdout(&test_git(&path, &["rev-list", "--count", "HEAD"]).unwrap()),
             "1",
             "no new commit should have been created"
         );
@@ -2451,11 +2545,11 @@ mod tests {
         write_file(&path, "extra.txt", "new\n");
         let identity = write_test_identity_config("save-index-restore");
 
-        let index_path = resolve_index_path(&path).expect("resolve index path");
+        let index_path = in_test_frame(|| resolve_index_path(&path)).expect("resolve index path");
         let original_index_bytes = fs::read(&index_path).expect("read original index");
 
         let git_dir_raw =
-            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+            checked_git_stdout(test_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
                 .unwrap();
         write_failing_hook(Path::new(&git_dir_raw), "pre-commit");
 
@@ -2485,14 +2579,14 @@ mod tests {
         write_file(&path, "readme.md", "hello\n");
         let identity = write_test_identity_config("save-no-index-restore");
 
-        let index_path = resolve_index_path(&path).expect("resolve index path");
+        let index_path = in_test_frame(|| resolve_index_path(&path)).expect("resolve index path");
         assert!(
             !index_path.exists(),
             "a fresh repo should have no index yet"
         );
 
         let git_dir_raw =
-            checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
+            checked_git_stdout(test_git(&path, &["rev-parse", "--absolute-git-dir"]).unwrap())
                 .unwrap();
         write_failing_hook(Path::new(&git_dir_raw), "pre-commit");
 
@@ -2709,7 +2803,7 @@ mod tests {
         git_add_all(&path);
         git_commit(&path, "base");
         let original_branch =
-            git_stdout(&run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"]).unwrap());
+            git_stdout(&test_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"]).unwrap());
 
         let status = git_command(&path)
             .args(["checkout", "-q", "-b", "feature"])
@@ -3293,7 +3387,7 @@ mod tests {
         git_commit(&repo, "second");
         write_file(&repo, "untracked.txt", "not saved\n");
 
-        let index_path = resolve_index_path(&repo).expect("resolve index path");
+        let index_path = in_test_frame(|| resolve_index_path(&repo)).expect("resolve index path");
         let index_before = fs::read(&index_path).expect("read index before publish");
 
         let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
@@ -3343,7 +3437,7 @@ mod tests {
             .expect("publish should succeed");
 
         let branches = checked_git_stdout(
-            run_git(
+            test_git(
                 &remote,
                 &["for-each-ref", "--format=%(refname)", "refs/heads"],
             )
@@ -3352,7 +3446,7 @@ mod tests {
         .unwrap();
         assert_eq!(branches, format!("refs/heads/{branch}"));
 
-        let tags = checked_git_stdout(run_git(&remote, &["tag", "--list"]).unwrap()).unwrap();
+        let tags = checked_git_stdout(test_git(&remote, &["tag", "--list"]).unwrap()).unwrap();
         assert!(tags.is_empty(), "publish must never create tags");
 
         let _ = fs::remove_dir_all(&repo);
@@ -3391,7 +3485,7 @@ mod tests {
         write_file(&repo, "a.txt", "hello\n");
         git_add_all(&repo);
         checked_git_stdout(
-            run_git(
+            test_git(
                 &repo,
                 &[
                     "-c",
@@ -3474,7 +3568,7 @@ mod tests {
         write_file(&repo, "b.txt", "world\n");
         git_add_all(&repo);
         git_commit(&repo, "first");
-        let commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         let files =
             read_commit_file_changes(repo.clone(), commit).expect("should read root commit files");
@@ -3506,7 +3600,7 @@ mod tests {
         .expect("rename file");
         git_add_all(&repo);
         git_commit(&repo, "mixed changes");
-        let commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         let files =
             read_commit_file_changes(repo.clone(), commit).expect("should read mixed commit files");
@@ -3554,7 +3648,7 @@ mod tests {
         write_file(&repo, "a.txt", "one\nTWO\nthree\n");
         git_add_all(&repo);
         git_commit(&repo, "modify");
-        let commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         let diff = read_commit_file_diff(repo.clone(), commit, "a.txt".to_string())
             .expect("should read the commit's diff for this file");
@@ -3577,7 +3671,7 @@ mod tests {
         write_file(&repo, "a.txt", "hello\n");
         git_add_all(&repo);
         git_commit(&repo, "first");
-        let commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         let diff = read_commit_file_diff(repo.clone(), commit, "a.txt".to_string())
             .expect("should read the root commit's diff for this file");
@@ -3607,7 +3701,7 @@ mod tests {
         write_file(&repo, "a.txt", "hello again\n");
         git_add_all(&repo);
         git_commit(&repo, "second");
-        let second_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let second_commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         let error = read_commit_file_diff(repo.clone(), second_commit, "b.txt".to_string())
             .expect_err("b.txt wasn't touched by the second commit");
@@ -3642,7 +3736,7 @@ mod tests {
         write_file(&repo, "a.txt", "hello\n");
         git_add_all(&repo);
         git_commit(&repo, "first");
-        let first_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let first_commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         write_file(&repo, "b.txt", "second\n");
         git_add_all(&repo);
@@ -3679,13 +3773,13 @@ mod tests {
         write_file(&repo, "a.txt", "hello\n");
         git_add_all(&repo);
         git_commit(&repo, "first");
-        let first_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let first_commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
         let branch = current_branch(&repo);
 
         write_file(&repo, "b.txt", "second\n");
         git_add_all(&repo);
         git_commit(&repo, "second");
-        let second_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let second_commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         let remote = unique_temp_dir("publish-up-to-exec-remote");
         init_bare_remote(&remote);
@@ -3734,7 +3828,7 @@ mod tests {
         write_file(&repo, "x.txt", "unrelated\n");
         git_add_all(&repo);
         git_commit(&repo, "unrelated");
-        let unrelated_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let unrelated_commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         let checkout_back = git_command(&repo)
             .args(["checkout", &branch, "-q"])
@@ -3757,7 +3851,7 @@ mod tests {
     #[test]
     fn plan_publish_rejects_an_up_to_commit_that_is_already_published() {
         let (repo, remote, _branch) = published_repo_and_remote("up-to-already-published");
-        let published_commit = git_stdout(&run_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+        let published_commit = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
         write_file(&repo, "b.txt", "second\n");
         git_add_all(&repo);

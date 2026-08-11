@@ -174,6 +174,33 @@ pub(crate) fn enter(command: &'static str) -> CommandAccess {
     }
 }
 
+/// A command frame for test code that reads repository state to verify what a
+/// workflow did — `git log -1`, `git ls-files`, `git show HEAD:file`.
+///
+/// Those calls are assertions, not product behavior, so they have no registered
+/// command and must not borrow one: naming a real command here would let a test
+/// pass under a policy the production path never uses. The policy is built
+/// directly rather than taken from `EXECUTION_INVENTORY`, which stays exactly
+/// the 31 registered commands.
+///
+/// This exists because `require_policy` in `lib.rs` has no fallback. Before
+/// task 039 these calls silently received a default read policy, and so would
+/// any production call that forgot its frame.
+#[cfg(test)]
+pub(crate) fn enter_test_frame() -> CommandAccess {
+    POLICY_STACK.with(|stack| {
+        stack.borrow_mut().push(CommandFrame {
+            policy: ExecutionPolicy::repository_read("test_assertion"),
+            cancellation: None,
+        })
+    });
+    CommandAccess {
+        _guard: None,
+        cancellation_key: None,
+        cancellation: None,
+    }
+}
+
 pub(crate) fn authorize_repository(
     path: &str,
     command: &'static str,

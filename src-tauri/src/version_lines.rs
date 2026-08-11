@@ -918,7 +918,7 @@ pub(crate) fn create_version_line(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{base_git_command, git_command, plan_publish, publish};
+    use crate::{base_git_command, git_command, in_test_frame, plan_publish, publish, test_git};
     use std::{fs, path::Path};
 
     fn unique_temp_dir(label: &str) -> String {
@@ -1337,7 +1337,7 @@ mod tests {
         let path = unique_temp_dir("vl-create-switch");
         git_init(&path);
         write_and_commit(&path, "a.txt", "one\n", "first");
-        let original_head = git_stdout(&run_git(&path, &["rev-parse", "HEAD"]).unwrap());
+        let original_head = git_stdout(&test_git(&path, &["rev-parse", "HEAD"]).unwrap());
 
         let plan = plan_create_version_line(path.clone(), "feature-x".to_string(), true)
             .expect("plan should succeed");
@@ -1354,7 +1354,7 @@ mod tests {
         .expect("create should succeed");
         assert_eq!(snapshot.branch.as_deref(), Some("feature-x"));
         assert_eq!(
-            git_stdout(&run_git(&path, &["rev-parse", "HEAD"]).unwrap()),
+            git_stdout(&test_git(&path, &["rev-parse", "HEAD"]).unwrap()),
             original_head,
             "creating a line at the current commit must not move HEAD's target"
         );
@@ -1381,7 +1381,7 @@ mod tests {
         )
         .expect("create should succeed");
         assert_eq!(current_branch(&path), original_branch);
-        let branches = list_branch_names(&path).unwrap();
+        let branches = in_test_frame(|| list_branch_names(&path)).unwrap();
         assert!(branches.contains(&"feature-y".to_string()));
 
         let _ = fs::remove_dir_all(&path);
@@ -1426,7 +1426,7 @@ mod tests {
         let path = unique_temp_dir("vl-create-detached");
         git_init(&path);
         write_and_commit(&path, "a.txt", "one\n", "first");
-        let commit = git_stdout(&run_git(&path, &["rev-parse", "HEAD"]).unwrap());
+        let commit = git_stdout(&test_git(&path, &["rev-parse", "HEAD"]).unwrap());
         let status = git_command(&path)
             .args(["checkout", "-q", &commit])
             .status()
@@ -1449,7 +1449,7 @@ mod tests {
         .expect("create should succeed");
         assert_eq!(current_branch(&path), "recovered");
         assert_eq!(
-            git_stdout(&run_git(&path, &["rev-parse", "HEAD"]).unwrap()),
+            git_stdout(&test_git(&path, &["rev-parse", "HEAD"]).unwrap()),
             commit
         );
 
@@ -1518,7 +1518,7 @@ mod tests {
         )
         .expect_err("a state change after preview must stop execution");
         assert_eq!(error.code, AppErrorCode::StaleVersionLinePlan);
-        assert!(!list_branch_names(&path)
+        assert!(!in_test_frame(|| list_branch_names(&path))
             .unwrap()
             .contains(&"feature-stale".to_string()));
 
@@ -1547,7 +1547,7 @@ mod tests {
         )
         .expect_err("content drift after preview must stop execution");
         assert_eq!(error.code, AppErrorCode::StaleVersionLinePlan);
-        assert!(!list_branch_names(&path)
+        assert!(!in_test_frame(|| list_branch_names(&path))
             .unwrap()
             .contains(&"feature-stale-content".to_string()));
 
@@ -1697,7 +1697,7 @@ mod tests {
 
         delete_version_line(path.clone(), "mergeable".to_string(), plan.state_token)
             .expect("delete should succeed");
-        assert!(!list_branch_names(&path)
+        assert!(!in_test_frame(|| list_branch_names(&path))
             .unwrap()
             .contains(&"mergeable".to_string()));
 
@@ -1738,7 +1738,7 @@ mod tests {
         let error = plan_delete_version_line(path.clone(), "unique-work".to_string())
             .expect_err("a branch with unreachable unique work must not be deletable");
         assert_eq!(error.code, AppErrorCode::VersionLineUniqueWork);
-        assert!(list_branch_names(&path)
+        assert!(in_test_frame(|| list_branch_names(&path))
             .unwrap()
             .contains(&"unique-work".to_string()));
 
@@ -1792,7 +1792,7 @@ mod tests {
         let error = delete_version_line(path.clone(), "goes-away".to_string(), plan.state_token)
             .expect_err("a state change after preview must stop execution");
         assert_eq!(error.code, AppErrorCode::StaleVersionLinePlan);
-        assert!(list_branch_names(&path)
+        assert!(in_test_frame(|| list_branch_names(&path))
             .unwrap()
             .contains(&"goes-away".to_string()));
 

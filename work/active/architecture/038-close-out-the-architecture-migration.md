@@ -52,16 +52,16 @@ recur:
 
 # Child tasks and order
 
-| Task | Priority | Outcome | Depends on |
+| Task | Status | Outcome | Depends on |
 | --- | --- | --- | --- |
-| 039 | high | A Git call without a command frame fails instead of silently getting a read policy | none |
-| 040 | high | Overview owns its screen container; `main.tsx` becomes composition-only | none |
-| 041 | normal | Proven shared primitives live in `shared/ui` behind named exports | none |
-| 042 | normal | Repository invalidation accepts registered subscribers instead of positional parameters | none |
-| 043 | normal | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041 |
-| 044 | low | The test-only screen module leaves production space and the guard can see it | none |
-| 045 | high | macOS and Linux desktop behavior and memory are measured | none |
-| 046 | low | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
+| 039 | Done 2026-08-11 | A Git call without a command frame fails instead of silently getting a read policy | none |
+| 040 | high, not started | Overview owns its screen container; `main.tsx` becomes composition-only | none |
+| 041 | normal, not started | Proven shared primitives live in `shared/ui` behind named exports | none |
+| 042 | normal, not started | Repository invalidation accepts registered subscribers instead of positional parameters | none |
+| 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041 |
+| 044 | low, not started | The test-only screen module leaves production space and the guard can see it | none |
+| 045 | high, not started | macOS and Linux desktop behavior and memory are measured | none |
+| 046 | low, not started | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
 
 039, 040, 041, 042, 044 and 045 are independent and may run in any order. 043
 runs last of the structural tasks so it documents the finished tree once
@@ -80,10 +80,10 @@ that needs hardware this project has not used.
 
 # Epic acceptance criteria
 
-- [ ] Tasks 039–046 are complete with their own validation recorded.
+- [ ] Tasks 039–046 are complete with their own validation recorded. 039 done.
 - [ ] Epic 022's partially-met "thin composition roots" criterion is satisfied
       or a new ADR records why it will not be.
-- [ ] No production code path can execute Git without an execution policy.
+- [x] No production code path can execute Git without an execution policy.
 - [ ] Every architecture document describes the tree that exists.
 - [ ] Windows, macOS and Linux desktop behavior is measured or its absence is
       an explicit, dated, owned limitation rather than silence.

@@ -533,11 +533,16 @@ pub(crate) fn plan_save_version(
     plan_save_version_selection_with_identity_override(path, selected_paths, None)
 }
 
+/// Mirrors `plan_save_version`, including its authorization, so a test cannot
+/// pass through a boundary the production entry point enforces. Only the
+/// identity source differs, which is the point of the override.
 #[cfg(test)]
 pub(crate) fn plan_save_version_with_identity_override(
     path: String,
     identity_override: Option<&str>,
 ) -> Result<SaveVersionPlan, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "plan_save_version", None)?;
     plan_save_version_selection_with_identity_override(path, None, identity_override)
 }
 
