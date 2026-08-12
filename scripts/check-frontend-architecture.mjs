@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -26,48 +25,6 @@ function sharedOwner(filePath) {
 
 function isPublicEntry(filePath) {
   return /\/index\.[cm]?[jt]sx?$/.test(normalize(filePath));
-}
-
-/**
- * Specifiers a file imports **only** as types, read from its own source.
- *
- * dependency-cruiser cannot tell us. It documents a `typeOnly` attribute and a
- * `tsPreCompilationDeps` option, and neither has any effect here: this project
- * is on TypeScript 7, whose compiler API is a rewrite, while dependency-cruiser
- * 18 is built against TypeScript 5's. It degrades silently rather than failing,
- * so every `import type` edge looked like a runtime edge and 88 barrel cycles
- * were reported that do not exist at runtime.
- *
- * ADR 0003 rejected writing a parser against TypeScript 7's unstable API, and
- * this is not one: it only classifies edges dependency-cruiser already found,
- * by looking at whether the import statement that produced them was erased at
- * compile time.
- *
- * An import counts as type-only when every statement for that specifier is
- * `import type`. A mixed `import { type A, B }` binds a value, so it stays a
- * runtime edge — which is the conservative direction.
- */
-function typeOnlySpecifiers(source, readSource) {
-  const contents = readSource(source);
-  if (contents === null) return new Set();
-  const typeOnly = new Set();
-  const runtime = new Set();
-  // The clause may span lines — `import type {\n  A,\n  B,\n} from "x"` is the
-  // house style for long lists, and an earlier one-line-only pattern silently
-  // classified all 22 of them as runtime edges. It cannot contain a quote or a
-  // semicolon, which is what stops the lazy match from running past the end of
-  // its own statement into the next one's specifier.
-  const statement = /(?:^|\n)\s*(import|export)(\s+type)?\s+((?:[^;'"]|\n)*?)\bfrom\s*["']([^"']+)["']/g;
-  for (const [, , typeKeyword, clause, specifier] of contents.matchAll(statement)) {
-    (typeKeyword ? typeOnly : runtime).add(specifier);
-    void clause;
-  }
-  // A bare `import "./side-effect"` has no `from`, and is always runtime.
-  for (const [, specifier] of contents.matchAll(/(?:^|\n)\s*import\s*["']([^"']+)["']/g)) {
-    runtime.add(specifier);
-  }
-  for (const specifier of runtime) typeOnly.delete(specifier);
-  return typeOnly;
 }
 
 function isDynamic(dependency) {
@@ -102,38 +59,40 @@ function isAllowedFeatureEdge(source, target) {
   return ALLOWED_FEATURE_EDGES.some((edge) => edge.from.test(source) && edge.to.test(target));
 }
 
-function defaultReadSource(source) {
-  try {
-    return readFileSync(path.join(repositoryRoot, source), "utf8");
-  } catch {
-    return null;
-  }
-}
-
 /** `->` rather than a raw separator byte: paths never contain it, and it keeps
  * this file readable to `grep`, which reports a NUL as a binary match. */
 const edgeKey = (from, to) => `${normalize(from)}->${normalize(to)}`;
 
-export function findArchitectureViolations(cruiseResult, readSource = defaultReadSource) {
+export function findArchitectureViolations(cruiseResult) {
   const violations = [];
   const productionStaticGraph = new Map();
   const modules = cruiseResult.modules ?? [];
 
-  // Pass one classifies every edge, because a cycle is only real when *every*
-  // hop survives compilation. dependency-cruiser marks an edge `circular` using
-  // its own graph, in which erased type imports still connect modules, so a
-  // runtime edge can be reported as circular purely because the path home runs
-  // through an `import type`. Checking only the reported edge left 46 such
-  // cycles standing.
-  const typeOnlyEdges = new Set();
+  // Pass one classifies every edge, for two reasons.
+  //
+  // An edge is erased only if **every** import of it is type-only.
+  // dependency-cruiser reports one record per import statement, so a specifier
+  // imported both ways — `import { useEffect } from "react"` beside
+  // `import type React from "react"` — arrives as two records, one flagged
+  // `type-only` and one not. Reading a single record would erase an edge the
+  // bundler still follows.
+  //
+  // And a cycle is real only if every hop in it survives compilation. The
+  // `circular` flag is computed over a graph where erased imports still connect
+  // modules, so a genuine runtime edge is reported as circular when the path
+  // *home* runs through an `import type`. Checking only the reported edge left
+  // 46 such cycles standing when this was written.
+  const erasedEdges = new Map();
   for (const module of modules) {
-    const erased = typeOnlySpecifiers(module.source, readSource);
     for (const dependency of module.dependencies ?? []) {
-      if (erased.has(dependency.module)) {
-        typeOnlyEdges.add(edgeKey(module.source, dependency.resolved || dependency.module || ""));
-      }
+      const key = edgeKey(module.source, dependency.resolved || dependency.module || "");
+      const typeOnly = dependency.dependencyTypes?.includes("type-only") ?? false;
+      erasedEdges.set(key, (erasedEdges.get(key) ?? true) && typeOnly);
     }
   }
+  const typeOnlyEdges = new Set(
+    [...erasedEdges].filter(([, isErased]) => isErased).map(([key]) => key),
+  );
 
   /** A cycle survives compilation only if no hop in it was erased. */
   const isRuntimeCycle = (source, cycle) => {
@@ -262,23 +221,20 @@ function cruise(target, useConfig) {
   return graph;
 }
 
-/**
- * dependency-cruiser expands a bare directory with its own default extension
- * list, which excludes `.ts`/`.tsx` — because it cannot load TypeScript 7's
- * compiler API. Passing `src` therefore cruised **zero** modules, and every
- * rule below passed vacuously from task 026 until task 047 caught it. The glob
- * is load-bearing, so `main` asserts the count rather than trusting it again.
- */
-const SOURCE_GLOB = "src/**/*.{ts,tsx}";
+/** dependency-cruiser scans this directory using the TypeScript compiler. It
+ * cruised **zero** modules until task 049 put the project back on a TypeScript
+ * version it can load, so the floor below stays: a target that stops matching
+ * must fail loudly instead of passing every rule vacuously. */
+const SOURCE_TARGET = "src";
 const MINIMUM_EXPECTED_MODULES = 150;
 
 function main() {
-  const actual = cruise(SOURCE_GLOB, true);
+  const actual = cruise(SOURCE_TARGET, true);
   const cruised = (actual.modules ?? []).length;
   if (cruised < MINIMUM_EXPECTED_MODULES) {
     process.stderr.write(
       `Frontend architecture check aborted: cruised ${cruised} modules, expected at least ` +
-        `${MINIMUM_EXPECTED_MODULES}. The target "${SOURCE_GLOB}" is matching almost nothing, ` +
+        `${MINIMUM_EXPECTED_MODULES}. The target "${SOURCE_TARGET}" is matching almost nothing, ` +
         "which would make every rule below pass without inspecting anything.\n",
     );
     process.exitCode = 1;
