@@ -52,8 +52,10 @@ This task runs after the structural work so the tree is documented once.
   edit the accepted decision — `docs/adr/README.md` forbids rewriting accepted
   ADRs to hide a change, so state the divergence explicitly.
 - Rewrite the `application.rs` module header to describe the boundary as it is.
-- Refresh the delivered-tree section for whatever tasks 039–042 changed:
-  composition roots, `shared/ui` contents, the invalidation contract.
+- Refresh the delivered-tree section for what tasks 039–042, 046, 048, 049 and
+  051 changed: composition roots, `shared/ui` contents, the invalidation
+  contract, Settings ownership, the public diff renderer, the native
+  TypeScript graph and feature-owned Tauri adapters.
 - Re-check the frontend feature guide's §8 footprint table against the tree
   after 042 lands; its file list is the thing a new screen author follows.
 - Sweep for any other document still describing strangler-era state.
@@ -70,7 +72,8 @@ This task runs after the structural work so the tree is documented once.
 - [ ] No architecture document shows a module the tree does not contain without
       saying it was not built and why.
 - [ ] `application.rs`'s header describes the enforced boundary.
-- [ ] The delivered-tree section matches the tree after tasks 039–042.
+- [ ] The delivered-tree section matches the tree after every completed
+      structural child of epic 038.
 - [ ] The feature guide's greenfield footprint table matches reality; ideally
       re-verified by rebuilding and removing a throwaway screen as task 031 did.
 - [ ] ADR 0003's accepted Decision text is unchanged.
@@ -85,7 +88,9 @@ This task runs after the structural work so the tree is documented once.
 
 # Dependencies
 
-Tasks 039, 040 and 041 should land first.
+Tasks 039–042, 044, 046–049 and 051 should land first. This is the final
+structural task; do not document an exception that a preceding task is about to
+remove.
 
 # Decisions
 

@@ -29,9 +29,10 @@ aspirational, and whose one silent degradation path fails loudly instead.
 # Context
 
 Task 031 audited epic 022 against the final code and closed it with one
-criterion partially met and five named follow-ups. A second pass over every
-child task file and the code found four more residues that were not recorded
-anywhere.
+criterion partially met and five named follow-ups. Later passes over every
+child task file and the code found additional residues that were not recorded
+anywhere, plus one concurrent Save version backup defect that must be fixed
+before the structural close-out continues.
 
 Nothing here blocks History. The audit's greenfield proof showed a new screen
 costs three registration lines in `lib.rs` and three wiring points in
@@ -58,18 +59,23 @@ recur:
 | 040 | Done 2026-08-11 | Overview owns its screen container; `main.tsx` becomes composition-only | none |
 | 041 | Done 2026-08-11 | Proven shared primitives live in `shared/ui` behind named exports | none |
 | 042 | Done 2026-08-11 | Repository invalidation accepts registered subscribers instead of positional parameters | none |
-| 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041, 047, 049 |
+| 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039–042, 044, 046–049, 051 |
 | 044 | Done 2026-08-11 | The test-only screen module leaves production space and the guard can see it | none |
 | 045 | high, not started | macOS and Linux desktop behavior and memory are measured | none |
 | 046 | low, not started | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
 | 047 | Done 2026-08-11 | The architecture guard inspects `src` instead of cruising zero modules | none |
 | 048 | low, not started | The diff renderer leaves `ChangesPanel` so the guard needs no allowance | 047 |
 | 049 | Done 2026-08-12 | TypeScript 6 restores native guard support and retires task 047's workarounds | 047 |
+| 050 | high, not started | Save version reserves collision-proof index backups and proves concurrent contents remain isolated | none |
+| 051 | normal, not started | Overview's saved-version reads use a feature-owned Tauri adapter and the guard enforces that boundary | 049 |
 
-039, 040, 041, 042, 044 and 045 are independent and may run in any order. 043
-runs last of the structural tasks so it documents the finished tree once
-instead of three times. 045 is independent of everything and is the only task
-that needs hardware this project has not used.
+050 runs first because it protects the recovery copy for a user's real Git
+index. Then 051 and 048 close the two executable frontend exceptions, followed
+by 046's Settings ownership work. 043 runs last of the structural tasks so it
+documents the finished tree once instead of repeatedly describing intermediate
+states. 045 is technically independent and remains the only task that needs
+hardware this project has not used; run it as soon as that hardware is
+available.
 
 # Out of scope
 
@@ -83,10 +89,14 @@ that needs hardware this project has not used.
 
 # Epic acceptance criteria
 
-- [ ] Tasks 039–049 are complete with their own validation recorded. 039, 040 and 041 done.
+- [ ] Tasks 039–051 that belong to this epic are complete with their own
+      validation recorded. Done: 039, 040, 041, 042, 044, 047 and 049.
 - [x] Epic 022's partially-met "thin composition roots" criterion is satisfied
       or a new ADR records why it will not be. Satisfied by task 040.
 - [x] No production code path can execute Git without an execution policy.
+- [ ] Save version index backups are collision-proof across concurrent projects.
+- [ ] Production feature transport imports exist only in feature-owned adapters
+      and the architecture guard enforces the rule.
 - [ ] Every architecture document describes the tree that exists.
 - [ ] Windows, macOS and Linux desktop behavior is measured or its absence is
       an explicit, dated, owned limitation rather than silence.
