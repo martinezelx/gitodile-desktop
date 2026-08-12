@@ -52,7 +52,12 @@ function typeOnlySpecifiers(source, readSource) {
   if (contents === null) return new Set();
   const typeOnly = new Set();
   const runtime = new Set();
-  const statement = /(?:^|\n)\s*(import|export)(\s+type)?\s+([^;\n]*?)\bfrom\s*["']([^"']+)["']/g;
+  // The clause may span lines — `import type {\n  A,\n  B,\n} from "x"` is the
+  // house style for long lists, and an earlier one-line-only pattern silently
+  // classified all 22 of them as runtime edges. It cannot contain a quote or a
+  // semicolon, which is what stops the lazy match from running past the end of
+  // its own statement into the next one's specifier.
+  const statement = /(?:^|\n)\s*(import|export)(\s+type)?\s+((?:[^;'"]|\n)*?)\bfrom\s*["']([^"']+)["']/g;
   for (const [, , typeKeyword, clause, specifier] of contents.matchAll(statement)) {
     (typeKeyword ? typeOnly : runtime).add(specifier);
     void clause;

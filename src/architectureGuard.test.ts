@@ -98,6 +98,26 @@ describe("frontend architecture guard, on src-shaped input", () => {
     expect(violations[0]).toContain("Production cycle");
   });
 
+  it("classifies a multi-line type import as erased", () => {
+    // House style for long lists. A one-line-only pattern silently treated all
+    // 22 of them as runtime edges.
+    sources.set(
+      "src/features/a/one.ts",
+      ['import type {', "  Shape,", "  Size,", '} from "./two";'].join("\n"),
+    );
+    const cycle = [{ name: "src/features/a/two.ts" }, { name: "src/features/a/one.ts" }];
+    const violations = findArchitectureViolations(
+      graph([
+        {
+          source: "src/features/a/one.ts",
+          dependencies: [{ module: "./two", resolved: "src/features/a/two.ts", circular: true, cycle }],
+        },
+      ]),
+      readSource,
+    );
+    expect(violations).toEqual([]);
+  });
+
   it("treats a mixed type-and-value import as a runtime edge", () => {
     sources.set("src/features/a/one.ts", 'import { type Shape, render } from "./two";');
     const cycle = [{ name: "src/features/a/two.ts" }, { name: "src/features/a/one.ts" }];
