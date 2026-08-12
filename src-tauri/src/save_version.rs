@@ -4,6 +4,8 @@ use crate::{
     HeadState, WorkingTreeCounts, WorkingTreeEntry, WorkingTreeStatus,
 };
 use std::{
+    fs::{File, OpenOptions},
+    io::{self, Read},
     path::{Path, PathBuf},
     process::Output,
     sync::atomic::{AtomicU64, Ordering},
@@ -586,28 +588,86 @@ pub(crate) struct IndexBackup {
     pub(crate) backup_path: Option<PathBuf>,
 }
 
-fn backup_index(index_path: &Path) -> Result<IndexBackup, AppError> {
-    if !index_path.exists() {
-        return Ok(IndexBackup {
-            index_path: index_path.to_path_buf(),
-            backup_path: None,
-        });
-    }
+const MAX_BACKUP_PATH_ATTEMPTS: usize = 128;
 
+/// Produces a candidate name, not proof that the path is free. The caller must
+/// reserve it with `create_new`: a stale file, PID reuse or another process can
+/// still make any generated name collide.
+fn backup_path_candidate() -> PathBuf {
+    static BACKUP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
         .unwrap_or(0);
+    let sequence = BACKUP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let mut backup_path = std::env::temp_dir();
     backup_path.push(format!(
-        "gitodrile-index-backup-{}-{nanos}.bak",
-        std::process::id()
+        "gitodrile-index-backup-{}-{nanos}-{sequence}.bak",
+        std::process::id(),
     ));
-    std::fs::copy(index_path, &backup_path).map_err(|_| index_unavailable_error())?;
+    backup_path
+}
+
+/// Copies `source` into a path this call reserved atomically. `create_new`
+/// refuses existing files and symlinks instead of truncating them, which is the
+/// safety boundary: generated names only reduce retries; they do not authorize
+/// overwriting a recovery copy.
+fn copy_to_exclusive_backup(
+    source: &mut impl Read,
+    mut next_candidate: impl FnMut() -> PathBuf,
+) -> Result<PathBuf, AppError> {
+    for _ in 0..MAX_BACKUP_PATH_ATTEMPTS {
+        let backup_path = next_candidate();
+        let mut backup_file = match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&backup_path)
+        {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(index_unavailable_error().with_detail(error.to_string()));
+            }
+        };
+
+        if let Err(error) = io::copy(source, &mut backup_file) {
+            drop(backup_file);
+            let _ = std::fs::remove_file(&backup_path);
+            return Err(index_unavailable_error().with_detail(error.to_string()));
+        }
+        return Ok(backup_path);
+    }
+
+    Err(index_unavailable_error().with_detail(
+        "GitOdrile couldn't reserve a unique temporary index backup after repeated attempts.",
+    ))
+}
+
+fn backup_index_with_candidates(
+    index_path: &Path,
+    next_candidate: impl FnMut() -> PathBuf,
+) -> Result<IndexBackup, AppError> {
+    let mut source = match File::open(index_path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return Ok(IndexBackup {
+                index_path: index_path.to_path_buf(),
+                backup_path: None,
+            });
+        }
+        Err(error) => {
+            return Err(index_unavailable_error().with_detail(error.to_string()));
+        }
+    };
+    let backup_path = copy_to_exclusive_backup(&mut source, next_candidate)?;
     Ok(IndexBackup {
         index_path: index_path.to_path_buf(),
         backup_path: Some(backup_path),
     })
+}
+
+fn backup_index(index_path: &Path) -> Result<IndexBackup, AppError> {
+    backup_index_with_candidates(index_path, backup_path_candidate)
 }
 
 /// Restores the index to its pre-save state. Errors here are reported but
@@ -875,7 +935,18 @@ pub(crate) fn save_version(
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
+    use std::io::Cursor;
+    use std::sync::{Arc, Barrier};
     use std::thread;
+
+    fn test_path(label: &str) -> PathBuf {
+        static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+        std::env::temp_dir().join(format!(
+            "gitodrile-test-{label}-{}-{}",
+            std::process::id(),
+            TEST_SEQUENCE.fetch_add(1, Ordering::Relaxed),
+        ))
+    }
 
     #[test]
     fn concurrent_saves_never_share_a_temporary_index_path() {
@@ -895,5 +966,119 @@ mod tests {
 
         let unique: BTreeSet<&PathBuf> = paths.iter().collect();
         assert_eq!(unique.len(), paths.len(), "temporary index paths collided");
+    }
+
+    #[test]
+    fn concurrent_index_backups_keep_each_projects_original_bytes() {
+        const THREADS: usize = 8;
+        let barrier = Arc::new(Barrier::new(THREADS));
+        let handles = (0..THREADS)
+            .map(|index| {
+                let barrier = Arc::clone(&barrier);
+                thread::spawn(move || {
+                    let index_path = test_path(&format!("index-backup-source-{index}"));
+                    let expected = format!("project-{index}-original-index").into_bytes();
+                    std::fs::write(&index_path, &expected).expect("write source index");
+                    barrier.wait();
+                    let backup = backup_index(&index_path).expect("back up index");
+                    (
+                        index_path,
+                        backup.backup_path.expect("existing index has backup"),
+                        expected,
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let results = handles
+            .into_iter()
+            .map(|handle| handle.join().expect("backup thread"))
+            .collect::<Vec<_>>();
+        let unique = results
+            .iter()
+            .map(|(_, backup_path, _)| backup_path)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(unique.len(), THREADS, "concurrent backups shared a path");
+
+        for (index_path, backup_path, expected) in results {
+            assert_eq!(
+                std::fs::read(&backup_path).expect("read backup"),
+                expected,
+                "backup must contain its own project's index",
+            );
+            let _ = std::fs::remove_file(index_path);
+            let _ = std::fs::remove_file(backup_path);
+        }
+    }
+
+    #[test]
+    fn an_existing_backup_candidate_is_never_overwritten() {
+        let index_path = test_path("index-backup-collision-source");
+        let occupied = test_path("index-backup-collision-occupied");
+        let available = test_path("index-backup-collision-available");
+        std::fs::write(&index_path, b"original index").expect("write source index");
+        std::fs::write(&occupied, b"existing recovery data").expect("write occupied candidate");
+
+        let mut candidates = [occupied.clone(), available.clone()].into_iter();
+        let backup = backup_index_with_candidates(&index_path, || {
+            candidates.next().expect("candidate retry budget")
+        })
+        .expect("reserve second candidate");
+
+        assert_eq!(backup.backup_path.as_deref(), Some(available.as_path()));
+        assert_eq!(
+            std::fs::read(&occupied).expect("read occupied candidate"),
+            b"existing recovery data",
+            "an existing recovery copy must never be truncated",
+        );
+        assert_eq!(
+            std::fs::read(&available).expect("read selected backup"),
+            b"original index",
+        );
+        let _ = std::fs::remove_file(index_path);
+        let _ = std::fs::remove_file(occupied);
+        let _ = std::fs::remove_file(available);
+    }
+
+    struct FailingReader {
+        first: Cursor<&'static [u8]>,
+        failed: bool,
+    }
+
+    impl Read for FailingReader {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            if self.failed {
+                return Err(io::Error::other("injected backup copy failure"));
+            }
+            let read = self.first.read(buffer)?;
+            self.failed = true;
+            Ok(read)
+        }
+    }
+
+    #[test]
+    fn a_failed_backup_copy_removes_only_its_incomplete_file() {
+        let candidate = test_path("index-backup-incomplete");
+        let unrelated = test_path("index-backup-unrelated");
+        std::fs::write(&unrelated, b"keep me").expect("write unrelated file");
+        let mut reader = FailingReader {
+            first: Cursor::new(b"partial bytes"),
+            failed: false,
+        };
+
+        let error = copy_to_exclusive_backup(&mut reader, || candidate.clone())
+            .expect_err("copy failure must be reported");
+
+        assert_eq!(error.code, AppErrorCode::IndexUnavailable);
+        assert!(
+            !candidate.exists(),
+            "incomplete reserved backup must be removed"
+        );
+        assert_eq!(
+            std::fs::read(&unrelated).expect("read unrelated file"),
+            b"keep me",
+            "cleanup must not remove any other path",
+        );
+        let _ = std::fs::remove_file(unrelated);
     }
 }

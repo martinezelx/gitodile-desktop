@@ -75,15 +75,15 @@ a data-safety defect, not only a test-runner race.
 
 # Acceptance criteria
 
-- [ ] Concurrent backups for unrelated projects cannot select the same path or
+- [x] Concurrent backups for unrelated projects cannot select the same path or
       overwrite one another, including on Windows clock granularity.
-- [ ] An existing candidate path is handled by retrying exclusive creation; its
+- [x] An existing candidate path is handled by retrying exclusive creation; its
       contents remain byte-for-byte unchanged.
-- [ ] A deterministic test verifies both unique paths and matching backup
+- [x] A deterministic test verifies both unique paths and matching backup
       contents under concurrency.
-- [ ] Copy failure removes only the incomplete file created by that attempt.
-- [ ] Restore failure still retains the correct backup and reports its path.
-- [ ] The audit of Save version temporary allocations is recorded in the task's
+- [x] Copy failure removes only the incomplete file created by that attempt.
+- [x] Restore failure still retains the correct backup and reports its path.
+- [x] The audit of Save version temporary allocations is recorded in the task's
       implementation notes.
 - [ ] Full `AGENTS.md` validation passes on Windows, and CI is green on Windows,
       macOS and Linux.
@@ -109,10 +109,57 @@ None. This is the first task to execute because it protects user data.
 
 # Implementation notes
 
-Complete during implementation.
+Implemented locally on 2026-08-12; the task remains active until the resulting
+commit passes all three CI platform jobs.
+
+`backup_index` no longer checks `Path::exists` and then calls `fs::copy`, which
+left both a source race and a destination truncation race. It opens the real
+index directly: `NotFound` preserves the existing "there was no index" case,
+while any other open failure remains the structured `IndexUnavailable` error.
+
+An existing index is copied through `copy_to_exclusive_backup`. Each candidate
+is opened with `OpenOptions::create_new(true)`, so an existing regular file or
+symlink is rejected atomically rather than truncated. Candidate names now also
+carry a process-wide sequence to avoid routine retries, but exclusive creation
+is deliberately the correctness boundary. An occupied name retries up to 128
+times. If copying fails after reservation, only that call's incomplete file is
+removed before returning `IndexUnavailable`.
+
+Three focused regressions were added beside the existing selection-index test:
+
+- eight synchronized threads back up distinct index contents and prove every
+  path and byte sequence remains isolated;
+- a forced occupied first candidate remains byte-for-byte unchanged while the
+  second candidate is selected;
+- an injected reader failure after partial output proves the incomplete backup
+  is removed without touching an unrelated file.
+
+The production Save version temporary-path audit found two allocations:
+
+- `selection_index_path`: PID, clock and atomic sequence; Git writes through its
+  own exclusive `.lock` and the `PreparedIndex` drop guard removes the index and
+  lock. It does not use the truncating `fs::copy` pattern and needs no change.
+- the real-index backup: previously PID plus clock followed by truncating
+  `fs::copy`; fixed by this task as described above.
+
+The existing integration test
+`a_failed_index_restore_is_reported_and_keeps_the_backup` still passes, pinning
+the rule that a restore failure retains and reports the recovery file.
 
 # Validation
 
-Run the complete `AGENTS.md` command set. Record the Windows regression test and
-the three CI platform jobs explicitly.
+Local Windows validation on 2026-08-12:
 
+```text
+pnpm run check:architecture                 pass (205 modules)
+pnpm run typecheck                          pass
+pnpm run test                               pass (253 tests, 30 files)
+pnpm run build                              pass (entry 373.97 kB raw)
+cargo fmt --manifest-path ... -- --check    pass
+cargo clippy ... --all-features -D warnings pass
+cargo test ... --all-targets --all-features pass (202 tests)
+```
+
+Focused Rust run: four `save_version::tests` passed, including the three new
+backup regressions. CI is pending because the implementation has not yet been
+committed or pushed.
