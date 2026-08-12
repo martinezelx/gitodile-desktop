@@ -58,12 +58,13 @@ recur:
 | 040 | Done 2026-08-11 | Overview owns its screen container; `main.tsx` becomes composition-only | none |
 | 041 | Done 2026-08-11 | Proven shared primitives live in `shared/ui` behind named exports | none |
 | 042 | Done 2026-08-11 | Repository invalidation accepts registered subscribers instead of positional parameters | none |
-| 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041, 047 |
+| 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039, 040, 041, 047, 049 |
 | 044 | Done 2026-08-11 | The test-only screen module leaves production space and the guard can see it | none |
 | 045 | high, not started | macOS and Linux desktop behavior and memory are measured | none |
 | 046 | low, not started | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
 | 047 | Done 2026-08-11 | The architecture guard inspects `src` instead of cruising zero modules | none |
 | 048 | low, not started | The diff renderer leaves `ChangesPanel` so the guard needs no allowance | 047 |
+| 049 | high, not started | TypeScript 6 restores native guard support and retires task 047's workarounds | 047 |
 
 039, 040, 041, 042, 044 and 045 are independent and may run in any order. 043
 runs last of the structural tasks so it documents the finished tree once
@@ -82,7 +83,7 @@ that needs hardware this project has not used.
 
 # Epic acceptance criteria
 
-- [ ] Tasks 039–048 are complete with their own validation recorded. 039, 040 and 041 done.
+- [ ] Tasks 039–049 are complete with their own validation recorded. 039, 040 and 041 done.
 - [x] Epic 022's partially-met "thin composition roots" criterion is satisfied
       or a new ADR records why it will not be. Satisfied by task 040.
 - [x] No production code path can execute Git without an execution policy.
