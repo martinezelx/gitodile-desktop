@@ -4,6 +4,12 @@
 
 GitOdrile is an early-stage cross-platform desktop application for Windows, macOS, and Linux. Its goal is not to turn Git commands into prettier buttons, but to redesign the Git experience around user intent, safety, and understandable language.
 
+Runtime behavior is currently measured on Windows. CI compiles and Rust-tests
+the project on Windows, macOS and Linux, and release-compiles the desktop app on
+macOS/Linux; real WKWebView/WebKitGTK, accessibility, memory and packaging
+validation is intentionally deferred to release hardening in
+[ADR 0006](docs/adr/0006-defer-macos-and-linux-runtime-validation.md).
+
 ## Product principles
 
 - **Intent over commands** — say “Save a version” instead of “Commit”.

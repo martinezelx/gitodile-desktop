@@ -75,7 +75,8 @@ either number here.
 - macOS and Linux still have no release baseline. Their equivalents
   (resident/private footprint, RSS/PSS from `smaps_rollup`) must be measured
   before any cross-platform memory claim, and this ADR does not authorize
-  reusing the Windows numbers for them.
+  reusing the Windows numbers for them. ADR 0006 records why that validation is
+  deferred and makes it a release-hardening gate.
 
 ## Alternatives considered
 

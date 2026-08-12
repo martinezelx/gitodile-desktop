@@ -92,8 +92,9 @@ Secondary:
 - Visual components do not call `invoke`. A feature reaches Rust through its own
   typed port and `tauriAdapter.ts`. The only direct calls left in `main.tsx` are
   watcher and session lifecycle wiring, which the composition root owns.
-- `main.tsx` is not yet composition-only: it still renders the Overview panel,
-  which declares `container: { kind: "host-owned" }`. Do not add to it. A new
+- `main.tsx` is the app composition root and renders no screen body. Overview
+  owns an eager feature container; the other functional screens own lazy
+  containers, and the screen contract has no `host-owned` escape hatch. A new
   screen owns its own container; see the measured footprint table in
   `docs/architecture/frontend-feature-guide.md` §8 before starting one.
 - Lists that can grow with repository size must stay virtualized. Rust caps the

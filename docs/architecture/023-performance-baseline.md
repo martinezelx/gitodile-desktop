@@ -31,9 +31,10 @@ explained and explicitly accepted.
 | Vite / React | 8.1.5 / 19.2.8 |
 | Screen measurement | `tauri dev`, `VITE_PROFILE_SCREEN_SWITCHES=true`, WebView2 CDP, window compositing |
 
-Windows is the only platform measured in task 023. The protocol below must be
-run on macOS and Linux in task 031; budgets apply per platform rather than
-allowing one fast platform to average out another.
+Windows is the only platform measured in task 023. ADR 0006 defers the macOS
+and Linux runtime protocol to release hardening; CI compilation is not a
+runtime measurement. Budgets apply per platform rather than allowing one fast
+platform to average out another.
 
 ## Source and test baseline
 
@@ -128,8 +129,9 @@ single startup burst before paint.
 
 No numeric launch-duration claim is made: task 023 did not capture process
 creation and first visible frame from a packaged executable on all platforms.
-Task 031 must do that with the release protocol below. The enforceable startup
-baseline here is ordering and zero pre-paint native work.
+ADR 0006 makes that cross-platform release protocol a release-hardening gate.
+The enforceable startup baseline here is ordering and zero pre-paint native
+work on the measured Windows environment.
 
 ## Changes first visit and warmed revisit
 
@@ -236,7 +238,8 @@ Visible descendant counts after all screens were visited:
 | Version lines | 73 | 0 | 3 / 2 |
 
 This fixture does not prove large-list bounds. The budgets below therefore
-include explicit rendered-row caps and task 031 must use a large fixture.
+include explicit rendered-row caps; task 031 used a 5,000-change fixture on
+Windows, and ADR 0006 requires it when macOS/Linux release validation begins.
 
 ## Memory observation and release protocol
 
@@ -248,8 +251,8 @@ observation, not the release baseline used for pass/fail.
 `tauri build --no-bundle` succeeded, but `cargo run --release` selected the
 configured development URL; that run was excluded instead of being mislabeled
 as a packaged measurement. The release memory number is therefore honestly
-not available from task 023. Task 031 must populate it on all platforms using
-this protocol:
+not available from task 023. Task 031 populated the Windows baseline; ADR 0006
+requires macOS and Linux to use this protocol during release hardening:
 
 1. Build `pnpm run tauri build -- --no-bundle` (or the current equivalent)
    from a clean checkout with the profiler and remote debugging disabled.

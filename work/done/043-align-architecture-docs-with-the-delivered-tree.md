@@ -1,13 +1,13 @@
 ---
 id: 043
 title: Align the architecture documents with the delivered tree
-status: active
+status: done
 priority: normal
 type: chore
 areas:
   - architecture
 created: 2026-08-10
-completed:
+completed: 2026-08-12
 ---
 
 # Goal
@@ -69,14 +69,14 @@ This task runs after the structural work so the tree is documented once.
 
 # Acceptance criteria
 
-- [ ] No architecture document shows a module the tree does not contain without
+- [x] No architecture document shows a module the tree does not contain without
       saying it was not built and why.
-- [ ] `application.rs`'s header describes the enforced boundary.
-- [ ] The delivered-tree section matches the tree after every completed
+- [x] `application.rs`'s header describes the enforced boundary.
+- [x] The delivered-tree section matches the tree after every completed
       structural child of epic 038.
-- [ ] The feature guide's greenfield footprint table matches reality; ideally
+- [x] The feature guide's greenfield footprint table matches reality; ideally
       re-verified by rebuilding and removing a throwaway screen as task 031 did.
-- [ ] ADR 0003's accepted Decision text is unchanged.
+- [x] ADR 0003's accepted Decision text is unchanged.
 
 # Relevant files
 
@@ -100,10 +100,34 @@ remove.
 
 # Implementation notes
 
-Complete during implementation.
+- Replaced the nonexistent frontend `platform/tauri/` in the current-tree
+  description with feature-owned `tauriAdapter.ts` modules. ADR 0003's accepted
+  Decision still shows the original target and now records explicitly, in a
+  later observed section, why that directory was not built.
+- Refreshed the delivered tree for the composition roots, populated
+  `shared/ui`, registered invalidation subscribers, Settings-owned CSS/copy and
+  lazy panel, the Changes public diff renderer, TypeScript 6's native
+  dependency graph and Overview's feature-owned adapter.
+- Rechecked the greenfield footprint against the current registry, runtime,
+  subscriber list, IPC contract and execution inventory. Feature adapters and
+  translations remain inside the feature; subscriber registration is a
+  declarative `main.tsx` list entry and requires no Repository edit.
+- Removed stale migration guidance from `AGENTS.md`, `ARCHITECTURE.md`, the
+  `application.rs` header and the performance protocol. The same change set
+  subsequently converted task 045's unavailable hardware work into the explicit
+  release-hardening gate in ADR 0006.
+- Compared the complete ADR 0003 `Decision` section before and after with
+  SHA-256; both hashes were
+  `08D2E1452893027CD116ACCB314A37711F8247B925564D7F236C4B2775DC31B7`.
 
 # Validation
 
-Run the complete `AGENTS.md` command set. Documentation-only changes still run
-it, because `styleComposition.test.ts` and the architecture check assert against
-documented structure.
+- `pnpm run typecheck`
+- `pnpm run test` (30 files, 256 tests)
+- `pnpm run build` (1,941 modules; entry 269.08 kB / 80.25 kB gzip)
+- `pnpm run check:architecture` (209 production modules and seeded negative fixtures)
+- `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
+- Focused stale-state sweep found no remaining task-031 hardware assignment,
+  temporary epoch bridge, unmigrated mutation consumer or compatibility-workflow
+  header. `fileIcons` remains a separate 255.25 kB / 86.23 kB gzip chunk.

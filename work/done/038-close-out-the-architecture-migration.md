@@ -1,7 +1,7 @@
 ---
 id: 038
 title: Close out the modular architecture migration
-status: active
+status: done
 priority: normal
 type: epic
 areas:
@@ -11,7 +11,7 @@ areas:
   - performance
   - platform
 created: 2026-08-10
-completed:
+completed: 2026-08-12
 ---
 
 # Goal
@@ -59,9 +59,9 @@ recur:
 | 040 | Done 2026-08-11 | Overview owns its screen container; `main.tsx` becomes composition-only | none |
 | 041 | Done 2026-08-11 | Proven shared primitives live in `shared/ui` behind named exports | none |
 | 042 | Done 2026-08-11 | Repository invalidation accepts registered subscribers instead of positional parameters | none |
-| 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039–042, 044, 046–049, 051 |
+| 043 | Done 2026-08-12 | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039–042, 044, 046–049, 051 |
 | 044 | Done 2026-08-11 | The test-only screen module leaves production space and the guard can see it | none |
-| 045 | high, not started | macOS and Linux desktop behavior and memory are measured | none |
+| 045 | Done 2026-08-12 | ADR 0006 makes unavailable macOS/Linux runtime validation an explicit release-hardening gate; CI release-compiles both targets | none |
 | 046 | Done 2026-08-12 | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
 | 047 | Done 2026-08-11 | The architecture guard inspects `src` instead of cruising zero modules | none |
 | 048 | Done 2026-08-12 | The diff renderer leaves `ChangesPanel` so the guard needs no allowance | 047 |
@@ -73,9 +73,10 @@ recur:
 index. Then 051 and 048 close the two executable frontend exceptions, followed
 by 046's Settings ownership work. 043 runs last of the structural tasks so it
 documents the finished tree once instead of repeatedly describing intermediate
-states. 045 is technically independent and remains the only task that needs
-hardware this project has not used; run it as soon as that hardware is
-available.
+states. 045 was converted into a durable release-hardening gate because
+representative hardware is not currently available. CI provides compilation
+and native-test evidence in the meantime without being mislabeled as a runtime
+pass.
 
 # Out of scope
 
@@ -89,17 +90,17 @@ available.
 
 # Epic acceptance criteria
 
-- [ ] Tasks 039–051 that belong to this epic are complete with their own
-      validation recorded. Done: 039, 040, 041, 042, 044, 046, 047, 048, 049,
-      050 and 051.
+- [x] Tasks 039–051 that belong to this epic are complete with their own
+      validation recorded. Done: 039, 040, 041, 042, 043, 044, 046, 047, 048,
+      045, 049, 050 and 051.
 - [x] Epic 022's partially-met "thin composition roots" criterion is satisfied
       or a new ADR records why it will not be. Satisfied by task 040.
 - [x] No production code path can execute Git without an execution policy.
 - [x] Save version index backups are collision-proof across concurrent projects.
 - [x] Production feature transport imports exist only in feature-owned adapters
       and the architecture guard enforces the rule.
-- [ ] Every architecture document describes the tree that exists.
-- [ ] Windows, macOS and Linux desktop behavior is measured or its absence is
+- [x] Every architecture document describes the tree that exists.
+- [x] Windows, macOS and Linux desktop behavior is measured or its absence is
       an explicit, dated, owned limitation rather than silence.
 
 # Dependencies
@@ -125,8 +126,17 @@ available.
 - Task 046 gave Settings ownership of its panel CSS and translations, and moved
   `SettingsPanel` to a 12.66 kB lazy chunk. The entry fell from 282.27 kB to
   269.08 kB while the shell-owned dialog preserved focus management.
+- Task 043 aligned the current-tree documentation, operating guide and Rust
+  application header with the enforced boundaries. ADR 0003's accepted Decision
+  remains byte-for-byte unchanged; its observed section records why
+  `platform/tauri` was not built.
+- Task 045 did not manufacture a platform pass without hardware. ADR 0006 owns
+  the dated macOS/Linux runtime limitation and makes the task-023 protocol a
+  release-hardening gate; CI now release-compiles the Tauri executable on both
+  operating systems in addition to the existing cross-platform Rust suite.
 
 # Validation
 
-Each child task runs the full `AGENTS.md` command set. Task 045 additionally
-runs the task-023 desktop protocol on macOS and Linux.
+Each child task ran the full `AGENTS.md` command set. ADR 0006 records why task
+045's hardware protocol is deferred, what CI proves today and what must run
+before a macOS/Linux release-readiness claim.

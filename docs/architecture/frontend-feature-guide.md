@@ -123,20 +123,24 @@ dictionary from a screen effect or render translation keys while it arrives.
 Task 031 built a throwaway History-shaped screen end to end — registry entry,
 lazy container, epoch-keyed controller, runtime subscription, invalidation and
 project eviction, plus a new Rust command — and then removed it. This is the
-measured footprint outside the new feature's own directory. Expect the same
-list; anything longer means a contract is missing rather than that your screen
-is unusual.
+measured footprint outside the new feature's own directory. Task 043 rechecked
+the list after registered invalidation subscribers and feature-owned Tauri
+adapters landed. The adapter, port, controller, descriptor, UI and translations
+remain inside `src/features/<feature>/`; the external list below is unchanged
+except that subscriber registration is now a declarative list entry rather
+than an edit inside Repository. Expect this list; anything longer means a
+contract is missing rather than that your screen is unusual.
 
 | File | Edit | Kind |
 | --- | --- | --- |
 | `src/screens.tsx` | import + one `SCREEN_MODULES` entry | declarative registration |
 | `src/projectSessions.ts` | widen the `ProjectView` union by one id | declarative |
 | `src/app/translations.ts` | one palette label in the interface and both locales | shell copy |
-| `src/main.tsx` | create the controller, register a read subscriber (§9), add one entry to the `screens` record | composition wiring |
+| `src/main.tsx` | create the controller, register a read subscriber when the snapshot needs invalidation (§9), add one entry to the `screens` record | composition wiring |
 | `src/ipcContract.test.ts` | command count and name list | pinned contract |
 | `src-tauri/src/lib.rs` | `mod`, `use`, one `generate_handler!` entry | declarative registration |
 | `src-tauri/src/ipc.rs` | one transport adapter | transport |
-| `src-tauri/src/application.rs` | one `EXECUTION_INVENTORY` policy + registry test entry | declarative policy |
+| `src-tauri/src/application.rs` | one `EXECUTION_INVENTORY` policy + one name in the checked registry list | declarative policy |
 | `docs/architecture/025-ipc-contract.json` | one command entry | declarative contract |
 
 Neither composition root gained workflow logic: `lib.rs` grew by three

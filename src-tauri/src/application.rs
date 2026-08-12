@@ -1,6 +1,8 @@
-//! Tauri-independent application boundary for execution policy and repository
-//! authorization. IPC adapters enter here before delegating to compatibility
-//! workflows that remain in `lib.rs` during the strangler migration.
+//! Tauri-independent application boundary for execution policy, cancellation
+//! and repository authorization. Every registered IPC command enters a checked
+//! command frame here before a domain workflow can reach Git; `lib.rs` owns
+//! builder/registration and process/platform adapter wiring, not product
+//! workflows.
 
 use crate::error::{AppError, AppErrorCode};
 use crate::git::{

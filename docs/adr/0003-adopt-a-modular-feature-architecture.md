@@ -341,6 +341,30 @@ intended frontend composition root, and this decision record should say so.
   only exercises fixtures proves the rule, not the wiring; task 047 added cases
   that run the rules against `src`-shaped input.
 
+### Observed after the epic-038 close-out
+
+The accepted `Decision` above remains the migration target and is not rewritten
+to hide divergence. The delivered tree differs in these explicit ways:
+
+- **`platform/tauri` was not built.** Each feature owns a `tauriAdapter.ts`
+  beside its typed port. Co-locating the contract and implementation proved the
+  narrower ownership boundary, and task 051 made it executable: production
+  feature modules may import `@tauri-apps/api` only from their own adapter.
+  App-owned watcher, window and session lifecycle wiring remains in the
+  composition root.
+- **`shared/ui` is now a real public module.** Task 041 moved the loading bar,
+  modal-focus hook, anchored popup behavior and auto-hide scrollbar contract
+  behind named exports after multiple consumers established stable reuse.
+- **Composition and extension exceptions are gone.** Task 040 removed the
+  `host-owned` screen variant; task 042 replaced positional invalidation
+  consumers with registered subscribers; task 048 exported the diff renderer
+  from Changes and left the cross-feature allowlist empty; task 046 gave
+  Settings ownership of its panel styles/translations and lazy chunk.
+- **The frontend graph is native and non-vacuous.** Task 049 pinned TypeScript 6
+  so dependency-cruiser itself reports type-only edges, removed the task-047
+  parser workarounds and retained a minimum real-module count. ADR 0005 owns
+  that toolchain decision and its TypeScript 7 exit condition.
+
 ### Constraints
 
 - Command names, payloads, error codes, safety previews, state tokens, hooks,

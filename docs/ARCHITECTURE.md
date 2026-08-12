@@ -35,7 +35,7 @@ src/
   app/                    # bootstrap, shell, screen registry and wiring
   features/               # repository, status, changes, version-lines,
                           # save-version, publish and later product domains
-  platform/tauri/         # typed invoke/listen adapters
+    <feature>/tauriAdapter.ts # typed invoke implementation beside its port
   shared/ui/              # stable primitives with multiple real consumers
   shared/i18n/            # translation runtime and shared plumbing
 ```
@@ -56,7 +56,9 @@ or formatter-incompatible keys fail beside their owner at compile time; the
 provider still exposes the complete `Translations` object through the existing
 `useLanguage` API.
 
-The corresponding Rust target is:
+The accepted Rust target was the directory tree below. The delivered modules
+are flat files instead; the following diagram is not a literal current tree.
+The delivered shape and reason are recorded immediately afterward.
 
 ```text
 src-tauri/src/
@@ -70,32 +72,34 @@ src-tauri/src/
   error.rs                # stable application error contract
 ```
 
-Introduce these boundaries incrementally as tasks 024-030 move real behavior;
-do not create empty abstractions solely to match the diagram. IPC stays thin,
-application modules own product decisions, and infrastructure never imports
-IPC. The complete dependency matrix and migration order are normative in ADR
-0003; significant deviations require another ADR.
+The migration is complete. IPC stays thin, application/domain modules own
+product decisions, and infrastructure never imports IPC. Empty directories
+were not created solely to match the target diagram. The complete dependency
+matrix remains normative in ADR 0003; its observed divergence records where
+the delivered ownership shape differs.
 
-### The tree epic 022 actually produced
+### Delivered tree after the epic-038 close-out
 
-Task 031 audited the result against the target above. Two shapes differ, both
-deliberately and both recorded here rather than quietly reconciled.
+Task 031 audited the first migration result, and epic 038 then removed its
+remaining structural exceptions. The literal delivered tree is:
 
 ```text
 src/
-  main.tsx                # 1,958 lines: app shell, palette, titlebar, App wiring
+  main.tsx                # app shell, overlays, palette, titlebar and wiring
   screens.tsx             # screen registry, keep-alive host, switch profiler
   screenModule.tsx        # neutral screen/lifecycle contract
   projectRuntime.ts       # project-scoped store and selectors
   projectSessions.ts      # session reducer and persistence shape
-  app/                    # shell CSS and shell translations
+  app/                    # shell CSS and shell translations only
   features/               # changes, overview, publish, repository, save-version,
-                          # settings, status, version-lines
-  shared/ui/, shared/i18n/
+                          # settings, status, version-lines; each owns its port,
+                          # Tauri adapter, presentation and translations as used
+  shared/ui/              # loading, modal-focus, popup and scrollbar primitives
+  shared/i18n/            # locale-independent shared copy and errors
   styles/                 # tokens and base
 
 src-tauri/src/
-  lib.rs                  # 762 production lines + 3,013 test lines
+  lib.rs                  # builder/registration and process/platform adapter wiring
   ipc.rs                  # 31 command adapters and the checked contract test
   application.rs          # execution policy inventory and authorization
   repository_access.rs    # commonGitDir coordinator
@@ -112,10 +116,17 @@ boundaries either way, so the directories were not created merely to match the
 diagram. Move a module into a directory when it needs internal submodules, not
 before.
 
-**Both composition roots are thin.** `lib.rs` holds 762 production lines: the
-Tauri builder, command registration and the Git process/platform adapters that
-ADR 0003 places in `git/` and `platform/`, with no product decisions left.
-`main.tsx` holds the app shell — command palette, titlebar menu, theme, project
+**Feature-owned Tauri adapters instead of `platform/tauri`.** The proposed
+frontend adapter directory was not built. Every feature keeps its typed port
+and `tauriAdapter.ts` together, so the contract and implementation change under
+one owner. `check:architecture` rejects a production feature import of
+`@tauri-apps/api` anywhere except that feature's adapter. App-owned watcher,
+window and session lifecycle integration remains at the composition root.
+
+**Both composition roots contain wiring, not workflow policy.** `lib.rs` holds
+the Tauri builder, 31 command registrations and process/platform adapter
+wiring, with architecture tests rejecting domain workflows there. `main.tsx`
+holds the app shell — overlays, command palette, titlebar menu, theme, project
 session wiring and screen composition — and no screen body.
 
 Epic 022 closed with this criterion only partially met, because no child task
@@ -133,12 +144,24 @@ treats it like any other screen and no caller needs to know the difference.
 Measured after the move: 0 Git processes at the first content frame, with the
 first one starting 24 ms after content is painted.
 
-Dependency direction will be executable in CI: a pinned
-`dependency-cruiser` configuration will classify frontend runtime, type-only,
-dynamic and test edges, while a repository-owned Rust architecture test will
-parse module/import declarations with `syn`. Compiler privacy still protects
-module internals. These development-only guards land with the modules they can
-meaningfully enforce, not as runtime dependencies.
+Dependency direction is executable in CI. The pinned TypeScript 6 compiler and
+`dependency-cruiser` classify native runtime, type-only, dynamic and test
+edges; a cruised-module floor prevents another vacuous zero-module pass.
+Seeded negative fixtures verify the feature/app, feature-internal, shared UI,
+test-only and Tauri-adapter rules. The allowlist for cross-feature edges is
+empty, and the static entry graph must not reach `fileIcons`. A repository-owned
+Rust architecture test parses module/import declarations with `syn`; compiler
+privacy still protects module internals.
+
+The remaining epic-038 ownership work is also reflected in this tree:
+
+- repository invalidation fans out through registered
+  `RepositoryReadSubscriber` values, so Repository imports no dependent feature;
+- Settings owns its panel CSS and translations, and `SettingsPanel` is a lazy
+  chunk inside the shell-owned, focus-managed dialog;
+- Changes exports `DiffResultView` through its public entry point, allowing
+  Overview to reuse the renderer without importing an internal module;
+- Overview's saved-version reads use its own typed port and Tauri adapter.
 
 ## Operation planning
 
@@ -212,8 +235,8 @@ Do not assume the selected folder is the repository root. Resolve and retain:
 
 ## Rust execution and repository access boundary
 
-Task 024 establishes the first Rust strangler boundary without changing any
-public command name or payload:
+The delivered Rust execution boundary preserves every public command name and
+payload:
 
 ```text
 ipc.rs (Tauri extraction/serialization only)
@@ -267,8 +290,9 @@ On timeout/cancellation, Windows first requests descendant cleanup with a
 direct `taskkill /T /F` invocation and then kills/reaps the tracked child.
 macOS and Linux currently kill and reap the tracked child; descendants created
 by hooks, credential helpers or signing tools are best-effort OS behavior and
-are not guaranteed to join the child lifecycle. Task 031 must exercise and
-record those platform limitations before the epic closes. Hooks and signing
+are not guaranteed to join the child lifecycle. ADR 0006 records the missing
+macOS/Linux runtime evidence and makes the complete platform protocol a release-
+hardening gate. Hooks and signing
 are otherwise preserved: the runner does not add bypass flags, and mutation
 policies retain Git's prompt behavior. Diagnostics use lossy decoding for
 malformed bytes, bounded excerpts and URL credential/query/fragment redaction.
@@ -321,10 +345,10 @@ incarnation. The canonical worktree path remains project identity, while the
 epoch gates migrated requests and reducer responses. `close_project_session`
 invalidates it before the frontend discards the session. Opening the same path
 afterward creates a different epoch, so a response that began before close
-cannot populate the reopened project. Optional epoch arguments are a temporary
-strangler bridge for the named direct-invoke consumers recorded in the
-contract: read consumers retire it during tasks 026-028 and task 029 makes the
-field mandatory for every mutation.
+cannot populate the reopened project. Optional epoch arguments remain only on
+the explicitly non-authorizing read and watch contract entries. The checked
+compatibility-consumer list is empty, all feature adapters supply the epoch,
+and every mutation requires it.
 
 The `repository-changed` event is a bounded domain envelope:
 
@@ -429,8 +453,9 @@ diff caches. Diff retention is capped at four project epochs and 256 file
 diffs / approximately 40 MiB per epoch. Whole-tree warming starts only from
 project activation or repository invalidation and retains the native batch
 caps. Overview owns saved-version file/diff expansion and supplies the session
-epoch on every read. Root compatibility facades remain only for task 029's
-unmigrated mutation consumers.
+epoch on every read through its feature-owned port and `tauriAdapter.ts`. There
+are no unmigrated frontend mutation consumers or direct feature transport
+calls.
 
 The Rust owners are `repository.rs`, `status.rs` and `changes.rs`. They contain
 discovery, porcelain/status parsing, pending-summary reads, diff parsing and
@@ -520,6 +545,8 @@ Focus on critical workflows and state rendering rather than brittle visual snaps
 
 ### macOS
 
+- CI runs Rust checks/tests and release-compiles the Tauri executable, but the
+  runtime, accessibility, memory and packaging path remain unmeasured (ADR 0006);
 - WKWebView;
 - Keychain and code signing/notarization;
 - case-insensitive filesystems are common;
@@ -527,6 +554,9 @@ Focus on critical workflows and state rendering rather than brittle visual snaps
 
 ### Linux
 
+- CI runs Rust checks/tests and release-compiles the Tauri executable, but the
+  WebKitGTK runtime, accessibility, memory and packaging path remain unmeasured
+  (ADR 0006);
 - WebKitGTK;
 - Secret Service availability varies;
 - Wayland/X11 and compositor differences;
