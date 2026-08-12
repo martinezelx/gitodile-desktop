@@ -1,14 +1,14 @@
 ---
 id: 051
 title: Enforce feature-owned Tauri adapters
-status: active
+status: done
 priority: normal
 type: chore
 areas:
   - frontend
   - architecture
 created: 2026-08-12
-completed:
+completed: 2026-08-12
 ---
 
 # Goal
@@ -78,20 +78,20 @@ file while leaving the same silent regression available to the next feature.
 
 # Acceptance criteria
 
-- [ ] `pendingVersionDetails.ts` and every other non-adapter production feature
+- [x] `pendingVersionDetails.ts` and every other non-adapter production feature
       module contain no `invoke` call and no `@tauri-apps/api` import.
-- [ ] Overview's saved-version detail reads use a typed port implemented by its
+- [x] Overview's saved-version detail reads use a typed port implemented by its
       feature-owned Tauri adapter, with every request still carrying the
       project id and session epoch.
-- [ ] A seeded forbidden transport import makes
+- [x] A seeded forbidden transport import makes
       `pnpm run check:architecture` fail with the feature owner and expected
       adapter boundary in the message.
-- [ ] A `src`-shaped unit test covers the rule, and production-to-test behavior
+- [x] A `src`-shaped unit test covers the rule, and production-to-test behavior
       remains unchanged.
-- [ ] The guard passes over the real module graph with no new allowance entry.
-- [ ] Entry and feature chunks remain within task-023 budgets and `fileIcons`
+- [x] The guard passes over the real module graph with no new allowance entry.
+- [x] Entry and feature chunks remain within task-023 budgets and `fileIcons`
       stays off the static entry path.
-- [ ] Full `AGENTS.md` validation passes.
+- [x] Full `AGENTS.md` validation passes.
 
 # Relevant files
 
@@ -121,10 +121,60 @@ rule in the final architecture documentation.
 
 # Implementation notes
 
-Complete during implementation.
+Implemented and completed on 2026-08-12.
+
+Overview now follows the same three-part boundary as the other migrated
+features:
+
+- `port.ts` owns the narrow `PendingVersionDetailsPort` contract;
+- `tauriAdapter.ts` is the only Overview module importing
+  `@tauri-apps/api/core` and implements the two checked IPC reads;
+- `pendingVersionDetails.ts` owns only the React request state and accepts the
+  typed port, defaulting to the production adapter.
+
+The port reuses `FileDiff` from Changes and `CommitFileChange` from Publish,
+the existing owners of those wire meanings. Overview's duplicate
+`CommitFileChange` definition was removed. Nothing outside Overview consumes
+the hook or port, so `features/overview/index.ts` no longer re-exports the
+internal lifecycle module.
+
+The frontend architecture guard now examines each dependency's original module
+specifier. A production file under `features/<owner>/` importing
+`@tauri-apps/api` is accepted only when the source is that owner's
+`tauriAdapter.ts`. App composition remains outside the feature rule, and test
+files remain free to import/mock Tauri. The rule has both a TypeScript-shaped
+unit test and the `importsTauriDirectly.mjs` seeded fixture; the ordinary guard
+output proves the fixture is reported with the owning feature and required
+adapter path.
+
+The production sweep found eight feature imports of `@tauri-apps/api`, all in
+the eight feature-owned `tauriAdapter.ts` files. No allowance was added.
+
+Moving the adapter edge into the already-lazy pending-versions subtree reduced
+the entry chunk from 373.97 kB to 373.09 kB. The pending-versions chunk grew
+from 6.00 kB to 6.87 kB, remaining far below the relevant screen budgets;
+`fileIcons` remains a separate 255.25 kB deferred chunk.
 
 # Validation
 
-Run the complete `AGENTS.md` command set and record the architecture guard's
-seeded failure plus the production bundle sizes.
+Local Windows validation on 2026-08-12:
 
+```text
+pnpm run check:architecture                 pass (207 modules; transport fixture reported)
+pnpm run typecheck                          pass
+pnpm run test                               pass (255 tests, 30 files)
+pnpm run build                              pass (entry 373.09 kB raw)
+cargo fmt --manifest-path ... -- --check    pass
+cargo clippy ... --all-features -D warnings pass
+cargo test ... --all-targets --all-features pass (202 tests)
+```
+
+Focused frontend validation passed 18 tests across
+`architectureGuard.test.ts` and `pendingVersions.test.tsx`. The latter pins the
+exact `path`, `sessionEpoch`, `commit` and `filePath` payloads.
+
+The first full frontend run was executed concurrently with the complete Rust
+suite and one pre-existing keep-alive test exceeded its five-second timeout;
+254 other tests passed. The timed-out test passed alone, then the complete
+frontend suite passed sequentially in 16.19 seconds. No assertion failed and no
+timeout reproduced without the competing Rust workload.

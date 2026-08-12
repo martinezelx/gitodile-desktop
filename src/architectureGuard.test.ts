@@ -19,6 +19,41 @@ const TYPE_ONLY = ["local", "type-only", "import"];
 const RUNTIME = ["local", "import"];
 
 describe("frontend architecture guard, on src-shaped input", () => {
+  it("rejects Tauri API imports outside a feature-owned adapter", () => {
+    const violations = findArchitectureViolations(
+      graph([
+        {
+          source: "src/features/overview/pendingVersionDetails.ts",
+          dependencies: [
+            {
+              module: "@tauri-apps/api/core",
+              resolved: "node_modules/@tauri-apps/api/core.cjs",
+              dependencyTypes: RUNTIME,
+            },
+          ],
+        },
+      ]),
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain('Feature "overview" owns');
+    expect(violations[0]).toContain("features/overview/tauriAdapter.ts");
+  });
+
+  it("allows Tauri API imports from feature adapters and tests", () => {
+    const dependency = {
+      module: "@tauri-apps/api/core",
+      resolved: "node_modules/@tauri-apps/api/core.cjs",
+      dependencyTypes: RUNTIME,
+    };
+    const violations = findArchitectureViolations(
+      graph([
+        { source: "src/features/overview/tauriAdapter.ts", dependencies: [dependency] },
+        { source: "src/features/overview/pendingVersionDetails.test.ts", dependencies: [dependency] },
+      ]),
+    );
+    expect(violations).toEqual([]);
+  });
+
   it("reports a feature reaching into another feature's internals", () => {
     const violations = findArchitectureViolations(
       graph([

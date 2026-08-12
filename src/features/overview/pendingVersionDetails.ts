@@ -1,23 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 
 import type { FileDiff } from "../changes";
-import type { ChangeCategory } from "../status";
+import type { CommitFileChange } from "../publish";
+import type { PendingVersionDetailsPort } from "./port";
+import { pendingVersionDetailsPort } from "./tauriAdapter";
 
-export type CommitFileChange = { path: string; originalPath: string | null; category: ChangeCategory };
 export type FilesState = "loading" | "error" | CommitFileChange[];
 export type DiffState = "loading" | "error" | FileDiff;
-
-export interface PendingVersionDetailsPort {
-  readFiles(projectId: string, sessionEpoch: string, commit: string): Promise<CommitFileChange[]>;
-  readDiff(projectId: string, sessionEpoch: string, commit: string, filePath: string): Promise<FileDiff>;
-}
-
-export const pendingVersionDetailsPort: PendingVersionDetailsPort = {
-  readFiles: (path, sessionEpoch, commit) => invoke("read_commit_file_changes", { path, sessionEpoch, commit }),
-  readDiff: (path, sessionEpoch, commit, filePath) =>
-    invoke("read_commit_file_diff", { path, sessionEpoch, commit, filePath }),
-};
 
 /** Owns expandable saved-version read lifecycles outside the visual tree.
  * State is scoped to the mounted Overview epoch and all requests carry it. */

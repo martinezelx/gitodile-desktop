@@ -1,7 +1,7 @@
 ---
 id: 050
 title: Make save-version index backups collision-proof
-status: active
+status: done
 priority: high
 type: bug
 areas:
@@ -10,7 +10,7 @@ areas:
   - safety
   - platform
 created: 2026-08-12
-completed:
+completed: 2026-08-12
 ---
 
 # Goal
@@ -85,7 +85,7 @@ a data-safety defect, not only a test-runner race.
 - [x] Restore failure still retains the correct backup and reports its path.
 - [x] The audit of Save version temporary allocations is recorded in the task's
       implementation notes.
-- [ ] Full `AGENTS.md` validation passes on Windows, and CI is green on Windows,
+- [x] Full `AGENTS.md` validation passes on Windows, and CI is green on Windows,
       macOS and Linux.
 
 # Relevant files
@@ -109,8 +109,8 @@ None. This is the first task to execute because it protects user data.
 
 # Implementation notes
 
-Implemented locally on 2026-08-12; the task remains active until the resulting
-commit passes all three CI platform jobs.
+Implemented and completed on 2026-08-12 after the resulting commit passed all
+three CI platform jobs.
 
 `backup_index` no longer checks `Path::exists` and then calls `fs::copy`, which
 left both a source race and a destination truncation race. It opens the real
@@ -161,5 +161,7 @@ cargo test ... --all-targets --all-features pass (202 tests)
 ```
 
 Focused Rust run: four `save_version::tests` passed, including the three new
-backup regressions. CI is pending because the implementation has not yet been
-committed or pushed.
+backup regressions.
+
+Commit `0b0a577` passed GitHub Actions run `31589305392`: Frontend checks and
+Rust checks on Windows, Ubuntu and macOS all succeeded.

@@ -66,8 +66,8 @@ recur:
 | 047 | Done 2026-08-11 | The architecture guard inspects `src` instead of cruising zero modules | none |
 | 048 | low, not started | The diff renderer leaves `ChangesPanel` so the guard needs no allowance | 047 |
 | 049 | Done 2026-08-12 | TypeScript 6 restores native guard support and retires task 047's workarounds | 047 |
-| 050 | high, implemented locally; CI pending | Save version reserves collision-proof index backups and proves concurrent contents remain isolated | none |
-| 051 | normal, not started | Overview's saved-version reads use a feature-owned Tauri adapter and the guard enforces that boundary | 049 |
+| 050 | Done 2026-08-12 | Save version reserves collision-proof index backups and proves concurrent contents remain isolated | none |
+| 051 | Done 2026-08-12 | Overview's saved-version reads use a feature-owned Tauri adapter and the guard enforces that boundary | 049 |
 
 050 runs first because it protects the recovery copy for a user's real Git
 index. Then 051 and 048 close the two executable frontend exceptions, followed
@@ -90,12 +90,13 @@ available.
 # Epic acceptance criteria
 
 - [ ] Tasks 039–051 that belong to this epic are complete with their own
-      validation recorded. Done: 039, 040, 041, 042, 044, 047 and 049.
+      validation recorded. Done: 039, 040, 041, 042, 044, 047, 049, 050 and
+      051.
 - [x] Epic 022's partially-met "thin composition roots" criterion is satisfied
       or a new ADR records why it will not be. Satisfied by task 040.
 - [x] No production code path can execute Git without an execution policy.
 - [x] Save version index backups are collision-proof across concurrent projects.
-- [ ] Production feature transport imports exist only in feature-owned adapters
+- [x] Production feature transport imports exist only in feature-owned adapters
       and the architecture guard enforces the rule.
 - [ ] Every architecture document describes the tree that exists.
 - [ ] Windows, macOS and Linux desktop behavior is measured or its absence is

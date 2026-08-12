@@ -27,6 +27,14 @@ function isPublicEntry(filePath) {
   return /\/index\.[cm]?[jt]sx?$/.test(normalize(filePath));
 }
 
+function isFeatureTauriAdapter(filePath) {
+  return /(?:^|\/)features\/[^/]+\/tauriAdapter\.[cm]?[jt]sx?$/.test(normalize(filePath));
+}
+
+function isTauriApiDependency(dependency) {
+  return /^@tauri-apps\/api(?:\/|$)/.test(dependency.module);
+}
+
 function isDynamic(dependency) {
   return dependency.dynamic || dependency.dependencyTypes?.includes("dynamic-import");
 }
@@ -117,6 +125,17 @@ export function findArchitectureViolations(cruiseResult) {
 
       if (!sourceIsTest && targetIsTest) {
         violations.push(`Production module ${source} imports test-only module ${target}.`);
+      }
+      if (
+        sourceOwner &&
+        !sourceIsTest &&
+        isTauriApiDependency(dependency) &&
+        !isFeatureTauriAdapter(source)
+      ) {
+        violations.push(
+          `Feature "${sourceOwner}" owns ${source} and may import @tauri-apps/api only from ` +
+            `features/${sourceOwner}/tauriAdapter.ts. Depend on the feature's typed port elsewhere.`,
+        );
       }
       if (
         sourceOwner &&
@@ -264,6 +283,11 @@ function main() {
     {
       label: "production -> test-only module",
       match: (message) => message.includes("imports test-only module"),
+    },
+    {
+      label: "feature transport outside tauriAdapter",
+      match: (message) =>
+        message.includes('Feature "history" owns') && message.includes("may import @tauri-apps/api only from"),
     },
   ];
   const reported = [];
