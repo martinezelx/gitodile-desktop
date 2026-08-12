@@ -62,7 +62,7 @@ recur:
 | 043 | normal, not started | `ARCHITECTURE.md`, ADR 0003 and the `application.rs` header describe the delivered tree | 039–042, 044, 046–049, 051 |
 | 044 | Done 2026-08-11 | The test-only screen module leaves production space and the guard can see it | none |
 | 045 | high, not started | macOS and Linux desktop behavior and memory are measured | none |
-| 046 | low, not started | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
+| 046 | Done 2026-08-12 | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
 | 047 | Done 2026-08-11 | The architecture guard inspects `src` instead of cruising zero modules | none |
 | 048 | Done 2026-08-12 | The diff renderer leaves `ChangesPanel` so the guard needs no allowance | 047 |
 | 049 | Done 2026-08-12 | TypeScript 6 restores native guard support and retires task 047's workarounds | 047 |
@@ -90,8 +90,8 @@ available.
 # Epic acceptance criteria
 
 - [ ] Tasks 039–051 that belong to this epic are complete with their own
-      validation recorded. Done: 039, 040, 041, 042, 044, 047, 048, 049, 050
-      and 051.
+      validation recorded. Done: 039, 040, 041, 042, 044, 046, 047, 048, 049,
+      050 and 051.
 - [x] Epic 022's partially-met "thin composition roots" criterion is satisfied
       or a new ADR records why it will not be. Satisfied by task 040.
 - [x] No production code path can execute Git without an execution policy.
@@ -122,6 +122,9 @@ available.
 - Task 048 extracted the reusable diff renderer behind the Changes public API,
   leaving the cross-feature allowance list empty without moving `fileIcons`
   onto the entry chunk's static path.
+- Task 046 gave Settings ownership of its panel CSS and translations, and moved
+  `SettingsPanel` to a 12.66 kB lazy chunk. The entry fell from 282.27 kB to
+  269.08 kB while the shell-owned dialog preserved focus management.
 
 # Validation
 

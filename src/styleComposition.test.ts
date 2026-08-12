@@ -15,6 +15,7 @@ const EXPECTED_IMPORTS = [
   "./features/save-version/save-version.css",
   "./features/publish/publish.css",
   "./features/version-lines/version-lines.css",
+  "./features/settings/settings.css",
 ] as const;
 
 function readSource(relativePath: string): string {
@@ -41,6 +42,16 @@ describe("production style composition", () => {
     const versionLines = readSource("features/version-lines/version-lines.css");
     expect(versionLines).toContain(".version-lines-filter__popup");
     expect(versionLines).toContain("max-height: min(420px, calc(100vh - 300px))");
+
+    const settings = readSource("features/settings/settings.css");
+    expect(settings).toContain(".settings-layout");
+    expect(settings).toContain(".git-install__status");
+    expect(settings).toContain("@media (max-width: 800px)");
+
+    const appShell = readSource("app/app-shell.css");
+    expect(appShell).toContain(".settings-dialog");
+    expect(appShell).not.toContain(".settings-layout");
+    expect(settings).not.toContain(".settings-dialog");
   });
 
   it("retains theme, focus, reduced-motion and forced-color foundations", () => {

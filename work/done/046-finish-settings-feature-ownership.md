@@ -1,7 +1,7 @@
 ---
 id: 046
 title: Finish Settings feature ownership and stop paying for it at startup
-status: active
+status: done
 priority: low
 type: chore
 areas:
@@ -9,7 +9,7 @@ areas:
   - architecture
   - performance
 created: 2026-08-10
-completed:
+completed: 2026-08-12
 ---
 
 # Goal
@@ -74,16 +74,16 @@ That interaction needs testing, not assuming.
 
 # Acceptance criteria
 
-- [ ] Settings panel rules and copy are feature-owned; the cascade manifest and
+- [x] Settings panel rules and copy are feature-owned; the cascade manifest and
       its test reflect it.
-- [ ] Rendered Settings appearance is unchanged in light and dark themes, at
+- [x] Rendered Settings appearance is unchanged in light and dark themes, at
       the narrow breakpoint, and under forced colors.
-- [ ] The panel loads lazily and is no longer in the entry chunk.
-- [ ] Opening Settings moves focus into the dialog and closing returns it to
+- [x] The panel loads lazily and is no longer in the entry chunk.
+- [x] Opening Settings moves focus into the dialog and closing returns it to
       the trigger, covered by a test that would fail if the Suspense boundary
       broke it.
-- [ ] Entry chunk is measurably smaller and stays below the 378 kB warning.
-- [ ] Full `AGENTS.md` validation passes.
+- [x] Entry chunk is measurably smaller and stays below the 378 kB warning.
+- [x] Full `AGENTS.md` validation passes.
 
 # Relevant files
 
@@ -105,9 +105,36 @@ files around them.
 
 # Implementation notes
 
-Complete during implementation.
+- Kept `.settings-backdrop` and `.settings-dialog*` in the app shell, while the
+  panel layout, navigation, sections, identity rows and Git status presentation
+  moved unchanged to `src/features/settings/settings.css`. The tested eager
+  cascade registers that feature stylesheet after the other feature owners.
+- Moved the 61 Settings-panel strings, unchanged in English and Spanish, into
+  `src/features/settings/translations.ts`. Navigation, command-palette and
+  dialog-chrome copy remain app-owned.
+- Removed `SettingsPanel` from the feature barrel and load it directly with
+  `lazy()`. The `Suspense` boundary is inside the already-mounted dialog, so the
+  close button is focusable while the chunk arrives and `useModalFocus` keeps
+  ownership of focus restoration.
+- Production build impact against the task-048 baseline:
+
+  | Asset | Before | After | Change |
+  | --- | ---: | ---: | ---: |
+  | entry JS | 282.27 kB / 83.01 kB gzip | 269.08 kB / 80.25 kB gzip | -13.19 kB / -2.76 kB gzip |
+  | SettingsPanel JS | part of entry | 12.66 kB / 3.15 kB gzip | lazy chunk |
+  | eager CSS | 94.60 kB / 14.48 kB gzip | 94.63 kB / 14.50 kB gzip | +0.03 kB / +0.02 kB gzip |
+
+  `fileIcons` remains a separate 255.25 kB / 86.23 kB gzip chunk.
 
 # Validation
 
-Run the complete `AGENTS.md` command set and compare rendered Settings against
-the current build before and after.
+- `pnpm run typecheck`
+- `pnpm run test` (30 files, 256 tests)
+- `pnpm run build` (1,941 modules)
+- `pnpm run check:architecture` (209 production modules plus seeded negative fixtures)
+- `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
+- Focused: `pnpm exec vitest run src/styleComposition.test.ts src/features/settings/SettingsPanel.test.tsx src/main.test.tsx` (3 files, 16 tests)
+- Browser verification in Spanish covered dark and light themes, the 720 px
+  narrow layout, `forced-colors: active`, initial focus on Close, and return to
+  the Settings trigger on dismissal.

@@ -224,9 +224,10 @@ describe("App project restoration", () => {
     await user.click(trigger);
 
     const dialog = screen.getByRole("dialog", { name: "Settings" });
-    expect(within(dialog).getByRole("navigation", { name: "Settings sections" })).toBeInTheDocument();
+    expect(await within(dialog).findByRole("navigation", { name: "Settings sections" })).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "General" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Close" })).toHaveFocus());
 
     await user.click(within(dialog).getByRole("button", { name: "Appearance" }));
     expect(within(dialog).getByRole("heading", { name: "Language" })).toBeInTheDocument();

@@ -35,7 +35,7 @@ import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 import { createChangesController, changesPort } from "./features/changes";
 import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
-import { SettingsPanel, settingsPort, useGitTooling, type ThemePreference } from "./features/settings";
+import { settingsPort, useGitTooling, type ThemePreference } from "./features/settings";
 import {
   createVersionLinesController,
   useVersionLinesState,
@@ -91,6 +91,9 @@ const CreateVersionLineDialog = lazy(() =>
 );
 const SwitchVersionLineDialog = lazy(() =>
   import("./features/version-lines/VersionLinesDialog").then((m) => ({ default: m.SwitchVersionLineDialog })),
+);
+const SettingsPanel = lazy(() =>
+  import("./features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
 );
 
 /** Kept as a local alias so the many `View` references below stay readable;
@@ -1828,20 +1831,22 @@ export function App(): React.JSX.Element {
                 <X aria-hidden="true" />
               </button>
             </header>
-            <SettingsPanel
-              theme={theme}
-              setTheme={setTheme}
-              gitDiagnostics={gitTooling.diagnostics}
-              gitUpdateStatus={gitTooling.updateStatus}
-              onCheckGitUpdate={gitTooling.checkUpdate}
-              isCheckingGitUpdate={gitTooling.isCheckingUpdate}
-              onRefreshGitDiagnostics={gitTooling.refreshDiagnostics}
-              isRefreshingGitDiagnostics={gitTooling.isRefreshingDiagnostics}
-              reopenLastProject={reopenLastProject}
-              setReopenLastProject={setReopenLastProject}
-              confirmCloseProject={confirmCloseProject}
-              setConfirmCloseProject={setConfirmCloseProject}
-            />
+            <Suspense fallback={<ViewLoadingFallback />}>
+              <SettingsPanel
+                theme={theme}
+                setTheme={setTheme}
+                gitDiagnostics={gitTooling.diagnostics}
+                gitUpdateStatus={gitTooling.updateStatus}
+                onCheckGitUpdate={gitTooling.checkUpdate}
+                isCheckingGitUpdate={gitTooling.isCheckingUpdate}
+                onRefreshGitDiagnostics={gitTooling.refreshDiagnostics}
+                isRefreshingGitDiagnostics={gitTooling.isRefreshingDiagnostics}
+                reopenLastProject={reopenLastProject}
+                setReopenLastProject={setReopenLastProject}
+                confirmCloseProject={confirmCloseProject}
+                setConfirmCloseProject={setConfirmCloseProject}
+              />
+            </Suspense>
           </div>
         </div>
       )}
