@@ -45,23 +45,7 @@ function isDynamic(dependency) {
  * Keep this list at zero or near it. An entry is a debt, not a pattern: it says
  * two rules disagree and the code has not been reshaped yet.
  */
-const ALLOWED_FEATURE_EDGES = [
-  {
-    // Overview renders the same diff for a pending version that Changes renders
-    // for a working-tree file. Exporting `DiffResultView` from
-    // `features/changes/index.ts` is the correct ownership fix and was tried:
-    // it puts a *static* edge from the barrel to `ChangesPanel.tsx`, which
-    // imports the 255 kB icon set, so the entry chunk gains a static path to
-    // `fileIcons` and the bundle rule fails instead. Both modules here are
-    // lazy, so nothing reaches the entry chunk today.
-    //
-    // The real fix is to split the diff renderer out of `ChangesPanel.tsx`
-    // (~800 lines, and its subtree does not touch `fileIcons`) or to make the
-    // file-list icon lazy the way Overview already does. Task 048.
-    from: /(?:^|\/)src\/features\/overview\/PendingVersionsSection\.tsx$/,
-    to: /(?:^|\/)src\/features\/changes\/ChangesPanel\.tsx$/,
-  },
-];
+const ALLOWED_FEATURE_EDGES = [];
 
 function isAllowedFeatureEdge(source, target) {
   return ALLOWED_FEATURE_EDGES.some((edge) => edge.from.test(source) && edge.to.test(target));
@@ -271,6 +255,12 @@ function main() {
   const seeded = cruise("scripts/architecture-fixtures", false);
   const seededViolations = findArchitectureViolations(seeded);
   const selfTests = [
+    {
+      label: "cross-feature internal import",
+      match: (message) =>
+        message.includes('Feature "overview" imports internal module') &&
+        message.includes('feature "changes"'),
+    },
     {
       label: "feature -> app composition",
       match: (message) =>

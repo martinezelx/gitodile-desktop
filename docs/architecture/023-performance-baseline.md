@@ -342,6 +342,45 @@ Before task 031's virtualization the large fixture rendered 1,000 file rows —
 Rust caps the payload at 1,000 entries and React mounted every one — which
 failed the 400-row budget outright.
 
+## Task 048 closing measurements
+
+Windows 11, plain `pnpm run build`, `VITE_PROFILE_SCREEN_SWITCHES` unset.
+The before measurement used the clean `382b5ac` tree; the after measurement
+used task 048's working tree. Both builds transformed 1,939/1,940 modules
+respectively.
+
+| Artifact | Before raw / gzip | After raw / gzip | Delta raw / gzip |
+| --- | ---: | ---: | ---: |
+| `index` JavaScript | 373.09 / 106.76 kB | 282.27 / 83.01 kB | -90.82 / -23.75 kB |
+| `ChangesPanel` | 60.86 / 17.36 kB | 25.85 / 7.37 kB | -35.01 / -9.99 kB |
+| `DiffResultView` | part of `ChangesPanel` | 38.91 / 12.02 kB | new named chunk |
+| Changes renderer total | 60.86 / 17.36 kB | 64.76 / 19.39 kB | +3.90 / +2.03 kB |
+| `fileIcons` | 255.25 / 86.23 kB | 255.25 / 86.23 kB | 0 / 0 kB |
+| `index` CSS | 94.60 / 14.48 kB | 94.60 / 14.48 kB | 0 / 0 kB |
+
+Rollup factored renderer and shared UI code into named chunks once
+`DiffResultView` became part of the Changes public API, which explains the
+smaller physical `index` file. The relevant contracts remain independently
+green: the physical entry is below the 378 kB warning, the combined Changes
+renderer is below its 69 kB warning, and the architecture guard proves there
+is no static entry path to `fileIcons`. The icon chunk name still appears in
+Vite's dynamic-preload map, but it is not a static import or an HTML module
+preload.
+
+The after build's HTML module-preload closure contains 17 JavaScript files and
+totals 424.56 kB raw / 126.51 kB gzip. A like-for-like preload-closure total
+was not captured before the extraction, so the smaller physical `index` file
+must not be presented as a proven startup-transfer improvement. The new
+38.91 kB renderer is intentionally in that static closure; the architectural
+and failure-budget requirement here is that its 255.25 kB icon dependency is
+not.
+
+Task 048 did not change `FileListItem`, its icon loading, the file-list
+virtualizer, or any CSS. A new 5,000-change desktop sample was therefore not
+required by the task's conditional protocol; the existing large-fixture
+virtualization test ran in the full frontend suite and retained its at-most-40
+rendered-row assertion, one tenth of the 400-row failure budget.
+
 ## Reproducible desktop protocol for child tasks
 
 1. Record commit, dirty state, OS/build, CPU/RAM, WebView version, Node, pnpm,

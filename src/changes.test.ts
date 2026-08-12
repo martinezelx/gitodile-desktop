@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSplitRows,
-  countDiffLines,
   estimateLineRows,
-  filterEntriesBySearch,
   flattenDiffRows,
   formatDiffAsAccessibleText,
   gapBeforeHunk,
-  getCheckFreshness,
   getHunkStartRows,
-  getOrderedChangeEntries,
   isFirstRowOfHunk,
   measureDiffRowHeight,
+} from "./features/changes/DiffResultView";
+import {
+  countDiffLines,
+  filterEntriesBySearch,
+  getCheckFreshness,
+  getOrderedChangeEntries,
   resolveSelectedPath,
   sumCachedDiffLines,
 } from "./features/changes/ChangesPanel";

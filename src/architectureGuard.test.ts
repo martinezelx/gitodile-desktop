@@ -73,6 +73,25 @@ describe("frontend architecture guard, on src-shaped input", () => {
     expect(violations[0]).toContain('Feature "status" imports internal module');
   });
 
+  it("allows a feature to consume another feature through its public entry", () => {
+    const violations = findArchitectureViolations(
+      graph([
+        {
+          source: "src/features/overview/PendingVersionsSection.tsx",
+          dependencies: [
+            {
+              module: "../changes",
+              resolved: "src/features/changes/index.ts",
+              dependencyTypes: RUNTIME,
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("does not report a cycle whose path runs through an erased type import", () => {
     // `projectSessions.ts` type-imports a feature barrel. At runtime the cycle
     // does not exist, and reporting it is what buried the real findings.

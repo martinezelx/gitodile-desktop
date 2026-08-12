@@ -1,7 +1,7 @@
 ---
 id: 048
 title: Split the diff renderer out of ChangesPanel so Overview can import it properly
-status: active
+status: done
 priority: low
 type: chore
 areas:
@@ -9,7 +9,7 @@ areas:
   - architecture
   - performance
 created: 2026-08-11
-completed:
+completed: 2026-08-12
 ---
 
 # Goal
@@ -74,13 +74,13 @@ Two routes out, and the cheap-looking one has a catch:
 
 # Acceptance criteria
 
-- [ ] `ALLOWED_FEATURE_EDGES` is empty and the guard passes.
-- [ ] No feature imports another feature's internal module.
-- [ ] The entry chunk has no static path to `fileIcons`, proven by the guard.
-- [ ] Entry chunk stays below the task-023 warning of 378 kB.
-- [ ] If the file list changed, the 5,000-change fixture still renders well
+- [x] `ALLOWED_FEATURE_EDGES` is empty and the guard passes.
+- [x] No feature imports another feature's internal module.
+- [x] The entry chunk has no static path to `fileIcons`, proven by the guard.
+- [x] Entry chunk stays below the task-023 warning of 378 kB.
+- [x] If the file list changed, the 5,000-change fixture still renders well
       under the 400-row failure budget.
-- [ ] Full `AGENTS.md` validation passes.
+- [x] Full `AGENTS.md` validation passes.
 
 # Relevant files
 
@@ -98,12 +98,48 @@ Task 047, which made the guard able to see this at all.
 - Filed rather than folded into task 047: an ~800-line component extraction is
   not part of making a guard run, and the alternative route needs a desktop
   measurement to choose between.
+- Chose the renderer extraction, not a lazy icon per file row. The extracted
+  subtree has no `fileIcons` dependency, preserves the existing renderer DOM
+  and virtualizer, and avoids adding a Suspense boundary to every virtualized
+  file row. The file-list implementation therefore did not change.
 
 # Implementation notes
 
-Complete during implementation.
+- Moved `DiffResultView`, its empty/conflict/binary/too-large states, accessible
+  text view, split/unified row builders, gap expansion, row measurement and
+  diff virtualizer into `features/changes/DiffResultView.tsx` without changing
+  their markup or behavior.
+- Exported `DiffResultView` and `DiffViewMode` from `features/changes/index.ts`.
+  Overview now imports the renderer and `FileDiff` only through that public
+  entry point.
+- Left `getFileTypeIcon`, `FileListItem` and file-list virtualization in
+  `ChangesPanel.tsx`. `main.tsx` was not modified and remains 1,977 lines.
+- Emptied `ALLOWED_FEATURE_EDGES` and added an architecture fixture that pins a
+  public cross-feature import as valid while a seeded internal import remains
+  forbidden in both the unit test and the guard's CLI self-test.
+- Recorded the before/after build measurements in
+  `docs/architecture/023-performance-baseline.md`. Entry raw/gzip changed from
+  373.09/106.76 kB to 282.27/83.01 kB; `fileIcons` stayed
+  255.25/86.23 kB. `ChangesPanel` plus the new `DiffResultView` chunk totals
+  64.76/19.39 kB, below the 69 kB raw warning. The after build's complete
+  initial JavaScript module-preload closure is 424.56/126.51 kB; no equivalent
+  before total was retained, so the physical entry reduction is not claimed
+  as a startup-transfer improvement.
 
 # Validation
 
-Run the complete `AGENTS.md` command set, plus the task-023 large fixture if the
-file list changed.
+- Precondition: clean `main` at `382b5ac`. GitHub Actions run 31590152884 for
+  that commit completed successfully on Frontend, Ubuntu, Windows and macOS.
+- `pnpm run typecheck` — pass.
+- `pnpm run test` — pass, 30 files and 256 tests.
+- `pnpm run build` — pass, 1,940 modules transformed; measurements above.
+- `pnpm run check:architecture` — pass over 208 modules.
+- Focused `vitest` run for `changes.test.ts`, `changesPanel.test.tsx` and
+  `architectureGuard.test.ts` — pass, 74 tests.
+- `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
+  --all-features -- -D warnings` — pass.
+- The file-list path did not change, so the conditional new desktop
+  large-fixture measurement was not required. Its existing 5,000-change
+  virtualization regression test passed in the full suite with its rendered
+  row assertion capped at 40, well below the 400-row failure budget.
