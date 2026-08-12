@@ -64,7 +64,7 @@ recur:
 | 046 | low, not started | Settings owns its styles and translations and stops costing entry-chunk bytes | 041 |
 | 047 | Done 2026-08-11 | The architecture guard inspects `src` instead of cruising zero modules | none |
 | 048 | low, not started | The diff renderer leaves `ChangesPanel` so the guard needs no allowance | 047 |
-| 049 | high, not started | TypeScript 6 restores native guard support and retires task 047's workarounds | 047 |
+| 049 | Done 2026-08-12 | TypeScript 6 restores native guard support and retires task 047's workarounds | 047 |
 
 039, 040, 041, 042, 044 and 045 are independent and may run in any order. 043
 runs last of the structural tasks so it documents the finished tree once
