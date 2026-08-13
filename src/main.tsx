@@ -26,7 +26,7 @@ import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 import { createChangesController, changesPort } from "./features/changes";
 import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
-import { settingsPort, useGitTooling } from "./features/settings";
+import { settingsPort, useGitTooling, type ThemePreference } from "./features/settings";
 import {
   createVersionLinesController,
   useVersionLinesState,
@@ -41,10 +41,12 @@ import {
   CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
   REOPEN_LAST_PROJECT_STORAGE_KEY,
   SIDEBAR_COLLAPSED_STORAGE_KEY,
+  applyTheme,
   resolveEffectiveTheme,
   useStoredBoolean,
   useThemePreference,
 } from "./app/preferences";
+import { startThemeFade, startThemeReveal } from "./app/themeTransition";
 import { TitlebarMenu } from "./app/TitlebarMenu";
 import {
   EMPTY_CHANGES_SELECTION,
@@ -122,7 +124,26 @@ export function App(): React.JSX.Element {
   const [view, setView] = useState<View>("overview");
   const [theme, setTheme] = useThemePreference();
   const effectiveTheme = resolveEffectiveTheme(theme);
-  const toggleTheme = (): void => setTheme(effectiveTheme === "dark" ? "light" : "dark");
+  const themeToggleRef = useRef<HTMLButtonElement>(null);
+  // `applyTheme` runs alongside `setTheme` because the hook applies the
+  // attribute from a passive effect, which is not guaranteed to have run by the
+  // time a transition captures the DOM.
+  const commitTheme = (next: ThemePreference) => (): void => {
+    applyTheme(next);
+    setTheme(next);
+  };
+  // Which animation a theme change gets is a composition decision, not one the
+  // Settings feature or the palette should carry: they report the preference
+  // the user picked and nothing else.
+  const changeTheme = (next: ThemePreference): void => {
+    // Re-picking the active option is a no-op, and snapshotting the window to
+    // cross-fade it into an identical frame is a no-op with a cost.
+    if (next === theme) return;
+    startThemeFade(commitTheme(next));
+  };
+  const toggleTheme = (): void => {
+    startThemeReveal(themeToggleRef.current, commitTheme(effectiveTheme === "dark" ? "light" : "dark"));
+  };
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useStoredBoolean(
     SIDEBAR_COLLAPSED_STORAGE_KEY,
     false,
@@ -791,9 +812,9 @@ export function App(): React.JSX.Element {
             action: () => activateSession(id),
           }))
       : []),
-    { id: "theme-system", label: t.commandUseSystemTheme, action: () => setTheme("system") },
-    { id: "theme-light", label: t.commandUseLightTheme, action: () => setTheme("light") },
-    { id: "theme-dark", label: t.commandUseDarkTheme, action: () => setTheme("dark") },
+    { id: "theme-system", label: t.commandUseSystemTheme, action: () => changeTheme("system") },
+    { id: "theme-light", label: t.commandUseLightTheme, action: () => changeTheme("light") },
+    { id: "theme-dark", label: t.commandUseDarkTheme, action: () => changeTheme("dark") },
     {
       id: "toggle-sidebar",
       label: isSidebarCollapsed ? t.sidebarExpand : t.sidebarCollapse,
@@ -922,13 +943,18 @@ export function App(): React.JSX.Element {
             </button>
           </div>
           <button
+            ref={themeToggleRef}
             className="titlebar-icon-button"
             type="button"
             aria-label={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
             data-tooltip={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
             onClick={toggleTheme}
           >
-            {effectiveTheme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+            {effectiveTheme === "dark" ? (
+              <Sun className="titlebar-theme-icon" aria-hidden="true" />
+            ) : (
+              <Moon className="titlebar-theme-icon" aria-hidden="true" />
+            )}
           </button>
         </div>
 
@@ -1402,7 +1428,7 @@ export function App(): React.JSX.Element {
           isOpen: isSettingsOpen,
           setOpen: setIsSettingsOpen,
           theme,
-          setTheme,
+          setTheme: changeTheme,
           gitTooling,
           reopenLastProject,
           setReopenLastProject,

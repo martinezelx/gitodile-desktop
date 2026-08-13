@@ -121,9 +121,12 @@ native 1,000-entry payload cap is not a DOM strategy.
 
 ### Styles and translations
 
-`src/styles.css` is the eager cascade manifest: tokens, base, shell, shared
-primitives, then feature styles. Feature CSS stays beside its owner but is not
-lazy-imported, preventing an unstyled first feature frame.
+`src/styles.css` is the eager cascade manifest: tokens, base, theme transition,
+shell, shared primitives, then feature styles. Feature CSS stays beside its
+owner but is not lazy-imported, preventing an unstyled first feature frame.
+Document-root choreography that no single component owns — the view-transition
+pseudo-elements behind a theme change — sits in `styles/`, not in the sheet of
+whichever control happens to trigger it.
 
 English and Spanish dictionaries stay beside their owner and are composed in
 `src/i18n.tsx`. Exact typed locale objects make missing, extra, or incompatible

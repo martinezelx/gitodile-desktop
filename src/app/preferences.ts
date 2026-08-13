@@ -17,7 +17,10 @@ function readStoredTheme(): ThemePreference {
   return stored === "light" || stored === "dark" ? stored : "system";
 }
 
-function applyTheme(theme: ThemePreference): void {
+/** Exported so the titlebar reveal can pin the attribute inside its view
+ * transition callback: the hook below applies it from a passive effect, which
+ * is not guaranteed to have run by the time the transition captures the DOM. */
+export function applyTheme(theme: ThemePreference): void {
   if (theme === "system") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
 }

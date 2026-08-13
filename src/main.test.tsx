@@ -241,6 +241,55 @@ describe("App project restoration", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("animates a theme change by where it was asked for", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") {
+        return Promise.resolve({ name: "", email: "" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    // jsdom has no view transitions, so the app would take its instant path and
+    // this would assert nothing. The mode is read at capture time, which is the
+    // only moment it is observable.
+    const modes: Array<string | undefined> = [];
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: (callback: () => void) => {
+        callback();
+        modes.push(document.documentElement.dataset.themeTransition);
+        return { finished: Promise.resolve(), ready: Promise.resolve(), skipTransition: vi.fn() };
+      },
+    });
+
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    // The titlebar toggle has one origin to sweep from; Settings does not.
+    await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    await user.click(screen.getAllByRole("button", { name: "Settings" })[0]);
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("button", { name: "Appearance" }));
+    await user.click(within(dialog).getByRole("radio", { name: "Light" }));
+
+    expect(modes).toEqual(["reveal", "fade"]);
+
+    // Re-picking the option already in effect must not snapshot the window to
+    // cross-fade it into an identical frame.
+    await user.click(within(dialog).getByRole("radio", { name: "Light" }));
+    expect(modes).toEqual(["reveal", "fade"]);
+
+    Reflect.deleteProperty(document, "startViewTransition");
+    delete document.documentElement.dataset.themeTransition;
+  });
+
   it("does not overwrite stored projects before startup revalidation completes", async () => {
     localStorage.setItem("gitodrile-reopen-last-project", "true");
     localStorage.setItem(

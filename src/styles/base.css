@@ -9,6 +9,9 @@ body {
   min-width: 320px;
   color: var(--text-primary);
   background: var(--surface-app);
+  /* Only ever seen where a view transition did not run — a browser without the
+     API during `pnpm dev`. In the shipped app all three theme controls animate
+     the change instead, and styles/theme-transition.css suppresses this. */
   transition: color var(--duration-normal), background var(--duration-normal);
 }
 button { font: inherit; }

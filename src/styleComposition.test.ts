@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 const EXPECTED_IMPORTS = [
   "./styles/tokens.css",
   "./styles/base.css",
+  "./styles/theme-transition.css",
   "./app/app-shell.css",
   "./shared/ui/primitives.css",
   "./features/overview/overview.css",
@@ -68,6 +69,14 @@ describe("production style composition", () => {
     expect(readSource("styles/tokens.css")).toContain(':root[data-theme="light"]');
     expect(readSource("styles/tokens.css")).toContain(':root[data-theme="dark"]');
     expect(readSource("styles/base.css")).toContain("@media (prefers-reduced-motion: reduce)");
+
+    // Theme-change choreography is its own sheet: base.css stays the reset,
+    // body and focus foundations rather than the larger half of an effect.
+    const themeTransition = readSource("styles/theme-transition.css");
+    expect(themeTransition).toContain('[data-theme-transition="reveal"]::view-transition-new(root)');
+    expect(themeTransition).toContain('[data-theme-transition="fade"]::view-transition-new(root)');
+    expect(themeTransition).toContain("@keyframes theme-reveal");
+    expect(readSource("styles/base.css")).not.toContain("view-transition");
     const primitives = readSource("shared/ui/primitives.css");
     expect(primitives).toContain(":focus-visible");
     expect(primitives).toContain("@media (forced-colors: active)");

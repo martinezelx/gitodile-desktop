@@ -1,7 +1,9 @@
-/* Production cascade order: tokens -> base -> app shell -> shared primitives -> features.
+/* Production cascade order: tokens -> base -> theme transition -> app shell ->
+ * shared primitives -> features.
  * All imports are eager so first paint and lazy screen frames retain the existing styles. */
 @import "./styles/tokens.css";
 @import "./styles/base.css";
+@import "./styles/theme-transition.css";
 @import "./app/app-shell.css";
 @import "./shared/ui/primitives.css";
 @import "./features/overview/overview.css";
