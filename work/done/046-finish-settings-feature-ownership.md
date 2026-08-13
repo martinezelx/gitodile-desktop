@@ -126,6 +126,20 @@ files around them.
 
   `fileIcons` remains a separate 255.25 kB / 86.23 kB gzip chunk.
 
+# Superseded (2026-08-13)
+
+The lazy split above was reverted; the style and translation ownership stands.
+Making the panel lazy traded a visible cost for an invisible one: `React.lazy`
+attaches to its loader only on first render, so even a prefetched module
+suspends for a tick, and an overlay opened by a click has no navigation in
+front of it to mask that frame. The 2.4 kB of headroom that justified the trade
+became roughly 107 kB after the later task-023 follow-ups, so the panel is
+imported statically again. Its registry entry moved to the feature as
+`settingsOverlayModule`, matching how screens register beside their owner.
+Entry JS went from 270.56 kB to 283.72 kB, against the same 378 kB warning.
+Measurements and reasoning are in
+[task 055](055-open-settings-without-a-loading-frame.md).
+
 # Validation
 
 - `pnpm run typecheck`

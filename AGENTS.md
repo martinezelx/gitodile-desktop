@@ -97,6 +97,10 @@ Secondary:
   containers, and the screen contract has no `host-owned` escape hatch. A new
   screen owns its own container; see the measured footprint table in
   `docs/architecture/frontend-feature-guide.md` §8 before starting one.
+- Overlay panels are eager. `React.lazy` attaches to its loader on first
+  render, so a warmed module still suspends for a tick, and an overlay opens
+  from a click with no navigation to mask that fallback frame. Code-split an
+  overlay only against a measured entry-chunk problem, never for tidiness.
 - Lists that can grow with repository size must stay virtualized. Rust caps the
   working-tree payload at 1,000 entries and the DOM budget is 400 rendered rows,
   so a cap is not a substitute for virtualization.

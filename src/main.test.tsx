@@ -225,7 +225,10 @@ describe("App project restoration", () => {
     await user.click(trigger);
 
     const dialog = screen.getByRole("dialog", { name: "Settings" });
-    expect(await within(dialog).findByRole("navigation", { name: "Settings sections" })).toBeInTheDocument();
+    // Synchronous on purpose: the panel is eager, so the dialog and its content
+    // land in the same commit. Making the overlay lazy again would fail here
+    // before it could reach the user as a fallback frame.
+    expect(within(dialog).getByRole("navigation", { name: "Settings sections" })).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "General" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
     await waitFor(() => expect(within(dialog).getByRole("button", { name: "Close" })).toHaveFocus());

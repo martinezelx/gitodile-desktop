@@ -1,8 +1,9 @@
 import React, { Profiler, useEffect, useLayoutEffect, useRef } from "react";
-import { GitCommitHorizontal, LifeBuoy, Settings } from "lucide-react";
+import { GitCommitHorizontal, LifeBuoy } from "lucide-react";
 
 import { changesScreenModule, ChangesPanel } from "./features/changes";
 import { overviewScreenModule, OverviewPanel } from "./features/overview";
+import { settingsOverlayModule } from "./features/settings";
 import { versionLinesScreenModule, VersionLinesScreen } from "./features/version-lines";
 import type { ProjectView } from "./projectSessions";
 import {
@@ -85,16 +86,7 @@ export const SCREEN_MODULES = defineScreenModules([
     requiresProject: true,
     inCompactNav: false,
   },
-  {
-    kind: "overlay",
-    id: "settings",
-    section: "application",
-    labelKey: "navSettings",
-    icon: <Settings />,
-    inCompactNav: true,
-    commandLabelKey: "commandGoSettings",
-    overlay: "settings",
-  },
+  settingsOverlayModule,
 ] as const satisfies readonly ScreenModule[]);
 
 /** Compatibility-shaped navigation view. It is derived from the functional

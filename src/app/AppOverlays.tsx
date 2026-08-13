@@ -1,15 +1,10 @@
-import React, { Suspense, lazy, useRef } from "react";
+import React, { useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { X } from "lucide-react";
 import { useLanguage } from "../i18n";
-import type { GitToolingState, ThemePreference } from "../features/settings";
-import { LoadingBar } from "../shared/ui/loadingBar";
+import { SettingsPanel, type GitToolingState, type ThemePreference } from "../features/settings";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
-
-const SettingsPanel = lazy(() =>
-  import("../features/settings/SettingsPanel").then((module) => ({ default: module.SettingsPanel })),
-);
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
 
@@ -84,22 +79,20 @@ export function AppOverlays({
                 <X aria-hidden="true" />
               </button>
             </header>
-            <Suspense fallback={<LoadingBar label={t.commonLoading} />}>
-              <SettingsPanel
-                theme={settings.theme}
-                setTheme={settings.setTheme}
-                gitDiagnostics={settings.gitTooling.diagnostics}
-                gitUpdateStatus={settings.gitTooling.updateStatus}
-                onCheckGitUpdate={settings.gitTooling.checkUpdate}
-                isCheckingGitUpdate={settings.gitTooling.isCheckingUpdate}
-                onRefreshGitDiagnostics={settings.gitTooling.refreshDiagnostics}
-                isRefreshingGitDiagnostics={settings.gitTooling.isRefreshingDiagnostics}
-                reopenLastProject={settings.reopenLastProject}
-                setReopenLastProject={settings.setReopenLastProject}
-                confirmCloseProject={settings.confirmCloseProject}
-                setConfirmCloseProject={settings.setConfirmCloseProject}
-              />
-            </Suspense>
+            <SettingsPanel
+              theme={settings.theme}
+              setTheme={settings.setTheme}
+              gitDiagnostics={settings.gitTooling.diagnostics}
+              gitUpdateStatus={settings.gitTooling.updateStatus}
+              onCheckGitUpdate={settings.gitTooling.checkUpdate}
+              isCheckingGitUpdate={settings.gitTooling.isCheckingUpdate}
+              onRefreshGitDiagnostics={settings.gitTooling.refreshDiagnostics}
+              isRefreshingGitDiagnostics={settings.gitTooling.isRefreshingDiagnostics}
+              reopenLastProject={settings.reopenLastProject}
+              setReopenLastProject={settings.setReopenLastProject}
+              confirmCloseProject={settings.confirmCloseProject}
+              setConfirmCloseProject={settings.setConfirmCloseProject}
+            />
           </div>
         </div>
       )}
