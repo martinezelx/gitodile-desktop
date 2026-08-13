@@ -1,5 +1,7 @@
-use crate::repository::HeadState;
-use crate::{application, checked_git_stdout, resolve_head_state, run_git, AppError, AppErrorCode};
+use crate::application;
+use crate::error::{AppError, AppErrorCode};
+use crate::git_command::{checked_git_stdout, run_git};
+use crate::repository::{resolve_head_state, HeadState};
 use std::{io::ErrorKind, path::Path};
 
 /// Product-level meaning of a change, rather than Git's index/worktree split.

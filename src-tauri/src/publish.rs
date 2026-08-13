@@ -1,9 +1,11 @@
-use crate::save_version::OperationKind;
-use crate::{
-    application, checked_git_stdout, git, git_log_summaries, git_stdout, read_working_tree_status,
-    resolve_head_state, run_git, truncate_detail, validate_commit_ish, AppError, AppErrorCode,
-    HeadState, SavedVersionSummary,
-};
+use crate::application;
+use crate::changes::validate_commit_ish;
+use crate::error::{AppError, AppErrorCode};
+use crate::git;
+use crate::git_command::{checked_git_stdout, git_stdout, run_git};
+use crate::operation::{truncate_detail, OperationKind};
+use crate::repository::{resolve_head_state, validate_branch_ref_name, HeadState};
+use crate::status::{git_log_summaries, read_working_tree_status, SavedVersionSummary};
 use std::{path::Path, process::ExitStatus, time::Duration};
 
 // ---- Publish planning and execution (task 011) ----
@@ -228,24 +230,6 @@ fn looks_like_authentication_failure(stderr_lower: &str) -> bool {
 fn looks_like_missing_remote_ref(stderr_lower: &str) -> bool {
     stderr_lower.contains("couldn't find remote ref")
         || stderr_lower.contains("couldn't find remote branch")
-}
-
-/// `git check-ref-format` is Git's own source of truth for a valid branch
-/// name; today `local_branch` only ever comes from the current HEAD's own
-/// symbolic ref (which Git already guarantees is valid), so this is
-/// defense-in-depth against any future path that could construct a refspec
-/// from a less trusted name, rather than a check that can currently fail.
-pub(crate) fn validate_branch_ref_name(path: &str, name: &str) -> Result<(), AppError> {
-    let output = run_git(path, &["check-ref-format", "--branch", name])?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        Err(AppError::new(
-            AppErrorCode::InvalidRefName,
-            "This version line's name isn't a valid Git reference.",
-        )
-        .with_remediation("Rename the version line to a valid Git branch name, then try again."))
-    }
 }
 
 /// `git rev-list --left-right --count local...remote` reports ahead/behind as

@@ -4,7 +4,25 @@
 //! immediately. Repository authorization, execution policy and workflows stay
 //! behind the application boundary.
 
-use crate::*;
+use crate::{
+    changes::{self, CommitFileChange, FileDiff, FileLines},
+    desktop,
+    error::AppError,
+    publish_domain::{self, PublishPlan, PublishResult, RemoteDiscovery},
+    repository::{self, RepositoryInfo},
+    save_version::{self, SaveVersionPlan, SaveVersionResult},
+    session,
+    status::{self, PendingVersionsResult, WorkingTreeStatus},
+    tooling::{
+        self, GitDiagnostics, GitIdentity, GitInstallationResult, GitUpdateLaunchResult,
+        GitUpdateStatus,
+    },
+    version_lines::{
+        self, CreateVersionLinePlan, DeleteVersionLinePlan, SwitchVersionLinePlan,
+        VersionLinesSnapshot,
+    },
+    watch,
+};
 
 fn validate_session(path: &str, session_epoch: Option<&str>) -> Result<(), AppError> {
     session::global().validate(path, session_epoch)
@@ -16,12 +34,12 @@ fn validate_mutation_session(path: &str, session_epoch: &str) -> Result<(), AppE
 
 #[tauri::command]
 pub(crate) fn app_status() -> &'static str {
-    crate::app_status()
+    desktop::app_status()
 }
 
 #[tauri::command]
 pub(crate) fn show_main_window(window: tauri::Window) {
-    crate::show_main_window(window);
+    desktop::show_main_window(window);
 }
 
 #[tauri::command(async)]
@@ -29,7 +47,7 @@ pub(crate) fn open_repository(
     path: String,
     session_epoch: Option<String>,
 ) -> Result<RepositoryInfo, AppError> {
-    crate::open_repository(path, session_epoch)
+    repository::open_repository(path, session_epoch)
 }
 
 #[tauri::command(async)]
@@ -38,7 +56,7 @@ pub(crate) fn read_working_tree_status(
     session_epoch: Option<String>,
 ) -> Result<WorkingTreeStatus, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::read_working_tree_status(path)
+    status::read_working_tree_status(path)
 }
 
 #[tauri::command(async)]
@@ -48,7 +66,7 @@ pub(crate) fn read_file_diff(
     session_epoch: Option<String>,
 ) -> Result<FileDiff, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::read_file_diff(path, file_path)
+    changes::read_file_diff(path, file_path)
 }
 
 #[tauri::command(async)]
@@ -60,7 +78,7 @@ pub(crate) fn read_file_lines(
     session_epoch: Option<String>,
 ) -> Result<FileLines, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::read_file_lines(path, file_path, start_line, end_line)
+    changes::read_file_lines(path, file_path, start_line, end_line)
 }
 
 #[tauri::command(async)]
@@ -69,37 +87,37 @@ pub(crate) fn read_working_tree_diffs(
     session_epoch: Option<String>,
 ) -> Result<Vec<FileDiff>, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::read_working_tree_diffs(path)
+    changes::read_working_tree_diffs(path)
 }
 
 #[tauri::command(async)]
 pub(crate) fn git_diagnostics() -> GitDiagnostics {
-    crate::git_diagnostics()
+    tooling::git_diagnostics()
 }
 
 #[tauri::command(async)]
 pub(crate) fn install_git() -> GitInstallationResult {
-    crate::install_git()
+    tooling::install_git()
 }
 
 #[tauri::command(async)]
 pub(crate) fn update_git() -> GitUpdateLaunchResult {
-    crate::update_git()
+    tooling::update_git()
 }
 
 #[tauri::command(async)]
 pub(crate) fn check_git_update() -> GitUpdateStatus {
-    crate::check_git_update()
+    tooling::check_git_update()
 }
 
 #[tauri::command(async)]
 pub(crate) fn get_git_identity() -> GitIdentity {
-    crate::get_git_identity()
+    tooling::get_git_identity()
 }
 
 #[tauri::command(async)]
 pub(crate) fn set_git_identity(name: String, email: String) -> Result<(), AppError> {
-    crate::set_git_identity(name, email)
+    tooling::set_git_identity(name, email)
 }
 
 #[tauri::command(async)]
@@ -109,7 +127,7 @@ pub(crate) fn plan_save_version(
     session_epoch: String,
 ) -> Result<SaveVersionPlan, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::plan_save_version(path, selected_paths)
+    save_version::plan_save_version(path, selected_paths)
 }
 
 #[tauri::command(async)]
@@ -122,7 +140,7 @@ pub(crate) fn save_version(
     session_epoch: String,
 ) -> Result<SaveVersionResult, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::save_version(path, title, description, state_token, selected_paths)
+    save_version::save_version(path, title, description, state_token, selected_paths)
 }
 
 #[tauri::command(async)]
@@ -131,7 +149,7 @@ pub(crate) fn discover_remotes(
     session_epoch: Option<String>,
 ) -> Result<RemoteDiscovery, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::discover_remotes(path)
+    publish_domain::discover_remotes(path)
 }
 
 #[tauri::command(async)]
@@ -140,7 +158,7 @@ pub(crate) fn list_unpublished_versions(
     session_epoch: Option<String>,
 ) -> Result<PendingVersionsResult, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::list_unpublished_versions(path)
+    status::list_unpublished_versions(path)
 }
 
 #[tauri::command(async)]
@@ -150,7 +168,7 @@ pub(crate) fn read_commit_file_changes(
     session_epoch: Option<String>,
 ) -> Result<Vec<CommitFileChange>, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::read_commit_file_changes(path, commit)
+    changes::read_commit_file_changes(path, commit)
 }
 
 #[tauri::command(async)]
@@ -161,7 +179,7 @@ pub(crate) fn read_commit_file_diff(
     session_epoch: Option<String>,
 ) -> Result<FileDiff, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::read_commit_file_diff(path, commit, file_path)
+    changes::read_commit_file_diff(path, commit, file_path)
 }
 
 #[tauri::command(async)]
@@ -172,7 +190,7 @@ pub(crate) fn plan_publish(
     session_epoch: String,
 ) -> Result<PublishPlan, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::plan_publish(path, remote, up_to)
+    publish_domain::plan_publish(path, remote, up_to)
 }
 
 #[tauri::command(async)]
@@ -184,7 +202,7 @@ pub(crate) fn publish(
     session_epoch: String,
 ) -> Result<PublishResult, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::publish(path, remote, state_token, up_to)
+    publish_domain::publish(path, remote, state_token, up_to)
 }
 
 #[tauri::command(async)]
@@ -193,7 +211,7 @@ pub(crate) fn get_version_lines(
     session_epoch: Option<String>,
 ) -> Result<VersionLinesSnapshot, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::get_version_lines(path)
+    version_lines::get_version_lines(path)
 }
 
 #[tauri::command(async)]
@@ -204,7 +222,7 @@ pub(crate) fn plan_create_version_line(
     session_epoch: String,
 ) -> Result<CreateVersionLinePlan, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::plan_create_version_line(path, name, switch)
+    version_lines::plan_create_version_line(path, name, switch)
 }
 
 #[tauri::command(async)]
@@ -216,7 +234,7 @@ pub(crate) fn create_version_line(
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::create_version_line(path, name, switch, state_token)
+    version_lines::create_version_line(path, name, switch, state_token)
 }
 
 #[tauri::command(async)]
@@ -226,7 +244,7 @@ pub(crate) fn plan_switch_version_line(
     session_epoch: String,
 ) -> Result<SwitchVersionLinePlan, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::plan_switch_version_line(path, target)
+    version_lines::plan_switch_version_line(path, target)
 }
 
 #[tauri::command(async)]
@@ -237,7 +255,7 @@ pub(crate) fn switch_version_line(
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::switch_version_line(path, target, state_token)
+    version_lines::switch_version_line(path, target, state_token)
 }
 
 #[tauri::command(async)]
@@ -247,7 +265,7 @@ pub(crate) fn plan_delete_version_line(
     session_epoch: String,
 ) -> Result<DeleteVersionLinePlan, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::plan_delete_version_line(path, name)
+    version_lines::plan_delete_version_line(path, name)
 }
 
 #[tauri::command(async)]
@@ -258,7 +276,7 @@ pub(crate) fn delete_version_line(
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
-    crate::delete_version_line(path, name, state_token)
+    version_lines::delete_version_line(path, name, state_token)
 }
 
 #[tauri::command(async)]
@@ -269,7 +287,7 @@ pub(crate) fn watch_repository(
     session_epoch: Option<String>,
 ) -> Result<bool, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    crate::watch_repository(app, registry, path, session_epoch)
+    watch::watch_repository(app, registry, path, session_epoch)
 }
 
 #[tauri::command(async)]
@@ -278,7 +296,7 @@ pub(crate) fn unwatch_repository(
     path: String,
     session_epoch: Option<String>,
 ) {
-    crate::unwatch_repository(registry, path, session_epoch);
+    watch::unwatch_repository(registry, path, session_epoch);
 }
 
 #[tauri::command(async)]
@@ -294,6 +312,11 @@ pub(crate) fn close_project_session(
 #[cfg(test)]
 mod contract_tests {
     use super::*;
+    use crate::{
+        application,
+        error::AppErrorCode,
+        repository::{HeadState, RepositoryKind},
+    };
     use serde::Deserialize;
 
     #[derive(Deserialize)]

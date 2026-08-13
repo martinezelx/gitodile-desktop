@@ -22,6 +22,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run check:docs
       - run: pnpm run check:frontend
 
   rust:

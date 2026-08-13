@@ -1,7 +1,16 @@
-use crate::{
-    application, checked_git_stdout, display_path, git, git_stdout, normalized_path,
-    read_working_tree_status, run_git, run_git_with_env, AppError, AppErrorCode, ChangeCategory,
-    HeadState, WorkingTreeCounts, WorkingTreeEntry, WorkingTreeStatus,
+use crate::application;
+use crate::error::{AppError, AppErrorCode};
+use crate::git_command::{checked_git_stdout, git_stdout, run_git, run_git_with_env};
+#[cfg(test)]
+use crate::index::selection_index_path;
+use crate::index::{index_unavailable_error, prepare_index, PreparedIndex};
+use crate::operation::{truncate_detail, OperationKind};
+use crate::repository::{
+    display_path, git_operation_in_progress, normalized_path, resolve_head_state, HeadState,
+};
+use crate::status::{
+    read_working_tree_status, ChangeCategory, WorkingTreeCounts, WorkingTreeEntry,
+    WorkingTreeStatus,
 };
 use std::{
     fs::{File, OpenOptions},
@@ -17,17 +26,6 @@ use std::{
 // mutates the repository; `save_version` (execution) is a separate, narrower
 // command so the risky, history-mutating code path stays small and auditable
 // on its own.
-
-/// Shared by every planned operation, so the frontend can classify any
-/// GitOdrile operation from one field without a lookup table.
-#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
-#[serde(rename_all = "kebab-case")]
-pub(crate) enum OperationKind {
-    HistoryMutation,
-    RemoteMutation,
-    LocalMutation,
-    Destructive,
-}
 
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -49,64 +47,6 @@ pub(crate) struct SaveVersionPlan {
     pub(crate) is_partial: bool,
     pub(crate) has_prepared_changes: bool,
     pub(crate) counts: WorkingTreeCounts,
-}
-
-/// Resolves branch/detached/unborn state and the current HEAD sha for a
-/// project whose branch name is *already known* — the status call
-/// `validate_and_prepare_save` already made (`--branch` reports `#
-/// branch.head <name-or-"(detached)">`, parsed into exactly this same
-/// `Option<String>` shape) says exactly what `git symbolic-ref` would, so
-/// resolving it again here would just be the same Git process a second
-/// time. Only one further call (`rev-parse --verify HEAD`) is needed, to
-/// tell an unborn branch (no commits yet) apart from a real one, and its
-/// stdout doubles as the sha the state-token fingerprint needs — a second
-/// `resolve_head_sha` call used to read that same output again separately.
-pub(crate) fn resolve_head_state(
-    path: &str,
-    branch: Option<String>,
-) -> Result<(HeadState, Option<String>), AppError> {
-    let verified_head = run_git(path, &["rev-parse", "--verify", "HEAD"])?;
-    let head_sha = verified_head
-        .status
-        .success()
-        .then(|| git_stdout(&verified_head));
-
-    let head_state = if branch.is_some() {
-        if head_sha.is_some() {
-            HeadState::Branch
-        } else {
-            HeadState::Unborn
-        }
-    } else if head_sha.is_some() {
-        HeadState::Detached
-    } else {
-        HeadState::Unborn
-    };
-    Ok((head_state, head_sha))
-}
-
-/// Detects an in-progress merge, rebase, cherry-pick, revert, or bisect by
-/// the marker files/directories Git itself uses, rather than parsing porcelain
-/// status (which reports the resulting conflicts but not *why* they exist).
-pub(crate) fn git_operation_in_progress(path: &str) -> Result<Option<&'static str>, AppError> {
-    let git_dir_raw = checked_git_stdout(run_git(path, &["rev-parse", "--absolute-git-dir"])?)?;
-    let git_dir = Path::new(&git_dir_raw);
-    if git_dir.join("MERGE_HEAD").is_file() {
-        return Ok(Some("merge"));
-    }
-    if git_dir.join("CHERRY_PICK_HEAD").is_file() {
-        return Ok(Some("cherry-pick"));
-    }
-    if git_dir.join("REVERT_HEAD").is_file() {
-        return Ok(Some("revert"));
-    }
-    if git_dir.join("rebase-merge").is_dir() || git_dir.join("rebase-apply").is_dir() {
-        return Ok(Some("rebase"));
-    }
-    if git_dir.join("BISECT_LOG").is_file() {
-        return Ok(Some("bisect"));
-    }
-    Ok(None)
 }
 
 /// Same env-override pattern as `write_global_git_config`: production always
@@ -194,97 +134,6 @@ fn compute_state_token(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     fingerprint.hash(&mut hasher);
     format!("{:016x}", hasher.finish())
-}
-
-pub(crate) struct PreparedIndex {
-    path: PathBuf,
-    pub(crate) tree: String,
-}
-
-impl Drop for PreparedIndex {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-        let mut lock = self.path.as_os_str().to_os_string();
-        lock.push(".lock");
-        let _ = std::fs::remove_file(PathBuf::from(lock));
-    }
-}
-
-/// A private temporary index path for one `prepare_index` call.
-///
-/// The clock alone does not make this unique. Windows' system time advances in
-/// roughly 15 ms ticks, so every call inside one tick reports identical nanos;
-/// two saves in the same process would then agree on a path and collide on
-/// Git's `index.lock`. That is reachable in production, not only under a
-/// parallel test runner: the repository coordinator serializes per common Git
-/// directory, so two *different* projects saving at the same moment run
-/// genuinely in parallel. The process-wide counter makes the name unique within
-/// the process and the pid makes it unique across processes.
-fn selection_index_path() -> PathBuf {
-    static INDEX_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0);
-    let sequence = INDEX_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let mut index_path = std::env::temp_dir();
-    index_path.push(format!(
-        "gitodrile-selection-index-{}-{nanos}-{sequence}",
-        std::process::id()
-    ));
-    index_path
-}
-
-pub(crate) fn prepare_index(
-    path: &str,
-    head_state: &HeadState,
-    selected_entries: Option<&[WorkingTreeEntry]>,
-) -> Result<PreparedIndex, AppError> {
-    let index_path = selection_index_path();
-
-    let index_value = index_path.to_string_lossy().to_string();
-    let envs = [("GIT_INDEX_FILE", index_value.as_str())];
-    let read_tree_args = if *head_state == HeadState::Unborn {
-        ["read-tree", "--empty"]
-    } else {
-        ["read-tree", "HEAD"]
-    };
-    let output =
-        run_git_with_env(path, read_tree_args, &envs).map_err(|_| index_unavailable_error())?;
-    if !output.status.success() {
-        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
-    }
-
-    let mut add_args = vec!["add".to_string(), "-A".to_string()];
-    if let Some(entries) = selected_entries {
-        add_args.push("--".to_string());
-        for entry in entries {
-            add_args.push(entry.path.clone());
-            if let Some(original) = &entry.original_path {
-                add_args.push(original.clone());
-            }
-        }
-    }
-    let output = run_git_with_env(path, &add_args, &envs).map_err(|_| index_unavailable_error())?;
-    if !output.status.success() {
-        return Err(AppError::new(
-            AppErrorCode::GitCommandFailed,
-            "Git couldn't prepare the selected changes.",
-        )
-        .with_remediation("Refresh the project and check that the selected files are readable.")
-        .with_detail(truncate_detail(&stderr_text(&output))));
-    }
-
-    let output =
-        run_git_with_env(path, ["write-tree"], &envs).map_err(|_| index_unavailable_error())?;
-    if !output.status.success() {
-        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
-    }
-
-    Ok(PreparedIndex {
-        path: index_path,
-        tree: git_stdout(&output),
-    })
 }
 
 fn counts_for_entries(entries: &[WorkingTreeEntry]) -> WorkingTreeCounts {
@@ -571,14 +420,6 @@ pub(crate) fn resolve_index_path(path: &str) -> Result<PathBuf, AppError> {
     Ok(normalized_path(Path::new(path), &raw))
 }
 
-fn index_unavailable_error() -> AppError {
-    AppError::new(
-        AppErrorCode::IndexUnavailable,
-        "GitOdrile couldn't safely prepare this project's Git index.",
-    )
-    .with_remediation("Check available disk space and file permissions (antivirus tools can lock this file on Windows), then try again.")
-}
-
 /// Holds what's needed to put the repository's index back exactly as it was,
 /// including the case where no index file existed yet (a fresh, never-staged
 /// repository) — restoring then means removing whatever `git add` created,
@@ -722,19 +563,6 @@ pub(crate) fn restore_or_report(backup: &IndexBackup, primary: AppError) -> AppE
 
 fn stderr_text(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
-}
-
-/// Long enough to be useful as a secondary detail, short enough that a noisy
-/// hook can't balloon the error payload.
-const MAX_FAILURE_DETAIL_BYTES: usize = 4000;
-
-pub(crate) fn truncate_detail(text: &str) -> String {
-    let trimmed = text.trim();
-    let mut redacted = git::redact_diagnostic(trimmed.as_bytes(), MAX_FAILURE_DETAIL_BYTES);
-    if trimmed.len() > MAX_FAILURE_DETAIL_BYTES {
-        redacted.push('…');
-    }
-    redacted
 }
 
 /// A hook's presence doesn't guarantee it fired, and a missing one doesn't

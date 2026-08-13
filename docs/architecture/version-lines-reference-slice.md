@@ -1,9 +1,9 @@
 # Version-lines reference slice
 
-Task 027 is the first complete feature slice through the screen registry,
-frontend lifecycle, typed Tauri boundary and Rust domain service. Its public
-frontend API is `src/features/version-lines/index.ts`; its native owner is
-`src-tauri/src/version_lines.rs`.
+Version lines is the maintained reference for a complete feature slice through
+the screen registry, frontend lifecycle, typed Tauri boundary, and Rust domain
+service. Its public frontend API is `src/features/version-lines/index.ts`; its
+native owner is `src-tauri/src/version_lines.rs`.
 
 ## Mandatory feature contracts
 
@@ -25,8 +25,8 @@ New repository-backed screens must preserve these mechanics:
 5. Bound inactive snapshots and evict the complete project incarnation on
    close. Version lines retains at most eight inactive project snapshots.
 6. Keep the frontend port free of Tauri names and casing. Only the adapter maps
-   the stable task-025 commands and payloads. Every migrated call supplies its
-   session epoch.
+   commands and payloads from the checked IPC contract. Every feature call
+   supplies its session epoch.
 7. Keep Tauri adapters thin. Rust services authorize repository access at the
    application boundary, use the common-Git-dir coordinator and the bounded
    Git runner, and return the established structured error envelope.

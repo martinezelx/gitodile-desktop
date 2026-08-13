@@ -9,6 +9,7 @@ areas:
   - frontend
   - sync
 created: 2026-07-27
+completed: 2026-07-28
 ---
 
 # 011 — Publish saved versions safely

@@ -20,6 +20,9 @@ Use a zero-padded numeric ID and a short kebab-case title:
 ```
 
 IDs are permanent and must not be reused, even after a task moves to `done/`.
+A narrowly scoped child may append a suffix to its parent's ID (for example,
+`010-1-version-title-and-description.md`); that full ID is also permanent and
+unique.
 
 A multi-task epic may group its child task files in a subfolder under
 `active/` (e.g. `active/architecture/`) to signal priority and keep the
@@ -34,7 +37,7 @@ task ID.
 4. Work on one active task at a time unless the user explicitly approves parallel work.
 5. Keep scope, acceptance criteria, decisions, and notes updated while implementing.
 6. If work cannot continue, set `status: blocked`, explain why, and move it to `blocked/`.
-7. Before completion, run the checks required by `AGENTS.md` and record the results honestly.
+7. Before completion, run `pnpm run check` and record the results honestly.
 8. When complete, check the acceptance criteria, add implementation notes, set `status: done`, add `completed`, and move the file to `done/`.
 
 ## Agent rules
@@ -47,6 +50,8 @@ task ID.
 - Never claim checks passed unless they were executed successfully.
 - Keep durable product or architectural knowledge in `docs/`; task files should record execution-specific context.
 - Do not delete completed task files. Move them to `done/`.
+- Keep relative Markdown links valid after moving a task; `check:docs` enforces
+  links, folder/status consistency, completion dates, and unique IDs.
 
 ## Status values
 

@@ -110,7 +110,7 @@ Task 024.
 # Implementation notes
 
 - Added the checked, versioned
-  [`025-ipc-contract.json`](../../../docs/architecture/025-ipc-contract.json).
+  [`025-ipc-contract.json`](../../docs/architecture/025-ipc-contract.json).
   It inventories all 31 commands, serialized argument names, response types,
   the complete structured error-code set, the watcher envelope and the named
   compatibility consumers. Rust tests compare it to the execution inventory

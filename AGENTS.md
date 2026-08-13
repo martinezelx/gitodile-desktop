@@ -107,6 +107,16 @@ Secondary:
 - Use narrow commands between frontend and Rust.
 - Validate all command inputs in Rust.
 - Keep Tauri capabilities minimal and explicit.
+- Keep the production body of `src-tauri/src/lib.rs` registration-only. It may declare modules,
+  configure plugins/state, register handlers, and start Tauri; workflows belong
+  to their owning module.
+- `ipc.rs` is a transport adapter. It names the modules it adapts, performs
+  session/transport validation, and delegates immediately; never restore a
+  `use crate::*` facade.
+- `git_command.rs` is the policy-aware facade over the bounded process runner
+  in `git.rs`. System-Git settings belong in `tooling.rs`, watcher orchestration
+  in `watch.rs`, desktop-shell services in `desktop.rs`, shared mutation
+  vocabulary in `operation.rs`, and temporary-index preparation in `index.rs`.
 
 ### Git integration
 
@@ -214,6 +224,27 @@ In summary:
 - Keep commits focused and use conventional commit prefixes where practical.
 - Update documentation when behavior, architecture, or vocabulary changes.
 
+## Documentation ownership
+
+Keep durable facts in one place and link to them instead of copying them:
+
+- `README.md`: current capabilities, versions, setup, commands, and orientation.
+- `AGENTS.md`: enforceable engineering, safety, and agent-workflow rules.
+- `docs/PRODUCT_STRATEGY.md`: durable product thesis and positioning.
+- `DESIGN.md`: visual, interaction, content, and accessibility direction.
+- `docs/ARCHITECTURE.md`: current architecture and extension rules.
+- `docs/adr/`: decision rationale and alternatives.
+- `work/`: approved scope and execution history, never the sole home of a
+  durable architecture rule.
+
+`PRODUCT.md` is a compact design-tooling brief; do not expand it into a second
+product strategy. Numbered files under `docs/architecture/` are historical
+evidence or measurement baselines and must identify themselves as such.
+
+When moving a task, keep its relative links valid. Task IDs are unique and
+permanent; a child may use its parent's ID plus a suffix such as `010-1`.
+Files in `work/done/` require `status: done` and a completion date.
+
 ## Agent workflow
 
 Before coding:
@@ -235,12 +266,13 @@ While coding:
 Before finishing:
 
 ```bash
-pnpm run typecheck
-pnpm run test
-pnpm run build
-cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+pnpm run check
 ```
+
+The aggregate command runs documentation, frontend architecture, TypeScript,
+frontend tests/build, Rust formatting, Clippy, and Rust tests. Use the narrower
+`check:docs`, `check:architecture`, `check:frontend`, or `check:rust` scripts
+while iterating, but the aggregate command is the completion gate.
 
 If a command is not available yet, document that honestly rather than claiming it passed.
 

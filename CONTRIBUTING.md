@@ -1,34 +1,63 @@
 # Contributing
 
-GitOdrile is at an early stage. Contributions should preserve the product's central goal: make Git safer and easier without hiding important consequences.
+GitOdrile is pre-release software. Contributions must preserve its central
+promise: make Git understandable and safe without hiding consequences.
+
+## Before changing code
+
+1. Read [`AGENTS.md`](AGENTS.md), [`DESIGN.md`](DESIGN.md), the
+   [`product strategy`](docs/PRODUCT_STRATEGY.md), and the
+   [`architecture guide`](docs/ARCHITECTURE.md).
+2. Read [`work/README.md`](work/README.md) and select an approved active task,
+   unless the user has explicitly requested the change.
+3. Inspect the owning feature/domain and identify Windows, macOS, and Linux
+   implications.
+
+Do not create a routine feature branch: project convention is to work directly
+on `main` unless the user explicitly asks for isolation.
 
 ## Setup
 
 ```bash
+corepack enable
 pnpm install --frozen-lockfile
 pnpm run tauri dev
 ```
 
-## Before opening a pull request
+See the [`README`](README.md) for full platform prerequisites and resolved
+technology versions.
 
-- Read `AGENTS.md` and `DESIGN.md`.
-- Keep changes focused.
-- Add tests for behavior changes.
-- Consider Windows, macOS, and Linux implications.
-- Update documentation when user-facing vocabulary or architecture changes.
-- Do not add telemetry, cloud transmission, or AI integrations without explicit documentation and user consent design.
+## Change rules
 
-## Commit style
+- Keep changes focused and preserve feature/domain ownership.
+- Add tests for behavior, parsers, planners, and architecture rules.
+- Preserve keyboard access and loading, empty, error, and hidden-screen states.
+- Never bypass hooks/signing or silently discard, resolve, force-push, clean,
+  reset, or delete user work.
+- Do not add telemetry, cloud transmission, or AI integration without an
+  explicit product/privacy decision and consent design.
+- Update the one authoritative document when behavior, architecture, versions,
+  or vocabulary changes; link instead of duplicating prose.
 
-Conventional prefixes are encouraged:
+## Completion gate
 
-- `feat:`
-- `fix:`
-- `docs:`
-- `refactor:`
-- `test:`
-- `chore:`
+Run the full harness:
 
-## Reporting security issues
+```bash
+pnpm run check
+```
 
-Do not publish sensitive vulnerabilities in a public issue. See `SECURITY.md`.
+This includes documentation integrity, architecture rules, TypeScript,
+frontend tests/build, Rust formatting, Clippy, and Rust tests. Record failures
+honestly in the task; never claim an unexecuted check passed.
+
+## Commits
+
+Conventional prefixes are encouraged: `feat:`, `fix:`, `docs:`, `refactor:`,
+`test:`, and `chore:`. Keep commits focused and do not add AI attribution or
+`Co-Authored-By` trailers.
+
+## Security
+
+Do not publish a sensitive vulnerability in a public issue. Follow
+[`SECURITY.md`](SECURITY.md).

@@ -1,356 +1,229 @@
 # Architecture
 
-## Overview
+This document describes the architecture that new code must follow. Decision
+rationale lives in [`docs/adr/`](adr/); task files and numbered architecture
+records are historical evidence, not the current specification.
 
-GitOdrile uses a web frontend inside a Tauri desktop shell, with Rust responsible for filesystem access, process execution, Git operations, platform integration, and security-sensitive behavior.
+## System shape
 
-The accepted migration design is [ADR 0003](adr/0003-adopt-a-modular-feature-architecture.md).
-Its measured starting point, current dependency graph and external-reference
-record live under [`architecture/`](architecture/023-performance-baseline.md).
+GitOdrile is a modular desktop application with a React/TypeScript frontend in
+a Tauri shell and Rust services for Git, filesystem, process, session, and
+platform-sensitive behavior.
 
 ```text
-React UI
-  -> typed frontend service layer
-    -> typed Tauri commands
-      -> thin Tauri adapters
-        -> Rust application and domain services
-          -> Git process adapter / filesystem / OS integration
+React feature UI
+  -> controller + typed port
+    -> feature-owned Tauri adapter
+      -> ipc.rs transport adapter
+        -> application.rs policy/authorization
+          -> product domain
+            -> git_command.rs / git.rs / filesystem / watcher
 ```
 
-## Architectural objectives
+The important property is dependency direction: presentation depends inward
+on feature contracts; domain behavior does not depend outward on React, Tauri,
+or transport types.
 
-- Keep UI state independent from raw Git command output.
-- Make Git operations testable without rendering the UI.
-- Keep system Git replaceable behind a stable domain boundary.
-- Model operations around intent and consequences.
-- Make platform differences explicit.
-- Prevent arbitrary shell execution from the frontend.
+## Frontend ownership
 
-## Accepted module boundaries
-
-The frontend is a modular monolith organized by product feature:
+The frontend is a modular monolith:
 
 ```text
 src/
-  app/                    # bootstrap, shell, screen registry and wiring
-  features/               # repository, status, changes, version-lines,
-                          # save-version, publish and later product domains
-    <feature>/tauriAdapter.ts # typed invoke implementation beside its port
-  shared/ui/              # stable primitives with multiple real consumers
-  shared/i18n/            # translation runtime and shared plumbing
+  bootstrap.tsx             # mounts React and reveals the native window
+  main.tsx                  # composition root and cross-feature orchestration
+  screens.tsx               # single screen registry and keep-alive host
+  screenModule.tsx          # neutral screen/lifecycle contracts
+  projectRuntime.ts         # project-scoped immutable store/selectors
+  projectSessions.ts        # session state and persistence shape
+  app/                      # shell UI, overlays, preferences, branding, copy
+  features/<feature>/       # product owner
+  shared/ui/                # proven multi-consumer primitives
+  shared/i18n/              # shared copy/error localization
+  styles/                   # tokens and base rules
 ```
 
-Each feature exposes an explicit `index.ts`. Visual components receive values
-and callbacks; they do not invoke Tauri. Features do not import `app/` or
-another feature's internals. Product-domain types stay with their owner rather
-than moving to a generic shared-types directory.
+A feature owns, as applicable:
 
-The eager frontend presentation entry points follow the same ownership model.
-`src/styles.css` declares one deterministic production order: tokens, base,
-app shell, shared UI primitives, then feature-owned styles. Imports stay eager
-so a lazy screen never arrives before its CSS, and feature files retain their
-responsive, theme, focus and dense-data rules. `src/i18n.tsx` likewise composes
-the app, shared and feature dictionaries synchronously. Each namespace defines
-an English/Spanish interface and two exact object literals, so missing, extra
-or formatter-incompatible keys fail beside their owner at compile time; the
-provider still exposes the complete `Translations` object through the existing
-`useLanguage` API.
+- domain types and equality rules;
+- controller, request generations, caching, and eviction policy;
+- typed port and `tauriAdapter.ts`;
+- screen descriptor, UI, translations, styles, and tests;
+- an explicit `index.ts` public API.
 
-The accepted Rust target was the directory tree below. The delivered modules
-are flat files instead; the following diagram is not a literal current tree.
-The delivered shape and reason are recorded immediately afterward.
+Features may import neutral runtime contracts and another feature's public
+`index.ts`; they may not import another feature's internals or app composition.
+Only a feature's `tauriAdapter.ts` may import `@tauri-apps/api`. Visual
+components receive data and callbacks and never name IPC commands.
+
+Cross-feature orchestration belongs at the composition root. A reusable
+primitive moves into `shared/` only after it has multiple real consumers and a
+stable, domain-neutral contract.
+
+### Screens and lifecycle
+
+Every screen is registered once in `src/screens.tsx`. The descriptor drives
+navigation, command-palette entries, project guards, chunk prefetching,
+keep-alive mounting, accessibility behavior, and optional performance budgets.
+Do not wire any of those separately in `main.tsx`.
+
+Overview is eager because it owns first paint. Other functional screens use
+`createLazyScreenContainer`; the same loader promise serves lazy mounting and
+primary preloading.
+
+Visited project screens remain mounted for the active project epoch:
+
+- `active`: subscriptions and active-only effects may run;
+- `hidden`: DOM/local UI state is retained, but the subtree is `hidden`,
+  `inert`, unsubscribed from project selectors, and silent;
+- `evicted`: the screen unmounts when its project epoch closes or changes.
+
+Use `useActiveProjectSelector` and `useActiveScreenEffect` inside screens.
+Visibility is not freshness: never fetch, poll, or warm a cache merely because
+a screen became visible.
+
+The complete implementation recipe is in the
+[`frontend feature guide`](architecture/frontend-feature-guide.md). Version
+lines remains a concrete
+[`reference slice`](architecture/version-lines-reference-slice.md).
+
+### Project state and freshness
+
+Each open project owns a `ProjectRuntime` with an immutable reducer snapshot
+and a distinct session epoch. The canonical worktree path identifies a
+project; the epoch identifies one open incarnation. Responses and watcher
+events must match both so work started before close cannot populate a reopened
+project.
+
+Runtime instances are passed explicitly. There is no ambient current-project
+store. Selectors are narrow and preserve identity when their selected value is
+unchanged.
+
+Repository data refreshes only from these owners:
+
+- project activation;
+- explicit refresh;
+- successful mutation;
+- typed repository invalidation.
+
+`RepositoryReadSubscriber` registrations let features join invalidation
+fan-out without Repository importing them. Cache warming is separate,
+idle-deferred, cancellable, and limited to `project-activation` or
+`repository-invalidation` reasons. Background work never precedes first paint.
+
+Status owns working-tree and unpublished-version snapshots. Changes owns
+epoch-scoped diff caches, capped at four epochs and 256 diffs / approximately
+40 MiB per epoch. Lists that grow with repository size stay virtualized; the
+native 1,000-entry payload cap is not a DOM strategy.
+
+### Styles and translations
+
+`src/styles.css` is the eager cascade manifest: tokens, base, shell, shared
+primitives, then feature styles. Feature CSS stays beside its owner but is not
+lazy-imported, preventing an unstyled first feature frame.
+
+English and Spanish dictionaries stay beside their owner and are composed in
+`src/i18n.tsx`. Exact typed locale objects make missing, extra, or incompatible
+keys a compile-time error. Shared errors/actions belong in `shared/i18n`; shell
+copy belongs in `app/translations.ts`.
+
+## Rust ownership
+
+The Rust side uses flat modules until a module genuinely needs internal
+submodules:
 
 ```text
 src-tauri/src/
-  lib.rs                  # builder and command registration only
-  ipc/                    # validation and Tauri serialization adapters
-  application/            # product-domain use cases
-  repository_access/      # authorization and commonGitDir scheduling
-  git/                    # bounded process runner and Git adapter
-  watch/                  # filesystem adapter and typed invalidations
-  platform/               # OS-specific adapters
-  error.rs                # stable application error contract
-```
-
-The migration is complete. IPC stays thin, application/domain modules own
-product decisions, and infrastructure never imports IPC. Empty directories
-were not created solely to match the target diagram. The complete dependency
-matrix remains normative in ADR 0003; its observed divergence records where
-the delivered ownership shape differs.
-
-### Delivered tree after the epic-038 close-out
-
-Task 031 audited the first migration result, and epic 038 then removed its
-remaining structural exceptions. The literal delivered tree is:
-
-```text
-src/
-  main.tsx                # app shell, overlays, palette, titlebar and wiring
-  screens.tsx             # screen registry, keep-alive host, switch profiler
-  screenModule.tsx        # neutral screen/lifecycle contract
-  projectRuntime.ts       # project-scoped store and selectors
-  projectSessions.ts      # session reducer and persistence shape
-  app/                    # shell CSS and shell translations only
-  features/               # changes, overview, publish, repository, save-version,
-                          # settings, status, version-lines; each owns its port,
-                          # Tauri adapter, presentation and translations as used
-  shared/ui/              # loading, modal-focus, popup and scrollbar primitives
-  shared/i18n/            # locale-independent shared copy and errors
-  styles/                 # tokens and base
-
-src-tauri/src/
-  lib.rs                  # builder/registration and process/platform adapter wiring
-  ipc.rs                  # 31 command adapters and the checked contract test
-  application.rs          # execution policy inventory and authorization
-  repository_access.rs    # commonGitDir coordinator
-  git.rs, watch.rs, session.rs, error.rs, architecture.rs
-  changes.rs, publish.rs, repository.rs, save_version.rs, status.rs,
+  lib.rs                  # Tauri builder, plugins, state, handler registration
+  ipc.rs                  # argument extraction, session checks, serialization
+  application.rs          # execution-policy inventory and authorization entry
+  repository_access.rs    # RepositoryContext + fair commonGitDir coordinator
+  git_command.rs          # policy-aware domain-facing Git facade
+  git.rs                  # bounded process execution and cancellation
+  error.rs                # stable structured application errors
+  operation.rs            # shared operation kind and safe diagnostic details
+  index.rs                # collision-safe temporary-index preparation
+  session.rs              # opaque project epochs
+  watch.rs                # filtered/debounced typed invalidation
+  desktop.rs              # desktop-shell services
+  tooling.rs              # Git diagnostics, install/update, global identity
+  repository.rs
+  status.rs
+  changes.rs
+  save_version.rs
+  publish.rs
   version_lines.rs        # product domains
+  test_support.rs         # shared hermetic Git-repository test fixtures
+  tests/<domain>_tests.rs # cross-module integration tests grouped by owner
 ```
 
-**Flat modules instead of directories.** Rust domains are single files rather
-than `application/<domain>/mod.rs`, and the frontend's app-level runtime files
-sit at `src/` rather than under `src/app/`. Compiler privacy and the
-`architecture.rs` / `check:frontend-architecture` guards enforce the same
-boundaries either way, so the directories were not created merely to match the
-diagram. Move a module into a directory when it needs internal submodules, not
-before.
+The production body of `lib.rs` contains registration only. `ipc.rs` names the
+modules it adapts and delegates immediately. Product domains may depend inward on application,
+repository access, Git-command, and shared error contracts; they may not depend
+on `ipc`, `watch`, or Tauri. Integration tests live under `src/tests/`, grouped
+by the product domain whose behavior they verify; reusable repository fixtures
+live in `test_support.rs`, never in the crate composition root.
 
-**Feature-owned Tauri adapters instead of `platform/tauri`.** The proposed
-frontend adapter directory was not built. Every feature keeps its typed port
-and `tauriAdapter.ts` together, so the contract and implementation change under
-one owner. `check:architecture` rejects a production feature import of
-`@tauri-apps/api` anywhere except that feature's adapter. App-owned watcher,
-window and session lifecycle integration remains at the composition root.
+### Repository identity and access
 
-**Both composition roots contain wiring, not workflow policy.** `lib.rs` holds
-the Tauri builder, 31 command registrations and process/platform adapter
-wiring, with architecture tests rejecting domain workflows there. `main.tsx`
-holds the app shell — overlays, command palette, titlebar menu, theme, project
-session wiring and screen composition — and no screen body.
-
-Epic 022 closed with this criterion only partially met, because no child task
-had been assigned the Overview or Settings screens and both survived a
-nine-task refactor. Task 031 extracted Settings behind a port; task 040
-extracted Overview. The screen contract has no `host-owned` container any more:
-every functional screen registers a real container, and the type system rejects
-a descriptor that tries to have the shell compose it instead.
-
-Overview's container is **eager**, not lazy. It is the screen the app paints
-with no project open, so deferring its chunk would put a fetch in front of first
-paint and break task 018's guarantee. `createEagerScreenContainer` exists for
-exactly that case: its `preload` resolves immediately, so `prefetchScreenChunks`
-treats it like any other screen and no caller needs to know the difference.
-Measured after the move: 0 Git processes at the first content frame, with the
-first one starting 24 ms after content is painted.
-
-Dependency direction is executable in CI. The pinned TypeScript 6 compiler and
-`dependency-cruiser` classify native runtime, type-only, dynamic and test
-edges; a cruised-module floor prevents another vacuous zero-module pass.
-Seeded negative fixtures verify the feature/app, feature-internal, shared UI,
-test-only and Tauri-adapter rules. The allowlist for cross-feature edges is
-empty, and the static entry graph must not reach `fileIcons`. A repository-owned
-Rust architecture test parses module/import declarations with `syn`; compiler
-privacy still protects module internals.
-
-The remaining epic-038 ownership work is also reflected in this tree:
-
-- repository invalidation fans out through registered
-  `RepositoryReadSubscriber` values, so Repository imports no dependent feature;
-- Settings owns its panel CSS and translations, and `SettingsPanel` is a lazy
-  chunk inside the shell-owned, focus-managed dialog;
-- Changes exports `DiffResultView` through its public entry point, allowing
-  Overview to reuse the renderer without importing an internal module;
-- Overview's saved-version reads use its own typed port and Tauri adapter.
-
-## Operation planning
-
-User actions should first produce an operation plan.
-
-```ts
-type OperationPlan = {
-  kind:
-    | "read"
-    | "local-mutation"
-    | "history-mutation"
-    | "remote-mutation"
-    | "destructive";
-  summary: string;
-  steps: OperationStep[];
-  risks: Risk[];
-  recovery?: RecoveryPlan;
-  requiresConfirmation: boolean;
-};
-```
-
-The frontend may render a friendly explanation from this structure. Rust remains responsible for validating the repository state immediately before execution.
-
-`destructive` is an additional risk classification, not permission to discard
-data. A destructive plan requires explicit confirmation and a recovery strategy
-when one is feasible. History and remote mutations may also require confirmation
-even when they are not destructive.
-
-## Git command runner
-
-The initial adapter should:
-
-- receive a repository path and an argument list;
-- invoke `git` without a shell;
-- set the working directory explicitly;
-- capture stdout, stderr, and exit code;
-- support cancellation and timeouts where appropriate;
-- redact credentials and secrets from logs;
-- return typed errors;
-- record diagnostics at a safe verbosity level.
-
-Prefer stable machine-readable formats such as porcelain output. Parsing must have fixtures covering Git versions and edge cases.
-
-System Git remains the initial and compatibility-oriented backend. The proposed
-hybrid direction is documented separately in
-[`adr/0001-adopt-a-progressive-hybrid-git-backend.md`](adr/0001-adopt-a-progressive-hybrid-git-backend.md);
-do not treat that proposal as an accepted migration.
-
-## Engineering references
-
-For complex desktop Git behavior, GitButler may be studied as an engineering
-reference using the process in [`../AGENTS.md`](../AGENTS.md): start from a
-specific GitOdrile problem, understand the reason behind the relevant pattern,
-and reimplement only the smallest appropriate principle. Its mature monorepo,
-workflow abstractions, cloud services, and accumulated crate structure are not
-the target architecture for GitOdrile's MVP. The pinned revision, inspected
-files and FSL-1.1-MIT no-copy constraint for this migration are recorded in
-[`architecture/023-gitbutler-research.md`](architecture/023-gitbutler-research.md).
-
-## Repository identity
-
-Do not assume the selected folder is the repository root. Resolve and retain:
+Never assume the selected folder is the repository root. `RepositoryContext`
+retains separate identities for:
 
 - worktree root;
 - Git directory;
-- common Git directory for worktrees;
+- common Git directory;
 - bare/non-bare state;
-- current branch or detached state;
-- remotes;
-- case-sensitivity and filesystem capabilities where relevant.
+- backend path and normalized comparison key.
 
-## Rust execution and repository access boundary
+Windows verbatim and ordinary paths compare together while Git receives a
+normal path. macOS selected aliases such as `/var` are retained beside their
+canonical spelling so watcher events match either form.
 
-The delivered Rust execution boundary preserves every public command name and
-payload:
+The access coordinator is keyed by canonical common Git directory. Reads may
+overlap; mutations are exclusive; a queued writer blocks later readers. Linked
+worktrees therefore share mutation exclusion while unrelated projects remain
+independent. Lock re-entry is rejected; an authorized nested read inherits its
+existing permit.
 
-```text
-ipc.rs (Tauri extraction/serialization only)
-  -> application.rs (command policy + repository authorization)
-    -> repository_access.rs (RepositoryContext + fair commonGitDir lock)
-      -> git.rs (bounded process runner)
-```
+### Execution policies and Git processes
 
-`RepositoryContext` retains distinct worktree-root, Git-directory and common
-Git-directory identities plus bare state. A path identity has a backend path
-and a comparison key instead of assuming one spelling works everywhere.
-Windows verbatim (`\\?\`) and normal paths compare together while commands use
-the normal spelling; macOS keeps the selected `/var` alias alongside its
-canonical `/private/var` spelling so watcher events can match either form.
-Opening a project registers the resolved context, so later domain helpers do
-not repeat repository discovery. A compatibility lookup exists for tests and
-legacy callers that did not first open the project.
+Every registered command has exactly one checked `ExecutionPolicy` defining:
 
-The in-process access coordinator is keyed by the canonical common Git
-directory. Reads may overlap; mutations are exclusive. A queued writer blocks
-later readers, avoiding writer starvation. Related worktrees therefore share
-mutation exclusion, while unrelated repositories have independent locks.
-Raw lock re-entry is rejected in debug/tests; a workflow that deliberately
-calls another authorized read inherits its existing permission rather than
-acquiring recursively. State-token validation remains immediately before each
-existing mutation and is not replaced by locking.
+- operation class;
+- stdout/stderr caps;
+- timeout and cancellation behavior;
+- prompt behavior;
+- concurrency class.
 
-Every registered command has exactly one checked `ExecutionPolicy` in
-`src-tauri/src/application.rs`: operation class, stdout/stderr caps, timeout,
-cancellation, prompt and concurrency policy. All production Git launches go
-through `src-tauri/src/git.rs` as argument vectors with an explicit working
-directory and deterministic locale.
+There is no fallback policy. A production Git call without an application
+frame returns a structured failure; debug/test builds panic so the programming
+error is visible.
 
-There is no default policy. A Git call reached without first entering
-`application::enter` or `application::authorize_repository` panics in debug and
-test builds and returns a structured failure in release. Task 024 shipped a
-fallback that quietly supplied a repository-read policy while domain workflows
-were still being moved out of `lib.rs`; task 039 removed it, because a call
-that inherited that fallback would also have skipped the commonGitDir
-coordinator and run without a repository permit — a failure that would not
-surface until two worktrees collided. Tests that read repository state to
-assert what a workflow did use the `#[cfg(test)]` helpers `test_git` and
-`in_test_frame`, which supply an explicit test-only frame rather than a
-registered command's policy. Both pipes are drained concurrently and
-retained only to their caps. Newer equivalent reads cancel the process token
-of a superseded read; frontend generation/state-token rejection remains a
-separate logical stale-result mechanism. Mutations do not auto-cancel one
-another because an interrupted commit or publish can have uncertain effects.
+All Git launches use argument vectors, an explicit working directory where
+applicable, and deterministic locale. User input is never interpolated into a
+shell string. Stdout and stderr drain concurrently and retain only their caps.
+Diagnostics redact URL credentials, queries, and fragments.
 
-On timeout/cancellation, Windows first requests descendant cleanup with a
-direct `taskkill /T /F` invocation and then kills/reaps the tracked child.
-macOS and Linux currently kill and reap the tracked child; descendants created
-by hooks, credential helpers or signing tools are best-effort OS behavior and
-are not guaranteed to join the child lifecycle. ADR 0006 records the missing
-macOS/Linux runtime evidence and makes the complete platform protocol a release-
-hardening gate. Hooks and signing
-are otherwise preserved: the runner does not add bypass flags, and mutation
-policies retain Git's prompt behavior. Diagnostics use lossy decoding for
-malformed bytes, bounded excerpts and URL credential/query/fragment redaction.
+Equivalent reads may cancel an older process token. Mutations never
+automatically cancel one another because interruption can leave an uncertain
+outcome. Windows requests descendant cleanup before killing/reaping the tracked
+child; macOS/Linux currently guarantee only tracked-child cleanup. The release
+hardening requirement is recorded in
+[`ADR 0006`](adr/0006-defer-macos-and-linux-runtime-validation.md).
 
-## State management
+### IPC contract and invalidation
 
-Keep persistent application preferences separate from repository-derived state.
+The public IPC surface is pinned in
+[`025-ipc-contract.json`](architecture/025-ipc-contract.json). Rust and
+TypeScript tests verify command names, arguments, responses, error codes, and
+representative serialization. Intentional changes update the JSON contract and
+both sides in one review.
 
-Each open project owns an immutable reducer-backed runtime with a distinct
-session epoch and selector subscriptions through `useSyncExternalStore`. The
-canonical path identifies the worktree, not an open incarnation: responses and
-watcher events must match the epoch created for that open/reopen. Feature
-controllers expose narrow commands and selectors; arbitrary visual components
-cannot write Git-derived state.
+Authorizing actions require `sessionEpoch`. Compatibility-optional epochs are
+limited to explicitly non-authorizing read/watch entries; every current
+feature adapter supplies the epoch.
 
-The concrete neutral runtime lives in `src/projectRuntime.ts`. Callers pass a
-runtime instance explicitly; there is no ambient current-project store.
-Selector equality preserves the selected value's identity across unrelated
-transitions, and React reads one immutable snapshot for concurrent rendering.
-Repository cache warming is exposed only for project activation and typed
-repository invalidation, is idle-deferred and deduplicated by key.
-
-State categories remain explicit:
-
-- application preferences;
-- recent repositories;
-- per-repository UI state;
-- live repository snapshot;
-- in-progress operation state;
-- diagnostics.
-
-No state library is introduced for this migration. Redux, Zustand, XState and
-React Query were evaluated in ADR 0003 and do not currently justify their
-runtime/conceptual cost. A future need for cache semantics, statecharts or
-devtools must be measured and recorded before revisiting that decision.
-
-### IPC sessions and repository invalidation
-
-Task 025 snapshots the public command surface in
-[`025-ipc-contract.json`](architecture/025-ipc-contract.json). Rust tests tie
-that inventory to every registered adapter and its argument/response type,
-serialize representative repository, error and watcher envelopes, and compare
-the complete error-code set. TypeScript tests consume the same snapshot. An
-intentional contract change therefore updates one reviewed artifact together
-with both sides; an accidental command, argument, response or error-code drift
-fails CI.
-
-`open_repository` returns an opaque `sessionEpoch` for the current open
-incarnation. The canonical worktree path remains project identity, while the
-epoch gates migrated requests and reducer responses. `close_project_session`
-invalidates it before the frontend discards the session. Opening the same path
-afterward creates a different epoch, so a response that began before close
-cannot populate the reopened project. Optional epoch arguments remain only on
-the explicitly non-authorizing read and watch contract entries. The checked
-compatibility-consumer list is empty, all feature adapters supply the epoch,
-and every mutation requires it.
-
-The `repository-changed` event is a bounded domain envelope:
+Repository watchers emit only:
 
 ```ts
 type RepositoryInvalidation = {
@@ -361,216 +234,74 @@ type RepositoryInvalidation = {
 };
 ```
 
-No raw changed path or repository content leaves Rust. Events are trailing-
-debounced for 300 ms with a two-second starvation ceiling. Sequence numbers
-increase within an epoch; replacement, unwatch and close invalidate queued
-callbacks. Worktree/index and private-HEAD events stay with their worktree.
-Shared refs, packed refs and shared configuration are coalesced by canonical
-`commonGitDir` and fanned out once to each related open worktree. Path matching
-keeps backend and watcher spellings distinct: Windows verbatim prefixes and
-macOS `/private/var` aliases normalize only for comparison, so Git objects,
-logs, modules, hooks and lock files remain filtered. If an OS watcher cannot
-be established, commands return `false` and the existing explicit refresh
-continues to work.
+Events are trailing-debounced for 300 ms with a two-second starvation ceiling.
+Raw changed paths and repository content never cross IPC. Shared ref/config
+changes fan out once to every related open worktree; objects, logs, hooks,
+modules, and lock-file churn are filtered. Explicit refresh remains available
+if an OS watcher cannot be established.
 
-## Screen shell and navigation cost
+## Mutation model
 
-Moving between screens of an already-open project must cost nothing the user
-can perceive. That is a property of the shell, not something each screen earns
-for itself, and it rests on four rules.
+User actions that change history or a remote follow plan, confirm, execute,
+and verify phases. Rust revalidates repository state immediately before
+execution under the repository-access coordinator.
 
-**One registry.** `src/screens.tsx` collects dependency-neutral
-`ScreenModule` descriptors from `src/screenModule.tsx`. A functional
-descriptor owns its stable id, translated labels, icon/section, project
-requirement, container, lifecycle/eviction and accessibility policy, plus an
-optional numeric performance budget. The expanded nav, the compact nav, the palette,
-the idle prefetch, the "leave this screen if the project closed" guard, and the
-keep-alive host all read from that table. A screen is added by adding an entry
-and a component; anything wired up by hand will be missed by one of them.
-Destinations that are announced but unbuilt (History, Recovery) are explicit
-placeholder descriptors. Lazy mounting and primary preload share one loader
-promise; only additional chunks have separate declarations.
+An operation plan classifies work as read-only, local mutation, history
+mutation, remote mutation, or destructive, and carries steps, risks,
+confirmation requirements, and recovery information. “Destructive” is a risk
+classification, never permission to discard data.
 
-**Visited screens stay mounted.** `KeepAliveScreens` mounts a screen the first
-time it is opened and thereafter hides it rather than unmounting it, so
-returning avoids a React/DOM rebuild and in-screen state (scroll position,
-selection, filters) survives. Inactive screens are `hidden` and `inert`: out
-of the tab order, out of the accessibility tree, unable to announce anything
-from behind the visible screen. They are also frozen — their last element is
-re-rendered by identity, so an unrelated state change in `App` cannot
-reconcile a screen nobody is looking at; they take current props on the frame
-they become active again. Browsers may still redo style, layout, or paint when
-revealing a `display: none` subtree, so keep-alive removes application work but
-does not claim that CSS work is literally zero. Keep-alive is scoped to the
-active project session by keying the host on it, so switching or closing a
-project drops that session's screens.
+Save-version uses a unique temporary index, restores the real index byte for
+byte on failure, and preserves hooks and signing. Publish does not claim
+failure after an outcome may have reached the remote; it reports
+`publish_uncertain`. Frontend mutation phases supersede stale generations,
+coalesce watcher work, and perform one shared follow-up refresh.
 
-Lifecycle is behavioral, not merely visual. `active` screens may subscribe and
-run active effects. `hidden` screens retain DOM and local UI state but detach
-project selectors, clean up polling/costly effects and silence announcements.
-`evicted` screens unmount with the owning project epoch. The hooks
-`useActiveProjectSelector` and `useActiveScreenEffect` implement that contract;
-plain `hidden`/`inert` attributes remain the accessibility half only. See the
-[frontend feature guide](architecture/frontend-feature-guide.md).
+Never silently resolve conflicts, discard untracked files, bypass hooks or
+signing, force-push, run `reset --hard`, clean files, or delete a branch without
+the confirmation and recovery rules in `AGENTS.md`.
 
-**Screens render from state, never fetch on arrival.** Per-project repository
-data belongs to `ProjectSession` and stays on screen while it is revalidated.
-Freshness comes from project activation, explicit user refresh, successful
-mutations, and repository-watch invalidation — not from making a screen
-visible. Cached background reads do not publish loading state, and unchanged
-snapshots preserve object and reducer-state identity. A screen showing a
-spinner on a warm session is a bug.
+## Enforced checks
 
-**Blocking native work stays off the UI thread.** `requestIdleCallback` only
-schedules when frontend code starts; it cannot make a synchronous Tauri
-command non-blocking. Commands that launch Git or perform filesystem work use
-Tauri's asynchronous command execution so the WebView remains responsive.
-Read paths should batch related facts into as few Git processes and graph walks
-as compatibility permits.
+`pnpm run check` is the repository gate:
 
-**Background work never precedes first paint.** Chunk prefetching and
-speculative reads go through `requestIdleCallback` and are gated on the startup
-session restore having finished.
+- `check:docs` validates local Markdown links, work-item state/completion
+  metadata, unique task IDs, README package metadata, and application-version
+  consistency across npm, Cargo, and Tauri;
+- `check:architecture` analyzes production, type-only, dynamic, and test edges,
+  rejects forbidden directions/cycles and eager `fileIcons`, and proves its
+  rules with seeded violations;
+- TypeScript strict checking, Vitest, and the production Vite build;
+- `cargo fmt --check`, Clippy with warnings denied, and all Rust tests;
+- Rust syntax-based tests pin module ownership, keep `lib.rs` registration-only,
+  reject crate-root glob transport imports, and verify the IPC/policy inventory.
 
-Screen-switch profiling is opt-in because measurement itself adds work. Run
-the development app with `VITE_PROFILE_SCREEN_SWITCHES=true` when collecting
-navigation timings; normal development and production builds omit it.
+Performance comparison protocol and retained budgets live in the
+[`architecture baseline`](architecture/023-performance-baseline.md). Enable
+`VITE_PROFILE_SCREEN_SWITCHES=true` only while profiling; instrumentation is
+absent from normal development and production builds.
 
-Version lines is the first complete vertical reference slice. Its frontend
-controller owns epoch-keyed deduplication, stale rejection, stable equality,
-last-snapshot errors and bounded eviction; its typed adapter is the only
-frontend owner of the seven Version-lines IPC calls. Rust DTOs, parsers,
-planners, workflows and focused tests live in `src-tauri/src/version_lines.rs`.
-The mandatory mechanics and feature-specific policy are separated in
-[`architecture/version-lines-reference-slice.md`](architecture/version-lines-reference-slice.md).
+## Platform and security constraints
 
-Repository read ownership follows that slice without sharing domain policy.
-`src/features/repository/` owns discovery, identity refresh and typed
-invalidation coordination; `src/features/status/` owns working-tree and
-unpublished-version snapshots, request generations and structural equality;
-`src/features/changes/` owns the Changes UI, typed read port and epoch-scoped
-diff caches. Diff retention is capped at four project epochs and 256 file
-diffs / approximately 40 MiB per epoch. Whole-tree warming starts only from
-project activation or repository invalidation and retains the native batch
-caps. Overview owns saved-version file/diff expansion and supplies the session
-epoch on every read through its feature-owned port and `tauriAdapter.ts`. There
-are no unmigrated frontend mutation consumers or direct feature transport
-calls.
+- Repository content stays local unless the user explicitly invokes a remote
+  feature.
+- Tauri capabilities remain minimal; no generic command-execution endpoint is
+  permitted.
+- Repository content, config, hooks, remote responses, and paths are untrusted.
+- Never log credentials, helper output, private keys, or authenticated remote
+  URLs.
+- AI features require explicit consent and disclosure of transmitted data.
+- Paths, casing, symlinks, line endings, credentials, file locks, prompts, and
+  process behavior across Windows/macOS/Linux are correctness concerns.
 
-The Rust owners are `repository.rs`, `status.rs` and `changes.rs`. They contain
-discovery, porcelain/status parsing, pending-summary reads, diff parsing and
-batching, and bounded file reads. `ipc.rs` validates the session and delegates;
-architecture tests reject read workflows returning to `lib.rs`, outward
-transport dependencies and crate-root glob imports.
+CI checks Rust on all three platforms and release-compiles macOS/Linux desktop
+executables. Actual macOS/Linux WebView behavior, accessibility, memory,
+signing, and packaging remain unmeasured release gates, not implied support
+claims.
 
-Save version and Publish changes follow the same ownership boundary. Their
-frontend domain types, typed ports, Tauri adapters, controllers and dialogs
-live under `src/features/save-version/` and `src/features/publish/`; neither
-dialog names an IPC command. Rust planning, state-token validation and
-execution live in `save_version.rs` and `publish.rs`, while `ipc.rs` only
-requires and validates the session epoch before delegating. The checked IPC
-contract makes `sessionEpoch` non-optional for every save, publish and
-Version-lines plan/execution call. Legacy epoch-free payloads may remain only
-on non-authorizing reads.
+## When an ADR is required
 
-Planning and execution independently revalidate repository state under task
-024's common-Git-dir coordinator. Save continues to build a temporary index,
-restore the real index byte-for-byte on failure and preserve hooks/signing.
-Publish remains non-cancellable after invocation: a timeout or lost connection
-after the remote may have accepted the update is `publish_uncertain`, never a
-claimed failure. Frontend mutation phases suppress and coalesce watcher work
-during planning, execution, verification and uncertainty. A successful result
-first supersedes older status/Version-lines generations; publish also commits
-its authoritative remaining-version count directly. One shared follow-up
-refresh then updates repository identity and every dependent cache, replacing
-rather than duplicating any deferred watcher invalidation.
-
-The task-022 comparison protocol, exact starting chunks/process counts and
-numeric warning/failure budgets are recorded in
-[`architecture/023-performance-baseline.md`](architecture/023-performance-baseline.md).
-Child tasks use the same fixture and build mode and must explain warnings;
-crossing a failure budget blocks the task unless an ADR deliberately revises
-the contract.
-
-## Security model
-
-- Minimize Tauri capabilities.
-- Validate and canonicalize paths in Rust.
-- Do not expose a generic “run command” Tauri endpoint.
-- Do not interpolate user data into shell commands.
-- Treat repository content, hooks, config, and remote responses as untrusted.
-- Never log tokens, credential helper output, private key material, or authenticated remote URLs.
-- Require explicit consent before sending source or diffs to an AI service.
-
-## Testing strategy
-
-### Unit tests
-
-- status parser;
-- branch/ref parser;
-- diff metadata parser;
-- operation planner;
-- plain-language state mapping;
-- path validation.
-
-### Integration tests
-
-Create temporary repositories for:
-
-- clean repository;
-- staged and unstaged changes;
-- untracked and ignored files;
-- initial repository with no commits;
-- ahead/behind/diverged branches;
-- detached HEAD;
-- merge conflict;
-- worktree;
-- line-ending-only changes;
-- non-ASCII paths and commit messages.
-
-### UI tests
-
-Focus on critical workflows and state rendering rather than brittle visual snapshots.
-
-## Platform notes
-
-### Windows
-
-- WebView2;
-- path prefixes and drive letters;
-- file locks;
-- CRLF configuration;
-- Git for Windows and credential manager behavior;
-- optional WSL repositories require a separate design decision.
-
-### macOS
-
-- CI runs Rust checks/tests and release-compiles the Tauri executable, but the
-  runtime, accessibility, memory and packaging path remain unmeasured (ADR 0006);
-- WKWebView;
-- Keychain and code signing/notarization;
-- case-insensitive filesystems are common;
-- application sandbox implications if pursuing the Mac App Store.
-
-### Linux
-
-- CI runs Rust checks/tests and release-compiles the Tauri executable, but the
-  WebKitGTK runtime, accessibility, memory and packaging path remain unmeasured
-  (ADR 0006);
-- WebKitGTK;
-- Secret Service availability varies;
-- Wayland/X11 and compositor differences;
-- packaging and dependency differences;
-- solid visual fallbacks for unsupported native effects.
-
-## Future decisions requiring ADRs
-
-- system Git versus embedded Git implementation;
-- a state management library if project-runtime measurements outgrow the
-  accepted built-in approach;
-- credential storage strategy;
-- update mechanism;
-- AI provider architecture;
-- WSL repository support;
-- telemetry policy;
-- plugin/extension model.
+Add an ADR before changing a durable decision such as the Git backend, state
+management model, credential storage, updates, telemetry, AI providers, WSL
+support, or extension architecture. Small ownership-preserving refactors do
+not need an ADR; update this document when the current architecture changes.

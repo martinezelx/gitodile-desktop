@@ -1,32 +1,23 @@
-import React, { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ChevronsLeft,
   ChevronsRight,
-  Search,
   Sun,
   Moon,
-  FolderOpen,
   ChevronLeft,
   ChevronRight,
-  Ellipsis,
   Copy,
+  Search,
   Square,
   X,
   // Distinct glyphs on purpose: `AlertTriangle` is an alias of `TriangleAlert`,
   // so reusing it would leave the error and needs-attention states identical
   // apart from colour.
   TriangleAlert,
-  FolderX,
-  RotateCw,
-  Info,
-  Settings,
-  Bug,
-  Keyboard,
 } from "lucide-react";
 import { useLanguage } from "./i18n";
 import { localizeAppError } from "./shared/i18n";
@@ -35,15 +26,26 @@ import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 import { createChangesController, changesPort } from "./features/changes";
 import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
-import { settingsPort, useGitTooling, type ThemePreference } from "./features/settings";
+import { settingsPort, useGitTooling } from "./features/settings";
 import {
   createVersionLinesController,
   useVersionLinesState,
   versionLinesPort,
 } from "./features/version-lines";
-import { useModalFocus } from "./shared/ui/modalFocus";
 import { TooltipHost } from "./tooltip";
 import { LoadingBar } from "./shared/ui/loadingBar";
+import { AppOverlays } from "./app/AppOverlays";
+import { CROCODILE_MARK } from "./app/branding";
+import { CommandPalette, type AppCommand } from "./app/CommandPalette";
+import {
+  CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
+  REOPEN_LAST_PROJECT_STORAGE_KEY,
+  SIDEBAR_COLLAPSED_STORAGE_KEY,
+  resolveEffectiveTheme,
+  useStoredBoolean,
+  useThemePreference,
+} from "./app/preferences";
+import { TitlebarMenu } from "./app/TitlebarMenu";
 import {
   EMPTY_CHANGES_SELECTION,
   EMPTY_PENDING_VERSIONS,
@@ -92,58 +94,9 @@ const CreateVersionLineDialog = lazy(() =>
 const SwitchVersionLineDialog = lazy(() =>
   import("./features/version-lines/VersionLinesDialog").then((m) => ({ default: m.SwitchVersionLineDialog })),
 );
-const SettingsPanel = lazy(() =>
-  import("./features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
-);
-
 /** Kept as a local alias so the many `View` references below stay readable;
  * `screens.tsx` owns the definition and the registry that lists them. */
 type View = ScreenId;
-
-const THEME_STORAGE_KEY = "gitodrile-theme";
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
-const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
-const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
-const APP_VERSION = "0.1.0";
-const ISSUES_URL = "https://github.com/martinezelx/project-gitodrile/issues/new";
-const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPod|iPad/.test(navigator.userAgent);
-const MOD_KEY_LABEL = IS_MAC ? "⌘" : "Ctrl";
-
-function readStoredBoolean(key: string, defaultValue: boolean): boolean {
-  const stored = localStorage.getItem(key);
-  return stored === null ? defaultValue : stored === "true";
-}
-
-function readStoredTheme(): ThemePreference {
-  const stored = localStorage.getItem(THEME_STORAGE_KEY);
-  return stored === "light" || stored === "dark" ? stored : "system";
-}
-
-function applyTheme(theme: ThemePreference): void {
-  if (theme === "system") {
-    delete document.documentElement.dataset.theme;
-  } else {
-    document.documentElement.dataset.theme = theme;
-  }
-}
-
-function useTheme(): [ThemePreference, (theme: ThemePreference) => void] {
-  const [theme, setTheme] = useState<ThemePreference>(() => readStoredTheme());
-
-  useEffect(() => {
-    applyTheme(theme);
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme]);
-
-  return [theme, setTheme];
-}
-
-function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {
-  if (theme !== "system") {
-    return theme;
-  }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
 
 // Screen icons live in the nav registry (`screens.tsx`); these two belong to
 // the sidebar chrome, which is not a destination.
@@ -151,12 +104,6 @@ const NAV_ICONS = {
   collapse: <ChevronsLeft />,
   expand: <ChevronsRight />,
 } as const;
-
-const SEARCH_ICON = <Search />;
-
-const CROCODILE_MARK = (
-  <span className="gitodrile-mark" aria-hidden="true" />
-);
 
 /** Suspense fallback for a lazily-loaded view (see `ChangesPanel` below).
  * Only ever visible on the first navigation into that view before its chunk
@@ -167,361 +114,18 @@ function ViewLoadingFallback(): React.JSX.Element {
   return <LoadingBar label={t.commonLoading} />;
 }
 
-type Command = { id: string; label: string; hint?: string; action: () => void };
-
-function CommandPalette({
-  isOpen,
-  onClose,
-  commands,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  commands: Command[];
-}): React.JSX.Element | null {
-  const { t } = useLanguage();
-  const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const filtered = commands.filter((command) => command.label.toLowerCase().includes(query.toLowerCase()));
-
-  useEffect(() => {
-    if (isOpen) {
-      setQuery("");
-      setSelectedIndex(0);
-      inputRef.current?.focus();
-    }
-  }, [isOpen]);
-
-  if (!isOpen) {
-    return null;
-  }
-
-  const runCommand = (command: Command | undefined): void => {
-    if (!command) {
-      return;
-    }
-    command.action();
-    onClose();
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === "Escape") {
-      onClose();
-    } else if (event.key === "Tab") {
-      event.preventDefault();
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setSelectedIndex((index) => Math.min(index + 1, filtered.length - 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setSelectedIndex((index) => Math.max(index - 1, 0));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      runCommand(filtered[selectedIndex]);
-    }
-  };
-
-  return (
-    <div className="palette-backdrop" role="presentation" onMouseDown={onClose}>
-      <div
-        className="palette-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t.paletteAriaLabel}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="palette-input-row">
-          <span aria-hidden="true">{SEARCH_ICON}</span>
-          <input
-            ref={inputRef}
-            className="palette-input"
-            type="text"
-            role="combobox"
-            aria-expanded="true"
-            aria-controls="palette-list"
-            aria-activedescendant={filtered[selectedIndex] ? `palette-option-${filtered[selectedIndex].id}` : undefined}
-            aria-autocomplete="list"
-            placeholder={t.palettePlaceholder}
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setSelectedIndex(0);
-            }}
-            onKeyDown={handleKeyDown}
-          />
-        </div>
-        <ul
-          {...autoHideScrollbarProps<HTMLUListElement>()}
-          className="palette-list auto-hide-scrollbar"
-          id="palette-list"
-          role="listbox"
-        >
-          {filtered.length === 0 && <li className="palette-empty">{t.paletteNoMatches}</li>}
-          {filtered.map((command, index) => (
-            <li
-              key={command.id}
-              id={`palette-option-${command.id}`}
-              role="option"
-              aria-selected={index === selectedIndex}
-              className="palette-item"
-              onMouseEnter={() => setSelectedIndex(index)}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                runCommand(command);
-              }}
-            >
-              {command.label}
-              {command.hint && <span className="palette-item__hint">{command.hint}</span>}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Titlebar overflow menu: File, Window, and Help groups, separated by thin
- * dividers rather than text headings — closer to a native app menu than a
- * labelled dropdown. The button + popover pattern (closing on
- * Escape/outside click) can take more groups later without a rewrite.
- */
-export function TitlebarMenu({
-  onOpenAbout,
-  onOpenProject,
-  onCloseProject,
-  onOpenSettings,
-  onOpenShortcuts,
-  hasProject,
-  isOpeningProject,
-  canReloadWindow,
-}: {
-  onOpenAbout: () => void;
-  onOpenProject: () => void;
-  onCloseProject: () => void;
-  onOpenSettings: () => void;
-  onOpenShortcuts: () => void;
-  hasProject: boolean;
-  isOpeningProject: boolean;
-  canReloadWindow: boolean;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const focusOnOpenRef = useRef<"first" | "last">("first");
-
-  const openMenu = (focus: "first" | "last" = "first"): void => {
-    focusOnOpenRef.current = focus;
-    setIsOpen(true);
-  };
-
-  const closeMenu = (restoreFocus: boolean): void => {
-    setIsOpen(false);
-    if (restoreFocus) {
-      triggerRef.current?.focus();
-    }
-  };
-
-  const runMenuAction = (action: () => void): void => {
-    // Restore focus before mounting a dialog. `useModalFocus` can then retain
-    // the real trigger instead of capturing `<body>` after this menu unmounts.
-    closeMenu(true);
-    action();
-  };
-
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    const items = menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
-    if (!items?.length) return;
-    items[focusOnOpenRef.current === "last" ? items.length - 1 : 0]?.focus();
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handlePointerDown = (event: MouseEvent): void => {
-      if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      closeMenu(true);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
-  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
-    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
-    if (items.length === 0) return;
-    const currentIndex = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
-    let nextIndex: number | null = null;
-    if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % items.length;
-    else if (event.key === "ArrowUp") nextIndex = (currentIndex - 1 + items.length) % items.length;
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = items.length - 1;
-    else if (event.key === "Escape") {
-      event.preventDefault();
-      closeMenu(true);
-      return;
-    } else if (event.key === "Tab") {
-      // A menu is a single tab stop. Let the browser move to the next control
-      // while removing the popup from the accessibility tree.
-      setIsOpen(false);
-      return;
-    } else {
-      return;
-    }
-    event.preventDefault();
-    items[nextIndex]?.focus();
-  };
-
-  return (
-    <div className="titlebar-menu" ref={containerRef}>
-      <button
-        ref={triggerRef}
-        className="titlebar-icon-button"
-        type="button"
-        aria-label={t.titlebarMoreActions}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => (isOpen ? closeMenu(true) : openMenu())}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            openMenu(event.key === "ArrowUp" ? "last" : "first");
-          }
-        }}
-      >
-        <Ellipsis aria-hidden="true" />
-      </button>
-      {isOpen && (
-        <div
-          ref={menuRef}
-          className="titlebar-menu__list"
-          role="menu"
-          aria-label={t.titlebarMoreActions}
-          onKeyDown={handleMenuKeyDown}
-        >
-          <button
-            className="titlebar-menu__item"
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            disabled={isOpeningProject}
-            onClick={() => {
-              runMenuAction(onOpenProject);
-            }}
-          >
-            <FolderOpen aria-hidden="true" />
-            <span>{isOpeningProject ? t.overviewOpening : t.titlebarOpenProject}</span>
-          </button>
-          {hasProject && (
-            <button
-              className="titlebar-menu__item"
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
-              onClick={() => {
-                runMenuAction(onCloseProject);
-              }}
-            >
-              <FolderX aria-hidden="true" />
-              <span>{t.overviewCloseProject}</span>
-            </button>
-          )}
-          <div className="titlebar-menu__divider" role="separator" />
-          <button
-            className="titlebar-menu__item"
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => {
-              runMenuAction(onOpenSettings);
-            }}
-          >
-            <Settings aria-hidden="true" />
-            <span>{t.navSettings}</span>
-          </button>
-          <button
-            className="titlebar-menu__item"
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            aria-disabled={!canReloadWindow}
-            aria-label={canReloadWindow ? t.titlebarReloadWindow : `${t.titlebarReloadWindow}. ${t.titlebarReloadBlocked}`}
-            data-tooltip={canReloadWindow ? undefined : t.titlebarReloadBlocked}
-            onClick={() => {
-              if (!canReloadWindow) return;
-              runMenuAction(() => window.location.reload());
-            }}
-          >
-            <RotateCw aria-hidden="true" />
-            <span>{t.titlebarReloadWindow}</span>
-          </button>
-          <div className="titlebar-menu__divider" role="separator" />
-          <button
-            className="titlebar-menu__item"
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => {
-              runMenuAction(onOpenShortcuts);
-            }}
-          >
-            <Keyboard aria-hidden="true" />
-            <span>{t.titlebarKeyboardShortcuts}</span>
-          </button>
-          <button
-            className="titlebar-menu__item"
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            disabled
-            aria-label={t.titlebarReportIssueTitle}
-            data-tooltip={t.titlebarReportIssueTitle}
-            onClick={() => {
-              runMenuAction(() => void openUrl(ISSUES_URL));
-            }}
-          >
-            <Bug aria-hidden="true" />
-            <span>{t.titlebarReportIssue}</span>
-          </button>
-          <button
-            className="titlebar-menu__item"
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => {
-              runMenuAction(onOpenAbout);
-            }}
-          >
-            <Info aria-hidden="true" />
-            <span>{t.aboutGitOdrile}</span>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function App(): React.JSX.Element {
   const { t } = useLanguage();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [view, setView] = useState<View>("overview");
-  const [theme, setTheme] = useTheme();
+  const [theme, setTheme] = useThemePreference();
   const effectiveTheme = resolveEffectiveTheme(theme);
   const toggleTheme = (): void => setTheme(effectiveTheme === "dark" ? "light" : "dark");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true",
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useStoredBoolean(
+    SIDEBAR_COLLAPSED_STORAGE_KEY,
+    false,
   );
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
@@ -620,9 +224,7 @@ export function App(): React.JSX.Element {
         activeSession.viewHistoryIndex < activeSession.viewHistory.length - 1,
     );
   // The failed-open message and whether its dialog is showing are tracked
-  // separately (rather than deriving visibility from `openError !== null`)
-  // so `useModalFocus` gets a stable setter — see the identical rationale in
-  // `SaveVersionDialog`/`PublishDialog`'s `onCloseRef` comments.
+  // separately so closing the overlay can clear stale content independently.
   const [openError, setOpenError] = useState<string | null>(null);
   const [openErrorTitle, setOpenErrorTitle] = useState(t.overviewOpenFailedTitle);
   const [isOpenErrorDialogOpen, setIsOpenErrorDialogOpen] = useState(false);
@@ -685,27 +287,18 @@ export function App(): React.JSX.Element {
   const [skippedRestoreCount, setSkippedRestoreCount] = useState(0);
   const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const gitTooling = useGitTooling(settingsPort);
-  const [reopenLastProject, setReopenLastProject] = useState(() =>
-    readStoredBoolean(REOPEN_LAST_PROJECT_STORAGE_KEY, false),
+  const [reopenLastProject, setReopenLastProject] = useStoredBoolean(
+    REOPEN_LAST_PROJECT_STORAGE_KEY,
+    false,
   );
-  const [confirmCloseProject, setConfirmCloseProject] = useState(() =>
-    readStoredBoolean(CONFIRM_CLOSE_PROJECT_STORAGE_KEY, true),
+  const [confirmCloseProject, setConfirmCloseProject] = useStoredBoolean(
+    CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
+    true,
   );
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-  const settingsDialogRef = useRef<HTMLDivElement>(null);
-  const aboutDialogRef = useRef<HTMLDivElement>(null);
-  const closeConfirmDialogRef = useRef<HTMLDivElement>(null);
-  const openErrorDialogRef = useRef<HTMLDivElement>(null);
-  const shortcutsDialogRef = useRef<HTMLDivElement>(null);
   const paletteTriggerRef = useRef<HTMLButtonElement>(null);
   const palettePreviouslyFocusedRef = useRef<HTMLElement | null>(null);
-
-  useModalFocus(isSettingsOpen, settingsDialogRef, setIsSettingsOpen);
-  useModalFocus(isAboutOpen, aboutDialogRef, setIsAboutOpen);
-  useModalFocus(isCloseConfirmOpen, closeConfirmDialogRef, setIsCloseConfirmOpen);
-  useModalFocus(isOpenErrorDialogOpen, openErrorDialogRef, setIsOpenErrorDialogOpen);
-  useModalFocus(isShortcutsOpen, shortcutsDialogRef, setIsShortcutsOpen);
 
   // Whichever path closed the confirmation (Cancel, Escape, or confirming
   // the close), the target it referred to stops being relevant.
@@ -742,18 +335,6 @@ export function App(): React.JSX.Element {
     setIsPaletteOpen(false);
     (palettePreviouslyFocusedRef.current ?? paletteTriggerRef.current)?.focus();
   };
-
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
-  }, [isSidebarCollapsed]);
-
-  useEffect(() => {
-    localStorage.setItem(REOPEN_LAST_PROJECT_STORAGE_KEY, String(reopenLastProject));
-  }, [reopenLastProject]);
-
-  useEffect(() => {
-    localStorage.setItem(CONFIRM_CLOSE_PROJECT_STORAGE_KEY, String(confirmCloseProject));
-  }, [confirmCloseProject]);
 
   const checkWorkingTree = async (path: string, requestedEpoch?: string): Promise<void> => {
     const epoch = requestedEpoch ?? sessionsState.byId[path]?.epoch;
@@ -1146,7 +727,7 @@ export function App(): React.JSX.Element {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, [sessionsState, hasBlockingDialog, view]);
 
-  const commands: Command[] = [
+  const commands: AppCommand[] = [
     // "Go to X" comes from the screen registry, in nav order, so a new screen
     // reaches the palette by being registered rather than by being remembered
     // here. Actions *within* a screen are not destinations and stay explicit.
@@ -1168,7 +749,7 @@ export function App(): React.JSX.Element {
       if (screen === null) {
         return [];
       }
-      const entries: Command[] = [
+      const entries: AppCommand[] = [
         {
           id: `go-${destination.id}`,
           label: t[destination.commandLabelKey],
@@ -1314,7 +895,7 @@ export function App(): React.JSX.Element {
             data-tooltip={t.titlebarJumpToHint}
             onClick={openPalette}
           >
-            {SEARCH_ICON}
+            <Search aria-hidden="true" />
           </button>
           <div className="titlebar-history-controls">
             <button
@@ -1805,177 +1386,37 @@ export function App(): React.JSX.Element {
         </Suspense>
       )}
 
-      {isSettingsOpen && (
-        <div className="settings-backdrop" role="presentation" onMouseDown={() => setIsSettingsOpen(false)}>
-          <div
-            ref={settingsDialogRef}
-            className="settings-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-dialog-title"
-            aria-describedby="settings-dialog-description"
-            tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <header className="settings-dialog__header">
-              <div>
-                <h2 id="settings-dialog-title">{t.navSettings}</h2>
-                <p id="settings-dialog-description">{t.settingsDialogDescription}</p>
-              </div>
-              <button
-                className="settings-dialog__close"
-                type="button"
-                aria-label={t.commonClose}
-                onClick={() => setIsSettingsOpen(false)}
-              >
-                <X aria-hidden="true" />
-              </button>
-            </header>
-            <Suspense fallback={<ViewLoadingFallback />}>
-              <SettingsPanel
-                theme={theme}
-                setTheme={setTheme}
-                gitDiagnostics={gitTooling.diagnostics}
-                gitUpdateStatus={gitTooling.updateStatus}
-                onCheckGitUpdate={gitTooling.checkUpdate}
-                isCheckingGitUpdate={gitTooling.isCheckingUpdate}
-                onRefreshGitDiagnostics={gitTooling.refreshDiagnostics}
-                isRefreshingGitDiagnostics={gitTooling.isRefreshingDiagnostics}
-                reopenLastProject={reopenLastProject}
-                setReopenLastProject={setReopenLastProject}
-                confirmCloseProject={confirmCloseProject}
-                setConfirmCloseProject={setConfirmCloseProject}
-              />
-            </Suspense>
-          </div>
-        </div>
-      )}
-
-      {isAboutOpen && (
-        <div className="about-backdrop" role="presentation" onMouseDown={() => setIsAboutOpen(false)}>
-          <div
-            ref={aboutDialogRef}
-            className="about-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="about-title"
-            tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button
-              className="about-dialog__close"
-              type="button"
-              aria-label={t.commonClose}
-              onClick={() => setIsAboutOpen(false)}
-            >
-              <X aria-hidden="true" />
-            </button>
-            <div className="about-dialog__mark" aria-hidden="true">{CROCODILE_MARK}</div>
-            <p className="eyebrow">{t.aboutGitOdrile}</p>
-            <h2 id="about-title">{t.aboutHeading}</h2>
-            <p>{t.aboutDescription}</p>
-            <dl className="about-details">
-              <div><dt>{t.commonVersion}</dt><dd>{APP_VERSION}</dd></div>
-            </dl>
-            <p className="about-dialog__footer">{t.aboutFooterMadeWith}</p>
-          </div>
-        </div>
-      )}
-
-      {isShortcutsOpen && (
-        <div className="about-backdrop" role="presentation" onMouseDown={() => setIsShortcutsOpen(false)}>
-          <div
-            ref={shortcutsDialogRef}
-            className="about-dialog shortcuts-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="shortcuts-title"
-            tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button
-              className="about-dialog__close"
-              type="button"
-              aria-label={t.commonClose}
-              onClick={() => setIsShortcutsOpen(false)}
-            >
-              <X aria-hidden="true" />
-            </button>
-            <h2 id="shortcuts-title">{t.shortcutsDialogTitle}</h2>
-            <ul className="shortcuts-list">
-              <li>
-                <span>{t.shortcutsOpenPalette}</span>
-                <span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>K</kbd></span>
-              </li>
-              <li>
-                <span>{t.shortcutsNextProject}</span>
-                <span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>Tab</kbd></span>
-              </li>
-              <li>
-                <span>{t.shortcutsPreviousProject}</span>
-                <span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>Shift</kbd><kbd>Tab</kbd></span>
-              </li>
-              <li>
-                <span>{t.shortcutsCloseDialogs}</span>
-                <span className="shortcuts-list__keys"><kbd>Esc</kbd></span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {isCloseConfirmOpen && (
-        <div className="about-backdrop" role="presentation" onMouseDown={() => setIsCloseConfirmOpen(false)}>
-          <div
-            ref={closeConfirmDialogRef}
-            className="about-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="close-confirm-title"
-            tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <h2 id="close-confirm-title">{t.closeConfirmTitle}</h2>
-            <p>
-              {closeTargetSession ? t.closeConfirmBodyNamed(closeTargetSession.project.name) : t.closeConfirmBodyGeneric}
-            </p>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={() => setIsCloseConfirmOpen(false)}>
-                {t.commonCancel}
-              </button>
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => closeTargetId && void performCloseSession(closeTargetId)}
-              >
-                {t.overviewCloseProject}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isOpenErrorDialogOpen && openError && (
-        <div className="about-backdrop" role="presentation" onMouseDown={() => setIsOpenErrorDialogOpen(false)}>
-          <div
-            ref={openErrorDialogRef}
-            className="about-dialog"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="open-error-title"
-            tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <h2 id="open-error-title">{openErrorTitle}</h2>
-            <p role="alert">{openError}</p>
-            <div className="dialog-actions">
-              <button className="primary-button" type="button" onClick={() => setIsOpenErrorDialogOpen(false)}>
-                {t.commonClose}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AppOverlays
+        settings={{
+          isOpen: isSettingsOpen,
+          setOpen: setIsSettingsOpen,
+          theme,
+          setTheme,
+          gitTooling,
+          reopenLastProject,
+          setReopenLastProject,
+          confirmCloseProject,
+          setConfirmCloseProject,
+        }}
+        about={{ isOpen: isAboutOpen, setOpen: setIsAboutOpen }}
+        shortcuts={{ isOpen: isShortcutsOpen, setOpen: setIsShortcutsOpen }}
+        closeConfirmation={{
+          isOpen: isCloseConfirmOpen,
+          setOpen: setIsCloseConfirmOpen,
+          projectName: closeTargetSession?.project.name ?? null,
+          onConfirm: () => {
+            if (closeTargetId) {
+              void performCloseSession(closeTargetId);
+            }
+          },
+        }}
+        error={{
+          isOpen: isOpenErrorDialogOpen,
+          setOpen: setIsOpenErrorDialogOpen,
+          title: openErrorTitle,
+          message: openError,
+        }}
+      />
       <TooltipHost />
     </div>
   );

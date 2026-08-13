@@ -1,7 +1,7 @@
 ---
 id: "010"
 title: "Save the current work as a version"
-status: active
+status: done
 priority: high
 type: feature
 areas:

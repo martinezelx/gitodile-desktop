@@ -4,6 +4,7 @@
 //! bounded domain taxonomy, coalesced with a starvation ceiling, sequenced per
 //! open incarnation, and checked again when a callback is delivered.
 
+use crate::{application, error::AppError, session};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap};
@@ -368,6 +369,50 @@ impl WatcherRegistry {
     fn inject(&self, owner: &str, generation: u64, kinds: &[RepositoryInvalidationKind]) {
         self.dispatch(owner, generation, &kinds.iter().copied().collect());
     }
+}
+
+/// Resolves the repository once, then registers only paths that can
+/// invalidate user-visible state. Raw filesystem events never cross IPC.
+pub(crate) fn watch_repository(
+    app: tauri::AppHandle,
+    registry: tauri::State<'_, WatcherRegistry>,
+    path: String,
+    session_epoch: Option<String>,
+) -> Result<bool, AppError> {
+    let (repository, _access) = application::authorize_repository(&path, "watch_repository", None)?;
+    let root = repository.worktree_root.backend_path();
+    if !root.is_dir() {
+        return Err(AppError::new(
+            crate::error::AppErrorCode::PathMissing,
+            "That folder doesn't exist.",
+        )
+        .with_remediation("Reopen the project and try again."));
+    }
+
+    let mut git_dir = repository.git_dir.watch_paths();
+    git_dir.push(root.join(".git"));
+    git_dir.sort();
+    git_dir.dedup();
+    let epoch = session_epoch.ok_or_else(session::stale_session_error)?;
+    Ok(registry.watch(
+        app,
+        &path,
+        &epoch,
+        repository.common_git_dir.match_key(),
+        WatchPaths {
+            worktree: repository.worktree_root.watch_paths(),
+            git_dir,
+            common_git_dir: repository.common_git_dir.watch_paths(),
+        },
+    ))
+}
+
+pub(crate) fn unwatch_repository(
+    registry: tauri::State<'_, WatcherRegistry>,
+    path: String,
+    session_epoch: Option<String>,
+) {
+    registry.unwatch(&path, session_epoch.as_deref());
 }
 
 #[cfg(test)]

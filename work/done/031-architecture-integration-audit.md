@@ -166,7 +166,7 @@ snapshot, then removed it. No macro, IoC container or dynamic registration was
 introduced.
 
 Measured footprint outside the feature's own directory, with the full table in
-[the frontend feature guide](../../../docs/architecture/frontend-feature-guide.md):
+[the frontend feature guide](../../docs/architecture/frontend-feature-guide.md):
 three declarative registration lines in `lib.rs`, three wiring points in
 `main.tsx` (controller creation, read-coordinator argument, one `screens`
 entry), one `SCREEN_MODULES` entry, one `ProjectView` union member, one palette
@@ -253,11 +253,11 @@ and was left out of this audit because the overlay's focus trap interacts with
 mount timing.
 
 Desktop measurements and their verdicts are recorded in
-[the task-023 baseline](../../../docs/architecture/023-performance-baseline.md),
-reproducible with the probes in [`scripts/`](../../../scripts/README-031-probes.md).
+[the task-023 baseline](../../docs/architecture/023-performance-baseline.md),
+reproducible with the probes in [`scripts/`](../../scripts/README-031-probes.md).
 Every budget passes, one against a corrected number and one against a revised
 metric, both explained there and below. The memory metric was revised by
-[ADR 0004](../../../docs/adr/0004-measure-desktop-memory-as-private-bytes.md):
+[ADR 0004](../../docs/adr/0004-measure-desktop-memory-as-private-bytes.md):
 summed working set double-counts pages shared across a seven-process WebView2
 tree, so an Overview-only session already read 405.1 MiB while keep-alive for
 all three screens added 10.5 MiB. Private bytes — 221.8 MiB against a 400 MiB
@@ -268,7 +268,7 @@ retention regression the budget was written to catch.
 
 All of these, plus four further residues found in a later pass over the child
 task files and the code, are scheduled as
-[epic 038](../active/architecture/038-close-out-the-architecture-migration.md).
+[epic 038](038-close-out-the-architecture-migration.md).
 
 1. Give Overview its own screen container so `main.tsx` becomes
    composition-only. → task 040

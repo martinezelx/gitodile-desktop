@@ -1,7 +1,6 @@
-use crate::{
-    application, checked_git_stdout, git_stdout, repository_access, run_git, session, AppError,
-    AppErrorCode,
-};
+use crate::error::{AppError, AppErrorCode};
+use crate::git_command::{checked_git_stdout, git_stdout, run_git};
+use crate::{application, repository_access, session};
 use std::{
     io::ErrorKind,
     path::{Path, PathBuf},
@@ -31,6 +30,70 @@ pub(crate) fn normalized_path(base: &Path, raw_path: &str) -> PathBuf {
         base.join(path)
     };
     absolute.canonicalize().unwrap_or(absolute)
+}
+
+/// Resolves branch/detached/unborn state and the current HEAD SHA for a
+/// project whose branch name is already known from a status snapshot.
+pub(crate) fn resolve_head_state(
+    path: &str,
+    branch: Option<String>,
+) -> Result<(HeadState, Option<String>), AppError> {
+    let verified_head = run_git(path, &["rev-parse", "--verify", "HEAD"])?;
+    let head_sha = verified_head
+        .status
+        .success()
+        .then(|| git_stdout(&verified_head));
+
+    let head_state = if branch.is_some() {
+        if head_sha.is_some() {
+            HeadState::Branch
+        } else {
+            HeadState::Unborn
+        }
+    } else if head_sha.is_some() {
+        HeadState::Detached
+    } else {
+        HeadState::Unborn
+    };
+    Ok((head_state, head_sha))
+}
+
+/// Uses Git's own ref parser before a branch name enters a refspec or a
+/// version-line mutation.
+pub(crate) fn validate_branch_ref_name(path: &str, name: &str) -> Result<(), AppError> {
+    let output = run_git(path, &["check-ref-format", "--branch", name])?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(AppError::new(
+            AppErrorCode::InvalidRefName,
+            "This version line's name isn't a valid Git reference.",
+        )
+        .with_remediation("Rename the version line to a valid Git branch name, then try again."))
+    }
+}
+
+/// Detects an in-progress Git operation from Git's marker files rather than
+/// guessing from porcelain status.
+pub(crate) fn git_operation_in_progress(path: &str) -> Result<Option<&'static str>, AppError> {
+    let git_dir_raw = checked_git_stdout(run_git(path, &["rev-parse", "--absolute-git-dir"])?)?;
+    let git_dir = Path::new(&git_dir_raw);
+    if git_dir.join("MERGE_HEAD").is_file() {
+        return Ok(Some("merge"));
+    }
+    if git_dir.join("CHERRY_PICK_HEAD").is_file() {
+        return Ok(Some("cherry-pick"));
+    }
+    if git_dir.join("REVERT_HEAD").is_file() {
+        return Ok(Some("revert"));
+    }
+    if git_dir.join("rebase-merge").is_dir() || git_dir.join("rebase-apply").is_dir() {
+        return Ok(Some("rebase"));
+    }
+    if git_dir.join("BISECT_LOG").is_file() {
+        return Ok(Some("bisect"));
+    }
+    Ok(None)
 }
 
 #[derive(serde::Serialize, Debug)]

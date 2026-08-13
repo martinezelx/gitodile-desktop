@@ -118,42 +118,33 @@ other shell strings remain in `src/app/translations.ts`; shared errors and
 common actions live in `src/shared/i18n/translations.ts`. Do not load a
 dictionary from a screen effect or render translation keys while it arrives.
 
-## 8. What a greenfield screen actually costs
+## 8. Expected greenfield footprint
 
-Task 031 built a throwaway History-shaped screen end to end — registry entry,
-lazy container, epoch-keyed controller, runtime subscription, invalidation and
-project eviction, plus a new Rust command — and then removed it. This is the
-measured footprint outside the new feature's own directory. Task 043 rechecked
-the list after registered invalidation subscribers and feature-owned Tauri
-adapters landed. The adapter, port, controller, descriptor, UI and translations
-remain inside `src/features/<feature>/`; the external list below is unchanged
-except that subscriber registration is now a declarative list entry rather
-than an edit inside Repository. Expect this list; anything longer means a
-contract is missing rather than that your screen is unusual.
+The adapter, port, controller, descriptor, UI, translations, styles, and tests
+remain inside `src/features/<feature>/`. A project-backed screen with one new
+Rust command should normally require only the external edits below. A larger
+footprint is a signal to look for a missing contract or misplaced policy.
 
 | File | Edit | Kind |
 | --- | --- | --- |
 | `src/screens.tsx` | import + one `SCREEN_MODULES` entry | declarative registration |
 | `src/projectSessions.ts` | widen the `ProjectView` union by one id | declarative |
 | `src/app/translations.ts` | one palette label in the interface and both locales | shell copy |
-| `src/main.tsx` | create the controller, register a read subscriber when the snapshot needs invalidation (§9), add one entry to the `screens` record | composition wiring |
+| `src/main.tsx` | create the controller, register a read subscriber when needed (§9), add one `screens` record entry | composition wiring |
 | `src/ipcContract.test.ts` | command count and name list | pinned contract |
-| `src-tauri/src/lib.rs` | `mod`, `use`, one `generate_handler!` entry | declarative registration |
+| `src-tauri/src/lib.rs` | one `mod` and one `generate_handler!` entry | declarative registration |
 | `src-tauri/src/ipc.rs` | one transport adapter | transport |
-| `src-tauri/src/application.rs` | one `EXECUTION_INVENTORY` policy + one name in the checked registry list | declarative policy |
+| `src-tauri/src/application.rs` | one `EXECUTION_INVENTORY` policy + one checked registry name | declarative policy |
 | `docs/architecture/025-ipc-contract.json` | one command entry | declarative contract |
 
-Neither composition root gained workflow logic: `lib.rs` grew by three
-registration lines and `main.tsx` by three wiring points, none of which decide
-anything about the screen's behavior. No macro, container or dynamic
-registration was introduced to shrink that list, per ADR 0003's rejection of
-indirection with one consumer.
+Neither composition root may gain workflow logic. Do not introduce a macro,
+container, or dynamic registration mechanism merely to shrink this explicit
+list; ADR 0003 rejects indirection that has only one consumer.
 
 ## 9. Staying fresh without editing another feature
 
 A screen whose snapshot must survive an external repository change registers a
-`RepositoryReadSubscriber` with the coordinator, in `main.tsx`, beside the
-existing ones:
+`RepositoryReadSubscriber` with the coordinator in `main.tsx`:
 
 ```ts
 {
@@ -165,30 +156,23 @@ existing ones:
 }
 ```
 
-Nothing inside `features/repository` changes. Task 042 replaced the positional
-per-feature parameters that made the repository feature know about every
-dependent feature.
+Nothing inside `features/repository` changes; it must not know which features
+consume invalidation.
 
-Two fields carry the behavior, and both used to be invisible:
+- **`refreshOn`** is the narrowest invalidation that should refresh the
+  subscriber. `worktree-change` also fires on shared changes because a HEAD/ref
+  change moves the working tree. `shared-change` skips worktree-only events.
+- **`blocking`** controls whether `refreshAll` waits for the subscriber. Only
+  choose `true` when a caller awaiting refresh genuinely needs that snapshot;
+  mutation callbacks await the same promise.
 
-- **`refreshOn`** is the narrowest invalidation that should refresh you.
-  `worktree-change` also fires on shared changes, because a `HEAD` or ref change
-  moves the working tree too. `shared-change` is skipped for worktree-only
-  events, so saving a file does not re-read the branch inventory.
-- **`blocking`** is whether `refreshAll` waits for you. Only the working-tree
-  snapshot does. Choose `false` unless a caller awaiting "the refresh finished"
-  genuinely needs your read included — the mutation callbacks await that
-  promise, so a blocking subscriber lengthens what the user waits through.
+The coordinator refreshes repository identity first, starts background
+subscribers, and then awaits blocking subscribers in registration order.
+`readCoordinator.test.ts` pins that sequence; do not replace it with an
+unreviewed concurrent `Promise.all`.
 
-The coordinator dispatches repository identity first and awaited, then starts
-background subscribers, then awaits the blocking ones in registration order.
-`readCoordinator.test.ts` pins that sequence: three of its tests fail if the
-fan-out becomes a concurrent `Promise.all`.
-
-**Cache warming is a separate seam and still needs an edit.** Speculative
-warming on project activation lives in
-`src/features/repository/cacheWarming.ts`, which takes controllers as named
-options. A feature that wants idle-deferred warming — as opposed to
-invalidation-driven refresh — still adds itself there. Task 042 deliberately
-scoped itself to the fan-out; the same treatment for warming has no consumer
-demanding it yet.
+**Cache warming is a separate seam.** Speculative project-activation warming
+lives in `src/features/repository/cacheWarming.ts`, which takes controllers as
+named options. A feature that needs idle-deferred warming still registers there.
+Keep this explicit seam until multiple independent registrants justify a more
+general API.

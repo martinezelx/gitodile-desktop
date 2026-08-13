@@ -1,9 +1,14 @@
-use crate::{
-    application, checked_git_stdout, display_path, git_operation_in_progress, git_stdout,
-    parse_git_version, prepare_index, read_working_tree_status, resolve_head_state, run_git,
-    truncate_detail, validate_branch_ref_name, AppError, AppErrorCode, ChangeCategory, HeadState,
-    OperationKind, WorkingTreeStatus,
+use crate::application;
+use crate::error::{AppError, AppErrorCode};
+use crate::git_command::{checked_git_stdout, git_stdout, run_git};
+use crate::index::prepare_index;
+use crate::operation::{truncate_detail, OperationKind};
+use crate::repository::{
+    display_path, git_operation_in_progress, resolve_head_state, validate_branch_ref_name,
+    HeadState,
 };
+use crate::status::{read_working_tree_status, ChangeCategory, WorkingTreeStatus};
+use crate::tooling::parse_git_version;
 use std::{path::PathBuf, process::Output};
 
 // ---- Version lines (task 016) ----
@@ -918,7 +923,8 @@ pub(crate) fn create_version_line(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{base_git_command, git_command, in_test_frame, plan_publish, publish, test_git};
+    use crate::git_command::{base_git_command, git_command, in_test_frame, test_git};
+    use crate::publish_domain::{plan_publish, publish};
     use std::{fs, path::Path};
 
     fn unique_temp_dir(label: &str) -> String {

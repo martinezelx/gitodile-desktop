@@ -1,13 +1,13 @@
+use crate::application;
+use crate::error::{AppError, AppErrorCode};
+use crate::git_command::{git_stdout, run_git, run_git_capped, CappedOutput};
 use crate::status::{
     checked_status_records, find_status_entry, ChangeCategory, RawStatusEntry, STATUS_ARGS,
-};
-use crate::{
-    application, git_stdout, run_git, run_git_capped, AppError, AppErrorCode, CappedOutput,
 };
 use std::{io::ErrorKind, path::Path};
 
 #[cfg(test)]
-use crate::base_git_command;
+use crate::git_command::base_git_command;
 
 // ---- File diff (task 009) ----
 

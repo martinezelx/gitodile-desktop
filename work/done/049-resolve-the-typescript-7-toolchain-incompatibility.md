@@ -204,7 +204,7 @@ Slightly better than the 5.5 s measured during the analysis. Bundle output is
 byte-identical — entry 373.97 kB, `fileIcons` 255.25 kB still deferred — which
 is the expected result for a compiler change that emits the same JavaScript.
 
-[ADR 0005](../../../docs/adr/0005-pin-typescript-6-until-the-architecture-guard-supports-7.md)
+[ADR 0005](../../docs/adr/0005-pin-typescript-6-until-the-architecture-guard-supports-7.md)
 records the decision and the exit condition: return to TypeScript 7 when
 dependency-cruiser can load its compiler API, checkable in ten minutes with a
 scratch project.

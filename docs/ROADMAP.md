@@ -1,57 +1,51 @@
 # Roadmap
 
-This roadmap is directional rather than a promise.
+This is directional product sequencing, not an implementation tracker or a
+release promise. Approved work and acceptance criteria live under `work/`.
 
-## Phase 0 — Foundation
+## Delivered foundation
 
-- Validate product language with beginners and AI-assisted builders.
-- Establish design tokens and application shell.
-- Implement secure Git process runner.
-- Establish operation classification, preview, and recovery-plan contracts.
-- Add repository diagnostics.
-- Create temporary-repository integration test helpers.
+- Cross-platform Tauri/React/Rust shell and system-Git diagnostics.
+- Secure bounded Git runner, per-command policies, repository authorization,
+  opaque sessions, typed invalidation, and architecture/IPC guards.
+- Project opening, recent-project switching, startup restore, and live status.
+- Working-tree overview, virtualized changes, file diffs, and file icons.
+- Planned save-version and publish flows.
+- Version-line discovery, create, switch, and guarded deletion.
+- English/Spanish localization, themes, settings, command palette, and
+  keyboard-accessible modal foundations.
 
-## Phase 1 — Local workflow MVP
+## Current MVP work
 
-- Open recent/local repositories.
-- Working-tree overview.
-- Changed file list and diff viewer.
-- Stage/unstage behavior hidden behind a coherent save-version flow.
-- Create saved versions.
+- Check for team changes without modifying local files.
+- Get and safely integrate team changes.
 - History timeline.
-- Create recovery references before risky local or history operations.
-- Basic reversible restore flow.
+- Guided conflict resolution.
+- Recovery center and visible recovery lifecycle.
 
-## Phase 2 — Remote workflow
+## Next local/remote capabilities
 
-- Clone repositories.
-- Fetch and remote-status explanation.
-- Publish changes.
-- Safe integration of remote changes.
-- Clear ahead/behind/diverged states.
-- Provider-neutral remote contracts, with GitHub authentication as the first
-  provider-specific onboarding where useful.
-- Explicit previews for operations that affect a remote or teammates.
+- Clone projects.
+- Basic reversible restore flows backed by recovery references.
+- Clear ahead/behind/diverged explanations throughout the app.
+- Provider-neutral authentication contracts, with provider-specific onboarding
+  only where it improves the experience.
+- Better hook, signing, credential, and remote diagnostics.
 
-## Phase 3 — Safety and conflicts
+## Progressive power
 
-- Recovery center.
-- Guided merge-conflict resolution.
-- Recovery lifecycle, cleanup, and diagnostics.
-- Improved diagnostics for hooks, signing, and credentials.
+- Advanced mode with exact Git terminology and evidence.
+- Set-changes-aside workflow.
+- Tags/releases where they solve a validated user problem.
+- Additional hosting-provider integrations.
 
-## Phase 4 — Progressive power
+## Later hypotheses
 
-- Advanced mode.
-- Branch/workspace management.
-- Stash/set-aside workflow.
-- Tags and releases where useful.
-- GitLab and Bitbucket integrations.
-
-## Later possibilities
-
-- Optional AI explanations and conflict assistance.
-- Team policies and educational mode.
+- Optional AI explanations and conflict assistance with explicit data consent.
+- Team safety policies and educational modes.
 - Pull-request workflows.
 - Repository health checks.
-- Extension system.
+- Extension model.
+
+Core local workflows must remain usable without an account, subscription, or
+mandatory cloud service.

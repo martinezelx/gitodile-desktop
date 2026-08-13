@@ -203,12 +203,12 @@ Child tasks own their detailed notes. Keep this file updated with task status,
 material scope changes, and the final architecture summary.
 
 Task 023 confirmed the proposed child boundaries and order without a scope
-change. [ADR 0003](../../../docs/adr/0003-adopt-a-modular-feature-architecture.md)
+change. [ADR 0003](../../docs/adr/0003-adopt-a-modular-feature-architecture.md)
 accepts the vertical-feature/Rust-domain modular monolith, project-scoped
 session runtime and strangler sequence. Its
-[dependency map](../../../docs/architecture/023-dependency-map.md),
-[performance baseline](../../../docs/architecture/023-performance-baseline.md)
-and [GitButler research record](../../../docs/architecture/023-gitbutler-research.md)
+[dependency map](../../docs/architecture/023-dependency-map.md),
+[performance baseline](../../docs/architecture/023-performance-baseline.md)
+and [GitButler research record](../../docs/architecture/023-gitbutler-research.md)
 are the comparison evidence for tasks 024-031.
 
 Task 024 established thin Tauri adapters in `src-tauri/src/ipc.rs`, a checked
@@ -316,7 +316,7 @@ extracted Settings, task 040 extracted Overview — and the criterion is now met
 Task 015 (History) is unblocked.
 
 The residue is scheduled as
-[epic 038](../active/architecture/038-close-out-the-architecture-migration.md),
+[epic 038](038-close-out-the-architecture-migration.md),
 which carries the composition-root criterion to completion. Two patterns caused
 most of it and are the transferable lesson: work assigned by layer leaves
 anything nobody named unowned, and scaffolding outlives the scaffold unless

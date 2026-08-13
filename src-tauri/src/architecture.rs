@@ -30,7 +30,7 @@ fn use_paths(tree: &UseTree, prefix: &str, paths: &mut Vec<String>) {
 }
 
 #[test]
-fn rust_module_direction_keeps_read_features_out_of_transport_and_infrastructure() {
+fn rust_module_boundaries_keep_composition_and_domains_separate() {
     let source_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let root = parse(&source_dir.join("lib.rs"));
     let modules = root
@@ -44,20 +44,40 @@ fn rust_module_direction_keeps_read_features_out_of_transport_and_infrastructure
     for required in [
         "application",
         "changes",
+        "desktop",
         "git",
+        "git_command",
+        "index",
         "ipc",
+        "operation",
         "publish_domain",
         "repository",
         "repository_access",
         "save_version",
         "status",
+        "tooling",
         "version_lines",
+        "watch",
     ] {
         assert!(
             modules.contains(required),
             "lib.rs must register the {required} module"
         );
     }
+
+    let root_functions = root
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Fn(function) => Some(function.sig.ident.to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        root_functions,
+        ["run"],
+        "lib.rs is the Tauri composition root; workflows belong in owning modules"
+    );
 
     for (owner, file) in [
         ("repository", "repository.rs"),
@@ -92,6 +112,18 @@ fn rust_module_direction_keeps_read_features_out_of_transport_and_infrastructure
             imports.iter().all(|path| path != "crate::*"),
             "{owner}.rs must name its inward dependencies instead of importing the crate root: {imports:?}",
         );
+        for import in &imports {
+            let Some(root_name) = import
+                .strip_prefix("crate::")
+                .and_then(|path| path.split("::").next())
+            else {
+                continue;
+            };
+            assert!(
+                modules.contains(root_name),
+                "{owner}.rs imports `{import}` through a crate-root re-export; import its owning module explicitly",
+            );
+        }
     }
 
     let root_source = fs::read_to_string(source_dir.join("lib.rs")).expect("read lib.rs");
@@ -119,4 +151,16 @@ fn rust_module_direction_keeps_read_features_out_of_transport_and_infrastructure
             "Domain behavior must stay in its owning module: found {legacy_marker} in lib.rs",
         );
     }
+
+    let ipc = parse(&source_dir.join("ipc.rs"));
+    let mut ipc_imports = Vec::new();
+    for item in &ipc.items {
+        if let Item::Use(import) = item {
+            use_paths(&import.tree, "", &mut ipc_imports);
+        }
+    }
+    assert!(
+        ipc_imports.iter().all(|path| path != "crate::*"),
+        "ipc.rs must name the modules it adapts instead of depending on the crate-root facade"
+    );
 }

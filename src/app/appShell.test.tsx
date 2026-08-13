@@ -1,0 +1,60 @@
+import { act, cleanup, render, renderHook, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LanguageProvider } from "../i18n";
+import { CommandPalette } from "./CommandPalette";
+import { useStoredBoolean, useThemePreference } from "./preferences";
+
+beforeEach(() => {
+  localStorage.clear();
+});
+
+afterEach(() => cleanup());
+
+describe("application-shell preferences", () => {
+  it("persists boolean preferences through the shared hook", () => {
+    const { result } = renderHook(() => useStoredBoolean("test-preference", false));
+
+    act(() => result.current[1]((current) => !current));
+
+    expect(result.current[0]).toBe(true);
+    expect(localStorage.getItem("test-preference")).toBe("true");
+  });
+
+  it("applies and persists the selected theme", () => {
+    const { result } = renderHook(() => useThemePreference());
+
+    act(() => result.current[1]("dark"));
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("gitodrile-theme")).toBe("dark");
+  });
+});
+
+describe("CommandPalette", () => {
+  it("filters commands and runs the selected result from the keyboard", async () => {
+    const user = userEvent.setup();
+    const openProject = vi.fn();
+    const openSettings = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <LanguageProvider>
+        <CommandPalette
+          isOpen
+          onClose={onClose}
+          commands={[
+            { id: "project", label: "Open project", action: openProject },
+            { id: "settings", label: "Settings", action: openSettings },
+          ]}
+        />
+      </LanguageProvider>,
+    );
+
+    const input = screen.getByRole("combobox");
+    await user.type(input, "settings{Enter}");
+
+    expect(openProject).not.toHaveBeenCalled();
+    expect(openSettings).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
