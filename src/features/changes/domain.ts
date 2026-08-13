@@ -10,3 +10,24 @@ export type FileDiff =
   | { kind: "conflict"; path: string; hunks: DiffHunk[]; truncated: boolean; detail: string | null }
   | { kind: "unchanged"; path: string; originalPath: string | null; change: ChangeCategory };
 export type FileLines = { startLine: number; lines: string[]; truncated: boolean };
+export type DiscardPlan = {
+  operationKind: "destructive";
+  stateToken: string;
+  fileCount: number;
+  counts: { changed: number; new: number; deleted: number; renamed: number; conflicted: number; total: number };
+  selectedPath: string | null;
+  affectsPreparedChanges: boolean;
+  removesUntrackedFiles: boolean;
+  includesConflicts: boolean;
+  isUnborn: boolean;
+  recovery: string;
+  requiresConfirmation: boolean;
+};
+export type DiscardResult = { discardedFiles: number; recovery: DiscardRecovery };
+export type DiscardRecovery = {
+  recoveryId: string;
+  createdAtMs: number;
+  fileCount: number;
+  selectedPath: string | null;
+  stateToken: string;
+};

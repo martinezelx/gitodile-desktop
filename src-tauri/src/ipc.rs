@@ -9,6 +9,7 @@ use crate::{
     desktop,
     error::AppError,
     publish_domain::{self, PublishPlan, PublishResult, RemoteDiscovery},
+    recovery::{self, DiscardPlan, DiscardRecovery, DiscardResult},
     repository::{self, RepositoryInfo},
     save_version::{self, SaveVersionPlan, SaveVersionResult},
     session,
@@ -88,6 +89,47 @@ pub(crate) fn read_working_tree_diffs(
 ) -> Result<Vec<FileDiff>, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
     changes::read_working_tree_diffs(path)
+}
+
+#[tauri::command(async)]
+pub(crate) fn plan_discard_changes(
+    path: String,
+    selected_path: Option<String>,
+    session_epoch: String,
+) -> Result<DiscardPlan, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    recovery::plan_discard_changes(path, selected_path)
+}
+
+#[tauri::command(async)]
+pub(crate) fn discard_changes(
+    path: String,
+    selected_path: Option<String>,
+    state_token: String,
+    session_epoch: String,
+) -> Result<DiscardResult, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    recovery::discard_changes(path, selected_path, state_token)
+}
+
+#[tauri::command(async)]
+pub(crate) fn get_discard_recovery(
+    path: String,
+    session_epoch: String,
+) -> Result<DiscardRecovery, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    recovery::get_discard_recovery(path)
+}
+
+#[tauri::command(async)]
+pub(crate) fn restore_discarded_changes(
+    path: String,
+    recovery_id: String,
+    state_token: String,
+    session_epoch: String,
+) -> Result<(), AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    recovery::restore_discarded_changes(path, recovery_id, state_token)
 }
 
 #[tauri::command(async)]
@@ -474,6 +516,11 @@ mod contract_tests {
             AppErrorCode::StaleVersionLinePlan,
             AppErrorCode::DirtyWorkingTree,
             AppErrorCode::RefLocked,
+            AppErrorCode::NothingToDiscard,
+            AppErrorCode::StaleDiscardPlan,
+            AppErrorCode::RecoveryUnavailable,
+            AppErrorCode::RecoveryConflict,
+            AppErrorCode::RecoveryFailed,
         ];
         let serialized = codes
             .iter()

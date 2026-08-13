@@ -60,6 +60,11 @@ pub(crate) enum AppErrorCode {
     StaleVersionLinePlan,
     DirtyWorkingTree,
     RefLocked,
+    NothingToDiscard,
+    StaleDiscardPlan,
+    RecoveryUnavailable,
+    RecoveryConflict,
+    RecoveryFailed,
 }
 
 impl AppError {

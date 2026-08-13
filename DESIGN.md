@@ -148,7 +148,7 @@ The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and prima
 | `--status-warning` | `#e8b339` | `#8a5b00` |
 | `--status-danger` | `#ff6b5b` | `#b3261e` |
 | `--status-danger-contrast` | `#14170f` | `#fff7f5` |
-| `--diff-added` | `#9bd65a` | `#4f751e` |
+| `--diff-added` | `#9bd65a` | `#496f19` |
 | `--diff-removed` | `#ff6b5b` | `#b3261e` |
 | `--overlay` | `rgba(0, 0, 0, 0.68)` | `rgba(28, 25, 23, 0.4)` |
 | `--surface-hover` | `rgba(255, 255, 255, 0.06)` | `rgba(28, 25, 23, 0.05)` |
@@ -212,12 +212,16 @@ to the decorative brand lockup; primary actions continue to use
 
 ## Typography
 
-Use the system UI font stack initially for native feel and low bundle cost. A branded typeface can be evaluated later.
+Use the system UI font stack for application chrome and prose. Dense source
+content may use the bundled Atkinson Hyperlegible Mono Regular with the system
+monospace stack as fallback; keep it scoped to code and technical identifiers.
 
 Requirements:
 
 - clear distinction between headings, labels, body copy, and metadata;
 - monospaced text for paths, refs, hashes, commands, and diffs;
+- restrained semantic syntax tokens may clarify code, but diff backgrounds and
+  signs remain the primary added/removed signal;
 - readable line heights;
 - no tiny low-contrast secondary text;
 - avoid all-caps labels except very short status tags.

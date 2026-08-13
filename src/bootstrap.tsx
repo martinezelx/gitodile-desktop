@@ -5,8 +5,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { LanguageProvider } from "./i18n";
 import { App } from "./main";
 import { SwitchMeasurementRoot } from "./screens";
+import "./styles/fonts.css";
 
-document.addEventListener("contextmenu", (event) => event.preventDefault());
+document.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+});
 
 const rootElement = document.getElementById("root");
 if (rootElement) {

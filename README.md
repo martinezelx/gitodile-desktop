@@ -18,8 +18,11 @@ Current application version: **0.1.0**.
   incarnation isolated with an opaque session epoch.
 - Inspect the working tree in plain language, including staged, unstaged,
   untracked, deleted, renamed, conflicted, and ignored states.
-- Review text diffs, binary/oversized-file states, file icons, and large change
-  lists with virtualization and bounded native payloads.
+- Review and copy readable, syntax-colored text diffs, inspect binary or
+  oversized-file states, and navigate large change lists with virtualization
+  and bounded native payloads.
+- Discard one file or every unsaved change through a confirmed, state-checked
+  flow that creates a persistent local recovery record and offers Undo.
 - Receive live, debounced repository updates without exposing raw filesystem
   paths to the frontend.
 - Save all or selected changes as a version with a title and description. The

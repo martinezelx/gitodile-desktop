@@ -101,6 +101,18 @@ export function createChangesController(port: ChangesPort) {
     readFileLines(projectId: string, sessionEpoch: string, filePath: string, startLine: number, endLine: number) {
       return port.readFileLines({ projectId, sessionEpoch, filePath, startLine, endLine });
     },
+    planDiscard(projectId: string, sessionEpoch: string, selectedPath: string | null) {
+      return port.planDiscard({ projectId, sessionEpoch, selectedPath });
+    },
+    discard(projectId: string, sessionEpoch: string, selectedPath: string | null, stateToken: string) {
+      return port.discard({ projectId, sessionEpoch, selectedPath, stateToken });
+    },
+    getDiscardRecovery(projectId: string, sessionEpoch: string) {
+      return port.getDiscardRecovery({ projectId, sessionEpoch });
+    },
+    restoreDiscard(projectId: string, sessionEpoch: string, recoveryId: string, stateToken: string) {
+      return port.restoreDiscard({ projectId, sessionEpoch, recoveryId, stateToken });
+    },
     scheduleWarm(runtime: ProjectRuntime, projectId: string, sessionEpoch: string, workingTree: WorkingTreeStatus, reason: ProjectCacheWarmReason): () => void {
       const store = getStore(projectId, sessionEpoch, workingTree);
       return runtime.scheduleCacheWarm({ key: `working-tree-diffs:${sessionEpoch}:${store.generation}`, reason, run: () => warm(store) });

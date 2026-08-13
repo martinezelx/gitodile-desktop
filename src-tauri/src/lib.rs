@@ -13,6 +13,7 @@ mod ipc;
 mod operation;
 #[path = "publish.rs"]
 mod publish_domain;
+mod recovery;
 mod repository;
 mod repository_access;
 mod save_version;
@@ -32,6 +33,8 @@ use git_command::*;
 use operation::*;
 #[cfg(test)]
 use publish_domain::*;
+#[cfg(test)]
+use recovery::*;
 #[cfg(test)]
 use repository::*;
 #[cfg(test)]
@@ -57,6 +60,10 @@ pub fn run() {
             ipc::read_file_diff,
             ipc::read_file_lines,
             ipc::read_working_tree_diffs,
+            ipc::plan_discard_changes,
+            ipc::discard_changes,
+            ipc::get_discard_recovery,
+            ipc::restore_discarded_changes,
             ipc::git_diagnostics,
             ipc::install_git,
             ipc::update_git,
@@ -95,6 +102,9 @@ mod git_command_tests;
 #[cfg(test)]
 #[path = "tests/publish_tests.rs"]
 mod publish_tests;
+#[cfg(test)]
+#[path = "tests/recovery_tests.rs"]
+mod recovery_tests;
 #[cfg(test)]
 #[path = "tests/repository_tests.rs"]
 mod repository_tests;

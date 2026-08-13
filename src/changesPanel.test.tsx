@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -40,6 +40,9 @@ function ControlledChangesPanel(
     | "onSaveVersionPhaseChange"
     | "onSaveCompleted"
     | "workingTreeCheckedAt"
+    | "onBeginDiscard"
+    | "onDiscardClose"
+    | "onDiscardPhaseChange"
   > & {
     controller?: ChangesController;
     workingTreeCheckedAt?: number | null;
@@ -61,6 +64,9 @@ function ControlledChangesPanel(
       onCloseSaveVersion={() => setIsSaveVersionOpen(false)}
       onSaveVersionPhaseChange={() => {}}
       onSaveCompleted={() => {}}
+      onBeginDiscard={() => true}
+      onDiscardClose={() => {}}
+      onDiscardPhaseChange={() => {}}
     />
   );
 }
@@ -688,5 +694,104 @@ describe("ChangesPanel review controls", () => {
     expect(completeDiff).toHaveTextContent("-before one");
     expect(completeDiff).toHaveTextContent("+after fifty");
     expect(screen.queryByRole("button", { name: "Next change" })).not.toBeInTheDocument();
+  });
+
+  it("keeps discard in one compact menu and confirms the selected file with recovery", async () => {
+    let recoveryReads = 0;
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" });
+      if (command === "get_discard_recovery") {
+        recoveryReads += 1;
+        return recoveryReads === 1
+          ? Promise.reject({ code: "recovery_unavailable", message: "none" })
+          : Promise.resolve({ recoveryId: "discard-1", createdAtMs: 1, fileCount: 1, selectedPath: "edited.txt", stateToken: "after" });
+      }
+      if (command === "plan_discard_changes") {
+        expect(args).toMatchObject({ selectedPath: "edited.txt", sessionEpoch: "test-epoch" });
+        return Promise.resolve({
+          operationKind: "destructive", stateToken: "before", fileCount: 1,
+          counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 },
+          selectedPath: "edited.txt", affectsPreparedChanges: false, removesUntrackedFiles: false,
+          includesConflicts: false, isUnborn: false, recovery: "local", requiresConfirmation: true,
+        });
+      }
+      if (command === "discard_changes") {
+        expect(args).toMatchObject({ selectedPath: "edited.txt", stateToken: "before" });
+        return Promise.resolve({
+          discardedFiles: 1,
+          recovery: { recoveryId: "discard-1", createdAtMs: 1, fileCount: 1, selectedPath: "edited.txt", stateToken: "after" },
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    await userEvent.click(screen.getByRole("button", { name: "More change actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Discard changes in selected file…" }));
+    expect(await screen.findByRole("heading", { name: "Discard this file’s changes?" })).toBeInTheDocument();
+    await screen.findByText("edited.txt will return to its latest saved state.");
+    await userEvent.click(screen.getByRole("button", { name: "Discard file changes" }));
+    expect(await screen.findByText("The file’s changes were discarded safely.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo discard" })).toBeInTheDocument();
+  });
+
+  it("offers only Copy when code is right-clicked and copies the exact selection", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    mockedInvoke.mockImplementation((command) => command === "read_file_diff"
+      ? Promise.resolve({
+          kind: "text", path: "edited.txt", originalPath: null, change: "changed", truncated: false,
+          hunks: [{ header: "@@ -1 +1 @@", oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [
+            { kind: "addition", content: "\tconst área = 'منطقة';", oldLineNumber: null, newLineNumber: 1 },
+          ] }],
+        })
+      : Promise.reject(new Error(`Unexpected command: ${command}`)));
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+    const code = await screen.findByText("const área = ", { exact: false });
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(code.closest(".diff-line__content") ?? code);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    fireEvent.contextMenu(code, { clientX: 200, clientY: 240 });
+    const menu = screen.getByRole("menu", { name: "Context actions" });
+    expect(within(menu).getAllByRole("menuitem")).toHaveLength(1);
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Copy" }));
+    expect(writeText).toHaveBeenCalledWith("\tconst área = 'منطقة';");
+    Reflect.deleteProperty(navigator, "clipboard");
+  });
+
+  it("right-clicking a file offers discard for that exact file", async () => {
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" });
+      if (command === "plan_discard_changes") {
+        expect(args).toMatchObject({ selectedPath: "new.txt" });
+        return Promise.resolve({
+          operationKind: "destructive", stateToken: "new-file", fileCount: 1,
+          counts: { changed: 0, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 1 },
+          selectedPath: "new.txt", affectsPreparedChanges: false, removesUntrackedFiles: true,
+          includesConflicts: false, isUnborn: false, recovery: "local", requiresConfirmation: true,
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+    const file = await screen.findByRole("button", { name: /new\.txt/ });
+    fireEvent.contextMenu(file, { clientX: 180, clientY: 220 });
+    await userEvent.click(screen.getByRole("menuitem", { name: "Discard changes…" }));
+    expect(await screen.findByText("new.txt will return to its latest saved state.")).toBeInTheDocument();
   });
 });

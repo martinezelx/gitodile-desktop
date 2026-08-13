@@ -1,0 +1,9 @@
+/* Atkinson Hyperlegible Mono, Copyright 2020-2024 its project authors.
+ * SIL Open Font License 1.1; see /THIRD_PARTY_LICENSES.md. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/atkinson-hyperlegible-mono/files/atkinson-hyperlegible-mono-latin-400-normal.woff2") format("woff2");
+}

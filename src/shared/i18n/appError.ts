@@ -5,7 +5,7 @@ import type { SharedTranslations } from "./translations";
  *
  * This lives with the shared translation runtime rather than in `shared/ui`
  * because it is error localization, not a visual primitive — and every one of
- * the 47 codes below maps to a key `SharedTranslations` already owns, so it
+ * the 52 codes below maps to a key `SharedTranslations` already owns, so it
  * depends on that interface rather than on the composed `Translations`. A
  * caller passing the full dictionary still satisfies it. */
 export const APP_ERROR_CODES = [
@@ -21,7 +21,8 @@ export const APP_ERROR_CODES = [
   "publish_uncertain", "git_version_too_old", "version_line_name_taken",
   "version_line_name_collides", "version_line_checked_out_elsewhere", "version_line_is_active",
   "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
-  "dirty_working_tree", "ref_locked",
+  "dirty_working_tree", "ref_locked", "nothing_to_discard", "stale_discard_plan",
+  "recovery_unavailable", "recovery_conflict", "recovery_failed",
 ] as const;
 
 export type AppError = {
@@ -92,6 +93,11 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     stale_version_line_plan: t.errorStaleVersionLinePlan,
     dirty_working_tree: t.errorDirtyWorkingTree,
     ref_locked: t.errorRefLocked,
+    nothing_to_discard: t.errorNothingToDiscard,
+    stale_discard_plan: t.errorStaleDiscardPlan,
+    recovery_unavailable: t.errorRecoveryUnavailable,
+    recovery_conflict: t.errorRecoveryConflict,
+    recovery_failed: t.errorRecoveryFailed,
   };
   return messages[error.code] ?? fallback;
 }

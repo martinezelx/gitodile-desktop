@@ -150,6 +150,7 @@ src-tauri/src/
   repository.rs
   status.rs
   changes.rs
+  recovery.rs             # persistent discard snapshots and safe restore
   save_version.rs
   publish.rs
   version_lines.rs        # product domains
@@ -256,6 +257,12 @@ byte on failure, and preserves hooks and signing. Publish does not claim
 failure after an outcome may have reached the remote; it reports
 `publish_uncertain`. Frontend mutation phases supersede stale generations,
 coalesce watcher work, and perform one shared follow-up refresh.
+
+Discard follows the same plan/revalidate/execute/verify boundary and creates a
+persistent record under the selected worktree's Git metadata before mutation.
+The record preserves exact target bytes and the real index, can be restored
+after restart only while its post-discard state token still matches, and is
+defined by [ADR 0007](adr/0007-store-discard-recovery-in-worktree-git-metadata.md).
 
 Never silently resolve conflicts, discard untracked files, bypass hooks or
 signing, force-push, run `reset --hard`, clean files, or delete a branch without

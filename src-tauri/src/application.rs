@@ -62,6 +62,10 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("read_file_diff"),
     read("read_file_lines"),
     read("read_working_tree_diffs"),
+    read("plan_discard_changes"),
+    ExecutionPolicy::repository_write("discard_changes", OperationClass::Destructive),
+    read("get_discard_recovery"),
+    ExecutionPolicy::repository_write("restore_discarded_changes", OperationClass::LocalMutation),
     global_process("git_diagnostics", OperationClass::ReadOnly, 15),
     global_process("install_git", OperationClass::PlatformMutation, 900),
     global_process("update_git", OperationClass::PlatformMutation, 900),
@@ -183,7 +187,7 @@ pub(crate) fn enter(command: &'static str) -> CommandAccess {
 /// command and must not borrow one: naming a real command here would let a test
 /// pass under a policy the production path never uses. The policy is built
 /// directly rather than taken from `EXECUTION_INVENTORY`, which stays exactly
-/// the 31 registered commands.
+/// the 35 registered commands.
 ///
 /// This exists because `require_policy` in `lib.rs` has no fallback. Before
 /// task 039 these calls silently received a default read policy, and so would
@@ -292,6 +296,10 @@ mod tests {
         "read_file_diff",
         "read_file_lines",
         "read_working_tree_diffs",
+        "plan_discard_changes",
+        "discard_changes",
+        "get_discard_recovery",
+        "restore_discarded_changes",
         "git_diagnostics",
         "install_git",
         "update_git",
@@ -342,6 +350,8 @@ mod tests {
             "create_version_line",
             "switch_version_line",
             "delete_version_line",
+            "discard_changes",
+            "restore_discarded_changes",
         ] {
             assert_eq!(
                 policy(command).concurrency,

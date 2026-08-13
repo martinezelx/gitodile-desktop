@@ -414,3 +414,29 @@ rendered-row assertion, one tenth of the 400-row failure budget.
    settled samples.
 9. Preserve raw numeric results in the implementing task and compare against
    this table. Phrases such as “no material regression” are not sufficient.
+
+## Task 054 Changes typography and recovery comparison
+
+Measured on 2026-08-13 with the baseline `pnpm run build` protocol on Windows.
+The discard dialog and syntax lexer are interaction-loaded and the font ships
+as one Latin WOFF2 asset.
+
+| Artifact | Raw | Gzip | Budget result |
+| --- | ---: | ---: | --- |
+| `index` JavaScript | 270.56 kB | 80.66 kB | pass |
+| `index` CSS | 99.08 kB | 15.34 kB | informational |
+| `ChangesPanel` | 29.97 kB | 8.54 kB | pass |
+| `DiffResultView` | 39.65 kB | 12.33 kB | pass |
+| Changes renderer total | 69.62 kB | 20.87 kB | warning exceeded by 0.62 kB |
+| `ChangesContextMenu` lazy chunk | 2.53 kB | 1.18 kB | interaction-loaded |
+| `syntaxHighlight` lazy chunk | 6.70 kB | 2.62 kB | separately loaded; expanded language set |
+| `DiscardChangesDialog` lazy chunk | 5.92 kB | 1.75 kB | separately loaded |
+| Atkinson Hyperlegible Mono WOFF2 | 10.05 kB | n/a | one font asset |
+| `fileIcons` | 238.88 kB | 85.51 kB | pass; remains deferred |
+
+The existing 5,000-change virtualization test remained green in the 271-test
+frontend suite. The small renderer warning increase is the event/state wiring
+for the two contextual interactions; the menu implementation itself remains a
+separate interaction-loaded chunk. Native visual inspection used the current
+dirty repository on Windows at 1182×762 in light theme; the paired headers
+stayed aligned and no persistent per-row action was introduced.

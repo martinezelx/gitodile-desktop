@@ -46,6 +46,11 @@ export interface SharedTranslations {
   errorStaleVersionLinePlan: string;
   errorDirtyWorkingTree: string;
   errorRefLocked: string;
+  errorNothingToDiscard: string;
+  errorStaleDiscardPlan: string;
+  errorRecoveryUnavailable: string;
+  errorRecoveryConflict: string;
+  errorRecoveryFailed: string;
   commonSystem: string;
   commonVersion: string;
   commonClose: string;
@@ -112,6 +117,11 @@ const en: SharedTranslations = {
   errorDirtyWorkingTree:
     "This project has unsaved changes, so GitOdrile can't switch version lines yet. Save a version, or start a new version line with this work.",
   errorRefLocked: "Git couldn't update its references right now — another Git process may be using them.",
+  errorNothingToDiscard: "There are no matching changes to discard. Refresh Changes and try again.",
+  errorStaleDiscardPlan: "The changed files moved since the preview was shown. Review the updated plan.",
+  errorRecoveryUnavailable: "That discard recovery is no longer available.",
+  errorRecoveryConflict: "The project changed after this discard, so GitOdrile won't overwrite the newer work.",
+  errorRecoveryFailed: "GitOdrile couldn't create or apply the local recovery safely. Check disk space and permissions.",
   commonSystem: "System",
   commonVersion: "Version",
   commonClose: "Close",
@@ -182,6 +192,11 @@ const es: SharedTranslations = {
   errorDirtyWorkingTree:
     "Este proyecto tiene cambios sin guardar, así que GitOdrile no puede cambiar de línea de versión todavía. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
   errorRefLocked: "Git no pudo actualizar sus referencias ahora mismo (otro proceso de Git podría estar usándolas).",
+  errorNothingToDiscard: "No hay cambios coincidentes que descartar. Actualiza Cambios e inténtalo de nuevo.",
+  errorStaleDiscardPlan: "Los archivos cambiaron desde que se mostró la vista previa. Revisa el plan actualizado.",
+  errorRecoveryUnavailable: "Esa recuperación de descarte ya no está disponible.",
+  errorRecoveryConflict: "El proyecto cambió después del descarte, así que GitOdrile no sobrescribirá el trabajo nuevo.",
+  errorRecoveryFailed: "GitOdrile no pudo crear o aplicar la recuperación local de forma segura. Comprueba el espacio y los permisos.",
   commonSystem: "Sistema",
   commonVersion: "Versión",
   commonClose: "Cerrar",

@@ -70,6 +70,33 @@ export interface ChangesTranslations {
   changesIncludeFile: (path: string) => string;
   changesPartialUnavailableTruncated: string;
   changesProjectRoot: string;
+  changesMoreActions: string;
+  changesContextMenuLabel: string;
+  changesCopy: string;
+  changesCopied: string;
+  changesCopyFailed: string;
+  changesDiscardFileContext: string;
+  changesDiscardSelected: string;
+  changesDiscardAll: string;
+  changesRestoreDiscarded: string;
+  changesDiscardFileTitle: string;
+  changesDiscardAllTitle: string;
+  changesRestoreTitle: string;
+  changesDiscardFileSummary: (path: string) => string;
+  changesDiscardAllSummary: (count: number) => string;
+  changesDiscardPreparedWarning: string;
+  changesDiscardUntrackedWarning: string;
+  changesDiscardConflictWarning: string;
+  changesDiscardRecoveryNote: string;
+  changesDiscardConfirmFile: string;
+  changesDiscardConfirmAll: string;
+  changesRestoreConfirm: string;
+  changesDiscardSuccess: (count: number) => string;
+  changesRestoreSuccess: string;
+  changesUndoDiscard: string;
+  changesDiscardLoading: string;
+  changesRestoreSummary: (count: number) => string;
+  changesDiscardUnavailable: string;
 }
 
 const en: ChangesTranslations = {
@@ -154,6 +181,33 @@ const en: ChangesTranslations = {
   changesPartialUnavailableTruncated:
     "This project has more changed files than can be listed safely. Save all changes before using file selection.",
   changesProjectRoot: "Project root",
+  changesMoreActions: "More change actions",
+  changesContextMenuLabel: "Context actions",
+  changesCopy: "Copy",
+  changesCopied: "Selected text copied.",
+  changesCopyFailed: "Couldn’t copy the selected text. Use Ctrl+C or Cmd+C instead.",
+  changesDiscardFileContext: "Discard changes…",
+  changesDiscardSelected: "Discard changes in selected file…",
+  changesDiscardAll: "Discard all changes…",
+  changesRestoreDiscarded: "Restore last discarded changes…",
+  changesDiscardFileTitle: "Discard this file’s changes?",
+  changesDiscardAllTitle: "Discard all unsaved changes?",
+  changesRestoreTitle: "Restore discarded changes?",
+  changesDiscardFileSummary: (path) => `${path} will return to its latest saved state.`,
+  changesDiscardAllSummary: (count) => count === 1 ? "1 changed file will return to its latest saved state." : `${count} changed files will return to their latest saved state.`,
+  changesDiscardPreparedWarning: "Prepared changes in this selection will also be replaced.",
+  changesDiscardUntrackedWarning: "New files in this selection will leave the project.",
+  changesDiscardConflictWarning: "Conflict state in this selection will be replaced by the latest saved content.",
+  changesDiscardRecoveryNote: "GitOdrile creates a private local recovery copy first, so this can be undone.",
+  changesDiscardConfirmFile: "Discard file changes",
+  changesDiscardConfirmAll: "Discard all changes",
+  changesRestoreConfirm: "Restore discarded changes",
+  changesDiscardSuccess: (count) => count === 1 ? "The file’s changes were discarded safely." : `${count} files were returned to their saved state.`,
+  changesRestoreSuccess: "The discarded changes were restored.",
+  changesUndoDiscard: "Undo discard",
+  changesDiscardLoading: "Preparing a safe preview…",
+  changesRestoreSummary: (count) => count === 1 ? "GitOdrile will restore the protected state of 1 path." : `GitOdrile will restore the protected state of ${count} paths.`,
+  changesDiscardUnavailable: "This action is no longer available. Refresh Changes and try again.",
 };
 
 const es: ChangesTranslations = {
@@ -240,6 +294,33 @@ const es: ChangesTranslations = {
   changesPartialUnavailableTruncated:
     "Este proyecto tiene más archivos modificados de los que se pueden listar con seguridad. Guarda todos los cambios antes de usar la selección.",
   changesProjectRoot: "Raíz del proyecto",
+  changesMoreActions: "Más acciones de cambios",
+  changesContextMenuLabel: "Acciones contextuales",
+  changesCopy: "Copiar",
+  changesCopied: "Texto seleccionado copiado.",
+  changesCopyFailed: "No se pudo copiar el texto seleccionado. Usa Ctrl+C o Cmd+C en su lugar.",
+  changesDiscardFileContext: "Descartar cambios…",
+  changesDiscardSelected: "Descartar cambios del archivo seleccionado…",
+  changesDiscardAll: "Descartar todos los cambios…",
+  changesRestoreDiscarded: "Restaurar los últimos cambios descartados…",
+  changesDiscardFileTitle: "¿Descartar los cambios de este archivo?",
+  changesDiscardAllTitle: "¿Descartar todos los cambios sin guardar?",
+  changesRestoreTitle: "¿Restaurar los cambios descartados?",
+  changesDiscardFileSummary: (path) => `${path} volverá a su último estado guardado.`,
+  changesDiscardAllSummary: (count) => count === 1 ? "1 archivo modificado volverá a su último estado guardado." : `${count} archivos modificados volverán a su último estado guardado.`,
+  changesDiscardPreparedWarning: "Los cambios preparados de esta selección también se reemplazarán.",
+  changesDiscardUntrackedWarning: "Los archivos nuevos de esta selección saldrán del proyecto.",
+  changesDiscardConflictWarning: "Los conflictos de esta selección se reemplazarán por el contenido guardado más reciente.",
+  changesDiscardRecoveryNote: "GitOdrile crea primero una copia de recuperación privada y local, para que puedas deshacerlo.",
+  changesDiscardConfirmFile: "Descartar cambios del archivo",
+  changesDiscardConfirmAll: "Descartar todos los cambios",
+  changesRestoreConfirm: "Restaurar cambios descartados",
+  changesDiscardSuccess: (count) => count === 1 ? "Los cambios del archivo se descartaron de forma segura." : `${count} archivos volvieron a su estado guardado.`,
+  changesRestoreSuccess: "Los cambios descartados se han restaurado.",
+  changesUndoDiscard: "Deshacer descarte",
+  changesDiscardLoading: "Preparando una vista previa segura…",
+  changesRestoreSummary: (count) => count === 1 ? "GitOdrile restaurará el estado protegido de 1 ruta." : `GitOdrile restaurará el estado protegido de ${count} rutas.`,
+  changesDiscardUnavailable: "Esta acción ya no está disponible. Actualiza Cambios e inténtalo de nuevo.",
 };
 
 export const changesTranslations = { en, es } as const;

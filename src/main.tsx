@@ -249,7 +249,8 @@ export function App(): React.JSX.Element {
     isSettingsOpen ||
     publishDialogSessionId !== null ||
     saveDialogSessionId !== null ||
-    activeSession?.operation?.kind === "version-line";
+    activeSession?.operation?.kind === "version-line" ||
+    activeSession?.operation?.kind === "discard";
   const showErrorDialog = (title: string, message: string): void => {
     setOpenErrorTitle(title);
     setOpenError(message);
@@ -257,12 +258,12 @@ export function App(): React.JSX.Element {
   };
 
   const startSessionOperation = (
-    kind: "save" | "publish",
+    kind: "save" | "publish" | "discard",
     upTo?: string,
-  ): void => {
+  ): boolean => {
     const session = activeSession;
     if (!session) {
-      return;
+      return false;
     }
     const blocker = getMutationBlocker(sessionsState, session.id);
     if (blocker) {
@@ -270,15 +271,16 @@ export function App(): React.JSX.Element {
         t.projectSwitcherOperationIndicator,
         t.projectSwitcherMutationBlocked(blocker.project.name),
       );
-      return;
+      return false;
     }
     dispatchSessions({ type: "startOperation", id: session.id, kind });
     if (kind === "save") {
       setSaveDialogSessionId(session.id);
-    } else {
+    } else if (kind === "publish") {
       setPublishUpTo(upTo ?? null);
       setPublishDialogSessionId(session.id);
     }
+    return true;
   };
 
   const openPublishDialog = (upTo?: string): void => {
@@ -1267,6 +1269,15 @@ export function App(): React.JSX.Element {
                                 phase,
                               });
                             }
+                          }}
+                          onBeginDiscard={() => startSessionOperation("discard")}
+                          onDiscardClose={() => finishSessionOperation(project.path)}
+                          onDiscardPhaseChange={(phase) => {
+                            dispatchSessions({
+                              type: "setOperationPhase",
+                              id: project.path,
+                              phase,
+                            });
                           }}
                         />
                       </Suspense>

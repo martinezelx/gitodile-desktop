@@ -6,7 +6,7 @@ import type { WorkingTreeStatus } from "./features/status";
  * a session only ever remembers which of these two it was last showing. */
 export type ProjectView = "overview" | "changes" | "version-lines";
 
-export type ProjectMutationKind = "save" | "publish" | "version-line";
+export type ProjectMutationKind = "save" | "publish" | "discard" | "version-line";
 export type ProjectMutationPhase =
   | "planning"
   | "executing"

@@ -13,10 +13,13 @@ import {
   Columns2,
   FileText,
   LoaderCircle,
+  Ellipsis,
   RefreshCw,
+  RotateCcw,
   Rows3,
   Save,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
@@ -30,8 +33,72 @@ import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../sta
 import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
 import type { FileDiff } from "./domain";
+import type { DiscardDialogRequest } from "./DiscardChangesDialog";
+import type { ChangesContextMenuState } from "./ChangesContextMenu";
+
+const DiscardChangesDialog = React.lazy(async () => {
+  const module = await import("./DiscardChangesDialog");
+  return { default: module.DiscardChangesDialog };
+});
+
+const ChangesContextMenu = React.lazy(async () => {
+  const module = await import("./ChangesContextMenu");
+  return { default: module.ChangesContextMenu };
+});
 
 export type { DiffHunk, DiffLine, DiffLineKind, FileDiff } from "./domain";
+
+function ChangesActionsMenu({
+  controller,
+  projectPath,
+  sessionEpoch,
+  selectedPath,
+  disabled,
+  onChoose,
+  t,
+}: {
+  controller: ChangesController;
+  projectPath: string;
+  sessionEpoch: string;
+  selectedPath: string | null;
+  disabled: boolean;
+  onChoose: (request: DiscardDialogRequest) => void;
+  t: Translations;
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [canRestore, setCanRestore] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const close = (restoreFocus: boolean): void => {
+    setOpen(false);
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+  const { containerRef, popupRef } = useAnchoredPopup(open, triggerRef, close, "selected-menu-item");
+  const choose = (request: DiscardDialogRequest): void => {
+    close(true);
+    onChoose(request);
+  };
+  const toggle = (): void => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      controller.getDiscardRecovery(projectPath, sessionEpoch)
+        .then(() => setCanRestore(true))
+        .catch(() => setCanRestore(false));
+    }
+  };
+  return (
+    <div className="changes-actions-menu" ref={containerRef}>
+      <button ref={triggerRef} className="secondary-button changes-actions-menu__trigger" type="button" aria-label={t.changesMoreActions} aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={toggle} data-tooltip={t.changesMoreActions}>
+        <Ellipsis aria-hidden="true" />
+      </button>
+      {open && <div ref={popupRef} className="app-menu changes-actions-menu__popup" role="menu" aria-label={t.changesMoreActions} tabIndex={-1} onKeyDown={(event) => handlePopupMenuKeyDown(event, popupRef.current, () => close(true))}>
+        <button className="app-menu__item app-menu__item--danger" role="menuitem" type="button" disabled={!selectedPath} onClick={() => choose({ mode: "selected", selectedPath })}><Trash2 aria-hidden="true" />{t.changesDiscardSelected}</button>
+        <button className="app-menu__item app-menu__item--danger" role="menuitem" type="button" onClick={() => choose({ mode: "all", selectedPath: null })}><Trash2 aria-hidden="true" />{t.changesDiscardAll}</button>
+        {canRestore && <button className="app-menu__item" role="menuitem" type="button" onClick={() => choose({ mode: "restore", selectedPath: null })}><RotateCcw aria-hidden="true" />{t.changesRestoreDiscarded}</button>}
+      </div>}
+    </div>
+  );
+}
 
 // ---- Types mirroring the Rust `FileDiff` contract (src-tauri/src/lib.rs) ----
 // Rust owns Git's diff grammar entirely; this module only renders the typed
@@ -344,6 +411,7 @@ function DiffWorkspace({
   onSelectNextFile,
   onRetry,
   onBackToList,
+  onCodeContextMenu,
   t,
 }: {
   projectPath: string;
@@ -360,6 +428,7 @@ function DiffWorkspace({
   onSelectNextFile: () => void;
   onRetry: () => void;
   onBackToList: () => void;
+  onCodeContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void;
   t: Translations;
 }): React.JSX.Element {
   // Both live here rather than in `ChangesPanel` because they describe how
@@ -498,17 +567,19 @@ function DiffWorkspace({
           </div>
         )}
         {diffState.status === "ready" && (
-          <DiffResultView
-            diff={diffState.diff}
-            projectPath={projectPath}
-            sessionEpoch={sessionEpoch}
-            readFileLines={(filePath, startLine, endLine) =>
-              controller.readFileLines(projectPath, sessionEpoch, filePath, startLine, endLine)
-            }
-            viewMode={viewMode}
-            hunkTarget={hunkTarget}
-            t={t}
-          />
+          <div className="changes-diff-context-scope" onContextMenu={onCodeContextMenu}>
+            <DiffResultView
+              diff={diffState.diff}
+              projectPath={projectPath}
+              sessionEpoch={sessionEpoch}
+              readFileLines={(filePath, startLine, endLine) =>
+                controller.readFileLines(projectPath, sessionEpoch, filePath, startLine, endLine)
+              }
+              viewMode={viewMode}
+              hunkTarget={hunkTarget}
+              t={t}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -522,6 +593,7 @@ function FileListItem({
   canChoose,
   onSelect,
   onToggleIncluded,
+  onContextMenu,
   virtualPosition,
   virtualIndex,
   virtualCount,
@@ -534,6 +606,7 @@ function FileListItem({
   canChoose: boolean;
   onSelect: () => void;
   onToggleIncluded: () => void;
+  onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => void;
   virtualPosition?: number;
   virtualIndex?: number;
   virtualCount?: number;
@@ -577,6 +650,7 @@ function FileListItem({
         aria-current={isSelected ? "true" : undefined}
         aria-label={accessibleName}
         onClick={onSelect}
+        onContextMenu={onContextMenu}
       >
         <span className="changes-file-item__icon" aria-hidden="true">
           <FileTypeIcon className="changes-file-item__type-icon" />
@@ -607,6 +681,7 @@ type FileListRowsProps = {
   scrollElement: React.RefObject<HTMLDivElement | null>;
   onSelect: (entry: WorkingTreeEntry) => void;
   onToggleIncluded: (entry: WorkingTreeEntry) => void;
+  onContextMenu: (event: React.MouseEvent<HTMLButtonElement>, entry: WorkingTreeEntry) => void;
   t: Translations;
 };
 
@@ -629,6 +704,7 @@ function fileListItem(
       canChoose={props.canChoose}
       onSelect={() => props.onSelect(entry)}
       onToggleIncluded={() => props.onToggleIncluded(entry)}
+      onContextMenu={(event) => props.onContextMenu(event, entry)}
       virtualPosition={virtual?.start}
       virtualIndex={virtual?.index}
       virtualCount={virtual?.count}
@@ -703,6 +779,9 @@ export function ChangesPanel({
   onOpenSaveVersion,
   onCloseSaveVersion,
   onSaveVersionPhaseChange,
+  onBeginDiscard,
+  onDiscardClose,
+  onDiscardPhaseChange,
 }: {
   projectPath: string;
   workingTree: WorkingTreeStatus | null;
@@ -734,11 +813,16 @@ export function ChangesPanel({
   onSaveVersionPhaseChange: (
     phase: "planning" | "executing" | "error" | "success"
   ) => void;
+  onBeginDiscard: () => boolean;
+  onDiscardClose: () => void;
+  onDiscardPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
   const [announcement, setAnnouncement] = useState("");
   const [search, setSearch] = useState("");
+  const [discardRequest, setDiscardRequest] = useState<DiscardDialogRequest | null>(null);
+  const [contextMenu, setContextMenu] = useState<ChangesContextMenuState | null>(null);
   // The list the user is actually looking at. Selection, the save-version
   // checkboxes, and the totals all keep working off the full `entries`: a
   // search narrows what is *shown*, it does not silently drop files from the
@@ -834,6 +918,29 @@ export function ChangesPanel({
 
   const isLoadingList = isCheckingChanges && !workingTree;
   const selectedEntry = entries.find((entry) => entry.path === selectedPath) ?? null;
+
+  const closeContextMenu = (restoreFocus: boolean): void => {
+    if (restoreFocus) contextMenu?.focusTarget?.focus();
+    setContextMenu(null);
+  };
+
+  const openCodeContextMenu = (event: React.MouseEvent<HTMLDivElement>): void => {
+    const source = event.target instanceof Element ? event.target.closest<HTMLElement>(".diff-code") : null;
+    if (!source) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const selection = window.getSelection();
+    const belongsToDiff = selection?.anchorNode && selection.focusNode
+      ? source.contains(selection.anchorNode) && source.contains(selection.focusNode)
+      : false;
+    setContextMenu({
+      kind: "copy",
+      x: event.clientX,
+      y: event.clientY,
+      text: belongsToDiff ? selection?.toString() ?? "" : "",
+      focusTarget: source,
+    });
+  };
   const canChooseFiles = !workingTree?.truncated;
   const includedPaths = useMemo(
     () => entries.filter((entry) => !excludedPaths.has(entry.path)).map((entry) => entry.path),
@@ -954,6 +1061,17 @@ export function ChangesPanel({
                 falls back to the plain label. */}
               {canChooseFiles && canSaveSelection ? t.changesSaveSelected(includedCount) : t.changesSaveVersion}
             </button>
+            <ChangesActionsMenu
+              controller={controller}
+              projectPath={projectPath}
+              sessionEpoch={sessionEpoch}
+              selectedPath={selectedPath}
+              disabled={!workingTree || workingTree.isClean || isCheckingChanges}
+              onChoose={(request) => {
+                if (onBeginDiscard()) setDiscardRequest(request);
+              }}
+              t={t}
+            />
           </div>
         </div>
       </header>
@@ -1053,6 +1171,17 @@ export function ChangesPanel({
                     return next;
                   })
                 }
+                onContextMenu={(event, entry) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setContextMenu({
+                    kind: "file",
+                    x: event.clientX,
+                    y: event.clientY,
+                    path: entry.path,
+                    focusTarget: event.currentTarget,
+                  });
+                }}
                 t={t}
               />
             </div>
@@ -1070,6 +1199,7 @@ export function ChangesPanel({
             onSelectNextFile={() => selectFileAt(visibleIndex + 1)}
             onRetry={() => setRetryToken((token) => token + 1)}
             onBackToList={() => setIsDetailFocused(false)}
+            onCodeContextMenu={openCodeContextMenu}
             t={t}
           />
         </div>
@@ -1078,6 +1208,19 @@ export function ChangesPanel({
       <span className="visually-hidden" role="status">
         {announcement}
       </span>
+
+      <React.Suspense fallback={null}>
+        <ChangesContextMenu
+          context={contextMenu}
+          onClose={closeContextMenu}
+          onCopied={() => setAnnouncement(t.changesCopied)}
+          onDiscard={(path) => {
+            closeContextMenu(false);
+            if (onBeginDiscard()) setDiscardRequest({ mode: "selected", selectedPath: path });
+          }}
+          t={t}
+        />
+      </React.Suspense>
 
       <SaveVersionDialog
         isOpen={isSaveVersionOpen}
@@ -1089,6 +1232,17 @@ export function ChangesPanel({
         onPublishNow={onPublishNow}
         onPhaseChange={onSaveVersionPhaseChange}
       />
+      <React.Suspense fallback={null}>
+        <DiscardChangesDialog
+          request={discardRequest}
+          projectPath={projectPath}
+          sessionEpoch={sessionEpoch}
+          controller={controller}
+          onClose={() => { setDiscardRequest(null); onDiscardClose(); }}
+          onMutationCompleted={onSaveCompleted}
+          onPhaseChange={onDiscardPhaseChange}
+        />
+      </React.Suspense>
     </div>
   );
 }

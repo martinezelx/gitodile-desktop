@@ -51,6 +51,7 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         "ipc",
         "operation",
         "publish_domain",
+        "recovery",
         "repository",
         "repository_access",
         "save_version",
@@ -86,6 +87,7 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         ("version_lines", "version_lines.rs"),
         ("save_version", "save_version.rs"),
         ("publish", "publish.rs"),
+        ("recovery", "recovery.rs"),
     ] {
         let feature = parse(&source_dir.join(file));
         let mut imports = Vec::new();

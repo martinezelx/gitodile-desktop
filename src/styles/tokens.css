@@ -56,8 +56,14 @@
      change categories (success/warning/danger/renamed) each visually
      distinct instead of two of them colliding by coincidence. */
   --status-renamed: #2f6fb3;
-  --diff-added: #4f751e;
+  --diff-added: #496f19;
   --diff-removed: #b3261e;
+  --syntax-comment: #586250;
+  --syntax-string: #7b5b12;
+  --syntax-number: #604080;
+  --syntax-keyword: #275f8f;
+  --syntax-type: #176f68;
+  --syntax-property: #8b3e6d;
   --focus-ring: #4f751e;
   --overlay: rgba(28, 25, 23, 0.4);
   --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
@@ -120,6 +126,12 @@
     --status-renamed: #6ea8fe;
     --diff-added: #9bd65a;
     --diff-removed: #ff6b5b;
+    --syntax-comment: #a7b09a;
+    --syntax-string: #d6b56f;
+    --syntax-number: #c8a6ff;
+    --syntax-keyword: #8fc9ff;
+    --syntax-type: #72d6c9;
+    --syntax-property: #e0a6c7;
     --focus-ring: #9bd65a;
     --overlay: rgba(0, 0, 0, 0.68);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
@@ -150,8 +162,14 @@
   --status-danger: #b3261e;
   --status-danger-contrast: #fff7f5;
   --status-renamed: #2f6fb3;
-  --diff-added: #4f751e;
+  --diff-added: #496f19;
   --diff-removed: #b3261e;
+  --syntax-comment: #586250;
+  --syntax-string: #7b5b12;
+  --syntax-number: #604080;
+  --syntax-keyword: #275f8f;
+  --syntax-type: #176f68;
+  --syntax-property: #8b3e6d;
   --focus-ring: #4f751e;
   --overlay: rgba(28, 25, 23, 0.4);
   --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
@@ -183,6 +201,12 @@
   --status-renamed: #6ea8fe;
   --diff-added: #9bd65a;
   --diff-removed: #ff6b5b;
+  --syntax-comment: #a7b09a;
+  --syntax-string: #d6b56f;
+  --syntax-number: #c8a6ff;
+  --syntax-keyword: #8fc9ff;
+  --syntax-type: #72d6c9;
+  --syntax-property: #e0a6c7;
   --focus-ring: #9bd65a;
   --overlay: rgba(0, 0, 0, 0.68);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);

@@ -6,6 +6,26 @@ import type { Translations } from "../../i18n";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import type { DiffHunk, DiffLine, FileDiff } from "./domain";
 
+type HighlightLine = (line: string) => React.ReactNode;
+
+function useSyntaxHighlight(filePath: string): HighlightLine | null {
+  const [highlight, setHighlight] = useState<HighlightLine | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setHighlight(null);
+    void import("./syntaxHighlight").then((module) => {
+      const language = module.detectSyntaxLanguage(filePath);
+      if (!cancelled && language) {
+        setHighlight(() => (line: string) => module.highlightSyntaxLine(line, language));
+      }
+    }).catch(() => {
+      // Progressive enhancement: readable plain text is already rendered.
+    });
+    return () => { cancelled = true; };
+  }, [filePath]);
+  return highlight;
+}
+
 function formatByteLimit(bytes: number): string {
   const megabytes = bytes / (1024 * 1024);
   return `${Number.isInteger(megabytes) ? megabytes.toFixed(0) : megabytes.toFixed(1)} MB`;
@@ -32,7 +52,7 @@ function EmptyDiffNote({
   );
 }
 
-function DiffLineRow({ line, t }: { line: DiffLine; t: Translations }): React.JSX.Element {
+function DiffLineRow({ line, highlight, t }: { line: DiffLine; highlight: HighlightLine | null; t: Translations }): React.JSX.Element {
   const sign = line.kind === "addition" ? "+" : line.kind === "deletion" ? "-" : " ";
   const label =
     line.kind === "addition" ? t.changesLineAddedLabel : line.kind === "deletion" ? t.changesLineRemovedLabel : null;
@@ -49,7 +69,7 @@ function DiffLineRow({ line, t }: { line: DiffLine; t: Translations }): React.JS
         {sign}
       </span>
       {label && <span className="visually-hidden">{label}</span>}
-      <span className="diff-line__content">{line.content}</span>
+      <span className="diff-line__content">{highlight ? highlight(line.content) : line.content}</span>
     </div>
   );
 }
@@ -388,10 +408,12 @@ export function measureDiffRowHeight(element: HTMLElement): number {
 function DiffSplitCell({
   line,
   side,
+  highlight,
   t,
 }: {
   line: DiffLine | null;
   side: "old" | "new";
+  highlight: HighlightLine | null;
   t: Translations;
 }): React.JSX.Element {
   if (!line) {
@@ -415,7 +437,7 @@ function DiffSplitCell({
           {line.kind === "addition" ? "+" : line.kind === "deletion" ? "-" : " "}
         </span>
         {label && <span className="visually-hidden">{label}</span>}
-        <span className="diff-line__content">{line.content}</span>
+        <span className="diff-line__content">{highlight ? highlight(line.content) : line.content}</span>
       </span>
     </>
   );
@@ -488,6 +510,7 @@ function DiffHunkList({
   hunkTarget: { index: number; token: number };
   t: Translations;
 }): React.JSX.Element {
+  const highlight = useSyntaxHighlight(filePath);
   // Which gaps the user has opened, and how far. Keyed by hunk index, so it
   // survives switching view modes (both builders read the same map) but is
   // reset per file below — an expansion describes one file's gaps and means
@@ -683,11 +706,11 @@ function DiffHunkList({
                   t={t}
                 />
               ) : row.kind === "line" ? (
-                <DiffLineRow line={row.line} t={t} />
+                <DiffLineRow line={row.line} highlight={highlight} t={t} />
               ) : (
                 <div className="diff-split-row">
-                  <DiffSplitCell line={row.left} side="old" t={t} />
-                  <DiffSplitCell line={row.right} side="new" t={t} />
+                  <DiffSplitCell line={row.left} side="old" highlight={highlight} t={t} />
+                  <DiffSplitCell line={row.right} side="new" highlight={highlight} t={t} />
                 </div>
               )}
             </div>
@@ -822,4 +845,3 @@ export function DiffResultView({
       );
   }
 }
-
