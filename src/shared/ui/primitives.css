@@ -56,14 +56,14 @@ nav { display: grid; gap: 6px; }
 .eyebrow { margin-bottom: 6px; color: var(--accent-primary); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 
 .primary-button, .secondary-button {
-  border-radius: var(--radius-md); padding: 10px 14px; cursor: pointer; border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: 10px 14px; border: 1px solid var(--border-subtle);
   transition: background var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
 }
 .primary-button { background: var(--accent-brand); color: var(--accent-brand-contrast); border-color: transparent; font-weight: 700; }
 .primary-button:not(:disabled):hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .secondary-button { background: var(--surface-hover); color: var(--text-primary); }
 .secondary-button:not(:disabled):hover { background: var(--surface-active); }
-.primary-button:disabled, .secondary-button:disabled { opacity: 0.5; cursor: default; }
+.primary-button:disabled, .secondary-button:disabled { opacity: 0.5; }
 .ghost-button {
   display: inline-flex;
   align-items: center;
@@ -76,11 +76,10 @@ nav { display: grid; gap: 6px; }
   font: inherit;
   font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .ghost-button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
-.ghost-button:disabled { opacity: 0.5; cursor: default; }
+.ghost-button:disabled { opacity: 0.5; }
 .ghost-button svg { width: 14px; height: 14px; flex-shrink: 0; }
 @keyframes tooltip-in-above {
   from { opacity: 0; transform: translate(-50%, calc(-100% - 2px)); }
@@ -115,7 +114,7 @@ nav { display: grid; gap: 6px; }
 }
 .restore-skipped-notice button {
   flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); cursor: pointer;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
 }
 .restore-skipped-notice button:hover { background: var(--surface-hover); color: var(--text-primary); }
 .restore-skipped-notice button svg { width: 14px; height: 14px; }
@@ -145,7 +144,7 @@ nav { display: grid; gap: 6px; }
 }
 .segmented-control__option {
   display: flex; align-items: center; gap: 8px; padding: 8px 14px; border: 0; border-radius: var(--radius-sm);
-  background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 14px;
+  background: transparent; color: var(--text-secondary); font-weight: 600; font-size: 14px;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .segmented-control__option svg { width: 16px; height: 16px; }
@@ -161,7 +160,7 @@ nav { display: grid; gap: 6px; }
 
 .toggle-switch {
   position: relative; flex-shrink: 0; width: 40px; height: 24px; padding: 3px; border: 0; border-radius: 999px;
-  background: var(--surface-hover); border: 1px solid var(--border-subtle); cursor: pointer;
+  background: var(--surface-hover); border: 1px solid var(--border-subtle);
   transition: background var(--duration-fast);
 }
 .toggle-switch__knob {
@@ -172,6 +171,36 @@ nav { display: grid; gap: 6px; }
 .toggle-switch--on .toggle-switch__knob { background: var(--surface-panel); transform: translateX(16px); }
 
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+/* The shared anchored-popup surface, worn by every app-styled dropdown that
+   is not a native `<select>` (the Changes view picker, the titlebar menus).
+   It belongs here rather than in a feature file precisely so features can
+   still override it: the cascade order in `styles.css` puts shared
+   primitives ahead of every feature, so a rule like
+   `.changes-view-picker__menu { left: 0 }` wins on equal specificity. When
+   this block lived in `features/version-lines/version-lines.css` it loaded
+   *after* `features/changes/changes.css`, so `.app-menu`'s `right: 0` beat
+   the Changes override and dropped that menu leftwards, overlapping the file
+   list beside it. Default alignment stays `right: 0` — most triggers in this
+   app sit at the right edge of their row. */
+.app-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 5;
+  min-width: 220px; max-width: min(320px, calc(100vw - 2 * var(--space-5)));
+  display: flex; flex-direction: column; padding: 6px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  background: var(--surface-raised); box-shadow: var(--shadow-lg);
+}
+.app-menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.app-menu__item {
+  display: flex; align-items: center; gap: 8px;
+  text-align: left; padding: 8px 10px; border-radius: 6px; background: transparent; border: 0;
+  color: var(--text-primary); font-size: 13px; overflow-wrap: anywhere;
+}
+.app-menu__item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary); }
+.app-menu__item:hover { background: var(--surface-hover); }
+.app-menu__item--selected { color: var(--text-primary); font-weight: 600; }
+.app-menu__check { margin-left: auto; color: var(--accent-primary) !important; }
+.app-menu__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
 .loading-state {
   flex: 1;

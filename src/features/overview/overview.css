@@ -339,7 +339,6 @@
   padding-block: var(--space-2);
   padding-inline: var(--space-3) 180px;
   color: var(--text-primary);
-  cursor: pointer;
   list-style: none;
   transition: background var(--duration-fast);
 }
@@ -413,7 +412,6 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   border-radius: var(--radius-sm);
   background: var(--surface-hover);
   color: var(--text-secondary);
-  cursor: pointer;
   font: inherit;
   font-size: 12.5px;
   font-weight: 600;
@@ -458,12 +456,13 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   border: 0;
   background: transparent;
   color: inherit;
-  cursor: pointer;
   font: inherit;
   text-align: left;
 }
 .pending-versions__file-button:hover { color: var(--text-primary); }
-.pending-versions__file-button svg { width: 13px; height: 13px; flex-shrink: 0; }
+.pending-versions__file-button svg,
+.pending-versions__file-type-icon { width: 13px; height: 13px; flex-shrink: 0; }
+.pending-versions__file-type-icon { display: block; }
 .pending-versions__file-chevron {
   transition: transform var(--duration-fast);
 }
@@ -523,7 +522,6 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--text-secondary);
-  cursor: pointer;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .project-path__copy:hover { background: var(--surface-hover); color: var(--text-primary); }

@@ -265,6 +265,19 @@ Keyboard shortcuts must use platform conventions:
 - `Ctrl` on Windows/Linux;
 - `Cmd` on macOS.
 
+### Pointer cursors
+
+Follow desktop rather than browser cursor conventions. Standard controls —
+buttons, menus, selectable rows, checkboxes, navigation, and dropdowns — keep
+the system arrow and communicate interactivity through shape, hover, pressed,
+selected, and focus states. Disabled controls also keep the arrow; reduced
+opacity and the disabled interaction state carry that meaning.
+
+Reserve the pointing hand for real links and text actions deliberately styled
+as links, where the cursor helps compensate for their lighter affordance. Use
+special-purpose cursors only when they describe the operation itself, such as
+text selection, resizing, dragging, progress, or a forbidden drop target.
+
 ## Content design
 
 The interface should explain Git in plain language while preserving technical truth.

@@ -9,12 +9,12 @@
 .version-line-selector {
   display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%;
   padding: 6px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
-  background: var(--surface-hover); color: var(--text-primary); cursor: pointer;
+  background: var(--surface-hover); color: var(--text-primary);
   transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 .version-line-selector:hover { background: var(--surface-active); }
 .version-line-selector[aria-expanded="true"] { border-color: var(--accent-primary); background: var(--surface-active); }
-.version-line-selector--static { cursor: default; background: transparent; border-style: dashed; }
+.version-line-selector--static { background: transparent; border-style: dashed; }
 .version-line-selector__icon {
   flex-shrink: 0;
   width: 15px;
@@ -73,7 +73,7 @@
 .version-lines-select {
   position: relative; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
   padding: 8px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
-  background: var(--surface-panel); color: var(--text-primary); font-size: 13.5px; cursor: pointer;
+  background: var(--surface-panel); color: var(--text-primary); font-size: 13.5px;
   transition: border-color var(--duration-fast), color var(--duration-fast);
 }
 .version-lines-select:hover { border-color: var(--border-strong, var(--focus-ring)); }
@@ -100,7 +100,7 @@
 }
 .version-lines-filter__option {
   display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--radius-sm);
-  font-size: 13px; cursor: pointer;
+  font-size: 13px;
 }
 .version-lines-filter__option:hover { background: var(--surface-hover); }
 .version-lines-filter__option > span:first-of-type { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -171,7 +171,7 @@
 .version-line-row__details-toggle {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   min-height: 32px; padding: 6px 8px; border: 0; border-radius: var(--radius-sm);
-  background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px; cursor: pointer;
+  background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .version-line-row__details-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
@@ -211,7 +211,11 @@
   justify-content: center;
 }
 .version-lines-quick-switch__create svg { width: 15px; height: 15px; }
-.app-menu,
+/* Deliberately not sharing a selector list with `.app-menu` (now in
+   `shared/ui/primitives.css`): a shared popup rule that lives in a feature
+   file lands *after* every earlier feature in the cascade, so it silently
+   outranks the per-feature overrides that are supposed to win. This menu
+   keeps its own declarations; `.app-menu` keeps the shared ones. */
 .version-lines-quick-switch__menu {
   position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 5;
   min-width: 220px; max-width: min(320px, calc(100vw - 2 * var(--space-5)));
@@ -219,14 +223,11 @@
   border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
-.app-menu:focus-visible,
 .version-lines-quick-switch__menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.app-menu__item,
 .version-lines-quick-switch__item {
   text-align: left; padding: 8px 10px; border-radius: 6px; background: transparent; border: 0;
-  color: var(--text-primary); font-size: 13px; overflow-wrap: anywhere; cursor: pointer;
+  color: var(--text-primary); font-size: 13px; overflow-wrap: anywhere;
 }
-.app-menu__item:hover,
 .version-lines-quick-switch__item:hover { background: var(--surface-hover); }
 .version-lines-quick-switch__see-all {
   margin-top: 4px; padding: 8px 10px; border-radius: 6px; border: 0; border-top: 1px solid var(--border-subtle);

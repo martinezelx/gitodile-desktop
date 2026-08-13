@@ -12,7 +12,9 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(packageVersion.version),
   },
-  plugins: [react(), Icons({ compiler: "jsx", jsx: "react" })],
+  // File-type artwork is consumed as raw SVG and rendered through an `<img>`
+  // adapter in `src/fileIcons.ts`, which isolates every icon's internal IDs.
+  plugins: [react(), Icons({ compiler: "raw" })],
   clearScreen: false,
   server: {
     port: 1420,

@@ -84,7 +84,6 @@
   min-height: 36px;
   padding: 7px 10px;
   color: var(--text-primary);
-  cursor: pointer;
   font-size: 13px;
   list-style: none;
   transition: background var(--duration-fast);
@@ -137,7 +136,9 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .publish-commit-list__files[role="status"] svg { width: 13px; height: 13px; flex-shrink: 0; }
 .publish-commit-list__files--error { color: var(--status-danger); }
 .publish-commit-list__file { display: flex; align-items: center; gap: 6px; }
-.publish-commit-list__file svg { width: 13px; height: 13px; flex-shrink: 0; }
+.publish-commit-list__file svg,
+.publish-commit-list__file-type-icon { width: 13px; height: 13px; flex-shrink: 0; }
+.publish-commit-list__file-type-icon { display: block; }
 .publish-commit-list__file-path { overflow-wrap: anywhere; }
 .publish-commit-list__file-category { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
 

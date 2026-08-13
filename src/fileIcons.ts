@@ -1,4 +1,4 @@
-import type { ComponentType, SVGProps } from "react";
+import { createElement, type ComponentType, type ImgHTMLAttributes } from "react";
 import Assembly from "~icons/vscode-icons/file-type-assembly";
 import Babel from "~icons/vscode-icons/file-type-babel";
 import CSharp from "~icons/vscode-icons/file-type-csharp2";
@@ -71,7 +71,39 @@ import Yaml from "~icons/vscode-icons/file-type-yaml-official";
 import Yarn from "~icons/vscode-icons/file-type-yarn";
 import Zip from "~icons/vscode-icons/file-type-zip";
 
-export type FileTypeIcon = ComponentType<SVGProps<SVGSVGElement>>;
+type FileTypeIconProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "alt" | "draggable" | "src">;
+export type FileTypeIcon = ComponentType<FileTypeIconProps>;
+type FileTypeIconSource = string;
+
+const ICON_COMPONENTS = new Map<FileTypeIconSource, FileTypeIcon>();
+
+/** File icons are full-colour artwork, not controls, so they do not need to
+ * inherit `currentColor`. Rendering each raw SVG as an image also gives every
+ * instance its own SVG document: gradients, masks, and filters can safely
+ * reuse the collection's internal IDs across keep-alive screens. */
+function iconComponent(source: FileTypeIconSource): FileTypeIcon {
+  const cached = ICON_COMPONENTS.get(source);
+  if (cached) {
+    return cached;
+  }
+
+  // `unplugin-icons` emits markup intended for inline DOM use and therefore
+  // omits the XML namespace. A standalone SVG image needs it to load in
+  // WebView2, Safari, and other XML-based image decoders.
+  const standaloneSource = source.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(standaloneSource)}`;
+  const Icon: FileTypeIcon = (props) =>
+    createElement("img", {
+      ...props,
+      "aria-hidden": true,
+      alt: "",
+      draggable: false,
+      src: dataUrl,
+    });
+  Icon.displayName = "FileTypeIcon";
+  ICON_COMPONENTS.set(source, Icon);
+  return Icon;
+}
 
 /** Extension → icon from the vscode-icons set (MIT), covering common
  * languages and tooling beyond whatever happens to be in this repo today —
@@ -81,7 +113,7 @@ export type FileTypeIcon = ComponentType<SVGProps<SVGSVGElement>>;
  * into the bundle — the other ~1500 icons in the collection are never
  * touched, so growing this list costs a few KB per addition, not the whole
  * set. */
-const EXTENSION_ICONS: Record<string, FileTypeIcon> = {
+const EXTENSION_ICONS: Record<string, FileTypeIconSource> = {
   ts: TypescriptOfficial,
   tsx: ReactTs,
   js: JsOfficial, mjs: JsOfficial, cjs: JsOfficial,
@@ -138,7 +170,7 @@ const EXTENSION_ICONS: Record<string, FileTypeIcon> = {
  * — a lockfile's real identity is "which package manager wrote this", not
  * its `.json`/`.yaml`/`.lock` extension, and tools like Docker, ESLint, or
  * an editor config are named files with no meaningful extension at all. */
-const NAME_ICONS: Record<string, FileTypeIcon> = {
+const NAME_ICONS: Record<string, FileTypeIconSource> = {
   "package-lock.json": Npm,
   "pnpm-lock.yaml": LightPnpm,
   "yarn.lock": Yarn,
@@ -164,7 +196,7 @@ const NAME_ICONS: Record<string, FileTypeIcon> = {
  * to the tool's icon rather than their trailing extension — the extension
  * table would otherwise route `.eslintrc.json` to the generic JSON icon and
  * `webpack.config.ts` to the plain TypeScript one. */
-const NAME_PREFIX_ICONS: [prefix: string, icon: FileTypeIcon][] = [
+const NAME_PREFIX_ICONS: [prefix: string, icon: FileTypeIconSource][] = [
   [".eslintrc", Eslint],
   [".prettierrc", Prettier],
   [".babelrc", Babel],
@@ -178,15 +210,15 @@ const NAME_PREFIX_ICONS: [prefix: string, icon: FileTypeIcon][] = [
 export function getFileTypeIcon(path: string): FileTypeIcon {
   const name = path.slice(path.lastIndexOf("/") + 1);
   if (NAME_ICONS[name]) {
-    return NAME_ICONS[name];
+    return iconComponent(NAME_ICONS[name]);
   }
   const prefixMatch = NAME_PREFIX_ICONS.find(([prefix]) => name.startsWith(prefix));
   if (prefixMatch) {
-    return prefixMatch[1];
+    return iconComponent(prefixMatch[1]);
   }
   const dot = name.lastIndexOf(".");
   if (dot <= 0) {
-    return DefaultFile;
+    return iconComponent(DefaultFile);
   }
-  return EXTENSION_ICONS[name.slice(dot + 1).toLowerCase()] ?? DefaultFile;
+  return iconComponent(EXTENSION_ICONS[name.slice(dot + 1).toLowerCase()] ?? DefaultFile);
 }

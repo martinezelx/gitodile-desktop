@@ -54,6 +54,16 @@ describe("production style composition", () => {
     expect(settings).not.toContain(".settings-dialog");
   });
 
+  it("loads shared app menus before feature alignment overrides", () => {
+    const primitives = readSource("shared/ui/primitives.css");
+    const changes = readSource("features/changes/changes.css");
+    const versionLines = readSource("features/version-lines/version-lines.css");
+
+    expect(primitives).toContain(".app-menu {");
+    expect(changes).toContain(".changes-view-picker__menu { right: auto; left: 0;");
+    expect(versionLines).not.toMatch(/^\s*\.app-menu(?:\s|,|\{)/m);
+  });
+
   it("retains theme, focus, reduced-motion and forced-color foundations", () => {
     expect(readSource("styles/tokens.css")).toContain(':root[data-theme="light"]');
     expect(readSource("styles/tokens.css")).toContain(':root[data-theme="dark"]');
