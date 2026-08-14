@@ -36,6 +36,7 @@ import {
 } from "../status";
 import type { PendingVersionsResult } from "../publish";
 import type { VersionLine, VersionLinesSnapshot } from "../version-lines";
+import { TeamChangesSection, type TeamSyncViewState } from "../sync";
 
 const PendingVersionsSection = lazy(() =>
   import("./PendingVersionsSection").then((m) => ({ default: m.PendingVersionsSection })),
@@ -471,6 +472,8 @@ export function OverviewPanel({
   onGoToVersionLines,
   onCopyPathError,
   onOpenSaveVersion,
+  teamSync,
+  onCheckTeamChanges,
 }: {
   project: RepositoryInfo | null;
   /** Only ever drives the *empty*-state's own loading affordance below —
@@ -508,6 +511,8 @@ export function OverviewPanel({
    * — this is expected to navigate to Changes and open the dialog there,
    * reusing its one existing implementation rather than a second copy of it. */
   onOpenSaveVersion: () => void;
+  teamSync: TeamSyncViewState;
+  onCheckTeamChanges: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
@@ -740,6 +745,13 @@ export function OverviewPanel({
           )}
           <StatusAnnouncement isBusy={isCheckingChanges} message={`${heroHeadline}. ${heroMessage}`} />
         </section>
+
+        <TeamChangesSection
+          state={teamSync}
+          canPublish={canPublish}
+          onCheck={onCheckTeamChanges}
+          onPublish={onPublish}
+        />
 
         {/* Last, and in sidebar order: the summaries for the two screens that
             do not exist yet. Side by side on a wide window so they read as one

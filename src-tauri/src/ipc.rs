@@ -8,12 +8,13 @@ use crate::{
     changes::{self, CommitFileChange, FileDiff, FileLines},
     desktop,
     error::AppError,
-    publish_domain::{self, PublishPlan, PublishResult, RemoteDiscovery},
+    publish_domain::{self, PublishPlan, PublishResult},
     recovery::{self, DiscardPlan, DiscardRecovery, DiscardResult},
     repository::{self, RepositoryInfo},
     save_version::{self, SaveVersionPlan, SaveVersionResult},
     session,
     status::{self, PendingVersionsResult, WorkingTreeStatus},
+    sync::{self, RemoteDiscovery, TeamSyncStatus},
     tooling::{
         self, GitDiagnostics, GitIdentity, GitInstallationResult, GitUpdateLaunchResult,
         GitUpdateStatus,
@@ -191,7 +192,25 @@ pub(crate) fn discover_remotes(
     session_epoch: Option<String>,
 ) -> Result<RemoteDiscovery, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
-    publish_domain::discover_remotes(path)
+    sync::discover_remotes(path)
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_team_sync_status(
+    path: String,
+    session_epoch: String,
+) -> Result<TeamSyncStatus, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    sync::read_team_sync_status(path, session_epoch)
+}
+
+#[tauri::command(async)]
+pub(crate) fn check_team_changes(
+    path: String,
+    session_epoch: String,
+) -> Result<TeamSyncStatus, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    sync::check_team_changes(path, session_epoch)
 }
 
 #[tauri::command(async)]
@@ -504,6 +523,9 @@ mod contract_tests {
             AppErrorCode::InvalidRefName,
             AppErrorCode::AuthenticationFailed,
             AppErrorCode::NetworkTimeout,
+            AppErrorCode::OperationCancelled,
+            AppErrorCode::InvalidRemoteConfiguration,
+            AppErrorCode::RemoteRefMissing,
             AppErrorCode::RemoteRejected,
             AppErrorCode::PublishUncertain,
             AppErrorCode::GitVersionTooOld,

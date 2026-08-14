@@ -7,6 +7,7 @@ import { publishTranslations } from "./features/publish/translations";
 import { saveVersionTranslations } from "./features/save-version/translations";
 import { settingsTranslations } from "./features/settings/translations";
 import { statusTranslations } from "./features/status/translations";
+import { syncTranslations } from "./features/sync/translations";
 import { versionLinesTranslations } from "./features/version-lines/translations";
 import { sharedTranslations } from "./shared/i18n";
 
@@ -27,6 +28,7 @@ export const translationNamespaces = {
   shared: sharedTranslations,
   overview: overviewTranslations,
   status: statusTranslations,
+  sync: syncTranslations,
   changes: changesTranslations,
   saveVersion: saveVersionTranslations,
   settings: settingsTranslations,
@@ -39,6 +41,7 @@ const en = {
   ...sharedTranslations.en,
   ...overviewTranslations.en,
   ...statusTranslations.en,
+  ...syncTranslations.en,
   ...changesTranslations.en,
   ...saveVersionTranslations.en,
   ...settingsTranslations.en,
@@ -53,6 +56,7 @@ const es: Translations = {
   ...sharedTranslations.es,
   ...overviewTranslations.es,
   ...statusTranslations.es,
+  ...syncTranslations.es,
   ...changesTranslations.es,
   ...saveVersionTranslations.es,
   ...settingsTranslations.es,

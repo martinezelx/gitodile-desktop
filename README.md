@@ -30,6 +30,8 @@ Current application version: **0.1.0**.
   protects the real index through a collision-safe temporary-index workflow.
 - Discover remotes and publish saved versions through a previewed,
   state-token-validated flow that reports uncertain remote outcomes honestly.
+- Explicitly check the configured upstream for team changes without moving the
+  current version line or files, with cached/fresh status and clear next steps.
 - List, create, switch, and safely delete version lines (local branches), with
   dirty-worktree checks and recovery references where required.
 - Configure light/dark/system themes, English/Spanish copy, Git identity,
@@ -38,7 +40,7 @@ Current application version: **0.1.0**.
   keep-alive screen shell that retains screen state while suspending hidden
   work.
 
-Not yet implemented: cloning, getting/integrating team changes, the history
+Not yet implemented: cloning, integrating team changes, the history
 timeline, the recovery center, and guided conflict resolution. The approved
 work is tracked in [`work/active/`](work/active/) and future direction in the
 [`roadmap`](docs/ROADMAP.md).
@@ -70,8 +72,8 @@ separate:
 - `application.rs` assigns one checked execution policy to every command;
 - `repository_access.rs` coordinates concurrent reads and exclusive mutations
   by common Git directory;
-- `repository.rs`, `status.rs`, `changes.rs`, `save_version.rs`, `publish.rs`,
-  and `version_lines.rs` own product behavior;
+- `repository.rs`, `status.rs`, `changes.rs`, `save_version.rs`, `sync.rs`,
+  `publish.rs`, and `version_lines.rs` own product behavior;
 - `operation.rs` owns shared mutation classification and bounded/redacted
   diagnostic details;
 - `index.rs` owns collision-safe temporary-index preparation shared by safe
@@ -149,8 +151,8 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 256 frontend tests, the production build, Rust formatting,
-Clippy with warnings denied, and 202 Rust tests. Individual commands remain
+rules, TypeScript, 295 frontend tests, the production build, Rust formatting,
+Clippy with warnings denied, and 225 Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.
 

@@ -75,10 +75,12 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("plan_save_version"),
     ExecutionPolicy::repository_write("save_version", OperationClass::HistoryMutation),
     read("discover_remotes"),
+    read("read_team_sync_status"),
+    ExecutionPolicy::repository_write("check_team_changes", OperationClass::LocalMutation),
     read("list_unpublished_versions"),
     read("read_commit_file_changes"),
     read("read_commit_file_diff"),
-    read("plan_publish"),
+    ExecutionPolicy::repository_write("plan_publish", OperationClass::LocalMutation),
     ExecutionPolicy::repository_write("publish", OperationClass::RemoteMutation),
     read("get_version_lines"),
     read("plan_create_version_line"),
@@ -309,6 +311,8 @@ mod tests {
         "plan_save_version",
         "save_version",
         "discover_remotes",
+        "read_team_sync_status",
+        "check_team_changes",
         "list_unpublished_versions",
         "read_commit_file_changes",
         "read_commit_file_diff",
@@ -346,6 +350,8 @@ mod tests {
     fn mutations_are_exclusive_and_preserve_git_prompts() {
         for command in [
             "save_version",
+            "plan_publish",
+            "check_team_changes",
             "publish",
             "create_version_line",
             "switch_version_line",
@@ -359,6 +365,11 @@ mod tests {
             );
             assert_eq!(policy(command).prompt, PromptPolicy::PreserveGitBehavior);
         }
+        assert_eq!(policy("plan_publish").class, OperationClass::LocalMutation);
+        assert_eq!(
+            policy("check_team_changes").class,
+            OperationClass::LocalMutation
+        );
         assert_eq!(
             policy("close_project_session").class,
             OperationClass::LocalMutation

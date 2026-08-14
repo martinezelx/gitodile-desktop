@@ -15,6 +15,7 @@ const EXPECTED_IMPORTS = [
   "./features/changes/changes.css",
   "./features/save-version/save-version.css",
   "./features/publish/publish.css",
+  "./features/sync/sync.css",
   "./features/version-lines/version-lines.css",
   "./features/settings/settings.css",
 ] as const;
@@ -34,6 +35,7 @@ describe("production style composition", () => {
   it("keeps closed visual contracts with their feature owners", () => {
     expect(readSource("features/overview/overview.css")).toContain(".project-hero");
     expect(readSource("features/status/status.css")).toContain(".status-breakdown");
+    expect(readSource("features/sync/sync.css")).toContain(".team-changes");
     const changes = readSource("features/changes/changes.css");
     expect(changes).toContain(".changes-file-item__type-icon");
     expect(changes).toContain(".diff-code--accessible");

@@ -1,6 +1,7 @@
 import type { PendingVersionsResult } from "./features/publish";
 import type { RepositoryInfo } from "./features/repository";
 import type { WorkingTreeStatus } from "./features/status";
+import { EMPTY_TEAM_SYNC_STATE, type TeamSyncStatus, type TeamSyncViewState } from "./features/sync";
 
 /** Per-project view: `settings` lives outside any session (see main.tsx), so
  * a session only ever remembers which of these two it was last showing. */
@@ -71,6 +72,7 @@ export type ProjectSession = {
   statusGeneration: number;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
+  teamSync: TeamSyncViewState;
   operation: ProjectMutation | null;
 };
 
@@ -106,6 +108,17 @@ export type ProjectSessionsAction =
   | { type: "applyPendingVersions"; id: string; generation: number; epoch: string; result: PendingVersionsResult }
   | { type: "commitPublishedVersions"; id: string; generation: number; epoch: string; remaining: number }
   | { type: "applyPendingVersionsError"; id: string; generation: number; epoch: string; error: string }
+  | {
+      type: "startTeamSyncRequest";
+      id: string;
+      generation: number;
+      epoch: string;
+      kind: "local" | "check";
+      markExistingStale: boolean;
+    }
+  | { type: "applyTeamSyncStatus"; id: string; generation: number; epoch: string; status: TeamSyncStatus }
+  | { type: "applyTeamSyncError"; id: string; generation: number; epoch: string; error: string }
+  | { type: "markTeamSyncStale"; id: string; epoch: string }
   | { type: "navigate"; id: string; view: ProjectView }
   | { type: "goBack"; id: string }
   | { type: "goForward"; id: string }
@@ -134,6 +147,7 @@ function freshSession(project: RepositoryInfo): ProjectSession {
     statusGeneration: 0,
     pendingVersions: EMPTY_PENDING_VERSIONS,
     pendingVersionsError: null,
+    teamSync: EMPTY_TEAM_SYNC_STATE,
     operation: null,
   };
 }
@@ -358,6 +372,76 @@ export function projectSessionsReducer(
         pendingVersionsError: action.error,
       }));
     }
+
+    case "startTeamSyncRequest": {
+      const session = state.byId[action.id];
+      if (!actionMatchesEpoch(session, action.epoch)) return state;
+      return updateSession(state, action.id, (current) => ({
+        ...current,
+        teamSync: {
+          ...current.teamSync,
+          generation: action.generation,
+          isLoading: true,
+          isCheckingRemote: action.kind === "check",
+          isStale: action.markExistingStale
+            ? current.teamSync.status?.knowledge === "fresh" || current.teamSync.isStale
+            : current.teamSync.isStale,
+          error: null,
+        },
+      }));
+    }
+
+    case "applyTeamSyncStatus": {
+      const session = state.byId[action.id];
+      if (!actionMatchesEpoch(session, action.epoch) || session.teamSync.generation !== action.generation) {
+        return state;
+      }
+      return updateSession(state, action.id, (current) => ({
+        ...current,
+        teamSync: {
+          ...current.teamSync,
+          status: action.status,
+          isLoading: false,
+          isCheckingRemote: false,
+          isStale: false,
+          error: null,
+          lastSuccessfulCheckAt:
+            action.status.knowledge === "fresh" && action.status.checkedAt !== null
+              ? action.status.checkedAt
+              : current.teamSync.lastSuccessfulCheckAt,
+        },
+      }));
+    }
+
+    case "applyTeamSyncError": {
+      const session = state.byId[action.id];
+      if (!actionMatchesEpoch(session, action.epoch) || session.teamSync.generation !== action.generation) {
+        return state;
+      }
+      return updateSession(state, action.id, (current) => ({
+        ...current,
+        teamSync: {
+          ...current.teamSync,
+          isLoading: false,
+          isCheckingRemote: false,
+          isStale: current.teamSync.status !== null,
+          error: action.error,
+        },
+      }));
+    }
+
+    case "markTeamSyncStale":
+      if (!actionMatchesEpoch(state.byId[action.id], action.epoch)) return state;
+      return updateSession(state, action.id, (current) => ({
+        ...current,
+        teamSync: {
+          ...current.teamSync,
+          generation: current.teamSync.generation + 1,
+          isLoading: false,
+          isCheckingRemote: false,
+          isStale: current.teamSync.status !== null,
+        },
+      }));
 
     case "navigate":
       return updateSession(state, action.id, (session) => {

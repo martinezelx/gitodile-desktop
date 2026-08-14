@@ -11,5 +11,6 @@
 @import "./features/changes/changes.css";
 @import "./features/save-version/save-version.css";
 @import "./features/publish/publish.css";
+@import "./features/sync/sync.css";
 @import "./features/version-lines/version-lines.css";
 @import "./features/settings/settings.css";

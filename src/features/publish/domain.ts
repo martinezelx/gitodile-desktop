@@ -1,22 +1,8 @@
 import type { ChangeCategory } from "../status";
+import type { SyncTarget } from "../sync";
+export type { RemoteDiscovery, RemoteInfo } from "../sync";
 
-/** Mirrors the Rust `RemoteInfo` contract. The url is already redacted on
- * the Rust side; nothing here should ever see embedded credentials. */
-export type RemoteInfo = {
-  name: string;
-  url: string;
-};
-
-export type RemoteDiscovery = {
-  remotes: RemoteInfo[];
-  branch: string | null;
-  upstream: string | null;
-};
-
-export type PublishTarget = {
-  remote: string;
-  destinationBranch: string;
-};
+export type PublishTarget = SyncTarget;
 
 /** Mirrors the Rust `PublishPlan` contract. */
 export type PublishPlan = {

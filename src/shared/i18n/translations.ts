@@ -34,6 +34,9 @@ export interface SharedTranslations {
   errorInvalidRefName: string;
   errorAuthenticationFailed: string;
   errorNetworkTimeout: string;
+  errorOperationCancelled: string;
+  errorInvalidRemoteConfiguration: string;
+  errorRemoteRefMissing: string;
   errorRemoteRejected: string;
   errorPublishUncertain: string;
   errorGitVersionTooOld: string;
@@ -99,6 +102,9 @@ const en: SharedTranslations = {
   errorInvalidRefName: "This version line's name isn't a valid Git reference.",
   errorAuthenticationFailed: "GitOdrile couldn't sign in to the remote project. Check your Git credentials and try again.",
   errorNetworkTimeout: "GitOdrile couldn't reach the remote project in time. Check your connection and try again.",
+  errorOperationCancelled: "The remote check was cancelled. Try again when you’re ready.",
+  errorInvalidRemoteConfiguration: "This version line's remote setup is incomplete or invalid. Repair its upstream configuration in Git.",
+  errorRemoteRefMissing: "The configured team version no longer exists on the remote project. Check the upstream setup before trying again.",
   errorRemoteRejected: "The remote project rejected this publish. Check the remote project's rules for this branch.",
   errorPublishUncertain:
     "GitOdrile lost the connection while publishing. Refresh and check whether it was published before trying again.",
@@ -174,6 +180,9 @@ const es: SharedTranslations = {
   errorAuthenticationFailed:
     "GitOdrile no pudo iniciar sesión en el proyecto remoto. Comprueba tus credenciales de Git e inténtalo de nuevo.",
   errorNetworkTimeout: "GitOdrile no pudo contactar con el proyecto remoto a tiempo. Comprueba tu conexión e inténtalo de nuevo.",
+  errorOperationCancelled: "Se canceló la comprobación remota. Inténtalo de nuevo cuando quieras.",
+  errorInvalidRemoteConfiguration: "La configuración remota de esta línea de versión está incompleta o no es válida. Repara su upstream en Git.",
+  errorRemoteRefMissing: "La versión configurada del equipo ya no existe en el proyecto remoto. Revisa el upstream antes de intentarlo de nuevo.",
   errorRemoteRejected: "El proyecto remoto rechazó esta publicación. Revisa las reglas del proyecto remoto para esta rama.",
   errorPublishUncertain:
     "GitOdrile perdió la conexión mientras publicaba. Actualiza y comprueba si se publicó antes de intentarlo de nuevo.",

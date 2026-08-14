@@ -159,6 +159,7 @@ src-tauri/src/
   recovery.rs             # persistent discard snapshots and safe restore
   save_version.rs
   publish.rs
+  sync.rs                  # remotes, upstreams, fetch and relation knowledge
   version_lines.rs        # product domains
   test_support.rs         # shared hermetic Git-repository test fixtures
   tests/<domain>_tests.rs # cross-module integration tests grouped by owner
@@ -263,6 +264,14 @@ byte on failure, and preserves hooks and signing. Publish does not claim
 failure after an outcome may have reached the remote; it reports
 `publish_uncertain`. Frontend mutation phases supersede stale generations,
 coalesce watcher work, and perform one shared follow-up refresh.
+
+Team sync separates local knowledge from explicit network freshness.
+`read_team_sync_status` reads only existing remote-tracking refs under a shared
+repository-read permit. `check_team_changes`, plus Publish planning/execution
+preflights, fetch under an exclusive common-Git-directory permit through the
+same `sync.rs` remote, redaction, fetch, and ancestry implementation. Project
+activation, screen visibility, watchers, and cache warming never call the
+network command.
 
 Discard follows the same plan/revalidate/execute/verify boundary and creates a
 persistent record under the selected worktree's Git metadata before mutation.

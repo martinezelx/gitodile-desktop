@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import type { ChangesController } from "../changes";
 import type { VersionLinesController } from "../version-lines";
+import type { SyncController, SyncErrorMapper } from "../sync";
 import type { ProjectRuntime } from "../../projectRuntime";
 import type { ProjectSession } from "../../projectSessions";
 
@@ -12,6 +13,8 @@ type ProjectCacheWarmingOptions = {
   session: ProjectSession | null;
   changesController: ChangesController;
   versionLinesController: VersionLinesController;
+  syncController: SyncController;
+  mapSyncError: SyncErrorMapper;
 };
 
 /**
@@ -26,6 +29,8 @@ export function useProjectCacheWarming({
   session,
   changesController,
   versionLinesController,
+  syncController,
+  mapSyncError,
 }: ProjectCacheWarmingOptions): void {
   useEffect(() => {
     if (!hasCompletedSessionRestore || !projectPath || !session?.epoch) {
@@ -37,6 +42,18 @@ export function useProjectCacheWarming({
       "project-activation",
     );
   }, [hasCompletedSessionRestore, projectPath, runtime, session?.epoch, versionLinesController]);
+
+  useEffect(() => {
+    if (!hasCompletedSessionRestore || !projectPath || !session?.epoch) {
+      return undefined;
+    }
+    return syncController.scheduleWarm(
+      runtime,
+      { projectId: projectPath, sessionEpoch: session.epoch },
+      "project-activation",
+      mapSyncError,
+    );
+  }, [hasCompletedSessionRestore, mapSyncError, projectPath, runtime, session?.epoch, syncController]);
 
   useEffect(() => {
     if (!hasCompletedSessionRestore || !projectPath || !session?.workingTree) {

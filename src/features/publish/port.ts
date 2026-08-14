@@ -1,4 +1,5 @@
-import type { CommitFileChange, PublishPlan, PublishResult, RemoteDiscovery } from "./domain";
+import type { RemoteDiscovery } from "../sync";
+import type { CommitFileChange, PublishPlan, PublishResult } from "./domain";
 
 export type PublishQuery = {
   projectId: string;

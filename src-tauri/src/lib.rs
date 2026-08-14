@@ -19,6 +19,7 @@ mod repository_access;
 mod save_version;
 mod session;
 mod status;
+mod sync;
 mod tooling;
 mod version_lines;
 mod watch;
@@ -41,6 +42,8 @@ use repository::*;
 use save_version::*;
 #[cfg(test)]
 use status::*;
+#[cfg(test)]
+use sync::*;
 
 #[cfg(test)]
 use std::path::Path;
@@ -73,6 +76,8 @@ pub fn run() {
             ipc::plan_save_version,
             ipc::save_version,
             ipc::discover_remotes,
+            ipc::read_team_sync_status,
+            ipc::check_team_changes,
             ipc::list_unpublished_versions,
             ipc::read_commit_file_changes,
             ipc::read_commit_file_diff,
@@ -114,5 +119,8 @@ mod save_version_tests;
 #[cfg(test)]
 #[path = "tests/status_tests.rs"]
 mod status_tests;
+#[cfg(test)]
+#[path = "tests/sync_tests.rs"]
+mod sync_tests;
 #[cfg(test)]
 mod test_support;

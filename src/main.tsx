@@ -26,6 +26,12 @@ import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 import { createChangesController, changesPort } from "./features/changes";
 import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
+import {
+  createSyncController,
+  EMPTY_TEAM_SYNC_STATE,
+  syncPort,
+  type SyncErrorMapper,
+} from "./features/sync";
 import { settingsPort, useGitTooling, type ThemePreference } from "./features/settings";
 import {
   createVersionLinesController,
@@ -153,9 +159,11 @@ export function App(): React.JSX.Element {
   const [repositoryController] = useState(() => createRepositoryController(repositoryPort));
   const [statusController] = useState(() => createStatusController(statusPort));
   const [changesController] = useState(() => createChangesController(changesPort));
+  const [syncController] = useState(() => createSyncController(syncPort));
   // The error mapper is rebuilt whenever the language changes, so subscribers
   // read it through a ref rather than closing over the first render's copy.
   const mapStatusErrorRef = useRef<StatusErrorMapper>(() => "");
+  const mapSyncErrorRef = useRef<SyncErrorMapper>(() => "");
   const [repositoryReads] = useState(() =>
     createRepositoryReadCoordinator(repositoryController, [
       {
@@ -171,6 +179,15 @@ export function App(): React.JSX.Element {
         blocking: false,
         refresh: (query) => versionLinesController.refresh(query),
         supersede: (query) => versionLinesController.supersede(query),
+      },
+      {
+        id: "sync",
+        refreshOn: "shared-change",
+        blocking: false,
+        refresh: async (query) => {
+          await syncController.refreshLocal(projectRuntime, query, mapSyncErrorRef.current);
+        },
+        supersede: (query) => syncController.supersede(projectRuntime, query),
       },
     ]),
   );
@@ -192,6 +209,7 @@ export function App(): React.JSX.Element {
   const workingTreeCheckedAt = activeSession?.workingTreeCheckedAt ?? null;
   const pendingVersions = activeSession?.pendingVersions ?? EMPTY_PENDING_VERSIONS;
   const pendingVersionsError = activeSession?.pendingVersionsError ?? null;
+  const teamSync = activeSession?.teamSync ?? EMPTY_TEAM_SYNC_STATE;
   const mapStatusError = useMemo<StatusErrorMapper>(
     () => (error, area) =>
       localizeAppError(
@@ -202,6 +220,11 @@ export function App(): React.JSX.Element {
     [t],
   );
   mapStatusErrorRef.current = mapStatusError;
+  const mapSyncError = useMemo<SyncErrorMapper>(
+    () => (error) => localizeAppError(error, t, t.syncUnavailableTitle),
+    [t],
+  );
+  mapSyncErrorRef.current = mapSyncError;
   const [projectAnnouncement, setProjectAnnouncement] = useState("");
   const [storedProjectsOnLaunch] = useState(readStoredProjects);
   const [hasCompletedSessionRestore, setHasCompletedSessionRestore] = useState(false);
@@ -362,6 +385,20 @@ export function App(): React.JSX.Element {
   const checkWorkingTree = async (path: string, requestedEpoch?: string): Promise<void> => {
     const epoch = requestedEpoch ?? sessionsState.byId[path]?.epoch;
     if (epoch) await statusController.refresh(projectRuntime, { projectId: path, sessionEpoch: epoch }, mapStatusError);
+  };
+
+  const checkTeamChanges = async (path: string, sessionEpoch: string): Promise<void> => {
+    const result = await syncController.check(
+      projectRuntime,
+      { projectId: path, sessionEpoch },
+      mapSyncError,
+    );
+    // The explicit fetch mutates only shared remote-tracking metadata. Fan
+    // that local invalidation through ordinary readers; no subscriber here
+    // may contact the network.
+    if (result?.knowledge === "fresh") {
+      await repositoryReads.refreshAll(projectRuntime, projectRuntime.getSnapshot(), path);
+    }
   };
 
   // A successful create/switch/delete on a version line changes `HEAD`, the
@@ -630,6 +667,8 @@ export function App(): React.JSX.Element {
     session: activeSession,
     changesController,
     versionLinesController,
+    syncController,
+    mapSyncError,
   });
 
   // Some screens only exist for an opened project; if the project closes
@@ -674,6 +713,7 @@ export function App(): React.JSX.Element {
     // Their generations reject late responses from the closed epoch.
     changesController.close(id, closingSession.epoch);
     statusController.close({ projectId: id, sessionEpoch: closingSession.epoch });
+    syncController.close(projectRuntime, { projectId: id, sessionEpoch: closingSession.epoch });
     repositoryReads.close(id, closingSession.epoch);
     delete watchedSessionsRef.current[id];
     versionLinesController.close({ projectId: id, sessionEpoch: closingSession.epoch });
@@ -1250,6 +1290,10 @@ export function App(): React.JSX.Element {
                     startSessionOperation("save");
                     navigateToView("changes");
                   }}
+                  teamSync={teamSync}
+                  onCheckTeamChanges={() => {
+                    if (activeSession) void checkTeamChanges(activeSession.id, activeSession.epoch);
+                  }}
                 />
               ),
               // Project-only screens are absent, not disabled, when no
@@ -1349,6 +1393,10 @@ export function App(): React.JSX.Element {
               setPublishDialogSessionId(null);
             }}
             onPublished={(result) => {
+              syncController.supersede(projectRuntime, {
+                projectId: publishDialogSession.project.path,
+                sessionEpoch: publishDialogSession.epoch,
+              });
               statusController.commitPublishedResult(
                 projectRuntime,
                 {
