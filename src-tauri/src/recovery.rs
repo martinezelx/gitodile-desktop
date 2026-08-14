@@ -498,7 +498,14 @@ fn remove_worktree_path(root: &Path, relative: &str) -> Result<(), AppError> {
             AppErrorCode::PathInvalid,
             "GitOdrile refused to remove an unsupported filesystem entry.",
         )),
-        Err(value) if value.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(value)
+            if matches!(
+                value.kind(),
+                std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+            ) =>
+        {
+            Ok(())
+        }
         Err(_) => Err(error(
             "GitOdrile couldn't inspect an unsaved file before removing it.",
         )),

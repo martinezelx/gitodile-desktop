@@ -198,7 +198,14 @@ fn conflicted_index_is_recovered_byte_for_byte() {
     git_add_all(&path);
     git_commit(&path, "current edit");
     assert!(!git_command(&path)
-        .args(["merge", "other"])
+        .args([
+            "-c",
+            "user.name=GitOdrile Test",
+            "-c",
+            "user.email=test@gitodrile.local",
+            "merge",
+            "other",
+        ])
         .status()
         .unwrap()
         .success());
