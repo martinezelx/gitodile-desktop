@@ -918,7 +918,7 @@ fn stable_fnv1a(value: &str) -> u64 {
 fn history_owner_id(repository: &RepositoryContext) -> String {
     let common = repository.common_git_dir.backend_path();
     let git_dir = repository.git_dir.backend_path();
-    let mut relative = if git_dir == common {
+    let relative = if git_dir == common {
         "main".to_string()
     } else {
         git_dir
@@ -928,9 +928,7 @@ fn history_owner_id(repository: &RepositoryContext) -> String {
             .replace('\\', "/")
     };
     #[cfg(target_os = "windows")]
-    {
-        relative = relative.to_lowercase();
-    }
+    let relative = relative.to_lowercase();
     format!("worktree-{:016x}", stable_fnv1a(&relative))
 }
 
