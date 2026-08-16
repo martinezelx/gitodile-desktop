@@ -1,15 +1,14 @@
 export interface SettingsTranslations {
-  settingsAppearanceTitle: string;
-  settingsAppearanceDescription: string;
+  settingsInterfaceTitle: string;
   settingsSectionsAriaLabel: string;
+  settingsResetSection: string;
   settingsGitTitle: string;
-  settingsGitDescription: string;
-  settingsGitInstallationDescription: string;
+  settingsGitNeedsAttention: string;
   themeAriaLabel: string;
+  settingsThemeDescription: string;
   themeLight: string;
   themeDark: string;
   settingsGeneralTitle: string;
-  settingsGeneralDescription: string;
   settingsGitInstallationTitle: string;
   settingsGitInstalledVersionLabel: string;
   settingsGeneralChecking: string;
@@ -44,17 +43,18 @@ export interface SettingsTranslations {
   identityEmailLabel: string;
   identityNamePlaceholder: string;
   identityEmailPlaceholder: string;
-  identitySave: string;
   identitySaving: string;
   identitySaved: string;
-  identityModify: string;
   identityCouldntSave: string;
+  identityInvalidEmail: string;
+  identityUnsavedTitle: string;
+  identityUnsavedBody: string;
+  identityKeepEditing: string;
+  identityDiscardAndClose: string;
   settingsStartupTitle: string;
-  settingsStartupDescription: string;
   startupReopenLabel: string;
   startupReopenDescription: string;
   settingsSafetyTitle: string;
-  settingsSafetyDescription: string;
   safetyConfirmLabel: string;
   safetyConfirmDescription: string;
   settingsLanguageTitle: string;
@@ -63,17 +63,16 @@ export interface SettingsTranslations {
 }
 
 const en: SettingsTranslations = {
-  settingsAppearanceTitle: "Appearance",
-  settingsAppearanceDescription: 'Choose how GitOdrile looks. "System" follows your OS setting automatically.',
+  settingsInterfaceTitle: "Interface",
   settingsSectionsAriaLabel: "Settings sections",
+  settingsResetSection: "Reset this section",
   settingsGitTitle: "Git",
-  settingsGitDescription: "Manage the Git installation, updates, and identity used to save versions.",
-  settingsGitInstallationDescription: "Installed version, availability, and updates.",
+  settingsGitNeedsAttention: "Git needs attention",
   themeAriaLabel: "Theme",
+  settingsThemeDescription: '"System" follows your operating system.',
   themeLight: "Light",
   themeDark: "Dark",
   settingsGeneralTitle: "General",
-  settingsGeneralDescription: "Choose what GitOdrile does when it starts.",
   settingsGitInstallationTitle: "Installation",
   settingsGitInstalledVersionLabel: "Installed version",
   settingsGeneralChecking: "Checking…",
@@ -110,37 +109,36 @@ const en: SettingsTranslations = {
   identityEmailLabel: "Email",
   identityNamePlaceholder: "Ada Lovelace",
   identityEmailPlaceholder: "ada@example.com",
-  identitySave: "Save",
   identitySaving: "Saving…",
   identitySaved: "Saved.",
-  identityModify: "Edit identity",
   identityCouldntSave: "Couldn't save that.",
+  identityInvalidEmail: "That doesn't look like an email address.",
+  identityUnsavedTitle: "Your identity isn't saved yet",
+  identityUnsavedBody: "Fill in both fields with a valid email, or close and discard what you typed.",
+  identityKeepEditing: "Keep editing",
+  identityDiscardAndClose: "Discard and close",
   settingsStartupTitle: "Startup",
-  settingsStartupDescription: "Control what happens when GitOdrile launches.",
   startupReopenLabel: "Reopen projects from the previous session",
   startupReopenDescription: "Skip picking folders again if you had projects open last time.",
   settingsSafetyTitle: "Safety",
-  settingsSafetyDescription: "Extra confirmations before you can lose your place.",
   safetyConfirmLabel: "Confirm before closing a project",
   safetyConfirmDescription: "Ask before clearing the open project, in case that was a misclick.",
   settingsLanguageTitle: "Language",
-  settingsLanguageDescription: 'Choose GitOdrile\'s language. "System" follows your operating system\'s language.',
+  settingsLanguageDescription: '"System" follows your operating system\'s language.',
   languageAriaLabel: "Language",
 };
 
 const es: SettingsTranslations = {
-  settingsAppearanceTitle: "Apariencia",
-  settingsAppearanceDescription:
-    'Elige el aspecto de GitOdrile. "Sistema" sigue automáticamente el ajuste de tu sistema operativo.',
+  settingsInterfaceTitle: "Interfaz",
   settingsSectionsAriaLabel: "Secciones de configuración",
+  settingsResetSection: "Restablecer esta sección",
   settingsGitTitle: "Git",
-  settingsGitDescription: "Gestiona la instalación, las actualizaciones y la identidad de Git.",
-  settingsGitInstallationDescription: "Versión instalada, disponibilidad y actualizaciones.",
+  settingsGitNeedsAttention: "Git necesita atención",
   themeAriaLabel: "Tema",
+  settingsThemeDescription: '"Sistema" sigue tu sistema operativo.',
   themeLight: "Claro",
   themeDark: "Oscuro",
   settingsGeneralTitle: "General",
-  settingsGeneralDescription: "Elige qué hace GitOdrile cuando se inicia.",
   settingsGitInstallationTitle: "Instalación",
   settingsGitInstalledVersionLabel: "Versión instalada",
   settingsGeneralChecking: "Comprobando…",
@@ -183,21 +181,23 @@ const es: SettingsTranslations = {
   identityEmailLabel: "Correo electrónico",
   identityNamePlaceholder: "Ada Lovelace",
   identityEmailPlaceholder: "ada@example.com",
-  identitySave: "Guardar",
   identitySaving: "Guardando…",
   identitySaved: "Guardado.",
-  identityModify: "Modificar identidad",
   identityCouldntSave: "No se pudo guardar eso.",
+  identityInvalidEmail: "Esto no parece una dirección de correo.",
+  identityUnsavedTitle: "Tu identidad aún no está guardada",
+  identityUnsavedBody:
+    "Rellena ambos campos con un correo válido, o cierra y descarta lo que has escrito.",
+  identityKeepEditing: "Seguir editando",
+  identityDiscardAndClose: "Descartar y cerrar",
   settingsStartupTitle: "Inicio",
-  settingsStartupDescription: "Controla qué ocurre cuando se abre GitOdrile.",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
   startupReopenDescription: "Evita elegir carpetas de nuevo si tenías proyectos abiertos la última vez.",
   settingsSafetyTitle: "Seguridad",
-  settingsSafetyDescription: "Confirmaciones adicionales antes de perder tu lugar.",
   safetyConfirmLabel: "Confirmar antes de cerrar un proyecto",
   safetyConfirmDescription: "Pregunta antes de cerrar el proyecto abierto, por si fue un clic accidental.",
   settingsLanguageTitle: "Idioma",
-  settingsLanguageDescription: 'Elige el idioma de GitOdrile. "Sistema" usa el idioma de tu sistema operativo.',
+  settingsLanguageDescription: '"Sistema" usa el idioma de tu sistema operativo.',
   languageAriaLabel: "Idioma",
 };
 

@@ -1,7 +1,9 @@
-.settings-layout { min-height: 0; display: grid; grid-template-columns: 184px minmax(0, 1fr); }
+.settings-layout { min-height: 0; display: grid; grid-template-columns: 160px minmax(0, 1fr); }
 .settings-nav {
   position: relative;
-  align-content: start; gap: 4px; padding: 18px 12px;
+  /* `display: grid` used to be inherited from the `nav` element rule in
+     shared primitives; the rail is a tablist now, so it declares its own. */
+  display: grid; align-content: start; gap: 4px; padding: 14px 10px;
   background: var(--surface-panel);
 }
 .settings-nav::after {
@@ -17,23 +19,29 @@
 }
 .settings-nav__item:hover { background: var(--surface-hover); color: var(--text-primary); }
 .settings-nav__item--active { background: var(--surface-active); color: var(--text-primary); }
-.settings-nav__item--active > span { color: var(--accent-primary); }
-.settings-nav__item > span { width: 18px; height: 18px; display: grid; place-items: center; }
+.settings-nav__item--active > span:first-child { color: var(--accent-primary); }
+.settings-nav__item > span:first-child { width: 18px; height: 18px; display: grid; place-items: center; }
 .settings-nav__item svg { width: 18px; height: 18px; }
+/* Marks the rail item whose section holds a problem. Paired with the header
+   chip, which carries the wording — this is the "where", not the "what". */
+.settings-nav__alert {
+  width: 7px; height: 7px; margin-left: auto; flex-shrink: 0;
+  border-radius: 50%; background: var(--status-danger);
+}
 .settings-view {
-  min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 0;
-  padding: 8px 32px 32px;
+  min-height: 0; overflow-y: auto; scrollbar-gutter: stable;
+  display: grid; align-content: start; gap: 0;
+  padding: 20px 24px 24px;
 }
-.settings-section { position: relative; padding: 28px 0; }
-.settings-section:not(:last-child)::after {
-  position: absolute; right: 0; bottom: 0; left: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
-  content: "";
-}
-.settings-section__heading { margin-bottom: var(--space-4); }
-.settings-section__heading h2 { font-size: 18px; margin-bottom: 4px; }
-.settings-section__heading p { color: var(--text-secondary); font-size: 14px; margin-bottom: 0; }
-.settings-groups { display: grid; gap: 28px; }
+.settings-view:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -4px; }
+.settings-groups { display: grid; gap: 24px; }
+/* Sits after the groups and reads as an escape hatch, not as one more
+   setting: quieter than the section's own controls and disabled while there
+   is nothing to undo. */
+.settings-view__footer { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
+.settings-reset { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+.settings-reset svg { width: 14px; height: 14px; }
+.settings-reset:disabled { opacity: 0.45; }
 .settings-group { display: grid; gap: 10px; }
 .settings-group__header { padding: 0 4px; }
 .settings-group__header h3 { margin: 0 0 3px; font-size: 14px; }
@@ -45,20 +53,34 @@
   background: var(--surface-panel);
 }
 
-.identity-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-4); }
-.settings-section__footer { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); }
+.identity-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+/* Reserved so the row does not appear and disappear under the fields as the
+   draft moves between saving, saved and invalid. */
+.identity-block__status { min-height: 18px; margin-top: 10px; }
+.identity-block__confirm {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+  margin-top: var(--space-3); padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+}
+.identity-block__confirm strong { display: block; margin-bottom: 2px; font-size: 13.5px; }
+.identity-block__confirm p { margin: 0; color: var(--text-secondary); font-size: 12.5px; }
 
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .settings-row + .settings-row { margin-top: var(--space-4); }
 .settings-row strong { display: block; margin-bottom: 2px; }
 .settings-row p { color: var(--text-secondary); font-size: 14px; margin-bottom: 0; }
-.settings-row__warning { color: var(--status-danger); }
-.settings-row__hint { font-size: 12px; margin-top: 2px; }
-.settings-row__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
-.settings-row__badge {
-  margin-left: 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; padding: 2px 8px; border-radius: 999px;
-  background: var(--surface-active); color: var(--accent-primary);
+.settings-row__hint {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+  color: var(--text-secondary); font-size: 12px;
 }
+.settings-row__hint svg { flex-shrink: 0; width: 13px; height: 13px; }
+/* Only the two tones the identity notice can actually take. The Git action
+   notice uses the `git-install__status--*` scale instead. */
+.settings-row__hint--success { color: var(--status-success); }
+.settings-row__hint--danger { color: var(--status-danger); }
+.settings-row__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .git-install { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .git-install__version { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin: 0; }
 .git-install__version-label { color: var(--text-secondary); font-size: 12px; }
@@ -106,8 +128,10 @@
     background: linear-gradient(90deg, transparent, var(--border-divider) 18%, var(--border-divider) 82%, transparent);
   }
   .settings-nav__item { width: auto; flex: 0 0 auto; padding: 0 12px; }
-  .settings-view { padding: 4px 20px 24px; }
+  .settings-nav__alert { margin-left: 2px; }
+  .settings-view { padding: 16px 20px 24px; }
   .identity-fields { grid-template-columns: 1fr; }
+  .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .settings-row { align-items: flex-start; flex-direction: column; }
   .settings-row__actions { width: 100%; }
 }

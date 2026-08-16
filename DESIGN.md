@@ -103,6 +103,8 @@ Colors should be defined semantically rather than by component:
 - `--status-warning`
 - `--status-danger`
 - `--status-danger-contrast` (icon/text placed on a danger fill)
+- `--accent-heart` (the About footer heart — its own token so a red heart is
+  never mistaken for a danger state)
 - `--diff-added`
 - `--diff-removed`
 - `--overlay` (modal/backdrop scrim)
@@ -149,6 +151,7 @@ The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and prima
 | `--status-warning` | `#e8b339` | `#8a5b00` |
 | `--status-danger` | `#ff6b5b` | `#b3261e` |
 | `--status-danger-contrast` | `#14170f` | `#fff7f5` |
+| `--accent-heart` | `#ff7a6b` | `#cc2936` |
 | `--diff-added` | `#9bd65a` | `#496f19` |
 | `--diff-removed` | `#ff6b5b` | `#b3261e` |
 | `--overlay` | `rgba(0, 0, 0, 0.68)` | `rgba(28, 25, 23, 0.4)` |

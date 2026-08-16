@@ -11,6 +11,9 @@
     "core:window:allow-toggle-maximize",
     "dialog:allow-open",
     "opener:allow-open-url",
-    "os:allow-locale"
+    "os:allow-locale",
+    "os:allow-platform",
+    "os:allow-version",
+    "os:allow-arch"
   ]
 }

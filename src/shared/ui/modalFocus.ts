@@ -8,7 +8,10 @@ export function getFocusableElements(container: HTMLElement): HTMLElement[] {
     container.querySelectorAll<HTMLElement>(
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
-  ).filter((element) => !element.hasAttribute("hidden"));
+    // A roving tabindex takes its inactive items out of the tab order with
+    // `tabindex="-1"`. The selector above still matches them by tag, so the
+    // trap has to drop them too or Tab would walk a list the browser won't.
+  ).filter((element) => !element.hasAttribute("hidden") && element.tabIndex >= 0);
 }
 
 export function useModalFocus<T extends HTMLElement>(
@@ -29,7 +32,12 @@ export function useModalFocus<T extends HTMLElement>(
       if (!dialog) {
         return;
       }
-      (getFocusableElements(dialog)[0] ?? dialog).focus();
+      // `data-autofocus` lets a dialog name its own landing point. Without it
+      // focus goes to the first focusable element, which for any dialog with a
+      // header close button is Close — so Enter right after opening shuts the
+      // dialog the user just asked for.
+      const preferred = dialog.querySelector<HTMLElement>("[data-autofocus]");
+      (preferred ?? getFocusableElements(dialog)[0] ?? dialog).focus();
     };
     const animationFrame = window.requestAnimationFrame(focusDialog);
     const handleKeyDown = (event: KeyboardEvent): void => {

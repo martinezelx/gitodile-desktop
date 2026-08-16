@@ -342,23 +342,43 @@
   position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
   padding: 28px; background: var(--overlay); backdrop-filter: blur(8px);
 }
+/* Sized to the content, not to the window: tall enough for the largest
+   section to sit without scrolling, and no taller. A fixed height rather than
+   one that follows the active section, so the card does not resize under the
+   pointer every time the rail is clicked. */
 .settings-dialog {
-  width: min(920px, 100%); height: min(720px, calc(100vh - 56px)); min-height: 480px;
+  width: min(820px, 100%); height: min(480px, calc(100vh - 56px)); min-height: 380px;
   display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-xl);
   outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .settings-dialog__header {
   position: relative;
-  min-height: 86px; padding: 20px 24px; display: flex; align-items: center;
-  justify-content: space-between; gap: var(--space-5);
+  min-height: 72px; padding: 16px 20px; display: flex; align-items: center;
+  gap: var(--space-4);
 }
+.settings-dialog__heading { flex: 1 1 auto; min-width: 0; }
+.settings-dialog__alert {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px var(--space-3); border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--status-danger) 40%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+  color: var(--status-danger); font-size: 12.5px; font-weight: 650;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+/* Hover deepens the border rather than the fill: the text is `--status-danger`
+   on its own tint, and past a 14% fill that pair drops under 4.5:1 in dark. */
+.settings-dialog__alert:hover {
+  border-color: color-mix(in srgb, var(--status-danger) 75%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 14%, transparent);
+}
+.settings-dialog__alert svg { width: 14px; height: 14px; }
 .settings-dialog__header::after {
   position: absolute; right: 18px; bottom: 0; left: 18px; height: 1px;
   background: linear-gradient(90deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
   content: "";
 }
-.settings-dialog__header h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.015em; }
+.settings-dialog__header h2 { margin: 0 0 3px; font-size: 20px; letter-spacing: -0.015em; }
 .settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
 .settings-dialog__close {
   flex-shrink: 0; width: 36px; height: 36px; display: grid; place-items: center;
@@ -379,13 +399,29 @@
 .about-dialog__close svg { width: 16px; height: 16px; }
 .about-dialog__mark { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px; border-radius: var(--radius-lg); background: var(--accent-brand); color: var(--brand-mark-foreground); }
 .about-dialog__mark .gitodrile-mark { width: 31px; height: 18px; }
+.about-dialog__copy {
+  width: 100%; margin-top: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 13px;
+}
+.about-dialog__copy svg { width: 15px; height: 15px; }
 .about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary); font-size: 12.5px; text-align: center; }
+.about-dialog__heart { color: var(--accent-heart); }
 .about-dialog h2 { margin-bottom: 12px; font-size: 28px; }
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: 1.6; }
-.about-details { margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--border-divider); }
+.about-details { margin: 22px 0 0; }
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
 .about-details dt { color: var(--text-secondary); }
 .about-details dd { margin: 0; text-align: right; }
+/* GitOdrile's own version leads the list and carries the rule, so the group
+   below it reads as "and this is what it is running on". `:not(:last-child)`
+   suppresses the rule when there is nothing to separate — the state of every
+   browser dev run, where no OS bridge exists. */
+.about-details__app dd { font-weight: 650; }
+.about-details__app:not(:last-child) {
+  margin-bottom: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-divider);
+}
 
 .shortcuts-dialog { width: min(100%, 380px); }
 .shortcuts-list { list-style: none; margin: 4px 0 0; padding: 0; }
@@ -415,7 +451,7 @@
 @media (max-width: 800px) {
   .settings-backdrop { padding: 12px; }
   .settings-dialog { height: calc(100vh - 24px); min-height: 0; }
-  .settings-dialog__header { min-height: 78px; padding: 16px 18px; }
+  .settings-dialog__header { min-height: 68px; padding: 14px 16px; flex-wrap: wrap; }
   .settings-dialog__header p { max-width: 46ch; }
   .window-titlebar__brand { display: flex; padding-left: 4px; }
   .titlebar-badge { display: none; }

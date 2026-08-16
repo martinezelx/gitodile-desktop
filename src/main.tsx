@@ -33,7 +33,13 @@ import {
   syncPort,
   type SyncErrorMapper,
 } from "./features/sync";
-import { settingsPort, useGitTooling, type ThemePreference } from "./features/settings";
+import {
+  SETTINGS_SECTIONS,
+  settingsPort,
+  settingsSectionLabel,
+  useGitTooling,
+  type ThemePreference,
+} from "./features/settings";
 import {
   createVersionLinesController,
   useVersionLinesState,
@@ -45,11 +51,14 @@ import { AppOverlays } from "./app/AppOverlays";
 import { CROCODILE_MARK } from "./app/branding";
 import { CommandPalette, type AppCommand } from "./app/CommandPalette";
 import {
+  CONFIRM_CLOSE_PROJECT_DEFAULT,
   CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
+  REOPEN_LAST_PROJECT_DEFAULT,
   REOPEN_LAST_PROJECT_STORAGE_KEY,
   SIDEBAR_COLLAPSED_STORAGE_KEY,
   applyTheme,
   resolveEffectiveTheme,
+  useSettingsSection,
   useStoredBoolean,
   useThemePreference,
 } from "./app/preferences";
@@ -341,13 +350,14 @@ export function App(): React.JSX.Element {
   const [skippedRestoreCount, setSkippedRestoreCount] = useState(0);
   const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const gitTooling = useGitTooling(settingsPort);
+  const [settingsSection, setSettingsSection] = useSettingsSection();
   const [reopenLastProject, setReopenLastProject] = useStoredBoolean(
     REOPEN_LAST_PROJECT_STORAGE_KEY,
-    false,
+    REOPEN_LAST_PROJECT_DEFAULT,
   );
   const [confirmCloseProject, setConfirmCloseProject] = useStoredBoolean(
     CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
-    true,
+    CONFIRM_CLOSE_PROJECT_DEFAULT,
   );
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -769,11 +779,32 @@ export function App(): React.JSX.Element {
     }
   };
 
+  /** Every dialog that installs its own focus trap, not just the ones that
+   * block project mutations. Opening a second on top of the first leaves two
+   * Escape handlers and two traps competing for focus. */
+  const hasOpenDialog =
+    hasBlockingDialog ||
+    isAboutOpen ||
+    isShortcutsOpen ||
+    isCloseConfirmOpen ||
+    isOpenErrorDialogOpen ||
+    isPaletteOpen;
+
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent): void => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         openPalette();
+        return;
+      }
+      // The desktop convention for preferences. Not taken while any dialog
+      // owns the screen, so it cannot stack a second focus trap on top of one.
+      if ((event.metaKey || event.ctrlKey) && event.key === ",") {
+        if (hasOpenDialog) {
+          return;
+        }
+        event.preventDefault();
+        setIsSettingsOpen(true);
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key === "Tab") {
@@ -796,7 +827,7 @@ export function App(): React.JSX.Element {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [sessionsState, hasBlockingDialog, view]);
+  }, [sessionsState, hasBlockingDialog, hasOpenDialog, view]);
 
   const commands: AppCommand[] = [
     // "Go to X" comes from the screen registry, in nav order, so a new screen
@@ -811,11 +842,24 @@ export function App(): React.JSX.Element {
         return [];
       }
       if (destination.overlay === "settings") {
-        return [{
-          id: `open-${destination.id}`,
-          label: t[destination.commandLabelKey],
-          action: () => setIsSettingsOpen(true),
-        }];
+        // One entry per section as well as the plain "Go to Settings": the
+        // section is app state now, so the palette can land on the right one
+        // instead of dropping the user at whichever they used last.
+        return [
+          {
+            id: `open-${destination.id}`,
+            label: t[destination.commandLabelKey],
+            action: () => setIsSettingsOpen(true),
+          },
+          ...SETTINGS_SECTIONS.map((section) => ({
+            id: `open-settings-${section}`,
+            label: t.commandGoSettingsSection(settingsSectionLabel(section, t)),
+            action: () => {
+              setSettingsSection(section);
+              setIsSettingsOpen(true);
+            },
+          })),
+        ];
       }
       if (screen === null) {
         return [];
@@ -1523,11 +1567,17 @@ export function App(): React.JSX.Element {
           setOpen: setIsSettingsOpen,
           theme,
           setTheme: changeTheme,
+          section: settingsSection,
+          setSection: setSettingsSection,
           gitTooling,
           reopenLastProject,
           setReopenLastProject,
           confirmCloseProject,
           setConfirmCloseProject,
+          defaults: {
+            reopenLastProject: REOPEN_LAST_PROJECT_DEFAULT,
+            confirmCloseProject: CONFIRM_CLOSE_PROJECT_DEFAULT,
+          },
         }}
         about={{ isOpen: isAboutOpen, setOpen: setIsAboutOpen }}
         shortcuts={{ isOpen: isShortcutsOpen, setOpen: setIsShortcutsOpen }}

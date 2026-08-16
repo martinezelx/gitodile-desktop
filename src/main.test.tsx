@@ -345,17 +345,46 @@ describe("App project restoration", () => {
     // Synchronous on purpose: the panel is eager, so the dialog and its content
     // land in the same commit. Making the overlay lazy again would fail here
     // before it could reach the user as a fallback frame.
-    expect(within(dialog).getByRole("navigation", { name: "Settings sections" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("heading", { name: "General" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("tablist", { name: "Settings sections" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "Startup" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
-    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Close" })).toHaveFocus());
+    // Focus lands on the section rail, not on Close: Enter right after opening
+    // should not shut the dialog the user just asked for.
+    await waitFor(() => expect(within(dialog).getByRole("tab", { name: "General" })).toHaveFocus());
 
-    await user.click(within(dialog).getByRole("button", { name: "Appearance" }));
+    await user.click(within(dialog).getByRole("tab", { name: "Interface" }));
     expect(within(dialog).getByRole("heading", { name: "Language" })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
     expect(trigger).toHaveFocus();
+
+    // The section is a preference, not per-opening state.
+    await user.click(trigger);
+    expect(
+      within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: "Interface" }),
+    ).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Escape}");
+
+    // Ctrl/Cmd+, is the desktop convention for preferences.
+    await user.keyboard("{Control>},{/Control}");
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    // …but never on top of another dialog: two focus traps would compete.
+    await user.keyboard("{Control>}k{/Control}");
+    expect(screen.getByRole("dialog", { name: "Command palette" })).toBeInTheDocument();
+    await user.keyboard("{Control>},{/Control}");
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+    await user.keyboard("{Escape}");
+
+    // The palette lands on a named section instead of wherever the user was.
+    await user.keyboard("{Control>}k{/Control}");
+    await user.type(screen.getByRole("combobox"), "Settings: Git");
+    await user.keyboard("{Enter}");
+    expect(
+      within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: /Git/ }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 
   it("animates a theme change by where it was asked for", async () => {
@@ -393,7 +422,7 @@ describe("App project restoration", () => {
     await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
     await user.click(screen.getAllByRole("button", { name: "Settings" })[0]);
     const dialog = screen.getByRole("dialog", { name: "Settings" });
-    await user.click(within(dialog).getByRole("button", { name: "Appearance" }));
+    await user.click(within(dialog).getByRole("tab", { name: "Interface" }));
     await user.click(within(dialog).getByRole("radio", { name: "Light" }));
 
     expect(modes).toEqual(["reveal", "fade"]);

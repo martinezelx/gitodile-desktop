@@ -10,6 +10,7 @@ export interface AppTranslations {
   titlebarKeyboardShortcuts: string;
   shortcutsDialogTitle: string;
   shortcutsOpenPalette: string;
+  shortcutsOpenSettings: string;
   shortcutsNextProject: string;
   shortcutsPreviousProject: string;
   shortcutsCloseDialogs: string;
@@ -44,6 +45,7 @@ export interface AppTranslations {
   commandGoVersionLines: string;
   commandNewVersionLine: string;
   commandGoSettings: string;
+  commandGoSettingsSection: (section: string) => string;
   commandUseSystemTheme: string;
   commandUseLightTheme: string;
   commandUseDarkTheme: string;
@@ -68,7 +70,16 @@ export interface AppTranslations {
   aboutGitOdrile: string;
   aboutHeading: string;
   aboutDescription: string;
+  aboutSystem: string;
+  aboutSystemVersion: string;
+  aboutGitVersion: string;
+  aboutCopySystemInfo: string;
+  aboutCopied: string;
+  /* Split around the heart so it can be colored, and so both halves stay
+     translatable — word order around it is not the same in every language. */
   aboutFooterMadeWith: string;
+  aboutFooterByAuthor: string;
+  aboutHeartLabel: string;
   closeConfirmTitle: string;
   closeConfirmBodyGeneric: string;
   closeConfirmBodyNamed: (name: string) => string;
@@ -86,6 +97,7 @@ const en: AppTranslations = {
   titlebarKeyboardShortcuts: "Keyboard shortcuts",
   shortcutsDialogTitle: "Keyboard shortcuts",
   shortcutsOpenPalette: "Open command palette",
+  shortcutsOpenSettings: "Open Settings",
   shortcutsNextProject: "Next project",
   shortcutsPreviousProject: "Previous project",
   shortcutsCloseDialogs: "Close dialogs and menus",
@@ -120,6 +132,7 @@ const en: AppTranslations = {
   commandGoVersionLines: "Go to Version lines",
   commandNewVersionLine: "New version line",
   commandGoSettings: "Go to Settings",
+  commandGoSettingsSection: (section) => `Settings: ${section}`,
   commandUseSystemTheme: "Use system theme",
   commandUseLightTheme: "Use light theme",
   commandUseDarkTheme: "Use dark theme",
@@ -149,7 +162,14 @@ const en: AppTranslations = {
   aboutGitOdrile: "About",
   aboutHeading: "Git without the bite.",
   aboutDescription: "Turns version control into clear, worry-free steps.",
-  aboutFooterMadeWith: "Made with ♥ by Luis M. Martínez.",
+  aboutSystem: "System",
+  aboutSystemVersion: "System version",
+  aboutGitVersion: "Git",
+  aboutCopySystemInfo: "Copy system info",
+  aboutCopied: "Copied",
+  aboutFooterMadeWith: "Made with",
+  aboutFooterByAuthor: "by Luis M. Martínez.",
+  aboutHeartLabel: "love",
   closeConfirmTitle: "Close this project?",
   closeConfirmBodyGeneric: "The project stays exactly as it is on disk. You can reopen it anytime.",
   closeConfirmBodyNamed: (name) => `"${name}" stays exactly as it is on disk. You can reopen it anytime.`,
@@ -167,6 +187,7 @@ const es: AppTranslations = {
   titlebarKeyboardShortcuts: "Atajos de teclado",
   shortcutsDialogTitle: "Atajos de teclado",
   shortcutsOpenPalette: "Abrir la paleta de comandos",
+  shortcutsOpenSettings: "Abrir Configuración",
   shortcutsNextProject: "Proyecto siguiente",
   shortcutsPreviousProject: "Proyecto anterior",
   shortcutsCloseDialogs: "Cerrar diálogos y menús",
@@ -201,6 +222,7 @@ const es: AppTranslations = {
   commandGoVersionLines: "Ir a Líneas de versión",
   commandNewVersionLine: "Nueva línea de versión",
   commandGoSettings: "Ir a Configuración",
+  commandGoSettingsSection: (section) => `Configuración: ${section}`,
   commandUseSystemTheme: "Usar el tema del sistema",
   commandUseLightTheme: "Usar el tema claro",
   commandUseDarkTheme: "Usar el tema oscuro",
@@ -230,7 +252,14 @@ const es: AppTranslations = {
   aboutGitOdrile: "Acerca de",
   aboutHeading: "Git sin mordiscos.",
   aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
-  aboutFooterMadeWith: "Hecho con ♥ por Luis M. Martínez.",
+  aboutSystem: "Sistema",
+  aboutSystemVersion: "Versión del sistema",
+  aboutGitVersion: "Git",
+  aboutCopySystemInfo: "Copiar info del sistema",
+  aboutCopied: "Copiado",
+  aboutFooterMadeWith: "Hecho con",
+  aboutFooterByAuthor: "por Luis M. Martínez.",
+  aboutHeartLabel: "amor",
   closeConfirmTitle: "¿Cerrar este proyecto?",
   closeConfirmBodyGeneric: "El proyecto se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.",
   closeConfirmBodyNamed: (name) => `"${name}" se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.`,

@@ -55,6 +55,9 @@
   --status-warning: #8a5b00;
   --status-danger: #b3261e;
   --status-danger-contrast: #fff7f5;
+  /* The About footer heart. Its own token so nobody later reads a
+     danger-red heart as an error state. */
+  --accent-heart: #cc2936;
   /* Renamed used to borrow --accent-primary, which happens to be the exact
      same hex as --status-success in this palette — so "renamed" and "added"
      rendered as literally the same color. A dedicated blue keeps the four
@@ -128,6 +131,7 @@
     --status-warning: #e8b339;
     --status-danger: #ff6b5b;
     --status-danger-contrast: #14170f;
+    --accent-heart: #ff7a6b;
     --status-renamed: #6ea8fe;
     --diff-added: #9bd65a;
     --diff-removed: #ff6b5b;
@@ -166,6 +170,7 @@
   --status-warning: #8a5b00;
   --status-danger: #b3261e;
   --status-danger-contrast: #fff7f5;
+  --accent-heart: #cc2936;
   --status-renamed: #2f6fb3;
   --diff-added: #496f19;
   --diff-removed: #b3261e;
@@ -203,6 +208,7 @@
   --status-warning: #e8b339;
   --status-danger: #ff6b5b;
   --status-danger-contrast: #14170f;
+  --accent-heart: #ff7a6b;
   --status-renamed: #6ea8fe;
   --diff-added: #9bd65a;
   --diff-removed: #ff6b5b;
