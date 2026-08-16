@@ -29,6 +29,7 @@ import { createStatusController, statusPort, type StatusErrorMapper } from "./fe
 import {
   createSyncController,
   EMPTY_TEAM_SYNC_STATE,
+  GetTeamChangesDialog,
   syncPort,
   type SyncErrorMapper,
 } from "./features/sync";
@@ -276,6 +277,7 @@ export function App(): React.JSX.Element {
   const [publishDialogSessionId, setPublishDialogSessionId] = useState<string | null>(null);
   const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
   const [saveDialogSessionId, setSaveDialogSessionId] = useState<string | null>(null);
+  const [getTeamDialogSessionId, setGetTeamDialogSessionId] = useState<string | null>(null);
   // Overview's bounded quick-switch/quick-create: distinct from the
   // Version-lines feature screen's own dialog state because Overview isn't
   // that screen's React subtree. Both use the feature-owned dialogs and port.
@@ -285,6 +287,9 @@ export function App(): React.JSX.Element {
   const publishDialogSession = publishDialogSessionId
     ? sessionsState.byId[publishDialogSessionId] ?? null
     : null;
+  const getTeamDialogSession = getTeamDialogSessionId
+    ? sessionsState.byId[getTeamDialogSessionId] ?? null
+    : null;
   // Blocking rather than retargeting an open confirmation/operation is
   // simpler and safer than reconciling it against a different project mid-
   // flight (see the "Decisions" section of task 012): switching and closing
@@ -293,6 +298,7 @@ export function App(): React.JSX.Element {
     isSettingsOpen ||
     publishDialogSessionId !== null ||
     saveDialogSessionId !== null ||
+    getTeamDialogSessionId !== null ||
     activeSession?.operation?.kind === "version-line" ||
     activeSession?.operation?.kind === "discard";
   const showErrorDialog = (title: string, message: string): void => {
@@ -302,7 +308,7 @@ export function App(): React.JSX.Element {
   };
 
   const startSessionOperation = (
-    kind: "save" | "publish" | "discard",
+    kind: "save" | "publish" | "discard" | "sync",
     upTo?: string,
   ): boolean => {
     const session = activeSession;
@@ -323,6 +329,8 @@ export function App(): React.JSX.Element {
     } else if (kind === "publish") {
       setPublishUpTo(upTo ?? null);
       setPublishDialogSessionId(session.id);
+    } else if (kind === "sync") {
+      setGetTeamDialogSessionId(session.id);
     }
     return true;
   };
@@ -1294,6 +1302,7 @@ export function App(): React.JSX.Element {
                   onCheckTeamChanges={() => {
                     if (activeSession) void checkTeamChanges(activeSession.id, activeSession.epoch);
                   }}
+                  onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
                 />
               ),
               // Project-only screens are absent, not disabled, when no
@@ -1416,6 +1425,43 @@ export function App(): React.JSX.Element {
             }
           />
         </Suspense>
+      )}
+
+      {getTeamDialogSession && (
+        <GetTeamChangesDialog
+          isOpen
+          controller={syncController}
+          projectPath={getTeamDialogSession.project.path}
+          sessionEpoch={getTeamDialogSession.epoch}
+          onClose={() => {
+            finishSessionOperation(getTeamDialogSession.id);
+            setGetTeamDialogSessionId(null);
+          }}
+          onApplied={async (result) => {
+            const query = {
+              projectId: getTeamDialogSession.project.path,
+              sessionEpoch: getTeamDialogSession.epoch,
+            };
+            syncController.commitGetResult(projectRuntime, query, result);
+            dispatchSessions({
+              type: "setChangesSelection",
+              id: getTeamDialogSession.id,
+              selection: EMPTY_CHANGES_SELECTION,
+            });
+            await repositoryReads.refreshAfterMutation(
+              projectRuntime,
+              projectRuntime.getSnapshot(),
+              getTeamDialogSession.project.path,
+            );
+          }}
+          onPhaseChange={(phase) =>
+            dispatchSessions({
+              type: "setOperationPhase",
+              id: getTeamDialogSession.id,
+              phase,
+            })
+          }
+        />
       )}
 
       {project && overviewSwitchTarget && (

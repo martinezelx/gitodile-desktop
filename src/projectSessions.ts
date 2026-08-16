@@ -7,7 +7,7 @@ import { EMPTY_TEAM_SYNC_STATE, type TeamSyncStatus, type TeamSyncViewState } fr
  * a session only ever remembers which of these two it was last showing. */
 export type ProjectView = "overview" | "changes" | "version-lines";
 
-export type ProjectMutationKind = "save" | "publish" | "discard" | "version-line";
+export type ProjectMutationKind = "save" | "publish" | "discard" | "version-line" | "sync";
 export type ProjectMutationPhase =
   | "planning"
   | "executing"
@@ -117,6 +117,7 @@ export type ProjectSessionsAction =
       markExistingStale: boolean;
     }
   | { type: "applyTeamSyncStatus"; id: string; generation: number; epoch: string; status: TeamSyncStatus }
+  | { type: "commitTeamSyncResult"; id: string; generation: number; epoch: string; status: TeamSyncStatus }
   | { type: "applyTeamSyncError"; id: string; generation: number; epoch: string; error: string }
   | { type: "markTeamSyncStale"; id: string; epoch: string }
   | { type: "navigate"; id: string; view: ProjectView }
@@ -409,6 +410,23 @@ export function projectSessionsReducer(
             action.status.knowledge === "fresh" && action.status.checkedAt !== null
               ? action.status.checkedAt
               : current.teamSync.lastSuccessfulCheckAt,
+        },
+      }));
+    }
+
+    case "commitTeamSyncResult": {
+      if (!actionMatchesEpoch(state.byId[action.id], action.epoch)) return state;
+      return updateSession(state, action.id, (current) => ({
+        ...current,
+        teamSync: {
+          ...current.teamSync,
+          generation: action.generation,
+          status: action.status,
+          isLoading: false,
+          isCheckingRemote: false,
+          isStale: false,
+          error: null,
+          lastSuccessfulCheckAt: action.status.checkedAt,
         },
       }));
     }

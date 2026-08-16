@@ -78,6 +78,8 @@ pub fn run() {
             ipc::discover_remotes,
             ipc::read_team_sync_status,
             ipc::check_team_changes,
+            ipc::plan_get_team_changes,
+            ipc::get_team_changes,
             ipc::list_unpublished_versions,
             ipc::read_commit_file_changes,
             ipc::read_commit_file_diff,

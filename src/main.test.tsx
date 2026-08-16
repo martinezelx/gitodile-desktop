@@ -9,8 +9,18 @@ import { TitlebarMenu } from "./app/TitlebarMenu";
 import { ProjectPath } from "./features/overview";
 import type { RepositoryInfo } from "./features/repository";
 import type { WorkingTreeStatus } from "./features/status";
+import type {
+  GetTeamChangesPlan,
+  GetTeamChangesResult,
+  TeamSyncStatus,
+} from "./features/sync";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  Channel: class TestChannel<T> {
+    onmessage?: (message: T) => void;
+  },
+}));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 
@@ -43,6 +53,113 @@ const cleanStatus: WorkingTreeStatus = {
   hasPreparedChanges: false,
   hasUnpreparedChanges: false,
   upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
+};
+
+const cachedTeamSync: TeamSyncStatus = {
+  state: "upToDate",
+  localBranch: "main",
+  localCommit: "1111111111111111111111111111111111111111",
+  upstreamRemote: "origin",
+  destinationBranch: "main",
+  trackingRef: "refs/remotes/origin/main",
+  remoteCommit: "1111111111111111111111111111111111111111",
+  ahead: 0,
+  behind: 0,
+  knowledge: "cached",
+  checkedAt: null,
+  warnings: [],
+  nextActions: ["checkAgain"],
+  stateToken: "cached-sync",
+};
+
+const freshBehindTeamSync: TeamSyncStatus = {
+  ...cachedTeamSync,
+  state: "behind",
+  remoteCommit: "2222222222222222222222222222222222222222",
+  behind: 1,
+  knowledge: "fresh",
+  checkedAt: 1,
+  nextActions: ["reviewAndGet"],
+  stateToken: "fresh-behind",
+};
+
+const getTeamPlan: GetTeamChangesPlan = {
+  operationKind: "history-mutation",
+  requiresConfirmation: true,
+  projectId: restoredProject.path,
+  sessionEpoch: restoredProject.sessionEpoch,
+  stateToken: "get-plan",
+  branch: "main",
+  target: { remote: "origin", destinationBranch: "main" },
+  trackingRef: "refs/remotes/origin/main",
+  localCommit: "1111111111111111111111111111111111111111",
+  remoteCommit: "2222222222222222222222222222222222222222",
+  incomingCount: 1,
+  incomingVersions: [{
+    commit: "2222222222222222222222222222222222222222",
+    shortCommit: "2222222",
+    title: "Team version",
+    description: null,
+    committedAt: "2026-08-16T10:00:00Z",
+    author: "Team",
+  }],
+  versionsTruncated: false,
+  fileImpact: {
+    totalCount: 1,
+    counts: { added: 1, modified: 0, deleted: 0, renamed: 0, binary: 0 },
+    files: [{ path: "team.txt", originalPath: null, category: "added", binary: false }],
+    isTruncated: false,
+  },
+  consequences: [],
+  risks: [],
+  steps: [],
+  verification: "verified",
+  recovery: {
+    reference: "refs/gitodrile/recovery/v1/get-team-changes/worktree-a/1",
+    explanation: "protected",
+    retention: "newest 20",
+    retentionLimit: 20,
+  },
+  guarantees: {
+    fastForwardOnly: true,
+    noMerge: true,
+    noRebase: true,
+    noStash: true,
+    noForce: true,
+    noAutomaticConflictResolution: true,
+  },
+};
+
+const getTeamResult: GetTeamChangesResult = {
+  outcome: "completed",
+  projectId: restoredProject.path,
+  sessionEpoch: restoredProject.sessionEpoch,
+  branch: "main",
+  target: getTeamPlan.target,
+  trackingRef: getTeamPlan.trackingRef,
+  previousCommit: getTeamPlan.localCommit,
+  resultingCommit: getTeamPlan.remoteCommit,
+  observedHead: getTeamPlan.remoteCommit,
+  receivedCount: 1,
+  recovery: {
+    schemaVersion: 1,
+    recoveryId: "1",
+    reference: getTeamPlan.recovery.reference,
+    createdAtMs: 1,
+    operation: "get-team-changes",
+    ownerId: "worktree-a",
+    branch: "main",
+    previousCommit: getTeamPlan.localCommit,
+    targetCommit: getTeamPlan.remoteCommit,
+    remote: "origin",
+    destinationBranch: "main",
+    trackingRef: getTeamPlan.trackingRef,
+    stateToken: getTeamPlan.stateToken,
+    retentionLimit: 20,
+  },
+  syncStatus: { ...cachedTeamSync, knowledge: "fresh", checkedAt: 2 },
+  warnings: [],
+  inspectionInstructions: null,
 };
 
 const versionLines = {
@@ -435,6 +552,95 @@ describe("App project restoration", () => {
         ),
       ).toHaveLength(2),
     );
+  });
+
+  it("commits a completed team update before one coordinated refresh without a watcher fetch", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+
+    let checkedRemote = false;
+    let appliedUpdate = false;
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") {
+        return Promise.resolve(restoredProject);
+      }
+      if (command === "read_working_tree_status") {
+        return Promise.resolve(cleanStatus);
+      }
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "read_team_sync_status") {
+        return Promise.resolve(
+          appliedUpdate
+            ? cachedTeamSync
+            : checkedRemote
+              ? { ...freshBehindTeamSync, knowledge: "cached", checkedAt: null }
+              : cachedTeamSync,
+        );
+      }
+      if (command === "check_team_changes") {
+        checkedRemote = true;
+        return Promise.resolve(freshBehindTeamSync);
+      }
+      if (command === "plan_get_team_changes") {
+        return Promise.resolve(getTeamPlan);
+      }
+      if (command === "get_team_changes") {
+        appliedUpdate = true;
+        return Promise.resolve(getTeamResult);
+      }
+      if (command === "watch_repository") {
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
+      }
+      if (command === "get_version_lines") {
+        return Promise.resolve(versionLines);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("heading", { name: restoredProject.name });
+    await userEvent.click(await screen.findByRole("button", { name: "Check for team changes" }));
+    await screen.findByRole("heading", { name: "1 newer team version is available" });
+    await userEvent.click(await screen.findByRole("button", { name: "Review and get" }));
+    const confirm = await screen.findByRole("button", { name: "Get these versions" });
+    expect(screen.getByRole("button", { name: `Close ${restoredProject.name}` })).toBeDisabled();
+
+    const readsBefore = mockedInvoke.mock.calls.filter(
+      ([command]) => command === "read_working_tree_status",
+    ).length;
+    const opensBefore = mockedInvoke.mock.calls.filter(
+      ([command]) => command === "open_repository",
+    ).length;
+    await userEvent.click(confirm);
+    await screen.findByRole("heading", { name: "Team changes are now included" });
+
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status"),
+    ).toHaveLength(readsBefore + 1);
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "open_repository"),
+    ).toHaveLength(opensBefore + 1);
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "get_team_changes"),
+    ).toHaveLength(1);
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "check_team_changes"),
+    ).toHaveLength(1);
   });
 
   it("keeps a screen mounted when you navigate away from it and back", async () => {

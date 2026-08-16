@@ -14,7 +14,10 @@ use crate::{
     save_version::{self, SaveVersionPlan, SaveVersionResult},
     session,
     status::{self, PendingVersionsResult, WorkingTreeStatus},
-    sync::{self, RemoteDiscovery, TeamSyncStatus},
+    sync::{
+        self, GetTeamChangesPhase, GetTeamChangesPlan, GetTeamChangesResult, RemoteDiscovery,
+        TeamSyncStatus,
+    },
     tooling::{
         self, GitDiagnostics, GitIdentity, GitInstallationResult, GitUpdateLaunchResult,
         GitUpdateStatus,
@@ -211,6 +214,38 @@ pub(crate) fn check_team_changes(
 ) -> Result<TeamSyncStatus, AppError> {
     validate_mutation_session(&path, &session_epoch)?;
     sync::check_team_changes(path, session_epoch)
+}
+
+#[tauri::command(async)]
+pub(crate) fn plan_get_team_changes(
+    path: String,
+    session_epoch: String,
+    on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
+) -> Result<GetTeamChangesPlan, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    sync::plan_get_team_changes(path, session_epoch, |phase| {
+        let _ = on_progress.send(phase);
+    })
+}
+
+#[tauri::command(async)]
+pub(crate) fn get_team_changes(
+    path: String,
+    session_epoch: String,
+    state_token: String,
+    recovery_reference: String,
+    on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
+) -> Result<GetTeamChangesResult, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    sync::get_team_changes(
+        path,
+        session_epoch,
+        state_token,
+        recovery_reference,
+        |phase| {
+            let _ = on_progress.send(phase);
+        },
+    )
 }
 
 #[tauri::command(async)]
@@ -517,9 +552,11 @@ mod contract_tests {
             AppErrorCode::RemoteSelectionRequired,
             AppErrorCode::UnbornBranchNoVersion,
             AppErrorCode::NothingToPublish,
+            AppErrorCode::NothingToGet,
             AppErrorCode::BehindRemote,
             AppErrorCode::DivergedHistories,
             AppErrorCode::StalePublishPlan,
+            AppErrorCode::StaleGetTeamChangesPlan,
             AppErrorCode::InvalidRefName,
             AppErrorCode::AuthenticationFailed,
             AppErrorCode::NetworkTimeout,
@@ -528,6 +565,7 @@ mod contract_tests {
             AppErrorCode::RemoteRefMissing,
             AppErrorCode::RemoteRejected,
             AppErrorCode::PublishUncertain,
+            AppErrorCode::GetTeamChangesUncertain,
             AppErrorCode::GitVersionTooOld,
             AppErrorCode::VersionLineNameTaken,
             AppErrorCode::VersionLineNameCollides,
@@ -537,6 +575,7 @@ mod contract_tests {
             AppErrorCode::VersionLineSwitchObstructed,
             AppErrorCode::StaleVersionLinePlan,
             AppErrorCode::DirtyWorkingTree,
+            AppErrorCode::IncomingPathCollision,
             AppErrorCode::RefLocked,
             AppErrorCode::NothingToDiscard,
             AppErrorCode::StaleDiscardPlan,

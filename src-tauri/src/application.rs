@@ -77,6 +77,8 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("discover_remotes"),
     read("read_team_sync_status"),
     ExecutionPolicy::repository_write("check_team_changes", OperationClass::LocalMutation),
+    ExecutionPolicy::repository_write("plan_get_team_changes", OperationClass::LocalMutation),
+    ExecutionPolicy::repository_write("get_team_changes", OperationClass::HistoryMutation),
     read("list_unpublished_versions"),
     read("read_commit_file_changes"),
     read("read_commit_file_diff"),
@@ -313,6 +315,8 @@ mod tests {
         "discover_remotes",
         "read_team_sync_status",
         "check_team_changes",
+        "plan_get_team_changes",
+        "get_team_changes",
         "list_unpublished_versions",
         "read_commit_file_changes",
         "read_commit_file_diff",
@@ -352,6 +356,8 @@ mod tests {
             "save_version",
             "plan_publish",
             "check_team_changes",
+            "plan_get_team_changes",
+            "get_team_changes",
             "publish",
             "create_version_line",
             "switch_version_line",
@@ -369,6 +375,10 @@ mod tests {
         assert_eq!(
             policy("check_team_changes").class,
             OperationClass::LocalMutation
+        );
+        assert_eq!(
+            policy("get_team_changes").class,
+            OperationClass::HistoryMutation
         );
         assert_eq!(
             policy("close_project_session").class,

@@ -474,6 +474,7 @@ export function OverviewPanel({
   onOpenSaveVersion,
   teamSync,
   onCheckTeamChanges,
+  onReviewAndGetTeamChanges,
 }: {
   project: RepositoryInfo | null;
   /** Only ever drives the *empty*-state's own loading affordance below —
@@ -513,6 +514,7 @@ export function OverviewPanel({
   onOpenSaveVersion: () => void;
   teamSync: TeamSyncViewState;
   onCheckTeamChanges: () => void;
+  onReviewAndGetTeamChanges: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
@@ -751,6 +753,7 @@ export function OverviewPanel({
           canPublish={canPublish}
           onCheck={onCheckTeamChanges}
           onPublish={onPublish}
+          onReviewAndGet={onReviewAndGetTeamChanges}
         />
 
         {/* Last, and in sidebar order: the summaries for the two screens that

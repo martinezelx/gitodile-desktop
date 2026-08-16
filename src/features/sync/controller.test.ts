@@ -5,6 +5,7 @@ import { initialProjectSessionsState } from "../../projectSessions";
 import type { RepositoryInfo } from "../repository";
 import { createSyncController } from "./controller";
 import type { TeamSyncStatus } from "./domain";
+import type { SyncPort } from "./port";
 
 const project = (epoch: string): RepositoryInfo => ({
   name: "repo", path: "/repo", selectedPath: "/repo", gitDir: "/repo/.git",
@@ -29,6 +30,12 @@ const status = (knowledge: "cached" | "fresh", ahead = 0): TeamSyncStatus => ({
   stateToken: `token-${ahead}`,
 });
 
+const readPort = (implementation: Pick<SyncPort, "readLocal" | "check">): SyncPort => ({
+  ...implementation,
+  planGet: async () => { throw new Error("not used"); },
+  get: async () => { throw new Error("not used"); },
+});
+
 describe("sync controller", () => {
   it("uses only the local port for activation and invalidation warming", async () => {
     const scheduled: Array<() => void> = [];
@@ -39,10 +46,10 @@ describe("sync controller", () => {
     runtime.dispatch({ type: "open", project: project("epoch-1") });
     let localReads = 0;
     let networkChecks = 0;
-    const controller = createSyncController({
+    const controller = createSyncController(readPort({
       readLocal: async () => { localReads += 1; return status("cached"); },
       check: async () => { networkChecks += 1; return status("fresh"); },
-    });
+    }));
     controller.scheduleWarm(
       runtime,
       { projectId: "/repo", sessionEpoch: "epoch-1" },
@@ -65,10 +72,10 @@ describe("sync controller", () => {
     });
     runtime.dispatch({ type: "open", project: project("epoch-1") });
     let resolveLocal!: (value: TeamSyncStatus) => void;
-    const controller = createSyncController({
+    const controller = createSyncController(readPort({
       readLocal: () => new Promise((resolve) => { resolveLocal = resolve; }),
       check: async () => status("fresh"),
-    });
+    }));
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
     await controller.check(runtime, query, () => "failed");
 
@@ -88,13 +95,13 @@ describe("sync controller", () => {
     runtime.dispatch({ type: "open", project: project("epoch-1") });
     let resolveCheck!: (value: TeamSyncStatus) => void;
     let checks = 0;
-    const controller = createSyncController({
+    const controller = createSyncController(readPort({
       readLocal: async () => status("cached"),
       check: () => {
         checks += 1;
         return new Promise((resolve) => { resolveCheck = resolve; });
       },
-    });
+    }));
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
     const first = controller.check(runtime, query, () => "failed");
     const second = controller.check(runtime, query, () => "failed");
@@ -111,13 +118,13 @@ describe("sync controller", () => {
     const runtime = createProjectRuntime(initialProjectSessionsState);
     runtime.dispatch({ type: "open", project: project("epoch-1") });
     let fail = false;
-    const controller = createSyncController({
+    const controller = createSyncController(readPort({
       readLocal: async () => status("cached", 1),
       check: async () => {
         if (fail) throw new Error("offline");
         return status("fresh", 1);
       },
-    });
+    }));
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
     await controller.check(runtime, query, () => "Could not connect");
     fail = true;
@@ -132,12 +139,12 @@ describe("sync controller", () => {
     const runtime = createProjectRuntime(initialProjectSessionsState);
     runtime.dispatch({ type: "open", project: project("old") });
     let resolveOld!: (value: TeamSyncStatus) => void;
-    const controller = createSyncController({
+    const controller = createSyncController(readPort({
       readLocal: ({ sessionEpoch }) => sessionEpoch === "old"
         ? new Promise((resolve) => { resolveOld = resolve; })
         : Promise.resolve(status("cached", 2)),
       check: async () => status("fresh"),
-    });
+    }));
     const oldQuery = { projectId: "/repo", sessionEpoch: "old" };
     const oldRequest = controller.refreshLocal(runtime, oldQuery, () => "failed");
     controller.close(runtime, oldQuery);
@@ -153,10 +160,10 @@ describe("sync controller", () => {
   it("marks a fresh result stale when a mutation supersedes it", async () => {
     const runtime = createProjectRuntime(initialProjectSessionsState);
     runtime.dispatch({ type: "open", project: project("epoch-1") });
-    const controller = createSyncController({
+    const controller = createSyncController(readPort({
       readLocal: async () => status("cached"),
       check: async () => status("fresh"),
-    });
+    }));
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
     await controller.check(runtime, query, () => "failed");
     controller.supersede(runtime, query);

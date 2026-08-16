@@ -41,6 +41,45 @@ export interface SyncTranslations {
   syncAheadCount: string;
   syncBehindCount: string;
   syncNotAvailable: string;
+  getTeamDialogTitle: string;
+  getTeamDialogDescription: string;
+  getTeamProgressLabel: string;
+  getTeamPhaseTeam: string;
+  getTeamPhaseSafety: string;
+  getTeamPhaseRecovery: string;
+  getTeamPhaseUpdating: string;
+  getTeamPhaseVerifying: string;
+  getTeamIncomingVersions: (count: number) => string;
+  getTeamVersionsTruncated: (shown: number, total: number) => string;
+  getTeamAffectedFiles: (count: number) => string;
+  getTeamFilesTruncated: (shown: number, total: number) => string;
+  getTeamBinaryFile: string;
+  getTeamFileCategory: { added: string; modified: string; deleted: string; renamed: string };
+  getTeamDestinationTitle: string;
+  getTeamDestinationDescription: (branch: string, remote: string, destination: string) => string;
+  getTeamFastForwardTitle: string;
+  getTeamFastForwardDescription: string;
+  getTeamRecoveryTitle: string;
+  getTeamRecoveryDescription: (limit: number) => string;
+  getTeamLocalConsequences: string;
+  getTeamOperationKind: string;
+  getTeamRecoveryReference: string;
+  getTeamStateToken: string;
+  getTeamTechnicalGuarantees: string;
+  getTeamBlockedTitle: string;
+  getTeamDivergedTitle: string;
+  getTeamDivergedNoRetry: string;
+  getTeamConfirm: string;
+  getTeamReviewUpdatedPlan: string;
+  getTeamTryAgain: string;
+  getTeamSuccessTitle: string;
+  getTeamSuccessDescription: (count: number) => string;
+  getTeamSuccessRecovery: (limit: number) => string;
+  getTeamUncertainTitle: string;
+  getTeamUncertainDescription: string;
+  getTeamUncertainInstructions: string;
+  getTeamObservedHead: string;
+  getTeamDone: string;
 }
 
 const en: SyncTranslations = {
@@ -54,7 +93,7 @@ const en: SyncTranslations = {
   syncAheadTitle: (count) => `${count} saved ${count === 1 ? "version is" : "versions are"} ready to publish`,
   syncAheadMessage: "They’re still only on this computer.",
   syncBehindTitle: (count) => `${count} newer team ${count === 1 ? "version is" : "versions are"} available`,
-  syncBehindMessage: "Review and get is coming soon.",
+  syncBehindMessage: "Review what will change before getting these versions.",
   syncDivergedTitle: "Both sides have changed",
   syncDivergedMessage: "Local and team versions contain different work. Nothing will be combined automatically.",
   syncNoRemoteTitle: "Remote setup required",
@@ -86,6 +125,45 @@ const en: SyncTranslations = {
   syncAheadCount: "Saved locally",
   syncBehindCount: "Newer on team",
   syncNotAvailable: "Not available",
+  getTeamDialogTitle: "Review and get team changes",
+  getTeamDialogDescription: "See the incoming versions and local impact before this project advances.",
+  getTeamProgressLabel: "Get team changes progress",
+  getTeamPhaseTeam: "Checking the team",
+  getTeamPhaseSafety: "Checking local safety",
+  getTeamPhaseRecovery: "Creating recovery",
+  getTeamPhaseUpdating: "Updating files and history",
+  getTeamPhaseVerifying: "Verifying",
+  getTeamIncomingVersions: (count) => `${count} incoming saved ${count === 1 ? "version" : "versions"}`,
+  getTeamVersionsTruncated: (shown, total) => `Showing ${shown} of ${total} incoming versions.`,
+  getTeamAffectedFiles: (count) => `${count} affected ${count === 1 ? "file" : "files"}`,
+  getTeamFilesTruncated: (shown, total) => `Showing ${shown} of ${total} affected files.`,
+  getTeamBinaryFile: "Binary",
+  getTeamFileCategory: { added: "Added", modified: "Modified", deleted: "Deleted", renamed: "Renamed" },
+  getTeamDestinationTitle: "One exact destination",
+  getTeamDestinationDescription: (branch, remote, destination) => `Advance ${branch} to ${remote}/${destination}.`,
+  getTeamFastForwardTitle: "Fast-forward only",
+  getTeamFastForwardDescription: "GitOdrile will only move straight ahead. It will not merge, rebase, stash, force, or resolve overlaps automatically.",
+  getTeamRecoveryTitle: "Recovery comes first",
+  getTeamRecoveryDescription: (limit) => `The current saved version is protected locally before files change and retained among the newest ${limit} team-update recovery points.`,
+  getTeamLocalConsequences: "Tracked files, the index, and the active version line will match the reviewed team version. Proven non-colliding local-only content stays untouched.",
+  getTeamOperationKind: "Operation kind",
+  getTeamRecoveryReference: "Recovery reference",
+  getTeamStateToken: "State token",
+  getTeamTechnicalGuarantees: "No pull, merge, rebase, reset, checkout, stash, force update, or automatic conflict resolution is used.",
+  getTeamBlockedTitle: "This update stopped safely",
+  getTeamDivergedTitle: "Both sides changed",
+  getTeamDivergedNoRetry: "This cannot fast-forward in its current state, so retrying unchanged would fail again. Guided integration is not available yet.",
+  getTeamConfirm: "Get these versions",
+  getTeamReviewUpdatedPlan: "Review updated plan",
+  getTeamTryAgain: "Try again",
+  getTeamSuccessTitle: "Team changes are now included",
+  getTeamSuccessDescription: (count) => `${count} team ${count === 1 ? "version is" : "versions are"} now part of this project.`,
+  getTeamSuccessRecovery: (limit) => `The previous saved version remains protected locally under the ${limit}-record retention policy.`,
+  getTeamUncertainTitle: "The local result needs inspection",
+  getTeamUncertainDescription: "GitOdrile could not prove the final local state, so it did not try to repair or repeat anything.",
+  getTeamUncertainInstructions: "Keep the recovery reference below. Inspect the current files and saved version before taking another action.",
+  getTeamObservedHead: "Observed HEAD",
+  getTeamDone: "Done",
 };
 
 const es: SyncTranslations = {
@@ -99,7 +177,7 @@ const es: SyncTranslations = {
   syncAheadTitle: (count) => `${count} ${count === 1 ? "versión guardada está" : "versiones guardadas están"} lista${count === 1 ? "" : "s"} para publicar`,
   syncAheadMessage: "Todavía solo están en este equipo.",
   syncBehindTitle: (count) => `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"} del equipo`,
-  syncBehindMessage: "Revisar y obtener estará disponible próximamente.",
+  syncBehindMessage: "Revisa qué cambiará antes de obtener estas versiones.",
   syncDivergedTitle: "Ambos lados han cambiado",
   syncDivergedMessage: "Las versiones locales y del equipo contienen trabajo diferente. Nada se combinará automáticamente.",
   syncNoRemoteTitle: "Falta configurar el remoto",
@@ -131,6 +209,45 @@ const es: SyncTranslations = {
   syncAheadCount: "Guardadas localmente",
   syncBehindCount: "Nuevas en el equipo",
   syncNotAvailable: "No disponible",
+  getTeamDialogTitle: "Revisar y obtener cambios del equipo",
+  getTeamDialogDescription: "Consulta las versiones entrantes y el impacto local antes de avanzar este proyecto.",
+  getTeamProgressLabel: "Progreso al obtener cambios del equipo",
+  getTeamPhaseTeam: "Comprobando el equipo",
+  getTeamPhaseSafety: "Comprobando la seguridad local",
+  getTeamPhaseRecovery: "Creando la recuperación",
+  getTeamPhaseUpdating: "Actualizando archivos e historial",
+  getTeamPhaseVerifying: "Verificando",
+  getTeamIncomingVersions: (count) => `${count} ${count === 1 ? "versión guardada entrante" : "versiones guardadas entrantes"}`,
+  getTeamVersionsTruncated: (shown, total) => `Se muestran ${shown} de ${total} versiones entrantes.`,
+  getTeamAffectedFiles: (count) => `${count} ${count === 1 ? "archivo afectado" : "archivos afectados"}`,
+  getTeamFilesTruncated: (shown, total) => `Se muestran ${shown} de ${total} archivos afectados.`,
+  getTeamBinaryFile: "Binario",
+  getTeamFileCategory: { added: "Añadido", modified: "Modificado", deleted: "Eliminado", renamed: "Renombrado" },
+  getTeamDestinationTitle: "Un destino exacto",
+  getTeamDestinationDescription: (branch, remote, destination) => `Avanzar ${branch} hasta ${remote}/${destination}.`,
+  getTeamFastForwardTitle: "Solo avance directo",
+  getTeamFastForwardDescription: "GitOdrile solo avanzará en línea recta. No combinará, reorganizará, apartará, forzará ni resolverá solapamientos automáticamente.",
+  getTeamRecoveryTitle: "La recuperación va primero",
+  getTeamRecoveryDescription: (limit) => `La versión guardada actual se protege localmente antes de cambiar archivos y se conserva entre los ${limit} puntos de recuperación de actualizaciones más recientes.`,
+  getTeamLocalConsequences: "Los archivos con seguimiento, el índice y la línea de versión activa coincidirán con la versión del equipo revisada. El contenido solo local que se demuestre que no colisiona queda intacto.",
+  getTeamOperationKind: "Tipo de operación",
+  getTeamRecoveryReference: "Referencia de recuperación",
+  getTeamStateToken: "Token de estado",
+  getTeamTechnicalGuarantees: "No se usa pull, merge, rebase, reset, checkout, stash, actualización forzada ni resolución automática de conflictos.",
+  getTeamBlockedTitle: "La actualización se detuvo de forma segura",
+  getTeamDivergedTitle: "Ambos lados han cambiado",
+  getTeamDivergedNoRetry: "El estado actual no permite un avance directo, así que reintentar sin cambios volvería a fallar. La integración guiada aún no está disponible.",
+  getTeamConfirm: "Obtener estas versiones",
+  getTeamReviewUpdatedPlan: "Revisar el plan actualizado",
+  getTeamTryAgain: "Volver a intentar",
+  getTeamSuccessTitle: "Los cambios del equipo ya están incluidos",
+  getTeamSuccessDescription: (count) => `${count} ${count === 1 ? "versión del equipo ya forma" : "versiones del equipo ya forman"} parte de este proyecto.`,
+  getTeamSuccessRecovery: (limit) => `La versión guardada anterior sigue protegida localmente con la política de retención de ${limit} registros.`,
+  getTeamUncertainTitle: "Hay que inspeccionar el resultado local",
+  getTeamUncertainDescription: "GitOdrile no pudo demostrar el estado local final, así que no intentó reparar ni repetir nada.",
+  getTeamUncertainInstructions: "Conserva la referencia de recuperación siguiente. Inspecciona los archivos y la versión guardada actuales antes de realizar otra acción.",
+  getTeamObservedHead: "HEAD observado",
+  getTeamDone: "Listo",
 };
 
 export const syncTranslations = { en, es } as const;

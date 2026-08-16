@@ -28,9 +28,11 @@ export interface SharedTranslations {
   errorRemoteSelectionRequired: string;
   errorUnbornBranchNoVersion: string;
   errorNothingToPublish: string;
+  errorNothingToGet: string;
   errorBehindRemote: string;
   errorDivergedHistories: string;
   errorStalePublishPlan: string;
+  errorStaleGetTeamChangesPlan: string;
   errorInvalidRefName: string;
   errorAuthenticationFailed: string;
   errorNetworkTimeout: string;
@@ -39,6 +41,7 @@ export interface SharedTranslations {
   errorRemoteRefMissing: string;
   errorRemoteRejected: string;
   errorPublishUncertain: string;
+  errorGetTeamChangesUncertain: string;
   errorGitVersionTooOld: string;
   errorVersionLineNameTaken: string;
   errorVersionLineNameCollides: string;
@@ -48,6 +51,7 @@ export interface SharedTranslations {
   errorVersionLineSwitchObstructed: string;
   errorStaleVersionLinePlan: string;
   errorDirtyWorkingTree: string;
+  errorIncomingPathCollision: string;
   errorRefLocked: string;
   errorNothingToDiscard: string;
   errorStaleDiscardPlan: string;
@@ -95,10 +99,12 @@ const en: SharedTranslations = {
   errorRemoteSelectionRequired: "This project has more than one remote project. Choose which one to publish to.",
   errorUnbornBranchNoVersion: "There's no saved version on this version line yet. Save a version first.",
   errorNothingToPublish: "Every saved version is already published.",
+  errorNothingToGet: "This project no longer has newer team versions that can be applied as a direct update.",
   errorBehindRemote: "The remote project has newer versions this project doesn't have yet. Get the team's changes first.",
   errorDivergedHistories:
     "This version line and the remote project have both moved apart. Get the team's changes first.",
   errorStalePublishPlan: "This project or the remote project changed since the preview was shown. Try publishing again.",
+  errorStaleGetTeamChangesPlan: "This project or its team destination changed since the preview. Review the updated plan.",
   errorInvalidRefName: "This version line's name isn't a valid Git reference.",
   errorAuthenticationFailed: "GitOdrile couldn't sign in to the remote project. Check your Git credentials and try again.",
   errorNetworkTimeout: "GitOdrile couldn't reach the remote project in time. Check your connection and try again.",
@@ -108,6 +114,8 @@ const en: SharedTranslations = {
   errorRemoteRejected: "The remote project rejected this publish. Check the remote project's rules for this branch.",
   errorPublishUncertain:
     "GitOdrile lost the connection while publishing. Refresh and check whether it was published before trying again.",
+  errorGetTeamChangesUncertain:
+    "GitOdrile could not prove the final local state. Keep the recovery reference and inspect the project before another action.",
   errorGitVersionTooOld:
     "This version of Git is too old for GitOdrile to change version lines safely. Update Git to version 2.23 or newer.",
   errorVersionLineNameTaken: "A version line with this exact name already exists. Choose a different name.",
@@ -122,6 +130,8 @@ const en: SharedTranslations = {
   errorStaleVersionLinePlan: "This project changed since the preview was shown. Refresh and try again.",
   errorDirtyWorkingTree:
     "This project has unsaved changes, so GitOdrile can't switch version lines yet. Save a version, or start a new version line with this work.",
+  errorIncomingPathCollision:
+    "A local untracked or ignored path could be overwritten by the team update. Move or save it yourself, then review again.",
   errorRefLocked: "Git couldn't update its references right now — another Git process may be using them.",
   errorNothingToDiscard: "There are no matching changes to discard. Refresh Changes and try again.",
   errorStaleDiscardPlan: "The changed files moved since the preview was shown. Review the updated plan.",
@@ -170,12 +180,15 @@ const es: SharedTranslations = {
   errorRemoteSelectionRequired: "Este proyecto tiene más de un proyecto remoto. Elige a cuál publicar.",
   errorUnbornBranchNoVersion: "Todavía no hay ninguna versión guardada en esta línea de versión. Guarda una versión primero.",
   errorNothingToPublish: "Todas las versiones guardadas ya están publicadas.",
+  errorNothingToGet: "Este proyecto ya no tiene versiones nuevas del equipo que se puedan aplicar como actualización directa.",
   errorBehindRemote:
     "El proyecto remoto tiene versiones más recientes que este proyecto todavía no tiene. Obtén primero los cambios del equipo.",
   errorDivergedHistories:
     "Esta línea de versión y el proyecto remoto se han separado. Obtén primero los cambios del equipo.",
   errorStalePublishPlan:
     "Este proyecto o el proyecto remoto cambiaron desde que se mostró la vista previa. Intenta publicar de nuevo.",
+  errorStaleGetTeamChangesPlan:
+    "Este proyecto o su destino del equipo cambiaron desde la vista previa. Revisa el plan actualizado.",
   errorInvalidRefName: "El nombre de esta línea de versión no es una referencia de Git válida.",
   errorAuthenticationFailed:
     "GitOdrile no pudo iniciar sesión en el proyecto remoto. Comprueba tus credenciales de Git e inténtalo de nuevo.",
@@ -186,6 +199,8 @@ const es: SharedTranslations = {
   errorRemoteRejected: "El proyecto remoto rechazó esta publicación. Revisa las reglas del proyecto remoto para esta rama.",
   errorPublishUncertain:
     "GitOdrile perdió la conexión mientras publicaba. Actualiza y comprueba si se publicó antes de intentarlo de nuevo.",
+  errorGetTeamChangesUncertain:
+    "GitOdrile no pudo demostrar el estado local final. Conserva la referencia de recuperación e inspecciona el proyecto antes de realizar otra acción.",
   errorGitVersionTooOld:
     "Esta versión de Git es demasiado antigua para que GitOdrile cambie de línea de versión de forma segura. Actualiza Git a la versión 2.23 o posterior.",
   errorVersionLineNameTaken: "Ya existe una línea de versión con exactamente este nombre. Elige otro nombre.",
@@ -200,6 +215,8 @@ const es: SharedTranslations = {
   errorStaleVersionLinePlan: "Este proyecto cambió desde que se mostró la vista previa. Actualiza e inténtalo de nuevo.",
   errorDirtyWorkingTree:
     "Este proyecto tiene cambios sin guardar, así que GitOdrile no puede cambiar de línea de versión todavía. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
+  errorIncomingPathCollision:
+    "Una ruta local sin seguimiento o ignorada podría sobrescribirse con la actualización del equipo. Muévela o guárdala tú y vuelve a revisar.",
   errorRefLocked: "Git no pudo actualizar sus referencias ahora mismo (otro proceso de Git podría estar usándolas).",
   errorNothingToDiscard: "No hay cambios coincidentes que descartar. Actualiza Cambios e inténtalo de nuevo.",
   errorStaleDiscardPlan: "Los archivos cambiaron desde que se mostró la vista previa. Revisa el plan actualizado.",

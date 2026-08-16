@@ -30,12 +30,19 @@ const status = (overrides: Partial<TeamSyncStatus> = {}): TeamSyncStatus => ({
 function renderSection(state: TeamSyncViewState, canPublish = true) {
   const onCheck = vi.fn();
   const onPublish = vi.fn();
+  const onReviewAndGet = vi.fn();
   render(
     <LanguageProvider>
-      <TeamChangesSection state={state} canPublish={canPublish} onCheck={onCheck} onPublish={onPublish} />
+      <TeamChangesSection
+        state={state}
+        canPublish={canPublish}
+        onCheck={onCheck}
+        onPublish={onPublish}
+        onReviewAndGet={onReviewAndGet}
+      />
     </LanguageProvider>,
   );
-  return { onCheck, onPublish };
+  return { onCheck, onPublish, onReviewAndGet };
 }
 
 describe("Team changes section", () => {
@@ -83,18 +90,35 @@ describe("Team changes section", () => {
     expect(screen.getByRole("button", { name: "Checking…" })).toBeDisabled();
   });
 
-  it("keeps Review and get disabled and exposes technical truth as text", async () => {
+  it("enables Review and get only for fresh behind-only truth and exposes technical values as text", async () => {
     const hostile = "origin<em>unsafe</em>";
-    renderSection({
+    const { onReviewAndGet } = renderSection({
       ...EMPTY_TEAM_SYNC_STATE,
       status: status({ state: "behind", behind: 3, upstreamRemote: hostile, nextActions: ["reviewAndGet"] }),
       lastSuccessfulCheckAt: 1_786_000_000_000,
     });
     const review = screen.getByRole("button", { name: /Review and get/ });
-    expect(review).toBeDisabled();
+    expect(review).toBeEnabled();
+    await userEvent.click(review);
+    expect(onReviewAndGet).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByText("Technical details"));
     expect(screen.getByText(hostile)).toBeInTheDocument();
     expect(document.querySelector("em")).toBeNull();
+  });
+
+  it("does not offer Review and get for cached or stale behind knowledge", () => {
+    renderSection({
+      ...EMPTY_TEAM_SYNC_STATE,
+      status: status({
+        state: "behind",
+        behind: 2,
+        knowledge: "cached",
+        checkedAt: null,
+        nextActions: ["reviewAndGet"],
+      }),
+      isStale: true,
+    });
+    expect(screen.queryByRole("button", { name: "Review and get" })).not.toBeInTheDocument();
   });
 
   it("offers Publish changes only for an actionable ahead result", async () => {

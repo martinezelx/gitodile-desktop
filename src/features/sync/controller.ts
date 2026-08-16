@@ -1,5 +1,5 @@
 import type { ProjectCacheWarmReason, ProjectRuntime } from "../../projectRuntime";
-import { teamSyncFactsEqual, type TeamSyncStatus } from "./domain";
+import { teamSyncFactsEqual, type GetTeamChangesResult, type TeamSyncStatus } from "./domain";
 import type { SyncPort, TeamSyncQuery } from "./port";
 
 export type SyncErrorMapper = (error: unknown) => string;
@@ -94,6 +94,30 @@ export function createSyncController(port: SyncPort) {
     },
     check(runtime: ProjectRuntime, query: TeamSyncQuery, mapError: SyncErrorMapper) {
       return run(runtime, query, "check", mapError);
+    },
+    planGet(query: TeamSyncQuery, onProgress: Parameters<SyncPort["planGet"]>[1]) {
+      return port.planGet(query, onProgress);
+    },
+    get(request: Parameters<SyncPort["get"]>[0]) {
+      return port.get(request);
+    },
+    commitGetResult(
+      runtime: ProjectRuntime,
+      query: TeamSyncQuery,
+      result: GetTeamChangesResult,
+    ): void {
+      if (result.outcome !== "completed" || !result.syncStatus) return;
+      const key = keyOf(query);
+      const generation = (generations.get(key) ?? 0) + 1;
+      generations.set(key, generation);
+      inFlight.delete(key);
+      runtime.dispatch({
+        type: "commitTeamSyncResult",
+        id: query.projectId,
+        epoch: query.sessionEpoch,
+        generation,
+        status: result.syncStatus,
+      });
     },
     supersede,
     scheduleWarm(

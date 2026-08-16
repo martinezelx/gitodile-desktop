@@ -59,11 +59,13 @@ export function TeamChangesSection({
   canPublish,
   onCheck,
   onPublish,
+  onReviewAndGet,
 }: {
   state: TeamSyncViewState;
   canPublish: boolean;
   onCheck: () => void;
   onPublish: () => void;
+  onReviewAndGet: () => void;
 }): React.JSX.Element {
   const { t, language } = useLanguage();
   const { status } = state;
@@ -100,7 +102,15 @@ export function TeamChangesSection({
 
   const showCheck = !status || status.nextActions.includes("checkAgain") || state.isStale || Boolean(state.error);
   const showPublish = Boolean(status?.nextActions.includes("publishChanges")) && canPublish;
-  const showReviewAndGet = Boolean(status?.nextActions.includes("reviewAndGet"));
+  const showReviewAndGet = Boolean(
+    status?.nextActions.includes("reviewAndGet") &&
+    status.state === "behind" &&
+    status.knowledge === "fresh" &&
+    status.checkedAt !== null &&
+    !state.isStale &&
+    !state.isLoading &&
+    !state.error
+  );
   const showStaleWarning = state.isStale && !state.isLoading;
   const tone = state.error && !status ? "danger" : (presentation?.tone ?? "neutral");
 
@@ -157,9 +167,9 @@ export function TeamChangesSection({
           <button className="primary-button" type="button" onClick={onPublish}><Send aria-hidden="true" />{t.syncPublish}</button>
         )}
         {showReviewAndGet && (
-          <button className="secondary-button team-changes__coming-soon" type="button" disabled>
+          <button className="primary-button" type="button" onClick={onReviewAndGet}>
             <ArrowDownToLine aria-hidden="true" />
-            <span>{t.syncReviewAndGet}<small>{t.syncComingSoon}</small></span>
+            <span>{t.syncReviewAndGet}</span>
           </button>
         )}
       </div>

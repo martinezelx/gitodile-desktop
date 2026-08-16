@@ -32,6 +32,10 @@ Current application version: **0.1.0**.
   state-token-validated flow that reports uncertain remote outcomes honestly.
 - Explicitly check the configured upstream for team changes without moving the
   current version line or files, with cached/fresh status and clear next steps.
+- Review and get strictly newer upstream versions through a confirmed,
+  fast-forward-only update. GitOdrile blocks local work and path collisions,
+  creates a verified durable recovery point first, and reports uncertain local
+  outcomes without attempting an automatic repair.
 - List, create, switch, and safely delete version lines (local branches), with
   dirty-worktree checks and recovery references where required.
 - Configure light/dark/system themes, English/Spanish copy, Git identity,
@@ -40,7 +44,7 @@ Current application version: **0.1.0**.
   keep-alive screen shell that retains screen state while suspending hidden
   work.
 
-Not yet implemented: cloning, integrating team changes, the history
+Not yet implemented: cloning, non-fast-forward team integration, the history
 timeline, the recovery center, and guided conflict resolution. The approved
 work is tracked in [`work/active/`](work/active/) and future direction in the
 [`roadmap`](docs/ROADMAP.md).
@@ -73,7 +77,7 @@ separate:
 - `repository_access.rs` coordinates concurrent reads and exclusive mutations
   by common Git directory;
 - `repository.rs`, `status.rs`, `changes.rs`, `save_version.rs`, `sync.rs`,
-  `publish.rs`, and `version_lines.rs` own product behavior;
+  `publish.rs`, `recovery.rs`, and `version_lines.rs` own product behavior;
 - `operation.rs` owns shared mutation classification and bounded/redacted
   diagnostic details;
 - `index.rs` owns collision-safe temporary-index preparation shared by safe

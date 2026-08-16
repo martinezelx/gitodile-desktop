@@ -53,6 +53,115 @@ export type TeamSyncStatus = {
   stateToken: string;
 };
 
+export type GetTeamChangesPhase =
+  | "checkingTeam"
+  | "checkingLocalSafety"
+  | "creatingRecovery"
+  | "updatingFilesAndHistory"
+  | "verifying";
+
+export type IncomingFileCategory = "added" | "modified" | "deleted" | "renamed";
+
+export type IncomingFile = {
+  path: string;
+  originalPath: string | null;
+  category: IncomingFileCategory;
+  binary: boolean;
+};
+
+export type IncomingFileImpact = {
+  totalCount: number;
+  counts: {
+    added: number;
+    modified: number;
+    deleted: number;
+    renamed: number;
+    binary: number;
+  };
+  files: IncomingFile[];
+  isTruncated: boolean;
+};
+
+export type IncomingVersionSummary = {
+  commit: string;
+  shortCommit: string;
+  title: string;
+  description: string | null;
+  committedAt: string;
+  author: string;
+};
+
+export type HistoryRecoveryPreview = {
+  reference: string;
+  explanation: string;
+  retention: string;
+  retentionLimit: number;
+};
+
+export type HistoryRecoveryRecord = {
+  schemaVersion: number;
+  recoveryId: string;
+  reference: string;
+  createdAtMs: number;
+  operation: "get-team-changes";
+  ownerId: string;
+  branch: string;
+  previousCommit: string;
+  targetCommit: string;
+  remote: string;
+  destinationBranch: string;
+  trackingRef: string;
+  stateToken: string;
+  retentionLimit: number;
+};
+
+export type GetTeamChangesPlan = {
+  operationKind: "history-mutation";
+  requiresConfirmation: true;
+  projectId: string;
+  sessionEpoch: string;
+  stateToken: string;
+  branch: string;
+  target: SyncTarget;
+  trackingRef: string;
+  localCommit: string;
+  remoteCommit: string;
+  incomingCount: number;
+  incomingVersions: IncomingVersionSummary[];
+  versionsTruncated: boolean;
+  fileImpact: IncomingFileImpact;
+  consequences: string[];
+  risks: string[];
+  steps: string[];
+  verification: string;
+  recovery: HistoryRecoveryPreview;
+  guarantees: {
+    fastForwardOnly: true;
+    noMerge: true;
+    noRebase: true;
+    noStash: true;
+    noForce: true;
+    noAutomaticConflictResolution: true;
+  };
+};
+
+export type GetTeamChangesResult = {
+  outcome: "completed" | "uncertain";
+  projectId: string;
+  sessionEpoch: string;
+  branch: string;
+  target: SyncTarget;
+  trackingRef: string;
+  previousCommit: string;
+  resultingCommit: string | null;
+  observedHead: string | null;
+  receivedCount: number;
+  recovery: HistoryRecoveryRecord;
+  syncStatus: TeamSyncStatus | null;
+  warnings: SyncWarning[];
+  inspectionInstructions: string | null;
+};
+
 export type TeamSyncViewState = {
   status: TeamSyncStatus | null;
   isLoading: boolean;

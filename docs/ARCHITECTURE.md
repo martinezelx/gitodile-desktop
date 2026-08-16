@@ -273,6 +273,35 @@ same `sync.rs` remote, redaction, fetch, and ancestry implementation. Project
 activation, screen visibility, watchers, and cache warming never call the
 network command.
 
+Get-team-changes extends that single sync domain. Planning and execution each
+fetch the exact configured upstream under one exclusive `commonGitDir` permit,
+then require a named branch that is strictly behind with zero local-ahead
+commits. The plan token binds repository identity, session epoch, branch,
+local and remote commits, upstream destination/tracking ref, planned recovery
+ref, and the complete porcelain-v2 local-safety snapshot. Incoming versions
+are capped at 25 and file evidence at 100 while retaining authoritative totals
+and truncation flags. Untracked and ignored paths are compared by complete path
+components against added, modified, deleted, and renamed paths; when bounded
+evidence cannot prove safety, the operation blocks.
+
+Execution repeats the fetch and validation, creates and verifies recovery,
+then runs the narrow two-tree update `git read-tree -u -m <old> <target>` and
+the compare-and-swap branch move
+`git update-ref refs/heads/<branch> <target> <old>`. It never calls `pull`,
+merge, rebase, reset, checkout, stash, force, or conflict resolution. A failure
+after recovery is conservatively returned as an uncertain local result with
+the observed `HEAD` and inspection instructions. The authoritative success
+snapshot is committed before exactly one coordinated local refresh; coalesced
+watcher invalidations never issue a fetch.
+
+History-mutation recovery follows
+[ADR 0008](adr/0008-store-history-recovery-as-versioned-hidden-refs.md): the
+previous commit is protected by a create-only ref under
+`refs/gitodrile/recovery/v1/get-team-changes/`, paired with versioned metadata
+in the common Git directory. The newest 20 complete records are retained per
+common repository across linked worktrees, and incomplete or unsupported
+evidence is never guessed at or deleted.
+
 Discard follows the same plan/revalidate/execute/verify boundary and creates a
 persistent record under the selected worktree's Git metadata before mutation.
 The record preserves exact target bytes and the real index, can be restored

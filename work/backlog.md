@@ -37,8 +37,6 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 - Generate optional commit message suggestions locally or through an opt-in AI provider.
 - Compare two saved versions.
 - Restore an earlier version through a reversible plan.
-- Define the lifecycle, naming, retention, and cleanup policy for recovery
-  references.
 
 ## Sync and collaboration
 
