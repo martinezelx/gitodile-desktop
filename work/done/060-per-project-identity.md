@@ -1,7 +1,7 @@
 ---
 id: 060
 title: Let a project use a different identity
-status: active
+status: done
 priority: normal
 type: feature
 areas:
@@ -9,8 +9,17 @@ areas:
   - rust
   - architecture
 created: 2026-08-15
-completed:
+completed: 2026-08-17
 ---
+
+# Resolution
+
+Closed without implementing. The identity stays global for every project, which
+is what GitOdrile does today and what we want for now.
+
+None of the acceptance criteria below were met; nothing was built. They are kept
+unticked as the record of what the feature would have had to do if it is ever
+picked up again.
 
 # Goal
 
@@ -91,15 +100,29 @@ Touches the identity group reshaped by task
 
 # Decisions
 
-Record task-specific decisions and why they were made. The port-scope question
-above must be answered here.
+**2026-08-17 — Do not build a per-project identity; keep the identity global.**
+
+One identity for every project is the right default for how GitOdrile is used
+right now, and the cost of the alternative is concentrated in exactly the place
+the task warned about: `src/features/settings/port.ts` is deliberately the only
+app-level port whose calls are global, precisely because they act on the Git
+installation rather than on an open repository. Buying a per-project override
+means either breaking that property or moving identity to a feature that owns
+the open repository — a real architectural change, in return for a problem
+nobody here has hit.
+
+So the port-scope question is answered by not needing to answer it. The port
+stays global, `docs/ARCHITECTURE.md` is unchanged, and the Settings panel's
+existing wording — that this is a normal, global Git setting — remains accurate.
+
+If mixed work and personal identities do become a problem, reopen the idea from
+the out-of-scope option rather than this one: `includeIf` in the global config
+solves it by directory with no port change at all.
 
 # Implementation notes
 
-Complete this section during implementation. Mention important files changed,
-trade-offs, migrations, and follow-up work.
+Nothing was implemented. No code, tests, or documentation changed for this task.
 
 # Validation
 
-Record the exact commands run and their results. Do not claim checks passed
-unless they were executed successfully.
+Not applicable — no code changed, so no checks were run for this task.
