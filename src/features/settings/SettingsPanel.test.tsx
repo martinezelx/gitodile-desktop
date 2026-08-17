@@ -37,7 +37,12 @@ type PanelOverrides = Partial<{
   onClose: () => void;
   onRegisterCloseGuard: (guard: (() => boolean) | null) => void;
   setReopenLastProject: (value: boolean) => void;
+  confirmCloseProject: boolean;
   setConfirmCloseProject: (value: boolean) => void;
+  watchProjects: boolean;
+  setWatchProjects: (value: boolean) => void;
+  confirmDiscard: boolean;
+  setConfirmDiscard: (value: boolean) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
   project: { path: string; sessionEpoch: string } | null;
@@ -60,11 +65,20 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       isRefreshingGitDiagnostics={false}
       reopenLastProject={false}
       setReopenLastProject={overrides.setReopenLastProject ?? vi.fn()}
-      confirmCloseProject={false}
+      confirmCloseProject={overrides.confirmCloseProject ?? false}
       setConfirmCloseProject={overrides.setConfirmCloseProject ?? vi.fn()}
+      watchProjects={overrides.watchProjects ?? true}
+      setWatchProjects={overrides.setWatchProjects ?? vi.fn()}
+      confirmDiscard={overrides.confirmDiscard ?? true}
+      setConfirmDiscard={overrides.setConfirmDiscard ?? vi.fn()}
       diffPreferences={overrides.diffPreferences ?? DEFAULT_DIFF_PREFERENCES}
       setDiffPreferences={overrides.setDiffPreferences ?? vi.fn()}
-      defaults={{ reopenLastProject: false, confirmCloseProject: true }}
+      defaults={{
+        reopenLastProject: false,
+        confirmCloseProject: true,
+        watchProjects: true,
+        confirmDiscard: true,
+      }}
       project={overrides.project ?? null}
       onClose={overrides.onClose}
       onRegisterCloseGuard={overrides.onRegisterCloseGuard}
@@ -373,12 +387,50 @@ describe("Settings panel section rail", () => {
   it("puts the section's controls back to their defaults", async () => {
     const setReopenLastProject = vi.fn();
     const setConfirmCloseProject = vi.fn();
-    renderPanel(createPort(), { setReopenLastProject, setConfirmCloseProject });
+    const setWatchProjects = vi.fn();
+    const setConfirmDiscard = vi.fn();
+    renderPanel(createPort(), {
+      setReopenLastProject,
+      setConfirmCloseProject,
+      setWatchProjects,
+      setConfirmDiscard,
+    });
 
     await userEvent.click(screen.getByRole("button", { name: "Reset this section" }));
 
     expect(setReopenLastProject).toHaveBeenCalledWith(false);
     expect(setConfirmCloseProject).toHaveBeenCalledWith(true);
+    expect(setWatchProjects).toHaveBeenCalledWith(true);
+    expect(setConfirmDiscard).toHaveBeenCalledWith(true);
+  });
+
+  it("offers watching and discard confirmation as General toggles, both on by default", async () => {
+    const setWatchProjects = vi.fn();
+    const setConfirmDiscard = vi.fn();
+    renderPanel(createPort(), { setWatchProjects, setConfirmDiscard });
+
+    const watching = screen.getByRole("switch", { name: "Watch open projects for changes" });
+    const confirming = screen.getByRole("switch", { name: "Confirm before discarding changes" });
+    expect(watching).toBeChecked();
+    expect(confirming).toBeChecked();
+
+    await userEvent.click(watching);
+    await userEvent.click(confirming);
+
+    expect(setWatchProjects).toHaveBeenCalledWith(false);
+    expect(setConfirmDiscard).toHaveBeenCalledWith(false);
+  });
+
+  it("counts the new toggles when deciding whether anything differs from the defaults", () => {
+    // Everything else sits on its default here, so the action can only be live
+    // because watching is off — which is what `isAtDefault` has to notice.
+    renderPanel(createPort(), { confirmCloseProject: true, watchProjects: false });
+
+    expect(screen.getByRole("button", { name: "Reset this section" })).toBeEnabled();
+
+    cleanup();
+    renderPanel(createPort(), { confirmCloseProject: true });
+    expect(screen.getByRole("button", { name: "Reset this section" })).toBeDisabled();
   });
 
   it("edits the diff reading preferences without touching the others", async () => {

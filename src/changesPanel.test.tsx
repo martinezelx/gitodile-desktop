@@ -40,12 +40,18 @@ function ControlledChangesPanel(
     | "onSaveVersionPhaseChange"
     | "onSaveCompleted"
     | "workingTreeCheckedAt"
+    | "isWatching"
+    | "confirmBeforeDiscarding"
     | "onBeginDiscard"
     | "onDiscardClose"
     | "onDiscardPhaseChange"
   > & {
     controller?: ChangesController;
     workingTreeCheckedAt?: number | null;
+    /** Both default to the app's defaults, so only the tests that are about
+     * these preferences have to mention them. */
+    isWatching?: boolean;
+    confirmBeforeDiscarding?: boolean;
   },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -57,6 +63,8 @@ function ControlledChangesPanel(
       controller={props.controller ?? ownController.current}
       sessionEpoch="test-epoch"
       workingTreeCheckedAt={props.workingTreeCheckedAt ?? null}
+      isWatching={props.isWatching ?? true}
+      confirmBeforeDiscarding={props.confirmBeforeDiscarding ?? true}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
       isSaveVersionOpen={isSaveVersionOpen}
@@ -793,5 +801,117 @@ describe("ChangesPanel review controls", () => {
     fireEvent.contextMenu(file, { clientX: 180, clientY: 220 });
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard changes…" }));
     expect(await screen.findByText("new.txt will return to its latest saved state.")).toBeInTheDocument();
+  });
+
+  it("says the screen has stopped updating itself, beside the refresh that replaces it", async () => {
+    mockedInvoke.mockImplementation((command) => command === "read_file_diff"
+      ? Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" })
+      : Promise.reject(new Error(`Unexpected command: ${command}`)));
+    const onRefresh = vi.fn();
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} isWatching={false} onRefresh={onRefresh} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    expect(
+      await screen.findByText("This screen isn’t updating itself. Use Refresh to check for changes."),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the notice away while the project is being watched", async () => {
+    mockedInvoke.mockImplementation((command) => command === "read_file_diff"
+      ? Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" })
+      : Promise.reject(new Error(`Unexpected command: ${command}`)));
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    expect(
+      screen.queryByText("This screen isn’t updating itself. Use Refresh to check for changes."),
+    ).toBeNull();
+  });
+
+  it("discards without asking when the confirmation is off, and still offers the undo", async () => {
+    const discarded: unknown[] = [];
+    let restores = 0;
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" });
+      if (command === "get_discard_recovery") return Promise.reject({ code: "recovery_unavailable", message: "none" });
+      if (command === "plan_discard_changes") {
+        return Promise.resolve({
+          operationKind: "destructive", stateToken: "before", fileCount: 2,
+          counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+          selectedPath: null, affectsPreparedChanges: false, removesUntrackedFiles: true,
+          includesConflicts: false, isUnborn: false, recovery: "local", requiresConfirmation: true,
+        });
+      }
+      if (command === "discard_changes") {
+        discarded.push(args);
+        return Promise.resolve({
+          discardedFiles: 2,
+          recovery: { recoveryId: "discard-1", createdAtMs: 1, fileCount: 2, selectedPath: null, stateToken: "after" },
+        });
+      }
+      if (command === "restore_discarded_changes") {
+        restores += 1;
+        expect(args).toMatchObject({ recoveryId: "discard-1", stateToken: "after" });
+        return Promise.resolve({ restoredFiles: 2 });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} confirmBeforeDiscarding={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    await userEvent.click(screen.getByRole("button", { name: "More change actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Discard all changes…" }));
+
+    // No dialog, no second click: the work is gone and the screen says so.
+    expect(await screen.findByText("2 files were returned to their saved state.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Discard all unsaved changes?" })).toBeNull();
+    expect(discarded).toEqual([
+      { path: "/repo", sessionEpoch: "test-epoch", selectedPath: null, stateToken: "before" },
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Undo discard" }));
+    expect(await screen.findByText("The discarded changes were restored.")).toBeInTheDocument();
+    expect(restores).toBe(1);
+  });
+
+  it("still confirms when the preference is on", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" });
+      if (command === "get_discard_recovery") return Promise.reject({ code: "recovery_unavailable", message: "none" });
+      if (command === "plan_discard_changes") {
+        return Promise.resolve({
+          operationKind: "destructive", stateToken: "before", fileCount: 2,
+          counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+          selectedPath: null, affectsPreparedChanges: false, removesUntrackedFiles: false,
+          includesConflicts: false, isUnborn: false, recovery: "local", requiresConfirmation: true,
+        });
+      }
+      if (command === "discard_changes") throw new Error("discarded without confirming");
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    await userEvent.click(screen.getByRole("button", { name: "More change actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Discard all changes…" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 });

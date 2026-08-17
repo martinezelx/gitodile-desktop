@@ -70,9 +70,14 @@ export interface SettingsTranslations {
   settingsStartupTitle: string;
   startupReopenLabel: string;
   startupReopenDescription: string;
+  settingsWatchingTitle: string;
+  watchingLabel: string;
+  watchingDescription: string;
   settingsSafetyTitle: string;
   safetyConfirmLabel: string;
   safetyConfirmDescription: string;
+  safetyConfirmDiscardLabel: string;
+  safetyConfirmDiscardDescription: string;
   settingsLanguageTitle: string;
   settingsLanguageDescription: string;
   languageAriaLabel: string;
@@ -169,9 +174,16 @@ const en: SettingsTranslations = {
   settingsStartupTitle: "Startup",
   startupReopenLabel: "Reopen projects from the previous session",
   startupReopenDescription: "Skip picking folders again if you had projects open last time.",
+  settingsWatchingTitle: "Live updates",
+  watchingLabel: "Watch open projects for changes",
+  watchingDescription:
+    "Screens update as files change. Turn this off on huge projects or network drives.",
   settingsSafetyTitle: "Safety",
   safetyConfirmLabel: "Confirm before closing a project",
   safetyConfirmDescription: "Ask before clearing the open project, in case that was a misclick.",
+  safetyConfirmDiscardLabel: "Confirm before discarding changes",
+  safetyConfirmDiscardDescription:
+    "Ask before throwing work away. With this off, you can still undo it afterwards.",
   settingsLanguageTitle: "Language",
   settingsLanguageDescription: '"System" follows your operating system\'s language.',
   languageAriaLabel: "Language",
@@ -276,9 +288,16 @@ const es: SettingsTranslations = {
   settingsStartupTitle: "Inicio",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
   startupReopenDescription: "Evita elegir carpetas de nuevo si tenías proyectos abiertos la última vez.",
+  settingsWatchingTitle: "Actualización en vivo",
+  watchingLabel: "Vigilar los proyectos abiertos",
+  watchingDescription:
+    "Sigue los archivos y actualiza las pantallas. Desactívalo en proyectos enormes o unidades de red.",
   settingsSafetyTitle: "Seguridad",
   safetyConfirmLabel: "Confirmar antes de cerrar un proyecto",
   safetyConfirmDescription: "Pregunta antes de cerrar el proyecto abierto, por si fue un clic accidental.",
+  safetyConfirmDiscardLabel: "Confirmar antes de descartar cambios",
+  safetyConfirmDiscardDescription:
+    "Pregunta antes de tirar trabajo. Si lo desactivas, aún puedes deshacerlo después.",
   settingsLanguageTitle: "Idioma",
   settingsLanguageDescription: '"Sistema" usa el idioma de tu sistema operativo.',
   languageAriaLabel: "Idioma",

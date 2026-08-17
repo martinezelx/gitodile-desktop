@@ -100,6 +100,36 @@
 .changes-view__lines--removed { color: var(--diff-removed); }
 .changes-header__error { color: var(--status-danger) !important; }
 .changes-header__note { color: var(--status-warning) !important; font-size: 13px !important; }
+/* Says the screen has stopped updating itself. Warning-toned rather than
+   danger: nothing is broken, the user asked for this — but it must not read
+   as ordinary secondary copy either, or the whole point is lost. */
+.changes-header__watch-off {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--status-warning) !important; font-size: 13px !important;
+}
+.changes-header__watch-off svg { width: 15px; height: 15px; flex-shrink: 0; }
+/* The result of a discard that was never confirmed. Sits under the header,
+   full width, so the Undo is where the eye already is after the list changed
+   under it. */
+.changes-notice {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: 10px var(--space-4); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); background: var(--surface-raised);
+}
+.changes-notice p { flex: 1; min-width: 0; margin: 0; font-size: 14px; color: var(--text-primary); }
+.changes-notice > svg { width: 18px; height: 18px; flex-shrink: 0; }
+.changes-notice--discarded > svg, .changes-notice--restored > svg { color: var(--status-success); }
+.changes-notice--error > svg { color: var(--status-danger); }
+.changes-notice--error { border-color: var(--status-danger); }
+.changes-notice .secondary-button { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; }
+.changes-notice .secondary-button svg { width: 15px; height: 15px; }
+.changes-notice__dismiss {
+  flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 26px;
+  border: 0; border-radius: var(--radius-sm); background: transparent;
+  color: var(--text-secondary); cursor: pointer;
+}
+.changes-notice__dismiss:hover { background: var(--surface-active); color: var(--text-primary); }
+.changes-notice__dismiss svg { width: 15px; height: 15px; }
 .changes-view__actions { flex-shrink: 0; display: flex; align-items: center; gap: var(--space-4); }
 .changes-view__buttons { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .changes-actions-menu { position: relative; display: inline-flex; }

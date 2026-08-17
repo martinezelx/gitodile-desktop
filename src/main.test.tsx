@@ -387,6 +387,62 @@ describe("App project restoration", () => {
     ).toHaveAttribute("aria-selected", "true");
   });
 
+  it("re-reads the open project once when watching is turned back on", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    // Launched with watching off, so the restored project is as stale as
+    // whatever happened on disk while the app was closed.
+    localStorage.setItem("gitodrile-watch-projects", "false");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+
+    let statusReads = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") {
+        return Promise.resolve({ name: "", email: "" });
+      }
+      if (command === "open_repository") {
+        return Promise.resolve(restoredProject);
+      }
+      if (command === "read_working_tree_status") {
+        statusReads += 1;
+        return Promise.resolve(cleanStatus);
+      }
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "get_version_lines") {
+        return Promise.resolve(versionLines);
+      }
+      if (command === "read_team_sync_status") {
+        return Promise.resolve(cachedTeamSync);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("heading", { name: restoredProject.name });
+    await waitFor(() => expect(statusReads).toBeGreaterThan(0));
+    const readsBeforeToggle = statusReads;
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Settings" })[0]);
+    await userEvent.click(screen.getByRole("switch", { name: "Watch open projects for changes" }));
+
+    // Re-registering only catches what changes next, so turning it back on
+    // has to close the gap itself — without the project being reopened.
+    await waitFor(() => expect(statusReads).toBe(readsBeforeToggle + 1));
+    expect(localStorage.getItem("gitodrile-watch-projects")).toBe("true");
+  });
+
   it("animates a theme change by where it was asked for", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") {

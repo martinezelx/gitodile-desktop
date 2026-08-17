@@ -22,9 +22,11 @@ Current application version: **0.1.0**.
   oversized-file states, and navigate large change lists with virtualization
   and bounded native payloads.
 - Discard one file or every unsaved change through a confirmed, state-checked
-  flow that creates a persistent local recovery record and offers Undo.
+  flow that creates a persistent local recovery record and offers Undo. The
+  confirmation can be turned off; the recovery record and Undo cannot.
 - Receive live, debounced repository updates without exposing raw filesystem
-  paths to the frontend.
+  paths to the frontend, or turn watching off — in which case the Changes
+  screen says it is no longer updating itself and points at its refresh.
 - Save all or selected changes as a version with a title and description. The
   flow is planned and revalidated in Rust, preserves Git hooks and signing, and
   protects the real index through a collision-safe temporary-index workflow.
@@ -39,7 +41,8 @@ Current application version: **0.1.0**.
 - List, create, switch, and safely delete version lines (local branches), with
   dirty-worktree checks and recovery references where required.
 - Configure light/dark/system themes, English/Spanish copy, Git identity,
-  installation diagnostics, and supported Git update guidance.
+  installation diagnostics, supported Git update guidance, how diffs are read,
+  and whether projects are watched and discards confirmed.
 - See and change what Git does to line endings in plain language, including
   when a project's own settings or `.gitattributes` override the global choice.
 - Navigate through a command palette, keyboard-accessible dialogs, and a

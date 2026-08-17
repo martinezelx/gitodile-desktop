@@ -29,9 +29,18 @@ export type AppOverlaysProps = {
     setReopenLastProject: BooleanSetter;
     confirmCloseProject: boolean;
     setConfirmCloseProject: BooleanSetter;
+    watchProjects: boolean;
+    setWatchProjects: BooleanSetter;
+    confirmDiscard: boolean;
+    setConfirmDiscard: BooleanSetter;
     diffPreferences: DiffPreferences;
     setDiffPreferences: Dispatch<SetStateAction<DiffPreferences>>;
-    defaults: { reopenLastProject: boolean; confirmCloseProject: boolean };
+    defaults: {
+      reopenLastProject: boolean;
+      confirmCloseProject: boolean;
+      watchProjects: boolean;
+      confirmDiscard: boolean;
+    };
     /** The open project, so the line-endings section can say when that project
      * overrides the global setting. Null when none is open. */
     project: { path: string; sessionEpoch: string } | null;
@@ -171,6 +180,10 @@ export function AppOverlays({
               setReopenLastProject={settings.setReopenLastProject}
               confirmCloseProject={settings.confirmCloseProject}
               setConfirmCloseProject={settings.setConfirmCloseProject}
+              watchProjects={settings.watchProjects}
+              setWatchProjects={settings.setWatchProjects}
+              confirmDiscard={settings.confirmDiscard}
+              setConfirmDiscard={settings.setConfirmDiscard}
               diffPreferences={settings.diffPreferences}
               setDiffPreferences={settings.setDiffPreferences}
               defaults={settings.defaults}

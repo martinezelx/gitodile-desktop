@@ -137,6 +137,10 @@ export function SettingsPanel({
   setReopenLastProject,
   confirmCloseProject,
   setConfirmCloseProject,
+  watchProjects,
+  setWatchProjects,
+  confirmDiscard,
+  setConfirmDiscard,
   diffPreferences,
   setDiffPreferences,
   defaults,
@@ -159,12 +163,21 @@ export function SettingsPanel({
   setReopenLastProject: (value: boolean) => void;
   confirmCloseProject: boolean;
   setConfirmCloseProject: (value: boolean) => void;
+  watchProjects: boolean;
+  setWatchProjects: (value: boolean) => void;
+  confirmDiscard: boolean;
+  setConfirmDiscard: (value: boolean) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
   /** The app owns the seed values for the stored preferences, so "reset this
    * section" gets them from the same place the hooks do rather than keeping a
    * second copy here that could drift. */
-  defaults: { reopenLastProject: boolean; confirmCloseProject: boolean };
+  defaults: {
+    reopenLastProject: boolean;
+    confirmCloseProject: boolean;
+    watchProjects: boolean;
+    confirmDiscard: boolean;
+  };
   /** The open project, when there is one. Only the line-ending group uses it,
    * and only to say whether that project overrides the global answer; with no
    * project open the panel reports the global setting alone. */
@@ -488,10 +501,14 @@ export function SettingsPanel({
       ? {
           isAtDefault:
             reopenLastProject === defaults.reopenLastProject &&
-            confirmCloseProject === defaults.confirmCloseProject,
+            confirmCloseProject === defaults.confirmCloseProject &&
+            watchProjects === defaults.watchProjects &&
+            confirmDiscard === defaults.confirmDiscard,
           reset: () => {
             setReopenLastProject(defaults.reopenLastProject);
             setConfirmCloseProject(defaults.confirmCloseProject);
+            setWatchProjects(defaults.watchProjects);
+            setConfirmDiscard(defaults.confirmDiscard);
           },
         }
       : activeSection === "appearance"
@@ -571,6 +588,20 @@ export function SettingsPanel({
             </section>
             <section className="settings-group">
               <header className="settings-group__header">
+                <h3>{t.settingsWatchingTitle}</h3>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.watchingLabel}</strong>
+                    <p>{t.watchingDescription}</p>
+                  </div>
+                  <ToggleSwitch label={t.watchingLabel} checked={watchProjects} onChange={setWatchProjects} />
+                </div>
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
                 <h3>{t.settingsSafetyTitle}</h3>
               </header>
               <div className="settings-group__body">
@@ -580,6 +611,17 @@ export function SettingsPanel({
                     <p>{t.safetyConfirmDescription}</p>
                   </div>
                   <ToggleSwitch label={t.safetyConfirmLabel} checked={confirmCloseProject} onChange={setConfirmCloseProject} />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.safetyConfirmDiscardLabel}</strong>
+                    <p>{t.safetyConfirmDiscardDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.safetyConfirmDiscardLabel}
+                    checked={confirmDiscard}
+                    onChange={setConfirmDiscard}
+                  />
                 </div>
               </div>
             </section>

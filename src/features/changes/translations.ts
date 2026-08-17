@@ -58,6 +58,8 @@ export interface ChangesTranslations {
   changesPreviousHunk: string;
   changesNextHunk: string;
   changesRefresh: string;
+  changesWatchingOff: string;
+  changesDiscardingNow: string;
   changesSaveSelected: (count: number) => string;
   changesCheckedJustNow: string;
   changesCheckedMinutesAgo: (minutes: number) => string;
@@ -170,6 +172,8 @@ const en: ChangesTranslations = {
   changesPreviousHunk: "Previous change",
   changesNextHunk: "Next change",
   changesRefresh: "Refresh",
+  changesWatchingOff: "This screen isn’t updating itself. Use Refresh to check for changes.",
+  changesDiscardingNow: "Discarding…",
   changesSaveSelected: (count) => `Save selected (${count})`,
   changesCheckedJustNow: "Checked just now",
   changesCheckedMinutesAgo: (minutes) =>
@@ -286,6 +290,8 @@ const es: ChangesTranslations = {
   changesPreviousHunk: "Cambio anterior",
   changesNextHunk: "Cambio siguiente",
   changesRefresh: "Actualizar",
+  changesWatchingOff: "Esta pantalla no se actualiza sola. Usa Actualizar para comprobar los cambios.",
+  changesDiscardingNow: "Descartando…",
   changesSaveSelected: (count) => `Guardar selección (${count})`,
   changesCheckedJustNow: "Comprobado ahora mismo",
   changesCheckedMinutesAgo: (minutes) =>

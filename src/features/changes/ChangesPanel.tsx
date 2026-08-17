@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CircleAlert,
   Columns2,
+  EyeOff,
   FileText,
   LoaderCircle,
   Ellipsis,
@@ -20,6 +21,7 @@ import {
   Save,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
@@ -32,7 +34,8 @@ import { CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../st
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
-import type { FileDiff } from "./domain";
+import type { DiscardRecovery, FileDiff } from "./domain";
+import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
 import type { ChangesContextMenuState } from "./ChangesContextMenu";
 
@@ -269,6 +272,62 @@ function CheckFreshnessNote({
   );
 }
 
+
+/** What a discard that was never confirmed reports back. The Undo is the
+ * recovery point Rust already created, offered in place rather than left to be
+ * found under the actions menu.
+ *
+ * One fixed `role="status"` rather than swapping to `alert` for the failure:
+ * the region is already on screen and showing "Discarding…" by the time an
+ * error replaces it, and changing a live region's role in place is the one
+ * update screen readers are least reliable about announcing. The danger border
+ * and icon carry the severity. */
+function DiscardOutcomeNotice({
+  outcome,
+  onUndo,
+  onDismiss,
+  t,
+}: {
+  outcome: DirectDiscardOutcome | null;
+  onUndo: (recovery: DiscardRecovery) => Promise<void>;
+  onDismiss: () => void;
+  t: Translations;
+}): React.JSX.Element | null {
+  if (!outcome) {
+    return null;
+  }
+  return (
+    <div className={`changes-notice changes-notice--${outcome.status}`} role="status">
+      {outcome.status === "running" ? (
+        <LoaderCircle aria-hidden="true" className="icon--spinning" />
+      ) : outcome.status === "error" ? (
+        <CircleAlert aria-hidden="true" />
+      ) : (
+        <CheckCircle2 aria-hidden="true" />
+      )}
+      <p>
+        {outcome.status === "running"
+          ? t.changesDiscardingNow
+          : outcome.status === "error"
+            ? outcome.message
+            : outcome.status === "restored"
+              ? t.changesRestoreSuccess
+              : t.changesDiscardSuccess(outcome.discardedFiles)}
+      </p>
+      {outcome.status === "discarded" && (
+        <button className="secondary-button" type="button" onClick={() => void onUndo(outcome.recovery)}>
+          <RotateCcw aria-hidden="true" />
+          {t.changesUndoDiscard}
+        </button>
+      )}
+      {outcome.status !== "running" && (
+        <button className="changes-notice__dismiss" type="button" aria-label={t.commonClose} onClick={onDismiss}>
+          <X aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 const CATEGORY_LABEL_KEYS = {
   changed: "changesCategoryLabelChanged",
@@ -769,6 +828,8 @@ export function ChangesPanel({
   workingTreeCheckedAt,
   controller,
   sessionEpoch,
+  isWatching,
+  confirmBeforeDiscarding,
   onRefresh,
   onSaveCompleted,
   onNavigateOverview,
@@ -796,6 +857,13 @@ export function ChangesPanel({
    * whenever the project or the working-tree snapshot changes. */
   controller: ChangesController;
   sessionEpoch: string;
+  /** Whether a filesystem watcher is registered for this project. When it is
+   * not, this screen says so: a list that stopped updating but still looks
+   * live is worse than one that admits it and points at Refresh. */
+  isWatching: boolean;
+  /** Whether discarding opens the confirmation dialog. Off means the discard
+   * runs immediately and reports its result — with an Undo — in the header. */
+  confirmBeforeDiscarding: boolean;
   onRefresh: () => void;
   onSaveCompleted: () => void;
   onNavigateOverview: () => void;
@@ -823,6 +891,28 @@ export function ChangesPanel({
   const [search, setSearch] = useState("");
   const [discardRequest, setDiscardRequest] = useState<DiscardDialogRequest | null>(null);
   const [contextMenu, setContextMenu] = useState<ChangesContextMenuState | null>(null);
+  const directDiscard = useDirectDiscard({
+    controller,
+    projectPath,
+    sessionEpoch,
+    t,
+    onBegin: onBeginDiscard,
+    onFinish: onDiscardClose,
+    onMutationCompleted: onSaveCompleted,
+    onPhaseChange: onDiscardPhaseChange,
+  });
+  /** The one place a discard is asked for, whichever menu asked. Restoring
+   * keeps its dialog either way: it is a recovery action, and the preference
+   * is about being asked before throwing work away. */
+  const requestDiscard = (request: DiscardDialogRequest): void => {
+    if (request.mode !== "restore" && !confirmBeforeDiscarding) {
+      void directDiscard.discard({ mode: request.mode, selectedPath: request.selectedPath });
+      return;
+    }
+    if (onBeginDiscard()) {
+      setDiscardRequest(request);
+    }
+  };
   // The list the user is actually looking at. Selection, the save-version
   // checkboxes, and the totals all keep working off the full `entries`: a
   // search narrows what is *shown*, it does not silently drop files from the
@@ -1024,6 +1114,12 @@ export function ChangesPanel({
               {t.statusRefreshFailedNote}
             </p>
           )}
+          {!isWatching && (
+            <p className="changes-header__watch-off" role="status">
+              <EyeOff aria-hidden="true" />
+              <span>{t.changesWatchingOff}</span>
+            </p>
+          )}
         </div>
         <div className="changes-view__actions">
           {/* The button says only "Refresh" here, unlike Overview's fuller
@@ -1067,14 +1163,19 @@ export function ChangesPanel({
               sessionEpoch={sessionEpoch}
               selectedPath={selectedPath}
               disabled={!workingTree || workingTree.isClean || isCheckingChanges}
-              onChoose={(request) => {
-                if (onBeginDiscard()) setDiscardRequest(request);
-              }}
+              onChoose={requestDiscard}
               t={t}
             />
           </div>
         </div>
       </header>
+
+      <DiscardOutcomeNotice
+        outcome={directDiscard.outcome}
+        onUndo={directDiscard.undo}
+        onDismiss={directDiscard.dismiss}
+        t={t}
+      />
 
       {isLoadingList ? (
         <LoadingBar label={t.commonLoading} />
@@ -1216,7 +1317,7 @@ export function ChangesPanel({
           onCopied={() => setAnnouncement(t.changesCopied)}
           onDiscard={(path) => {
             closeContextMenu(false);
-            if (onBeginDiscard()) setDiscardRequest({ mode: "selected", selectedPath: path });
+            requestDiscard({ mode: "selected", selectedPath: path });
           }}
           t={t}
         />

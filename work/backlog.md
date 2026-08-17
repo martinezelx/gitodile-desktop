@@ -17,8 +17,9 @@ This file is an inbox for ideas that are not yet approved or sufficiently refine
 - Detect changes caused only by line-ending normalization.
 - Design repository watching, cancellation, and large-repository performance
   tests before adding continuous background refresh. *(Watching designed in
-  task 019 and promoted to task 020; the large-repository performance test
-  suite is still unrefined and stays here.)*
+  task 019 and promoted to task 020; task 061 made it switchable as the honest
+  interim answer. The large-repository performance test suite is still
+  unrefined and stays here — a measured watch interval still waits on it.)*
 - Benchmark the complete Changes and save-version workflow with thousands of
   changed files once both flows exist; cover Rust parsing, Tauri payloads,
   list/diff rendering, refresh cancellation, and interaction responsiveness.

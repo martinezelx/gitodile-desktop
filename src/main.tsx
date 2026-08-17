@@ -53,9 +53,13 @@ import { CommandPalette, type AppCommand } from "./app/CommandPalette";
 import {
   CONFIRM_CLOSE_PROJECT_DEFAULT,
   CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
+  CONFIRM_DISCARD_DEFAULT,
+  CONFIRM_DISCARD_STORAGE_KEY,
   REOPEN_LAST_PROJECT_DEFAULT,
   REOPEN_LAST_PROJECT_STORAGE_KEY,
   SIDEBAR_COLLAPSED_STORAGE_KEY,
+  WATCH_PROJECTS_DEFAULT,
+  WATCH_PROJECTS_STORAGE_KEY,
   applyTheme,
   resolveEffectiveTheme,
   useSettingsSection,
@@ -64,6 +68,7 @@ import {
   useThemePreference,
 } from "./app/preferences";
 import { startThemeFade, startThemeReveal } from "./app/themeTransition";
+import { planWatcherChanges } from "./app/watcherPlan";
 import { TitlebarMenu } from "./app/TitlebarMenu";
 import {
   EMPTY_CHANGES_SELECTION,
@@ -361,6 +366,14 @@ export function App(): React.JSX.Element {
     CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
     CONFIRM_CLOSE_PROJECT_DEFAULT,
   );
+  const [watchProjects, setWatchProjects] = useStoredBoolean(
+    WATCH_PROJECTS_STORAGE_KEY,
+    WATCH_PROJECTS_DEFAULT,
+  );
+  const [confirmDiscard, setConfirmDiscard] = useStoredBoolean(
+    CONFIRM_DISCARD_STORAGE_KEY,
+    CONFIRM_DISCARD_DEFAULT,
+  );
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const paletteTriggerRef = useRef<HTMLButtonElement>(null);
@@ -650,17 +663,19 @@ export function App(): React.JSX.Element {
     if (!hasCompletedSessionRestore || !("__TAURI_INTERNALS__" in window)) {
       return;
     }
-    const desired = new Map(sessionsState.order.map((id) => [id, sessionsState.byId[id]?.epoch]));
-    for (const [path, epoch] of Object.entries(watchedSessionsRef.current)) {
-      if (desired.get(path) !== epoch) {
-        void invoke("unwatch_repository", { path, sessionEpoch: epoch }).catch(() => {});
-        delete watchedSessionsRef.current[path];
-      }
+    // The preference is honored by the plan, not by this loop: with watching
+    // off the plan unregisters everything and asks for nothing, so turning it
+    // back on re-registers without the project being reopened.
+    const plan = planWatcherChanges(
+      watchedSessionsRef.current,
+      sessionsState.order.map((id) => ({ path: id, epoch: sessionsState.byId[id]?.epoch })),
+      watchProjects,
+    );
+    for (const { path, epoch } of plan.unwatch) {
+      void invoke("unwatch_repository", { path, sessionEpoch: epoch }).catch(() => {});
+      delete watchedSessionsRef.current[path];
     }
-    for (const [path, epoch] of desired) {
-      if (!epoch || watchedSessionsRef.current[path] === epoch) {
-        continue;
-      }
+    for (const { path, epoch } of plan.watch) {
       watchedSessionsRef.current[path] = epoch;
       void invoke<boolean>("watch_repository", { path, sessionEpoch: epoch })
         .then((watching) => {
@@ -674,7 +689,21 @@ export function App(): React.JSX.Element {
           }
         });
     }
-  }, [hasCompletedSessionRestore, watcherSessionKey]);
+  }, [hasCompletedSessionRestore, watcherSessionKey, watchProjects]);
+
+  // Turning watching back on leaves the open project exactly as stale as the
+  // moment it was turned off: re-registering only catches what changes next.
+  // One read of the same facts a watcher invalidation would have driven closes
+  // that gap, without asking the user to reopen the project.
+  const wasWatchingRef = useRef(watchProjects);
+  useEffect(() => {
+    const wasWatching = wasWatchingRef.current;
+    wasWatchingRef.current = watchProjects;
+    if (!watchProjects || wasWatching || !hasCompletedSessionRestore || !projectPath) {
+      return;
+    }
+    void repositoryReads.refreshAll(projectRuntime, projectRuntime.getSnapshot(), projectPath);
+  }, [watchProjects, hasCompletedSessionRestore, projectPath, projectRuntime, repositoryReads]);
 
   // Refreshes once when a project becomes active, not whenever a screen is
   // visited. This covers startup and changes made while another project was
@@ -1369,6 +1398,8 @@ export function App(): React.JSX.Element {
                           workingTreeCheckedAt={workingTreeCheckedAt}
                           controller={changesController}
                           sessionEpoch={activeSession?.epoch ?? ""}
+                          isWatching={watchProjects}
+                          confirmBeforeDiscarding={confirmDiscard}
                           onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
                           onSaveCompleted={() => void handleMutationSucceeded(project.path)}
                           onNavigateOverview={() => navigateToView("overview")}
@@ -1580,11 +1611,17 @@ export function App(): React.JSX.Element {
           setReopenLastProject,
           confirmCloseProject,
           setConfirmCloseProject,
+          watchProjects,
+          setWatchProjects,
+          confirmDiscard,
+          setConfirmDiscard,
           diffPreferences,
           setDiffPreferences,
           defaults: {
             reopenLastProject: REOPEN_LAST_PROJECT_DEFAULT,
             confirmCloseProject: CONFIRM_CLOSE_PROJECT_DEFAULT,
+            watchProjects: WATCH_PROJECTS_DEFAULT,
+            confirmDiscard: CONFIRM_DISCARD_DEFAULT,
           },
           project: activeSession ? { path: activeSession.id, sessionEpoch: activeSession.epoch } : null,
         }}

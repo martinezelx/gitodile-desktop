@@ -11,6 +11,8 @@ const THEME_STORAGE_KEY = "gitodrile-theme";
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
 export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 export const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
+export const WATCH_PROJECTS_STORAGE_KEY = "gitodrile-watch-projects";
+export const CONFIRM_DISCARD_STORAGE_KEY = "gitodrile-confirm-discard";
 export const SETTINGS_SECTION_STORAGE_KEY = "gitodrile-settings-section";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
@@ -19,6 +21,11 @@ export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
  * preference and the Settings panel's "reset this section". */
 export const REOPEN_LAST_PROJECT_DEFAULT = false;
 export const CONFIRM_CLOSE_PROJECT_DEFAULT = true;
+/** Both default to on: watching is what makes the screens live, and asking
+ * before a destructive change is the safe answer. Turning either off is a
+ * deliberate choice, never something the app arrives at on its own. */
+export const WATCH_PROJECTS_DEFAULT = true;
+export const CONFIRM_DISCARD_DEFAULT = true;
 
 export function readStoredBoolean(key: string, defaultValue: boolean): boolean {
   const stored = localStorage.getItem(key);
