@@ -73,6 +73,48 @@ const NOTICE_ICONS: Record<Notice["tone"], React.JSX.Element> = {
   danger: <CircleAlert aria-hidden="true" />,
 };
 
+/** Arrow keys move focus between the options of a radio group, with Home and
+ * End reaching the ends, so a group is one Tab stop rather than one per option.
+ *
+ * Focus deliberately does not carry the selection with it. The ARIA radio
+ * pattern usually selects as focus moves, which is fine when the choice is free
+ * — but one of these groups writes to the user's global Git config on every
+ * change, and arrowing past an option is not a decision to change it. Space and
+ * Enter activate, which buttons already do.
+ *
+ * Reads the DOM rather than holding refs: the group is the event target's own
+ * container, so this works for any number of options without per-group state. */
+function moveFocusWithinRadioGroup(event: React.KeyboardEvent<HTMLDivElement>): void {
+  const step =
+    event.key === "ArrowDown" || event.key === "ArrowRight"
+      ? 1
+      : event.key === "ArrowUp" || event.key === "ArrowLeft"
+        ? -1
+        : 0;
+  const isEnd = event.key === "End";
+  if (step === 0 && !isEnd && event.key !== "Home") {
+    return;
+  }
+  const options = Array.from(
+    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]:not(:disabled)'),
+  );
+  const current = options.indexOf(document.activeElement as HTMLButtonElement);
+  if (options.length === 0 || current < 0) {
+    return;
+  }
+  event.preventDefault();
+  const next =
+    step !== 0 ? (current + step + options.length) % options.length : isEnd ? options.length - 1 : 0;
+  options[next].focus();
+}
+
+/** Which option in a group carries the single Tab stop: the selected one, or
+ * the first when nothing is selected yet — otherwise a group with no selection
+ * (line endings before anything is chosen) would be unreachable by keyboard. */
+function isRadioTabStop(isActive: boolean, hasSelection: boolean, index: number): boolean {
+  return hasSelection ? isActive : index === 0;
+}
+
 /** True when the Git installation is in a state the user has to act on. The
  * dialog header and the rail both surface this, because it is the one setting
  * whose failure blocks the whole app rather than degrading one screen. */
@@ -552,13 +594,19 @@ export function SettingsPanel({
                 <p>{t.settingsThemeDescription}</p>
               </header>
               <div className="settings-group__body">
-                <div className="segmented-control" role="radiogroup" aria-label={t.themeAriaLabel}>
-                  {THEME_ORDER.map((option) => (
+                <div
+                  className="segmented-control"
+                  role="radiogroup"
+                  aria-label={t.themeAriaLabel}
+                  onKeyDown={moveFocusWithinRadioGroup}
+                >
+                  {THEME_ORDER.map((option, index) => (
                     <button
                       key={option}
                       type="button"
                       role="radio"
                       aria-checked={theme === option}
+                      tabIndex={isRadioTabStop(theme === option, true, index) ? 0 : -1}
                       className={`segmented-control__option${theme === option ? " segmented-control__option--active" : ""}`}
                       onClick={() => setTheme(option)}
                     >
@@ -575,13 +623,19 @@ export function SettingsPanel({
                 <p>{t.settingsLanguageDescription}</p>
               </header>
               <div className="settings-group__body">
-                <div className="segmented-control" role="radiogroup" aria-label={t.languageAriaLabel}>
-                  {LANGUAGE_ORDER.map((option) => (
+                <div
+                  className="segmented-control"
+                  role="radiogroup"
+                  aria-label={t.languageAriaLabel}
+                  onKeyDown={moveFocusWithinRadioGroup}
+                >
+                  {LANGUAGE_ORDER.map((option, index) => (
                     <button
                       key={option}
                       type="button"
                       role="radio"
                       aria-checked={languagePreference === option}
+                      tabIndex={isRadioTabStop(languagePreference === option, true, index) ? 0 : -1}
                       className={`segmented-control__option${languagePreference === option ? " segmented-control__option--active" : ""}`}
                       onClick={() => setLanguagePreference(option)}
                     >
@@ -644,13 +698,19 @@ export function SettingsPanel({
                     <strong>{t.readingTabWidthLabel}</strong>
                     <p>{t.readingTabWidthDescription}</p>
                   </div>
-                  <div className="segmented-control" role="radiogroup" aria-label={t.readingTabWidthLabel}>
-                    {DIFF_TAB_WIDTHS.map((width: DiffTabWidth) => (
+                  <div
+                    className="segmented-control"
+                    role="radiogroup"
+                    aria-label={t.readingTabWidthLabel}
+                    onKeyDown={moveFocusWithinRadioGroup}
+                  >
+                    {DIFF_TAB_WIDTHS.map((width: DiffTabWidth, index: number) => (
                       <button
                         key={width}
                         type="button"
                         role="radio"
                         aria-checked={diffPreferences.tabWidth === width}
+                        tabIndex={isRadioTabStop(diffPreferences.tabWidth === width, true, index) ? 0 : -1}
                         className={`segmented-control__option${diffPreferences.tabWidth === width ? " segmented-control__option--active" : ""}`}
                         onClick={() => setDiffPreferences((previous) => ({ ...previous, tabWidth: width }))}
                       >
@@ -794,7 +854,7 @@ export function SettingsPanel({
                   ) : isSavingIdentity ? (
                     <p className="settings-row__hint">
                       <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                      <span>{t.identitySaving}</span>
+                      <span>{t.settingsSaving}</span>
                     </p>
                   ) : identityNotice ? (
                     <p className={`settings-row__hint settings-row__hint--${identityNotice.tone}`}>
@@ -849,8 +909,13 @@ export function SettingsPanel({
                     {/* Each option is a full sentence about what happens to
                         files, so they stack rather than sharing a segmented
                         control: the wording is the point of this group. */}
-                    <div className="line-endings" role="radiogroup" aria-label={t.settingsLineEndingsTitle}>
-                      {LINE_ENDING_CHOICES.map((choice) => {
+                    <div
+                      className="line-endings"
+                      role="radiogroup"
+                      aria-label={t.settingsLineEndingsTitle}
+                      onKeyDown={moveFocusWithinRadioGroup}
+                    >
+                      {LINE_ENDING_CHOICES.map((choice, index) => {
                         const isActive = lineEndings.mode === choice;
                         return (
                           <button
@@ -858,6 +923,9 @@ export function SettingsPanel({
                             type="button"
                             role="radio"
                             aria-checked={isActive}
+                            tabIndex={
+                              isRadioTabStop(isActive, lineEndings.mode !== "not_set", index) ? 0 : -1
+                            }
                             disabled={isSavingLineEndings}
                             className={`line-endings__option${isActive ? " line-endings__option--active" : ""}`}
                             onClick={() => void chooseLineEnding(choice)}
@@ -898,7 +966,7 @@ export function SettingsPanel({
                         {isSavingLineEndings ? (
                           <p className="settings-row__hint">
                             <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                            <span>{t.identitySaving}</span>
+                            <span>{t.settingsSaving}</span>
                           </p>
                         ) : lineEndingNotice ? (
                           <p className={`settings-row__hint settings-row__hint--${lineEndingNotice.tone}`}>

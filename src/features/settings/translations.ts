@@ -43,7 +43,7 @@ export interface SettingsTranslations {
   identityEmailLabel: string;
   identityNamePlaceholder: string;
   identityEmailPlaceholder: string;
-  identitySaving: string;
+  settingsSaving: string;
   identitySaved: string;
   identityCouldntSave: string;
   identityInvalidEmail: string;
@@ -136,7 +136,7 @@ const en: SettingsTranslations = {
   identityEmailLabel: "Email",
   identityNamePlaceholder: "Ada Lovelace",
   identityEmailPlaceholder: "ada@example.com",
-  identitySaving: "Saving…",
+  settingsSaving: "Saving…",
   identitySaved: "Saved.",
   identityCouldntSave: "Couldn't save that.",
   identityInvalidEmail: "That doesn't look like an email address.",
@@ -241,7 +241,7 @@ const es: SettingsTranslations = {
   identityEmailLabel: "Correo electrónico",
   identityNamePlaceholder: "Ada Lovelace",
   identityEmailPlaceholder: "ada@example.com",
-  identitySaving: "Guardando…",
+  settingsSaving: "Guardando…",
   identitySaved: "Guardado.",
   identityCouldntSave: "No se pudo guardar eso.",
   identityInvalidEmail: "Esto no parece una dirección de correo.",

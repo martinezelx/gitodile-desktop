@@ -291,6 +291,50 @@ describe("Settings panel line endings", () => {
   });
 });
 
+describe("Settings panel option groups", () => {
+  it("is one Tab stop per group, with the arrow keys moving inside it", async () => {
+    renderPanel(createPort(), { initialSection: "appearance" });
+
+    const [system, light, dark] = screen.getAllByRole("radio", { name: /System|Light|Dark/ });
+    expect(system).toHaveAttribute("tabindex", "0");
+    expect(light).toHaveAttribute("tabindex", "-1");
+
+    system.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(light).toHaveFocus();
+    await userEvent.keyboard("{End}");
+    expect(dark).toHaveFocus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(system).toHaveFocus();
+  });
+
+  it("does not change a line-ending choice merely by arrowing past it", async () => {
+    const port = createPort();
+    renderPanel(port, { initialSection: "line-endings" });
+
+    // The ARIA radio pattern usually selects as focus moves. Here that would
+    // write to the user's global Git config on every arrow key, so focus moves
+    // and the choice waits for Space or Enter.
+    const options = await screen.findAllByRole("radio");
+    options[0].focus();
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+    expect(options[2]).toHaveFocus();
+    expect(port.setLineEndings).not.toHaveBeenCalled();
+
+    await userEvent.keyboard(" ");
+    await waitFor(() => expect(port.setLineEndings).toHaveBeenCalledWith("keep_as_is"));
+  });
+
+  it("keeps a group with nothing selected reachable by keyboard", async () => {
+    renderPanel(createPort(), { initialSection: "line-endings" });
+
+    // Nothing is chosen, so there is no selected option to carry the Tab stop;
+    // without a fallback the whole group would be unreachable.
+    const options = await screen.findAllByRole("radio");
+    expect(options.map((option) => option.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]);
+  });
+});
+
 describe("Settings panel section rail", () => {
   it("moves between sections with the arrow keys", async () => {
     renderPanel(createPort());
