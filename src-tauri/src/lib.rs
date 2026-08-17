@@ -73,6 +73,8 @@ pub fn run() {
             ipc::check_git_update,
             ipc::get_git_identity,
             ipc::set_git_identity,
+            ipc::get_line_endings,
+            ipc::set_line_endings,
             ipc::plan_save_version,
             ipc::save_version,
             ipc::discover_remotes,

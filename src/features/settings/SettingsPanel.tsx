@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   CircleAlert,
   CircleArrowUp,
+  CornerDownLeft,
   GitBranch,
   Info,
   LoaderCircle,
@@ -27,10 +28,14 @@ import {
   type DiffTabWidth,
 } from "../changes";
 import {
+  LINE_ENDING_CHOICES,
+  recommendedLineEndingChoice,
   SETTINGS_SECTIONS,
   settingsSectionLabel,
   type GitDiagnostics,
+  type GitLineEndings,
   type GitUpdateStatus,
+  type LineEndingChoice,
   type SettingsSection,
   type ThemePreference,
 } from "./domain";
@@ -93,6 +98,7 @@ export function SettingsPanel({
   diffPreferences,
   setDiffPreferences,
   defaults,
+  project = null,
   onClose,
   onRegisterCloseGuard,
   port = settingsPort,
@@ -117,6 +123,10 @@ export function SettingsPanel({
    * section" gets them from the same place the hooks do rather than keeping a
    * second copy here that could drift. */
   defaults: { reopenLastProject: boolean; confirmCloseProject: boolean };
+  /** The open project, when there is one. Only the line-ending group uses it,
+   * and only to say whether that project overrides the global answer; with no
+   * project open the panel reports the global setting alone. */
+  project?: { path: string; sessionEpoch: string } | null;
   onClose?: () => void;
   /** The panel holds the identity draft, so it is the only place that can know
    * whether dismissing the dialog would throw typed input away. It hands the
@@ -135,6 +145,9 @@ export function SettingsPanel({
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const [isStartingGitInstallation, setIsStartingGitInstallation] = useState(false);
   const [isStartingGitUpdate, setIsStartingGitUpdate] = useState(false);
+  const [lineEndings, setLineEndings] = useState<GitLineEndings | null>(null);
+  const [lineEndingNotice, setLineEndingNotice] = useState<Notice | null>(null);
+  const [isSavingLineEndings, setIsSavingLineEndings] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const keepEditingRef = useRef<HTMLButtonElement>(null);
 
@@ -155,6 +168,52 @@ export function SettingsPanel({
       keepEditingRef.current?.focus();
     }
   }, [isConfirmingDiscard]);
+
+  /* Read from the primitives rather than the object so a parent re-render with
+     a fresh `{ path, sessionEpoch }` literal doesn't re-run the read. */
+  const projectPath = project?.path ?? null;
+  const projectEpoch = project?.sessionEpoch ?? null;
+  const readLineEndings = useCallback((): Promise<GitLineEndings> => {
+    return port.readLineEndings(
+      projectPath !== null && projectEpoch !== null && projectEpoch !== ""
+        ? { path: projectPath, sessionEpoch: projectEpoch }
+        : null,
+    );
+  }, [port, projectEpoch, projectPath]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    readLineEndings()
+      .then((result) => {
+        if (isCurrent) {
+          setLineEndings(result);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      isCurrent = false;
+    };
+  }, [readLineEndings]);
+
+  const chooseLineEnding = async (choice: LineEndingChoice): Promise<void> => {
+    setLineEndingNotice(null);
+    setIsSavingLineEndings(true);
+    try {
+      await port.setLineEndings(choice);
+      // Read back rather than assume: a project that overrides the global
+      // config still overrides it after the write, and saying otherwise would
+      // report a setting that isn't the one applying here.
+      setLineEndings(await readLineEndings());
+      setLineEndingNotice({ tone: "success", message: t.lineEndingsSaved });
+    } catch (error) {
+      setLineEndingNotice({
+        tone: "danger",
+        message: localizeAppError(error, t, t.lineEndingsCouldntSave),
+      });
+    } finally {
+      setIsSavingLineEndings(false);
+    }
+  };
 
   const trimmedName = nameInput.trim();
   const trimmedEmail = emailInput.trim();
@@ -330,11 +389,47 @@ export function SettingsPanel({
                   ? { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.gitUpdateCheckTimedOut }
                   : null;
 
+  /* Read once per mount, like the About dialog does: the platform cannot
+     change while the app is running. */
+  const [platform] = useState(() => port.readPlatform());
+  const recommendedChoice = recommendedLineEndingChoice(platform);
+  const lineEndingText: Record<LineEndingChoice, { label: string; description: string }> = {
+    windows_checkout: {
+      label: t.lineEndingsWindowsLabel,
+      description: t.lineEndingsWindowsDescription,
+    },
+    normalize: { label: t.lineEndingsNormalizeLabel, description: t.lineEndingsNormalizeDescription },
+    keep_as_is: { label: t.lineEndingsKeepLabel, description: t.lineEndingsKeepDescription },
+  };
+  /* Both of these overrule the choice above for at least some files, so they
+     share one warning block instead of arriving as separate pills in different
+     tones — the reader has one exception to take in, not two notices to rank. */
+  const lineEndingCaveats: Array<{ key: string; text: string }> =
+    lineEndings === null
+      ? []
+      : [
+          ...(lineEndings.projectAttributes
+            ? [{ key: "attributes", text: t.lineEndingsProjectAttributes }]
+            : []),
+          ...(lineEndings.eol !== null && lineEndings.eol !== ""
+            ? [{ key: "eol", text: `${t.lineEndingsEolNote} ${lineEndings.eol}` }]
+            : []),
+        ];
+  const lineEndingSourceSentence =
+    lineEndings === null
+      ? null
+      : lineEndings.source === "project"
+        ? t.lineEndingsFromProject
+        : lineEndings.source === "global"
+          ? t.lineEndingsFromGlobal
+          : t.lineEndingsFromNowhere;
+
   const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
     general: <Settings />,
     appearance: <Palette />,
     reading: <WrapText />,
     git: <GitBranch />,
+    "line-endings": <CornerDownLeft />,
   };
   const sections = SETTINGS_SECTIONS.map((id) => ({
     id,
@@ -728,6 +823,92 @@ export function SettingsPanel({
                       </button>
                     </div>
                   </div>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeSection === "line-endings" && (
+          <div className="settings-groups">
+            <section className="settings-group">
+              {/* No `h3` here: the rail already says "Line endings" and this is
+                  the section's only group, so a heading would repeat it — the
+                  redundant heading layer task 057 removed. */}
+              <header className="settings-group__header">
+                <p>{t.settingsLineEndingsDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                {lineEndings === null ? (
+                  <p className="settings-row__hint">
+                    <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                    <span>{t.settingsGeneralChecking}</span>
+                  </p>
+                ) : (
+                  <>
+                    {/* Each option is a full sentence about what happens to
+                        files, so they stack rather than sharing a segmented
+                        control: the wording is the point of this group. */}
+                    <div className="line-endings" role="radiogroup" aria-label={t.settingsLineEndingsTitle}>
+                      {LINE_ENDING_CHOICES.map((choice) => {
+                        const isActive = lineEndings.mode === choice;
+                        return (
+                          <button
+                            key={choice}
+                            type="button"
+                            role="radio"
+                            aria-checked={isActive}
+                            disabled={isSavingLineEndings}
+                            className={`line-endings__option${isActive ? " line-endings__option--active" : ""}`}
+                            onClick={() => void chooseLineEnding(choice)}
+                          >
+                            <span className="line-endings__option-label">
+                              {lineEndingText[choice].label}
+                              {choice === recommendedChoice && (
+                                <span className="line-endings__recommended">{t.lineEndingsRecommended}</span>
+                              )}
+                            </span>
+                            <span className="line-endings__option-description">
+                              {lineEndingText[choice].description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Three competing boxes used to sit here: a label with the
+                        chosen option's name repeated verbatim from the card
+                        above it, then an info pill, then a warning pill of a
+                        different width. The selected card already states what
+                        is in effect, so this is one quiet line of provenance
+                        and — only when there is one — a single caveat block for
+                        the things that overrule the choice. */}
+                    <div className="line-endings__status">
+                      <p className="line-endings__source">{lineEndingSourceSentence}</p>
+                      {lineEndingCaveats.length > 0 && (
+                        <div className="line-endings__caveat">
+                          <TriangleAlert aria-hidden="true" />
+                          <div>
+                            {lineEndingCaveats.map((caveat) => (
+                              <p key={caveat.key}>{caveat.text}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div role="status">
+                        {isSavingLineEndings ? (
+                          <p className="settings-row__hint">
+                            <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                            <span>{t.identitySaving}</span>
+                          </p>
+                        ) : lineEndingNotice ? (
+                          <p className={`settings-row__hint settings-row__hint--${lineEndingNotice.tone}`}>
+                            {NOTICE_ICONS[lineEndingNotice.tone]}
+                            <span>{lineEndingNotice.message}</span>
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </section>

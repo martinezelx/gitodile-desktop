@@ -18,6 +18,8 @@
     { "name": "check_git_update", "arguments": [], "response": "GitUpdateStatus" },
     { "name": "get_git_identity", "arguments": [], "response": "GitIdentity" },
     { "name": "set_git_identity", "arguments": ["name", "email"], "response": "void" },
+    { "name": "get_line_endings", "arguments": ["path?", "sessionEpoch?"], "response": "GitLineEndings" },
+    { "name": "set_line_endings", "arguments": ["mode"], "response": "void" },
     { "name": "plan_save_version", "arguments": ["path", "selectedPaths?", "sessionEpoch"], "response": "SaveVersionPlan" },
     { "name": "save_version", "arguments": ["path", "title", "description?", "stateToken", "selectedPaths?", "sessionEpoch"], "response": "SaveVersionResult" },
     { "name": "discover_remotes", "arguments": ["path", "sessionEpoch?"], "response": "RemoteDiscovery" },

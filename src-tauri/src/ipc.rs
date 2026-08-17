@@ -19,8 +19,8 @@ use crate::{
         TeamSyncStatus,
     },
     tooling::{
-        self, GitDiagnostics, GitIdentity, GitInstallationResult, GitUpdateLaunchResult,
-        GitUpdateStatus,
+        self, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
+        GitUpdateLaunchResult, GitUpdateStatus,
     },
     version_lines::{
         self, CreateVersionLinePlan, DeleteVersionLinePlan, SwitchVersionLinePlan,
@@ -164,6 +164,25 @@ pub(crate) fn get_git_identity() -> GitIdentity {
 #[tauri::command(async)]
 pub(crate) fn set_git_identity(name: String, email: String) -> Result<(), AppError> {
     tooling::set_git_identity(name, email)
+}
+
+/// The one Settings read that can be repository-scoped: a project can override
+/// the global line-ending setting, so the open one is validated like any other
+/// repository call and simply absent when no project is open.
+#[tauri::command(async)]
+pub(crate) fn get_line_endings(
+    path: Option<String>,
+    session_epoch: Option<String>,
+) -> Result<GitLineEndings, AppError> {
+    if let Some(path) = path.as_deref() {
+        validate_session(path, session_epoch.as_deref())?;
+    }
+    Ok(tooling::get_line_endings(path))
+}
+
+#[tauri::command(async)]
+pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
+    tooling::set_line_endings(mode)
 }
 
 #[tauri::command(async)]

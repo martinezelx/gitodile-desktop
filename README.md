@@ -40,6 +40,8 @@ Current application version: **0.1.0**.
   dirty-worktree checks and recovery references where required.
 - Configure light/dark/system themes, English/Spanish copy, Git identity,
   installation diagnostics, and supported Git update guidance.
+- See and change what Git does to line endings in plain language, including
+  when a project's own settings or `.gitattributes` override the global choice.
 - Navigate through a command palette, keyboard-accessible dialogs, and a
   keep-alive screen shell that retains screen state while suspending hidden
   work.

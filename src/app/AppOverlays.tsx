@@ -32,6 +32,9 @@ export type AppOverlaysProps = {
     diffPreferences: DiffPreferences;
     setDiffPreferences: Dispatch<SetStateAction<DiffPreferences>>;
     defaults: { reopenLastProject: boolean; confirmCloseProject: boolean };
+    /** The open project, so the line-endings section can say when that project
+     * overrides the global setting. Null when none is open. */
+    project: { path: string; sessionEpoch: string } | null;
   };
   about: { isOpen: boolean; setOpen: BooleanSetter };
   shortcuts: { isOpen: boolean; setOpen: BooleanSetter };
@@ -171,6 +174,7 @@ export function AppOverlays({
               diffPreferences={settings.diffPreferences}
               setDiffPreferences={settings.setDiffPreferences}
               defaults={settings.defaults}
+              project={settings.project}
               onClose={closeSettings}
               onRegisterCloseGuard={registerSettingsCloseGuard}
             />

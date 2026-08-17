@@ -7,7 +7,7 @@ import { LanguageProvider } from "../../i18n";
 import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
 import { SettingsPanel } from "./SettingsPanel";
 import type { SettingsPort } from "./port";
-import type { GitDiagnostics, GitUpdateStatus, SettingsSection } from "./domain";
+import type { GitDiagnostics, GitLineEndings, GitUpdateStatus, SettingsSection } from "./domain";
 
 afterEach(cleanup);
 
@@ -19,6 +19,12 @@ function createPort(overrides: Partial<SettingsPort> = {}): SettingsPort {
     updateGit: vi.fn(async () => ({ outcome: "started" as const })),
     getIdentity: vi.fn(async () => ({ name: null, email: null })),
     setIdentity: vi.fn(async () => undefined),
+    readLineEndings: vi.fn(
+      async () =>
+        ({ mode: "not_set", source: "unset", eol: null, projectAttributes: false }) as GitLineEndings,
+    ),
+    setLineEndings: vi.fn(async () => undefined),
+    readPlatform: vi.fn(() => "windows"),
     openGuidance: vi.fn(async () => undefined),
     ...overrides,
   };
@@ -34,6 +40,7 @@ type PanelOverrides = Partial<{
   setConfirmCloseProject: (value: boolean) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
+  project: { path: string; sessionEpoch: string } | null;
 }>;
 
 /** The section is app state in production, so the harness owns it here too. */
@@ -58,6 +65,7 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       diffPreferences={overrides.diffPreferences ?? DEFAULT_DIFF_PREFERENCES}
       setDiffPreferences={overrides.setDiffPreferences ?? vi.fn()}
       defaults={{ reopenLastProject: false, confirmCloseProject: true }}
+      project={overrides.project ?? null}
       onClose={overrides.onClose}
       onRegisterCloseGuard={overrides.onRegisterCloseGuard}
       port={port}
@@ -201,6 +209,88 @@ describe("Settings panel identity draft", () => {
   });
 });
 
+describe("Settings panel line endings", () => {
+  it("reports that nothing is set, and writes the choice that is picked", async () => {
+    const port = createPort();
+    renderPanel(port, { initialSection: "line-endings" });
+
+    await waitFor(() => expect(port.readLineEndings).toHaveBeenCalledWith(null));
+    expect(
+      await screen.findByText("Nothing is set, so Git falls back to its own default for this system."),
+    ).toBeInTheDocument();
+    // Nothing is in effect, so no option reads as the active one and there is
+    // no caveat block to explain away.
+    expect(screen.queryAllByRole("radio", { checked: true })).toHaveLength(0);
+    expect(document.querySelector(".line-endings__caveat")).toBeNull();
+
+    // The label the user clicks never mentions autocrlf; only the adapter and
+    // Rust know which config value each choice writes.
+    await userEvent.click(
+      screen.getByRole("radio", {
+        name: /Save the shared format, keep the Windows one on your computer/,
+      }),
+    );
+    await waitFor(() => expect(port.setLineEndings).toHaveBeenCalledWith("windows_checkout"));
+    // Read back after the write rather than assumed, so a project override is
+    // still reported after saving.
+    await waitFor(() => expect(port.readLineEndings).toHaveBeenCalledTimes(2));
+  });
+
+  it("marks the choice that suits this platform", async () => {
+    renderPanel(createPort({ readPlatform: vi.fn(() => "macos") }), { initialSection: "line-endings" });
+
+    const recommended = await screen.findByText("Recommended here");
+    expect(recommended.closest("[role='radio']")).toHaveTextContent(
+      "Save the shared format, leave your files as they are",
+    );
+  });
+
+  it("says a project overrides the global setting instead of reporting a value that isn't in effect", async () => {
+    const port = createPort({
+      readLineEndings: vi.fn(async () => ({
+        mode: "normalize" as const,
+        source: "project" as const,
+        eol: "lf",
+        projectAttributes: true,
+      })),
+    });
+    renderPanel(port, {
+      initialSection: "line-endings",
+      project: { path: "C:/projects/site", sessionEpoch: "epoch-1" },
+    });
+
+    await waitFor(() =>
+      expect(port.readLineEndings).toHaveBeenCalledWith({
+        path: "C:/projects/site",
+        sessionEpoch: "epoch-1",
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "This project sets its own, so your general choice doesn't apply while you work here.",
+      ),
+    ).toBeInTheDocument();
+    // Both exceptions share one warning block rather than arriving as separate
+    // pills in different tones.
+    const caveat = document.querySelector(".line-endings__caveat");
+    expect(caveat).not.toBeNull();
+    expect(caveat).toHaveTextContent(/ships line-ending rules of its own/);
+    expect(caveat).toHaveTextContent(/core\.eol\): lf/);
+  });
+
+  it("reports a failed write as a failure", async () => {
+    const port = createPort({ setLineEndings: vi.fn(async () => Promise.reject(new Error("nope"))) });
+    renderPanel(port, { initialSection: "line-endings" });
+
+    await userEvent.click(await screen.findByRole("radio", { name: /Don't convert anything/ }));
+
+    const notice = await screen.findByText("Couldn't save that.", {
+      selector: ".settings-row__hint--danger span",
+    });
+    expect(notice).toBeInTheDocument();
+  });
+});
+
 describe("Settings panel section rail", () => {
   it("moves between sections with the arrow keys", async () => {
     renderPanel(createPort());
@@ -216,7 +306,7 @@ describe("Settings panel section rail", () => {
     expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
 
     await userEvent.keyboard("{End}");
-    expect(screen.getByRole("tab", { name: /Git/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Line endings" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("offers to reset only the sections that have defaults to return to", async () => {

@@ -1586,6 +1586,7 @@ export function App(): React.JSX.Element {
             reopenLastProject: REOPEN_LAST_PROJECT_DEFAULT,
             confirmCloseProject: CONFIRM_CLOSE_PROJECT_DEFAULT,
           },
+          project: activeSession ? { path: activeSession.id, sessionEpoch: activeSession.epoch } : null,
         }}
         about={{ isOpen: isAboutOpen, setOpen: setIsAboutOpen }}
         shortcuts={{ isOpen: isShortcutsOpen, setOpen: setIsShortcutsOpen }}

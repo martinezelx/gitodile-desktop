@@ -72,6 +72,10 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     global_process("check_git_update", OperationClass::ReadOnly, 15),
     global_process("get_git_identity", OperationClass::ReadOnly, 15),
     global_process("set_git_identity", OperationClass::LocalMutation, 30),
+    // Reads the global config, and the open project's when there is one, so it
+    // is a repository read rather than a purely global one.
+    read("get_line_endings"),
+    global_process("set_line_endings", OperationClass::LocalMutation, 30),
     read("plan_save_version"),
     ExecutionPolicy::repository_write("save_version", OperationClass::HistoryMutation),
     read("discover_remotes"),
@@ -310,6 +314,8 @@ mod tests {
         "check_git_update",
         "get_git_identity",
         "set_git_identity",
+        "get_line_endings",
+        "set_line_endings",
         "plan_save_version",
         "save_version",
         "discover_remotes",

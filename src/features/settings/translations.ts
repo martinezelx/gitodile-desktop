@@ -51,6 +51,22 @@ export interface SettingsTranslations {
   identityUnsavedBody: string;
   identityKeepEditing: string;
   identityDiscardAndClose: string;
+  settingsLineEndingsTitle: string;
+  settingsLineEndingsDescription: string;
+  lineEndingsWindowsLabel: string;
+  lineEndingsWindowsDescription: string;
+  lineEndingsNormalizeLabel: string;
+  lineEndingsNormalizeDescription: string;
+  lineEndingsKeepLabel: string;
+  lineEndingsKeepDescription: string;
+  lineEndingsRecommended: string;
+  lineEndingsFromGlobal: string;
+  lineEndingsFromProject: string;
+  lineEndingsFromNowhere: string;
+  lineEndingsProjectAttributes: string;
+  lineEndingsEolNote: string;
+  lineEndingsSaved: string;
+  lineEndingsCouldntSave: string;
   settingsStartupTitle: string;
   startupReopenLabel: string;
   startupReopenDescription: string;
@@ -128,6 +144,28 @@ const en: SettingsTranslations = {
   identityUnsavedBody: "Fill in both fields with a valid email, or close and discard what you typed.",
   identityKeepEditing: "Keep editing",
   identityDiscardAndClose: "Discard and close",
+  settingsLineEndingsTitle: "Line endings",
+  settingsLineEndingsDescription:
+    "Every line of a text file ends with invisible characters, and Windows uses different ones from macOS and Linux. This is why a file nobody touched can show up as changed from top to bottom.",
+  lineEndingsWindowsLabel: "Save the shared format, keep the Windows one on your computer",
+  lineEndingsWindowsDescription:
+    "Files are saved into the project the way teammates expect, and stay in Windows format on your disk so other Windows tools read them correctly.",
+  lineEndingsNormalizeLabel: "Save the shared format, leave your files as they are",
+  lineEndingsNormalizeDescription:
+    "Nothing on your computer is rewritten. Only what goes into the project is converted to the shared format.",
+  lineEndingsKeepLabel: "Don't convert anything",
+  lineEndingsKeepDescription:
+    "Files are saved exactly as they are on disk. Fine on your own; in a mixed team it is what produces diffs where every line looks changed.",
+  lineEndingsRecommended: "Recommended here",
+  lineEndingsFromGlobal: "This comes from your Git settings and applies to every project.",
+  lineEndingsFromProject:
+    "This project sets its own, so your general choice doesn't apply while you work here.",
+  lineEndingsFromNowhere: "Nothing is set, so Git falls back to its own default for this system.",
+  lineEndingsProjectAttributes:
+    "This project ships line-ending rules of its own (a .gitattributes file). For the files those rules cover, they win over the choice above.",
+  lineEndingsEolNote: "A second setting also fixes what gets written to disk (core.eol):",
+  lineEndingsSaved: "Saved.",
+  lineEndingsCouldntSave: "Couldn't save that.",
   settingsStartupTitle: "Startup",
   startupReopenLabel: "Reopen projects from the previous session",
   startupReopenDescription: "Skip picking folders again if you had projects open last time.",
@@ -212,6 +250,29 @@ const es: SettingsTranslations = {
     "Rellena ambos campos con un correo válido, o cierra y descarta lo que has escrito.",
   identityKeepEditing: "Seguir editando",
   identityDiscardAndClose: "Descartar y cerrar",
+  settingsLineEndingsTitle: "Finales de línea",
+  settingsLineEndingsDescription:
+    "Cada línea de un archivo de texto termina con caracteres invisibles, y Windows usa unos distintos de macOS y Linux. Por eso un archivo que nadie ha tocado puede aparecer como modificado de arriba abajo.",
+  lineEndingsWindowsLabel: "Guardar en el formato común y dejar el de Windows en tu equipo",
+  lineEndingsWindowsDescription:
+    "Los archivos se guardan en el proyecto como esperan tus compañeros, y en tu disco se quedan en formato Windows para que otras herramientas los lean bien.",
+  lineEndingsNormalizeLabel: "Guardar en el formato común y no tocar tus archivos",
+  lineEndingsNormalizeDescription:
+    "No se reescribe nada en tu equipo. Solo se convierte lo que entra en el proyecto.",
+  lineEndingsKeepLabel: "No convertir nada",
+  lineEndingsKeepDescription:
+    "Los archivos se guardan tal cual están en el disco. A solas no pasa nada; en un equipo mixto es lo que produce cambios donde parece que se modificaron todas las líneas.",
+  lineEndingsRecommended: "Recomendado aquí",
+  lineEndingsFromGlobal: "Viene de tu configuración de Git y se aplica a todos los proyectos.",
+  lineEndingsFromProject:
+    "Este proyecto tiene el suyo propio, así que tu elección general no se aplica mientras trabajas aquí.",
+  lineEndingsFromNowhere:
+    "No hay nada configurado, así que Git usa el valor por defecto de este sistema.",
+  lineEndingsProjectAttributes:
+    "Este proyecto trae sus propias reglas de finales de línea (un archivo .gitattributes). Para los archivos que cubren esas reglas, mandan ellas por encima de la opción de arriba.",
+  lineEndingsEolNote: "Otro ajuste fija además lo que se escribe en el disco (core.eol):",
+  lineEndingsSaved: "Guardado.",
+  lineEndingsCouldntSave: "No se pudo guardar eso.",
   settingsStartupTitle: "Inicio",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
   startupReopenDescription: "Evita elegir carpetas de nuevo si tenías proyectos abiertos la última vez.",

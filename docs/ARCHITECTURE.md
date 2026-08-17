@@ -152,7 +152,7 @@ src-tauri/src/
   session.rs              # opaque project epochs
   watch.rs                # filtered/debounced typed invalidation
   desktop.rs              # desktop-shell services
-  tooling.rs              # Git diagnostics, install/update, global identity
+  tooling.rs              # Git diagnostics, install/update, identity, line endings
   repository.rs
   status.rs
   changes.rs

@@ -522,6 +522,201 @@ pub(crate) fn set_git_identity(name: String, email: String) -> Result<(), AppErr
     set_git_identity_with_override(&name, &email, None)
 }
 
+/// What Git is doing to line endings, and whether the answer the panel shows is
+/// the one actually in effect.
+///
+/// `core.autocrlf` is the setting behind the "every line changed and I typed
+/// nothing" diff, so it is reported by behaviour rather than by config value.
+/// `source` exists because a repository can override the global answer, and
+/// showing a global value that a repository ignores would be a confident lie.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitLineEndings {
+    mode: LineEndingMode,
+    source: LineEndingSource,
+    eol: Option<String>,
+    project_attributes: bool,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum LineEndingMode {
+    /// `core.autocrlf=true`: normalize on the way in, Windows endings on disk.
+    WindowsCheckout,
+    /// `core.autocrlf=input`: normalize on the way in, leave the disk alone.
+    Normalize,
+    /// `core.autocrlf=false`: no conversion in either direction.
+    KeepAsIs,
+    NotSet,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum LineEndingSource {
+    Global,
+    Project,
+    Unset,
+}
+
+/// Git's boolean spelling is wider than `true`/`false`, and a config file
+/// written by hand or by another tool is entitled to use any of it.
+fn parse_autocrlf(raw: Option<&str>) -> LineEndingMode {
+    match raw
+        .map(|value| value.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("true" | "yes" | "on" | "1") => LineEndingMode::WindowsCheckout,
+        Some("input") => LineEndingMode::Normalize,
+        Some("false" | "no" | "off" | "0") => LineEndingMode::KeepAsIs,
+        _ => LineEndingMode::NotSet,
+    }
+}
+
+fn autocrlf_value(mode: &str) -> Option<&'static str> {
+    match mode {
+        "windows_checkout" => Some("true"),
+        "normalize" => Some("input"),
+        "keep_as_is" => Some("false"),
+        _ => None,
+    }
+}
+
+/// A `.gitattributes` line only overrides the global setting when it actually
+/// says something about text or line endings; a repository that only marks
+/// binary types or diff drivers leaves `core.autocrlf` in charge.
+fn attributes_affect_line_endings(contents: &str) -> bool {
+    contents.lines().any(|line| {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            return false;
+        }
+        line.split_whitespace().skip(1).any(|token| {
+            let token = token.trim_start_matches(['-', '!']);
+            token == "text" || token.starts_with("text=") || token.starts_with("eol=")
+        })
+    })
+}
+
+fn project_defines_line_ending_attributes(project_path: &str) -> bool {
+    let root = std::path::Path::new(project_path);
+    [
+        root.join(".gitattributes"),
+        root.join(".git").join("info").join("attributes"),
+    ]
+    .iter()
+    .filter_map(|path| std::fs::read_to_string(path).ok())
+    .any(|contents| attributes_affect_line_endings(&contents))
+}
+
+/// Pure resolution so the panel's wording is decided by a testable rule rather
+/// than by whichever Git call happened to answer last.
+fn line_endings_from_values(
+    global: Option<&str>,
+    effective: Option<&str>,
+    eol: Option<&str>,
+    project_attributes: bool,
+) -> GitLineEndings {
+    let source = match effective {
+        None => LineEndingSource::Unset,
+        Some(value) if global.map(str::trim) == Some(value.trim()) => LineEndingSource::Global,
+        Some(_) => LineEndingSource::Project,
+    };
+    GitLineEndings {
+        mode: parse_autocrlf(effective),
+        source,
+        eol: eol.map(|value| value.trim().to_string()),
+        project_attributes,
+    }
+}
+
+fn read_project_git_config(
+    project_path: &str,
+    key: &str,
+    config_override: Option<&str>,
+) -> Option<String> {
+    let envs = config_override
+        .map(|path| vec![("GIT_CONFIG_GLOBAL", path)])
+        .unwrap_or_default();
+    let output = crate::git_command::run_git_with_env(
+        project_path,
+        ["config", "--get", key],
+        envs.as_slice(),
+    )
+    .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let value = git_stdout(&output);
+    if value.is_empty() {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+fn read_line_endings(project_path: Option<&str>, config_override: Option<&str>) -> GitLineEndings {
+    let global = read_global_git_config("core.autocrlf", config_override);
+    let global_eol = read_global_git_config("core.eol", config_override);
+    match project_path {
+        // Run inside the project so Git itself resolves the precedence between
+        // repository and global config; falling back to the global answer keeps
+        // an unreadable repository from reporting "not set".
+        Some(path) => line_endings_from_values(
+            global.as_deref(),
+            read_project_git_config(path, "core.autocrlf", config_override)
+                .or_else(|| global.clone())
+                .as_deref(),
+            read_project_git_config(path, "core.eol", config_override)
+                .or_else(|| global_eol.clone())
+                .as_deref(),
+            project_defines_line_ending_attributes(path),
+        ),
+        None => line_endings_from_values(
+            global.as_deref(),
+            global.as_deref(),
+            global_eol.as_deref(),
+            false,
+        ),
+    }
+}
+
+fn set_line_endings_with_override(
+    mode: &str,
+    config_override: Option<&str>,
+) -> Result<(), AppError> {
+    let value = autocrlf_value(mode).ok_or_else(|| {
+        AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That isn't one of the line-ending options.",
+        )
+    })?;
+    write_global_git_config("core.autocrlf", value, config_override)
+}
+
+pub(crate) fn get_line_endings(project_path: Option<String>) -> GitLineEndings {
+    match project_path {
+        // A repository read is coordinated like every other one. If the open
+        // project can't be authorized the global answer is still true and still
+        // worth showing, so this degrades to it rather than failing the panel.
+        Some(path) => match application::authorize_repository(&path, "get_line_endings", None) {
+            Ok((_context, _access)) => read_line_endings(Some(&path), None),
+            Err(_) => {
+                let _command = application::enter("get_line_endings");
+                read_line_endings(None, None)
+            }
+        },
+        None => {
+            let _command = application::enter("get_line_endings");
+            read_line_endings(None, None)
+        }
+    }
+}
+
+pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
+    let _command = application::enter("set_line_endings");
+    set_line_endings_with_override(&mode, None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -704,5 +899,118 @@ mod tests {
         let error = set_git_identity_with_override(" ", "ada@example.com", None)
             .expect_err("empty name should be rejected");
         assert_eq!(error.code, AppErrorCode::InvalidIdentity);
+    }
+
+    #[test]
+    fn autocrlf_is_read_in_every_spelling_git_accepts() {
+        assert_eq!(
+            parse_autocrlf(Some("true")),
+            LineEndingMode::WindowsCheckout
+        );
+        assert_eq!(
+            parse_autocrlf(Some(" ON ")),
+            LineEndingMode::WindowsCheckout
+        );
+        assert_eq!(parse_autocrlf(Some("input")), LineEndingMode::Normalize);
+        assert_eq!(parse_autocrlf(Some("false")), LineEndingMode::KeepAsIs);
+        assert_eq!(parse_autocrlf(Some("0")), LineEndingMode::KeepAsIs);
+        assert_eq!(parse_autocrlf(None), LineEndingMode::NotSet);
+    }
+
+    #[test]
+    fn line_endings_say_where_the_effective_value_came_from() {
+        let unset = line_endings_from_values(None, None, None, false);
+        assert_eq!(unset.mode, LineEndingMode::NotSet);
+        assert_eq!(unset.source, LineEndingSource::Unset);
+
+        let global = line_endings_from_values(Some("true"), Some("true"), None, false);
+        assert_eq!(global.mode, LineEndingMode::WindowsCheckout);
+        assert_eq!(global.source, LineEndingSource::Global);
+
+        // The project answers differently, so reporting the global value would
+        // name a setting that is not the one in effect.
+        let overridden = line_endings_from_values(Some("true"), Some("input"), Some("lf"), true);
+        assert_eq!(overridden.mode, LineEndingMode::Normalize);
+        assert_eq!(overridden.source, LineEndingSource::Project);
+        assert_eq!(overridden.eol.as_deref(), Some("lf"));
+        assert!(overridden.project_attributes);
+
+        // A project setting with nothing global behind it is still the project's.
+        let local_only = line_endings_from_values(None, Some("false"), None, false);
+        assert_eq!(local_only.source, LineEndingSource::Project);
+    }
+
+    #[test]
+    fn gitattributes_counts_only_when_it_speaks_about_line_endings() {
+        assert!(attributes_affect_line_endings("* text=auto\n"));
+        assert!(attributes_affect_line_endings("*.sh text eol=lf\n"));
+        assert!(attributes_affect_line_endings("*.png -text\n"));
+        assert!(!attributes_affect_line_endings(
+            "# text is only mentioned here\n*.png binary\n*.md diff=markdown\n"
+        ));
+        assert!(!attributes_affect_line_endings(""));
+    }
+
+    #[test]
+    fn line_endings_round_trip_through_a_temporary_global_config() {
+        let mut config_path = std::env::temp_dir();
+        config_path.push(format!("gitodrile-test-eol-config-{}", std::process::id()));
+        let _ = fs::remove_file(&config_path);
+        let config_override = config_path.to_string_lossy().to_string();
+
+        let unset = in_test_frame(|| read_line_endings(None, Some(&config_override)));
+        assert_eq!(unset.mode, LineEndingMode::NotSet);
+        assert_eq!(unset.source, LineEndingSource::Unset);
+        assert_eq!(unset.eol, None);
+
+        for (choice, expected) in [
+            ("windows_checkout", LineEndingMode::WindowsCheckout),
+            ("normalize", LineEndingMode::Normalize),
+            ("keep_as_is", LineEndingMode::KeepAsIs),
+        ] {
+            in_test_frame(|| set_line_endings_with_override(choice, Some(&config_override)))
+                .expect("writing the choice should succeed");
+            let stored = in_test_frame(|| read_line_endings(None, Some(&config_override)));
+            assert_eq!(stored.mode, expected, "reading back {choice}");
+            assert_eq!(stored.source, LineEndingSource::Global);
+        }
+
+        let _ = fs::remove_file(&config_path);
+    }
+
+    #[test]
+    fn set_line_endings_rejects_an_option_it_does_not_offer() {
+        let error = set_line_endings_with_override("auto", None)
+            .expect_err("an unknown option should be rejected");
+        assert_eq!(error.code, AppErrorCode::InvalidSelection);
+    }
+
+    #[test]
+    fn a_project_setting_is_reported_over_the_global_one() {
+        let repo = crate::test_support::unique_temp_dir("line-endings");
+        crate::test_support::git_init(&repo);
+        let mut config_path = std::env::temp_dir();
+        config_path.push(format!("gitodrile-test-eol-project-{}", std::process::id()));
+        let _ = fs::remove_file(&config_path);
+        let config_override = config_path.to_string_lossy().to_string();
+        in_test_frame(|| {
+            set_line_endings_with_override("windows_checkout", Some(&config_override))
+        })
+        .expect("writing the global choice should succeed");
+
+        let status = crate::git_command::git_command(&repo)
+            .args(["config", "--local", "core.autocrlf", "input"])
+            .status()
+            .expect("run git config");
+        assert!(status.success(), "setting the local value should succeed");
+        crate::test_support::write_file(&repo, ".gitattributes", "* text=auto\n");
+
+        let resolved = in_test_frame(|| read_line_endings(Some(&repo), Some(&config_override)));
+        assert_eq!(resolved.mode, LineEndingMode::Normalize);
+        assert_eq!(resolved.source, LineEndingSource::Project);
+        assert!(resolved.project_attributes);
+
+        let _ = fs::remove_file(&config_path);
+        let _ = fs::remove_dir_all(&repo);
     }
 }

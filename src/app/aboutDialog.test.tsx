@@ -51,6 +51,7 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       diffPreferences: DEFAULT_DIFF_PREFERENCES,
       setDiffPreferences: vi.fn(),
       defaults: { reopenLastProject: false, confirmCloseProject: true },
+      project: null,
     },
     about: { isOpen: true, setOpen: vi.fn() },
     shortcuts: closedOverlay,

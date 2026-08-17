@@ -342,12 +342,23 @@
   position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
   padding: 28px; background: var(--overlay); backdrop-filter: blur(8px);
 }
-/* Sized to the content, not to the window: tall enough for the largest
-   section to sit without scrolling, and no taller. A fixed height rather than
-   one that follows the active section, so the card does not resize under the
-   pointer every time the rail is clicked. */
+/* Sized to the content, not to the window, and a fixed height rather than one
+   that follows the active section, so the card does not resize under the
+   pointer every time the rail is clicked.
+
+   Measured with the shipped stylesheet at this width. Line endings arrived as
+   a third group under Git and pushed that section to 827px, twice the tallest
+   of the others; it now has its own rail entry, and the five sections need
+   337 / 376 / 400 / 395 / 398px of scrolling area — 60-72% of the 559px this
+   height provides, with nothing scrolling.
+
+   640 rather than the ~500 those five would justify: the line-endings section
+   grows when it has something to report, and its worst case — a project
+   override plus the `.gitattributes` warning plus `core.eol` — reaches 492px
+   in both English and Spanish. That leaves 67px of slack, which is the room
+   the next setting has before this number needs revisiting. */
 .settings-dialog {
-  width: min(820px, 100%); height: min(496px, calc(100vh - 56px)); min-height: 380px;
+  width: min(880px, 100%); height: min(640px, calc(100vh - 56px)); min-height: 380px;
   display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-xl);
   outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg);
