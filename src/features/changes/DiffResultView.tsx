@@ -5,14 +5,22 @@ import { ChevronsUpDown, FileQuestion, FileWarning, Pencil, TriangleAlert } from
 import type { Translations } from "../../i18n";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import type { DiffHunk, DiffLine, FileDiff } from "./domain";
+import { useDiffPreferences } from "./diffPreferences";
+import { applyIgnoreWhitespace } from "./ignoreWhitespace";
 
 type HighlightLine = (line: string) => React.ReactNode;
 
-function useSyntaxHighlight(filePath: string): HighlightLine | null {
+/** `enabled: false` skips the dynamic import entirely rather than importing
+ * and discarding the result: turning highlighting off should also stop
+ * fetching the chunk that does it. */
+function useSyntaxHighlight(filePath: string, enabled: boolean): HighlightLine | null {
   const [highlight, setHighlight] = useState<HighlightLine | null>(null);
   useEffect(() => {
     let cancelled = false;
     setHighlight(null);
+    if (!enabled) {
+      return undefined;
+    }
     void import("./syntaxHighlight").then((module) => {
       const language = module.detectSyntaxLanguage(filePath);
       if (!cancelled && language) {
@@ -22,7 +30,7 @@ function useSyntaxHighlight(filePath: string): HighlightLine | null {
       // Progressive enhancement: readable plain text is already rendered.
     });
     return () => { cancelled = true; };
-  }, [filePath]);
+  }, [filePath, enabled]);
   return highlight;
 }
 
@@ -85,6 +93,10 @@ function DiffLineRow({ line, highlight, t }: { line: DiffLine; highlight: Highli
  * line. The two starts differ by however much the hunks above added or
  * removed. */
 export type HunkGap = { hiddenLines: number; oldStart: number; newStart: number };
+
+/** Stable identity so the memo below does not see a new array every render for
+ * the diff kinds that carry no hunks at all. */
+const EMPTY_HUNKS: DiffHunk[] = [];
 
 export function gapBeforeHunk(hunk: DiffHunk, previousHunk: DiffHunk | null): HunkGap {
   const previousOldEnd = previousHunk ? previousHunk.oldStart + previousHunk.oldLines : 1;
@@ -176,11 +188,16 @@ export function formatDiffAsAccessibleText(hunks: DiffHunk[]): string {
     .join("\n\n");
 }
 
+/** The plain-text view honors the same reading preferences as the virtualized
+ * one — a tab width that only applied to two views out of three would be a
+ * setting that quietly does not hold. */
 function AccessibleDiffText({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): React.JSX.Element {
+  const { tabWidth, wrapLines } = useDiffPreferences();
   return (
     <pre
       {...autoHideScrollbarProps<HTMLPreElement>()}
-      className="diff-code diff-code--accessible auto-hide-scrollbar"
+      className={`diff-code diff-code--accessible auto-hide-scrollbar${wrapLines ? " diff-code--accessible-wrap" : ""}`}
+      style={{ tabSize: tabWidth }}
       tabIndex={0}
       aria-label={t.changesViewAccessibleAriaLabel}
     >
@@ -393,6 +410,42 @@ export function estimateLineRows(content: string, charsPerLine: number, tabSize 
   return rows;
 }
 
+/** Display columns one unwrapped line occupies, using the same tab expansion
+ * and Unicode widths as `estimateLineRows`. With wrapping off, this is what
+ * decides how wide the scrollable area has to be. */
+export function lineColumns(content: string, tabSize: number): number {
+  let column = 0;
+  for (const symbol of content) {
+    column += symbol === "\t" ? Math.max(1, tabSize - (column % tabSize)) : codePointColumns(symbol);
+  }
+  return column;
+}
+
+/** The widest line in each geometry, in display columns.
+ *
+ * Absolutely positioned rows contribute nothing to their container's
+ * intrinsic size, so with wrapping off the container cannot size itself to its
+ * widest row — it has to be told. Without that every row falls back to the
+ * viewport width: short rows stop painting their background partway across the
+ * scrollable area, and the split view's divider lands wherever each row's own
+ * content happens to end, which is a different place on every row. */
+export function widestRowColumns(
+  rows: Array<DiffRow | SplitRow>,
+  tabSize: number,
+): { unified: number; split: number } {
+  let unified = 0;
+  let split = 0;
+  for (const row of rows) {
+    if (row.kind === "line") {
+      unified = Math.max(unified, lineColumns(row.line.content, tabSize));
+    } else if (row.kind === "pair") {
+      if (row.left) split = Math.max(split, lineColumns(row.left.content, tabSize));
+      if (row.right) split = Math.max(split, lineColumns(row.right.content, tabSize));
+    }
+  }
+  return { unified, split };
+}
+
 export function measureDiffRowHeight(element: HTMLElement): number {
   return element.getBoundingClientRect().height +
     (Number.parseFloat(window.getComputedStyle(element).marginTop) || 0);
@@ -510,7 +563,9 @@ function DiffHunkList({
   hunkTarget: { index: number; token: number };
   t: Translations;
 }): React.JSX.Element {
-  const highlight = useSyntaxHighlight(filePath);
+  const preferences = useDiffPreferences();
+  const { wrapLines, tabWidth } = preferences;
+  const highlight = useSyntaxHighlight(filePath, preferences.syntaxHighlighting);
   // Which gaps the user has opened, and how far. Keyed by hunk index, so it
   // survives switching view modes (both builders read the same map) but is
   // reset per file below — an expansion describes one file's gaps and means
@@ -577,6 +632,7 @@ function DiffHunkList({
     splitCharsPerLine: 0,
     lineHeight: FALLBACK_LINE_HEIGHT,
     tabSize: 8,
+    charWidth: 0,
   });
 
   useLayoutEffect(() => {
@@ -593,17 +649,23 @@ function DiffHunkList({
       const splitContentWidth = (element.clientWidth - DIFF_SPLIT_CONTENT_GUTTER) / 2;
       setMetrics((previous) => {
         const next = {
-          charsPerLine: charWidth > 0 && contentWidth > 0 ? Math.floor(contentWidth / charWidth) : 0,
-          splitCharsPerLine: charWidth > 0 && splitContentWidth > 0 ? Math.floor(splitContentWidth / charWidth) : 0,
+          // A wrap point of 0 makes `estimateLineRows` return 1 for every
+          // line, which is exactly right when nothing wraps.
+          charsPerLine:
+            wrapLines && charWidth > 0 && contentWidth > 0 ? Math.floor(contentWidth / charWidth) : 0,
+          splitCharsPerLine:
+            wrapLines && charWidth > 0 && splitContentWidth > 0 ? Math.floor(splitContentWidth / charWidth) : 0,
           lineHeight: Number.isFinite(parsedLineHeight) ? parsedLineHeight : FALLBACK_LINE_HEIGHT,
           tabSize: Number.isFinite(parsedTabSize) && parsedTabSize > 0 ? parsedTabSize : 8,
+          charWidth,
         };
         // Bail out on no-op resizes: this runs from a ResizeObserver, and
         // setting state unconditionally there would loop.
         return previous.charsPerLine === next.charsPerLine &&
           previous.splitCharsPerLine === next.splitCharsPerLine &&
           previous.lineHeight === next.lineHeight &&
-          previous.tabSize === next.tabSize
+          previous.tabSize === next.tabSize &&
+          previous.charWidth === next.charWidth
           ? previous
           : next;
       });
@@ -613,7 +675,19 @@ function DiffHunkList({
     const observer = new ResizeObserver(readMetrics);
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+    // `tabWidth` is read back off the computed style rather than used
+    // directly, so it has to re-run this — changing it resizes nothing, so
+    // the ResizeObserver never fires.
+  }, [wrapLines, tabWidth]);
+
+  /* Only needed with wrapping off, and skipped entirely otherwise: it walks
+     every loaded line, which is wasted work when the rows are viewport-wide
+     by definition. */
+  const widest = useMemo(
+    () => (wrapLines ? { unified: 0, split: 0 } : widestRowColumns(rows, metrics.tabSize)),
+    [rows, wrapLines, metrics.tabSize],
+  );
+  const splitColumnWidth = Math.ceil(widest.split * metrics.charWidth);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -670,11 +744,29 @@ function DiffHunkList({
   return (
     <pre
       {...autoHideScrollbarProps<HTMLPreElement>()}
-      className="diff-code auto-hide-scrollbar"
+      className={`diff-code auto-hide-scrollbar${wrapLines ? "" : " diff-code--nowrap"}`}
+      // One shared column width for both halves, so the divider sits in the
+      // same place on every row instead of following each row's own content.
+      style={{ tabSize: tabWidth, "--diff-split-column": `${splitColumnWidth}px` } as React.CSSProperties}
       tabIndex={0}
       ref={scrollRef}
     >
-      <code style={{ display: "block", position: "relative", height: virtualizer.getTotalSize() }}>
+      <code
+        style={{
+          display: "block",
+          position: "relative",
+          height: virtualizer.getTotalSize(),
+          // Absolutely positioned rows cannot size their container, so the
+          // scrollable width is stated here. Without it every row falls back
+          // to the viewport and the diff comes apart as soon as it is
+          // scrolled sideways.
+          minWidth: wrapLines
+            ? undefined
+            : viewMode === "split"
+              ? DIFF_SPLIT_CONTENT_GUTTER + 2 * splitColumnWidth
+              : DIFF_CONTENT_GUTTER + widest.unified * metrics.charWidth,
+        }}
+      >
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const row = rows[virtualRow.index];
           // The "N unchanged lines" chip already signals the jump between
@@ -690,7 +782,7 @@ function DiffHunkList({
               data-index={virtualRow.index}
               ref={virtualizer.measureElement}
               className={isHunkStart ? "diff-row diff-row--hunk-start" : "diff-row"}
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
+              style={{ position: "absolute", top: 0, left: 0, transform: `translateY(${virtualRow.start}px)` }}
             >
               {row.kind === "marker" ? (
                 <GapMarker
@@ -743,9 +835,30 @@ export function DiffResultView({
   hunkTarget?: { index: number; token: number };
   t: Translations;
 }): React.JSX.Element {
+  const { ignoreWhitespace } = useDiffPreferences();
+  const sourceHunks = "hunks" in diff ? diff.hunks : EMPTY_HUNKS;
+  // Applied once here rather than inside each view, so both of them — and the
+  // "nothing left to show" check below — agree on what the diff contains.
+  const hunks = useMemo(
+    () => (ignoreWhitespace ? applyIgnoreWhitespace(sourceHunks) : sourceHunks),
+    [sourceHunks, ignoreWhitespace],
+  );
+  // Every change in the file was whitespace, and the user asked not to see
+  // those. Without this the pane would just be blank, which reads as a bug.
+  const isWhitespaceOnly = ignoreWhitespace && sourceHunks.length > 0 && hunks.length === 0;
+
   switch (diff.kind) {
     case "text": {
-      const lineCount = diff.hunks.reduce((total, hunk) => total + hunk.lines.length, 0);
+      const lineCount = hunks.reduce((total, hunk) => total + hunk.lines.length, 0);
+      if (isWhitespaceOnly) {
+        return (
+          <EmptyDiffNote
+            icon={<Pencil aria-hidden="true" />}
+            title={t.changesDiffWhitespaceOnlyTitle}
+            description={t.changesDiffWhitespaceOnlyDescription}
+          />
+        );
+      }
       return (
         <>
           {diff.truncated && (
@@ -754,10 +867,10 @@ export function DiffResultView({
             </p>
           )}
           {viewMode === "accessible" ? (
-            <AccessibleDiffText hunks={diff.hunks} t={t} />
+            <AccessibleDiffText hunks={hunks} t={t} />
           ) : (
             <DiffHunkList
-              hunks={diff.hunks}
+              hunks={hunks}
               projectPath={projectPath}
               sessionEpoch={sessionEpoch}
               readFileLines={readFileLines}
@@ -818,18 +931,18 @@ export function DiffResultView({
               {t.changesDiffConflictTooLarge}
             </p>
           )}
-          {diff.hunks.length > 0 && (
+          {hunks.length > 0 && (
             <>
               {diff.truncated && (
                 <p className="changes-diff__truncated" role="status">
-                  {t.changesDiffTruncatedNote(diff.hunks.reduce((total, hunk) => total + hunk.lines.length, 0))}
+                  {t.changesDiffTruncatedNote(hunks.reduce((total, hunk) => total + hunk.lines.length, 0))}
                 </p>
               )}
               {viewMode === "accessible" ? (
-                <AccessibleDiffText hunks={diff.hunks} t={t} />
+                <AccessibleDiffText hunks={hunks} t={t} />
               ) : (
                 <DiffHunkList
-                  hunks={diff.hunks}
+                  hunks={hunks}
                   projectPath={projectPath}
                   sessionEpoch={sessionEpoch}
                   readFileLines={readFileLines}

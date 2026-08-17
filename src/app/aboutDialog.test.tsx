@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../i18n";
+import { DEFAULT_DIFF_PREFERENCES } from "../features/changes";
 import { AppOverlays, type AppOverlaysProps } from "./AppOverlays";
 import { describePlatform, formatDiagnostics, readSystemInfo } from "./systemInfo";
 
@@ -47,6 +48,8 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       setReopenLastProject: vi.fn(),
       confirmCloseProject: true,
       setConfirmCloseProject: vi.fn(),
+      diffPreferences: DEFAULT_DIFF_PREFERENCES,
+      setDiffPreferences: vi.fn(),
       defaults: { reopenLastProject: false, confirmCloseProject: true },
     },
     about: { isOpen: true, setOpen: vi.fn() },

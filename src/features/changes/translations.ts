@@ -22,6 +22,8 @@ export interface ChangesTranslations {
   changesDiffBinaryDescription: string;
   changesDiffTooLargeTitle: string;
   changesDiffTooLargeDescription: (limit: string) => string;
+  changesDiffWhitespaceOnlyTitle: string;
+  changesDiffWhitespaceOnlyDescription: string;
   changesDiffUnchangedTitle: string;
   changesDiffUnchangedDescription: string;
   changesDiffConflictTitle: string;
@@ -129,6 +131,9 @@ const en: ChangesTranslations = {
   changesDiffTooLargeTitle: "This difference is too large to show here",
   changesDiffTooLargeDescription: (limit) =>
     `This file’s difference is larger than ${limit}, GitOdrile’s safety limit for reviewing changes here. The file itself is unaffected.`,
+  changesDiffWhitespaceOnlyTitle: "Only spacing changed",
+  changesDiffWhitespaceOnlyDescription:
+    "Every change in this file is whitespace, and you asked for those to be ignored. Turn that off in Settings to see them.",
   changesDiffUnchangedTitle: "No content changed",
   changesDiffUnchangedDescription: "Only the file’s name or permissions changed. There is no text difference to show.",
   changesDiffConflictTitle: "This file needs your attention",
@@ -242,6 +247,9 @@ const es: ChangesTranslations = {
   changesDiffTooLargeTitle: "Esta diferencia es demasiado grande para mostrarla aquí",
   changesDiffTooLargeDescription: (limit) =>
     `La diferencia de este archivo supera ${limit}, el límite de seguridad de GitOdrile para revisar cambios aquí. El archivo en sí no se ve afectado.`,
+  changesDiffWhitespaceOnlyTitle: "Solo cambió el espaciado",
+  changesDiffWhitespaceOnlyDescription:
+    "Todos los cambios de este archivo son espacios en blanco, y pediste ignorarlos. Desactiva esa opción en Configuración para verlos.",
   changesDiffUnchangedTitle: "No hay cambios de contenido",
   changesDiffUnchangedDescription: "Solo cambió el nombre o los permisos del archivo. No hay diferencia de texto que mostrar.",
   changesDiffConflictTitle: "Este archivo necesita tu atención",

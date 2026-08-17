@@ -13,11 +13,19 @@ import {
   Settings,
   Sun,
   TriangleAlert,
+  WrapText,
 } from "lucide-react";
 
 import { LANGUAGE_NAMES, useLanguage, type Language, type LanguagePreference } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
 import { autoHideScrollbarProps } from "../../shared/ui";
+// The diff viewer owns what these mean; Settings only offers the controls.
+import {
+  DEFAULT_DIFF_PREFERENCES,
+  DIFF_TAB_WIDTHS,
+  type DiffPreferences,
+  type DiffTabWidth,
+} from "../changes";
 import {
   SETTINGS_SECTIONS,
   settingsSectionLabel,
@@ -82,6 +90,8 @@ export function SettingsPanel({
   setReopenLastProject,
   confirmCloseProject,
   setConfirmCloseProject,
+  diffPreferences,
+  setDiffPreferences,
   defaults,
   onClose,
   onRegisterCloseGuard,
@@ -101,6 +111,8 @@ export function SettingsPanel({
   setReopenLastProject: (value: boolean) => void;
   confirmCloseProject: boolean;
   setConfirmCloseProject: (value: boolean) => void;
+  diffPreferences: DiffPreferences;
+  setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
   /** The app owns the seed values for the stored preferences, so "reset this
    * section" gets them from the same place the hooks do rather than keeping a
    * second copy here that could drift. */
@@ -321,6 +333,7 @@ export function SettingsPanel({
   const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
     general: <Settings />,
     appearance: <Palette />,
+    reading: <WrapText />,
     git: <GitBranch />,
   };
   const sections = SETTINGS_SECTIONS.map((id) => ({
@@ -352,7 +365,14 @@ export function SettingsPanel({
               setLanguagePreference("system");
             },
           }
-        : null;
+        : activeSection === "reading"
+          ? {
+              isAtDefault: (Object.keys(DEFAULT_DIFF_PREFERENCES) as Array<keyof DiffPreferences>).every(
+                (key) => diffPreferences[key] === DEFAULT_DIFF_PREFERENCES[key],
+              ),
+              reset: () => setDiffPreferences(() => DEFAULT_DIFF_PREFERENCES),
+            }
+          : null;
 
   return (
     <div className="settings-layout">
@@ -473,6 +493,76 @@ export function SettingsPanel({
                       {option === "system" ? t.commonSystem : LANGUAGE_NAMES[option as Language]}
                     </button>
                   ))}
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeSection === "reading" && (
+          <div className="settings-groups">
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsReadingDiffsTitle}</h3>
+                <p>{t.settingsReadingDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.readingWrapLabel}</strong>
+                    <p>{t.readingWrapDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.readingWrapLabel}
+                    checked={diffPreferences.wrapLines}
+                    onChange={(wrapLines) => setDiffPreferences((previous) => ({ ...previous, wrapLines }))}
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.readingIgnoreWhitespaceLabel}</strong>
+                    <p>{t.readingIgnoreWhitespaceDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.readingIgnoreWhitespaceLabel}
+                    checked={diffPreferences.ignoreWhitespace}
+                    onChange={(ignoreWhitespace) =>
+                      setDiffPreferences((previous) => ({ ...previous, ignoreWhitespace }))
+                    }
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.readingSyntaxLabel}</strong>
+                    <p>{t.readingSyntaxDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.readingSyntaxLabel}
+                    checked={diffPreferences.syntaxHighlighting}
+                    onChange={(syntaxHighlighting) =>
+                      setDiffPreferences((previous) => ({ ...previous, syntaxHighlighting }))
+                    }
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.readingTabWidthLabel}</strong>
+                    <p>{t.readingTabWidthDescription}</p>
+                  </div>
+                  <div className="segmented-control" role="radiogroup" aria-label={t.readingTabWidthLabel}>
+                    {DIFF_TAB_WIDTHS.map((width: DiffTabWidth) => (
+                      <button
+                        key={width}
+                        type="button"
+                        role="radio"
+                        aria-checked={diffPreferences.tabWidth === width}
+                        className={`segmented-control__option${diffPreferences.tabWidth === width ? " segmented-control__option--active" : ""}`}
+                        onClick={() => setDiffPreferences((previous) => ({ ...previous, tabWidth: width }))}
+                      >
+                        {width}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </section>

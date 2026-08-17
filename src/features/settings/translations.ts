@@ -60,6 +60,17 @@ export interface SettingsTranslations {
   settingsLanguageTitle: string;
   settingsLanguageDescription: string;
   languageAriaLabel: string;
+  settingsReadingTitle: string;
+  settingsReadingDiffsTitle: string;
+  settingsReadingDescription: string;
+  readingWrapLabel: string;
+  readingWrapDescription: string;
+  readingIgnoreWhitespaceLabel: string;
+  readingIgnoreWhitespaceDescription: string;
+  readingSyntaxLabel: string;
+  readingSyntaxDescription: string;
+  readingTabWidthLabel: string;
+  readingTabWidthDescription: string;
 }
 
 const en: SettingsTranslations = {
@@ -126,6 +137,17 @@ const en: SettingsTranslations = {
   settingsLanguageTitle: "Language",
   settingsLanguageDescription: '"System" follows your operating system\'s language.',
   languageAriaLabel: "Language",
+  settingsReadingTitle: "Reading",
+  settingsReadingDiffsTitle: "Diffs",
+  settingsReadingDescription: "How changed files are shown when you review them.",
+  readingWrapLabel: "Wrap long lines",
+  readingWrapDescription: "Off puts each line on one row and scrolls sideways instead.",
+  readingIgnoreWhitespaceLabel: "Ignore whitespace-only changes",
+  readingIgnoreWhitespaceDescription: "A line that only changed its spacing or indentation reads as unchanged.",
+  readingSyntaxLabel: "Syntax highlighting",
+  readingSyntaxDescription: "Highlight code by language. Off shows plain text.",
+  readingTabWidthLabel: "Tab width",
+  readingTabWidthDescription: "How many spaces wide a tab character looks.",
 };
 
 const es: SettingsTranslations = {
@@ -199,6 +221,17 @@ const es: SettingsTranslations = {
   settingsLanguageTitle: "Idioma",
   settingsLanguageDescription: '"Sistema" usa el idioma de tu sistema operativo.',
   languageAriaLabel: "Idioma",
+  settingsReadingTitle: "Lectura",
+  settingsReadingDiffsTitle: "Cambios",
+  settingsReadingDescription: "Cómo se muestran los archivos modificados al revisarlos.",
+  readingWrapLabel: "Ajustar líneas largas",
+  readingWrapDescription: "Al desactivarlo cada línea ocupa una fila y se desplaza en horizontal.",
+  readingIgnoreWhitespaceLabel: "Ignorar cambios solo de espacios",
+  readingIgnoreWhitespaceDescription: "Una línea que solo cambió su espaciado o sangría se lee como sin cambios.",
+  readingSyntaxLabel: "Resaltado de sintaxis",
+  readingSyntaxDescription: "Colorea el código según el lenguaje. Al desactivarlo se ve texto plano.",
+  readingTabWidthLabel: "Ancho de tabulación",
+  readingTabWidthDescription: "Cuántos espacios de ancho aparenta un carácter de tabulación.",
 };
 
 export const settingsTranslations = { en, es } as const;

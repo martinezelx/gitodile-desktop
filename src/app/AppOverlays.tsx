@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Check, CircleAlert, Copy, X } from "lucide-react";
 import { useLanguage } from "../i18n";
+import type { DiffPreferences } from "../features/changes";
 import {
   SettingsPanel,
   isGitInstallationBroken,
@@ -28,6 +29,8 @@ export type AppOverlaysProps = {
     setReopenLastProject: BooleanSetter;
     confirmCloseProject: boolean;
     setConfirmCloseProject: BooleanSetter;
+    diffPreferences: DiffPreferences;
+    setDiffPreferences: Dispatch<SetStateAction<DiffPreferences>>;
     defaults: { reopenLastProject: boolean; confirmCloseProject: boolean };
   };
   about: { isOpen: boolean; setOpen: BooleanSetter };
@@ -165,6 +168,8 @@ export function AppOverlays({
               setReopenLastProject={settings.setReopenLastProject}
               confirmCloseProject={settings.confirmCloseProject}
               setConfirmCloseProject={settings.setConfirmCloseProject}
+              diffPreferences={settings.diffPreferences}
+              setDiffPreferences={settings.setDiffPreferences}
               defaults={settings.defaults}
               onClose={closeSettings}
               onRegisterCloseGuard={registerSettingsCloseGuard}

@@ -347,7 +347,7 @@
    one that follows the active section, so the card does not resize under the
    pointer every time the rail is clicked. */
 .settings-dialog {
-  width: min(820px, 100%); height: min(480px, calc(100vh - 56px)); min-height: 380px;
+  width: min(820px, 100%); height: min(496px, calc(100vh - 56px)); min-height: 380px;
   display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-xl);
   outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg);

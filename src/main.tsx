@@ -23,7 +23,7 @@ import { useLanguage } from "./i18n";
 import { localizeAppError } from "./shared/i18n";
 import type { RepositoryInvalidation } from "./repositoryInvalidation";
 import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
-import { createChangesController, changesPort } from "./features/changes";
+import { DiffPreferencesProvider, createChangesController, changesPort } from "./features/changes";
 import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
 import {
@@ -60,6 +60,7 @@ import {
   resolveEffectiveTheme,
   useSettingsSection,
   useStoredBoolean,
+  useStoredDiffPreferences,
   useThemePreference,
 } from "./app/preferences";
 import { startThemeFade, startThemeReveal } from "./app/themeTransition";
@@ -351,6 +352,7 @@ export function App(): React.JSX.Element {
   const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const gitTooling = useGitTooling(settingsPort);
   const [settingsSection, setSettingsSection] = useSettingsSection();
+  const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
   const [reopenLastProject, setReopenLastProject] = useStoredBoolean(
     REOPEN_LAST_PROJECT_STORAGE_KEY,
     REOPEN_LAST_PROJECT_DEFAULT,
@@ -981,6 +983,10 @@ export function App(): React.JSX.Element {
   }, []);
 
   return (
+    // Wraps the whole shell rather than the Changes screen: the pending
+    // versions list under Overview renders diffs too, through an entirely
+    // different panel.
+    <DiffPreferencesProvider value={diffPreferences}>
     <div className="app-window">
       <span className="visually-hidden" role="status" aria-live="polite">
         {projectAnnouncement}
@@ -1574,6 +1580,8 @@ export function App(): React.JSX.Element {
           setReopenLastProject,
           confirmCloseProject,
           setConfirmCloseProject,
+          diffPreferences,
+          setDiffPreferences,
           defaults: {
             reopenLastProject: REOPEN_LAST_PROJECT_DEFAULT,
             confirmCloseProject: CONFIRM_CLOSE_PROJECT_DEFAULT,
@@ -1600,5 +1608,6 @@ export function App(): React.JSX.Element {
       />
       <TooltipHost />
     </div>
+    </DiffPreferencesProvider>
   );
 }

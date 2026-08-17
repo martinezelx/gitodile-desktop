@@ -11,7 +11,7 @@ export type ThemePreference = "system" | "light" | "dark";
 /** The panel's sections, in rail order. The list is the feature's to define,
  * but the *selection* is app state: it persists between openings and the
  * dialog header can steer it, so it arrives as a prop. */
-export const SETTINGS_SECTIONS = ["general", "appearance", "git"] as const;
+export const SETTINGS_SECTIONS = ["general", "appearance", "reading", "git"] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
@@ -26,6 +26,7 @@ export function settingsSectionLabel(
   t: {
     settingsGeneralTitle: string;
     settingsInterfaceTitle: string;
+    settingsReadingTitle: string;
     settingsGitTitle: string;
   },
 ): string {
@@ -33,7 +34,9 @@ export function settingsSectionLabel(
     ? t.settingsGeneralTitle
     : section === "appearance"
       ? t.settingsInterfaceTitle
-      : t.settingsGitTitle;
+      : section === "reading"
+        ? t.settingsReadingTitle
+        : t.settingsGitTitle;
 }
 
 export type GitDiagnostics = {

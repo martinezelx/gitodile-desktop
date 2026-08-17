@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
+import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
 import { SettingsPanel } from "./SettingsPanel";
 import type { SettingsPort } from "./port";
 import type { GitDiagnostics, GitUpdateStatus, SettingsSection } from "./domain";
@@ -31,6 +32,8 @@ type PanelOverrides = Partial<{
   onRegisterCloseGuard: (guard: (() => boolean) | null) => void;
   setReopenLastProject: (value: boolean) => void;
   setConfirmCloseProject: (value: boolean) => void;
+  diffPreferences: DiffPreferences;
+  setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
 }>;
 
 /** The section is app state in production, so the harness owns it here too. */
@@ -52,6 +55,8 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       setReopenLastProject={overrides.setReopenLastProject ?? vi.fn()}
       confirmCloseProject={false}
       setConfirmCloseProject={overrides.setConfirmCloseProject ?? vi.fn()}
+      diffPreferences={overrides.diffPreferences ?? DEFAULT_DIFF_PREFERENCES}
+      setDiffPreferences={overrides.setDiffPreferences ?? vi.fn()}
       defaults={{ reopenLastProject: false, confirmCloseProject: true }}
       onClose={overrides.onClose}
       onRegisterCloseGuard={overrides.onRegisterCloseGuard}
@@ -240,6 +245,39 @@ describe("Settings panel section rail", () => {
 
     expect(setReopenLastProject).toHaveBeenCalledWith(false);
     expect(setConfirmCloseProject).toHaveBeenCalledWith(true);
+  });
+
+  it("edits the diff reading preferences without touching the others", async () => {
+    const setDiffPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "reading", setDiffPreferences });
+
+    await userEvent.click(screen.getByRole("switch", { name: "Wrap long lines" }));
+    expect(setDiffPreferences).toHaveBeenCalledTimes(1);
+    // The setter takes an updater so two controls changed in quick succession
+    // cannot overwrite each other with a stale snapshot.
+    const update = setDiffPreferences.mock.calls[0][0] as (p: DiffPreferences) => DiffPreferences;
+    expect(update(DEFAULT_DIFF_PREFERENCES)).toEqual({ ...DEFAULT_DIFF_PREFERENCES, wrapLines: false });
+
+    await userEvent.click(screen.getByRole("radio", { name: "2" }));
+    const tabUpdate = setDiffPreferences.mock.calls[1][0] as (p: DiffPreferences) => DiffPreferences;
+    expect(tabUpdate(DEFAULT_DIFF_PREFERENCES)).toEqual({ ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2 });
+  });
+
+  it("offers its own reset once a diff preference is off its default", async () => {
+    const setDiffPreferences = vi.fn();
+    renderPanel(createPort(), {
+      initialSection: "reading",
+      diffPreferences: { ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2 },
+      setDiffPreferences,
+    });
+
+    // Reading has its own reset, covering only the diff preferences.
+    const reset = screen.getByRole("button", { name: "Reset this section" });
+    expect(reset).toBeEnabled();
+
+    await userEvent.click(reset);
+    const update = setDiffPreferences.mock.calls[0][0] as (p: DiffPreferences) => DiffPreferences;
+    expect(update({ ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2 })).toEqual(DEFAULT_DIFF_PREFERENCES);
   });
 
   it("marks the Git section when the installation needs attention", () => {

@@ -462,7 +462,22 @@
 }
 .diff-code--accessible {
   padding: var(--space-3) var(--space-4); overflow: auto; white-space: pre;
-  color: var(--text-primary); tab-size: 8;
+  color: var(--text-primary);
+}
+.diff-code--accessible-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* `100%` of the container — which `DiffResultView` widens to the widest line
+   when wrapping is off, because absolutely positioned rows cannot size it
+   themselves. Every row then spans the whole scrollable area, so short rows
+   keep painting their background when it is scrolled sideways. `max-content`
+   here would size each row to its own text instead, which is what left short
+   rows stopping partway across. */
+.diff-row { width: 100%; }
+.diff-code--nowrap { overflow-x: auto; }
+.diff-code--nowrap .diff-line__content { white-space: pre; overflow-wrap: normal; }
+/* The split halves take one shared width rather than each row's own content,
+   or the divider lands somewhere different on every row. */
+.diff-code--nowrap .diff-split-row {
+  grid-template-columns: 40px var(--diff-split-column) 40px var(--diff-split-column);
 }
 .diff-row--hunk-start { margin-top: var(--space-3); border-top: 1px dashed var(--border-divider); padding-top: var(--space-2); }
 .diff-hunk__marker {

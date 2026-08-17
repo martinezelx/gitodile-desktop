@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import {
+  DEFAULT_DIFF_PREFERENCES,
+  isDiffTabWidth,
+  type DiffPreferences,
+} from "../features/changes";
 import { isSettingsSection, type SettingsSection, type ThemePreference } from "../features/settings";
 
 const THEME_STORAGE_KEY = "gitodrile-theme";
@@ -7,6 +12,8 @@ export const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
 export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 export const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
 export const SETTINGS_SECTION_STORAGE_KEY = "gitodrile-settings-section";
+
+export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
 
 /** Named because two places need to agree on them: the hook that seeds the
  * preference and the Settings panel's "reset this section". */
@@ -54,6 +61,39 @@ export function useStoredBoolean(
   const [value, setValue] = useState(() => readStoredBoolean(key, defaultValue));
   useEffect(() => localStorage.setItem(key, String(value)), [key, value]);
   return [value, setValue];
+}
+
+/** Stored as one JSON object rather than four keys: they are read together on
+ * every diff render, and a partly-written set would be meaningless. Every
+ * field is validated individually so a stored value from an older shape — or
+ * a hand-edited one — degrades to that field's default instead of taking the
+ * whole set down with it. */
+export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateAction<DiffPreferences>>] {
+  const [preferences, setPreferences] = useState<DiffPreferences>(() => {
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem(DIFF_PREFERENCES_STORAGE_KEY) ?? "null");
+      if (stored === null || typeof stored !== "object") {
+        return DEFAULT_DIFF_PREFERENCES;
+      }
+      const read = stored as Partial<Record<keyof DiffPreferences, unknown>>;
+      const boolean = (value: unknown, fallback: boolean): boolean =>
+        typeof value === "boolean" ? value : fallback;
+      return {
+        wrapLines: boolean(read.wrapLines, DEFAULT_DIFF_PREFERENCES.wrapLines),
+        ignoreWhitespace: boolean(read.ignoreWhitespace, DEFAULT_DIFF_PREFERENCES.ignoreWhitespace),
+        tabWidth: isDiffTabWidth(read.tabWidth) ? read.tabWidth : DEFAULT_DIFF_PREFERENCES.tabWidth,
+        syntaxHighlighting: boolean(read.syntaxHighlighting, DEFAULT_DIFF_PREFERENCES.syntaxHighlighting),
+      };
+    } catch {
+      return DEFAULT_DIFF_PREFERENCES;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(DIFF_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  }, [preferences]);
+
+  return [preferences, setPreferences];
 }
 
 /** Which Settings section to reopen on. Stored rather than reset because a user
