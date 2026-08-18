@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronsUpDown, FileQuestion, FileWarning, Pencil, TriangleAlert } from "lucide-react";
 
@@ -298,8 +298,18 @@ export function getHunkStartRows(rows: { hunkIndex: number }[], hunkCount: numbe
  * this estimate was written), so a long line wraps onto two or three visual
  * lines and is two or three times taller than a one-line guess. The diff is
  * monospace, though, which makes the real height computable rather than
- * guessable: see `estimateLineRows`. */
-const ESTIMATED_MARKER_ROW_HEIGHT = 32;
+ * guessable: see `estimateLineRows`.
+ *
+ * A gap marker is the one row whose height that arithmetic cannot reach: it
+ * is a chip in a proportional font with its own padding and margins, so its
+ * height is a fact about the CSS, not about the text. Restating that fact as
+ * a constant is what left this estimate 7.25px short of the 39.25px a marker
+ * really occupies, which the rows below it then overlapped. So the constant
+ * below is only what the very first frame uses; `markerRowHeight` replaces it
+ * with the height of the first marker that actually renders, and every later
+ * marker is estimated from that. Move the chip's padding or margin and the
+ * estimate follows on its own. */
+const FALLBACK_MARKER_ROW_HEIGHT = 40;
 /** Fallback for before the first measurement lands, matching the CSS's
  * `font: 12.5px/1.6` line box. */
 const FALLBACK_LINE_HEIGHT = 20;
@@ -622,6 +632,9 @@ function DiffHunkList({
   );
   const hunkStartRows = useMemo(() => getHunkStartRows(rows, hunks.length), [rows, hunks.length]);
   const scrollRef = useRef<HTMLPreElement>(null);
+  /** What a gap-marker row really costs, learned from the first one that
+   * renders. See `FALLBACK_MARKER_ROW_HEIGHT`. */
+  const [markerRowHeight, setMarkerRowHeight] = useState(FALLBACK_MARKER_ROW_HEIGHT);
   /** Where lines wrap, and how tall a wrapped line is — both read from the
    * live element rather than hardcoded, so the estimate follows the CSS and
    * the pane's current width (the sidebar collapsing changes both). Split
@@ -695,7 +708,7 @@ function DiffHunkList({
     estimateSize: (index) => {
       const row = rows[index];
       if (row.kind === "marker") {
-        return ESTIMATED_MARKER_ROW_HEIGHT;
+        return markerRowHeight;
       }
       if (row.kind === "line") {
         return estimateLineRows(row.line.content, metrics.charsPerLine, metrics.tabSize) * metrics.lineHeight;
@@ -718,7 +731,30 @@ function DiffHunkList({
   // measured at the old width.
   useLayoutEffect(() => {
     virtualizer.measure();
-  }, [metrics.charsPerLine, metrics.splitCharsPerLine, metrics.lineHeight, metrics.tabSize, viewMode]);
+    // `measure()` empties the size cache, and nothing refills it for the rows
+    // that are already on screen: they are still observed, but their height
+    // did not change, so their `ResizeObserver` never fires again and the
+    // measurement is simply gone. The list then runs on estimates for good —
+    // which is why the marker rows kept a 32px estimate against a 39.25px
+    // chip no matter how many times they were measured. Handing the mounted
+    // rows back is what makes measurement stick.
+    const mounted = scrollRef.current?.querySelectorAll<HTMLElement>(".diff-row[data-index]");
+    mounted?.forEach((element) => virtualizer.measureElement(element));
+  }, [metrics.charsPerLine, metrics.splitCharsPerLine, metrics.lineHeight, metrics.tabSize, viewMode, markerRowHeight]);
+
+  /** `virtualizer.measureElement` for every row, plus one extra job on a
+   * marker row: report what it measured, so the estimate for the markers
+   * further down the file stops being a guess after the first one renders. */
+  const measureRow = useCallback((element: HTMLDivElement | null): void => {
+    virtualizer.measureElement(element);
+    if (element?.dataset.rowKind !== "marker") {
+      return;
+    }
+    const height = measureDiffRowHeight(element);
+    if (height > 0) {
+      setMarkerRowHeight((current) => (current === height ? current : height));
+    }
+  }, [virtualizer]);
 
   // `hunkStartRows` moves whenever the row list does — including when a gap
   // is expanded, which inserts rows. Reading it through a ref keeps it out of
@@ -780,7 +816,8 @@ function DiffHunkList({
             <div
               key={virtualRow.key}
               data-index={virtualRow.index}
-              ref={virtualizer.measureElement}
+              data-row-kind={row.kind === "marker" ? "marker" : undefined}
+              ref={measureRow}
               className={isHunkStart ? "diff-row diff-row--hunk-start" : "diff-row"}
               style={{ position: "absolute", top: 0, left: 0, transform: `translateY(${virtualRow.start}px)` }}
             >

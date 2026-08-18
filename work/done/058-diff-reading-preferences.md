@@ -171,7 +171,7 @@ established the group layout and the reset action this extends.
 Found and filed, not fixed here: every gap marker row overlaps the line under
 it by 7.25px. It is unrelated to this task — it reproduces with every
 preference at its default and identically in both wrap modes — and is now task
-[063](../active/063-gap-marker-row-overlap.md).
+[063](063-gap-marker-row-overlap.md).
 
 # Validation
 
