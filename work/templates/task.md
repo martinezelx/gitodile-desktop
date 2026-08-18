@@ -8,6 +8,8 @@ areas:
   - frontend
 created: YYYY-MM-DD
 completed:
+parent:
+queue:
 ---
 
 # Goal

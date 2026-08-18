@@ -247,7 +247,10 @@ evidence or measurement baselines and must identify themselves as such.
 
 When moving a task, keep its relative links valid. Task IDs are unique and
 permanent; a child may use its parent's ID plus a suffix such as `010-1`.
-Files in `work/done/` require `status: done` and a completion date.
+IDs identify work and do not encode current priority. Active non-epic tasks use
+the contiguous `queue` field for execution order; epics leave queueing to their
+suffixed children. Files in `work/done/` require `status: done` and a completion
+date.
 
 ## Agent workflow
 

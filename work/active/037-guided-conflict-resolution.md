@@ -401,17 +401,20 @@ not mean pretending every byte sequence can be merged as text.
 This file is the product/architecture epic. Before implementation, refine it
 into focused child tasks without weakening the end-to-end acceptance criteria:
 
-1. conflict-session ADR, Git classification, stage reader, snapshots, and Rust
-   integration fixtures;
-2. editor/diff spike and dependency decision;
-3. contextual discovery, navigation, file queue, and read-only three-way view;
-4. editable results, safe writes, per-region choices, staging, and per-file
-   reset/recovery;
-5. merge completion, abort planning/execution, hooks/signing, and uncertain
-   outcomes;
-6. non-text/structural conflict surfaces and external-editor reconciliation;
-7. accessibility, i18n, performance stress, cross-platform desktop QA, and
-   independent integration audit.
+1. [`037-1`](conflicts/037-1-conflict-domain-and-recovery.md): conflict-session
+   ADR, Git classification, stage reader, snapshots, and Rust fixtures;
+2. [`037-2`](conflicts/037-2-editor-foundation-spike.md): editor/diff spike and
+   dependency decision;
+3. [`037-3`](conflicts/037-3-read-only-conflict-workspace.md): contextual
+   discovery, navigation, file queue, and read-only three-way view;
+4. [`037-4`](conflicts/037-4-resolve-text-conflicts.md): editable results, safe
+   writes, per-region choices, staging, and per-file reset/recovery;
+5. [`037-5`](conflicts/037-5-complete-or-abort-merge.md): merge completion,
+   abort planning/execution, hooks/signing, and uncertain outcomes;
+6. [`037-6`](conflicts/037-6-non-text-and-structural-conflicts.md): non-text and
+   structural conflict surfaces plus external-editor reconciliation;
+7. [`037-7`](conflicts/037-7-conflict-workflow-audit.md): accessibility, i18n,
+   performance stress, cross-platform desktop QA, and independent audit.
 
 Child tasks may land incrementally only behind honest disabled/incomplete
 affordances or a development flag. Do not ship a resolver that can edit results

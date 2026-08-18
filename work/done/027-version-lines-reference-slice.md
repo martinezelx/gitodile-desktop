@@ -12,6 +12,7 @@ areas:
   - safety
 created: 2026-08-01
 completed: 2026-08-09
+parent: "022"
 ---
 
 # Goal

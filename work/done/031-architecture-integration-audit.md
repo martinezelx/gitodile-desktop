@@ -13,6 +13,7 @@ areas:
   - platform
 created: 2026-08-01
 completed: 2026-08-10
+parent: "022"
 ---
 
 # Goal

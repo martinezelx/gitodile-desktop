@@ -34,6 +34,7 @@ function readFrontmatter(source) {
 
 const errors = [];
 const markdownFiles = collectMarkdownFiles(root);
+const reservedTaskIds = new Map([["062", "folded into task 057"]]);
 
 for (const file of markdownFiles) {
   const source = fs.readFileSync(file, "utf8");
@@ -50,6 +51,7 @@ for (const file of markdownFiles) {
 }
 
 const taskIds = new Map();
+const taskRecords = [];
 for (const area of ["active", "blocked", "done"]) {
   const directory = path.join(root, "work", area);
   if (!fs.existsSync(directory)) continue;
@@ -70,10 +72,58 @@ for (const area of ["active", "blocked", "done"]) {
       errors.push(`${relative(file)} is ${area} but already has completed: ${metadata.completed}`);
     }
     if (metadata.id) {
+      if (reservedTaskIds.has(metadata.id)) {
+        errors.push(`${relative(file)} reuses reserved task id ${metadata.id} (${reservedTaskIds.get(metadata.id)})`);
+      }
       const previous = taskIds.get(metadata.id);
-      if (previous) errors.push(`${relative(file)} duplicates task id ${metadata.id} from ${previous}`);
-      else taskIds.set(metadata.id, relative(file));
+      if (previous) errors.push(`${relative(file)} duplicates task id ${metadata.id} from ${previous.file}`);
+      else {
+        const record = { area, file: relative(file), metadata };
+        taskIds.set(metadata.id, record);
+        taskRecords.push(record);
+      }
     }
+  }
+}
+
+const activeQueues = new Map();
+for (const record of taskRecords) {
+  const { area, file, metadata } = record;
+  if (metadata.parent) {
+    const parent = taskIds.get(metadata.parent);
+    if (!parent) {
+      errors.push(`${file} has missing parent task ${metadata.parent}`);
+    } else if (
+      area === "active" &&
+      parent.metadata.type === "epic" &&
+      !metadata.id.startsWith(`${metadata.parent}-`)
+    ) {
+      errors.push(`${file} is an active epic child but id ${metadata.id} does not use prefix ${metadata.parent}-`);
+    }
+  }
+  if (area !== "active") continue;
+  if (metadata.type === "epic") {
+    if (metadata.queue) errors.push(`${file} is an epic and must leave queueing to its children`);
+    continue;
+  }
+  if (!/^\d{2}$/.test(metadata.queue ?? "")) {
+    errors.push(`${file} must have a two-digit active queue value`);
+    continue;
+  }
+  const previous = activeQueues.get(metadata.queue);
+  if (previous) errors.push(`${file} duplicates active queue ${metadata.queue} from ${previous}`);
+  else activeQueues.set(metadata.queue, file);
+}
+
+const orderedQueues = [...activeQueues.keys()].map(Number).sort((a, b) => a - b);
+for (const [index, queue] of orderedQueues.entries()) {
+  const expected = index + 1;
+  if (queue !== expected) {
+    errors.push(
+      `active queue is not contiguous: expected ${String(expected).padStart(2, "0")}, ` +
+        `found ${String(queue).padStart(2, "0")}`,
+    );
+    break;
   }
 }
 

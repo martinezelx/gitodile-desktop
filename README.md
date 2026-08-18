@@ -49,10 +49,13 @@ Current application version: **0.1.0**.
   keep-alive screen shell that retains screen state while suspending hidden
   work.
 
-Not yet implemented: cloning, non-fast-forward team integration, the history
-timeline, the recovery center, and guided conflict resolution. The approved
-work is tracked in [`work/active/`](work/active/) and future direction in the
-[`roadmap`](docs/ROADMAP.md).
+Not yet implemented: cloning, creating/initializing a project, the history
+timeline, non-fast-forward/local-line integration, the recovery center, guided
+conflict resolution, and setting changes aside. Signed cross-platform
+distribution and real macOS/Linux runtime validation also remain release gates.
+The dependency-ordered `1.0.0` plan is in the
+[`roadmap`](docs/ROADMAP.md), with approved acceptance criteria under
+[`work/active/`](work/active/).
 
 ## Architecture at a glance
 
