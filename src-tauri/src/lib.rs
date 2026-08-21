@@ -106,6 +106,9 @@ pub fn run() {
 #[path = "tests/changes_tests.rs"]
 mod changes_tests;
 #[cfg(test)]
+#[path = "tests/core_workflow_tests.rs"]
+mod core_workflow_tests;
+#[cfg(test)]
 #[path = "tests/git_command_tests.rs"]
 mod git_command_tests;
 #[cfg(test)]

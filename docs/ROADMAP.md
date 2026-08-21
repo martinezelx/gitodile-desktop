@@ -40,9 +40,9 @@ Already delivered:
 - enforce typed IPC, repository/session authorization, bounded Git execution,
   mutation planning, invalidation, and architecture checks.
 
-The first action is therefore a release-oriented audit of this baseline, not a
-new feature. Task [`065-1`](../work/active/release-1.0/065-1-core-workflow-audit.md)
-owns that evidence.
+The release-oriented audit of this baseline is complete. Task
+[`065-1`](../work/done/065-1-core-workflow-audit.md) owns the capability matrix,
+hermetic journeys, Windows desktop evidence, and remaining platform limits.
 
 ## GitHub Desktop reference cut
 
@@ -77,47 +77,47 @@ references and therefore do not change when priorities move.
 
 | Queue | Task | Outcome |
 | --- | --- | --- |
-| Q01 | 065-1 | Audit the existing core workflow |
-| Q02 | 065-2 | Clone and open a remote project |
-| Q03 | 065-3 | Create or initialize a local project |
-| Q04 | 015 | Browse saved-version History |
-| Q05 | 037-1 | Establish conflict truth and recovery |
-| Q06 | 037-2 | Select the editor foundation |
-| Q07 | 037-3 | Add the read-only conflict workspace |
-| Q08 | 037-4 | Resolve text conflicts safely |
-| Q09 | 037-5 | Complete or abort a merge |
-| Q10 | 037-6 | Handle non-text and structural conflicts |
-| Q11 | 037-7 | Audit the conflict workflow |
-| Q12 | 065-4 | Integrate local lines and diverged team changes |
-| Q13 | 065-5 | Make recovery records visible/actionable |
-| Q14 | 065-6 | Undo or reverse a saved version |
-| Q15 | 064-1 | Discover and inspect saved sets |
-| Q16 | 064-2 | Set all or selected changes aside |
-| Q17 | 064-3 | Restore a saved set and keep its copy |
-| Q18 | 064-4 | Remove one saved set with recovery |
-| Q19 | 064-5 | Audit the set-aside workflow |
-| Q20 | 065-7 | Harden credential and remote diagnostics |
-| Q21 | 065-8 | Verify and distribute `1.0.0` |
+| Q01 | 065-2 | Clone and open a remote project |
+| Q02 | 065-3 | Create or initialize a local project |
+| Q03 | 015 | Browse saved-version History |
+| Q04 | 037-1 | Establish conflict truth and recovery |
+| Q05 | 037-2 | Select the editor foundation |
+| Q06 | 037-3 | Add the read-only conflict workspace |
+| Q07 | 037-4 | Resolve text conflicts safely |
+| Q08 | 037-5 | Complete or abort a merge |
+| Q09 | 037-6 | Handle non-text and structural conflicts |
+| Q10 | 037-7 | Audit the conflict workflow |
+| Q11 | 065-4 | Integrate local lines and diverged team changes |
+| Q12 | 065-5 | Make recovery records visible/actionable |
+| Q13 | 065-6 | Undo or reverse a saved version |
+| Q14 | 064-1 | Discover and inspect saved sets |
+| Q15 | 064-2 | Set all or selected changes aside |
+| Q16 | 064-3 | Restore a saved set and keep its copy |
+| Q17 | 064-4 | Remove one saved set with recovery |
+| Q18 | 064-5 | Audit the set-aside workflow |
+| Q19 | 065-7 | Harden credential and remote diagnostics |
+| Q20 | 065-8 | Verify and distribute `1.0.0` |
 
-### Gate 0 — Prove the existing loop
+### Gate 0 — Prove the existing loop (completed 2026-08-21)
 
 - **Q01 / 065-1: Core workflow audit.** Exercise open → inspect → save → check → get
    → publish → close/reopen against real temporary repositories. Fix only
    defects that violate the already-delivered contract and record a capability
    matrix.
 
-Exit condition: the current feature set has one repeatable end-to-end test and
-honest desktop evidence. This is the immediate next task.
+Exit condition met: the current feature set has repeatable end-to-end journeys
+and honest Windows desktop evidence. macOS/Linux runtime evidence remains task
+065-8's release gate.
 
 ### Gate 1 — Complete project entry and understanding
 
-- **Q02 / 065-2: Clone a remote project safely.** URL/path validation, destination
+- **Q01 / 065-2: Clone a remote project safely.** URL/path validation, destination
    preview, progress/cancellation, partial-clone cleanup, credential errors,
    and automatic opening after verification.
-- **Q03 / 065-3: Create or initialize a local project.** New folder and existing
+- **Q02 / 065-3: Create or initialize a local project.** New folder and existing
    non-repository folder flows, optional starter files, identity guidance, and
    an explicit remote-connection path.
-- **Q04 / 015: History timeline.** Bounded, read-only current-line history and
+- **Q03 / 015: History timeline.** Bounded, read-only current-line history and
    commit details using the established diff renderer.
 
 Exit condition: a first-time user can acquire or create a project, make and
@@ -125,11 +125,11 @@ save a change, and verify the result in History.
 
 ### Gate 2 — Complete collaboration and overlaps
 
-- **Q05–Q11 / 037: Guided conflict resolution.** Deliver its child slices from conflict
+- **Q04–Q10 / 037: Guided conflict resolution.** Deliver its child slices from conflict
    truth/recovery through editing, completion/abort, accessibility, and audit.
    It first supports an externally started merge so its safety model can be
    proven independently.
-- **Q12 / 065-4: Integrate version lines and diverged team changes.** Add previewed
+- **Q11 / 065-4: Integrate version lines and diverged team changes.** Add previewed
    local-branch merge and non-fast-forward team integration. Clean results
    complete normally; overlaps enter task 037's established session contract.
 
@@ -138,12 +138,12 @@ without a terminal. Rebase and force push remain excluded.
 
 ### Gate 3 — Make safety visible and reusable
 
-- **Q13 / 065-5: Recovery center.** Inventory supported recovery records, explain
+- **Q12 / 065-5: Recovery center.** Inventory supported recovery records, explain
    retention/eligibility, and perform only state-token-safe restores.
-- **Q14 / 065-6: Restore a saved version.** From History, choose a reversible
+- **Q13 / 065-6: Restore a saved version.** From History, choose a reversible
    strategy: undo unpublished local work or create a new reverting version for
    shared work. Never hide history rewriting or use a destructive hard reset.
-- **Q15–Q19 / 064: Set changes aside.** Deliver the five epic children in order;
+- **Q14–Q18 / 064: Set changes aside.** Deliver the five epic children in order;
   discovery/create come first, then restore and
    removal after the conflict and recovery contracts they consume are stable.
 
@@ -153,11 +153,11 @@ restored safely.
 
 ### Gate 4 — Release candidate
 
-- **Q20 / 065-7: Credential and remote diagnostics.** Verify system credential
+- **Q19 / 065-7: Credential and remote diagnostics.** Verify system credential
     helper behavior for clone/fetch/publish, classify common provider-neutral
     failures, and give actionable remediation. Native provider login remains
     post-`1.0.0`.
-- **Q21 / 065-8: Release hardening and distribution.** Run the complete workflow
+- **Q20 / 065-8: Release hardening and distribution.** Run the complete workflow
     matrix, accessibility and large-repository audits; validate real WebView
     behavior on all supported platforms; produce signed/notarized packages;
     establish updates, rollback, versioning, release notes, and support docs.

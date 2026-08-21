@@ -10,7 +10,7 @@ areas:
   - history
 created: 2026-07-27
 completed:
-queue: "04"
+queue: "03"
 ---
 
 # Goal

@@ -55,7 +55,8 @@ conflict resolution, and setting changes aside. Signed cross-platform
 distribution and real macOS/Linux runtime validation also remain release gates.
 The dependency-ordered `1.0.0` plan is in the
 [`roadmap`](docs/ROADMAP.md), with approved acceptance criteria under
-[`work/active/`](work/active/).
+[`work/active/`](work/active/) and the completed core-workflow evidence in
+[`task 065-1`](work/done/065-1-core-workflow-audit.md).
 
 ## Architecture at a glance
 
@@ -163,8 +164,8 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 295 frontend tests, the production build, Rust formatting,
-Clippy with warnings denied, and 225 Rust tests. Individual commands remain
+rules, TypeScript, 362 frontend tests, the production build, Rust formatting,
+Clippy with warnings denied, and 247 Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.
 

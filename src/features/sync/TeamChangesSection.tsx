@@ -97,8 +97,13 @@ export function TeamChangesSection({
     } else if (wasCheckingRef.current) {
       wasCheckingRef.current = false;
       setAnnouncement(`${headline}. ${message}`);
+    } else if (announcement) {
+      const nextAnnouncement = `${headline}. ${message}`;
+      if (announcement !== nextAnnouncement) {
+        setAnnouncement(nextAnnouncement);
+      }
     }
-  }, [headline, message, state.isCheckingRemote]);
+  }, [announcement, headline, message, state.isCheckingRemote]);
 
   const showCheck = !status || status.nextActions.includes("checkAgain") || state.isStale || Boolean(state.error);
   const showPublish = Boolean(status?.nextActions.includes("publishChanges")) && canPublish;

@@ -153,4 +153,50 @@ describe("Team changes section", () => {
     await userEvent.click(checkAgain);
     expect(onCheck).toHaveBeenCalledOnce();
   });
+
+  it("keeps its live announcement aligned when an applied update changes the sync truth", () => {
+    const props = {
+      canPublish: true,
+      onCheck: vi.fn(),
+      onPublish: vi.fn(),
+      onReviewAndGet: vi.fn(),
+    };
+    const { rerender } = render(
+      <LanguageProvider>
+        <TeamChangesSection
+          {...props}
+          state={{
+            ...EMPTY_TEAM_SYNC_STATE,
+            status: status({ state: "behind", behind: 1, nextActions: ["reviewAndGet"] }),
+            isCheckingRemote: true,
+          }}
+        />
+      </LanguageProvider>,
+    );
+
+    rerender(
+      <LanguageProvider>
+        <TeamChangesSection
+          {...props}
+          state={{ ...EMPTY_TEAM_SYNC_STATE, status: status(), lastSuccessfulCheckAt: 1_786_000_000_000 }}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("You’re up to date. Nothing to publish or get.");
+
+    rerender(
+      <LanguageProvider>
+        <TeamChangesSection
+          {...props}
+          state={{
+            ...EMPTY_TEAM_SYNC_STATE,
+            status: status({ state: "ahead", ahead: 1, nextActions: ["publishChanges"] }),
+          }}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "1 saved version is ready to publish. They’re still only on this computer.",
+    );
+  });
 });
