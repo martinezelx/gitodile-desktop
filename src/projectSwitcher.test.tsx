@@ -36,6 +36,7 @@ function commonProps() {
     onActivate: vi.fn(),
     onClose: vi.fn(),
     onOpenAnother: vi.fn(),
+    onClone: vi.fn(),
   };
 }
 
@@ -74,6 +75,18 @@ describe("ProjectSwitcher", () => {
     expect(screen.getByText("client-a")).toBeInTheDocument();
     expect(screen.getByLabelText("Needs attention")).toBeInTheDocument();
     expect(screen.getByLabelText("Has unsaved changes")).toBeInTheDocument();
+  });
+
+  it("offers cloning beside opening another project", async () => {
+    const props = commonProps();
+    render(
+      <LanguageProvider>
+        <ProjectSwitcher {...props} />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Clone remote project" }));
+    expect(props.onClone).toHaveBeenCalledOnce();
   });
 
   it("uses dialog semantics in compact mode and restores focus after closing a project", async () => {

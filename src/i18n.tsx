@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "./app/translations";
 import { changesTranslations } from "./features/changes/translations";
+import { cloneTranslations } from "./features/clone/translations";
 import { overviewTranslations } from "./features/overview/translations";
 import { publishTranslations } from "./features/publish/translations";
 import { saveVersionTranslations } from "./features/save-version/translations";
@@ -26,6 +27,7 @@ export const LANGUAGE_NAMES: Record<Language, string> = {
 export const translationNamespaces = {
   app: appTranslations,
   shared: sharedTranslations,
+  clone: cloneTranslations,
   overview: overviewTranslations,
   status: statusTranslations,
   sync: syncTranslations,
@@ -39,6 +41,7 @@ export const translationNamespaces = {
 const en = {
   ...appTranslations.en,
   ...sharedTranslations.en,
+  ...cloneTranslations.en,
   ...overviewTranslations.en,
   ...statusTranslations.en,
   ...syncTranslations.en,
@@ -54,6 +57,7 @@ export type Translations = typeof en;
 const es: Translations = {
   ...appTranslations.es,
   ...sharedTranslations.es,
+  ...cloneTranslations.es,
   ...overviewTranslations.es,
   ...statusTranslations.es,
   ...syncTranslations.es,

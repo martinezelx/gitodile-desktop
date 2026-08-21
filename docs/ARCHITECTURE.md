@@ -154,6 +154,8 @@ src-tauri/src/
   desktop.rs              # desktop-shell services
   tooling.rs              # Git diagnostics, install/update, identity, line endings
   repository.rs
+  clone.rs                # staged provider-neutral acquisition and verification
+  platform.rs             # exclusive no-replace directory publication
   status.rs
   changes.rs
   recovery.rs             # persistent discard snapshots and safe restore
@@ -192,6 +194,32 @@ overlap; mutations are exclusive; a queued writer blocks later readers. Linked
 worktrees therefore share mutation exclusion while unrelated projects remain
 independent. Lock re-entry is rejected; an authorized nested read inherits its
 existing permit.
+
+### Repository acquisition
+
+Cloning is an acquisition workflow owned by `clone.rs`, separate from opening
+an existing project and from provider-specific integrations. The frontend
+`features/clone` owner supplies an eager dialog, attempt-generation controller,
+typed port, and Tauri adapter; only `main.tsx` hands a verified destination to
+the existing repository/session lifecycle.
+
+Rust accepts HTTPS, SSH (including scp-like syntax), Git, file URLs, and local
+paths. It strips URL user-info, queries, and fragments before Git invocation,
+remote persistence, diagnostics, or IPC-safe display. A plan binds the
+normalized source and exact absent destination with a state token. Execution
+creates `.gitodrile-clone-<operation-id>` under the selected parent, writes an
+exact ownership marker, clones without recursive submodules, sanitizes
+`origin`, verifies repository identity and worktree usability, and publishes
+the `project` child with an OS-specific exclusive no-replace rename. It then
+verifies the final path before the composition root may open it.
+
+Cancellation belongs to the exact clone operation rather than to a project
+epoch, because no project session exists yet. Frontend generations make late
+results inert; Rust kills the bounded Git process and removes only a staging
+directory whose exact path, type, name, and ownership marker all match. An
+existing destination is never cleanup-eligible. `platform.rs` provides the
+Windows `MoveFileExW`, Linux `renameat2(RENAME_NOREPLACE)`, and macOS
+`renamex_np(RENAME_EXCL)` publication boundary.
 
 ### Execution policies and Git processes
 

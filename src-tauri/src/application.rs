@@ -50,6 +50,22 @@ const fn global_process(
     }
 }
 
+const fn global_clone(command: &'static str) -> ExecutionPolicy {
+    ExecutionPolicy {
+        command,
+        class: OperationClass::LocalMutation,
+        stdout_cap: DEFAULT_STDOUT_CAP,
+        stderr_cap: DEFAULT_STDERR_CAP,
+        timeout: Duration::from_secs(20 * 60),
+        cancellation: CancellationPolicy::KillProcess,
+        // Git credential helpers and SSH agents remain available, while the
+        // clone domain sets GIT_TERMINAL_PROMPT=0 so an invisible terminal
+        // question can never stall the desktop flow.
+        prompt: PromptPolicy::PreserveGitBehavior,
+        concurrency: ConcurrencyClass::None,
+    }
+}
+
 const fn read(command: &'static str) -> ExecutionPolicy {
     ExecutionPolicy::repository_read(command)
 }
@@ -58,6 +74,10 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     no_process("app_status"),
     no_process("show_main_window"),
     read("open_repository"),
+    no_process("plan_clone"),
+    global_clone("clone_repository"),
+    no_process_with_class("cancel_clone", OperationClass::LocalMutation),
+    no_process_with_class("cleanup_clone", OperationClass::Destructive),
     read("read_working_tree_status"),
     read("read_file_diff"),
     read("read_file_lines"),
@@ -188,6 +208,26 @@ pub(crate) fn enter(command: &'static str) -> CommandAccess {
     }
 }
 
+/// Enters a global command with a caller-owned cancellation token. Clone uses
+/// this because it has no repository context yet, but still needs a second IPC
+/// command to stop the exact process that belongs to its operation id.
+pub(crate) fn enter_with_cancellation(
+    command: &'static str,
+    cancellation: CancellationToken,
+) -> CommandAccess {
+    POLICY_STACK.with(|stack| {
+        stack.borrow_mut().push(CommandFrame {
+            policy: *policy(command),
+            cancellation: Some(cancellation.clone()),
+        })
+    });
+    CommandAccess {
+        _guard: None,
+        cancellation_key: None,
+        cancellation: Some(cancellation),
+    }
+}
+
 /// A command frame for test code that reads repository state to verify what a
 /// workflow did — `git log -1`, `git ls-files`, `git show HEAD:file`.
 ///
@@ -195,7 +235,7 @@ pub(crate) fn enter(command: &'static str) -> CommandAccess {
 /// command and must not borrow one: naming a real command here would let a test
 /// pass under a policy the production path never uses. The policy is built
 /// directly rather than taken from `EXECUTION_INVENTORY`, which stays exactly
-/// the 35 registered commands.
+/// the registered commands.
 ///
 /// This exists because `require_policy` in `lib.rs` has no fallback. Before
 /// task 039 these calls silently received a default read policy, and so would
@@ -300,6 +340,10 @@ mod tests {
         "app_status",
         "show_main_window",
         "open_repository",
+        "plan_clone",
+        "clone_repository",
+        "cancel_clone",
+        "cleanup_clone",
         "read_working_tree_status",
         "read_file_diff",
         "read_file_lines",

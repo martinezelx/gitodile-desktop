@@ -228,6 +228,7 @@ describe("TitlebarMenu", () => {
     const props: React.ComponentProps<typeof TitlebarMenu> = {
       onOpenAbout: vi.fn(),
       onOpenProject: vi.fn(),
+      onCloneProject: vi.fn(),
       onCloseProject: vi.fn(),
       onOpenSettings: vi.fn(),
       onOpenShortcuts: vi.fn(),
@@ -286,6 +287,18 @@ describe("TitlebarMenu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("offers provider-neutral cloning from the titlebar menu", async () => {
+    const user = userEvent.setup();
+    const onCloneProject = vi.fn();
+    renderMenu({ onCloneProject });
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Clone remote project" }));
+
+    expect(onCloneProject).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("keeps reload focusable but unavailable while an operation is unsettled", async () => {
     const user = userEvent.setup();
     renderMenu({ canReloadWindow: false });
@@ -319,6 +332,33 @@ describe("ProjectPath", () => {
 });
 
 describe("App project restoration", () => {
+  it("opens the eager clone flow from the empty state and command palette", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") {
+        return Promise.resolve({ name: "", email: "" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Clone a remote project" }));
+    expect(screen.getByRole("dialog", { name: "Clone a remote project" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.keyboard("{Control>}k{/Control}");
+    await user.type(screen.getByRole("combobox"), "Clone a remote project");
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("dialog", { name: "Clone a remote project" })).toBeInTheDocument();
+  });
+
   it("opens Settings as a sectioned dialog without replacing the active screen", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") {

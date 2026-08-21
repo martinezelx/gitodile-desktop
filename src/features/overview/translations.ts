@@ -69,8 +69,7 @@ export interface OverviewTranslations {
   overviewEmptyDescription: string;
   overviewOpening: string;
   overviewOpenProject: string;
-  overviewCloneComingSoonTitle: string;
-  overviewCloneFromGithub: string;
+  overviewCloneRemoteProject: string;
   overviewOpenDialogTitle: string;
   overviewCouldntOpenFolder: string;
 }
@@ -152,8 +151,7 @@ const en: OverviewTranslations = {
     "Open a Git project to review changes, save versions, publish work, and recover from mistakes.",
   overviewOpening: "Opening…",
   overviewOpenProject: "Open a project",
-  overviewCloneComingSoonTitle: "Coming soon",
-  overviewCloneFromGithub: "Clone from GitHub",
+  overviewCloneRemoteProject: "Clone a remote project",
   overviewOpenDialogTitle: "Open a Git project",
   overviewCouldntOpenFolder: "Couldn't open that folder.",
 };
@@ -239,8 +237,7 @@ const es: OverviewTranslations = {
     "Abre un proyecto de Git para revisar cambios, guardar versiones, publicar tu trabajo y recuperarte de errores.",
   overviewOpening: "Abriendo…",
   overviewOpenProject: "Abrir un proyecto",
-  overviewCloneComingSoonTitle: "Próximamente",
-  overviewCloneFromGithub: "Clonar desde GitHub",
+  overviewCloneRemoteProject: "Clonar un proyecto remoto",
   overviewOpenDialogTitle: "Abrir un proyecto de Git",
   overviewCouldntOpenFolder: "No se pudo abrir esa carpeta.",
 };

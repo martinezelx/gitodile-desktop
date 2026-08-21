@@ -14,6 +14,10 @@ Current application version: **0.1.0**.
 
 - Open a local project from its root or any nested folder, validate it in Rust,
   and switch between recent projects.
+- Clone an HTTPS, SSH, Git, file-URL, or local-path project through a previewed
+  provider-neutral flow. GitOdrile stages privately, verifies the worktree,
+  publishes without replacement, and opens it through the normal session
+  lifecycle; configured Git credential helpers and SSH setup remain in control.
 - Restore the previous project session at startup and keep each open
   incarnation isolated with an opaque session epoch.
 - Inspect the working tree in plain language, including staged, unstaged,
@@ -49,9 +53,9 @@ Current application version: **0.1.0**.
   keep-alive screen shell that retains screen state while suspending hidden
   work.
 
-Not yet implemented: cloning, creating/initializing a project, the history
-timeline, non-fast-forward/local-line integration, the recovery center, guided
-conflict resolution, and setting changes aside. Signed cross-platform
+Not yet implemented: creating/initializing a project, the history timeline,
+non-fast-forward/local-line integration, the recovery center, guided conflict
+resolution, and setting changes aside. Signed cross-platform
 distribution and real macOS/Linux runtime validation also remain release gates.
 The dependency-ordered `1.0.0` plan is in the
 [`roadmap`](docs/ROADMAP.md), with approved acceptance criteria under
@@ -85,13 +89,14 @@ separate:
 - `application.rs` assigns one checked execution policy to every command;
 - `repository_access.rs` coordinates concurrent reads and exclusive mutations
   by common Git directory;
-- `repository.rs`, `status.rs`, `changes.rs`, `save_version.rs`, `sync.rs`,
+- `repository.rs`, `clone.rs`, `status.rs`, `changes.rs`, `save_version.rs`, `sync.rs`,
   `publish.rs`, `recovery.rs`, and `version_lines.rs` own product behavior;
 - `operation.rs` owns shared mutation classification and bounded/redacted
   diagnostic details;
 - `index.rs` owns collision-safe temporary-index preparation shared by safe
   mutations;
 - `git_command.rs` binds application policy to the bounded runner in `git.rs`;
+- `platform.rs` owns the OS-specific exclusive directory publication primitive;
 - `tooling.rs`, `watch.rs`, and `desktop.rs` own system-Git settings, repository
   invalidation, and desktop-shell services;
 - the production body of `lib.rs` only registers modules, plugins, state, and
@@ -164,8 +169,8 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 362 frontend tests, the production build, Rust formatting,
-Clippy with warnings denied, and 247 Rust tests. Individual commands remain
+rules, TypeScript, 371 frontend tests, the production build, Rust formatting,
+Clippy with warnings denied, and 258 Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.
 

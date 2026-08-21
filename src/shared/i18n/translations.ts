@@ -3,6 +3,25 @@ export interface SharedTranslations {
   errorPathUnusable: string;
   errorNotRepository: string;
   errorBareRepository: string;
+  errorInvalidCloneSource: string;
+  errorInvalidCloneDestination: string;
+  errorCloneDestinationExists: string;
+  errorCloneDestinationCollides: string;
+  errorStaleClonePlan: string;
+  errorCloneOperationBusy: string;
+  errorCloneOperationMissing: string;
+  errorCloneVerificationFailed: string;
+  errorClonePublishUncertain: string;
+  errorCloneCleanupRequired: string;
+  errorCloneCleanupUnavailable: string;
+  errorCloneFailed: string;
+  errorOffline: string;
+  errorCertificateFailed: string;
+  errorHostKeyFailed: string;
+  errorRemoteNotFound: string;
+  errorDiskFull: string;
+  errorPermissionDenied: string;
+  errorPathTooLong: string;
   errorGitMissing: string;
   errorGitUnusable: string;
   errorGitCommandFailed: string;
@@ -70,6 +89,25 @@ const en: SharedTranslations = {
   errorPathUnusable: "That folder can't be read. Check its permissions or choose another folder.",
   errorNotRepository: "That folder isn't inside a Git project. Choose a project folder and try again.",
   errorBareRepository: "That Git repository has no working files, so GitOdrile can't open it yet.",
+  errorInvalidCloneSource: "Enter a complete HTTPS, SSH, Git, file URL, or local Git path.",
+  errorInvalidCloneDestination: "Choose a valid parent folder and a safe new project name.",
+  errorCloneDestinationExists: "Something already exists at that destination. GitOdrile will not replace it.",
+  errorCloneDestinationCollides: "That destination collides with an existing path or private staging name. Choose another name.",
+  errorStaleClonePlan: "The source or destination changed after the preview. Review the clone again.",
+  errorCloneOperationBusy: "This clone attempt is already running.",
+  errorCloneOperationMissing: "That clone attempt is no longer running. Start a new attempt if needed.",
+  errorCloneVerificationFailed: "The downloaded data could not be verified as a usable Git project, so it was not published.",
+  errorClonePublishUncertain: "The project may be in the destination, but GitOdrile could not verify the final move. Inspect it before retrying.",
+  errorCloneCleanupRequired: "The clone stopped, but its marked private staging folder still needs safe cleanup.",
+  errorCloneCleanupUnavailable: "GitOdrile cannot prove that it owns this staging path, so it will not remove it.",
+  errorCloneFailed: "Git could not clone this project. Check the remote, destination, and technical details.",
+  errorOffline: "The remote host could not be reached. Check your connection, VPN, proxy, and host name.",
+  errorCertificateFailed: "Git could not verify the server certificate. Check the certificate, proxy, and system trust settings.",
+  errorHostKeyFailed: "SSH could not verify the host key. Verify the host with your system SSH tools, then retry.",
+  errorRemoteNotFound: "The remote project was not found. Check its location and your access rights.",
+  errorDiskFull: "There is not enough disk space to finish cloning. Free space and retry.",
+  errorPermissionDenied: "GitOdrile does not have permission to read the source or write the destination.",
+  errorPathTooLong: "A project path is too long for this checkout. Choose a shorter destination or adjust long-path support.",
   errorGitMissing: "Git wasn't found. Install Git, reopen GitOdrile, and try again.",
   errorGitUnusable: "Git is installed but couldn't be started. Check the installation and try again.",
   errorGitCommandFailed: "Git couldn't inspect this project. Check that its files are readable.",
@@ -150,6 +188,25 @@ const es: SharedTranslations = {
   errorPathUnusable: "No se puede leer esa carpeta. Comprueba sus permisos o elige otra.",
   errorNotRepository: "Esa carpeta no está dentro de un proyecto de Git. Elige una carpeta del proyecto.",
   errorBareRepository: "Ese repositorio no contiene archivos de trabajo, así que GitOdrile aún no puede abrirlo.",
+  errorInvalidCloneSource: "Introduce una URL HTTPS, SSH, Git o file completa, o una ruta Git local.",
+  errorInvalidCloneDestination: "Elige una carpeta contenedora válida y un nombre nuevo seguro para el proyecto.",
+  errorCloneDestinationExists: "Ya existe algo en ese destino. GitOdrile no lo reemplazará.",
+  errorCloneDestinationCollides: "Ese destino colisiona con una ruta existente o un nombre temporal privado. Elige otro nombre.",
+  errorStaleClonePlan: "El origen o el destino cambiaron después de la vista previa. Revisa de nuevo la clonación.",
+  errorCloneOperationBusy: "Este intento de clonación ya está en curso.",
+  errorCloneOperationMissing: "Ese intento de clonación ya no está en curso. Inicia uno nuevo si lo necesitas.",
+  errorCloneVerificationFailed: "Los datos descargados no se pudieron verificar como proyecto Git utilizable, así que no se publicaron.",
+  errorClonePublishUncertain: "Puede que el proyecto esté en el destino, pero GitOdrile no pudo verificar el movimiento final. Inspecciónalo antes de reintentar.",
+  errorCloneCleanupRequired: "La clonación se detuvo, pero su carpeta temporal privada marcada todavía requiere una limpieza segura.",
+  errorCloneCleanupUnavailable: "GitOdrile no puede demostrar que esa ruta temporal sea suya, así que no la eliminará.",
+  errorCloneFailed: "Git no pudo clonar este proyecto. Comprueba el remoto, el destino y los detalles técnicos.",
+  errorOffline: "No se pudo contactar con el host remoto. Comprueba la conexión, VPN, proxy y nombre del host.",
+  errorCertificateFailed: "Git no pudo verificar el certificado del servidor. Comprueba el certificado, proxy y confianza del sistema.",
+  errorHostKeyFailed: "SSH no pudo verificar la clave del host. Verifica el host con las herramientas SSH del sistema y reintenta.",
+  errorRemoteNotFound: "No se encontró el proyecto remoto. Comprueba su ubicación y tus permisos de acceso.",
+  errorDiskFull: "No hay espacio suficiente para terminar la clonación. Libera espacio y reintenta.",
+  errorPermissionDenied: "GitOdrile no tiene permiso para leer el origen o escribir en el destino.",
+  errorPathTooLong: "Una ruta del proyecto es demasiado larga. Elige un destino más corto o ajusta el soporte de rutas largas.",
   errorGitMissing: "No se encontró Git. Instálalo, vuelve a abrir GitOdrile e inténtalo de nuevo.",
   errorGitUnusable: "Git está instalado, pero no se pudo iniciar. Comprueba la instalación.",
   errorGitCommandFailed: "Git no pudo inspeccionar este proyecto. Comprueba que sus archivos se puedan leer.",

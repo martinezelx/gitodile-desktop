@@ -7,6 +7,7 @@
 @import "./app/app-shell.css";
 @import "./shared/ui/primitives.css";
 @import "./features/overview/overview.css";
+@import "./features/clone/clone.css";
 @import "./features/status/status.css";
 @import "./features/changes/changes.css";
 @import "./features/save-version/save-version.css";

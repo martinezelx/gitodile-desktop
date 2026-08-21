@@ -1,0 +1,132 @@
+.clone-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 18;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: var(--overlay);
+  backdrop-filter: blur(8px);
+}
+
+.clone-dialog {
+  width: min(720px, 100%);
+  max-height: min(820px, calc(100vh - 48px));
+  overflow: auto;
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.clone-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.clone-dialog__header > span,
+.clone-dialog__result-icon {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-lg);
+  background: var(--surface-active);
+  color: var(--accent-primary);
+}
+.clone-dialog__header svg,
+.clone-dialog__result-icon svg { width: 21px; height: 21px; }
+.clone-dialog__header h2 { margin: 0; font-size: 22px; line-height: 1.25; letter-spacing: -0.02em; }
+.clone-dialog__header p,
+.clone-dialog__intro p,
+.clone-dialog__result > p {
+  max-width: 70ch;
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.clone-dialog__form,
+.clone-dialog__body { display: grid; gap: var(--space-4); }
+.clone-dialog__field small { color: var(--text-secondary); line-height: 1.45; }
+.clone-dialog__field input { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+.clone-dialog__path-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+.clone-dialog__path-picker .secondary-button { min-height: 42px; display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.clone-dialog__path-picker svg,
+.clone-dialog__actions svg { width: 16px; height: 16px; }
+
+.clone-dialog__intro h3,
+.clone-dialog__result h3 { margin: 0; font-size: 17px; letter-spacing: -0.01em; }
+.clone-dialog__summary { display: grid; gap: var(--space-3); margin: 0; }
+.clone-dialog__summary > div { display: grid; grid-template-columns: 104px minmax(0, 1fr); align-items: baseline; gap: var(--space-3); }
+.clone-dialog__summary dt { color: var(--text-secondary); font-size: 12.5px; font-weight: 700; }
+.clone-dialog__summary dd,
+.clone-dialog__result code {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 12.5px;
+}
+
+.clone-dialog__effects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-5);
+  padding-block: var(--space-4);
+}
+.clone-dialog__effects section { display: flex; align-items: flex-start; gap: var(--space-3); }
+.clone-dialog__effects section > svg { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; color: var(--accent-primary); }
+.clone-dialog__effects h3 { margin: 0 0 var(--space-1); font-size: 13.5px; }
+.clone-dialog__effects p { margin: 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.5; }
+
+.clone-dialog__actions { margin-top: var(--space-2); }
+.clone-dialog__actions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
+
+.clone-dialog__progress .loading-state { margin-bottom: var(--space-2); }
+.clone-dialog__progress ol { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.clone-dialog__progress li { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; color: var(--text-secondary); font-size: 13px; }
+.clone-dialog__progress li > span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 999px; background: var(--surface-hover); }
+.clone-dialog__progress li svg { width: 14px; height: 14px; }
+.clone-dialog__progress li.is-current { color: var(--text-primary); font-weight: 700; }
+.clone-dialog__progress li.is-current > span { background: var(--surface-active); color: var(--accent-primary); }
+.clone-dialog__progress li.is-complete > span { color: var(--status-success); }
+
+.clone-dialog__result { justify-items: start; }
+.clone-dialog__result-icon--error { background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); }
+.clone-dialog__result-icon--warning { background: color-mix(in srgb, var(--status-warning) 12%, transparent); color: var(--status-warning); }
+.clone-dialog__result details { width: 100%; color: var(--text-secondary); font-size: 12.5px; }
+.clone-dialog__result summary { width: fit-content; }
+.clone-dialog__result pre {
+  max-height: 150px;
+  overflow: auto;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-code);
+  color: var(--text-primary);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .clone-backdrop { align-items: end; padding: var(--space-3); }
+  .clone-dialog { max-height: calc(100vh - 24px); padding: var(--space-4); border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+  .clone-dialog__effects { grid-template-columns: 1fr; }
+  .clone-dialog__summary > div { grid-template-columns: 1fr; gap: var(--space-1); }
+  .clone-dialog__path-picker { grid-template-columns: 1fr; }
+  .clone-dialog__actions { display: grid; grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clone-dialog .icon--spinning { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .clone-dialog__header > span,
+  .clone-dialog__result-icon,
+  .clone-dialog__progress li > span { border: 1px solid currentColor; }
+}

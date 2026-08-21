@@ -24,6 +24,7 @@ import { localizeAppError } from "./shared/i18n";
 import type { RepositoryInvalidation } from "./repositoryInvalidation";
 import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 import { DiffPreferencesProvider, createChangesController, changesPort } from "./features/changes";
+import { CloneDialog, clonePort, createCloneController, type CloneResult } from "./features/clone";
 import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
 import {
@@ -143,6 +144,7 @@ export function App(): React.JSX.Element {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isCloneOpen, setIsCloneOpen] = useState(false);
   const [view, setView] = useState<View>("overview");
   const [theme, setTheme] = useThemePreference();
   const effectiveTheme = resolveEffectiveTheme(theme);
@@ -173,6 +175,7 @@ export function App(): React.JSX.Element {
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
   const [repositoryController] = useState(() => createRepositoryController(repositoryPort));
+  const [cloneController] = useState(() => createCloneController(clonePort));
   const [statusController] = useState(() => createStatusController(statusPort));
   const [changesController] = useState(() => createChangesController(changesPort));
   const [syncController] = useState(() => createSyncController(syncPort));
@@ -311,6 +314,7 @@ export function App(): React.JSX.Element {
   // the active project are both disabled while either dialog is open.
   const hasBlockingDialog =
     isSettingsOpen ||
+    isCloneOpen ||
     publishDialogSessionId !== null ||
     saveDialogSessionId !== null ||
     getTeamDialogSessionId !== null ||
@@ -541,6 +545,15 @@ export function App(): React.JSX.Element {
     } finally {
       setIsOpening(false);
     }
+  };
+
+  const handleVerifiedClone = async (cloneResult: CloneResult): Promise<void> => {
+    const info = await repositoryController.open({ selectedPath: cloneResult.destinationPath });
+    const existing = sessionsState.byId[info.path];
+    dispatchSessions({ type: "open", project: info });
+    syncViewToSession(existing?.lastView ?? "overview");
+    setProjectAnnouncement(t.projectSwitcherActiveAnnouncement(info.name));
+    if (!existing) void checkWorkingTree(info.path, info.sessionEpoch);
   };
 
   // Restores the previous session's open projects exactly once, on launch.
@@ -921,6 +934,11 @@ export function App(): React.JSX.Element {
             label: project ? t.overviewOpenAnotherProject : t.overviewOpenProject,
             action: () => void handleOpenProject(),
           },
+          {
+            id: "clone-project",
+            label: t.commandCloneProject,
+            action: () => setIsCloneOpen(true),
+          },
         ]
       : []),
     ...(project && !hasBlockingDialog
@@ -1030,6 +1048,7 @@ export function App(): React.JSX.Element {
           <TitlebarMenu
             onOpenAbout={() => setIsAboutOpen(true)}
             onOpenProject={() => void handleOpenProject()}
+            onCloneProject={() => setIsCloneOpen(true)}
             onCloseProject={requestCloseActiveProject}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenShortcuts={() => setIsShortcutsOpen(true)}
@@ -1179,6 +1198,7 @@ export function App(): React.JSX.Element {
                 onActivate={activateSession}
                 onClose={requestCloseSession}
                 onOpenAnother={() => void handleOpenProject()}
+                onClone={() => setIsCloneOpen(true)}
               />
             ) : (
               <ProjectSwitcher
@@ -1189,6 +1209,7 @@ export function App(): React.JSX.Element {
                 onActivate={activateSession}
                 onClose={requestCloseSession}
                 onOpenAnother={() => void handleOpenProject()}
+                onClone={() => setIsCloneOpen(true)}
               />
             )}
           </div>
@@ -1247,6 +1268,7 @@ export function App(): React.JSX.Element {
               onActivate={activateSession}
               onClose={requestCloseSession}
               onOpenAnother={() => void handleOpenProject()}
+              onClone={() => setIsCloneOpen(true)}
             />
             <div className="compact-history-controls" aria-label={t.titlebarHistoryControls}>
               <button
@@ -1351,6 +1373,7 @@ export function App(): React.JSX.Element {
                     navigateToView("changes");
                   }}
                   onOpenProject={() => void handleOpenProject()}
+                  onCloneProject={() => setIsCloneOpen(true)}
                   canPublish={canPublish}
                   onPublish={() => openPublishDialog()}
                   onPublishUpTo={(commit) => openPublishDialog(commit)}
@@ -1470,6 +1493,13 @@ export function App(): React.JSX.Element {
       </main>
 
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
+
+      <CloneDialog
+        isOpen={isCloneOpen}
+        controller={cloneController}
+        onClose={() => setIsCloneOpen(false)}
+        onVerifiedClone={handleVerifiedClone}
+      />
 
       {publishDialogSession && (
         <Suspense fallback={null}>

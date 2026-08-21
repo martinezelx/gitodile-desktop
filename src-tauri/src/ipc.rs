@@ -6,6 +6,7 @@
 
 use crate::{
     changes::{self, CommitFileChange, FileDiff, FileLines},
+    clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
     desktop,
     error::AppError,
     publish_domain::{self, PublishPlan, PublishResult},
@@ -53,6 +54,55 @@ pub(crate) fn open_repository(
     session_epoch: Option<String>,
 ) -> Result<RepositoryInfo, AppError> {
     repository::open_repository(path, session_epoch)
+}
+
+#[tauri::command(async)]
+pub(crate) fn plan_clone(
+    source: String,
+    destination_parent: String,
+    destination_name: String,
+) -> Result<ClonePlan, AppError> {
+    clone::plan_clone(source, destination_parent, destination_name)
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn clone_repository(
+    registry: tauri::State<'_, CloneOperationRegistry>,
+    source: String,
+    destination_parent: String,
+    destination_name: String,
+    operation_id: String,
+    state_token: String,
+    on_progress: tauri::ipc::Channel<CloneProgressPhase>,
+) -> Result<CloneResult, AppError> {
+    clone::clone_repository(
+        &registry,
+        source,
+        destination_parent,
+        destination_name,
+        operation_id,
+        state_token,
+        |phase| {
+            let _ = on_progress.send(phase);
+        },
+    )
+}
+
+#[tauri::command]
+pub(crate) fn cancel_clone(
+    registry: tauri::State<'_, CloneOperationRegistry>,
+    operation_id: String,
+) -> Result<(), AppError> {
+    clone::cancel_clone(&registry, operation_id)
+}
+
+#[tauri::command]
+pub(crate) fn cleanup_clone(
+    destination_parent: String,
+    operation_id: String,
+) -> Result<(), AppError> {
+    clone::cleanup_clone(destination_parent, operation_id)
 }
 
 #[tauri::command(async)]
@@ -546,6 +596,25 @@ mod contract_tests {
             AppErrorCode::PathUnusable,
             AppErrorCode::NotRepository,
             AppErrorCode::BareRepository,
+            AppErrorCode::InvalidCloneSource,
+            AppErrorCode::InvalidCloneDestination,
+            AppErrorCode::CloneDestinationExists,
+            AppErrorCode::CloneDestinationCollides,
+            AppErrorCode::StaleClonePlan,
+            AppErrorCode::CloneOperationBusy,
+            AppErrorCode::CloneOperationMissing,
+            AppErrorCode::CloneVerificationFailed,
+            AppErrorCode::ClonePublishUncertain,
+            AppErrorCode::CloneCleanupRequired,
+            AppErrorCode::CloneCleanupUnavailable,
+            AppErrorCode::CloneFailed,
+            AppErrorCode::Offline,
+            AppErrorCode::CertificateFailed,
+            AppErrorCode::HostKeyFailed,
+            AppErrorCode::RemoteNotFound,
+            AppErrorCode::DiskFull,
+            AppErrorCode::PermissionDenied,
+            AppErrorCode::PathTooLong,
             AppErrorCode::GitMissing,
             AppErrorCode::GitUnusable,
             AppErrorCode::GitCommandFailed,

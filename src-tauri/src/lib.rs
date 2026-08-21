@@ -4,6 +4,7 @@ mod application;
 #[cfg(test)]
 mod architecture;
 mod changes;
+mod clone;
 mod desktop;
 mod error;
 mod git;
@@ -11,6 +12,7 @@ mod git_command;
 mod index;
 mod ipc;
 mod operation;
+mod platform;
 #[path = "publish.rs"]
 mod publish_domain;
 mod recovery;
@@ -26,6 +28,8 @@ mod watch;
 
 #[cfg(test)]
 use changes::*;
+#[cfg(test)]
+use clone::*;
 #[cfg(test)]
 use error::{AppError, AppErrorCode};
 #[cfg(test)]
@@ -52,6 +56,7 @@ use std::path::Path;
 pub fn run() {
     tauri::Builder::default()
         .manage(watch::WatcherRegistry::default())
+        .manage(clone::CloneOperationRegistry::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
@@ -59,6 +64,10 @@ pub fn run() {
             ipc::app_status,
             ipc::show_main_window,
             ipc::open_repository,
+            ipc::plan_clone,
+            ipc::clone_repository,
+            ipc::cancel_clone,
+            ipc::cleanup_clone,
             ipc::read_working_tree_status,
             ipc::read_file_diff,
             ipc::read_file_lines,
@@ -105,6 +114,9 @@ pub fn run() {
 #[cfg(test)]
 #[path = "tests/changes_tests.rs"]
 mod changes_tests;
+#[cfg(test)]
+#[path = "tests/clone_tests.rs"]
+mod clone_tests;
 #[cfg(test)]
 #[path = "tests/core_workflow_tests.rs"]
 mod core_workflow_tests;

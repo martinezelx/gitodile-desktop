@@ -3,6 +3,7 @@ export interface AppTranslations {
   titlebarJumpToHint: string;
   titlebarMoreActions: string;
   titlebarOpenProject: string;
+  titlebarCloneProject: string;
   titlebarReloadWindow: string;
   titlebarReloadBlocked: string;
   titlebarReportIssue: string;
@@ -50,6 +51,7 @@ export interface AppTranslations {
   commandUseLightTheme: string;
   commandUseDarkTheme: string;
   commandCloseActiveProject: string;
+  commandCloneProject: string;
   commandSwitchToProject: (name: string) => string;
   projectSwitcherAriaLabel: string;
   projectSwitchToLabel: (name: string) => string;
@@ -60,6 +62,7 @@ export interface AppTranslations {
   projectSwitcherCollapsedTrigger: string;
   projectSwitcherSwitchBlockedHint: string;
   projectSwitcherEmptyHint: string;
+  projectSwitcherCloneProject: string;
   projectSwitcherActiveAnnouncement: (name: string) => string;
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
@@ -90,6 +93,7 @@ const en: AppTranslations = {
   titlebarJumpToHint: "Jump to a view or action",
   titlebarMoreActions: "More actions",
   titlebarOpenProject: "Open project",
+  titlebarCloneProject: "Clone remote project",
   titlebarReloadWindow: "Reload window",
   titlebarReloadBlocked: "Finish the current project operation before reloading.",
   titlebarReportIssue: "Report an issue",
@@ -137,6 +141,7 @@ const en: AppTranslations = {
   commandUseLightTheme: "Use light theme",
   commandUseDarkTheme: "Use dark theme",
   commandCloseActiveProject: "Close active project",
+  commandCloneProject: "Clone a remote project",
   commandSwitchToProject: (name) => `Switch to ${name}`,
   projectSwitcherAriaLabel: "Open projects",
   projectSwitchToLabel: (name) => `Switch to ${name}`,
@@ -147,6 +152,7 @@ const en: AppTranslations = {
   projectSwitcherCollapsedTrigger: "Switch project",
   projectSwitcherSwitchBlockedHint: "Finish the open dialog before switching projects",
   projectSwitcherEmptyHint: "Your open projects will show up here.",
+  projectSwitcherCloneProject: "Clone remote project",
   projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
   projectSwitcherMutationBlocked: (name) =>
     `Wait for the operation in ${name} to finish before starting another one in a linked workspace.`,
@@ -180,6 +186,7 @@ const es: AppTranslations = {
   titlebarJumpToHint: "Ir a una vista o acción",
   titlebarMoreActions: "Más acciones",
   titlebarOpenProject: "Abrir proyecto",
+  titlebarCloneProject: "Clonar proyecto remoto",
   titlebarReloadWindow: "Recargar ventana",
   titlebarReloadBlocked: "Termina la operación actual del proyecto antes de recargar.",
   titlebarReportIssue: "Reportar un problema",
@@ -227,6 +234,7 @@ const es: AppTranslations = {
   commandUseLightTheme: "Usar el tema claro",
   commandUseDarkTheme: "Usar el tema oscuro",
   commandCloseActiveProject: "Cerrar el proyecto activo",
+  commandCloneProject: "Clonar un proyecto remoto",
   commandSwitchToProject: (name) => `Cambiar a ${name}`,
   projectSwitcherAriaLabel: "Proyectos abiertos",
   projectSwitchToLabel: (name) => `Cambiar a ${name}`,
@@ -237,6 +245,7 @@ const es: AppTranslations = {
   projectSwitcherCollapsedTrigger: "Cambiar de proyecto",
   projectSwitcherSwitchBlockedHint: "Termina el diálogo abierto antes de cambiar de proyecto",
   projectSwitcherEmptyHint: "Aquí aparecerán tus proyectos abiertos.",
+  projectSwitcherCloneProject: "Clonar proyecto remoto",
   projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,
   projectSwitcherMutationBlocked: (name) =>
     `Espera a que termine la operación de ${name} antes de iniciar otra en un espacio de trabajo vinculado.`,
