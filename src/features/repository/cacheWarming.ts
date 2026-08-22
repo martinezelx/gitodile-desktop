@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import type { ChangesController } from "../changes";
+import type { HistoryController } from "../history";
 import type { VersionLinesController } from "../version-lines";
 import type { SyncController, SyncErrorMapper } from "../sync";
 import type { ProjectRuntime } from "../../projectRuntime";
@@ -12,6 +13,7 @@ type ProjectCacheWarmingOptions = {
   projectPath: string | null;
   session: ProjectSession | null;
   changesController: ChangesController;
+  historyController: HistoryController;
   versionLinesController: VersionLinesController;
   syncController: SyncController;
   mapSyncError: SyncErrorMapper;
@@ -28,10 +30,22 @@ export function useProjectCacheWarming({
   projectPath,
   session,
   changesController,
+  historyController,
   versionLinesController,
   syncController,
   mapSyncError,
 }: ProjectCacheWarmingOptions): void {
+  useEffect(() => {
+    if (!hasCompletedSessionRestore || !projectPath || !session?.epoch) {
+      return undefined;
+    }
+    return historyController.scheduleWarm(
+      runtime,
+      { projectId: projectPath, sessionEpoch: session.epoch },
+      "project-activation",
+    );
+  }, [hasCompletedSessionRestore, historyController, projectPath, runtime, session?.epoch]);
+
   useEffect(() => {
     if (!hasCompletedSessionRestore || !projectPath || !session?.epoch) {
       return undefined;

@@ -45,6 +45,7 @@ export interface AppTranslations {
   paletteNoMatches: string;
   commandGoOverview: string;
   commandGoVersionLines: string;
+  commandGoHistory: string;
   commandNewVersionLine: string;
   commandGoSettings: string;
   commandGoSettingsSection: (section: string) => string;
@@ -130,7 +131,7 @@ const en: AppTranslations = {
   navVersionLines: "Version lines",
   navVersionLinesTitle: "Version lines — Open a project first",
   navHistory: "History",
-  navHistoryTitle: "History — Coming soon",
+  navHistoryTitle: "History — Open a project first",
   navRecovery: "Recovery",
   navRecoveryTitle: "Recovery — Coming soon",
   navSettings: "Settings",
@@ -139,6 +140,7 @@ const en: AppTranslations = {
   paletteNoMatches: "No matching commands",
   commandGoOverview: "Go to Overview",
   commandGoVersionLines: "Go to Version lines",
+  commandGoHistory: "Go to History",
   commandNewVersionLine: "New version line",
   commandGoSettings: "Go to Settings",
   commandGoSettingsSection: (section) => `Settings: ${section}`,
@@ -227,7 +229,7 @@ const es: AppTranslations = {
   navVersionLines: "Líneas de versión",
   navVersionLinesTitle: "Líneas de versión — Abre un proyecto primero",
   navHistory: "Historial",
-  navHistoryTitle: "Historial — Próximamente",
+  navHistoryTitle: "Historial — Abre un proyecto primero",
   navRecovery: "Recuperación",
   navRecoveryTitle: "Recuperación — Próximamente",
   navSettings: "Configuración",
@@ -236,6 +238,7 @@ const es: AppTranslations = {
   paletteNoMatches: "No hay coincidencias",
   commandGoOverview: "Ir a Resumen",
   commandGoVersionLines: "Ir a Líneas de versión",
+  commandGoHistory: "Ir al Historial",
   commandNewVersionLine: "Nueva línea de versión",
   commandGoSettings: "Ir a Configuración",
   commandGoSettingsSection: (section) => `Configuración: ${section}`,

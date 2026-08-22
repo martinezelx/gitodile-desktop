@@ -52,6 +52,7 @@ export interface SharedTranslations {
   errorEmptyTitle: string;
   errorInvalidTitle: string;
   errorStalePreview: string;
+  errorStaleHistoryCursor: string;
   errorHookRejected: string;
   errorSigningFailed: string;
   errorIndexUnavailable: string;
@@ -159,6 +160,7 @@ const en: SharedTranslations = {
   errorEmptyTitle: "Write a short name before saving.",
   errorInvalidTitle: "Keep the version name on one line.",
   errorStalePreview: "This project changed since the preview was shown. Review the updated changes and try again.",
+  errorStaleHistoryCursor: "The saved-version timeline changed while it was loading. GitOdrile refreshed it from the newest version.",
   errorHookRejected: "A Git hook rejected this version. Check the hook's output, then try again.",
   errorSigningFailed: "Git couldn't sign this version. Check your commit-signing setup (GPG or SSH key) and try again.",
   errorIndexUnavailable:
@@ -278,6 +280,7 @@ const es: SharedTranslations = {
   errorEmptyTitle: "Escribe un nombre breve antes de guardar.",
   errorInvalidTitle: "Escribe el nombre de la versión en una sola línea.",
   errorStalePreview: "Este proyecto cambió desde que se mostró la vista previa. Revisa los cambios actualizados e inténtalo de nuevo.",
+  errorStaleHistoryCursor: "El historial de versiones guardadas cambió mientras se cargaba. GitOdrile lo actualizó desde la versión más reciente.",
   errorHookRejected: "Un hook de Git rechazó esta versión. Revisa lo que indica el hook e inténtalo de nuevo.",
   errorSigningFailed: "Git no pudo firmar esta versión. Comprueba tu configuración de firma (GPG o clave SSH) e inténtalo de nuevo.",
   errorIndexUnavailable:

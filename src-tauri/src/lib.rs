@@ -9,6 +9,7 @@ mod desktop;
 mod error;
 mod git;
 mod git_command;
+mod history;
 mod index;
 mod initialize;
 mod ipc;
@@ -36,6 +37,8 @@ use error::{AppError, AppErrorCode};
 #[cfg(test)]
 use git_command::*;
 #[cfg(test)]
+use history::*;
+#[cfg(test)]
 use initialize::*;
 #[cfg(test)]
 use operation::*;
@@ -60,6 +63,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(watch::WatcherRegistry::default())
         .manage(clone::CloneOperationRegistry::default())
+        .manage(history::HistoryReadCache::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
@@ -102,6 +106,9 @@ pub fn run() {
             ipc::list_unpublished_versions,
             ipc::read_commit_file_changes,
             ipc::read_commit_file_diff,
+            ipc::read_history_page,
+            ipc::read_saved_version_detail,
+            ipc::read_saved_version_file_diff,
             ipc::plan_publish,
             ipc::publish,
             ipc::get_version_lines,
@@ -131,6 +138,9 @@ mod core_workflow_tests;
 #[cfg(test)]
 #[path = "tests/git_command_tests.rs"]
 mod git_command_tests;
+#[cfg(test)]
+#[path = "tests/history_tests.rs"]
+mod history_tests;
 #[cfg(test)]
 #[path = "tests/initialize_tests.rs"]
 mod initialize_tests;

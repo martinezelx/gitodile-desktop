@@ -1,0 +1,1696 @@
+//! Read-only saved-version history.
+//!
+//! The timeline is deliberately narrower than a full repository graph: it
+//! follows commits reachable from the current `HEAD` in stable topological /
+//! date order. Page cursors bind the offset to the exact local/upstream
+//! snapshot so a changed history is rejected instead of silently skipping or
+//! duplicating rows.
+
+use crate::application;
+use crate::changes::{
+    diff_result_from_text, validate_repo_relative_path, FileDiff, EMPTY_TREE_HASH,
+    MAX_DIFF_OUTPUT_BYTES,
+};
+use crate::error::{AppError, AppErrorCode};
+use crate::git_command::{git_stdout, run_git, run_git_capped, run_git_with_input_capped};
+use crate::repository::HeadState;
+use crate::status::{ChangeCategory, RawStatusEntry};
+use crate::sync::{list_configured_remotes, resolve_commit, resolve_upstream};
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
+use std::sync::Mutex;
+
+pub(crate) const DEFAULT_HISTORY_PAGE_SIZE: usize = 50;
+pub(crate) const MAX_HISTORY_PAGE_SIZE: usize = 100;
+pub(crate) const MAX_SUMMARY_SUBJECT_CHARS: usize = 240;
+pub(crate) const MAX_SUMMARY_DESCRIPTION_CHARS: usize = 2_048;
+pub(crate) const MAX_DETAIL_DESCRIPTION_CHARS: usize = 16_384;
+pub(crate) const MAX_PAGE_COMMIT_OBJECT_BYTES: usize = 256 * 1024;
+pub(crate) const MAX_PAGE_COMMIT_BATCH_BYTES: usize = 4 * 1024 * 1024;
+pub(crate) const MAX_DETAIL_COMMIT_BYTES: usize = 512 * 1024;
+pub(crate) const MAX_DECORATION_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
+pub(crate) const MAX_DECORATIONS_PER_VERSION: usize = 32;
+pub(crate) const MAX_DETAIL_FILE_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const MAX_DETAIL_FILES: usize = 1_000;
+const MAX_CACHED_HISTORY_SNAPSHOTS: usize = 4;
+const MAX_CACHED_HISTORY_COMMITS: usize = 1_000;
+const MAX_CACHED_HISTORY_DETAILS: usize = 8;
+const MAX_CACHED_HISTORY_DETAIL_BYTES: usize = 512 * 1024;
+
+type PageObjects = (
+    HashMap<String, Vec<u8>>,
+    HashMap<String, MessageUnavailableReason>,
+);
+type DecorationSnapshot = (
+    HashMap<String, Vec<HistoryDecoration>>,
+    HashSet<String>,
+    bool,
+    bool,
+);
+
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HistoryTimestamp {
+    pub(crate) unix_seconds: i64,
+    pub(crate) offset_minutes: i16,
+}
+
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SavedVersionAuthor {
+    pub(crate) name: String,
+    pub(crate) email: String,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum PublicationState {
+    LocalOnly,
+    Published,
+    Unknown,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum DecorationKind {
+    Head,
+    LocalBranch,
+    RemoteBranch,
+    Tag,
+}
+
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HistoryDecoration {
+    pub(crate) kind: DecorationKind,
+    pub(crate) name: String,
+    pub(crate) full_ref: String,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum MessageUnavailableReason {
+    TooLarge,
+    PageBudget,
+    Malformed,
+}
+
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SavedVersionSummary {
+    pub(crate) commit: String,
+    pub(crate) short_commit: String,
+    pub(crate) parents: Vec<String>,
+    pub(crate) subject: String,
+    pub(crate) description: String,
+    pub(crate) author: Option<SavedVersionAuthor>,
+    pub(crate) authored_at: Option<HistoryTimestamp>,
+    pub(crate) committed_at: Option<HistoryTimestamp>,
+    pub(crate) decorations: Vec<HistoryDecoration>,
+    pub(crate) is_root: bool,
+    pub(crate) is_merge: bool,
+    pub(crate) publication: PublicationState,
+    pub(crate) subject_truncated: bool,
+    pub(crate) description_truncated: bool,
+    pub(crate) decorations_truncated: bool,
+    pub(crate) message_unavailable: Option<MessageUnavailableReason>,
+}
+
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpstreamBoundary {
+    pub(crate) remote: String,
+    pub(crate) destination_branch: String,
+    pub(crate) tracking_ref: String,
+    pub(crate) commit: String,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum HistoryWarningCode {
+    ShallowRepository,
+    DecorationsTruncated,
+    MessagesTruncated,
+    UnreadableMetadata,
+    UpstreamUnavailable,
+}
+
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HistoryPage {
+    pub(crate) repository_id: String,
+    pub(crate) snapshot_token: String,
+    pub(crate) branch: Option<String>,
+    pub(crate) head_state: HeadState,
+    pub(crate) head_commit: Option<String>,
+    pub(crate) upstream: Option<UpstreamBoundary>,
+    pub(crate) versions: Vec<SavedVersionSummary>,
+    pub(crate) next_cursor: Option<String>,
+    pub(crate) has_more: bool,
+    pub(crate) shallow: bool,
+    pub(crate) warnings: Vec<HistoryWarningCode>,
+}
+
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HistoryFileChange {
+    pub(crate) path: String,
+    pub(crate) original_path: Option<String>,
+    pub(crate) category: ChangeCategory,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HistoryFileCounts {
+    pub(crate) changed: usize,
+    pub(crate) new: usize,
+    pub(crate) deleted: usize,
+    pub(crate) renamed: usize,
+    pub(crate) total: usize,
+}
+
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SavedVersionDetail {
+    pub(crate) version: SavedVersionSummary,
+    pub(crate) comparison_base: String,
+    pub(crate) comparison_is_empty_tree: bool,
+    pub(crate) comparison_is_first_parent: bool,
+    pub(crate) files: Vec<HistoryFileChange>,
+    pub(crate) file_counts: HistoryFileCounts,
+    pub(crate) files_truncated: bool,
+    pub(crate) counts_are_minimum: bool,
+}
+
+#[derive(Debug, Clone)]
+struct HeadContext {
+    branch: Option<String>,
+    head_state: HeadState,
+    head_commit: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct SnapshotContext {
+    head: HeadContext,
+    upstream: Option<UpstreamBoundary>,
+    shallow: bool,
+    token: String,
+}
+
+#[derive(Clone)]
+struct CachedCommitContext {
+    row: CommitGraphRow,
+    version: SavedVersionSummary,
+    detail: Option<SavedVersionDetail>,
+    used_at: u64,
+}
+
+struct CachedSnapshotContext {
+    snapshot: SnapshotContext,
+    commits: HashMap<String, CachedCommitContext>,
+    used_at: u64,
+}
+
+#[derive(Default)]
+struct HistoryReadCacheData {
+    clock: u64,
+    snapshots: HashMap<(String, String), CachedSnapshotContext>,
+}
+
+/// Bounded native read-through cache for metadata that a history page already
+/// proved. Detail and patch reads still verify the current `HEAD`, but they do
+/// not need to rediscover the commit graph, message, decorations, publication
+/// state, or changed-file list on every click.
+#[derive(Default)]
+pub(crate) struct HistoryReadCache {
+    data: Mutex<HistoryReadCacheData>,
+}
+
+#[derive(Clone)]
+struct CachedHistoryRead {
+    snapshot: SnapshotContext,
+    row: CommitGraphRow,
+    version: SavedVersionSummary,
+    detail: Option<SavedVersionDetail>,
+}
+
+impl HistoryReadCache {
+    fn record_page(
+        &self,
+        repository_id: &str,
+        snapshot: &SnapshotContext,
+        rows: &[CommitGraphRow],
+        versions: &[SavedVersionSummary],
+    ) {
+        let mut data = self
+            .data
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        data.clock = data.clock.wrapping_add(1);
+        let used_at = data.clock;
+        let key = (repository_id.to_string(), snapshot.token.clone());
+        let cached = data
+            .snapshots
+            .entry(key)
+            .or_insert_with(|| CachedSnapshotContext {
+                snapshot: snapshot.clone(),
+                commits: HashMap::new(),
+                used_at,
+            });
+        cached.snapshot = snapshot.clone();
+        cached.used_at = used_at;
+        for (row, version) in rows.iter().zip(versions) {
+            cached
+                .commits
+                .entry(row.commit.clone())
+                .and_modify(|value| {
+                    value.row = row.clone();
+                    value.version = version.clone();
+                    value.used_at = used_at;
+                })
+                .or_insert_with(|| CachedCommitContext {
+                    row: row.clone(),
+                    version: version.clone(),
+                    detail: None,
+                    used_at,
+                });
+        }
+        while cached.commits.len() > MAX_CACHED_HISTORY_COMMITS {
+            let Some(oldest) = cached
+                .commits
+                .iter()
+                .min_by_key(|(_, value)| value.used_at)
+                .map(|(commit, _)| commit.clone())
+            else {
+                break;
+            };
+            cached.commits.remove(&oldest);
+        }
+        while data.snapshots.len() > MAX_CACHED_HISTORY_SNAPSHOTS {
+            let Some(oldest) = data
+                .snapshots
+                .iter()
+                .min_by_key(|(_, value)| value.used_at)
+                .map(|(key, _)| key.clone())
+            else {
+                break;
+            };
+            data.snapshots.remove(&oldest);
+        }
+    }
+
+    fn read(
+        &self,
+        repository_id: &str,
+        snapshot_token: &str,
+        commit: &str,
+    ) -> Option<CachedHistoryRead> {
+        let mut data = self
+            .data
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        data.clock = data.clock.wrapping_add(1);
+        let used_at = data.clock;
+        let snapshot = data
+            .snapshots
+            .get_mut(&(repository_id.to_string(), snapshot_token.to_string()))?;
+        snapshot.used_at = used_at;
+        let cached = snapshot.commits.get_mut(commit)?;
+        cached.used_at = used_at;
+        Some(CachedHistoryRead {
+            snapshot: snapshot.snapshot.clone(),
+            row: cached.row.clone(),
+            version: cached.version.clone(),
+            detail: cached.detail.clone(),
+        })
+    }
+
+    fn record_detail(
+        &self,
+        repository_id: &str,
+        snapshot_token: &str,
+        commit: &str,
+        detail: &SavedVersionDetail,
+    ) {
+        if estimate_detail_bytes(detail) > MAX_CACHED_HISTORY_DETAIL_BYTES {
+            return;
+        }
+        let mut data = self
+            .data
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        data.clock = data.clock.wrapping_add(1);
+        let used_at = data.clock;
+        let Some(snapshot) = data
+            .snapshots
+            .get_mut(&(repository_id.to_string(), snapshot_token.to_string()))
+        else {
+            return;
+        };
+        snapshot.used_at = used_at;
+        let Some(cached) = snapshot.commits.get_mut(commit) else {
+            return;
+        };
+        cached.detail = Some(detail.clone());
+        cached.used_at = used_at;
+        while snapshot
+            .commits
+            .values()
+            .filter(|value| value.detail.is_some())
+            .count()
+            > MAX_CACHED_HISTORY_DETAILS
+        {
+            let Some(oldest) = snapshot
+                .commits
+                .iter()
+                .filter(|(key, value)| key.as_str() != commit && value.detail.is_some())
+                .min_by_key(|(_, value)| value.used_at)
+                .map(|(key, _)| key.clone())
+            else {
+                break;
+            };
+            if let Some(value) = snapshot.commits.get_mut(&oldest) {
+                value.detail = None;
+            }
+        }
+    }
+}
+
+fn estimate_detail_bytes(detail: &SavedVersionDetail) -> usize {
+    let version = &detail.version;
+    let mut bytes = version.commit.len()
+        + version.subject.len()
+        + version.description.len()
+        + detail.comparison_base.len();
+    for file in &detail.files {
+        bytes += file.path.len() + file.original_path.as_ref().map_or(0, String::len);
+    }
+    bytes
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CommitGraphRow {
+    commit: String,
+    parents: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedIdentity {
+    author: SavedVersionAuthor,
+    timestamp: HistoryTimestamp,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedCommit {
+    author: Option<ParsedIdentity>,
+    committer: Option<ParsedIdentity>,
+    subject: String,
+    description: String,
+    subject_truncated: bool,
+    description_truncated: bool,
+    malformed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HistoryCursor {
+    offset: usize,
+    local_only_seen: usize,
+    snapshot_token: String,
+}
+
+fn is_valid_oid(value: &str) -> bool {
+    (value.len() == 40 || value.len() == 64) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn short_oid(value: &str) -> String {
+    value.chars().take(10).collect()
+}
+
+fn truncate_chars(value: &str, limit: usize) -> (String, bool) {
+    if value.chars().count() <= limit {
+        return (value.to_string(), false);
+    }
+    (value.chars().take(limit).collect(), true)
+}
+
+fn parse_timezone(value: &str) -> Option<i16> {
+    let bytes = value.as_bytes();
+    if bytes.len() != 5 || !matches!(bytes[0], b'+' | b'-') {
+        return None;
+    }
+    let hours: i16 = value[1..3].parse().ok()?;
+    let minutes: i16 = value[3..5].parse().ok()?;
+    if hours > 23 || minutes > 59 {
+        return None;
+    }
+    let total = hours * 60 + minutes;
+    Some(if bytes[0] == b'-' { -total } else { total })
+}
+
+fn parse_identity(value: &[u8]) -> Option<ParsedIdentity> {
+    let text = String::from_utf8_lossy(value);
+    let (identity, time) = text.rsplit_once('>')?;
+    let (name, email) = identity.rsplit_once(" <")?;
+    let mut time_fields = time.split_ascii_whitespace();
+    let unix_seconds = time_fields.next()?.parse().ok()?;
+    let offset_minutes = parse_timezone(time_fields.next()?)?;
+    let (name, _) = truncate_chars(name, 256);
+    let (email, _) = truncate_chars(email, 320);
+    Some(ParsedIdentity {
+        author: SavedVersionAuthor { name, email },
+        timestamp: HistoryTimestamp {
+            unix_seconds,
+            offset_minutes,
+        },
+    })
+}
+
+fn parse_commit_object(data: &[u8], detail: bool) -> ParsedCommit {
+    let split = data.windows(2).position(|pair| pair == b"\n\n");
+    let (headers, message, malformed) = match split {
+        Some(index) => (&data[..index], &data[index + 2..], false),
+        None => (data, &[][..], true),
+    };
+    let mut author = None;
+    let mut committer = None;
+    for line in headers.split(|byte| *byte == b'\n') {
+        if let Some(value) = line.strip_prefix(b"author ") {
+            author = parse_identity(value);
+        } else if let Some(value) = line.strip_prefix(b"committer ") {
+            committer = parse_identity(value);
+        }
+    }
+    let decoded = String::from_utf8_lossy(message);
+    let decoded_was_lossy = matches!(decoded, std::borrow::Cow::Owned(_));
+    let message = decoded.trim_end_matches(['\n', '\r']);
+    let (subject, description) = message
+        .split_once('\n')
+        .map(|(subject, body)| (subject, body.trim_matches(['\n', '\r'])))
+        .unwrap_or((message, ""));
+    let (subject, subject_truncated) = truncate_chars(subject, MAX_SUMMARY_SUBJECT_CHARS);
+    let description_limit = if detail {
+        MAX_DETAIL_DESCRIPTION_CHARS
+    } else {
+        MAX_SUMMARY_DESCRIPTION_CHARS
+    };
+    let (description, description_truncated) = truncate_chars(description, description_limit);
+    ParsedCommit {
+        author,
+        committer,
+        subject,
+        description,
+        subject_truncated: subject_truncated || decoded_was_lossy,
+        description_truncated: description_truncated || decoded_was_lossy,
+        malformed,
+    }
+}
+
+fn encode_cursor(cursor: &HistoryCursor) -> String {
+    format!(
+        "v1:{}:{}:{}",
+        cursor.offset, cursor.local_only_seen, cursor.snapshot_token
+    )
+}
+
+fn decode_cursor(value: &str) -> Result<HistoryCursor, AppError> {
+    let mut fields = value.split(':');
+    if fields.next() != Some("v1") {
+        return Err(stale_cursor_error());
+    }
+    let offset = fields
+        .next()
+        .and_then(|field| field.parse().ok())
+        .ok_or_else(stale_cursor_error)?;
+    let local_only_seen = fields
+        .next()
+        .and_then(|field| field.parse().ok())
+        .ok_or_else(stale_cursor_error)?;
+    let snapshot_token = fields
+        .next()
+        .filter(|field| !field.is_empty())
+        .ok_or_else(stale_cursor_error)?;
+    if fields.next().is_some() {
+        return Err(stale_cursor_error());
+    }
+    Ok(HistoryCursor {
+        offset,
+        local_only_seen,
+        snapshot_token: snapshot_token.to_string(),
+    })
+}
+
+fn stale_cursor_error() -> AppError {
+    AppError::new(
+        AppErrorCode::StaleHistoryCursor,
+        "This history changed while the next page was loading.",
+    )
+    .with_remediation("Refresh History to continue from the current saved versions.")
+}
+
+fn read_head_context(path: &str) -> Result<HeadContext, AppError> {
+    let branch_output = run_git(path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
+    let branch = branch_output
+        .status
+        .success()
+        .then(|| git_stdout(&branch_output));
+    let head_output = run_git(path, &["rev-parse", "--verify", "HEAD^{commit}"])?;
+    let head_commit = head_output
+        .status
+        .success()
+        .then(|| git_stdout(&head_output));
+    let head_state = match (&branch, &head_commit) {
+        (_, None) => HeadState::Unborn,
+        (None, Some(_)) => HeadState::Detached,
+        (Some(_), Some(_)) => HeadState::Branch,
+    };
+    Ok(HeadContext {
+        branch,
+        head_state,
+        head_commit,
+    })
+}
+
+fn read_shallow(path: &str) -> Result<bool, AppError> {
+    let output = run_git(path, &["rev-parse", "--is-shallow-repository"])?;
+    if !output.status.success() {
+        return Ok(false);
+    }
+    Ok(git_stdout(&output) == "true")
+}
+
+fn read_upstream(path: &str, branch: Option<&str>) -> Result<Option<UpstreamBoundary>, AppError> {
+    let Some(branch) = branch else {
+        return Ok(None);
+    };
+    let remotes = list_configured_remotes(path)?;
+    let Some(upstream) = resolve_upstream(path, branch, &remotes)? else {
+        return Ok(None);
+    };
+    let Some(commit) = resolve_commit(path, &upstream.tracking_ref)? else {
+        return Ok(None);
+    };
+    Ok(Some(UpstreamBoundary {
+        remote: upstream.remote,
+        destination_branch: upstream.destination_branch,
+        tracking_ref: upstream.tracking_ref,
+        commit,
+    }))
+}
+
+fn compute_snapshot_token(
+    repository_id: &str,
+    head: &HeadContext,
+    upstream: Option<&UpstreamBoundary>,
+    shallow: bool,
+) -> String {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    repository_id.hash(&mut hasher);
+    head.branch.hash(&mut hasher);
+    head.head_state.hash(&mut hasher);
+    head.head_commit.hash(&mut hasher);
+    shallow.hash(&mut hasher);
+    upstream
+        .map(|value| (&value.tracking_ref, &value.commit))
+        .hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+fn read_snapshot(path: &str, repository_id: &str) -> Result<(SnapshotContext, bool), AppError> {
+    let head = read_head_context(path)?;
+    let shallow = read_shallow(path)?;
+    let (upstream, upstream_unavailable) = match read_upstream(path, head.branch.as_deref()) {
+        Ok(value) => (value, false),
+        Err(_) => (None, true),
+    };
+    let token = compute_snapshot_token(repository_id, &head, upstream.as_ref(), shallow);
+    Ok((
+        SnapshotContext {
+            head,
+            upstream,
+            shallow,
+            token,
+        },
+        upstream_unavailable,
+    ))
+}
+
+fn parse_graph_rows(output: &[u8]) -> Result<Vec<CommitGraphRow>, AppError> {
+    let text = std::str::from_utf8(output).map_err(|_| {
+        AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git returned commit identifiers that couldn't be represented safely.",
+        )
+    })?;
+    let mut rows = Vec::new();
+    for line in text.lines() {
+        let mut fields = line.split_ascii_whitespace();
+        let Some(commit) = fields.next() else {
+            continue;
+        };
+        if !is_valid_oid(commit) {
+            return Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "Git returned an invalid saved-version identifier.",
+            ));
+        }
+        let parents = fields
+            .map(str::to_string)
+            .filter(|parent| is_valid_oid(parent))
+            .collect();
+        rows.push(CommitGraphRow {
+            commit: commit.to_string(),
+            parents,
+        });
+    }
+    Ok(rows)
+}
+
+fn read_graph_page(
+    path: &str,
+    head: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<(Vec<CommitGraphRow>, bool), AppError> {
+    let max_count = format!("--max-count={}", limit + 1);
+    let skip = format!("--skip={offset}");
+    let output = run_git_capped(
+        path,
+        &[
+            "rev-list",
+            "--topo-order",
+            "--date-order",
+            "--parents",
+            &max_count,
+            &skip,
+            head,
+        ],
+        256 * 1024,
+    )?;
+    if !output.status.success() || output.limit_exceeded {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't read this part of the saved-version history.",
+        )
+        .with_remediation("Refresh History and try again."));
+    }
+    let mut rows = parse_graph_rows(&output.stdout)?;
+    let has_more = rows.len() > limit;
+    rows.truncate(limit);
+    Ok((rows, has_more))
+}
+
+fn batch_input<'a>(hashes: impl IntoIterator<Item = &'a str>) -> Vec<u8> {
+    let mut input = Vec::new();
+    for hash in hashes {
+        input.extend_from_slice(hash.as_bytes());
+        input.push(b'\n');
+    }
+    input
+}
+
+fn read_object_sizes(path: &str, hashes: &[String]) -> Result<HashMap<String, usize>, AppError> {
+    if hashes.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let input = batch_input(hashes.iter().map(String::as_str));
+    let output = run_git_with_input_capped(
+        path,
+        &[
+            "cat-file",
+            "--batch-check=%(objectname) %(objecttype) %(objectsize)",
+        ],
+        &input,
+        hashes.len() * 160 + 1024,
+    )?;
+    if !output.status.success() || output.limit_exceeded {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't inspect saved-version metadata safely.",
+        ));
+    }
+    let text = std::str::from_utf8(&output.stdout).map_err(|_| {
+        AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git returned unreadable object metadata.",
+        )
+    })?;
+    let mut sizes = HashMap::new();
+    for line in text.lines() {
+        let mut fields = line.split_ascii_whitespace();
+        let (Some(hash), Some(kind), Some(size)) = (fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        if kind == "commit" && is_valid_oid(hash) {
+            if let Ok(size) = size.parse() {
+                sizes.insert(hash.to_string(), size);
+            }
+        }
+    }
+    Ok(sizes)
+}
+
+fn parse_batch_objects(output: &[u8]) -> Result<HashMap<String, Vec<u8>>, AppError> {
+    let mut cursor = 0usize;
+    let mut objects = HashMap::new();
+    while cursor < output.len() {
+        let header_end = output[cursor..]
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map(|position| cursor + position)
+            .ok_or_else(|| {
+                AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "Git returned an incomplete object header.",
+                )
+            })?;
+        let header = std::str::from_utf8(&output[cursor..header_end]).map_err(|_| {
+            AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "Git returned an unreadable object header.",
+            )
+        })?;
+        let mut fields = header.split_ascii_whitespace();
+        let (Some(hash), Some(kind), Some(size)) = (fields.next(), fields.next(), fields.next())
+        else {
+            return Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "Git returned malformed object metadata.",
+            ));
+        };
+        let size: usize = size.parse().map_err(|_| {
+            AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "Git returned an invalid object size.",
+            )
+        })?;
+        let data_start = header_end + 1;
+        let data_end = data_start
+            .checked_add(size)
+            .filter(|end| *end <= output.len())
+            .ok_or_else(|| {
+                AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "Git returned an incomplete saved-version object.",
+                )
+            })?;
+        if kind == "commit" && is_valid_oid(hash) {
+            objects.insert(hash.to_string(), output[data_start..data_end].to_vec());
+        }
+        cursor = data_end;
+        if output.get(cursor) == Some(&b'\n') {
+            cursor += 1;
+        }
+    }
+    Ok(objects)
+}
+
+fn read_page_objects(path: &str, rows: &[CommitGraphRow]) -> Result<PageObjects, AppError> {
+    let hashes = rows
+        .iter()
+        .map(|row| row.commit.clone())
+        .collect::<Vec<_>>();
+    let sizes = read_object_sizes(path, &hashes)?;
+    let mut selected = Vec::new();
+    let mut unavailable = HashMap::new();
+    let mut budget = 0usize;
+    for hash in hashes {
+        let Some(size) = sizes.get(&hash).copied() else {
+            unavailable.insert(hash, MessageUnavailableReason::Malformed);
+            continue;
+        };
+        if size > MAX_PAGE_COMMIT_OBJECT_BYTES {
+            unavailable.insert(hash, MessageUnavailableReason::TooLarge);
+        } else if budget.saturating_add(size) > MAX_PAGE_COMMIT_BATCH_BYTES {
+            unavailable.insert(hash, MessageUnavailableReason::PageBudget);
+        } else {
+            budget += size;
+            selected.push(hash);
+        }
+    }
+    if selected.is_empty() {
+        return Ok((HashMap::new(), unavailable));
+    }
+    let input = batch_input(selected.iter().map(String::as_str));
+    let output = run_git_with_input_capped(
+        path,
+        &["cat-file", "--batch"],
+        &input,
+        budget + selected.len() * 100 + 1024,
+    )?;
+    if !output.status.success() || output.limit_exceeded {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't read saved-version messages within the safety limit.",
+        ));
+    }
+    Ok((parse_batch_objects(&output.stdout)?, unavailable))
+}
+
+fn strip_record_newline(mut value: &[u8]) -> &[u8] {
+    while matches!(value.first(), Some(b'\n' | b'\r')) {
+        value = &value[1..];
+    }
+    while matches!(value.last(), Some(b'\n' | b'\r')) {
+        value = &value[..value.len() - 1];
+    }
+    value
+}
+
+fn decoration_for_ref(reference: &str) -> Option<HistoryDecoration> {
+    let (kind, name) = if let Some(name) = reference.strip_prefix("refs/heads/") {
+        (DecorationKind::LocalBranch, name)
+    } else if let Some(name) = reference.strip_prefix("refs/remotes/") {
+        (DecorationKind::RemoteBranch, name)
+    } else {
+        let name = reference.strip_prefix("refs/tags/")?;
+        (DecorationKind::Tag, name)
+    };
+    Some(HistoryDecoration {
+        kind,
+        name: name.to_string(),
+        full_ref: reference.to_string(),
+    })
+}
+
+fn read_decorations(
+    path: &str,
+    page_commits: &HashSet<String>,
+    head: &str,
+) -> Result<DecorationSnapshot, AppError> {
+    let output = run_git_capped(
+        path,
+        &[
+            "for-each-ref",
+            "--format=%(objectname)%00%(*objectname)%00%(refname)%00",
+            "refs/heads",
+            "refs/remotes",
+            "refs/tags",
+        ],
+        MAX_DECORATION_OUTPUT_BYTES,
+    )?;
+    if !output.status.success() {
+        return Ok((HashMap::new(), HashSet::new(), false, true));
+    }
+    let mut by_commit: HashMap<String, Vec<HistoryDecoration>> = HashMap::new();
+    let mut truncated_commits = HashSet::new();
+    let mut unreadable = false;
+    let fields = output.stdout.split(|byte| *byte == 0).collect::<Vec<_>>();
+    for record in fields.chunks(3) {
+        if record.len() < 3 {
+            break;
+        }
+        let object = strip_record_newline(record[0]);
+        let peeled = strip_record_newline(record[1]);
+        let reference = strip_record_newline(record[2]);
+        let commit_bytes = if !peeled.is_empty() { peeled } else { object };
+        let (Ok(commit), Ok(reference)) = (
+            std::str::from_utf8(commit_bytes),
+            std::str::from_utf8(reference),
+        ) else {
+            unreadable = true;
+            continue;
+        };
+        if !page_commits.contains(commit) {
+            continue;
+        }
+        let Some(decoration) = decoration_for_ref(reference) else {
+            continue;
+        };
+        let decorations = by_commit.entry(commit.to_string()).or_default();
+        // Reserve one slot for the synthetic HEAD marker on the current tip,
+        // so the documented per-version cap remains true after insertion.
+        let limit = if commit == head {
+            MAX_DECORATIONS_PER_VERSION - 1
+        } else {
+            MAX_DECORATIONS_PER_VERSION
+        };
+        if decorations.len() < limit {
+            decorations.push(decoration);
+        } else {
+            truncated_commits.insert(commit.to_string());
+        }
+    }
+    let head_decorations = by_commit.entry(head.to_string()).or_default();
+    head_decorations.insert(
+        0,
+        HistoryDecoration {
+            kind: DecorationKind::Head,
+            name: "HEAD".to_string(),
+            full_ref: "HEAD".to_string(),
+        },
+    );
+    for decorations in by_commit.values_mut() {
+        decorations.sort_by(|left, right| {
+            let rank = |kind| match kind {
+                DecorationKind::Head => 0,
+                DecorationKind::LocalBranch => 1,
+                DecorationKind::RemoteBranch => 2,
+                DecorationKind::Tag => 3,
+            };
+            rank(left.kind)
+                .cmp(&rank(right.kind))
+                .then_with(|| left.name.cmp(&right.name))
+        });
+    }
+    Ok((
+        by_commit,
+        truncated_commits,
+        output.limit_exceeded,
+        unreadable,
+    ))
+}
+
+fn read_local_only_commits(
+    path: &str,
+    head: &str,
+    upstream: &str,
+    skip: usize,
+    limit: usize,
+) -> Result<HashSet<String>, AppError> {
+    let skip = format!("--skip={skip}");
+    let max_count = format!("--max-count={limit}");
+    let output = run_git_capped(
+        path,
+        &[
+            "rev-list",
+            "--topo-order",
+            "--date-order",
+            &skip,
+            &max_count,
+            head,
+            "--not",
+            upstream,
+        ],
+        limit * 80 + 1024,
+    )?;
+    if !output.status.success() || output.limit_exceeded {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't classify saved versions against the configured upstream.",
+        ));
+    }
+    Ok(git_stdout(&std::process::Output {
+        status: output.status,
+        stdout: output.stdout,
+        stderr: Vec::new(),
+    })
+    .lines()
+    .filter(|commit| is_valid_oid(commit))
+    .map(str::to_string)
+    .collect())
+}
+
+fn summary_from_parts(
+    row: &CommitGraphRow,
+    parsed: Option<ParsedCommit>,
+    unavailable: Option<MessageUnavailableReason>,
+    decorations: Vec<HistoryDecoration>,
+    decorations_truncated: bool,
+    publication: PublicationState,
+) -> SavedVersionSummary {
+    let parsed = parsed.unwrap_or(ParsedCommit {
+        author: None,
+        committer: None,
+        subject: String::new(),
+        description: String::new(),
+        subject_truncated: false,
+        description_truncated: false,
+        malformed: true,
+    });
+    let author = parsed.author.as_ref().map(|value| value.author.clone());
+    let authored_at = parsed.author.as_ref().map(|value| value.timestamp.clone());
+    let committed_at = parsed.committer.as_ref().and_then(|committer| {
+        let materially_different = authored_at.as_ref().is_some_and(|authored| {
+            authored.unix_seconds != committer.timestamp.unix_seconds
+                || authored.offset_minutes != committer.timestamp.offset_minutes
+        });
+        materially_different.then(|| committer.timestamp.clone())
+    });
+    SavedVersionSummary {
+        commit: row.commit.clone(),
+        short_commit: short_oid(&row.commit),
+        parents: row.parents.clone(),
+        subject: parsed.subject,
+        description: parsed.description,
+        author,
+        authored_at,
+        committed_at,
+        decorations,
+        is_root: row.parents.is_empty(),
+        is_merge: row.parents.len() > 1,
+        publication,
+        subject_truncated: parsed.subject_truncated,
+        description_truncated: parsed.description_truncated,
+        decorations_truncated,
+        message_unavailable: unavailable.or(parsed
+            .malformed
+            .then_some(MessageUnavailableReason::Malformed)),
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn read_history_page(
+    path: String,
+    cursor: Option<String>,
+    page_size: Option<usize>,
+) -> Result<HistoryPage, AppError> {
+    read_history_page_impl(path, cursor, page_size, None)
+}
+
+pub(crate) fn read_history_page_cached(
+    cache: &HistoryReadCache,
+    path: String,
+    cursor: Option<String>,
+    page_size: Option<usize>,
+) -> Result<HistoryPage, AppError> {
+    read_history_page_impl(path, cursor, page_size, Some(cache))
+}
+
+fn read_history_page_impl(
+    path: String,
+    cursor: Option<String>,
+    page_size: Option<usize>,
+    cache: Option<&HistoryReadCache>,
+) -> Result<HistoryPage, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "read_history_page", None)?;
+    let repository_id = repository.worktree_root.match_key().to_string();
+    let (snapshot, upstream_unavailable) = read_snapshot(&path, &repository_id)?;
+    let cursor = cursor.as_deref().map(decode_cursor).transpose()?;
+    if cursor
+        .as_ref()
+        .is_some_and(|value| value.snapshot_token != snapshot.token)
+    {
+        return Err(stale_cursor_error());
+    }
+    let offset = cursor.as_ref().map_or(0, |value| value.offset);
+    let local_only_seen = cursor.as_ref().map_or(0, |value| value.local_only_seen);
+    let page_size = page_size
+        .unwrap_or(DEFAULT_HISTORY_PAGE_SIZE)
+        .clamp(1, MAX_HISTORY_PAGE_SIZE);
+    let mut warnings = Vec::new();
+    if snapshot.shallow {
+        warnings.push(HistoryWarningCode::ShallowRepository);
+    }
+    if upstream_unavailable {
+        warnings.push(HistoryWarningCode::UpstreamUnavailable);
+    }
+    let Some(head) = snapshot.head.head_commit.as_deref() else {
+        return Ok(HistoryPage {
+            repository_id,
+            snapshot_token: snapshot.token,
+            branch: snapshot.head.branch,
+            head_state: snapshot.head.head_state,
+            head_commit: None,
+            upstream: snapshot.upstream,
+            versions: Vec::new(),
+            next_cursor: None,
+            has_more: false,
+            shallow: snapshot.shallow,
+            warnings,
+        });
+    };
+    let (rows, has_more) = read_graph_page(&path, head, offset, page_size)?;
+    let (objects, unavailable) = read_page_objects(&path, &rows)?;
+    if !unavailable.is_empty() {
+        warnings.push(HistoryWarningCode::MessagesTruncated);
+    }
+    let commits = rows
+        .iter()
+        .map(|row| row.commit.clone())
+        .collect::<HashSet<_>>();
+    let (mut decorations, decoration_truncations, decorations_truncated, unreadable_refs) =
+        read_decorations(&path, &commits, head)?;
+    if decorations_truncated || !decoration_truncations.is_empty() {
+        warnings.push(HistoryWarningCode::DecorationsTruncated);
+    }
+    if unreadable_refs {
+        warnings.push(HistoryWarningCode::UnreadableMetadata);
+    }
+    let local_only = if let Some(upstream) = snapshot.upstream.as_ref() {
+        read_local_only_commits(&path, head, &upstream.commit, local_only_seen, page_size)?
+    } else {
+        HashSet::new()
+    };
+    let page_local_only = rows
+        .iter()
+        .filter(|row| local_only.contains(&row.commit))
+        .count();
+    let versions = rows
+        .iter()
+        .map(|row| {
+            let parsed = objects
+                .get(&row.commit)
+                .map(|bytes| parse_commit_object(bytes, false));
+            let publication = if snapshot.upstream.is_none() {
+                PublicationState::Unknown
+            } else if local_only.contains(&row.commit) {
+                PublicationState::LocalOnly
+            } else {
+                PublicationState::Published
+            };
+            summary_from_parts(
+                row,
+                parsed,
+                unavailable.get(&row.commit).copied(),
+                decorations.remove(&row.commit).unwrap_or_default(),
+                decoration_truncations.contains(&row.commit),
+                publication,
+            )
+        })
+        .collect::<Vec<_>>();
+    let next_cursor = has_more.then(|| {
+        encode_cursor(&HistoryCursor {
+            offset: offset + rows.len(),
+            local_only_seen: local_only_seen + page_local_only,
+            snapshot_token: snapshot.token.clone(),
+        })
+    });
+    if let Some(cache) = cache {
+        cache.record_page(&repository_id, &snapshot, &rows, &versions);
+    }
+    Ok(HistoryPage {
+        repository_id,
+        snapshot_token: snapshot.token,
+        branch: snapshot.head.branch,
+        head_state: snapshot.head.head_state,
+        head_commit: snapshot.head.head_commit,
+        upstream: snapshot.upstream,
+        versions,
+        next_cursor,
+        has_more,
+        shallow: snapshot.shallow,
+        warnings,
+    })
+}
+
+fn validate_snapshot_and_commit(
+    path: &str,
+    repository_id: &str,
+    snapshot_token: &str,
+    commit: &str,
+) -> Result<SnapshotContext, AppError> {
+    if !is_valid_oid(commit) {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version couldn't be identified.",
+        ));
+    }
+    let (snapshot, _) = read_snapshot(path, repository_id)?;
+    if snapshot.token != snapshot_token {
+        return Err(stale_cursor_error());
+    }
+    let Some(head) = snapshot.head.head_commit.as_deref() else {
+        return Err(stale_cursor_error());
+    };
+    let reachable = run_git(path, &["merge-base", "--is-ancestor", commit, head])?;
+    if !reachable.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version is no longer reachable from the current history.",
+        )
+        .with_remediation("Refresh History and choose a saved version that is still listed."));
+    }
+    Ok(snapshot)
+}
+
+fn read_one_commit(path: &str, commit: &str) -> Result<(ParsedCommit, bool), AppError> {
+    let output = run_git_capped(
+        path,
+        &["cat-file", "commit", commit],
+        MAX_DETAIL_COMMIT_BYTES,
+    )?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't read that saved version.",
+        ));
+    }
+    let mut parsed = parse_commit_object(&output.stdout, true);
+    if output.limit_exceeded {
+        parsed.description_truncated = true;
+    }
+    Ok((parsed, output.limit_exceeded))
+}
+
+fn parse_name_status_z(bytes: &[u8]) -> (Vec<HistoryFileChange>, bool) {
+    let fields = bytes.split(|byte| *byte == 0).collect::<Vec<_>>();
+    let mut changes = Vec::new();
+    let mut index = 0usize;
+    let mut unreadable = false;
+    while index < fields.len() {
+        let status = strip_record_newline(fields[index]);
+        index += 1;
+        if status.is_empty() {
+            continue;
+        }
+        let Some(first_path) = fields.get(index).map(|value| strip_record_newline(value)) else {
+            break;
+        };
+        index += 1;
+        let status_kind = status[0];
+        let (path_bytes, original_bytes, category): (&[u8], Option<&[u8]>, ChangeCategory) =
+            match status_kind {
+                b'A' => (first_path, None, ChangeCategory::New),
+                b'D' => (first_path, None, ChangeCategory::Deleted),
+                b'R' | b'C' => {
+                    let Some(new_path) = fields.get(index).map(|value| strip_record_newline(value))
+                    else {
+                        break;
+                    };
+                    index += 1;
+                    (new_path, Some(first_path), ChangeCategory::Renamed)
+                }
+                _ => (first_path, None, ChangeCategory::Changed),
+            };
+        let Ok(path) = std::str::from_utf8(path_bytes) else {
+            unreadable = true;
+            continue;
+        };
+        let original_path = match original_bytes {
+            Some(value) => match std::str::from_utf8(value) {
+                Ok(value) => Some(value.to_string()),
+                Err(_) => {
+                    unreadable = true;
+                    continue;
+                }
+            },
+            None => None,
+        };
+        changes.push(HistoryFileChange {
+            path: path.to_string(),
+            original_path,
+            category,
+        });
+    }
+    (changes, unreadable)
+}
+
+fn count_files(changes: &[HistoryFileChange]) -> HistoryFileCounts {
+    let mut counts = HistoryFileCounts::default();
+    for change in changes {
+        match change.category {
+            ChangeCategory::Changed | ChangeCategory::Conflicted => counts.changed += 1,
+            ChangeCategory::New => counts.new += 1,
+            ChangeCategory::Deleted => counts.deleted += 1,
+            ChangeCategory::Renamed => counts.renamed += 1,
+        }
+        counts.total += 1;
+    }
+    counts
+}
+
+fn read_detail_files(
+    path: &str,
+    base: &str,
+    commit: &str,
+) -> Result<(Vec<HistoryFileChange>, HistoryFileCounts, bool, bool), AppError> {
+    let output = run_git_capped(
+        path,
+        &[
+            "diff",
+            "--name-status",
+            "-z",
+            "-M",
+            "-C",
+            base,
+            commit,
+            "--",
+        ],
+        MAX_DETAIL_FILE_OUTPUT_BYTES,
+    )?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't read the files changed by that saved version.",
+        ));
+    }
+    let (all_changes, unreadable) = parse_name_status_z(&output.stdout);
+    let counts = count_files(&all_changes);
+    let mut files = all_changes;
+    let over_entry_cap = files.len() > MAX_DETAIL_FILES;
+    files.truncate(MAX_DETAIL_FILES);
+    Ok((
+        files,
+        counts,
+        output.limit_exceeded || over_entry_cap || unreadable,
+        output.limit_exceeded,
+    ))
+}
+
+fn graph_row_for_commit(path: &str, commit: &str) -> Result<CommitGraphRow, AppError> {
+    let output = run_git(path, &["rev-list", "--parents", "--max-count=1", commit])?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't inspect that saved version.",
+        ));
+    }
+    parse_graph_rows(&output.stdout)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "Git didn't return that saved version.",
+            )
+        })
+}
+
+fn cached_head_is_current(path: &str, cached: &SnapshotContext) -> Result<bool, AppError> {
+    let Some(expected) = cached.head.head_commit.as_deref() else {
+        return Ok(false);
+    };
+    let output = run_git(path, &["rev-parse", "--verify", "HEAD^{commit}"])?;
+    Ok(output.status.success() && git_stdout(&output) == expected)
+}
+
+fn detail_from_cached_read(
+    path: &str,
+    cached: CachedHistoryRead,
+) -> Result<SavedVersionDetail, AppError> {
+    if let Some(detail) = cached.detail {
+        return Ok(detail);
+    }
+    let comparison_base = cached
+        .row
+        .parents
+        .first()
+        .cloned()
+        .unwrap_or_else(|| EMPTY_TREE_HASH.to_string());
+    let (files, file_counts, files_truncated, counts_are_minimum) =
+        read_detail_files(path, &comparison_base, &cached.row.commit)?;
+    Ok(SavedVersionDetail {
+        version: cached.version,
+        comparison_base,
+        comparison_is_empty_tree: cached.row.parents.is_empty(),
+        comparison_is_first_parent: cached.row.parents.len() > 1,
+        files,
+        file_counts,
+        files_truncated,
+        counts_are_minimum,
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn read_saved_version_detail(
+    path: String,
+    snapshot_token: String,
+    commit: String,
+) -> Result<SavedVersionDetail, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "read_saved_version_detail", None)?;
+    let repository_id = repository.worktree_root.match_key().to_string();
+    read_saved_version_detail_authorized(&path, &repository_id, snapshot_token, commit)
+}
+
+pub(crate) fn read_saved_version_detail_cached(
+    cache: &HistoryReadCache,
+    path: String,
+    snapshot_token: String,
+    commit: String,
+) -> Result<SavedVersionDetail, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "read_saved_version_detail", None)?;
+    let repository_id = repository.worktree_root.match_key().to_string();
+    if is_valid_oid(&commit) {
+        if let Some(cached) = cache.read(&repository_id, &snapshot_token, &commit) {
+            if cached_head_is_current(&path, &cached.snapshot)? {
+                let detail = detail_from_cached_read(&path, cached)?;
+                cache.record_detail(&repository_id, &snapshot_token, &commit, &detail);
+                return Ok(detail);
+            }
+        }
+    }
+    read_saved_version_detail_authorized(&path, &repository_id, snapshot_token, commit)
+}
+
+fn read_saved_version_detail_authorized(
+    path: &str,
+    repository_id: &str,
+    snapshot_token: String,
+    commit: String,
+) -> Result<SavedVersionDetail, AppError> {
+    let snapshot = validate_snapshot_and_commit(path, repository_id, &snapshot_token, &commit)?;
+    let row = graph_row_for_commit(path, &commit)?;
+    let (parsed, message_capped) = read_one_commit(path, &commit)?;
+    let page_commits = HashSet::from([commit.clone()]);
+    let (mut decorations, decoration_truncations, _, _) = read_decorations(
+        path,
+        &page_commits,
+        snapshot.head.head_commit.as_deref().unwrap_or(&commit),
+    )?;
+    let publication = if let Some(upstream) = snapshot.upstream.as_ref() {
+        let output = run_git(
+            path,
+            &["merge-base", "--is-ancestor", &commit, &upstream.commit],
+        )?;
+        if output.status.success() {
+            PublicationState::Published
+        } else {
+            PublicationState::LocalOnly
+        }
+    } else {
+        PublicationState::Unknown
+    };
+    let version = summary_from_parts(
+        &row,
+        Some(parsed),
+        message_capped.then_some(MessageUnavailableReason::TooLarge),
+        decorations.remove(&commit).unwrap_or_default(),
+        decoration_truncations.contains(&commit),
+        publication,
+    );
+    let comparison_base = row
+        .parents
+        .first()
+        .cloned()
+        .unwrap_or_else(|| EMPTY_TREE_HASH.to_string());
+    let (files, file_counts, files_truncated, counts_are_minimum) =
+        read_detail_files(path, &comparison_base, &commit)?;
+    Ok(SavedVersionDetail {
+        version,
+        comparison_base,
+        comparison_is_empty_tree: row.parents.is_empty(),
+        comparison_is_first_parent: row.parents.len() > 1,
+        files,
+        file_counts,
+        files_truncated,
+        counts_are_minimum,
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn read_saved_version_file_diff(
+    path: String,
+    snapshot_token: String,
+    commit: String,
+    file_path: String,
+) -> Result<FileDiff, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "read_saved_version_file_diff", None)?;
+    let repository_id = repository.worktree_root.match_key().to_string();
+    read_saved_version_file_diff_authorized(
+        &path,
+        &repository_id,
+        snapshot_token,
+        commit,
+        file_path,
+    )
+}
+
+pub(crate) fn read_saved_version_file_diff_cached(
+    cache: &HistoryReadCache,
+    path: String,
+    snapshot_token: String,
+    commit: String,
+    file_path: String,
+) -> Result<FileDiff, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "read_saved_version_file_diff", None)?;
+    let repository_id = repository.worktree_root.match_key().to_string();
+    validate_repo_relative_path(&file_path)?;
+    if is_valid_oid(&commit) {
+        if let Some(cached) = cache.read(&repository_id, &snapshot_token, &commit) {
+            if cached_head_is_current(&path, &cached.snapshot)? {
+                let detail = detail_from_cached_read(&path, cached)?;
+                cache.record_detail(&repository_id, &snapshot_token, &commit, &detail);
+                let change = detail
+                    .files
+                    .iter()
+                    .find(|change| change.path == file_path)
+                    .cloned()
+                    .ok_or_else(path_not_changed_error)?;
+                return read_file_diff_for_change(&path, &detail.comparison_base, &commit, change);
+            }
+        }
+    }
+    read_saved_version_file_diff_authorized(
+        &path,
+        &repository_id,
+        snapshot_token,
+        commit,
+        file_path,
+    )
+}
+
+fn read_saved_version_file_diff_authorized(
+    path: &str,
+    repository_id: &str,
+    snapshot_token: String,
+    commit: String,
+    file_path: String,
+) -> Result<FileDiff, AppError> {
+    validate_snapshot_and_commit(path, repository_id, &snapshot_token, &commit)?;
+    validate_repo_relative_path(&file_path)?;
+    let row = graph_row_for_commit(path, &commit)?;
+    let base = row
+        .parents
+        .first()
+        .map(String::as_str)
+        .unwrap_or(EMPTY_TREE_HASH);
+    let (changes, _, _, _) = read_detail_files(path, base, &commit)?;
+    let change = changes
+        .into_iter()
+        .find(|change| change.path == file_path)
+        .ok_or_else(path_not_changed_error)?;
+    read_file_diff_for_change(path, base, &commit, change)
+}
+
+fn path_not_changed_error() -> AppError {
+    AppError::new(
+        AppErrorCode::PathNotChanged,
+        "This file isn't part of that saved version.",
+    )
+    .with_remediation("Refresh History and choose a file that is still listed.")
+}
+
+fn read_file_diff_for_change(
+    path: &str,
+    base: &str,
+    commit: &str,
+    change: HistoryFileChange,
+) -> Result<FileDiff, AppError> {
+    let original = change.original_path.as_deref().unwrap_or(&change.path);
+    let output = run_git_capped(
+        path,
+        &[
+            "diff",
+            "--no-color",
+            "--no-ext-diff",
+            "-M",
+            base,
+            commit,
+            "--",
+            original,
+            &change.path,
+        ],
+        MAX_DIFF_OUTPUT_BYTES,
+    )?;
+    if !output.status.success() && !output.limit_exceeded {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't read this saved file's difference.",
+        ));
+    }
+    let entry = RawStatusEntry {
+        path: change.path,
+        original_path: change.original_path,
+        category: change.category,
+        is_untracked: false,
+        is_prepared: false,
+        has_unprepared_changes: false,
+    };
+    Ok(diff_result_from_text(
+        &entry,
+        &String::from_utf8_lossy(&output.stdout),
+        output.limit_exceeded,
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_multiline_unicode_and_control_messages_without_delimiter_rules() {
+        let raw = b"tree 0123456789012345678901234567890123456789\nauthor Jos\xc3\xa9 \x1e Test <jose@example.test> 1720000000 +0230\ncommitter Jos\xc3\xa9 \x1e Test <jose@example.test> 1720000060 +0230\n\nT\xc3\xadtulo \xe2\x9c\x93\n\nL\xc3\xadnea uno\nL\xc3\xadnea \x1f dos\n";
+        let parsed = parse_commit_object(raw, false);
+        assert_eq!(parsed.subject, "Título ✓");
+        assert_eq!(parsed.description, "Línea uno\nLínea \u{1f} dos");
+        assert_eq!(parsed.author.unwrap().author.name, "José \u{1e} Test");
+    }
+
+    #[test]
+    fn empty_commit_message_is_explicitly_empty() {
+        let parsed = parse_commit_object(
+            b"tree 0123456789012345678901234567890123456789\nauthor A <a@b> 1 +0000\ncommitter A <a@b> 1 +0000\n\n",
+            false,
+        );
+        assert_eq!(parsed.subject, "");
+        assert_eq!(parsed.description, "");
+        assert!(!parsed.malformed);
+    }
+
+    #[test]
+    fn embedded_nul_is_content_not_a_record_separator() {
+        let parsed = parse_commit_object(
+            b"tree 0123456789012345678901234567890123456789\nauthor A <a@b> 1 +0000\ncommitter A <a@b> 1 +0000\n\nsubject\nbody\0still body",
+            true,
+        );
+        assert_eq!(parsed.description.as_bytes(), b"body\0still body");
+    }
+
+    #[test]
+    fn parses_root_normal_and_multiparent_graph_rows() {
+        let a = "a".repeat(40);
+        let b = "b".repeat(40);
+        let c = "c".repeat(40);
+        let d = "d".repeat(40);
+        let input = format!("{a}\n{b} {a}\n{c} {b} {a} {d}\n");
+        let rows = parse_graph_rows(input.as_bytes()).unwrap();
+        assert!(rows[0].parents.is_empty());
+        assert_eq!(rows[1].parents, vec![a.clone()]);
+        assert_eq!(rows[2].parents, vec![b, a, d]);
+    }
+
+    #[test]
+    fn cursor_round_trip_and_validation_are_snapshot_bound() {
+        let cursor = HistoryCursor {
+            offset: 50,
+            local_only_seen: 3,
+            snapshot_token: "abc".into(),
+        };
+        assert_eq!(decode_cursor(&encode_cursor(&cursor)).unwrap(), cursor);
+        assert!(decode_cursor("v2:50:3:abc").is_err());
+        assert!(decode_cursor("v1:bad:3:abc").is_err());
+    }
+
+    #[test]
+    fn name_status_z_keeps_newline_paths_and_renames_unambiguous() {
+        let raw = b"M\0folder/line\nname.txt\0R100\0old\tname.txt\0new\nname.txt\0D\0gone.bin\0";
+        let (changes, unreadable) = parse_name_status_z(raw);
+        assert!(!unreadable);
+        assert_eq!(changes.len(), 3);
+        assert_eq!(changes[0].path, "folder/line\nname.txt");
+        assert_eq!(changes[1].original_path.as_deref(), Some("old\tname.txt"));
+        assert_eq!(changes[1].path, "new\nname.txt");
+        assert_eq!(changes[2].category, ChangeCategory::Deleted);
+    }
+
+    #[test]
+    fn truncation_flags_each_text_field_independently() {
+        let subject = "s".repeat(MAX_SUMMARY_SUBJECT_CHARS + 10);
+        let description = "d".repeat(MAX_SUMMARY_DESCRIPTION_CHARS + 10);
+        let raw = format!("tree {}\nauthor A <a@b> 1 +0000\ncommitter A <a@b> 1 +0000\n\n{subject}\n{description}", "0".repeat(40));
+        let parsed = parse_commit_object(raw.as_bytes(), false);
+        assert!(parsed.subject_truncated);
+        assert!(parsed.description_truncated);
+        assert_eq!(parsed.subject.chars().count(), MAX_SUMMARY_SUBJECT_CHARS);
+        assert_eq!(
+            parsed.description.chars().count(),
+            MAX_SUMMARY_DESCRIPTION_CHARS
+        );
+    }
+}

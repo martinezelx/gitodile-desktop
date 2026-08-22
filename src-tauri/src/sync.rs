@@ -39,7 +39,7 @@ pub(crate) struct RemoteInfo {
 }
 
 #[derive(Debug, Clone)]
-struct ConfiguredRemote {
+pub(crate) struct ConfiguredRemote {
     info: RemoteInfo,
 }
 
@@ -275,10 +275,10 @@ pub(crate) struct NetworkOutput {
 }
 
 #[derive(Debug, Clone)]
-struct ResolvedUpstream {
-    remote: String,
-    destination_branch: String,
-    tracking_ref: String,
+pub(crate) struct ResolvedUpstream {
+    pub(crate) remote: String,
+    pub(crate) destination_branch: String,
+    pub(crate) tracking_ref: String,
     fetch_refspec: String,
 }
 
@@ -449,7 +449,7 @@ pub(crate) fn parse_remote_v_output(output: &str) -> Vec<RemoteInfo> {
     remotes
 }
 
-fn list_configured_remotes(path: &str) -> Result<Vec<ConfiguredRemote>, AppError> {
+pub(crate) fn list_configured_remotes(path: &str) -> Result<Vec<ConfiguredRemote>, AppError> {
     let output = checked_git_stdout(run_git(path, &["remote", "-v"])?)?;
     Ok(parse_remote_v_output(&output)
         .into_iter()
@@ -868,7 +868,7 @@ fn map_fetch_refspec(refspec: &str, source_ref: &str) -> Option<String> {
     ))
 }
 
-fn resolve_upstream(
+pub(crate) fn resolve_upstream(
     path: &str,
     branch: &str,
     remotes: &[ConfiguredRemote],
@@ -942,7 +942,7 @@ fn resolve_upstream(
     }))
 }
 
-fn resolve_commit(path: &str, reference: &str) -> Result<Option<String>, AppError> {
+pub(crate) fn resolve_commit(path: &str, reference: &str) -> Result<Option<String>, AppError> {
     let output = run_git(
         path,
         &["rev-parse", "--verify", &format!("{reference}^{{commit}}")],

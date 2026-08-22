@@ -59,6 +59,7 @@ import {
   useVersionLinesState,
   versionLinesPort,
 } from "./features/version-lines";
+import { createHistoryController, historyPort } from "./features/history";
 import { TooltipHost } from "./tooltip";
 import { LoadingBar } from "./shared/ui/loadingBar";
 import { AppOverlays } from "./app/AppOverlays";
@@ -105,6 +106,7 @@ import {
 } from "./projectSwitcher";
 import {
   ChangesPanel,
+  HistoryScreen,
   KeepAliveScreens,
   OverviewPanel,
   NAV_DESTINATIONS,
@@ -191,6 +193,7 @@ export function App(): React.JSX.Element {
   );
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
+  const [historyController] = useState(() => createHistoryController(historyPort));
   const [repositoryController] = useState(() => createRepositoryController(repositoryPort));
   const [cloneController] = useState(() => createCloneController(clonePort));
   const [initializeProjectController] = useState(() =>
@@ -221,6 +224,13 @@ export function App(): React.JSX.Element {
         blocking: false,
         refresh: (query) => versionLinesController.refresh(query),
         supersede: (query) => versionLinesController.supersede(query),
+      },
+      {
+        id: "history",
+        refreshOn: "shared-change",
+        blocking: false,
+        refresh: (query) => historyController.refresh(query),
+        supersede: (query) => historyController.supersede(query),
       },
       {
         id: "sync",
@@ -790,6 +800,7 @@ export function App(): React.JSX.Element {
     projectPath,
     session: activeSession,
     changesController,
+    historyController,
     versionLinesController,
     syncController,
     mapSyncError,
@@ -841,6 +852,7 @@ export function App(): React.JSX.Element {
     repositoryReads.close(id, closingSession.epoch);
     delete watchedSessionsRef.current[id];
     versionLinesController.close({ projectId: id, sessionEpoch: closingSession.epoch });
+    historyController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id) {
       setView(nextSession?.lastView ?? "overview");
@@ -1327,7 +1339,7 @@ export function App(): React.JSX.Element {
 
         <section
           {...autoHideScrollbarProps<HTMLElement>()}
-          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}`}
+          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}${view === "history" ? " workspace--history" : ""}`}
         >
           <div className="compact-nav-row">
             <ProjectSwitcherCompact
@@ -1554,6 +1566,15 @@ export function App(): React.JSX.Element {
                           onOpenChanges={() => navigateToView("changes")}
                           autoOpenCreate={versionLinesAutoOpenCreate}
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
+                        />
+                      </Suspense>
+                    ),
+                    history: (
+                      <Suspense fallback={<ViewLoadingFallback />}>
+                        <HistoryScreen
+                          controller={historyController}
+                          projectPath={project.path}
+                          sessionEpoch={activeSession?.epoch ?? ""}
                         />
                       </Suspense>
                     ),

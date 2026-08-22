@@ -37,6 +37,8 @@ Already delivered:
 - discard files or all unsaved work with persistent recovery and Undo;
 - discover remotes, check/fetch, fast-forward safely, and publish;
 - list, create, switch, and safely delete local version lines;
+- browse bounded current-line saved-version history and inspect typed commit
+  diffs without changing the project;
 - configure Git identity, line endings, themes, language, watching, and
   confirmations;
 - enforce typed IPC, repository/session authorization, bounded Git execution,
@@ -58,7 +60,7 @@ product specification.
 | Create/initialize a local repository | Delivered | Planned, revalidated, explicit local/remote effects |
 | Inspect changes and file diffs | Delivered | Audit and harden |
 | Commit all or selected files | Delivered | Required; partial-line commits deferred |
-| Browse commit history and commit diffs | Missing | Required: task 015 |
+| Browse commit history and commit diffs | Implemented; review pending | Required: task 015 |
 | Create, switch, publish, and delete branches | Mostly delivered | Audit; publish uses the existing remote flow |
 | Fetch, fast-forward pull, and push | Delivered | Audit and harden |
 | Merge a local branch or diverged upstream | Missing | Required: task 065-4 |
@@ -79,7 +81,7 @@ references and therefore do not change when priorities move.
 
 | Queue | Task | Outcome |
 | --- | --- | --- |
-| Q01 | 015 | Browse saved-version History |
+| Q01 | 015 | Review and finish saved-version History |
 | Q02 | 037-1 | Establish conflict truth and recovery |
 | Q03 | 037-2 | Select the editor foundation |
 | Q04 | 037-3 | Add the read-only conflict workspace |
@@ -117,8 +119,10 @@ and honest Windows desktop evidence. macOS/Linux runtime evidence remains task
 - **065-3 (completed 2026-08-22): Create or initialize a local project.** New
    folder and existing non-repository flows, explicit README/first-save choices,
    exact cleanup ownership, and a separate provider-neutral remote preview.
-- **Q01 / 015: History timeline.** Bounded, read-only current-line history and
-   commit details using the established diff renderer.
+- **Q01 / 015: History timeline.** Bounded, snapshot-aware, read-only
+  current-line history and first-parent/root commit details using the
+  established typed diff renderer. The implementation is available; final
+  product review remains active.
 
 Exit condition: a first-time user can acquire or create a project, make and
 save a change, and verify the result in History.

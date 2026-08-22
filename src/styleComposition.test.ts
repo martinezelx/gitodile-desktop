@@ -19,6 +19,7 @@ const EXPECTED_IMPORTS = [
   "./features/publish/publish.css",
   "./features/sync/sync.css",
   "./features/version-lines/version-lines.css",
+  "./features/history/history.css",
   "./features/settings/settings.css",
 ] as const;
 

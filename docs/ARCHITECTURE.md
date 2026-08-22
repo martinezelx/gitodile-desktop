@@ -159,6 +159,7 @@ src-tauri/src/
   platform.rs             # exclusive no-replace directory publication
   status.rs
   changes.rs
+  history.rs              # bounded read-only saved-version timeline/details
   recovery.rs             # persistent discard snapshots and safe restore
   save_version.rs
   publish.rs
@@ -305,6 +306,55 @@ Raw changed paths and repository content never cross IPC. Shared ref/config
 changes fan out once to every related open worktree; objects, logs, hooks,
 modules, and lock-file churn are filtered. Explicit refresh remains available
 if an OS watcher cannot be established.
+
+### Read-only saved-version history
+
+`history.rs` owns the current-`HEAD` saved-version timeline. It is a read-only
+domain service behind three narrow commands: `read_history_page`,
+`read_saved_version_detail`, and `read_saved_version_file_diff`. The first
+returns a bounded `HistoryPage`; the detail commands require both its snapshot
+token and a still-reachable commit. All commands require the active project
+session epoch and run under the repository read coordinator. They never fetch,
+write configuration, move a ref, touch the index, or modify working files.
+
+Pages follow `rev-list --topo-order --date-order --parents HEAD` and include
+merge rows without pretending to render a complete branch graph. The service
+uses bounded stdin-driven `cat-file --batch-check`/`--batch` reads for raw
+commit objects and one NUL-framed `for-each-ref` pass for decorations. Object
+lengths, not message delimiters, frame untrusted messages. Page size defaults
+to 50 and is capped at 100; messages, decoration counts, Git output, changed
+files, and detail diffs each have explicit limits and typed truncation states.
+
+An opaque continuation cursor binds the offset and publication-boundary
+progress to a token derived from repository identity, branch/HEAD, shallow
+state, and the configured local upstream tracking ref/commit. A changed token
+returns `stale_history_cursor`; the frontend restarts at the newest page rather
+than appending inconsistent data. Publication state is derived only from local
+reachability against that configured tracking commit. Without a usable
+upstream, it is `unknown`; History never guesses from a hosting provider or
+contacts the network.
+
+Root details compare with Git's empty tree. Ordinary and merge details compare
+with the first parent, and merge responses retain every parent for technical
+inspection. NUL-framed changed paths and the selected comparison base feed the
+existing `changes.rs` typed diff pipeline, so text, binary, too-large,
+unchanged, conflict, rename, and truncation semantics have one owner.
+
+The desktop process keeps a read-through cache of page-proven commit context.
+It is bounded to four snapshots, 1,000 commits and eight sub-512 KiB details
+per snapshot. A selected detail still verifies the current `HEAD`, then needs
+only the bounded changed-file read; its first file diff reuses that exact list
+instead of enumerating every changed path again. Cache misses use the complete
+snapshot/reachability validation path, so eviction never weakens correctness.
+
+The frontend `features/history` owner supplies the port/adapter, generation-
+aware controller, lazy keep-alive screen, virtualized timeline/files, and
+localized UI. It keeps at most four session caches, 5,000 loaded rows, 24
+details, 64 diffs, and 20 MiB of estimated detail/diff data. Project activation
+warms the first page without making screen visibility a fetch signal. Shared
+repository invalidations refresh it after save, publish, get-team-changes,
+version-line changes, watcher events, and explicit repository refresh; project
+close evicts the epoch so late results cannot cross incarnations.
 
 ## Mutation model
 

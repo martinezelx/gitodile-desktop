@@ -66,6 +66,7 @@ pub(crate) enum AppErrorCode {
     EmptyTitle,
     InvalidTitle,
     StalePreview,
+    StaleHistoryCursor,
     HookRejected,
     SigningFailed,
     IndexUnavailable,

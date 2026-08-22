@@ -6,7 +6,7 @@ use std::{io::ErrorKind, path::Path};
 
 /// Product-level meaning of a change, rather than Git's index/worktree split.
 /// The staging model belongs to the save-version flow, not to this summary.
-#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[derive(serde::Serialize, Debug, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum ChangeCategory {
     Changed,

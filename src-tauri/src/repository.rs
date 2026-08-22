@@ -117,7 +117,7 @@ pub(crate) enum RepositoryKind {
     Worktree,
 }
 
-#[derive(serde::Serialize, Debug, PartialEq)]
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum HeadState {
     Branch,

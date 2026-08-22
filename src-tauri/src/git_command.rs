@@ -135,6 +135,29 @@ pub(crate) fn run_git_capped(
     })
 }
 
+pub(crate) fn run_git_with_input_capped(
+    repo_path: &str,
+    args: &[&str],
+    input: &[u8],
+    limit: usize,
+) -> Result<CappedOutput, AppError> {
+    let mut policy = require_policy()?;
+    policy.stdout_cap = limit;
+    let cancellation = application::current_cancellation();
+    let output = git::run_with_input(
+        Some(Path::new(repo_path)),
+        args,
+        input,
+        policy,
+        cancellation.as_ref(),
+    )?;
+    Ok(CappedOutput {
+        status: output.status,
+        stdout: output.stdout,
+        limit_exceeded: output.stdout_truncated,
+    })
+}
+
 pub(crate) fn git_stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }

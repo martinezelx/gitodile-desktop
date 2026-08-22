@@ -48,6 +48,9 @@ Current application version: **0.1.0**.
   outcomes without attempting an automatic repair.
 - List, create, switch, and safely delete version lines (local branches), with
   dirty-worktree checks and recovery references where required.
+- Browse the active version line as a bounded, read-only saved-version
+  timeline. Inspect author/date/publication/ref metadata, changed files, and
+  root/first-parent/merge diffs through the same typed renderer as Changes.
 - Configure light/dark/system themes, English/Spanish copy, Git identity,
   installation diagnostics, supported Git update guidance, how diffs are read,
   and whether projects are watched and discards confirmed.
@@ -57,8 +60,8 @@ Current application version: **0.1.0**.
   keep-alive screen shell that retains screen state while suspending hidden
   work.
 
-Not yet implemented: the history timeline, non-fast-forward/local-line
-integration, the recovery center, guided conflict
+Not yet implemented: non-fast-forward/local-line integration, the recovery
+center, guided conflict
 resolution, and setting changes aside. Signed cross-platform
 distribution and real macOS/Linux runtime validation also remain release gates.
 The dependency-ordered `1.0.0` plan is in the
@@ -67,6 +70,8 @@ The dependency-ordered `1.0.0` plan is in the
 [`task 065-1`](work/done/065-1-core-workflow-audit.md), clone evidence in
 [`task 065-2`](work/done/065-2-clone-remote-project.md), and local-creation
 evidence in [`task 065-3`](work/done/065-3-create-local-project.md).
+History implementation and its remaining review are recorded in active
+[`task 015`](work/active/015-history-timeline.md).
 
 ## Architecture at a glance
 

@@ -14,7 +14,6 @@ import {
   FolderOpen,
   GitBranch,
   GitBranchPlus,
-  GitCommitHorizontal,
   LifeBuoy,
   LoaderCircle,
   Pencil,
@@ -258,8 +257,8 @@ function OverviewChangesPreview({
  * the screen's final shape is visible while the feature is missing. It shows
  * *no data at all* — placeholder bars, never plausible-looking numbers — so
  * there is no moment where the Overview appears to be reporting on a
- * repository it cannot read yet. Paired with the sidebar's disabled History
- * and Recovery entries; both go away together when the screens land. */
+ * repository it cannot read yet. It is paired with Recovery's disabled
+ * sidebar entry and disappears when that screen lands. */
 function OverviewPlaceholderCard({
   icon,
   title,
@@ -760,17 +759,10 @@ export function OverviewPanel({
           onReviewAndGet={onReviewAndGetTeamChanges}
         />
 
-        {/* Last, and in sidebar order: the summaries for the two screens that
-            do not exist yet. Side by side on a wide window so they read as one
-            "not built yet" band rather than two more full-width cards
-            competing with the two that work. */}
+        {/* Recovery remains an honest placeholder until its screen lands.
+            History is no longer previewed here because its real screen is now
+            available from navigation and the command palette. */}
         <div className="overview-placeholders">
-          <OverviewPlaceholderCard
-            icon={<GitCommitHorizontal />}
-            title={t.overviewHistoryPreviewTitle}
-            description={t.overviewHistoryPreviewDescription}
-            rows={3}
-          />
           <OverviewPlaceholderCard
             icon={<LifeBuoy />}
             title={t.overviewRecoveryPreviewTitle}

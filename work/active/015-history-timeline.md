@@ -124,26 +124,26 @@ checking out, and rewriting history remain separate safety-sensitive flows.
 
 # Acceptance criteria
 
-- [ ] The History navigation opens a real, read-only timeline for the active
+- [x] The History navigation opens a real, read-only timeline for the active
       project.
-- [ ] Normal, root, and merge commits parse through delimiter-safe typed output.
-- [ ] Pagination is bounded and stale cursors cannot duplicate/miss entries
+- [x] Normal, root, and merge commits parse through delimiter-safe typed output.
+- [x] Pagination is bounded and stale cursors cannot duplicate/miss entries
       silently after history changes.
-- [ ] Rows show understandable description/date/author information with exact
+- [x] Rows show understandable description/date/author information with exact
       hashes and refs available progressively.
-- [ ] Local-only, published, and unknown states are accurate relative to the
+- [x] Local-only, published, and unknown states are accurate relative to the
       configured upstream and never inferred from a hosting provider.
-- [ ] Version details reuse the established diff states and explain first-parent
+- [x] Version details reuse the established diff states and explain first-parent
       merge comparison.
-- [ ] Large histories, long messages, many decorations, binary/large patches,
+- [x] Large histories, long messages, many decorations, binary/large patches,
       shallow repositories, and non-ASCII data remain responsive and truthful.
-- [ ] No history command mutates refs, index, worktree, configuration, or
+- [x] No history command mutates refs, index, worktree, configuration, or
       remotes.
-- [ ] History cache/selection invalidates correctly after save, publish,
+- [x] History cache/selection invalidates correctly after save, publish,
       get-team-changes, branch change, and project close.
-- [ ] Per-project selection, pagination, loading, and errors remain isolated
+- [x] Per-project selection, pagination, loading, and errors remain isolated
       when switching sessions.
-- [ ] Spanish/English copy, localized dates, keyboard, focus, screen reader,
+- [x] Spanish/English copy, localized dates, keyboard, focus, screen reader,
       narrow/large layouts, light/dark themes, and reduced motion are complete.
 
 # Required tests and audit
@@ -224,11 +224,109 @@ Use temporary repositories for:
 
 # Implementation notes
 
-Complete during implementation. Record the log format, pagination cursor,
-snapshot invalidation, upstream-boundary algorithm, caching limits, and detail
-diff reuse.
+- `history.rs` reads `rev-list --topo-order --date-order --parents` in pages of
+  50 (hard maximum 100), then uses bounded `cat-file --batch-check` and
+  `cat-file --batch` stdin protocols. Raw commit-object lengths frame messages,
+  so newlines, NUL/control bytes, Unicode, and empty messages cannot corrupt
+  adjacent rows. `for-each-ref` supplies NUL-framed typed decorations in one
+  bounded pass; there is no Git process per row.
+- The opaque `v1` cursor binds offset and upstream-local reachability progress
+  to a snapshot token derived from repository identity, HEAD/branch, configured
+  upstream ref/commit, and shallow state. A mismatch returns
+  `stale_history_cursor`; the controller discards the continuation and reloads
+  the newest first page, so changed history cannot silently skip or duplicate
+  rows.
+- Publication is local-only only when a commit is in the bounded
+  `HEAD --not <local upstream tracking commit>` set. Commits outside that set
+  are published; an absent or unusable configured upstream yields `unknown`.
+  No host/provider inference or network request is involved.
+- Details validate that the selected commit remains reachable in the page
+  snapshot. Root versions compare with Git's empty tree, ordinary versions with
+  their parent, and merges explicitly with the first parent while retaining all
+  parent IDs. File paths use `--name-status -z`; patches flow through
+  `changes::diff_result_from_text` and the existing `DiffResultView`, preserving
+  typed binary, too-large, unchanged, conflict, truncation, and rename states.
+- The frontend keeps at most four session caches, 5,000 loaded rows, 24 details,
+  64 diffs, and 20 MiB of detail/diff estimates. Requests are generation-bound,
+  first-page and continuation reads coalesce, late closed-epoch results are
+  inert, and shared repository invalidations refresh History after save,
+  publish, get-team-changes, version-line changes, watcher events, or explicit
+  repository refresh. Timeline rows and changed files are virtualized.
+- The feature owns its typed port/adapter/controller/screen descriptor, is
+  registered through `src/screens.tsx`, warms only on project activation, and
+  suspends subscriptions/announcements while hidden. English and Spanish copy,
+  locale dates, listbox semantics, keyboard movement, opaque light/dark
+  surfaces, reduced motion, and a single-pane narrow layout are included.
+- Follow-up refinement on 2026-08-22 compacted the timeline to two-line rows,
+  moved hash/publication/ref metadata into the selected-version pane, reused
+  Changes' file-type icons, aligned the refresh glyph, and kept the selected
+  identity visible during loading. A bounded native read-through cache now
+  reuses page-proven graph/metadata and detail file lists while rechecking
+  `HEAD`, removing redundant Git process launches from the selection path.
+- A second 2026-08-22 visual refinement adopted the approved History reference:
+  a continuous compact timeline, local search/publication filters/sort, a
+  selected-version summary with progressive metadata, Overview/Files/Diff
+  tabs, a virtualized file sidebar, unified/split views, hunk navigation, file
+  path copying, and diff search that highlights and reveals the first match.
+  The initials badge is derived locally from commit metadata; it performs no
+  avatar or identity network lookup.
+- A final 2026-08-22 reference pass rebuilt Overview around truthful metrics,
+  change/area summaries, top files, technical metadata, and commit notes. Files
+  changed gained type/status filters, path/status sorting, real previews for
+  the selected file, previous/next navigation, and automatic selected-row
+  visibility. Other file diffs remain lazy to preserve the faster selection
+  path. The commit header is now a flat surface, the refresh copy is compact,
+  and the unified/split active state uses a crisp non-shadowed boundary.
+- A subsequent 2026-08-22 polish pass removed the duplicate message from the
+  selected-version header while retaining its title above the compact
+  author/date/hash/status context. Overview owns the full message but does not
+  repeat the title a third time. Each timeline row now draws its own connector
+  on the exact node-center coordinate, with the first and last segments ending
+  at their nodes. Clearer hollow/selected nodes, hover/focus feedback, and one
+  short reduced-motion-safe selection animation add polish without continuous
+  animation or repository work.
 
 # Validation
 
-Record exact frontend, Rust, large-history, desktop, accessibility, and
-cross-platform checks.
+- `cargo test --manifest-path src-tauri/Cargo.toml history_tests -- --nocapture`:
+  12 integration tests passed, including native cache reuse, 205-version
+  three-page traversal,
+  stale cursors, published/local boundaries, root/merge detail, detached,
+  shallow, tags, binary/large patches, Unicode/multiline/empty messages, and
+  repository non-mutation.
+- History parser/unit coverage passes for raw object framing (including NUL),
+  graph parents, delimiter-safe rename paths, cursor round trips, and text
+  limits. `cargo clippy --all-targets --all-features -- -D warnings` passes.
+- `src/features/history`: controller, lifecycle, locale, state, keyboard,
+  caching, and 1,000-row bounded-DOM tests pass. The production TypeScript build
+  and architecture owner checks pass; History builds as a separate lazy screen
+  chunk and reuses the lazy diff renderer.
+- Windows 11 desktop QA used the real Tauri/WebView2 app against this repository
+  at 1180 px and the configured 900 px minimum. Verified initial 50-row page,
+  populated detail/diff, keyboard Down selection, virtual scrolling, focus,
+  read-only publication/ref metadata, and compact list → detail → Back flow. A
+  real-layout defect where the virtual list remained empty after Back was found,
+  fixed by remounting its measurement boundary, and reverified at 900 px.
+- Follow-up Windows QA compared the open repository with GitHub Desktop, then
+  measured a fresh GitOdrile selection through the same screen-capture method.
+  The observed files-ready window improved from roughly 421–519 ms to
+  198–285 ms (about 45% faster, including automation/capture overhead), while
+  the selected title and metadata now paint before the file list is ready.
+- Reference-redesign Windows QA used the live Tauri/WebView2 app at 1182 × 762.
+  The timeline/detail proportions, selected graph node, commit summary,
+  Overview and Files tabs, virtualized file rows, diff toolbar, and existing
+  syntax-highlighted patch were inspected against the supplied reference.
+  Focused History/DiffResult tests cover the functional search, publication
+  filter, sort, tabs, unified/split selector, and diff-match highlighting.
+- Follow-up Windows QA at 1182 × 762 inspected the supplied Overview and Files
+  changed references against the live app. It confirmed the flat commit header,
+  concise Refresh action, non-shadowed view selector, responsive Overview
+  columns, working file filters/sort/navigation, and a fully visible selected
+  file card without eager loading of the other file patches.
+- Light/dark tokens, forced-colors and reduced-motion behavior are covered by
+  the existing style contracts and the History stylesheet. macOS and Linux
+  runtime validation remains pending for task 065-8; compilation, argument-only
+  Git execution, path framing, and non-shell behavior remain cross-platform.
+- Final aggregate: `pnpm run check` passed with 117 Markdown files and 85 task
+  IDs, 279 frontend architecture modules, 49 Vitest files / 398 tests, the
+  production build, Rust formatting and Clippy, and 290 Rust tests.

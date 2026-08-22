@@ -10,6 +10,23 @@ import { applyIgnoreWhitespace } from "./ignoreWhitespace";
 
 type HighlightLine = (line: string) => React.ReactNode;
 
+function highlightSearchMatches(line: string, query: string): React.ReactNode {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return line;
+  const normalizedLine = line.toLocaleLowerCase();
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  let match = normalizedLine.indexOf(normalizedQuery);
+  while (match >= 0) {
+    if (match > cursor) parts.push(line.slice(cursor, match));
+    parts.push(<mark className="diff-search-match" key={`${match}-${parts.length}`}>{line.slice(match, match + normalizedQuery.length)}</mark>);
+    cursor = match + normalizedQuery.length;
+    match = normalizedLine.indexOf(normalizedQuery, cursor);
+  }
+  if (cursor < line.length) parts.push(line.slice(cursor));
+  return parts.length ? parts : line;
+}
+
 /** `enabled: false` skips the dynamic import entirely rather than importing
  * and discarding the result: turning highlighting off should also stop
  * fetching the chunk that does it. */
@@ -556,6 +573,7 @@ function DiffHunkList({
   filePath,
   viewMode,
   hunkTarget,
+  searchQuery,
   t,
 }: {
   hunks: DiffHunk[];
@@ -571,6 +589,7 @@ function DiffHunkList({
    * alone) is what makes a repeated press of the same button scroll again
    * instead of silently doing nothing because the index did not change. */
   hunkTarget: { index: number; token: number };
+  searchQuery: string;
   t: Translations;
 }): React.JSX.Element {
   const preferences = useDiffPreferences();
@@ -629,6 +648,11 @@ function DiffHunkList({
   const rows = useMemo(
     () => (viewMode === "split" ? buildSplitRows(hunks, expansions) : flattenDiffRows(hunks, expansions)),
     [hunks, viewMode, expansions],
+  );
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+  const renderHighlight = useMemo<HighlightLine | null>(
+    () => normalizedSearch ? (line) => highlightSearchMatches(line, normalizedSearch) : highlight,
+    [highlight, normalizedSearch],
   );
   const hunkStartRows = useMemo(() => getHunkStartRows(rows, hunks.length), [rows, hunks.length]);
   const scrollRef = useRef<HTMLPreElement>(null);
@@ -777,6 +801,19 @@ function DiffHunkList({
     virtualizer.scrollToIndex(rowIndex, { align: "start" });
   }, [hunkTarget.token, viewMode]);
 
+  useEffect(() => {
+    if (!normalizedSearch) return;
+    const matchIndex = rows.findIndex((row) => {
+      if (row.kind === "marker") return false;
+      if (row.kind === "line") return row.line.content.toLocaleLowerCase().includes(normalizedSearch);
+      return Boolean(
+        row.left?.content.toLocaleLowerCase().includes(normalizedSearch) ||
+        row.right?.content.toLocaleLowerCase().includes(normalizedSearch),
+      );
+    });
+    if (matchIndex >= 0) virtualizer.scrollToIndex(matchIndex, { align: "center" });
+  }, [normalizedSearch, rows, virtualizer]);
+
   return (
     <pre
       {...autoHideScrollbarProps<HTMLPreElement>()}
@@ -835,11 +872,11 @@ function DiffHunkList({
                   t={t}
                 />
               ) : row.kind === "line" ? (
-                <DiffLineRow line={row.line} highlight={highlight} t={t} />
+                <DiffLineRow line={row.line} highlight={renderHighlight} t={t} />
               ) : (
                 <div className="diff-split-row">
-                  <DiffSplitCell line={row.left} side="old" highlight={highlight} t={t} />
-                  <DiffSplitCell line={row.right} side="new" highlight={highlight} t={t} />
+                  <DiffSplitCell line={row.left} side="old" highlight={renderHighlight} t={t} />
+                  <DiffSplitCell line={row.right} side="new" highlight={renderHighlight} t={t} />
                 </div>
               )}
             </div>
@@ -857,6 +894,7 @@ export function DiffResultView({
   readFileLines,
   viewMode = "unified",
   hunkTarget = { index: 0, token: 0 },
+  searchQuery = "",
   t,
 }: {
   diff: FileDiff;
@@ -870,6 +908,8 @@ export function DiffResultView({
   readFileLines?: (filePath: string, startLine: number, endLine: number) => Promise<{ startLine: number; lines: string[]; truncated: boolean }>;
   viewMode?: DiffViewMode;
   hunkTarget?: { index: number; token: number };
+  /** Highlights matches and scrolls the visual diff to the first one. */
+  searchQuery?: string;
   t: Translations;
 }): React.JSX.Element {
   const { ignoreWhitespace } = useDiffPreferences();
@@ -914,6 +954,7 @@ export function DiffResultView({
               filePath={diff.path}
               viewMode={viewMode}
               hunkTarget={hunkTarget}
+              searchQuery={searchQuery}
               t={t}
             />
           )}
@@ -986,6 +1027,7 @@ export function DiffResultView({
                   filePath={diff.path}
                   viewMode={viewMode}
                   hunkTarget={hunkTarget}
+                  searchQuery={searchQuery}
                   t={t}
                 />
               )}

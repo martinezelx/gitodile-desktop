@@ -9,6 +9,7 @@ use crate::{
     clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
     desktop,
     error::AppError,
+    history::{self, HistoryPage, SavedVersionDetail},
     initialize::{
         self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
         InitializeTargetKind,
@@ -436,6 +437,43 @@ pub(crate) fn read_commit_file_diff(
 }
 
 #[tauri::command(async)]
+pub(crate) fn read_history_page(
+    cache: tauri::State<'_, history::HistoryReadCache>,
+    path: String,
+    cursor: Option<String>,
+    page_size: Option<usize>,
+    session_epoch: String,
+) -> Result<HistoryPage, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    history::read_history_page_cached(&cache, path, cursor, page_size)
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_saved_version_detail(
+    cache: tauri::State<'_, history::HistoryReadCache>,
+    path: String,
+    snapshot_token: String,
+    commit: String,
+    session_epoch: String,
+) -> Result<SavedVersionDetail, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    history::read_saved_version_detail_cached(&cache, path, snapshot_token, commit)
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_saved_version_file_diff(
+    cache: tauri::State<'_, history::HistoryReadCache>,
+    path: String,
+    snapshot_token: String,
+    commit: String,
+    file_path: String,
+    session_epoch: String,
+) -> Result<FileDiff, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    history::read_saved_version_file_diff_cached(&cache, path, snapshot_token, commit, file_path)
+}
+
+#[tauri::command(async)]
 pub(crate) fn plan_publish(
     path: String,
     remote: Option<String>,
@@ -733,6 +771,7 @@ mod contract_tests {
             AppErrorCode::EmptyTitle,
             AppErrorCode::InvalidTitle,
             AppErrorCode::StalePreview,
+            AppErrorCode::StaleHistoryCursor,
             AppErrorCode::HookRejected,
             AppErrorCode::SigningFailed,
             AppErrorCode::IndexUnavailable,

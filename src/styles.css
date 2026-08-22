@@ -15,4 +15,5 @@
 @import "./features/publish/publish.css";
 @import "./features/sync/sync.css";
 @import "./features/version-lines/version-lines.css";
+@import "./features/history/history.css";
 @import "./features/settings/settings.css";

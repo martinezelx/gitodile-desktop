@@ -1,8 +1,9 @@
 import React, { Profiler, useEffect, useLayoutEffect, useRef } from "react";
-import { GitCommitHorizontal, LifeBuoy } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 
 import { changesScreenModule, ChangesPanel } from "./features/changes";
 import { overviewScreenModule, OverviewPanel } from "./features/overview";
+import { historyScreenModule, HistoryScreen } from "./features/history";
 import { settingsOverlayModule } from "./features/settings";
 import { versionLinesScreenModule, VersionLinesScreen } from "./features/version-lines";
 import type { ProjectView } from "./projectSessions";
@@ -18,11 +19,10 @@ import {
  * not a screen, so opening it never changes a project's navigation history. */
 export type ScreenId = ProjectView;
 
-/** Nav destinations include screens that do not exist yet (History, Recovery).
- * They live in the same table so a destination cannot be half-registered: when
- * task 015 builds History, it flips one entry from `screen: null` to a screen
- * id and gets nav, palette, prefetch, and keep-alive at once. */
-export type NavDestinationId = ScreenId | "history" | "recovery" | "settings";
+/** Nav destinations include screens that do not exist yet (currently
+ * Recovery). They live in the same table so a destination cannot be
+ * half-registered when it becomes a real screen. */
+export type NavDestinationId = ScreenId | "recovery" | "settings";
 
 /** Keys of `Translations` whose value is a plain string, so a registry entry
  * can name a label without being able to point at a formatting function. */
@@ -55,7 +55,7 @@ export type NavDestination = {
   overlay?: "settings";
 };
 
-export { ChangesPanel, OverviewPanel, VersionLinesScreen };
+export { ChangesPanel, HistoryScreen, OverviewPanel, VersionLinesScreen };
 
 /** The single place a screen is registered. Nav (expanded and compact), the
  * command palette, idle prefetching, the "leave if the project closed" guard,
@@ -66,16 +66,7 @@ export const SCREEN_MODULES = defineScreenModules([
   overviewScreenModule,
   changesScreenModule,
   versionLinesScreenModule,
-  {
-    kind: "placeholder",
-    id: "history",
-    section: "project",
-    labelKey: "navHistory",
-    disabledLabelKey: "navHistoryTitle",
-    icon: <GitCommitHorizontal />,
-    requiresProject: true,
-    inCompactNav: false,
-  },
+  historyScreenModule,
   {
     kind: "placeholder",
     id: "recovery",

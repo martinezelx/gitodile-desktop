@@ -47,8 +47,6 @@ export interface OverviewTranslations {
   overviewCategoryConflicted: (count: number) => string;
   overviewPublishAll: (count: number) => string;
   overviewComingSoonBadge: string;
-  overviewHistoryPreviewTitle: string;
-  overviewHistoryPreviewDescription: string;
   overviewRecoveryPreviewTitle: string;
   overviewRecoveryPreviewDescription: string;
   overviewChangeVersionLine: string;
@@ -125,9 +123,6 @@ const en: OverviewTranslations = {
   overviewCategoryConflicted: (count) => `Conflicts (${count})`,
   overviewPublishAll: (count) => (count === 1 ? "Publish all" : `Publish all ${count}`),
   overviewComingSoonBadge: "Coming soon",
-  overviewHistoryPreviewTitle: "History",
-  overviewHistoryPreviewDescription:
-    "A timeline of the versions you have saved, so you can see how the project got here.",
   overviewRecoveryPreviewTitle: "Recovery",
   overviewRecoveryPreviewDescription:
     "Get work back after a mistake — restore a file, or undo a version you did not mean to save.",
@@ -210,9 +205,6 @@ const es: OverviewTranslations = {
   overviewCategoryConflicted: (count) => `Conflictos (${count})`,
   overviewPublishAll: (count) => (count === 1 ? "Publicar todo" : `Publicar las ${count}`),
   overviewComingSoonBadge: "Próximamente",
-  overviewHistoryPreviewTitle: "Historial",
-  overviewHistoryPreviewDescription:
-    "Una línea de tiempo de las versiones que has guardado, para ver cómo llegó el proyecto hasta aquí.",
   overviewRecoveryPreviewTitle: "Recuperación",
   overviewRecoveryPreviewDescription:
     "Recupera trabajo tras un error: restaura un archivo o deshaz una versión que no querías guardar.",

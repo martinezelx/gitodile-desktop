@@ -1,6 +1,6 @@
 use crate::error::{AppError, AppErrorCode};
 use std::ffi::OsStr;
-use std::io::{ErrorKind, Read};
+use std::io::{ErrorKind, Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -204,6 +204,39 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
+    run_with_env_and_input(cwd, args, envs, None, policy, cancellation)
+}
+
+/// Runs Git with a bounded byte payload on standard input. This is reserved
+/// for machine protocols such as `cat-file --batch`, where sending many
+/// object ids through one process is both safer and substantially cheaper
+/// than one process per object.
+pub(crate) fn run_with_input<I, S>(
+    cwd: Option<&Path>,
+    args: I,
+    input: &[u8],
+    policy: ExecutionPolicy,
+    cancellation: Option<&CancellationToken>,
+) -> Result<BoundedOutput, AppError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    run_with_env_and_input(cwd, args, &[], Some(input), policy, cancellation)
+}
+
+fn run_with_env_and_input<I, S>(
+    cwd: Option<&Path>,
+    args: I,
+    envs: &[(&str, &str)],
+    input: Option<&[u8]>,
+    policy: ExecutionPolicy,
+    cancellation: Option<&CancellationToken>,
+) -> Result<BoundedOutput, AppError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
     let mut process = command();
     if let Some(cwd) = cwd {
         process.arg("-C").arg(cwd);
@@ -211,9 +244,13 @@ where
     process
         .args(args)
         .envs(envs.iter().copied())
-        .stdin(match policy.prompt {
-            PromptPolicy::Disabled => Stdio::null(),
-            PromptPolicy::PreserveGitBehavior => Stdio::inherit(),
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            match policy.prompt {
+                PromptPolicy::Disabled => Stdio::null(),
+                PromptPolicy::PreserveGitBehavior => Stdio::inherit(),
+            }
         })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -225,8 +262,32 @@ where
     let stderr = child.stderr.take().ok_or_else(|| {
         AppError::new(AppErrorCode::GitUnusable, "Git's errors couldn't be read.")
     })?;
+    // Drain output before writing even a bounded input batch. Some machine
+    // protocols answer one record at a time, so filling stdout while the
+    // parent is still filling stdin must not deadlock on a small OS pipe.
     let stdout_reader = start_reader(stdout, policy.stdout_cap);
     let stderr_reader = start_reader(stderr, policy.stderr_cap);
+    if let Some(input) = input {
+        let Some(mut stdin) = child.stdin.take() else {
+            terminate(&mut child);
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Err(AppError::new(
+                AppErrorCode::GitUnusable,
+                "Git's input couldn't be opened.",
+            ));
+        };
+        if stdin.write_all(input).is_err() {
+            terminate(&mut child);
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "Git couldn't receive its input.",
+            ));
+        }
+        drop(stdin);
+    }
     let started = Instant::now();
 
     let status = loop {
