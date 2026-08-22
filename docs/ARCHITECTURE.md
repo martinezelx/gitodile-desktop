@@ -155,6 +155,7 @@ src-tauri/src/
   tooling.rs              # Git diagnostics, install/update, identity, line endings
   repository.rs
   clone.rs                # staged provider-neutral acquisition and verification
+  initialize.rs           # local-project planning, ownership, and initialization
   platform.rs             # exclusive no-replace directory publication
   status.rs
   changes.rs
@@ -220,6 +221,35 @@ directory whose exact path, type, name, and ownership marker all match. An
 existing destination is never cleanup-eligible. `platform.rs` provides the
 Windows `MoveFileExW`, Linux `renameat2(RENAME_NOREPLACE)`, and macOS
 `renamex_np(RENAME_EXCL)` publication boundary.
+
+Local creation is a separate acquisition workflow owned by `initialize.rs` and
+`features/initialize-project`. Its eager dialog has typed ports and an
+attempt-generation controller; only the composition root passes a verified
+result into the existing open/session lifecycle. A plan canonicalizes the
+parent or existing folder, validates the project and initial version-line
+names, rejects case/alias collisions, enclosing or descendant repositories,
+linked worktrees and existing `.git` metadata, and snapshots the exact path and
+README state. Execution repeats that inspection immediately before mutation.
+
+For a new project, execution exclusively creates the requested absent child;
+for an existing ordinary folder it creates only an absent `.git` directory.
+Both owned paths receive an operation-specific marker before `git init`, and
+the result is accepted only after repository-root, initial-branch, and unborn
+state verification. Optional README creation uses create-new semantics. Cleanup
+may remove only an exact, operation-marked directory that is still empty apart
+from its marker; user files, populated Git metadata, and all pre-existing paths
+are never cleanup-eligible. Optional first-save work happens after opening and
+reuses the normal identity, hook, signing, temporary-index, and stale-session
+contracts.
+
+Connecting a remote is a distinct local configuration mutation in `sync.rs`,
+with its own preview and state token. It validates the exact remote name and a
+provider-neutral HTTPS, SSH, Git, file, or scp-like URL, removes credentials,
+queries, and fragments before IPC or persistence, snapshots the current remote
+configuration, and revalidates under exclusive repository access. The action
+uses `git remote add`, never contacts the network, never replaces existing
+configuration, and verifies the stored fetch/push URL before reporting success.
+Later checking and publishing continue through the existing sync flows.
 
 ### Execution policies and Git processes
 

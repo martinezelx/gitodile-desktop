@@ -3,6 +3,7 @@ import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "./app/translations";
 import { changesTranslations } from "./features/changes/translations";
 import { cloneTranslations } from "./features/clone/translations";
+import { initializeProjectTranslations } from "./features/initialize-project/translations";
 import { overviewTranslations } from "./features/overview/translations";
 import { publishTranslations } from "./features/publish/translations";
 import { saveVersionTranslations } from "./features/save-version/translations";
@@ -28,6 +29,7 @@ export const translationNamespaces = {
   app: appTranslations,
   shared: sharedTranslations,
   clone: cloneTranslations,
+  initializeProject: initializeProjectTranslations,
   overview: overviewTranslations,
   status: statusTranslations,
   sync: syncTranslations,
@@ -42,6 +44,7 @@ const en = {
   ...appTranslations.en,
   ...sharedTranslations.en,
   ...cloneTranslations.en,
+  ...initializeProjectTranslations.en,
   ...overviewTranslations.en,
   ...statusTranslations.en,
   ...syncTranslations.en,
@@ -58,6 +61,7 @@ const es: Translations = {
   ...appTranslations.es,
   ...sharedTranslations.es,
   ...cloneTranslations.es,
+  ...initializeProjectTranslations.es,
   ...overviewTranslations.es,
   ...statusTranslations.es,
   ...syncTranslations.es,

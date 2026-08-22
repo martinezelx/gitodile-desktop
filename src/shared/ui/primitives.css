@@ -158,6 +158,21 @@ nav { display: grid; gap: 6px; }
 }
 .text-field input:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
 
+.dialog-close-button {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.dialog-close-button:hover { background: var(--surface-hover); color: var(--text-primary); }
+.dialog-close-button svg { width: 18px; height: 18px; }
+
 .toggle-switch {
   position: relative; flex-shrink: 0; width: 40px; height: 24px; padding: 3px; border: 0; border-radius: 999px;
   background: var(--surface-hover); border: 1px solid var(--border-subtle);

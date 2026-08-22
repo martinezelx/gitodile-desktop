@@ -20,12 +20,25 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useLanguage } from "./i18n";
-import { localizeAppError } from "./shared/i18n";
+import { isAppError, localizeAppError } from "./shared/i18n";
 import type { RepositoryInvalidation } from "./repositoryInvalidation";
 import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 import { DiffPreferencesProvider, createChangesController, changesPort } from "./features/changes";
 import { CloneDialog, clonePort, createCloneController, type CloneResult } from "./features/clone";
-import { createRepositoryController, createRepositoryReadCoordinator, repositoryPort } from "./features/repository";
+import {
+  createInitializeProjectController,
+  InitializeProjectDialog,
+  initializeProjectPort,
+  type InitializeProjectResult,
+  type InitializeTargetKind,
+} from "./features/initialize-project";
+import { createSaveVersionController, saveVersionPort } from "./features/save-version";
+import {
+  createRepositoryController,
+  createRepositoryReadCoordinator,
+  repositoryPort,
+  type RepositoryInfo,
+} from "./features/repository";
 import { createStatusController, statusPort, type StatusErrorMapper } from "./features/status";
 import {
   createSyncController,
@@ -145,6 +158,10 @@ export function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isCloneOpen, setIsCloneOpen] = useState(false);
+  const [initializeDialogRequest, setInitializeDialogRequest] = useState<{
+    mode: InitializeTargetKind;
+    existingPath?: string;
+  } | null>(null);
   const [view, setView] = useState<View>("overview");
   const [theme, setTheme] = useThemePreference();
   const effectiveTheme = resolveEffectiveTheme(theme);
@@ -176,6 +193,12 @@ export function App(): React.JSX.Element {
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
   const [repositoryController] = useState(() => createRepositoryController(repositoryPort));
   const [cloneController] = useState(() => createCloneController(clonePort));
+  const [initializeProjectController] = useState(() =>
+    createInitializeProjectController(initializeProjectPort),
+  );
+  const [initialSaveVersionController] = useState(() =>
+    createSaveVersionController(saveVersionPort),
+  );
   const [statusController] = useState(() => createStatusController(statusPort));
   const [changesController] = useState(() => createChangesController(changesPort));
   const [syncController] = useState(() => createSyncController(syncPort));
@@ -291,6 +314,10 @@ export function App(): React.JSX.Element {
   const [openError, setOpenError] = useState<string | null>(null);
   const [openErrorTitle, setOpenErrorTitle] = useState(t.overviewOpenFailedTitle);
   const [isOpenErrorDialogOpen, setIsOpenErrorDialogOpen] = useState(false);
+  const [openErrorSecondaryAction, setOpenErrorSecondaryAction] = useState<{
+    label: string;
+    onAction: () => void;
+  } | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [publishDialogSessionId, setPublishDialogSessionId] = useState<string | null>(null);
   const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
@@ -315,6 +342,7 @@ export function App(): React.JSX.Element {
   const hasBlockingDialog =
     isSettingsOpen ||
     isCloneOpen ||
+    initializeDialogRequest !== null ||
     publishDialogSessionId !== null ||
     saveDialogSessionId !== null ||
     getTeamDialogSessionId !== null ||
@@ -323,6 +351,7 @@ export function App(): React.JSX.Element {
   const showErrorDialog = (title: string, message: string): void => {
     setOpenErrorTitle(title);
     setOpenError(message);
+    setOpenErrorSecondaryAction(null);
     setIsOpenErrorDialogOpen(true);
   };
 
@@ -396,6 +425,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     if (!isOpenErrorDialogOpen) {
       setOpenError(null);
+      setOpenErrorSecondaryAction(null);
     }
   }, [isOpenErrorDialogOpen]);
 
@@ -517,11 +547,13 @@ export function App(): React.JSX.Element {
       return;
     }
     setOpenError(null);
+    let selectedPath: string | null = null;
     try {
       const selected = await openFolderDialog({ directory: true, multiple: false, title: t.overviewOpenDialogTitle });
       if (!selected || Array.isArray(selected)) {
         return;
       }
+      selectedPath = selected;
       setIsOpening(true);
       const info = await repositoryController.open({ selectedPath: selected });
       // Opening an already-open worktree activates it instead of duplicating
@@ -538,10 +570,20 @@ export function App(): React.JSX.Element {
       // a project is already active, this is reported in its own dialog
       // rather than inside that project's Overview card — otherwise it
       // would read as if the *active* project were the one that failed.
-      showErrorDialog(
-        t.overviewOpenFailedTitle,
-        localizeAppError(error, t, t.overviewCouldntOpenFolder),
+      setOpenErrorTitle(t.overviewOpenFailedTitle);
+      setOpenError(localizeAppError(error, t, t.overviewCouldntOpenFolder));
+      setOpenErrorSecondaryAction(
+        selectedPath && isAppError(error) && error.code === "not_repository"
+          ? {
+              label: t.commandTurnFolderIntoProject,
+              onAction: () => {
+                setIsOpenErrorDialogOpen(false);
+                setInitializeDialogRequest({ mode: "existing-folder", existingPath: selectedPath ?? undefined });
+              },
+            }
+          : null,
       );
+      setIsOpenErrorDialogOpen(true);
     } finally {
       setIsOpening(false);
     }
@@ -554,6 +596,26 @@ export function App(): React.JSX.Element {
     syncViewToSession(existing?.lastView ?? "overview");
     setProjectAnnouncement(t.projectSwitcherActiveAnnouncement(info.name));
     if (!existing) void checkWorkingTree(info.path, info.sessionEpoch);
+  };
+
+  const handleInitializedProject = async (
+    initializeResult: InitializeProjectResult,
+    isCurrent: () => boolean,
+  ): Promise<RepositoryInfo | null> => {
+    const info = await repositoryController.open({ selectedPath: initializeResult.destinationPath });
+    if (!isCurrent()) {
+      await invoke("close_project_session", {
+        path: info.path,
+        sessionEpoch: info.sessionEpoch,
+      }).catch(() => undefined);
+      return null;
+    }
+    const existing = sessionsState.byId[info.path];
+    dispatchSessions({ type: "open", project: info });
+    syncViewToSession(existing?.lastView ?? "overview");
+    setProjectAnnouncement(t.projectSwitcherActiveAnnouncement(info.name));
+    if (!existing) void checkWorkingTree(info.path, info.sessionEpoch);
+    return info;
   };
 
   // Restores the previous session's open projects exactly once, on launch.
@@ -939,6 +1001,11 @@ export function App(): React.JSX.Element {
             label: t.commandCloneProject,
             action: () => setIsCloneOpen(true),
           },
+          {
+            id: "create-project",
+            label: t.commandCreateProject,
+            action: () => setInitializeDialogRequest({ mode: "new-folder" }),
+          },
         ]
       : []),
     ...(project && !hasBlockingDialog
@@ -1048,6 +1115,7 @@ export function App(): React.JSX.Element {
           <TitlebarMenu
             onOpenAbout={() => setIsAboutOpen(true)}
             onOpenProject={() => void handleOpenProject()}
+            onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
             onCloneProject={() => setIsCloneOpen(true)}
             onCloseProject={requestCloseActiveProject}
             onOpenSettings={() => setIsSettingsOpen(true)}
@@ -1198,6 +1266,7 @@ export function App(): React.JSX.Element {
                 onActivate={activateSession}
                 onClose={requestCloseSession}
                 onOpenAnother={() => void handleOpenProject()}
+                onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
                 onClone={() => setIsCloneOpen(true)}
               />
             ) : (
@@ -1209,6 +1278,7 @@ export function App(): React.JSX.Element {
                 onActivate={activateSession}
                 onClose={requestCloseSession}
                 onOpenAnother={() => void handleOpenProject()}
+                onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
                 onClone={() => setIsCloneOpen(true)}
               />
             )}
@@ -1268,6 +1338,7 @@ export function App(): React.JSX.Element {
               onActivate={activateSession}
               onClose={requestCloseSession}
               onOpenAnother={() => void handleOpenProject()}
+              onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
               onClone={() => setIsCloneOpen(true)}
             />
             <div className="compact-history-controls" aria-label={t.titlebarHistoryControls}>
@@ -1373,6 +1444,7 @@ export function App(): React.JSX.Element {
                     navigateToView("changes");
                   }}
                   onOpenProject={() => void handleOpenProject()}
+                  onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
                   onCloneProject={() => setIsCloneOpen(true)}
                   canPublish={canPublish}
                   onPublish={() => openPublishDialog()}
@@ -1500,6 +1572,23 @@ export function App(): React.JSX.Element {
         onClose={() => setIsCloneOpen(false)}
         onVerifiedClone={handleVerifiedClone}
       />
+
+      {initializeDialogRequest && (
+        <InitializeProjectDialog
+          isOpen
+          initialMode={initializeDialogRequest.mode}
+          initialExistingPath={initializeDialogRequest.existingPath}
+          controller={initializeProjectController}
+          saveVersionController={initialSaveVersionController}
+          onClose={() => setInitializeDialogRequest(null)}
+          onInitialized={handleInitializedProject}
+          onProjectChanged={handleMutationSucceeded}
+          onOpenIdentitySettings={() => {
+            setSettingsSection("git");
+            setIsSettingsOpen(true);
+          }}
+        />
+      )}
 
       {publishDialogSession && (
         <Suspense fallback={null}>
@@ -1672,6 +1761,7 @@ export function App(): React.JSX.Element {
           setOpen: setIsOpenErrorDialogOpen,
           title: openErrorTitle,
           message: openError,
+          secondaryAction: openErrorSecondaryAction,
         }}
       />
       <TooltipHost />

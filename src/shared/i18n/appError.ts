@@ -5,7 +5,7 @@ import type { SharedTranslations } from "./translations";
  *
  * This lives with the shared translation runtime rather than in `shared/ui`
  * because it is error localization, not a visual primitive — and every one of
- * the 52 codes below maps to a key `SharedTranslations` already owns, so it
+ * every code below maps to a key `SharedTranslations` already owns, so it
  * depends on that interface rather than on the composed `Translations`. A
  * caller passing the full dictionary still satisfies it. */
 export const APP_ERROR_CODES = [
@@ -14,6 +14,11 @@ export const APP_ERROR_CODES = [
   "clone_destination_collides", "stale_clone_plan", "clone_operation_busy",
   "clone_operation_missing", "clone_verification_failed", "clone_publish_uncertain",
   "clone_cleanup_required", "clone_cleanup_unavailable", "clone_failed", "offline",
+  "invalid_project_name", "project_destination_exists", "project_destination_collides",
+  "existing_git_metadata", "linked_worktree", "nested_repository",
+  "initialization_inspection_incomplete", "invalid_initial_branch", "readme_already_exists",
+  "stale_initialize_plan", "initialize_failed", "initialize_verification_failed",
+  "initialize_cleanup_required", "initialize_cleanup_unavailable",
   "certificate_failed", "host_key_failed", "remote_not_found", "disk_full",
   "permission_denied", "path_too_long",
   "git_missing", "git_unusable", "git_command_failed", "invalid_identity",
@@ -26,6 +31,8 @@ export const APP_ERROR_CODES = [
   "stale_get_team_changes_plan",
   "invalid_ref_name", "authentication_failed", "network_timeout", "operation_cancelled",
   "invalid_remote_configuration", "remote_ref_missing", "remote_rejected",
+  "invalid_remote_url", "remote_name_exists", "stale_connect_remote_plan",
+  "remote_connect_failed", "remote_connect_uncertain",
   "publish_uncertain", "get_team_changes_uncertain", "git_version_too_old", "version_line_name_taken",
   "version_line_name_collides", "version_line_checked_out_elsewhere", "version_line_is_active",
   "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
@@ -70,6 +77,20 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     clone_cleanup_required: t.errorCloneCleanupRequired,
     clone_cleanup_unavailable: t.errorCloneCleanupUnavailable,
     clone_failed: t.errorCloneFailed,
+    invalid_project_name: t.errorInvalidProjectName,
+    project_destination_exists: t.errorProjectDestinationExists,
+    project_destination_collides: t.errorProjectDestinationCollides,
+    existing_git_metadata: t.errorExistingGitMetadata,
+    linked_worktree: t.errorLinkedWorktree,
+    nested_repository: t.errorNestedRepository,
+    initialization_inspection_incomplete: t.errorInitializationInspectionIncomplete,
+    invalid_initial_branch: t.errorInvalidInitialBranch,
+    readme_already_exists: t.errorReadmeAlreadyExists,
+    stale_initialize_plan: t.errorStaleInitializePlan,
+    initialize_failed: t.errorInitializeFailed,
+    initialize_verification_failed: t.errorInitializeVerificationFailed,
+    initialize_cleanup_required: t.errorInitializeCleanupRequired,
+    initialize_cleanup_unavailable: t.errorInitializeCleanupUnavailable,
     offline: t.errorOffline,
     certificate_failed: t.errorCertificateFailed,
     host_key_failed: t.errorHostKeyFailed,
@@ -112,6 +133,11 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     network_timeout: t.errorNetworkTimeout,
     operation_cancelled: t.errorOperationCancelled,
     invalid_remote_configuration: t.errorInvalidRemoteConfiguration,
+    invalid_remote_url: t.errorInvalidRemoteUrl,
+    remote_name_exists: t.errorRemoteNameExists,
+    stale_connect_remote_plan: t.errorStaleConnectRemotePlan,
+    remote_connect_failed: t.errorRemoteConnectFailed,
+    remote_connect_uncertain: t.errorRemoteConnectUncertain,
     remote_ref_missing: t.errorRemoteRefMissing,
     remote_rejected: t.errorRemoteRejected,
     publish_uncertain: t.errorPublishUncertain,

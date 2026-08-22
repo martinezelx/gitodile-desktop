@@ -10,6 +10,7 @@ mod error;
 mod git;
 mod git_command;
 mod index;
+mod initialize;
 mod ipc;
 mod operation;
 mod platform;
@@ -34,6 +35,8 @@ use clone::*;
 use error::{AppError, AppErrorCode};
 #[cfg(test)]
 use git_command::*;
+#[cfg(test)]
+use initialize::*;
 #[cfg(test)]
 use operation::*;
 #[cfg(test)]
@@ -68,6 +71,9 @@ pub fn run() {
             ipc::clone_repository,
             ipc::cancel_clone,
             ipc::cleanup_clone,
+            ipc::plan_initialize_project,
+            ipc::initialize_project,
+            ipc::cleanup_initialize_project,
             ipc::read_working_tree_status,
             ipc::read_file_diff,
             ipc::read_file_lines,
@@ -87,6 +93,8 @@ pub fn run() {
             ipc::plan_save_version,
             ipc::save_version,
             ipc::discover_remotes,
+            ipc::plan_connect_remote,
+            ipc::connect_remote,
             ipc::read_team_sync_status,
             ipc::check_team_changes,
             ipc::plan_get_team_changes,
@@ -123,6 +131,9 @@ mod core_workflow_tests;
 #[cfg(test)]
 #[path = "tests/git_command_tests.rs"]
 mod git_command_tests;
+#[cfg(test)]
+#[path = "tests/initialize_tests.rs"]
+mod initialize_tests;
 #[cfg(test)]
 #[path = "tests/publish_tests.rs"]
 mod publish_tests;

@@ -10,6 +10,7 @@ import {
   type SettingsSection,
   type ThemePreference,
 } from "../features/settings";
+import { DialogCloseButton } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
 import { describePlatform, formatDiagnostics, useSystemInfo } from "./systemInfo";
@@ -58,6 +59,7 @@ export type AppOverlaysProps = {
     setOpen: BooleanSetter;
     title: string;
     message: string | null;
+    secondaryAction?: { label: string; onAction: () => void } | null;
   };
 };
 
@@ -161,9 +163,7 @@ export function AppOverlays({
                   {t.settingsGitNeedsAttention}
                 </button>
               )}
-              <button className="settings-dialog__close" type="button" aria-label={t.commonClose} onClick={() => requestSettingsClose(false)}>
-                <X aria-hidden="true" />
-              </button>
+              <DialogCloseButton label={t.commonClose} onClick={() => requestSettingsClose(false)} />
             </header>
             <SettingsPanel
               theme={settings.theme}
@@ -272,6 +272,11 @@ export function AppOverlays({
             <h2 id="open-error-title">{error.title}</h2>
             <p role="alert">{error.message}</p>
             <div className="dialog-actions">
+              {error.secondaryAction && (
+                <button className="secondary-button" type="button" onClick={error.secondaryAction.onAction}>
+                  {error.secondaryAction.label}
+                </button>
+              )}
               <button className="primary-button" type="button" onClick={() => error.setOpen(false)}>{t.commonClose}</button>
             </div>
           </div>

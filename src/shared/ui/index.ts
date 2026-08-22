@@ -12,4 +12,5 @@
 export { autoHideScrollbarProps } from "./autoHideScrollbar";
 export { useModalFocus } from "./modalFocus";
 export { LoadingBar } from "./loadingBar";
+export { DialogCloseButton } from "./dialogCloseButton";
 export { useAnchoredPopup, handlePopupMenuKeyDown } from "./popupMenu";

@@ -459,6 +459,7 @@ export function OverviewPanel({
   onCheckChanges,
   onReviewChanges,
   onOpenProject,
+  onCreateProject,
   onCloneProject,
   canPublish,
   onPublish,
@@ -492,6 +493,7 @@ export function OverviewPanel({
    * the Overview preview is a shortcut *to a file*, not just to the screen. */
   onReviewChanges: (path?: string) => void;
   onOpenProject: () => void;
+  onCreateProject: () => void;
   onCloneProject: () => void;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
@@ -788,7 +790,10 @@ export function OverviewPanel({
       <h2>{t.overviewEmptyTitle}</h2>
       <p>{t.overviewEmptyDescription}</p>
       <div className="empty-state__actions">
-        <button className="primary-button" type="button" onClick={onOpenProject} disabled={isOpening}>
+        <button className="primary-button" type="button" onClick={onCreateProject} disabled={isOpening}>
+          {t.overviewCreateLocalProject}
+        </button>
+        <button className="secondary-button" type="button" onClick={onOpenProject} disabled={isOpening}>
           {isOpening ? t.overviewOpening : t.overviewOpenProject}
         </button>
         <button className="secondary-button" type="button" onClick={onCloneProject} disabled={isOpening}>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CircleAlert, CloudDownload, FileDiff, FolderPlus, LoaderCircle, X } from "lucide-react";
+import { CircleAlert, CloudDownload, FileDiff, FolderInput, FolderPlus, LoaderCircle, X } from "lucide-react";
 import { useLanguage } from "./i18n";
 import { avatarColorVar, avatarInitials } from "./projectAvatar";
 import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
@@ -26,6 +26,7 @@ type ProjectSwitcherProps = {
   onActivate: (id: string) => void;
   onClose: (id: string) => void;
   onOpenAnother: () => void;
+  onCreate: () => void;
   onClone: () => void;
 };
 
@@ -84,6 +85,7 @@ function ProjectSwitcherRows({
   onActivate,
   onClose,
   onOpenAnother,
+  onCreate,
   onClone,
 }: ProjectSwitcherProps): React.JSX.Element {
   const { t } = useLanguage();
@@ -133,6 +135,12 @@ function ProjectSwitcherRows({
         );
       })}
       <li className="project-switcher__item project-switcher__item--add">
+        <button type="button" className="project-switcher__add" disabled={!canSwitch} onClick={onCreate}>
+          <FolderInput aria-hidden="true" />
+          <span>{t.projectSwitcherCreateProject}</span>
+        </button>
+      </li>
+      <li className="project-switcher__item project-switcher__item--add">
         <button
           type="button"
           className="project-switcher__add"
@@ -171,6 +179,10 @@ export function ProjectSwitcher(props: ProjectSwitcherProps): React.JSX.Element 
           <CloudDownload aria-hidden="true" />
           <span>{t.projectSwitcherCloneProject}</span>
         </button>
+        <button type="button" className="project-switcher__add" onClick={props.onCreate}>
+          <FolderInput aria-hidden="true" />
+          <span>{t.projectSwitcherCreateProject}</span>
+        </button>
       </div>
     );
   }
@@ -197,6 +209,7 @@ export function ProjectSwitcherIcons({
   isOpening,
   onActivate,
   onOpenAnother,
+  onCreate,
   onClone,
 }: ProjectSwitcherProps): React.JSX.Element {
   const { t } = useLanguage();
@@ -253,6 +266,16 @@ export function ProjectSwitcherIcons({
           </button>
         );
       })}
+      <button
+        type="button"
+        className="project-switcher-icons__add"
+        aria-label={t.projectSwitcherCreateProject}
+        data-tooltip={t.projectSwitcherCreateProject}
+        disabled={!canSwitch}
+        onClick={onCreate}
+      >
+        <FolderInput aria-hidden="true" />
+      </button>
       <button
         type="button"
         className="project-switcher-icons__add"
@@ -319,6 +342,15 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
   if (props.entries.length === 0) {
     return (
       <div className="project-switcher-compact">
+        <button
+          type="button"
+          className="project-switcher-compact__trigger"
+          aria-label={t.projectSwitcherCreateProject}
+          data-tooltip={t.projectSwitcherCreateProject}
+          onClick={props.onCreate}
+        >
+          <FolderInput aria-hidden="true" />
+        </button>
         <button
           type="button"
           className="project-switcher-compact__trigger"
@@ -392,6 +424,10 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
             onClone={() => {
               setIsOpen(false);
               props.onClone();
+            }}
+            onCreate={() => {
+              setIsOpen(false);
+              props.onCreate();
             }}
           />
         </div>

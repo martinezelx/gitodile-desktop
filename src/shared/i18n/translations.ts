@@ -15,6 +15,20 @@ export interface SharedTranslations {
   errorCloneCleanupRequired: string;
   errorCloneCleanupUnavailable: string;
   errorCloneFailed: string;
+  errorInvalidProjectName: string;
+  errorProjectDestinationExists: string;
+  errorProjectDestinationCollides: string;
+  errorExistingGitMetadata: string;
+  errorLinkedWorktree: string;
+  errorNestedRepository: string;
+  errorInitializationInspectionIncomplete: string;
+  errorInvalidInitialBranch: string;
+  errorReadmeAlreadyExists: string;
+  errorStaleInitializePlan: string;
+  errorInitializeFailed: string;
+  errorInitializeVerificationFailed: string;
+  errorInitializeCleanupRequired: string;
+  errorInitializeCleanupUnavailable: string;
   errorOffline: string;
   errorCertificateFailed: string;
   errorHostKeyFailed: string;
@@ -57,6 +71,11 @@ export interface SharedTranslations {
   errorNetworkTimeout: string;
   errorOperationCancelled: string;
   errorInvalidRemoteConfiguration: string;
+  errorInvalidRemoteUrl: string;
+  errorRemoteNameExists: string;
+  errorStaleConnectRemotePlan: string;
+  errorRemoteConnectFailed: string;
+  errorRemoteConnectUncertain: string;
   errorRemoteRefMissing: string;
   errorRemoteRejected: string;
   errorPublishUncertain: string;
@@ -101,6 +120,20 @@ const en: SharedTranslations = {
   errorCloneCleanupRequired: "The clone stopped, but its marked private staging folder still needs safe cleanup.",
   errorCloneCleanupUnavailable: "GitOdrile cannot prove that it owns this staging path, so it will not remove it.",
   errorCloneFailed: "Git could not clone this project. Check the remote, destination, and technical details.",
+  errorInvalidProjectName: "Choose a safe project folder name without separators, reserved names, controls, or trailing spaces and dots.",
+  errorProjectDestinationExists: "Something already exists at that destination. GitOdrile will not initialize or replace it.",
+  errorProjectDestinationCollides: "That project name collides with an existing path when letter case or aliases are ignored.",
+  errorExistingGitMetadata: "That folder already contains Git metadata. Open the existing project instead; GitOdrile will not replace .git.",
+  errorLinkedWorktree: "That folder is already a linked Git worktree. Open it as an existing project instead.",
+  errorNestedRepository: "That folder is inside or contains another Git project. Choose a folder without nested Git histories.",
+  errorInitializationInspectionIncomplete: "GitOdrile could not prove this folder is safe to initialize. Check its size and permissions, then retry.",
+  errorInvalidInitialBranch: "Choose a valid initial version-line name such as main.",
+  errorReadmeAlreadyExists: "That folder already has a casing-equivalent README. Keep it unchanged and turn off Add a README.",
+  errorStaleInitializePlan: "The folder or setup changed after the preview. Review the local setup again.",
+  errorInitializeFailed: "Git could not initialize this project. Existing working files were not cleaned or replaced.",
+  errorInitializeVerificationFailed: "The new Git metadata could not be verified. Inspect the folder before trying another Git operation.",
+  errorInitializeCleanupRequired: "Initialization stopped with an exact owned marker or empty artifact still needing bounded cleanup.",
+  errorInitializeCleanupUnavailable: "GitOdrile cannot prove it owns that initialization artifact, so it will not remove it.",
   errorOffline: "The remote host could not be reached. Check your connection, VPN, proxy, and host name.",
   errorCertificateFailed: "Git could not verify the server certificate. Check the certificate, proxy, and system trust settings.",
   errorHostKeyFailed: "SSH could not verify the host key. Verify the host with your system SSH tools, then retry.",
@@ -148,6 +181,11 @@ const en: SharedTranslations = {
   errorNetworkTimeout: "GitOdrile couldn't reach the remote project in time. Check your connection and try again.",
   errorOperationCancelled: "The remote check was cancelled. Try again when you’re ready.",
   errorInvalidRemoteConfiguration: "This version line's remote setup is incomplete or invalid. Repair its upstream configuration in Git.",
+  errorInvalidRemoteUrl: "Enter a complete HTTPS, SSH, Git, file, or SCP-like SSH remote URL.",
+  errorRemoteNameExists: "A remote with that name already exists or differs only by letter case. Existing configuration was not changed.",
+  errorStaleConnectRemotePlan: "The project, remote name, or URL changed after the preview. Review the remote connection again.",
+  errorRemoteConnectFailed: "Git could not add this remote configuration. No network request was made.",
+  errorRemoteConnectUncertain: "Git changed remote configuration, but GitOdrile could not verify the exact result. Inspect .git/config before retrying.",
   errorRemoteRefMissing: "The configured team version no longer exists on the remote project. Check the upstream setup before trying again.",
   errorRemoteRejected: "The remote project rejected this publish. Check the remote project's rules for this branch.",
   errorPublishUncertain:
@@ -200,6 +238,20 @@ const es: SharedTranslations = {
   errorCloneCleanupRequired: "La clonación se detuvo, pero su carpeta temporal privada marcada todavía requiere una limpieza segura.",
   errorCloneCleanupUnavailable: "GitOdrile no puede demostrar que esa ruta temporal sea suya, así que no la eliminará.",
   errorCloneFailed: "Git no pudo clonar este proyecto. Comprueba el remoto, el destino y los detalles técnicos.",
+  errorInvalidProjectName: "Elige un nombre de carpeta seguro sin separadores, nombres reservados, controles ni espacios o puntos finales.",
+  errorProjectDestinationExists: "Ya existe algo en ese destino. GitOdrile no lo inicializará ni reemplazará.",
+  errorProjectDestinationCollides: "Ese nombre colisiona con una ruta existente al ignorar mayúsculas, minúsculas o alias.",
+  errorExistingGitMetadata: "Esa carpeta ya contiene metadatos Git. Abre el proyecto existente; GitOdrile no reemplazará .git.",
+  errorLinkedWorktree: "Esa carpeta ya es un worktree enlazado de Git. Ábrela como proyecto existente.",
+  errorNestedRepository: "Esa carpeta está dentro de otro proyecto Git o contiene uno. Elige una carpeta sin historiales anidados.",
+  errorInitializationInspectionIncomplete: "GitOdrile no pudo demostrar que fuera seguro inicializar esta carpeta. Comprueba su tamaño y permisos.",
+  errorInvalidInitialBranch: "Elige un nombre válido para la línea de versión inicial, como main.",
+  errorReadmeAlreadyExists: "Esa carpeta ya contiene un README equivalente por mayúsculas o minúsculas. Consérvalo y desactiva Añadir README.",
+  errorStaleInitializePlan: "La carpeta o configuración cambió después de la vista previa. Revísala de nuevo.",
+  errorInitializeFailed: "Git no pudo inicializar este proyecto. Los archivos de trabajo existentes no se limpiaron ni reemplazaron.",
+  errorInitializeVerificationFailed: "No se pudieron verificar los metadatos Git nuevos. Inspecciona la carpeta antes de otra operación Git.",
+  errorInitializeCleanupRequired: "La inicialización se detuvo y aún requiere limpiar de forma acotada un marcador o artefacto vacío propio.",
+  errorInitializeCleanupUnavailable: "GitOdrile no puede demostrar que ese artefacto de inicialización sea suyo, así que no lo eliminará.",
   errorOffline: "No se pudo contactar con el host remoto. Comprueba la conexión, VPN, proxy y nombre del host.",
   errorCertificateFailed: "Git no pudo verificar el certificado del servidor. Comprueba el certificado, proxy y confianza del sistema.",
   errorHostKeyFailed: "SSH no pudo verificar la clave del host. Verifica el host con las herramientas SSH del sistema y reintenta.",
@@ -252,6 +304,11 @@ const es: SharedTranslations = {
   errorNetworkTimeout: "GitOdrile no pudo contactar con el proyecto remoto a tiempo. Comprueba tu conexión e inténtalo de nuevo.",
   errorOperationCancelled: "Se canceló la comprobación remota. Inténtalo de nuevo cuando quieras.",
   errorInvalidRemoteConfiguration: "La configuración remota de esta línea de versión está incompleta o no es válida. Repara su upstream en Git.",
+  errorInvalidRemoteUrl: "Introduce una URL remota HTTPS, SSH, Git, file o SSH tipo SCP completa.",
+  errorRemoteNameExists: "Ya existe un remoto con ese nombre o que solo cambia en mayúsculas y minúsculas. La configuración no cambió.",
+  errorStaleConnectRemotePlan: "El proyecto, nombre o URL remotos cambiaron después de la vista previa. Revisa de nuevo la conexión.",
+  errorRemoteConnectFailed: "Git no pudo añadir esta configuración remota. No se hizo ninguna petición de red.",
+  errorRemoteConnectUncertain: "Git cambió la configuración remota, pero GitOdrile no pudo verificar el resultado exacto. Inspecciona .git/config.",
   errorRemoteRefMissing: "La versión configurada del equipo ya no existe en el proyecto remoto. Revisa el upstream antes de intentarlo de nuevo.",
   errorRemoteRejected: "El proyecto remoto rechazó esta publicación. Revisa las reglas del proyecto remoto para esta rama.",
   errorPublishUncertain:

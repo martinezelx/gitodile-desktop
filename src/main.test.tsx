@@ -228,6 +228,7 @@ describe("TitlebarMenu", () => {
     const props: React.ComponentProps<typeof TitlebarMenu> = {
       onOpenAbout: vi.fn(),
       onOpenProject: vi.fn(),
+      onCreateProject: vi.fn(),
       onCloneProject: vi.fn(),
       onCloseProject: vi.fn(),
       onOpenSettings: vi.fn(),
@@ -299,6 +300,18 @@ describe("TitlebarMenu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("offers local project creation from the titlebar menu", async () => {
+    const user = userEvent.setup();
+    const onCreateProject = vi.fn();
+    renderMenu({ onCreateProject });
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Create local project" }));
+
+    expect(onCreateProject).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("keeps reload focusable but unavailable while an operation is unsettled", async () => {
     const user = userEvent.setup();
     renderMenu({ canReloadWindow: false });
@@ -357,6 +370,59 @@ describe("App project restoration", () => {
     await user.type(screen.getByRole("combobox"), "Clone a remote project");
     await user.keyboard("{Enter}");
     expect(screen.getByRole("dialog", { name: "Clone a remote project" })).toBeInTheDocument();
+  });
+
+  it("opens the eager local-creation flow from the empty state", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") {
+        return Promise.resolve({ name: "", email: "" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Create a local project" }));
+    expect(screen.getByRole("dialog", { name: "Create a local project" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Parent folder")).toHaveFocus());
+  });
+
+  it("offers contextual initialization when an opened folder is not a repository", async () => {
+    mockedOpenFolderDialog.mockResolvedValue("C:\\ordinary folder");
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") {
+        return Promise.resolve({ name: "", email: "" });
+      }
+      if (command === "open_repository") {
+        return Promise.reject({
+          code: "not_repository",
+          message: "This folder is not a Git repository.",
+          remediation: "Choose a repository.",
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Open a project" }).at(-1)!);
+    await user.click(await screen.findByRole("button", { name: "Turn this folder into a project" }));
+    expect(screen.getByRole("dialog", { name: "Create a local project" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Existing ordinary folder")).toHaveValue("C:\\ordinary folder");
   });
 
   it("opens Settings as a sectioned dialog without replacing the active screen", async () => {

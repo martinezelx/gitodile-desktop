@@ -70,6 +70,7 @@ export interface OverviewTranslations {
   overviewOpening: string;
   overviewOpenProject: string;
   overviewCloneRemoteProject: string;
+  overviewCreateLocalProject: string;
   overviewOpenDialogTitle: string;
   overviewCouldntOpenFolder: string;
 }
@@ -152,6 +153,7 @@ const en: OverviewTranslations = {
   overviewOpening: "Opening…",
   overviewOpenProject: "Open a project",
   overviewCloneRemoteProject: "Clone a remote project",
+  overviewCreateLocalProject: "Create a local project",
   overviewOpenDialogTitle: "Open a Git project",
   overviewCouldntOpenFolder: "Couldn't open that folder.",
 };
@@ -238,6 +240,7 @@ const es: OverviewTranslations = {
   overviewOpening: "Abriendo…",
   overviewOpenProject: "Abrir un proyecto",
   overviewCloneRemoteProject: "Clonar un proyecto remoto",
+  overviewCreateLocalProject: "Crear un proyecto local",
   overviewOpenDialogTitle: "Abrir un proyecto de Git",
   overviewCouldntOpenFolder: "No se pudo abrir esa carpeta.",
 };

@@ -9,6 +9,10 @@ use crate::{
     clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
     desktop,
     error::AppError,
+    initialize::{
+        self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
+        InitializeTargetKind,
+    },
     publish_domain::{self, PublishPlan, PublishResult},
     recovery::{self, DiscardPlan, DiscardRecovery, DiscardResult},
     repository::{self, RepositoryInfo},
@@ -16,8 +20,8 @@ use crate::{
     session,
     status::{self, PendingVersionsResult, WorkingTreeStatus},
     sync::{
-        self, GetTeamChangesPhase, GetTeamChangesPlan, GetTeamChangesResult, RemoteDiscovery,
-        TeamSyncStatus,
+        self, ConnectRemotePlan, ConnectRemoteResult, GetTeamChangesPhase, GetTeamChangesPlan,
+        GetTeamChangesResult, RemoteDiscovery, TeamSyncStatus,
     },
     tooling::{
         self, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
@@ -103,6 +107,67 @@ pub(crate) fn cleanup_clone(
     operation_id: String,
 ) -> Result<(), AppError> {
     clone::cleanup_clone(destination_parent, operation_id)
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn plan_initialize_project(
+    target_kind: InitializeTargetKind,
+    destination_parent: String,
+    destination_name: String,
+    existing_path: String,
+    initial_branch: String,
+    create_readme: bool,
+    save_initial_version: bool,
+) -> Result<InitializeProjectPlan, AppError> {
+    initialize::plan_initialize_project(
+        target_kind,
+        destination_parent,
+        destination_name,
+        existing_path,
+        initial_branch,
+        create_readme,
+        save_initial_version,
+    )
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn initialize_project(
+    target_kind: InitializeTargetKind,
+    destination_parent: String,
+    destination_name: String,
+    existing_path: String,
+    initial_branch: String,
+    create_readme: bool,
+    save_initial_version: bool,
+    operation_id: String,
+    state_token: String,
+    on_progress: tauri::ipc::Channel<InitializeProgressPhase>,
+) -> Result<InitializeProjectResult, AppError> {
+    initialize::initialize_project(
+        target_kind,
+        destination_parent,
+        destination_name,
+        existing_path,
+        initial_branch,
+        create_readme,
+        save_initial_version,
+        operation_id,
+        state_token,
+        |phase| {
+            let _ = on_progress.send(phase);
+        },
+    )
+}
+
+#[tauri::command]
+pub(crate) fn cleanup_initialize_project(
+    destination_path: String,
+    target_kind: InitializeTargetKind,
+    operation_id: String,
+) -> Result<(), AppError> {
+    initialize::cleanup_initialize_project(destination_path, target_kind, operation_id)
 }
 
 #[tauri::command(async)]
@@ -265,6 +330,29 @@ pub(crate) fn discover_remotes(
 ) -> Result<RemoteDiscovery, AppError> {
     validate_session(&path, session_epoch.as_deref())?;
     sync::discover_remotes(path)
+}
+
+#[tauri::command(async)]
+pub(crate) fn plan_connect_remote(
+    path: String,
+    session_epoch: String,
+    remote_name: String,
+    remote_url: String,
+) -> Result<ConnectRemotePlan, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    sync::plan_connect_remote(path, session_epoch, remote_name, remote_url)
+}
+
+#[tauri::command(async)]
+pub(crate) fn connect_remote(
+    path: String,
+    session_epoch: String,
+    remote_name: String,
+    remote_url: String,
+    state_token: String,
+) -> Result<ConnectRemoteResult, AppError> {
+    validate_mutation_session(&path, &session_epoch)?;
+    sync::connect_remote(path, session_epoch, remote_name, remote_url, state_token)
 }
 
 #[tauri::command(async)]
@@ -609,6 +697,20 @@ mod contract_tests {
             AppErrorCode::CloneCleanupUnavailable,
             AppErrorCode::CloneFailed,
             AppErrorCode::Offline,
+            AppErrorCode::InvalidProjectName,
+            AppErrorCode::ProjectDestinationExists,
+            AppErrorCode::ProjectDestinationCollides,
+            AppErrorCode::ExistingGitMetadata,
+            AppErrorCode::LinkedWorktree,
+            AppErrorCode::NestedRepository,
+            AppErrorCode::InitializationInspectionIncomplete,
+            AppErrorCode::InvalidInitialBranch,
+            AppErrorCode::ReadmeAlreadyExists,
+            AppErrorCode::StaleInitializePlan,
+            AppErrorCode::InitializeFailed,
+            AppErrorCode::InitializeVerificationFailed,
+            AppErrorCode::InitializeCleanupRequired,
+            AppErrorCode::InitializeCleanupUnavailable,
             AppErrorCode::CertificateFailed,
             AppErrorCode::HostKeyFailed,
             AppErrorCode::RemoteNotFound,
@@ -652,6 +754,11 @@ mod contract_tests {
             AppErrorCode::InvalidRemoteConfiguration,
             AppErrorCode::RemoteRefMissing,
             AppErrorCode::RemoteRejected,
+            AppErrorCode::InvalidRemoteUrl,
+            AppErrorCode::RemoteNameExists,
+            AppErrorCode::StaleConnectRemotePlan,
+            AppErrorCode::RemoteConnectFailed,
+            AppErrorCode::RemoteConnectUncertain,
             AppErrorCode::PublishUncertain,
             AppErrorCode::GetTeamChangesUncertain,
             AppErrorCode::GitVersionTooOld,

@@ -36,6 +36,7 @@ function commonProps() {
     onActivate: vi.fn(),
     onClose: vi.fn(),
     onOpenAnother: vi.fn(),
+    onCreate: vi.fn(),
     onClone: vi.fn(),
   };
 }
@@ -77,7 +78,7 @@ describe("ProjectSwitcher", () => {
     expect(screen.getByLabelText("Has unsaved changes")).toBeInTheDocument();
   });
 
-  it("offers cloning beside opening another project", async () => {
+  it("offers creating and cloning beside opening another project", async () => {
     const props = commonProps();
     render(
       <LanguageProvider>
@@ -85,6 +86,8 @@ describe("ProjectSwitcher", () => {
       </LanguageProvider>,
     );
 
+    await userEvent.click(screen.getByRole("button", { name: "Create local project" }));
+    expect(props.onCreate).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole("button", { name: "Clone remote project" }));
     expect(props.onClone).toHaveBeenCalledOnce();
   });

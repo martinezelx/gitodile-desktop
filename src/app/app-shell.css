@@ -391,14 +391,6 @@
 }
 .settings-dialog__header h2 { margin: 0 0 3px; font-size: 20px; letter-spacing: -0.015em; }
 .settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
-.settings-dialog__close {
-  flex-shrink: 0; width: 36px; height: 36px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-sm); background: transparent;
-  color: var(--text-secondary);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.settings-dialog__close:hover { background: var(--surface-hover); color: var(--text-primary); }
-.settings-dialog__close svg { width: 18px; height: 18px; }
 .about-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--overlay); backdrop-filter: blur(8px); }
 .about-dialog { position: relative; width: min(100%, 420px); padding: 32px; border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg); }
 .about-dialog__close {

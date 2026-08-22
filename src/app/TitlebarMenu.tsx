@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Bug, CloudDownload, Ellipsis, FolderOpen, FolderX, Info, Keyboard, RotateCw, Settings } from "lucide-react";
+import { Bug, CloudDownload, Ellipsis, FolderInput, FolderOpen, FolderX, Info, Keyboard, RotateCw, Settings } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLanguage } from "../i18n";
 
@@ -8,6 +8,7 @@ const ISSUES_URL = "https://github.com/martinezelx/project-gitodrile/issues/new"
 export function TitlebarMenu({
   onOpenAbout,
   onOpenProject,
+  onCreateProject,
   onCloneProject,
   onCloseProject,
   onOpenSettings,
@@ -18,6 +19,7 @@ export function TitlebarMenu({
 }: {
   onOpenAbout: () => void;
   onOpenProject: () => void;
+  onCreateProject: () => void;
   onCloneProject: () => void;
   onCloseProject: () => void;
   onOpenSettings: () => void;
@@ -122,6 +124,10 @@ export function TitlebarMenu({
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} disabled={isOpeningProject} onClick={() => runMenuAction(onOpenProject)}>
             <FolderOpen aria-hidden="true" />
             <span>{isOpeningProject ? t.overviewOpening : t.titlebarOpenProject}</span>
+          </button>
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onCreateProject)}>
+            <FolderInput aria-hidden="true" />
+            <span>{t.titlebarCreateProject}</span>
           </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onCloneProject)}>
             <CloudDownload aria-hidden="true" />

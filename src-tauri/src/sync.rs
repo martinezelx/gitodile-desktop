@@ -20,6 +20,7 @@ use crate::repository::{
 };
 use crate::status::{git_log_summaries, read_working_tree_status, SavedVersionSummary};
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::process::ExitStatus;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -48,6 +49,41 @@ pub(crate) struct RemoteDiscovery {
     pub(crate) remotes: Vec<RemoteInfo>,
     pub(crate) branch: Option<String>,
     pub(crate) upstream: Option<String>,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum ConnectRemoteCredentialExpectation {
+    None,
+    GitCredentialHelper,
+    SshAgentOrKey,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ConnectRemotePlan {
+    pub(crate) operation_kind: OperationKind,
+    pub(crate) requires_confirmation: bool,
+    pub(crate) project_id: String,
+    pub(crate) session_epoch: String,
+    pub(crate) state_token: String,
+    pub(crate) remote_name: String,
+    /// Rust-redacted display values. User-info, query and fragment never cross IPC.
+    pub(crate) fetch_url_display: String,
+    pub(crate) push_url_display: String,
+    pub(crate) credential_expectation: ConnectRemoteCredentialExpectation,
+    pub(crate) contacts_network: bool,
+    pub(crate) future_network_access: bool,
+    pub(crate) changes_remote: bool,
+    pub(crate) preserves_existing_config: bool,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ConnectRemoteResult {
+    pub(crate) project_id: String,
+    pub(crate) session_epoch: String,
+    pub(crate) remote_name: String,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone)]
@@ -246,6 +282,138 @@ struct ResolvedUpstream {
     fetch_refspec: String,
 }
 
+#[derive(Debug, Clone)]
+struct NormalizedConnectionUrl {
+    persisted: String,
+    safe_display: String,
+    credential_expectation: ConnectRemoteCredentialExpectation,
+    contacts_network: bool,
+}
+
+fn connect_remote_error(code: AppErrorCode, message: &str, remediation: &str) -> AppError {
+    AppError::new(code, message).with_remediation(remediation)
+}
+
+fn normalize_connection_url(raw: &str) -> Result<NormalizedConnectionUrl, AppError> {
+    let raw = raw.trim();
+    if raw.is_empty() || raw.chars().any(char::is_control) {
+        return Err(connect_remote_error(
+            AppErrorCode::InvalidRemoteUrl,
+            "Enter a complete remote Git URL.",
+            "Use an HTTPS, SSH, Git, or file URL.",
+        ));
+    }
+    let without_suffix = raw.split(['?', '#']).next().unwrap_or_default();
+    if let Some((raw_scheme, rest)) = without_suffix.split_once("://") {
+        let scheme = raw_scheme.to_ascii_lowercase();
+        if !matches!(scheme.as_str(), "https" | "ssh" | "git" | "file") {
+            return Err(connect_remote_error(
+                AppErrorCode::InvalidRemoteUrl,
+                "That remote protocol isn't supported.",
+                "Use an HTTPS, SSH, Git, or file URL.",
+            ));
+        }
+        let authority_end = rest.find('/').unwrap_or(rest.len());
+        let authority = &rest[..authority_end];
+        let remote_path = &rest[authority_end..];
+        if scheme != "file" && authority.is_empty() {
+            return Err(connect_remote_error(
+                AppErrorCode::InvalidRemoteUrl,
+                "The remote URL has no host.",
+                "Enter a complete remote Git URL.",
+            ));
+        }
+        if remote_path.trim_matches('/').is_empty() {
+            return Err(connect_remote_error(
+                AppErrorCode::InvalidRemoteUrl,
+                "The remote URL has no project path.",
+                "Enter a URL that identifies a Git repository.",
+            ));
+        }
+        let (safe_authority, persisted_authority) = match authority.rsplit_once('@') {
+            Some((userinfo, host)) if !host.is_empty() => {
+                let persisted = if scheme == "ssh" {
+                    let username = userinfo.split(':').next().unwrap_or_default();
+                    if username.is_empty() {
+                        host.to_string()
+                    } else {
+                        format!("{username}@{host}")
+                    }
+                } else {
+                    host.to_string()
+                };
+                (host.to_string(), persisted)
+            }
+            Some(_) => {
+                return Err(connect_remote_error(
+                    AppErrorCode::InvalidRemoteUrl,
+                    "The remote URL has no host.",
+                    "Enter a complete remote Git URL.",
+                ))
+            }
+            None => (authority.to_string(), authority.to_string()),
+        };
+        return Ok(NormalizedConnectionUrl {
+            persisted: format!("{scheme}://{persisted_authority}{remote_path}"),
+            safe_display: format!("{scheme}://{safe_authority}{remote_path}"),
+            credential_expectation: match scheme.as_str() {
+                "https" => ConnectRemoteCredentialExpectation::GitCredentialHelper,
+                "ssh" => ConnectRemoteCredentialExpectation::SshAgentOrKey,
+                _ => ConnectRemoteCredentialExpectation::None,
+            },
+            contacts_network: scheme != "file"
+                || (!authority.is_empty() && !authority.eq_ignore_ascii_case("localhost")),
+        });
+    }
+
+    let looks_like_windows_drive = raw.as_bytes().get(1) == Some(&b':')
+        && raw.as_bytes().first().is_some_and(u8::is_ascii_alphabetic);
+    if !looks_like_windows_drive {
+        if let Some((authority, remote_path)) = without_suffix.split_once(':') {
+            let recognizable_ssh_location = authority.contains('@')
+                || authority.contains('.')
+                || authority.eq_ignore_ascii_case("localhost")
+                || remote_path.contains('/');
+            if recognizable_ssh_location
+                && !authority.is_empty()
+                && !remote_path.is_empty()
+                && !authority.contains(['/', '\\'])
+            {
+                let (persisted_authority, host) = authority.rsplit_once('@').map_or_else(
+                    || (authority.to_string(), authority),
+                    |(userinfo, host)| {
+                        let username = userinfo.split(':').next().unwrap_or_default();
+                        let persisted = if username.is_empty() {
+                            host.to_string()
+                        } else {
+                            format!("{username}@{host}")
+                        };
+                        (persisted, host)
+                    },
+                );
+                if host.is_empty() {
+                    return Err(connect_remote_error(
+                        AppErrorCode::InvalidRemoteUrl,
+                        "The SSH remote has no host.",
+                        "Enter a complete SSH Git location.",
+                    ));
+                }
+                return Ok(NormalizedConnectionUrl {
+                    persisted: format!("{persisted_authority}:{remote_path}"),
+                    safe_display: format!("{host}:{remote_path}"),
+                    credential_expectation: ConnectRemoteCredentialExpectation::SshAgentOrKey,
+                    contacts_network: true,
+                });
+            }
+        }
+    }
+    Err(connect_remote_error(
+        AppErrorCode::InvalidRemoteUrl,
+        "That value isn't a supported remote Git URL.",
+        "Use an HTTPS, SSH, Git, file, or SCP-like SSH URL.",
+    ))
+}
+
 /// Removes URL userinfo plus query/fragment components before a configured
 /// value can be serialized or copied into an error. SCP-like SSH and local
 /// paths remain readable; their raw values are never used as display data.
@@ -294,6 +462,187 @@ pub(crate) fn list_remotes(path: &str) -> Result<Vec<RemoteInfo>, AppError> {
         .into_iter()
         .map(|remote| remote.info)
         .collect())
+}
+
+fn validate_new_remote_name(name: &str) -> Result<String, AppError> {
+    let name = name.trim();
+    if name.is_empty()
+        || name.len() > 80
+        || name.starts_with(['-', '.'])
+        || name.ends_with('.')
+        || name == ".."
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+    {
+        return Err(connect_remote_error(
+            AppErrorCode::InvalidRemoteConfiguration,
+            "That remote name isn't safe.",
+            "Use letters, numbers, dots, dashes, or underscores; origin is the usual name.",
+        ));
+    }
+    Ok(name.to_string())
+}
+
+fn local_remote_config_snapshot(path: &str) -> Result<Vec<u8>, AppError> {
+    let output = run_git(
+        path,
+        &["config", "--local", "--null", "--get-regexp", "^remote\\."],
+    )?;
+    if output.status.success() || output.status.code() == Some(1) {
+        Ok(output.stdout)
+    } else {
+        Err(connect_remote_error(
+            AppErrorCode::InvalidRemoteConfiguration,
+            "GitOdrile couldn't inspect the project's existing remote configuration.",
+            "Check .git/config and try again.",
+        ))
+    }
+}
+
+fn configured_remote_names(path: &str) -> Result<Vec<String>, AppError> {
+    let output = run_git(path, &["remote"])?;
+    if !output.status.success() {
+        return Err(connect_remote_error(
+            AppErrorCode::InvalidRemoteConfiguration,
+            "GitOdrile couldn't inspect this project's remotes.",
+            "Check the repository configuration and try again.",
+        ));
+    }
+    Ok(git_stdout(&output)
+        .lines()
+        .filter(|name| !name.is_empty())
+        .map(ToString::to_string)
+        .collect())
+}
+
+#[derive(Debug)]
+struct ValidatedConnectRemote {
+    remote_name: String,
+    url: NormalizedConnectionUrl,
+    state_token: String,
+}
+
+fn validate_connect_remote(
+    path: &str,
+    session_epoch: &str,
+    repository_identity: &str,
+    remote_name: &str,
+    remote_url: &str,
+) -> Result<ValidatedConnectRemote, AppError> {
+    let remote_name = validate_new_remote_name(remote_name)?;
+    let url = normalize_connection_url(remote_url)?;
+    let names = configured_remote_names(path)?;
+    if names
+        .iter()
+        .any(|name| name.eq_ignore_ascii_case(&remote_name))
+    {
+        return Err(connect_remote_error(
+            AppErrorCode::RemoteNameExists,
+            "A remote with this name already exists or differs only by letter case.",
+            "Keep the existing configuration unchanged or choose another remote name.",
+        ));
+    }
+    let snapshot = local_remote_config_snapshot(path)?;
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    repository_identity.hash(&mut hasher);
+    session_epoch.hash(&mut hasher);
+    remote_name.hash(&mut hasher);
+    url.persisted.hash(&mut hasher);
+    snapshot.hash(&mut hasher);
+    Ok(ValidatedConnectRemote {
+        remote_name,
+        url,
+        state_token: format!("{:016x}", hasher.finish()),
+    })
+}
+
+pub(crate) fn plan_connect_remote(
+    path: String,
+    session_epoch: String,
+    remote_name: String,
+    remote_url: String,
+) -> Result<ConnectRemotePlan, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "plan_connect_remote", None)?;
+    let validated = validate_connect_remote(
+        &path,
+        &session_epoch,
+        repository.common_git_dir.match_key(),
+        &remote_name,
+        &remote_url,
+    )?;
+    Ok(ConnectRemotePlan {
+        operation_kind: OperationKind::LocalMutation,
+        requires_confirmation: true,
+        project_id: path,
+        session_epoch,
+        state_token: validated.state_token,
+        remote_name: validated.remote_name,
+        fetch_url_display: validated.url.safe_display.clone(),
+        push_url_display: validated.url.safe_display,
+        credential_expectation: validated.url.credential_expectation,
+        contacts_network: false,
+        future_network_access: validated.url.contacts_network,
+        changes_remote: false,
+        preserves_existing_config: true,
+    })
+}
+
+pub(crate) fn connect_remote(
+    path: String,
+    session_epoch: String,
+    remote_name: String,
+    remote_url: String,
+    state_token: String,
+) -> Result<ConnectRemoteResult, AppError> {
+    let (repository, _access) = application::authorize_repository(&path, "connect_remote", None)?;
+    let validated = validate_connect_remote(
+        &path,
+        &session_epoch,
+        repository.common_git_dir.match_key(),
+        &remote_name,
+        &remote_url,
+    )?;
+    if validated.state_token != state_token {
+        return Err(connect_remote_error(
+            AppErrorCode::StaleConnectRemotePlan,
+            "The project, remote name, or URL changed after the preview.",
+            "Review the remote connection again.",
+        ));
+    }
+    let added = run_git(
+        &path,
+        &[
+            "remote",
+            "add",
+            &validated.remote_name,
+            &validated.url.persisted,
+        ],
+    )?;
+    if !added.status.success() {
+        return Err(connect_remote_error(
+            AppErrorCode::RemoteConnectFailed,
+            "Git could not add this remote configuration.",
+            "No network request was made. Check .git/config and review the connection again.",
+        ));
+    }
+    let key = format!("remote.{}.url", validated.remote_name);
+    let observed = run_git(&path, &["config", "--local", "--get-all", &key])?;
+    let observed_text = git_stdout(&observed);
+    let observed_urls: Vec<_> = observed_text.lines().collect();
+    if !observed.status.success() || observed_urls != [validated.url.persisted.as_str()] {
+        return Err(connect_remote_error(
+            AppErrorCode::RemoteConnectUncertain,
+            "Git added remote configuration, but GitOdrile could not verify its exact URL.",
+            "Inspect .git/config before editing or retrying this remote. GitOdrile did not contact the network.",
+        ));
+    }
+    Ok(ConnectRemoteResult {
+        project_id: path,
+        session_epoch,
+        remote_name: validated.remote_name,
+    })
 }
 
 pub(crate) fn discover_remotes(path: String) -> Result<RemoteDiscovery, AppError> {
