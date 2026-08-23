@@ -1,15 +1,28 @@
 # Third-party licenses
 
-## Atkinson Hyperlegible Mono
+## Bundled fonts
+
+GitOdrile bundles the monospaced families offered by the code-font setting.
+All three are licensed under the SIL Open Font License, Version 1.1, whose
+full text follows.
+
+### Atkinson Hyperlegible Mono
 
 Copyright 2020-2024 The Atkinson Hyperlegible Mono Project Authors
 (<https://github.com/googlefonts/atkinson-hyperlegible-next-mono>).
 
-This Font Software is licensed under the SIL Open Font License, Version 1.1.
+### JetBrains Mono
 
-### SIL Open Font License Version 1.1 — 26 February 2007
+Copyright 2020 The JetBrains Mono Project Authors
+(<https://github.com/JetBrains/JetBrainsMono>).
 
-#### Preamble
+### IBM Plex Mono
+
+Copyright 2017 IBM Corp. (<https://github.com/IBM/plex>).
+
+## SIL Open Font License Version 1.1 — 26 February 2007
+
+### Preamble
 
 The goals of the Open Font License (OFL) are to stimulate worldwide
 development of collaborative font projects, to support the font creation
@@ -26,7 +39,7 @@ any other type of license. The requirement for fonts to remain under this
 license does not apply to any document created using the fonts or their
 derivatives.
 
-#### Definitions
+### Definitions
 
 “Font Software” refers to the set of files released by the Copyright Holder(s)
 under this license and clearly marked as such. This may include source files,
@@ -46,7 +59,7 @@ environment.
 “Author” refers to any designer, engineer, programmer, technical writer or
 other person who contributed to the Font Software.
 
-#### Permission and conditions
+### Permission and conditions
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 the Font Software, to use, study, copy, merge, embed, modify, redistribute, and
@@ -78,11 +91,11 @@ following conditions:
    any other license. The requirement for fonts to remain under this license
    does not apply to any document created using the Font Software.
 
-#### Termination
+### Termination
 
 This license becomes null and void if any of the above conditions are not met.
 
-#### Disclaimer
+### Disclaimer
 
 THE FONT SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY,

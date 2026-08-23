@@ -23,7 +23,10 @@ import { autoHideScrollbarProps } from "../../shared/ui";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
   DEFAULT_DIFF_PREFERENCES,
+  DIFF_CODE_FONTS,
+  DIFF_CODE_FONT_STACKS,
   DIFF_TAB_WIDTHS,
+  type DiffCodeFont,
   type DiffPreferences,
   type DiffTabWidth,
 } from "../changes";
@@ -47,6 +50,12 @@ const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
   light: <Sun />,
   dark: <Moon />,
 };
+
+/* The characters a monospaced font is actually chosen for: zero against
+   capital O, one against lowercase l and capital I, and the punctuation a diff
+   turns on. Rendered at the diff's own size, so the sample is the thing the
+   reader will get rather than a flattering enlargement. */
+const CODE_FONT_SAMPLE = "0O 1lI {}[] != =>";
 
 const THEME_ORDER: ThemePreference[] = ["system", "light", "dark"];
 const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
@@ -479,6 +488,16 @@ export function SettingsPanel({
           ? t.lineEndingsFromGlobal
           : t.lineEndingsFromNowhere;
 
+  /* Short names rather than the full family names: the option is rendered in
+     the font it names, so the sample does the identifying and a long label
+     would only make the group wrap. */
+  const CODE_FONT_LABELS: Record<DiffCodeFont, string> = {
+    atkinson: t.readingCodeFontAtkinson,
+    jetbrains: t.readingCodeFontJetBrains,
+    plex: t.readingCodeFontPlex,
+    system: t.readingCodeFontSystem,
+  };
+
   const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
     general: <Settings />,
     appearance: <Palette />,
@@ -760,6 +779,48 @@ export function SettingsPanel({
                       </button>
                     ))}
                   </div>
+                </div>
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.readingCodeFontTitle}</h3>
+                <p>{t.readingCodeFontDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                <div
+                  className="font-picker"
+                  role="radiogroup"
+                  aria-label={t.readingCodeFontLabel}
+                  onKeyDown={moveFocusWithinRadioGroup}
+                >
+                  {DIFF_CODE_FONTS.map((font: DiffCodeFont, index: number) => {
+                    const isActive = diffPreferences.codeFont === font;
+                    return (
+                      <button
+                        key={font}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        tabIndex={isRadioTabStop(isActive, true, index) ? 0 : -1}
+                        className={`font-picker__option${isActive ? " font-picker__option--active" : ""}`}
+                        /* The whole card is set in the family it selects, so
+                           the option is its own specimen rather than a word
+                           the reader has to already recognise. */
+                        style={{ fontFamily: DIFF_CODE_FONT_STACKS[font] }}
+                        onClick={() => setDiffPreferences((previous) => ({ ...previous, codeFont: font }))}
+                      >
+                        <span className="font-picker__name">{CODE_FONT_LABELS[font]}</span>
+                        {/* Not decorative text: this is the comparison the
+                            choice actually turns on, so it is hidden from
+                            assistive tech — which cannot convey a glyph shape
+                            — and left to the eye it is for. */}
+                        <span className="font-picker__sample" aria-hidden="true">
+                          {CODE_FONT_SAMPLE}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </section>

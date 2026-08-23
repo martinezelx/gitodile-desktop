@@ -53,6 +53,44 @@
   background: var(--surface-panel);
 }
 
+/* Two by two rather than a row of four: the sample line is what has to be
+   readable, and four across would squeeze it to the point of defeating the
+   purpose. */
+.font-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.font-picker__option {
+  display: grid; gap: 5px; padding: 11px 13px; justify-items: start;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  background: var(--surface-panel); color: var(--text-secondary); text-align: left;
+  transition:
+    border-color var(--duration-fast),
+    background var(--duration-fast),
+    color var(--duration-fast);
+}
+.font-picker__option:hover:not(.font-picker__option--active) {
+  border-color: var(--text-secondary); color: var(--text-primary);
+}
+/* The selected card is stated by border and fill rather than by a tick in the
+   corner: the card is already a specimen, and a glyph laid over it would
+   compete with the thing being judged. */
+.font-picker__option--active {
+  border-color: var(--accent-primary); background: var(--surface-active); color: var(--text-primary);
+}
+.font-picker__name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+/* The diff's own size and surface, so the sample previews the real thing
+   rather than a flattering enlargement on the wrong background. `--surface-code`
+   sits very close to the card in both themes — measured at 1.04:1 in light and
+   1.00:1 in dark — which is the point: it is the colour the code will actually
+   sit on, not a decorative well.
+   Full text contrast on every card, selected or not. Dimming the unselected
+   samples measured 4.91:1 — passing, but the sample *is* the thing being
+   judged, and a specimen shown fainter than it will really render is a
+   misleading preview, not a de-emphasised one. */
+.font-picker__sample {
+  width: 100%; padding: 5px 7px; border-radius: var(--radius-sm);
+  background: var(--surface-code); color: var(--text-primary);
+  font-size: 12.5px; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 .identity-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
 /* Reserved so the row does not appear and disappear under the fields as the
    draft moves between saving, saved and invalid. */
@@ -173,6 +211,7 @@
   .settings-nav__alert { margin-left: 2px; }
   .settings-view { padding: 16px 20px 24px; }
   .identity-fields { grid-template-columns: 1fr; }
+  .font-picker { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .settings-row { align-items: flex-start; flex-direction: column; }
   .settings-row__actions { width: 100%; }

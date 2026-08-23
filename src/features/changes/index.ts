@@ -5,10 +5,14 @@ export { changesPort } from "./tauriAdapter";
 export { DiffResultView, type DiffViewMode } from "./DiffResultView";
 export {
   DEFAULT_DIFF_PREFERENCES,
+  DIFF_CODE_FONTS,
+  DIFF_CODE_FONT_STACKS,
   DIFF_TAB_WIDTHS,
   DiffPreferencesProvider,
+  isDiffCodeFont,
   isDiffTabWidth,
   useDiffPreferences,
+  type DiffCodeFont,
   type DiffPreferences,
   type DiffTabWidth,
 } from "./diffPreferences";

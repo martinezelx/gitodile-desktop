@@ -449,11 +449,44 @@ describe("Settings panel section rail", () => {
     expect(tabUpdate(DEFAULT_DIFF_PREFERENCES)).toEqual({ ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2 });
   });
 
+  it("picks the code font, and shows each option in the font it names", async () => {
+    const setDiffPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "reading", setDiffPreferences });
+
+    // The font lives in its own group, not among the diff layout options.
+    expect(screen.getByRole("heading", { name: "Code font" })).toBeInTheDocument();
+
+    const atkinson = screen.getByRole("radio", { name: "Hyperlegible" });
+    expect(atkinson).toHaveAttribute("aria-checked", "true");
+    // The card is drawn in the family it selects, so someone can choose by
+    // looking rather than by knowing brand names.
+    expect(atkinson.style.fontFamily).toContain("Atkinson Hyperlegible Mono");
+    // The specimen is for the eye only: a screen reader cannot convey a glyph
+    // shape, so it must not reach the option's accessible name.
+    expect(atkinson.textContent).toContain("0O 1lI");
+    expect(atkinson.querySelector(".font-picker__sample")).toHaveAttribute("aria-hidden", "true");
+
+    const jetbrains = screen.getByRole("radio", { name: "JetBrains" });
+    expect(jetbrains.style.fontFamily).toContain("JetBrains Mono");
+    await userEvent.click(jetbrains);
+    const update = setDiffPreferences.mock.calls[0][0] as (p: DiffPreferences) => DiffPreferences;
+    expect(update(DEFAULT_DIFF_PREFERENCES)).toEqual({
+      ...DEFAULT_DIFF_PREFERENCES,
+      codeFont: "jetbrains",
+    });
+
+    // Every stack keeps a monospaced fallback, including the system option,
+    // so a face that fails to load cannot break column alignment.
+    for (const name of ["Hyperlegible", "JetBrains", "Plex", "System"]) {
+      expect(screen.getByRole("radio", { name }).style.fontFamily).toContain("monospace");
+    }
+  });
+
   it("offers its own reset once a diff preference is off its default", async () => {
     const setDiffPreferences = vi.fn();
     renderPanel(createPort(), {
       initialSection: "reading",
-      diffPreferences: { ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2 },
+      diffPreferences: { ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2, codeFont: "plex" },
       setDiffPreferences,
     });
 
@@ -463,7 +496,9 @@ describe("Settings panel section rail", () => {
 
     await userEvent.click(reset);
     const update = setDiffPreferences.mock.calls[0][0] as (p: DiffPreferences) => DiffPreferences;
-    expect(update({ ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2 })).toEqual(DEFAULT_DIFF_PREFERENCES);
+    expect(update({ ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2, codeFont: "plex" })).toEqual(
+      DEFAULT_DIFF_PREFERENCES,
+    );
   });
 
   it("marks the Git section when the installation needs attention", () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   DEFAULT_DIFF_PREFERENCES,
+  isDiffCodeFont,
   isDiffTabWidth,
   type DiffPreferences,
 } from "../features/changes";
@@ -89,6 +90,7 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
         ignoreWhitespace: boolean(read.ignoreWhitespace, DEFAULT_DIFF_PREFERENCES.ignoreWhitespace),
         tabWidth: isDiffTabWidth(read.tabWidth) ? read.tabWidth : DEFAULT_DIFF_PREFERENCES.tabWidth,
         syntaxHighlighting: boolean(read.syntaxHighlighting, DEFAULT_DIFF_PREFERENCES.syntaxHighlighting),
+        codeFont: isDiffCodeFont(read.codeFont) ? read.codeFont : DEFAULT_DIFF_PREFERENCES.codeFont,
       };
     } catch {
       return DEFAULT_DIFF_PREFERENCES;

@@ -487,7 +487,11 @@
      that sibling and either overlap it or hand scrolling back to the parent,
      which would defeat virtualization by keeping every row mounted. */
   flex: 1; min-height: 0; margin: 0; padding: var(--space-3) 0; overflow-x: hidden; overflow-y: auto;
-  background: var(--surface-code); font: 12.5px/1.6 "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  background: var(--surface-code); font-size: 12.5px; line-height: 1.6;
+  /* The family is a preference, set on the element by `DiffResultView`. The
+     fallback here is the same stack that value carries, so a diff rendered
+     without a preferences provider still reads correctly. */
+  font-family: var(--diff-code-font, "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace);
   user-select: text;
 }
 .diff-code--accessible {

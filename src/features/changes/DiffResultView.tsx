@@ -5,7 +5,7 @@ import { ChevronsUpDown, FileQuestion, FileWarning, Pencil, TriangleAlert } from
 import type { Translations } from "../../i18n";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import type { DiffHunk, DiffLine, FileDiff } from "./domain";
-import { useDiffPreferences } from "./diffPreferences";
+import { DIFF_CODE_FONT_STACKS, useDiffPreferences } from "./diffPreferences";
 import { applyIgnoreWhitespace } from "./ignoreWhitespace";
 
 type HighlightLine = (line: string) => React.ReactNode;
@@ -209,12 +209,12 @@ export function formatDiffAsAccessibleText(hunks: DiffHunk[]): string {
  * one — a tab width that only applied to two views out of three would be a
  * setting that quietly does not hold. */
 function AccessibleDiffText({ hunks, t }: { hunks: DiffHunk[]; t: Translations }): React.JSX.Element {
-  const { tabWidth, wrapLines } = useDiffPreferences();
+  const { tabWidth, wrapLines, codeFont } = useDiffPreferences();
   return (
     <pre
       {...autoHideScrollbarProps<HTMLPreElement>()}
       className={`diff-code diff-code--accessible auto-hide-scrollbar${wrapLines ? " diff-code--accessible-wrap" : ""}`}
-      style={{ tabSize: tabWidth }}
+      style={{ tabSize: tabWidth, "--diff-code-font": DIFF_CODE_FONT_STACKS[codeFont] } as React.CSSProperties}
       tabIndex={0}
       aria-label={t.changesViewAccessibleAriaLabel}
     >
@@ -593,7 +593,7 @@ function DiffHunkList({
   t: Translations;
 }): React.JSX.Element {
   const preferences = useDiffPreferences();
-  const { wrapLines, tabWidth } = preferences;
+  const { wrapLines, tabWidth, codeFont } = preferences;
   const highlight = useSyntaxHighlight(filePath, preferences.syntaxHighlighting);
   // Which gaps the user has opened, and how far. Keyed by hunk index, so it
   // survives switching view modes (both builders read the same map) but is
@@ -711,11 +711,26 @@ function DiffHunkList({
     readMetrics();
     const observer = new ResizeObserver(readMetrics);
     observer.observe(element);
-    return () => observer.disconnect();
-    // `tabWidth` is read back off the computed style rather than used
-    // directly, so it has to re-run this — changing it resizes nothing, so
-    // the ResizeObserver never fires.
-  }, [wrapLines, tabWidth]);
+    /* A bundled face is requested only when a rule first uses it, and
+       `font-display: swap` paints the fallback until it arrives. The swap
+       changes character width without resizing anything, so the measurement
+       taken above can be the fallback's. Re-measure once the font set has
+       settled. `document.fonts` is absent in some test environments, so its
+       absence has to be survivable rather than assumed away. */
+    let isCurrent = true;
+    void document.fonts?.ready.then(() => {
+      if (isCurrent) {
+        readMetrics();
+      }
+    });
+    return () => {
+      isCurrent = false;
+      observer.disconnect();
+    };
+    // `tabWidth` and `codeFont` are read back off the computed style rather
+    // than used directly, so they have to re-run this — changing either
+    // resizes nothing, so the ResizeObserver never fires.
+  }, [wrapLines, tabWidth, codeFont]);
 
   /* Only needed with wrapping off, and skipped entirely otherwise: it walks
      every loaded line, which is wasted work when the rows are viewport-wide
@@ -820,7 +835,13 @@ function DiffHunkList({
       className={`diff-code auto-hide-scrollbar${wrapLines ? "" : " diff-code--nowrap"}`}
       // One shared column width for both halves, so the divider sits in the
       // same place on every row instead of following each row's own content.
-      style={{ tabSize: tabWidth, "--diff-split-column": `${splitColumnWidth}px` } as React.CSSProperties}
+      style={
+        {
+          tabSize: tabWidth,
+          "--diff-code-font": DIFF_CODE_FONT_STACKS[codeFont],
+          "--diff-split-column": `${splitColumnWidth}px`,
+        } as React.CSSProperties
+      }
       tabIndex={0}
       ref={scrollRef}
     >

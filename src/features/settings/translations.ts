@@ -92,6 +92,13 @@ export interface SettingsTranslations {
   readingSyntaxDescription: string;
   readingTabWidthLabel: string;
   readingTabWidthDescription: string;
+  readingCodeFontTitle: string;
+  readingCodeFontLabel: string;
+  readingCodeFontDescription: string;
+  readingCodeFontAtkinson: string;
+  readingCodeFontJetBrains: string;
+  readingCodeFontPlex: string;
+  readingCodeFontSystem: string;
 }
 
 const en: SettingsTranslations = {
@@ -198,6 +205,14 @@ const en: SettingsTranslations = {
   readingSyntaxDescription: "Highlight code by language. Off shows plain text.",
   readingTabWidthLabel: "Tab width",
   readingTabWidthDescription: "How many spaces wide a tab character looks.",
+  readingCodeFontTitle: "Code font",
+  readingCodeFontLabel: "Code font",
+  readingCodeFontDescription:
+    "Only code is shown in this typeface — diffs in Changes, History and pending versions. The rest of the app is unaffected. Every option is monospaced, so columns stay aligned.",
+  readingCodeFontAtkinson: "Hyperlegible",
+  readingCodeFontJetBrains: "JetBrains",
+  readingCodeFontPlex: "Plex",
+  readingCodeFontSystem: "System",
 };
 
 const es: SettingsTranslations = {
@@ -312,6 +327,14 @@ const es: SettingsTranslations = {
   readingSyntaxDescription: "Colorea el código según el lenguaje. Al desactivarlo se ve texto plano.",
   readingTabWidthLabel: "Ancho de tabulación",
   readingTabWidthDescription: "Cuántos espacios de ancho aparenta un carácter de tabulación.",
+  readingCodeFontTitle: "Fuente del código",
+  readingCodeFontLabel: "Fuente del código",
+  readingCodeFontDescription:
+    "Solo el código se muestra con esta tipografía: los cambios en Cambios, Historial y versiones pendientes. El resto de la aplicación no se ve afectado. Todas son monoespaciadas, así que las columnas siguen alineadas.",
+  readingCodeFontAtkinson: "Hyperlegible",
+  readingCodeFontJetBrains: "JetBrains",
+  readingCodeFontPlex: "Plex",
+  readingCodeFontSystem: "Sistema",
 };
 
 export const settingsTranslations = { en, es } as const;
