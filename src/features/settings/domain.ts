@@ -9,15 +9,12 @@
 export type ThemePreference = "system" | "light" | "dark";
 
 /** The panel's sections, in rail order. The list is the feature's to define,
- * but the *selection* is app state: it persists between openings and the
- * dialog header can steer it, so it arrives as a prop. */
+ * but the *selection* is app state: opening lands on General unless a caller
+ * names a section, and the dialog header can steer it, so it arrives as a
+ * prop. */
 export const SETTINGS_SECTIONS = ["general", "appearance", "reading", "git", "line-endings"] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
-
-export function isSettingsSection(value: unknown): value is SettingsSection {
-  return SETTINGS_SECTIONS.includes(value as SettingsSection);
-}
 
 /** The rail label for a section. Exported because the command palette offers
  * one entry per section and must name them exactly as the rail does. */

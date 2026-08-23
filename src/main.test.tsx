@@ -465,16 +465,26 @@ describe("App project restoration", () => {
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
     expect(trigger).toHaveFocus();
 
-    // The section is a preference, not per-opening state.
+    // Opening without naming a section starts at General every time, however
+    // the last visit ended. Callers that want another one say so.
     await user.click(trigger);
-    expect(
-      within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: "Interface" }),
-    ).toHaveAttribute("aria-selected", "true");
+    const reopened = screen.getByRole("dialog", { name: "Settings" });
+    expect(within(reopened).getByRole("tab", { name: "General" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(within(reopened).getByRole("tab", { name: "Interface" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
     await user.keyboard("{Escape}");
 
-    // Ctrl/Cmd+, is the desktop convention for preferences.
+    // Ctrl/Cmd+, is the desktop convention for preferences, and lands on
+    // General like every other plain opener.
     await user.keyboard("{Control>},{/Control}");
-    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: "General" }),
+    ).toHaveAttribute("aria-selected", "true");
     await user.keyboard("{Escape}");
 
     // …but never on top of another dialog: two focus traps would compete.
@@ -484,7 +494,7 @@ describe("App project restoration", () => {
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
     await user.keyboard("{Escape}");
 
-    // The palette lands on a named section instead of wherever the user was.
+    // A named palette entry still lands on its section rather than General.
     await user.keyboard("{Control>}k{/Control}");
     await user.type(screen.getByRole("combobox"), "Settings: Git");
     await user.keyboard("{Enter}");

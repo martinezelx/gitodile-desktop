@@ -5,7 +5,7 @@ import {
   isDiffTabWidth,
   type DiffPreferences,
 } from "../features/changes";
-import { isSettingsSection, type SettingsSection, type ThemePreference } from "../features/settings";
+import type { ThemePreference } from "../features/settings";
 
 const THEME_STORAGE_KEY = "gitodrile-theme";
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
@@ -13,7 +13,6 @@ export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 export const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
 export const WATCH_PROJECTS_STORAGE_KEY = "gitodrile-watch-projects";
 export const CONFIRM_DISCARD_STORAGE_KEY = "gitodrile-confirm-discard";
-export const SETTINGS_SECTION_STORAGE_KEY = "gitodrile-settings-section";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
 
@@ -103,14 +102,3 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
   return [preferences, setPreferences];
 }
 
-/** Which Settings section to reopen on. Stored rather than reset because a user
- * who came back for the Git section almost always wants it twice: closing the
- * dialog is not an instruction to forget where they were. */
-export function useSettingsSection(): [SettingsSection, Dispatch<SetStateAction<SettingsSection>>] {
-  const [section, setSection] = useState<SettingsSection>(() => {
-    const stored = localStorage.getItem(SETTINGS_SECTION_STORAGE_KEY);
-    return isSettingsSection(stored) ? stored : "general";
-  });
-  useEffect(() => localStorage.setItem(SETTINGS_SECTION_STORAGE_KEY, section), [section]);
-  return [section, setSection];
-}

@@ -52,6 +52,7 @@ import {
   settingsPort,
   settingsSectionLabel,
   useGitTooling,
+  type SettingsSection,
   type ThemePreference,
 } from "./features/settings";
 import {
@@ -77,7 +78,6 @@ import {
   WATCH_PROJECTS_STORAGE_KEY,
   applyTheme,
   resolveEffectiveTheme,
-  useSettingsSection,
   useStoredBoolean,
   useStoredDiffPreferences,
   useThemePreference,
@@ -399,7 +399,18 @@ export function App(): React.JSX.Element {
   const [skippedRestoreCount, setSkippedRestoreCount] = useState(0);
   const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const gitTooling = useGitTooling(settingsPort);
-  const [settingsSection, setSettingsSection] = useSettingsSection();
+  /* Not persisted: Settings opens on General unless a caller names a section.
+     Every route that genuinely wants a different one — the palette's
+     per-section entries, the "Git needs attention" header button, the
+     create-project identity link — says so by passing it, so remembering the
+     last visit only made the plain open unpredictable. */
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("general");
+  /** The one way to open Settings. Callers that want a particular section name
+   * it; everyone else gets General. */
+  const openSettings = (section: SettingsSection = "general"): void => {
+    setSettingsSection(section);
+    setIsSettingsOpen(true);
+  };
   const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
   const [reopenLastProject, setReopenLastProject] = useStoredBoolean(
     REOPEN_LAST_PROJECT_STORAGE_KEY,
@@ -922,7 +933,7 @@ export function App(): React.JSX.Element {
           return;
         }
         event.preventDefault();
-        setIsSettingsOpen(true);
+        openSettings();
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key === "Tab") {
@@ -960,22 +971,20 @@ export function App(): React.JSX.Element {
         return [];
       }
       if (destination.overlay === "settings") {
-        // One entry per section as well as the plain "Go to Settings": the
-        // section is app state now, so the palette can land on the right one
-        // instead of dropping the user at whichever they used last.
+        // One entry per section as well as the plain "Go to Settings", which
+        // lands on General. These are the shortcut for someone who knows where
+        // they are going, and the reason the plain open no longer needs to
+        // remember anything.
         return [
           {
             id: `open-${destination.id}`,
             label: t[destination.commandLabelKey],
-            action: () => setIsSettingsOpen(true),
+            action: () => openSettings(),
           },
           ...SETTINGS_SECTIONS.map((section) => ({
             id: `open-settings-${section}`,
             label: t.commandGoSettingsSection(settingsSectionLabel(section, t)),
-            action: () => {
-              setSettingsSection(section);
-              setIsSettingsOpen(true);
-            },
+            action: () => openSettings(section),
           })),
         ];
       }
@@ -1130,7 +1139,7 @@ export function App(): React.JSX.Element {
             onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
             onCloneProject={() => setIsCloneOpen(true)}
             onCloseProject={requestCloseActiveProject}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => openSettings()}
             onOpenShortcuts={() => setIsShortcutsOpen(true)}
             hasProject={project !== null}
             isOpeningProject={isOpening}
@@ -1317,7 +1326,7 @@ export function App(): React.JSX.Element {
                     // the accessible name and tooltip keep its icon clear.
                     aria-label={label}
                     data-tooltip={label}
-                    onClick={overlay === "settings" ? () => setIsSettingsOpen(true) : screen ? () => navigateToView(screen) : undefined}
+                    onClick={overlay === "settings" ? () => openSettings() : screen ? () => navigateToView(screen) : undefined}
                   >
                     <span className="nav-item__icon" aria-hidden="true">{destination.icon}</span>
                     <span className="nav-item__label">{label}</span>
@@ -1398,7 +1407,7 @@ export function App(): React.JSX.Element {
                     aria-current={screen !== null && isActive ? "page" : undefined}
                     aria-haspopup={overlay ? "dialog" : undefined}
                     aria-expanded={overlay ? isSettingsOpen : undefined}
-                    onClick={overlay === "settings" ? () => setIsSettingsOpen(true) : () => screen && navigateToView(screen)}
+                    onClick={overlay === "settings" ? () => openSettings() : () => screen && navigateToView(screen)}
                   >
                     <span aria-hidden="true">{destination.icon}</span>
                     {t[destination.labelKey]}
@@ -1604,10 +1613,7 @@ export function App(): React.JSX.Element {
           onClose={() => setInitializeDialogRequest(null)}
           onInitialized={handleInitializedProject}
           onProjectChanged={handleMutationSucceeded}
-          onOpenIdentitySettings={() => {
-            setSettingsSection("git");
-            setIsSettingsOpen(true);
-          }}
+          onOpenIdentitySettings={() => openSettings("git")}
         />
       )}
 
