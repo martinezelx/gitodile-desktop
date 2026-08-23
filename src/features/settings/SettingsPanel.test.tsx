@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n";
 import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
 import { SettingsPanel } from "./SettingsPanel";
+import { useGitIdentity, useLineEndings } from "./useGitConfig";
 import type { SettingsPort } from "./port";
 import type { GitDiagnostics, GitLineEndings, GitUpdateStatus, SettingsSection } from "./domain";
 
@@ -48,9 +49,18 @@ type PanelOverrides = Partial<{
   project: { path: string; sessionEpoch: string } | null;
 }>;
 
-/** The section is app state in production, so the harness owns it here too. */
+/** The section is app state in production, so the harness owns it here too —
+ * and so are the two config reads, which run through their real hooks rather
+ * than a stand-in, so these tests still exercise the whole path from the
+ * panel's controls down to the port. */
 function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOverrides }): React.JSX.Element {
   const [section, setSection] = useState<SettingsSection>(overrides.initialSection ?? "general");
+  const identity = useGitIdentity(port);
+  const lineEndings = useLineEndings(
+    port,
+    overrides.project?.path ?? null,
+    overrides.project?.sessionEpoch ?? null,
+  );
   return (
     <SettingsPanel
       theme="system"
@@ -79,7 +89,8 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
         watchProjects: true,
         confirmDiscard: true,
       }}
-      project={overrides.project ?? null}
+      identity={identity}
+      lineEndingsState={lineEndings}
       onClose={overrides.onClose}
       onRegisterCloseGuard={overrides.onRegisterCloseGuard}
       port={port}
@@ -113,6 +124,81 @@ describe("Settings panel native boundary", () => {
       expect(port.setIdentity).toHaveBeenCalledWith({ name: "Ada", email: "ada@lovelace.dev" }),
     );
     expect(await screen.findByText("Saved.")).toBeInTheDocument();
+  });
+
+  it("reads the identity and the line endings once and keeps them across openings", async () => {
+    const port = createPort({ getIdentity: vi.fn(async () => ({ name: "Ada", email: "ada@example.com" })) });
+
+    // The shell unmounts the panel on close, so the reads live above it. This
+    // harness stands in for that shell: the hooks stay mounted while the panel
+    // comes and goes, which is the whole point of the change.
+    function Shell(): React.JSX.Element {
+      const [isOpen, setIsOpen] = useState(true);
+      const identity = useGitIdentity(port);
+      const lineEndings = useLineEndings(port, null, null);
+      return (
+        <>
+          <button type="button" onClick={() => setIsOpen((open) => !open)}>
+            toggle
+          </button>
+          {isOpen && (
+            <SettingsPanel
+              theme="system"
+              setTheme={vi.fn()}
+              activeSection="git"
+              onSectionChange={vi.fn()}
+              gitDiagnostics={{ state: "available", version: "2.45.0" }}
+              gitUpdateStatus={null}
+              onCheckGitUpdate={vi.fn(async () => undefined)}
+              isCheckingGitUpdate={false}
+              onRefreshGitDiagnostics={vi.fn(async () => undefined)}
+              isRefreshingGitDiagnostics={false}
+              reopenLastProject={false}
+              setReopenLastProject={vi.fn()}
+              confirmCloseProject={false}
+              setConfirmCloseProject={vi.fn()}
+              watchProjects
+              setWatchProjects={vi.fn()}
+              confirmDiscard
+              setConfirmDiscard={vi.fn()}
+              diffPreferences={DEFAULT_DIFF_PREFERENCES}
+              setDiffPreferences={vi.fn()}
+              defaults={{
+                reopenLastProject: false,
+                confirmCloseProject: true,
+                watchProjects: true,
+                confirmDiscard: true,
+              }}
+              identity={identity}
+              lineEndingsState={lineEndings}
+              port={port}
+            />
+          )}
+        </>
+      );
+    }
+
+    render(
+      <LanguageProvider>
+        <Shell />
+      </LanguageProvider>,
+    );
+
+    expect(await screen.findByDisplayValue("Ada")).toBeInTheDocument();
+    await waitFor(() => expect(port.getIdentity).toHaveBeenCalledTimes(1));
+    expect(port.readLineEndings).toHaveBeenCalledTimes(1);
+
+    const toggle = screen.getByRole("button", { name: "toggle" });
+    await userEvent.click(toggle);
+    expect(screen.queryByDisplayValue("Ada")).toBeNull();
+    await userEvent.click(toggle);
+
+    // Reopening shows the saved values on the first frame — `getByDisplayValue`
+    // rather than `findByDisplayValue`, so a re-read that resolved later would
+    // not be enough to pass — and asks the port for nothing.
+    expect(screen.getByDisplayValue("Ada")).toBeInTheDocument();
+    expect(port.getIdentity).toHaveBeenCalledTimes(1);
+    expect(port.readLineEndings).toHaveBeenCalledTimes(1);
   });
 
   it("opens the platform guidance page through the port when Git cannot be installed directly", async () => {

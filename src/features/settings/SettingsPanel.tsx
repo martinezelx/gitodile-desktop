@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
@@ -36,7 +36,6 @@ import {
   SETTINGS_SECTIONS,
   settingsSectionLabel,
   type GitDiagnostics,
-  type GitLineEndings,
   type GitUpdateStatus,
   type LineEndingChoice,
   type SettingsSection,
@@ -44,6 +43,7 @@ import {
 } from "./domain";
 import type { SettingsPort } from "./port";
 import { settingsPort } from "./tauriAdapter";
+import type { GitIdentityState, LineEndingsState } from "./useGitConfig";
 
 const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
   system: <Monitor />,
@@ -57,6 +57,16 @@ const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
    reader will get rather than a flattering enlargement. */
 const CODE_FONT_SAMPLE = "0O 1lI {}[] != =>";
 
+/** Static, like `THEME_ICONS`: nothing about the rail's icons depends on
+ * state, a preference or the language. */
+const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
+  general: <Settings />,
+  appearance: <Palette />,
+  reading: <WrapText />,
+  git: <GitBranch />,
+  "line-endings": <CornerDownLeft />,
+};
+
 const THEME_ORDER: ThemePreference[] = ["system", "light", "dark"];
 const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
 
@@ -64,10 +74,6 @@ const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
    only catches the typo class of mistake — a missing `@` or domain — rather
    than deciding which addresses are real. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type Identity = { name: string; email: string };
-
-const EMPTY_IDENTITY: Identity = { name: "", email: "" };
 
 /** Outcome messages carry their tone rather than being rendered with one fixed
  * icon. Both of these states used to report every result — including "couldn't
@@ -124,6 +130,92 @@ function isRadioTabStop(isActive: boolean, hasSelection: boolean, index: number)
   return hasSelection ? isActive : index === 0;
 }
 
+/** The section rail, memoized away from the panel body.
+ *
+ * The panel re-renders on every keystroke in the identity field — the draft
+ * lives there because it has to survive switching sections, and the close
+ * guard reads it from wherever the user is. None of that touches the rail, so
+ * it is skipped instead of rebuilt: its props are the section list (memoized
+ * on the language), the active id, one boolean, and a setter React keeps
+ * stable.
+ *
+ * `tabRefs` and the arrow-key handler moved in with it. Left in the panel,
+ * the handler would be a fresh function on every render and defeat the memo. */
+const SettingsNav = React.memo(function SettingsNav({
+  sections,
+  activeSection,
+  onSectionChange,
+  needsGitAttention,
+  railLabel,
+  attentionLabel,
+}: {
+  sections: Array<{ id: SettingsSection; label: string; icon: React.JSX.Element }>;
+  activeSection: SettingsSection;
+  onSectionChange: (section: SettingsSection) => void;
+  needsGitAttention: boolean;
+  railLabel: string;
+  attentionLabel: string;
+}): React.JSX.Element {
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number): void => {
+    const step =
+      event.key === "ArrowDown" || event.key === "ArrowRight"
+        ? 1
+        : event.key === "ArrowUp" || event.key === "ArrowLeft"
+          ? -1
+          : 0;
+    const next =
+      step !== 0
+        ? (index + step + SETTINGS_SECTIONS.length) % SETTINGS_SECTIONS.length
+        : event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? SETTINGS_SECTIONS.length - 1
+            : -1;
+    if (next < 0) {
+      return;
+    }
+    event.preventDefault();
+    onSectionChange(SETTINGS_SECTIONS[next]);
+    tabRefs.current[next]?.focus();
+  };
+
+  return (
+    <div className="settings-nav" role="tablist" aria-orientation="vertical" aria-label={railLabel}>
+      {sections.map((section, index) => {
+        const isActive = activeSection === section.id;
+        return (
+          <button
+            key={section.id}
+            ref={(element) => {
+              tabRefs.current[index] = element;
+            }}
+            type="button"
+            role="tab"
+            id={`settings-tab-${section.id}`}
+            aria-selected={isActive}
+            aria-controls={isActive ? "settings-panel" : undefined}
+            /* Roving tabindex: one Tab stop for the whole rail, arrows to
+               move inside it. Without it, reaching the panel took as many
+               Tab presses as there are sections. */
+            tabIndex={isActive ? 0 : -1}
+            data-autofocus={isActive ? "" : undefined}
+            className={`settings-nav__item${isActive ? " settings-nav__item--active" : ""}`}
+            onClick={() => onSectionChange(section.id)}
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
+          >
+            <span aria-hidden="true">{section.icon}</span>
+            {section.label}
+            {section.id === "git" && needsGitAttention && (
+              <span className="settings-nav__alert" role="img" aria-label={attentionLabel} />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
 /** True when the Git installation is in a state the user has to act on. The
  * dialog header and the rail both surface this, because it is the one setting
  * whose failure blocks the whole app rather than degrading one screen. */
@@ -153,7 +245,8 @@ export function SettingsPanel({
   diffPreferences,
   setDiffPreferences,
   defaults,
-  project = null,
+  identity,
+  lineEndingsState,
   onClose,
   onRegisterCloseGuard,
   port = settingsPort,
@@ -187,10 +280,12 @@ export function SettingsPanel({
     watchProjects: boolean;
     confirmDiscard: boolean;
   };
-  /** The open project, when there is one. Only the line-ending group uses it,
-   * and only to say whether that project overrides the global answer; with no
-   * project open the panel reports the global setting alone. */
-  project?: { path: string; sessionEpoch: string } | null;
+  /** Both reads live above the dialog, which the shell unmounts on close, so
+   * the values survive a closing instead of being fetched again. The panel
+   * still owns the draft, the notices and the close guard: those are the parts
+   * that genuinely belong to one opening. */
+  identity: GitIdentityState;
+  lineEndingsState: LineEndingsState;
   onClose?: () => void;
   /** The panel holds the identity draft, so it is the only place that can know
    * whether dismissing the dialog would throw typed input away. It hands the
@@ -200,32 +295,34 @@ export function SettingsPanel({
 }): React.JSX.Element {
   const { t, languagePreference, setLanguagePreference } = useLanguage();
   const [gitActionNotice, setGitActionNotice] = useState<Notice | null>(null);
-  const [savedIdentity, setSavedIdentity] = useState<Identity>(EMPTY_IDENTITY);
-  const [nameInput, setNameInput] = useState("");
-  const [emailInput, setEmailInput] = useState("");
+  const [nameInput, setNameInput] = useState(identity.identity.name);
+  const [emailInput, setEmailInput] = useState(identity.identity.email);
   const [identityNotice, setIdentityNotice] = useState<Notice | null>(null);
-  const [isSavingIdentity, setIsSavingIdentity] = useState(false);
   const [hasVisitedEmail, setHasVisitedEmail] = useState(false);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const [isStartingGitInstallation, setIsStartingGitInstallation] = useState(false);
   const [isStartingGitUpdate, setIsStartingGitUpdate] = useState(false);
-  const [lineEndings, setLineEndings] = useState<GitLineEndings | null>(null);
   const [lineEndingNotice, setLineEndingNotice] = useState<Notice | null>(null);
-  const [isSavingLineEndings, setIsSavingLineEndings] = useState(false);
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const keepEditingRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    port
-      .getIdentity()
-      .then((result) => {
-        const identity = { name: result.name ?? "", email: result.email ?? "" };
-        setSavedIdentity(identity);
-        setNameInput(identity.name);
-        setEmailInput(identity.email);
-      })
-      .catch(() => undefined);
-  }, [port]);
+  const savedIdentity = identity.identity;
+  const isSavingIdentity = identity.isSaving;
+  const { lineEndings, isSaving: isSavingLineEndings } = lineEndingsState;
+
+  /* The draft is seeded from the saved identity, which the `useState` calls
+     above already do whenever the read has answered before this panel mounted
+     — the normal case, since the read starts at app startup and the panel is
+     built on demand. This covers only the first open of a cold session, where
+     the dialog can be on screen before the answer arrives.
+     Adjusting state during render rather than in an effect: React re-renders
+     before committing, so the fields never paint empty and then fill in. It
+     runs at most once, because the flag is only ever set. */
+  const [hasSeededDraft, setHasSeededDraft] = useState(identity.isLoaded);
+  if (identity.isLoaded && !hasSeededDraft) {
+    setHasSeededDraft(true);
+    setNameInput(savedIdentity.name);
+    setEmailInput(savedIdentity.email);
+  }
 
   useEffect(() => {
     if (isConfirmingDiscard) {
@@ -233,49 +330,16 @@ export function SettingsPanel({
     }
   }, [isConfirmingDiscard]);
 
-  /* Read from the primitives rather than the object so a parent re-render with
-     a fresh `{ path, sessionEpoch }` literal doesn't re-run the read. */
-  const projectPath = project?.path ?? null;
-  const projectEpoch = project?.sessionEpoch ?? null;
-  const readLineEndings = useCallback((): Promise<GitLineEndings> => {
-    return port.readLineEndings(
-      projectPath !== null && projectEpoch !== null && projectEpoch !== ""
-        ? { path: projectPath, sessionEpoch: projectEpoch }
-        : null,
-    );
-  }, [port, projectEpoch, projectPath]);
-
-  useEffect(() => {
-    let isCurrent = true;
-    readLineEndings()
-      .then((result) => {
-        if (isCurrent) {
-          setLineEndings(result);
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      isCurrent = false;
-    };
-  }, [readLineEndings]);
-
   const chooseLineEnding = async (choice: LineEndingChoice): Promise<void> => {
     setLineEndingNotice(null);
-    setIsSavingLineEndings(true);
     try {
-      await port.setLineEndings(choice);
-      // Read back rather than assume: a project that overrides the global
-      // config still overrides it after the write, and saying otherwise would
-      // report a setting that isn't the one applying here.
-      setLineEndings(await readLineEndings());
+      await lineEndingsState.choose(choice);
       setLineEndingNotice({ tone: "success", message: t.lineEndingsSaved });
     } catch (error) {
       setLineEndingNotice({
         tone: "danger",
         message: localizeAppError(error, t, t.lineEndingsCouldntSave),
       });
-    } finally {
-      setIsSavingLineEndings(false);
     }
   };
 
@@ -286,24 +350,21 @@ export function SettingsPanel({
   const canSaveIdentity =
     isIdentityDirty && trimmedName !== "" && trimmedEmail !== "" && !hasEmailFormatError;
 
+  const saveIdentity = identity.save;
   const commitIdentity = useCallback(async (): Promise<boolean> => {
-    const identity = { name: nameInput.trim(), email: emailInput.trim() };
+    const next = { name: nameInput.trim(), email: emailInput.trim() };
     setIdentityNotice(null);
-    setIsSavingIdentity(true);
     try {
-      await port.setIdentity(identity);
-      setSavedIdentity(identity);
-      setNameInput(identity.name);
-      setEmailInput(identity.email);
+      await saveIdentity(next);
+      setNameInput(next.name);
+      setEmailInput(next.email);
       setIdentityNotice({ tone: "success", message: t.identitySaved });
       return true;
     } catch (error) {
       setIdentityNotice({ tone: "danger", message: localizeAppError(error, t, t.identityCouldntSave) });
       return false;
-    } finally {
-      setIsSavingIdentity(false);
     }
-  }, [emailInput, nameInput, port, t]);
+  }, [emailInput, nameInput, saveIdentity, t]);
 
   /* The guard is registered once and reads the current draft through a ref.
      Re-registering per keystroke would be correct but pointless churn, and
@@ -340,29 +401,6 @@ export function SettingsPanel({
     if (canSaveIdentity) {
       void commitIdentity();
     }
-  };
-
-  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number): void => {
-    const step =
-      event.key === "ArrowDown" || event.key === "ArrowRight"
-        ? 1
-        : event.key === "ArrowUp" || event.key === "ArrowLeft"
-          ? -1
-          : 0;
-    const next =
-      step !== 0
-        ? (index + step + SETTINGS_SECTIONS.length) % SETTINGS_SECTIONS.length
-        : event.key === "Home"
-          ? 0
-          : event.key === "End"
-            ? SETTINGS_SECTIONS.length - 1
-            : -1;
-    if (next < 0) {
-      return;
-    }
-    event.preventDefault();
-    onSectionChange(SETTINGS_SECTIONS[next]);
-    tabRefs.current[next]?.focus();
   };
 
   const handleInstallGit = async (): Promise<void> => {
@@ -457,14 +495,20 @@ export function SettingsPanel({
      change while the app is running. */
   const [platform] = useState(() => port.readPlatform());
   const recommendedChoice = recommendedLineEndingChoice(platform);
-  const lineEndingText: Record<LineEndingChoice, { label: string; description: string }> = {
-    windows_checkout: {
-      label: t.lineEndingsWindowsLabel,
-      description: t.lineEndingsWindowsDescription,
-    },
-    normalize: { label: t.lineEndingsNormalizeLabel, description: t.lineEndingsNormalizeDescription },
-    keep_as_is: { label: t.lineEndingsKeepLabel, description: t.lineEndingsKeepDescription },
-  };
+  const lineEndingText: Record<LineEndingChoice, { label: string; description: string }> = useMemo(
+    () => ({
+      windows_checkout: {
+        label: t.lineEndingsWindowsLabel,
+        description: t.lineEndingsWindowsDescription,
+      },
+      normalize: {
+        label: t.lineEndingsNormalizeLabel,
+        description: t.lineEndingsNormalizeDescription,
+      },
+      keep_as_is: { label: t.lineEndingsKeepLabel, description: t.lineEndingsKeepDescription },
+    }),
+    [t],
+  );
   /* Both of these overrule the choice above for at least some files, so they
      share one warning block instead of arriving as separate pills in different
      tones — the reader has one exception to take in, not two notices to rank. */
@@ -491,25 +535,28 @@ export function SettingsPanel({
   /* Short names rather than the full family names: the option is rendered in
      the font it names, so the sample does the identifying and a long label
      would only make the group wrap. */
-  const CODE_FONT_LABELS: Record<DiffCodeFont, string> = {
-    atkinson: t.readingCodeFontAtkinson,
-    jetbrains: t.readingCodeFontJetBrains,
-    plex: t.readingCodeFontPlex,
-    system: t.readingCodeFontSystem,
-  };
+  const CODE_FONT_LABELS: Record<DiffCodeFont, string> = useMemo(
+    () => ({
+      atkinson: t.readingCodeFontAtkinson,
+      jetbrains: t.readingCodeFontJetBrains,
+      plex: t.readingCodeFontPlex,
+      system: t.readingCodeFontSystem,
+    }),
+    [t],
+  );
 
-  const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
-    general: <Settings />,
-    appearance: <Palette />,
-    reading: <WrapText />,
-    git: <GitBranch />,
-    "line-endings": <CornerDownLeft />,
-  };
-  const sections = SETTINGS_SECTIONS.map((id) => ({
-    id,
-    label: settingsSectionLabel(id, t),
-    icon: SECTION_ICONS[id],
-  }));
+  /* Only the labels depend on anything, so only they are recomputed. Built
+     inline, this rebuilt five icon elements and the list around them on every
+     keystroke in the identity field. */
+  const sections = useMemo(
+    () =>
+      SETTINGS_SECTIONS.map((id) => ({
+        id,
+        label: settingsSectionLabel(id, t),
+        icon: SECTION_ICONS[id],
+      })),
+    [t],
+  );
   const needsGitAttention = isGitInstallationBroken(gitDiagnostics);
 
   /* Only the sections whose controls have a defined default get the action.
@@ -549,38 +596,14 @@ export function SettingsPanel({
 
   return (
     <div className="settings-layout">
-      <div className="settings-nav" role="tablist" aria-orientation="vertical" aria-label={t.settingsSectionsAriaLabel}>
-        {sections.map((section, index) => {
-          const isActive = activeSection === section.id;
-          return (
-            <button
-              key={section.id}
-              ref={(element) => {
-                tabRefs.current[index] = element;
-              }}
-              type="button"
-              role="tab"
-              id={`settings-tab-${section.id}`}
-              aria-selected={isActive}
-              aria-controls={isActive ? "settings-panel" : undefined}
-              /* Roving tabindex: one Tab stop for the whole rail, arrows to
-                 move inside it. Without it, reaching the panel took as many
-                 Tab presses as there are sections. */
-              tabIndex={isActive ? 0 : -1}
-              data-autofocus={isActive ? "" : undefined}
-              className={`settings-nav__item${isActive ? " settings-nav__item--active" : ""}`}
-              onClick={() => onSectionChange(section.id)}
-              onKeyDown={(event) => handleTabKeyDown(event, index)}
-            >
-              <span aria-hidden="true">{section.icon}</span>
-              {section.label}
-              {section.id === "git" && needsGitAttention && (
-                <span className="settings-nav__alert" role="img" aria-label={t.settingsGitNeedsAttention} />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <SettingsNav
+        sections={sections}
+        activeSection={activeSection}
+        onSectionChange={onSectionChange}
+        needsGitAttention={needsGitAttention}
+        railLabel={t.settingsSectionsAriaLabel}
+        attentionLabel={t.settingsGitNeedsAttention}
+      />
       <div
         {...autoHideScrollbarProps<HTMLDivElement>()}
         className="settings-view auto-hide-scrollbar"

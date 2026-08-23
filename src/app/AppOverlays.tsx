@@ -6,7 +6,9 @@ import type { DiffPreferences } from "../features/changes";
 import {
   SettingsPanel,
   isGitInstallationBroken,
+  type GitIdentityState,
   type GitToolingState,
+  type LineEndingsState,
   type SettingsSection,
   type ThemePreference,
 } from "../features/settings";
@@ -42,9 +44,11 @@ export type AppOverlaysProps = {
       watchProjects: boolean;
       confirmDiscard: boolean;
     };
-    /** The open project, so the line-endings section can say when that project
-     * overrides the global setting. Null when none is open. */
-    project: { path: string; sessionEpoch: string } | null;
+    /** Both read once after first paint and kept above this dialog, which is
+     * unmounted on every close. The line-endings state already knows about the
+     * open project, so the overlay never has to pass one down. */
+    identity: GitIdentityState;
+    lineEndings: LineEndingsState;
   };
   about: { isOpen: boolean; setOpen: BooleanSetter };
   shortcuts: { isOpen: boolean; setOpen: BooleanSetter };
@@ -187,7 +191,8 @@ export function AppOverlays({
               diffPreferences={settings.diffPreferences}
               setDiffPreferences={settings.setDiffPreferences}
               defaults={settings.defaults}
-              project={settings.project}
+              identity={settings.identity}
+              lineEndingsState={settings.lineEndings}
               onClose={closeSettings}
               onRegisterCloseGuard={registerSettingsCloseGuard}
             />

@@ -52,6 +52,17 @@ not implied by the `1.0.0` merge and restore workflows.
 - Drag-and-drop opening of one or multiple local projects.
 - OS-native recent-project and file-association integrations.
 
+### Settings
+
+- Answer the global half of `get_line_endings` without taking a repository read
+  permit. The command is declared `read(...)`, so opening Settings while a save,
+  publish or sync holds the write permit makes it wait for that write to finish
+  — the one worst case task 069 did not remove. The global value is true
+  regardless of what the repository is doing, so it could be answered
+  immediately and the project's override filled in once the permit frees.
+  Deferred because changing the concurrency policy of a repository read is worth
+  more care than the case is worth.
+
 ## Product and quality research
 
 - Explain repository health in plain language with actionable, bounded checks.

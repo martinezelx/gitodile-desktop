@@ -51,7 +51,9 @@ import {
   SETTINGS_SECTIONS,
   settingsPort,
   settingsSectionLabel,
+  useGitIdentity,
   useGitTooling,
+  useLineEndings,
   type SettingsSection,
   type ThemePreference,
 } from "./features/settings";
@@ -399,6 +401,16 @@ export function App(): React.JSX.Element {
   const [skippedRestoreCount, setSkippedRestoreCount] = useState(0);
   const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const gitTooling = useGitTooling(settingsPort);
+  /* Read once after first paint and kept, like the Git diagnostics above.
+     Owned here rather than inside the panel because the shell unmounts the
+     panel on every close, which used to throw both answers away and pay for
+     them again on the next opening. */
+  const gitIdentity = useGitIdentity(settingsPort);
+  const lineEndings = useLineEndings(
+    settingsPort,
+    activeSession?.id ?? null,
+    activeSession?.epoch ?? null,
+  );
   /* Not persisted: Settings opens on General unless a caller names a section.
      Every route that genuinely wants a different one — the palette's
      per-section entries, the "Git needs attention" header button, the
@@ -1769,7 +1781,8 @@ export function App(): React.JSX.Element {
             watchProjects: WATCH_PROJECTS_DEFAULT,
             confirmDiscard: CONFIRM_DISCARD_DEFAULT,
           },
-          project: activeSession ? { path: activeSession.id, sessionEpoch: activeSession.epoch } : null,
+          identity: gitIdentity,
+          lineEndings,
         }}
         about={{ isOpen: isAboutOpen, setOpen: setIsAboutOpen }}
         shortcuts={{ isOpen: isShortcutsOpen, setOpen: setIsShortcutsOpen }}

@@ -8,6 +8,7 @@ use crate::error::{AppError, AppErrorCode};
 #[cfg(test)]
 use crate::git_command::in_test_frame;
 use crate::git_command::{git_stdout, run_global_git_with_env};
+use std::collections::HashMap;
 #[cfg(target_os = "windows")]
 use std::io::ErrorKind;
 #[cfg(target_os = "windows")]
@@ -455,20 +456,74 @@ pub(crate) struct GitIdentity {
     email: Option<String>,
 }
 
-fn read_global_git_config(key: &str, config_override: Option<&str>) -> Option<String> {
+/// The keys this reads, as one `--get-regexp` pattern.
+///
+/// One process instead of one per key. Reading `user.name` and `user.email`
+/// separately spawned two Git processes to read one file, and line endings
+/// spawned two more — at roughly 55 ms per spawn on Windows, that was the
+/// whole of the delay before Settings could show what it had found.
+fn config_pattern(keys: &[&str]) -> String {
+    format!(
+        "^({})$",
+        keys.iter()
+            .map(|key| key.replace('.', "\\."))
+            .collect::<Vec<_>>()
+            .join("|")
+    )
+}
+
+/// Parses `git config -z --get-regexp` output into the value Git itself would
+/// return for each key.
+///
+/// `-z` rather than the default line format: entries are separated by NUL and
+/// the key from its value by a newline, so a config value that *contains* a
+/// newline cannot be mistaken for the next entry. An entry with no newline is
+/// a valueless key — one written under a section header with nothing after it
+/// — which reads as absent here exactly as `--get` reported it before.
+///
+/// Later entries overwrite earlier ones because that is Git's own precedence:
+/// with a key set more than once, the last one wins, which is what `--get`
+/// returns.
+fn parse_config_entries(stdout: &str) -> HashMap<String, String> {
+    let mut values = HashMap::new();
+    for entry in stdout.split('\0').filter(|entry| !entry.is_empty()) {
+        if let Some((key, value)) = entry.split_once('\n') {
+            let value = value.trim();
+            if !value.is_empty() {
+                values.insert(key.to_string(), value.to_string());
+            }
+        }
+    }
+    values
+}
+
+/// Every requested key that the global config defines, in one process.
+fn read_global_git_config_many(
+    keys: &[&str],
+    config_override: Option<&str>,
+) -> HashMap<String, String> {
     let envs = config_override
         .map(|path| vec![("GIT_CONFIG_GLOBAL", path)])
         .unwrap_or_default();
-    let output = run_global_git_with_env(["config", "--global", "--get", key], &envs).ok()?;
+    // `--get-regexp` exits non-zero when nothing matches, which is an answer
+    // ("none of these are set"), not a failure — so an empty map is returned
+    // either way rather than distinguishing them.
+    let Ok(output) = run_global_git_with_env(
+        [
+            "config",
+            "--global",
+            "-z",
+            "--get-regexp",
+            &config_pattern(keys),
+        ],
+        &envs,
+    ) else {
+        return HashMap::new();
+    };
     if !output.status.success() {
-        return None;
+        return HashMap::new();
     }
-    let value = git_stdout(&output);
-    if value.is_empty() {
-        None
-    } else {
-        Some(value)
-    }
+    parse_config_entries(&String::from_utf8_lossy(&output.stdout))
 }
 
 fn write_global_git_config(
@@ -511,9 +566,10 @@ fn set_git_identity_with_override(
 
 pub(crate) fn get_git_identity() -> GitIdentity {
     let _command = application::enter("get_git_identity");
+    let values = read_global_git_config_many(&["user.name", "user.email"], None);
     GitIdentity {
-        name: read_global_git_config("user.name", None),
-        email: read_global_git_config("user.email", None),
+        name: values.get("user.name").cloned(),
+        email: values.get("user.email").cloned(),
     }
 }
 
@@ -631,52 +687,51 @@ fn line_endings_from_values(
 
 fn read_project_git_config(
     project_path: &str,
-    key: &str,
+    keys: &[&str],
     config_override: Option<&str>,
-) -> Option<String> {
+) -> HashMap<String, String> {
     let envs = config_override
         .map(|path| vec![("GIT_CONFIG_GLOBAL", path)])
         .unwrap_or_default();
-    let output = crate::git_command::run_git_with_env(
+    let Ok(output) = crate::git_command::run_git_with_env(
         project_path,
-        ["config", "--get", key],
+        ["config", "-z", "--get-regexp", &config_pattern(keys)],
         envs.as_slice(),
-    )
-    .ok()?;
+    ) else {
+        return HashMap::new();
+    };
     if !output.status.success() {
-        return None;
+        return HashMap::new();
     }
-    let value = git_stdout(&output);
-    if value.is_empty() {
-        None
-    } else {
-        Some(value)
-    }
+    parse_config_entries(&String::from_utf8_lossy(&output.stdout))
 }
 
+const LINE_ENDING_KEYS: [&str; 2] = ["core.autocrlf", "core.eol"];
+
 fn read_line_endings(project_path: Option<&str>, config_override: Option<&str>) -> GitLineEndings {
-    let global = read_global_git_config("core.autocrlf", config_override);
-    let global_eol = read_global_git_config("core.eol", config_override);
+    // Both keys in one process, and the project's pair in one more when there
+    // is a project. Four spawns became two, which is the whole of what the
+    // panel used to wait for.
+    let global = read_global_git_config_many(&LINE_ENDING_KEYS, config_override);
+    let global_autocrlf = global.get("core.autocrlf").map(String::as_str);
+    let global_eol = global.get("core.eol").map(String::as_str);
     match project_path {
-        // Run inside the project so Git itself resolves the precedence between
+        // Read inside the project so Git itself resolves the precedence between
         // repository and global config; falling back to the global answer keeps
         // an unreadable repository from reporting "not set".
-        Some(path) => line_endings_from_values(
-            global.as_deref(),
-            read_project_git_config(path, "core.autocrlf", config_override)
-                .or_else(|| global.clone())
-                .as_deref(),
-            read_project_git_config(path, "core.eol", config_override)
-                .or_else(|| global_eol.clone())
-                .as_deref(),
-            project_defines_line_ending_attributes(path),
-        ),
-        None => line_endings_from_values(
-            global.as_deref(),
-            global.as_deref(),
-            global_eol.as_deref(),
-            false,
-        ),
+        Some(path) => {
+            let project = read_project_git_config(path, &LINE_ENDING_KEYS, config_override);
+            line_endings_from_values(
+                global_autocrlf,
+                project
+                    .get("core.autocrlf")
+                    .map(String::as_str)
+                    .or(global_autocrlf),
+                project.get("core.eol").map(String::as_str).or(global_eol),
+                project_defines_line_ending_attributes(path),
+            )
+        }
+        None => line_endings_from_values(global_autocrlf, global_autocrlf, global_eol, false),
     }
 }
 
@@ -865,16 +920,80 @@ mod tests {
     }
 
     #[test]
+    fn config_entries_survive_spaces_newlines_and_non_ascii() {
+        // The exact shape `git config -z --get-regexp` writes: key, newline,
+        // value, NUL. A value containing a newline is the case the previous
+        // line-based format could not have told apart from the next entry.
+        let stdout = concat!(
+            "user.name\nLuis Muñoz Martínez\0",
+            "core.autocrlf\ttrue\0",
+            "user.email\nada@example.com\0",
+            "core.eol\nfirst\nsecond\0",
+        );
+        let values = parse_config_entries(stdout);
+        assert_eq!(
+            values.get("user.name").map(String::as_str),
+            Some("Luis Muñoz Martínez")
+        );
+        assert_eq!(
+            values.get("user.email").map(String::as_str),
+            Some("ada@example.com")
+        );
+        assert_eq!(
+            values.get("core.eol").map(String::as_str),
+            Some("first\nsecond")
+        );
+        // No newline in the entry means a key written with no value, which
+        // reads as absent exactly as `--get` reported it.
+        assert_eq!(values.get("core.autocrlf\ttrue"), None);
+        assert_eq!(values.get("core.autocrlf"), None);
+    }
+
+    #[test]
+    fn config_entries_take_the_last_value_git_would_return() {
+        // Git's own precedence for a key set more than once: the last one wins,
+        // which is what `--get` answered before this read them all at once.
+        let values = parse_config_entries("core.autocrlf\ninput\0core.autocrlf\ntrue\0");
+        assert_eq!(
+            values.get("core.autocrlf").map(String::as_str),
+            Some("true")
+        );
+    }
+
+    #[test]
+    fn config_entries_ignore_empty_values_and_empty_output() {
+        assert!(parse_config_entries("").is_empty());
+        assert!(parse_config_entries("user.name\n   \0").is_empty());
+    }
+
+    #[test]
+    fn config_pattern_anchors_and_escapes_the_key_separator() {
+        // Unescaped, the `.` would match any character, so `user.name` would
+        // also match a key like `usersname`.
+        assert_eq!(
+            config_pattern(&["user.name", "user.email"]),
+            r"^(user\.name|user\.email)$"
+        );
+    }
+
+    #[test]
     fn git_identity_round_trips_through_a_temporary_global_config() {
         let mut config_path = std::env::temp_dir();
         config_path.push(format!("gitodrile-test-gitconfig-{}", std::process::id()));
         let _ = fs::remove_file(&config_path);
         let config_override = config_path.to_string_lossy().to_string();
 
-        assert_eq!(
-            in_test_frame(|| read_global_git_config("user.name", Some(&config_override))),
-            None
-        );
+        let read = |override_path: &str| {
+            let values = in_test_frame(|| {
+                read_global_git_config_many(&["user.name", "user.email"], Some(override_path))
+            });
+            (
+                values.get("user.name").cloned(),
+                values.get("user.email").cloned(),
+            )
+        };
+
+        assert_eq!(read(&config_override), (None, None));
         in_test_frame(|| {
             set_git_identity_with_override(
                 "Ada Lovelace",
@@ -884,12 +1003,11 @@ mod tests {
         })
         .expect("set identity should succeed");
         assert_eq!(
-            in_test_frame(|| read_global_git_config("user.name", Some(&config_override))),
-            Some("Ada Lovelace".to_string())
-        );
-        assert_eq!(
-            in_test_frame(|| read_global_git_config("user.email", Some(&config_override))),
-            Some("ada@example.com".to_string())
+            read(&config_override),
+            (
+                Some("Ada Lovelace".to_string()),
+                Some("ada@example.com".to_string())
+            )
         );
         let _ = fs::remove_file(&config_path);
     }
