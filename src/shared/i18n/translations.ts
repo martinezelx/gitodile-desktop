@@ -102,6 +102,7 @@ export interface SharedTranslations {
   commonClose: string;
   commonLoading: string;
   commonCancel: string;
+  commonRequiredField: string;
 }
 
 const en: SharedTranslations = {
@@ -221,6 +222,7 @@ const en: SharedTranslations = {
   commonClose: "Close",
   commonLoading: "Loading…",
   commonCancel: "Cancel",
+  commonRequiredField: "Fill in this field.",
 };
 
 const es: SharedTranslations = {
@@ -345,6 +347,7 @@ const es: SharedTranslations = {
   commonClose: "Cerrar",
   commonLoading: "Cargando…",
   commonCancel: "Cancelar",
+  commonRequiredField: "Rellena este campo.",
 };
 
 export const sharedTranslations = { en, es } as const;

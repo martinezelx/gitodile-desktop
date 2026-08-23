@@ -9,7 +9,7 @@ import { createCloneController } from "./controller";
 import type { ClonePlan, CloneResult } from "./domain";
 import type { ClonePort } from "./port";
 
-const plan: ClonePlan = {
+const planFixture: ClonePlan = {
   operationKind: "local-mutation",
   requiresConfirmation: true,
   operationId: "op-1",
@@ -44,7 +44,7 @@ function deferred<T>() {
 function renderDialog(portOverrides: Partial<ClonePort> = {}) {
   const port: ClonePort = {
     chooseParent: async () => null,
-    plan: async () => plan,
+    plan: async () => planFixture,
     execute: async (_request, _plan, onProgress) => {
       onProgress("cloning");
       return result;
@@ -95,6 +95,25 @@ describe("CloneDialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
     expect(localStorage.getItem("gitodrile-clone-parent")).toBe("C:\\projects");
     expect(JSON.stringify(localStorage)).not.toContain("secret");
+  });
+
+  it("answers an empty required field inline and closes from the header button", async () => {
+    const plan = vi.fn(async () => planFixture);
+    const { onClose } = renderDialog({ plan });
+    await userEvent.click(screen.getByRole("button", { name: "Review clone" }));
+
+    expect(plan).not.toHaveBeenCalled();
+    expect(await screen.findAllByText("Fill in this field.")).toHaveLength(2);
+    const source = screen.getByPlaceholderText("https://example.com/team/project.git");
+    expect(source).toHaveAttribute("aria-invalid", "true");
+    expect(source).toHaveFocus();
+
+    await userEvent.type(source, "https://example.test/team/project.git");
+    expect(source).not.toHaveAttribute("aria-invalid");
+    expect(screen.getAllByText("Fill in this field.")).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("makes a late success inert when cancellation replaces the attempt", async () => {

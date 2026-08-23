@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
-import { CircleAlert, CloudDownload, FileDiff, FolderInput, FolderPlus, LoaderCircle, X } from "lucide-react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { CircleAlert, CloudDownload, FileDiff, FolderInput, FolderPlus, LoaderCircle, Plus, X } from "lucide-react";
 import { useLanguage } from "./i18n";
 import { avatarColorVar, avatarInitials } from "./projectAvatar";
+import { handlePopupMenuKeyDown } from "./shared/ui";
 import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 
 export type ProjectSwitcherEntry = {
@@ -77,6 +79,174 @@ function RowIndicators({ entry }: { entry: ProjectSwitcherEntry }): React.JSX.El
   );
 }
 
+/** Trigger class per surface. The menu itself is identical everywhere; only
+ * the button wearing it changes shape, so each surface keeps its own look
+ * (full-width row, dashed rail square, bordered compact square). */
+const ADD_MENU_TRIGGER_CLASS = {
+  row: "project-switcher__add",
+  rail: "project-switcher-icons__add",
+  compact: "project-switcher-compact__trigger",
+} as const;
+
+type AddProjectMenuVariant = keyof typeof ADD_MENU_TRIGGER_CLASS;
+
+/**
+ * The three ways to get a project — create, open, clone — behind one "+".
+ * They used to sit side by side in every switcher surface, which cost three
+ * rows of sidebar height (or three squares of the 76px rail) to say one thing.
+ *
+ * The popup is fixed-positioned and portaled because both `.sidebar` and
+ * `.sidebar-scroll` clip their overflow: an absolutely positioned menu would
+ * be cut off at the panel edge, and on the collapsed rail it would have
+ * nowhere to open at all. That is the same escape `tooltip.tsx` makes, and it
+ * brings the same rule with it — the anchor rect is measured once, so scroll
+ * and resize dismiss the menu rather than letting it drift off its trigger.
+ */
+function AddProjectMenu({
+  variant,
+  hasEntries,
+  canSwitch,
+  isOpening,
+  onOpenAnother,
+  onCreate,
+  onClone,
+}: {
+  variant: AddProjectMenuVariant;
+  hasEntries: boolean;
+  canSwitch: boolean;
+  isOpening: boolean;
+  onOpenAnother: () => void;
+  onCreate: () => void;
+  onClone: () => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const close = (restoreFocus: boolean): void => {
+    setIsOpen(false);
+    setPosition(null);
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+
+  // Runs before paint, so the menu is measured and placed in the same frame it
+  // mounts — it is rendered hidden until `position` lands to keep that honest.
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const trigger = triggerRef.current?.getBoundingClientRect();
+    const menu = menuRef.current?.getBoundingClientRect();
+    if (!trigger || !menu) return;
+    const margin = 8;
+    // The rail is only 36px wide, so its menu flies out sideways; the wider
+    // surfaces align it with the trigger's own left edge.
+    const preferredLeft = variant === "rail" ? trigger.right + 6 : trigger.left;
+    const below = trigger.bottom + 6;
+    setPosition({
+      left: Math.max(margin, Math.min(preferredLeft, window.innerWidth - menu.width - margin)),
+      top: below + menu.height + margin <= window.innerHeight
+        ? below
+        : Math.max(margin, trigger.top - menu.height - 6),
+    });
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus();
+  }, [isOpen, variant]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const handlePointerDown = (event: MouseEvent): void => {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      close(false);
+    };
+    const handleKeyDown = (event: globalThis.KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      close(true);
+    };
+    const dismiss = (): void => close(false);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("resize", dismiss);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("resize", dismiss);
+    };
+  }, [isOpen]);
+
+  const choose = (action: () => void): void => {
+    // Restore the trigger before running the action: every action opens a
+    // dialog (or the OS folder picker), and the dialog's focus trap remembers
+    // whatever is focused when it opens so it can hand focus back on close.
+    // Without this, the chosen menu item unmounts and focus falls to <body>.
+    close(true);
+    action();
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`${ADD_MENU_TRIGGER_CLASS[variant]} project-switcher-add-menu__trigger`}
+        aria-label={variant === "row" ? undefined : t.projectSwitcherAddProject}
+        data-tooltip={variant === "row" ? undefined : t.projectSwitcherAddProject}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        disabled={!canSwitch}
+        onClick={() => (isOpen ? close(true) : setIsOpen(true))}
+      >
+        <Plus aria-hidden="true" />
+        {variant === "row" && <span>{t.projectSwitcherAddProject}</span>}
+      </button>
+      {isOpen && createPortal(
+        <div
+          ref={menuRef}
+          // Read by the compact switcher's own outside-click guard: this menu
+          // lives in a portal, so without the marker its clicks would look
+          // like a click outside the popover that renders its trigger.
+          data-add-project-menu=""
+          className="app-menu project-switcher-add-menu__popup"
+          role="menu"
+          aria-label={t.projectSwitcherAddProject}
+          tabIndex={-1}
+          style={{
+            position: "fixed",
+            right: "auto",
+            top: position?.top ?? 0,
+            left: position?.left ?? 0,
+            visibility: position ? "visible" : "hidden",
+          }}
+          onKeyDown={(event) => handlePopupMenuKeyDown(event, menuRef.current, () => close(true))}
+        >
+          <button className="app-menu__item" role="menuitem" type="button" onClick={() => choose(onCreate)}>
+            <FolderInput aria-hidden="true" />
+            {t.projectSwitcherCreateProject}
+          </button>
+          <button
+            className="app-menu__item"
+            role="menuitem"
+            type="button"
+            disabled={isOpening}
+            onClick={() => choose(onOpenAnother)}
+          >
+            <FolderPlus aria-hidden="true" />
+            {hasEntries ? t.overviewOpenAnotherProject : t.overviewOpenProject}
+          </button>
+          <button className="app-menu__item" role="menuitem" type="button" onClick={() => choose(onClone)}>
+            <CloudDownload aria-hidden="true" />
+            {t.projectSwitcherCloneProject}
+          </button>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 function ProjectSwitcherRows({
   entries,
   activeId,
@@ -135,27 +305,15 @@ function ProjectSwitcherRows({
         );
       })}
       <li className="project-switcher__item project-switcher__item--add">
-        <button type="button" className="project-switcher__add" disabled={!canSwitch} onClick={onCreate}>
-          <FolderInput aria-hidden="true" />
-          <span>{t.projectSwitcherCreateProject}</span>
-        </button>
-      </li>
-      <li className="project-switcher__item project-switcher__item--add">
-        <button
-          type="button"
-          className="project-switcher__add"
-          disabled={isOpening || !canSwitch}
-          onClick={onOpenAnother}
-        >
-          <FolderPlus aria-hidden="true" />
-          <span>{t.overviewOpenAnotherProject}</span>
-        </button>
-      </li>
-      <li className="project-switcher__item project-switcher__item--add">
-        <button type="button" className="project-switcher__add" disabled={!canSwitch} onClick={onClone}>
-          <CloudDownload aria-hidden="true" />
-          <span>{t.projectSwitcherCloneProject}</span>
-        </button>
+        <AddProjectMenu
+          variant="row"
+          hasEntries={entries.length > 0}
+          canSwitch={canSwitch}
+          isOpening={isOpening}
+          onOpenAnother={onOpenAnother}
+          onCreate={onCreate}
+          onClone={onClone}
+        />
       </li>
     </ul>
   );
@@ -171,18 +329,15 @@ export function ProjectSwitcher(props: ProjectSwitcherProps): React.JSX.Element 
     return (
       <div className="project-switcher project-switcher--empty">
         <p>{t.projectSwitcherEmptyHint}</p>
-        <button type="button" className="project-switcher__add" disabled={props.isOpening} onClick={props.onOpenAnother}>
-          <FolderPlus aria-hidden="true" />
-          <span>{t.overviewOpenProject}</span>
-        </button>
-        <button type="button" className="project-switcher__add" onClick={props.onClone}>
-          <CloudDownload aria-hidden="true" />
-          <span>{t.projectSwitcherCloneProject}</span>
-        </button>
-        <button type="button" className="project-switcher__add" onClick={props.onCreate}>
-          <FolderInput aria-hidden="true" />
-          <span>{t.projectSwitcherCreateProject}</span>
-        </button>
+        <AddProjectMenu
+          variant="row"
+          hasEntries={false}
+          canSwitch={props.canSwitch}
+          isOpening={props.isOpening}
+          onOpenAnother={props.onOpenAnother}
+          onCreate={props.onCreate}
+          onClone={props.onClone}
+        />
       </div>
     );
   }
@@ -266,36 +421,15 @@ export function ProjectSwitcherIcons({
           </button>
         );
       })}
-      <button
-        type="button"
-        className="project-switcher-icons__add"
-        aria-label={t.projectSwitcherCreateProject}
-        data-tooltip={t.projectSwitcherCreateProject}
-        disabled={!canSwitch}
-        onClick={onCreate}
-      >
-        <FolderInput aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        className="project-switcher-icons__add"
-        aria-label={entries.length > 0 ? t.overviewOpenAnotherProject : t.overviewOpenProject}
-        data-tooltip={entries.length > 0 ? t.overviewOpenAnotherProject : t.overviewOpenProject}
-        disabled={isOpening || !canSwitch}
-        onClick={onOpenAnother}
-      >
-        <FolderPlus aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        className="project-switcher-icons__add"
-        aria-label={t.projectSwitcherCloneProject}
-        data-tooltip={t.projectSwitcherCloneProject}
-        disabled={!canSwitch}
-        onClick={onClone}
-      >
-        <CloudDownload aria-hidden="true" />
-      </button>
+      <AddProjectMenu
+        variant="rail"
+        hasEntries={entries.length > 0}
+        canSwitch={canSwitch}
+        isOpening={isOpening}
+        onOpenAnother={onOpenAnother}
+        onCreate={onCreate}
+        onClone={onClone}
+      />
     </div>
   );
 }
@@ -324,10 +458,21 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
     if (!isOpen) return;
 
     const handlePointerDown = (event: MouseEvent): void => {
-      if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
+      const target = event.target as HTMLElement;
+      if (containerRef.current?.contains(target)) return;
+      // The add-project menu opens from inside this popover but renders in a
+      // portal, so its own clicks land outside the container. Without this
+      // guard the popover would unmount on mousedown and the chosen action
+      // would never fire.
+      if (target.closest?.("[data-add-project-menu]")) return;
+      setIsOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== "Escape") return;
+      // The add-project menu opens on top of this popover and listens on
+      // `document` too, but it mounts later, so its handler runs second: one
+      // Escape would close both layers. Let the innermost one answer first.
+      if (document.querySelector("[data-add-project-menu]")) return;
       closeAndRestoreFocus();
     };
 
@@ -342,34 +487,15 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
   if (props.entries.length === 0) {
     return (
       <div className="project-switcher-compact">
-        <button
-          type="button"
-          className="project-switcher-compact__trigger"
-          aria-label={t.projectSwitcherCreateProject}
-          data-tooltip={t.projectSwitcherCreateProject}
-          onClick={props.onCreate}
-        >
-          <FolderInput aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="project-switcher-compact__trigger"
-          aria-label={t.overviewOpenProject}
-          data-tooltip={t.overviewOpenProject}
-          disabled={props.isOpening}
-          onClick={props.onOpenAnother}
-        >
-          <FolderPlus aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="project-switcher-compact__trigger"
-          aria-label={t.projectSwitcherCloneProject}
-          data-tooltip={t.projectSwitcherCloneProject}
-          onClick={props.onClone}
-        >
-          <CloudDownload aria-hidden="true" />
-        </button>
+        <AddProjectMenu
+          variant="compact"
+          hasEntries={false}
+          canSwitch={props.canSwitch}
+          isOpening={props.isOpening}
+          onOpenAnother={props.onOpenAnother}
+          onCreate={props.onCreate}
+          onClone={props.onClone}
+        />
       </div>
     );
   }

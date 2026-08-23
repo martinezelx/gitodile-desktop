@@ -13,7 +13,7 @@ import {
 
 import { useLanguage } from "../../i18n";
 import { isAppError, localizeAppError } from "../../shared/i18n";
-import { LoadingBar, useModalFocus } from "../../shared/ui";
+import { DialogCloseButton, FieldError, LoadingBar, useFieldErrors, useModalFocus } from "../../shared/ui";
 import type { CloneAttempt, CloneController } from "./controller";
 import {
   readLastCloneParent,
@@ -67,6 +67,7 @@ export function CloneDialog({
   const [error, setError] = useState<unknown>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
+  const { errors, formProps, fieldProps, validate, reset: resetFieldErrors } = useFieldErrors();
 
   const resetTransientState = (): void => {
     setStep("input");
@@ -76,6 +77,7 @@ export function CloneDialog({
     setError(null);
     setIsCancelling(false);
     setIsCleaning(false);
+    resetFieldErrors();
     closeAfterCancelRef.current = false;
   };
 
@@ -113,6 +115,11 @@ export function CloneDialog({
   useModalFocus(isOpen, dialogRef, requestOpenChange);
 
   const request: CloneRequest = { source, destinationParent, destinationName };
+
+  const validateInput = (): boolean => validate([
+    { field: "clone-source", invalid: !source.trim(), message: t.commonRequiredField },
+    { field: "clone-parent", invalid: !destinationParent.trim(), message: t.commonRequiredField },
+  ]);
 
   const planAttempt = async (): Promise<CloneAttempt | null> => {
     setStep("planning");
@@ -237,21 +244,26 @@ export function CloneDialog({
             <h2 id="clone-dialog-title">{t.cloneDialogTitle}</h2>
             <p id="clone-dialog-description">{t.cloneDialogDescription}</p>
           </div>
+          {step !== "opening" && (
+            <DialogCloseButton label={t.commonClose} onClick={() => requestOpenChange(false)} />
+          )}
         </header>
 
         {(step === "input" || step === "planning") && (
           <form
             className="clone-dialog__form"
+            {...formProps}
             onSubmit={(event) => {
               event.preventDefault();
+              if (!validateInput()) return;
               void planAttempt();
             }}
           >
             <label className="text-field clone-dialog__field">
               <span id="clone-source-label">{t.cloneSourceLabel}</span>
               <input
+                {...fieldProps("clone-source", "clone-source-help")}
                 aria-labelledby="clone-source-label"
-                aria-describedby="clone-source-help"
                 data-autofocus
                 value={source}
                 onChange={(event) => setSource(event.target.value)}
@@ -261,11 +273,13 @@ export function CloneDialog({
                 required
               />
               <small id="clone-source-help">{t.cloneSourceHelp}</small>
+              <FieldError field="clone-source" errors={errors} />
             </label>
             <label className="text-field clone-dialog__field">
               <span id="clone-parent-label">{t.cloneParentLabel}</span>
               <span className="clone-dialog__path-picker">
                 <input
+                  {...fieldProps("clone-parent")}
                   aria-labelledby="clone-parent-label"
                   value={destinationParent}
                   onChange={(event) => setDestinationParent(event.target.value)}
@@ -279,6 +293,7 @@ export function CloneDialog({
                   {t.cloneChooseParent}
                 </button>
               </span>
+              <FieldError field="clone-parent" errors={errors} />
             </label>
             <label className="text-field clone-dialog__field">
               <span id="clone-name-label">{t.cloneNameLabel}</span>
@@ -294,7 +309,6 @@ export function CloneDialog({
               <small id="clone-name-help">{t.cloneNameHelp}</small>
             </label>
             <div className="dialog-actions clone-dialog__actions">
-              <button className="secondary-button" type="button" onClick={finishClose}>{t.commonCancel}</button>
               <button className="primary-button" type="submit" disabled={step === "planning"}>
                 {step === "planning" ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
                 {t.cloneReviewAction}

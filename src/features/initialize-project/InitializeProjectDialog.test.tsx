@@ -153,7 +153,10 @@ function renderDialog(options: {
   return { port, savePort, onClose, onInitialized, onProjectChanged, onOpenIdentitySettings };
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 describe("InitializeProjectDialog", () => {
   it("initializes a contextual existing folder while promising byte-identical files", async () => {
@@ -229,6 +232,24 @@ describe("InitializeProjectDialog", () => {
     expect(await screen.findByText("Local project and remote are ready")).toBeInTheDocument();
     expect(port.connectRemote).toHaveBeenCalledOnce();
     expect(onProjectChanged).toHaveBeenCalledWith(project.path);
+  });
+
+  it("explains an empty required field inline instead of leaving the action disabled", async () => {
+    const { port } = renderDialog();
+    const review = screen.getByRole("button", { name: "Review local setup" });
+    expect(review).toBeEnabled();
+    await userEvent.click(review);
+
+    expect(port.plan).not.toHaveBeenCalled();
+    expect(await screen.findAllByText("Fill in this field.")).toHaveLength(2);
+    const parent = screen.getByLabelText("Parent folder");
+    expect(parent).toHaveAttribute("aria-invalid", "true");
+    expect(parent).toHaveFocus();
+
+    await userEvent.type(parent, "C:\\projects");
+    await userEvent.type(screen.getByLabelText(/^Project folder name/), "demo");
+    await userEvent.click(review);
+    expect(port.plan).toHaveBeenCalledOnce();
   });
 
   it("keeps focus in the dialog and restores the caller through close", async () => {

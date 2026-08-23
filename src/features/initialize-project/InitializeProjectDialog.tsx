@@ -17,7 +17,7 @@ import { useLanguage } from "../../i18n";
 import type { RepositoryInfo } from "../repository";
 import type { SaveVersionController } from "../save-version";
 import { isAppError, localizeAppError } from "../../shared/i18n";
-import { DialogCloseButton, LoadingBar, useModalFocus } from "../../shared/ui";
+import { DialogCloseButton, FieldError, LoadingBar, useFieldErrors, useModalFocus } from "../../shared/ui";
 import type {
   ConnectRemoteAttempt,
   InitializeAttempt,
@@ -118,6 +118,7 @@ export function InitializeProjectDialog({
   const [isCleaning, setIsCleaning] = useState(false);
   const [cleanupAfterFailure, setCleanupAfterFailure] = useState(false);
   const [connectedRemoteName, setConnectedRemoteName] = useState<string | null>(null);
+  const { errors, formProps, fieldProps, validate, reset: resetFieldErrors } = useFieldErrors();
 
   const resetTransientState = (): void => {
     setStep("input");
@@ -131,6 +132,7 @@ export function InitializeProjectDialog({
     setIsCleaning(false);
     setCleanupAfterFailure(false);
     setConnectedRemoteName(null);
+    resetFieldErrors();
   };
 
   useEffect(() => {
@@ -176,6 +178,28 @@ export function InitializeProjectDialog({
     createReadme,
     saveInitialVersion,
   };
+
+  const requiredCheck = (field: string, value: string) => ({
+    field,
+    invalid: !value.trim(),
+    message: t.commonRequiredField,
+  });
+
+  const validateLocalInput = (): boolean => validate([
+    ...(targetKind === "new-folder"
+      ? [requiredCheck("initialize-parent", destinationParent), requiredCheck("initialize-name", destinationName)]
+      : [requiredCheck("initialize-existing", existingPath)]),
+    requiredCheck("initialize-branch", initialBranch),
+    ...(saveInitialVersion ? [requiredCheck("initialize-first-version-title", firstVersionTitle)] : []),
+    ...(connectRemote
+      ? [requiredCheck("initialize-remote-name", remoteName), requiredCheck("initialize-remote-url", remoteUrl)]
+      : []),
+  ]);
+
+  const validateRemoteInput = (): boolean => validate([
+    requiredCheck("initialize-remote-name", remoteName),
+    requiredCheck("initialize-remote-url", remoteUrl),
+  ]);
 
   const planAttempt = async (): Promise<void> => {
     setStep("planning");
@@ -345,19 +369,14 @@ export function InitializeProjectDialog({
     : null;
   const technicalDetail = isAppError(error) ? error.detail : null;
   const currentPhaseIndex = PROGRESS_PHASES.indexOf(phase);
-  const localInputIncomplete =
-    !initialBranch.trim() ||
-    (targetKind === "new-folder"
-      ? !destinationParent.trim() || !destinationName.trim()
-      : !existingPath.trim()) ||
-    (saveInitialVersion && !firstVersionTitle.trim()) ||
-    (connectRemote && (!remoteName.trim() || !remoteUrl.trim()));
 
   const renderRemoteInput = (): React.JSX.Element => (
     <form
       className="initialize-dialog__form"
+      {...formProps}
       onSubmit={(event) => {
         event.preventDefault();
+        if (!validateRemoteInput()) return;
         if (openedProject && attempt) void planRemote(openedProject, attempt.generation);
       }}
     >
@@ -368,15 +387,17 @@ export function InitializeProjectDialog({
       {localizedError && <p className="initialize-dialog__notice initialize-dialog__notice--danger" role="alert"><CircleAlert aria-hidden="true" />{localizedError}</p>}
       <label className="text-field initialize-dialog__field">
         <span>{t.initializeRemoteNameLabel}</span>
-        <input value={remoteName} onChange={(event) => setRemoteName(event.target.value)} autoComplete="off" data-autofocus />
+        <input {...fieldProps("initialize-remote-name")} value={remoteName} onChange={(event) => setRemoteName(event.target.value)} autoComplete="off" required data-autofocus />
+        <FieldError field="initialize-remote-name" errors={errors} />
       </label>
       <label className="text-field initialize-dialog__field">
         <span>{t.initializeRemoteUrlLabel}</span>
-        <input value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder={t.initializeRemoteUrlPlaceholder} autoComplete="off" spellCheck={false} />
+        <input {...fieldProps("initialize-remote-url")} value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder={t.initializeRemoteUrlPlaceholder} autoComplete="off" spellCheck={false} required />
+        <FieldError field="initialize-remote-url" errors={errors} />
       </label>
       <div className="dialog-actions initialize-dialog__actions">
         <button className="secondary-button" type="button" onClick={() => setStep("success")}>{t.initializeSkipRemote}</button>
-        <button className="primary-button" type="submit" disabled={!remoteName.trim() || !remoteUrl.trim()}>{t.initializeReviewRemoteAction}</button>
+        <button className="primary-button" type="submit">{t.initializeReviewRemoteAction}</button>
       </div>
     </form>
   );
@@ -405,7 +426,7 @@ export function InitializeProjectDialog({
         </header>
 
         {step === "input" && (
-          <form className="initialize-dialog__form" onSubmit={(event) => { event.preventDefault(); void planAttempt(); }}>
+          <form className="initialize-dialog__form" {...formProps} onSubmit={(event) => { event.preventDefault(); if (!validateLocalInput()) return; void planAttempt(); }}>
             <fieldset className="initialize-dialog__mode">
               <legend className="visually-hidden">{t.initializeDialogTitle}</legend>
               <label className={targetKind === "new-folder" ? "is-selected" : ""}>
@@ -423,30 +444,34 @@ export function InitializeProjectDialog({
                 <label className="text-field initialize-dialog__field">
                   <span id="initialize-parent-label">{t.initializeParentLabel}</span>
                   <span className="initialize-dialog__path-picker">
-                    <input aria-labelledby="initialize-parent-label" value={destinationParent} onChange={(event) => setDestinationParent(event.target.value)} placeholder={t.initializeParentPlaceholder} data-autofocus />
+                    <input {...fieldProps("initialize-parent")} aria-labelledby="initialize-parent-label" value={destinationParent} onChange={(event) => setDestinationParent(event.target.value)} placeholder={t.initializeParentPlaceholder} required data-autofocus />
                     <button className="secondary-button" type="button" onClick={() => void chooseParent()}>{t.initializeChooseParent}</button>
                   </span>
+                  <FieldError field="initialize-parent" errors={errors} />
                 </label>
                 <label className="text-field initialize-dialog__field">
                   <span>{t.initializeNameLabel}</span>
-                  <input value={destinationName} onChange={(event) => setDestinationName(event.target.value)} placeholder={t.initializeNamePlaceholder} />
+                  <input {...fieldProps("initialize-name")} value={destinationName} onChange={(event) => setDestinationName(event.target.value)} placeholder={t.initializeNamePlaceholder} required />
                   <small>{t.initializeNameHelp}</small>
+                  <FieldError field="initialize-name" errors={errors} />
                 </label>
               </>
             ) : (
               <label className="text-field initialize-dialog__field">
                 <span id="initialize-existing-label">{t.initializeExistingLabel}</span>
                 <span className="initialize-dialog__path-picker">
-                  <input aria-labelledby="initialize-existing-label" value={existingPath} onChange={(event) => setExistingPath(event.target.value)} placeholder={t.initializeExistingPlaceholder} data-autofocus />
+                  <input {...fieldProps("initialize-existing")} aria-labelledby="initialize-existing-label" value={existingPath} onChange={(event) => setExistingPath(event.target.value)} placeholder={t.initializeExistingPlaceholder} required data-autofocus />
                   <button className="secondary-button" type="button" onClick={() => void chooseExisting()}>{t.initializeChooseExisting}</button>
                 </span>
+                <FieldError field="initialize-existing" errors={errors} />
               </label>
             )}
 
             <label className="text-field initialize-dialog__field">
               <span>{t.initializeBranchLabel}</span>
-              <input value={initialBranch} onChange={(event) => setInitialBranch(event.target.value)} autoComplete="off" spellCheck={false} />
+              <input {...fieldProps("initialize-branch")} value={initialBranch} onChange={(event) => setInitialBranch(event.target.value)} autoComplete="off" spellCheck={false} required />
               <small>{t.initializeBranchHelp}</small>
+              <FieldError field="initialize-branch" errors={errors} />
             </label>
 
             <div className="initialize-dialog__options">
@@ -454,19 +479,19 @@ export function InitializeProjectDialog({
               <label className="initialize-dialog__option"><input type="checkbox" checked={saveInitialVersion} onChange={(event) => setSaveInitialVersion(event.target.checked)} /><Check aria-hidden="true" /><span><strong>{t.initializeFirstVersionLabel}</strong><small>{t.initializeFirstVersionHelp}</small></span></label>
               {saveInitialVersion && (
                 <div className="initialize-dialog__nested-fields">
-                  <label className="text-field initialize-dialog__field"><span>{t.initializeFirstVersionTitleLabel}</span><input value={firstVersionTitle} onChange={(event) => setFirstVersionTitle(event.target.value)} placeholder={t.initializeFirstVersionTitlePlaceholder} /></label>
+                  <label className="text-field initialize-dialog__field"><span>{t.initializeFirstVersionTitleLabel}</span><input {...fieldProps("initialize-first-version-title")} value={firstVersionTitle} onChange={(event) => setFirstVersionTitle(event.target.value)} placeholder={t.initializeFirstVersionTitlePlaceholder} required /><FieldError field="initialize-first-version-title" errors={errors} /></label>
                   <label className="text-field initialize-dialog__field"><span>{t.initializeFirstVersionDescriptionLabel}</span><textarea value={firstVersionDescription} onChange={(event) => setFirstVersionDescription(event.target.value)} placeholder={t.initializeFirstVersionDescriptionPlaceholder} rows={2} /></label>
                 </div>
               )}
               <label className="initialize-dialog__option"><input type="checkbox" checked={connectRemote} onChange={(event) => setConnectRemote(event.target.checked)} /><Link2 aria-hidden="true" /><span><strong>{t.initializeRemoteLabel}</strong><small>{t.initializeRemoteHelp}</small></span></label>
               {connectRemote && (
                 <div className="initialize-dialog__nested-fields initialize-dialog__nested-fields--remote">
-                  <label className="text-field initialize-dialog__field"><span>{t.initializeRemoteNameLabel}</span><input value={remoteName} onChange={(event) => setRemoteName(event.target.value)} autoComplete="off" /></label>
-                  <label className="text-field initialize-dialog__field"><span>{t.initializeRemoteUrlLabel}</span><input value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder={t.initializeRemoteUrlPlaceholder} autoComplete="off" spellCheck={false} /></label>
+                  <label className="text-field initialize-dialog__field"><span>{t.initializeRemoteNameLabel}</span><input {...fieldProps("initialize-remote-name")} value={remoteName} onChange={(event) => setRemoteName(event.target.value)} autoComplete="off" required /><FieldError field="initialize-remote-name" errors={errors} /></label>
+                  <label className="text-field initialize-dialog__field"><span>{t.initializeRemoteUrlLabel}</span><input {...fieldProps("initialize-remote-url")} value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder={t.initializeRemoteUrlPlaceholder} autoComplete="off" spellCheck={false} required /><FieldError field="initialize-remote-url" errors={errors} /></label>
                 </div>
               )}
             </div>
-            <div className="dialog-actions initialize-dialog__actions"><button className="primary-button" type="submit" disabled={localInputIncomplete}>{t.initializeReviewAction}</button></div>
+            <div className="dialog-actions initialize-dialog__actions"><button className="primary-button" type="submit">{t.initializeReviewAction}</button></div>
           </form>
         )}
 

@@ -66,6 +66,7 @@ export interface AppTranslations {
   projectSwitcherCollapsedTrigger: string;
   projectSwitcherSwitchBlockedHint: string;
   projectSwitcherEmptyHint: string;
+  projectSwitcherAddProject: string;
   projectSwitcherCloneProject: string;
   projectSwitcherCreateProject: string;
   projectSwitcherActiveAnnouncement: (name: string) => string;
@@ -161,6 +162,7 @@ const en: AppTranslations = {
   projectSwitcherCollapsedTrigger: "Switch project",
   projectSwitcherSwitchBlockedHint: "Finish the open dialog before switching projects",
   projectSwitcherEmptyHint: "Your open projects will show up here.",
+  projectSwitcherAddProject: "Add project",
   projectSwitcherCloneProject: "Clone remote project",
   projectSwitcherCreateProject: "Create local project",
   projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
@@ -259,6 +261,7 @@ const es: AppTranslations = {
   projectSwitcherCollapsedTrigger: "Cambiar de proyecto",
   projectSwitcherSwitchBlockedHint: "Termina el diálogo abierto antes de cambiar de proyecto",
   projectSwitcherEmptyHint: "Aquí aparecerán tus proyectos abiertos.",
+  projectSwitcherAddProject: "Añadir proyecto",
   projectSwitcherCloneProject: "Clonar proyecto remoto",
   projectSwitcherCreateProject: "Crear proyecto local",
   projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,

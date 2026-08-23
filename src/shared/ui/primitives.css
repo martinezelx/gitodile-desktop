@@ -157,6 +157,17 @@ nav { display: grid; gap: 6px; }
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
 .text-field input:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
+.text-field input[aria-invalid="true"],
+.text-field textarea[aria-invalid="true"] { border-color: var(--status-danger); }
+
+/* The app-owned replacement for the browser's native validation bubble: it
+   stays put while the user fixes the field, follows the theme, and is read
+   out through the control's own `aria-describedby`. */
+.field-error {
+  display: flex; align-items: center; gap: var(--space-2); margin: 0;
+  color: var(--status-danger); font-size: 12.5px; line-height: 1.45;
+}
+.field-error svg { flex: 0 0 auto; width: 14px; height: 14px; }
 
 .dialog-close-button {
   flex-shrink: 0;
