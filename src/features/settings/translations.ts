@@ -1,5 +1,15 @@
 export interface SettingsTranslations {
   settingsInterfaceTitle: string;
+  settingsNavigationTitle: string;
+  settingsNavigationDestinationsTitle: string;
+  settingsNavigationDestinationsDescription: string;
+  settingsNavigationMovedToMore: string;
+  settingsNavigationAppearanceTitle: string;
+  settingsNavigationAppearanceDescription: string;
+  settingsNavigationIconsAndText: string;
+  settingsNavigationIconsAndTextDescription: string;
+  settingsNavigationIconsOnly: string;
+  settingsNavigationIconsOnlyDescription: string;
   settingsSectionsAriaLabel: string;
   settingsResetSection: string;
   settingsGitTitle: string;
@@ -103,6 +113,17 @@ export interface SettingsTranslations {
 
 const en: SettingsTranslations = {
   settingsInterfaceTitle: "Interface",
+  settingsNavigationTitle: "Navigation",
+  settingsNavigationDestinationsTitle: "Sections shown in the bar",
+  settingsNavigationDestinationsDescription:
+    "On shorter windows, selected sections may still move into More until there is room again.",
+  settingsNavigationMovedToMore: "Available from More",
+  settingsNavigationAppearanceTitle: "Appearance",
+  settingsNavigationAppearanceDescription: "Choose how project destinations are presented.",
+  settingsNavigationIconsAndText: "Icons and text",
+  settingsNavigationIconsAndTextDescription: "Keep labels visible for faster recognition.",
+  settingsNavigationIconsOnly: "Icons only",
+  settingsNavigationIconsOnlyDescription: "Use a more compact vertical rhythm without shrinking the click targets.",
   settingsSectionsAriaLabel: "Settings sections",
   settingsResetSection: "Reset this section",
   settingsGitTitle: "Git",
@@ -217,6 +238,18 @@ const en: SettingsTranslations = {
 
 const es: SettingsTranslations = {
   settingsInterfaceTitle: "Interfaz",
+  settingsNavigationTitle: "Navegación",
+  settingsNavigationDestinationsTitle: "Secciones visibles en la barra",
+  settingsNavigationDestinationsDescription:
+    "En ventanas más bajas, las secciones seleccionadas pueden pasar a Más hasta que vuelva a haber espacio.",
+  settingsNavigationMovedToMore: "Disponible desde Más",
+  settingsNavigationAppearanceTitle: "Apariencia",
+  settingsNavigationAppearanceDescription: "Elige cómo se presentan las secciones del proyecto.",
+  settingsNavigationIconsAndText: "Iconos y texto",
+  settingsNavigationIconsAndTextDescription: "Mantiene las etiquetas visibles para reconocerlas más rápido.",
+  settingsNavigationIconsOnly: "Solo iconos",
+  settingsNavigationIconsOnlyDescription:
+    "Compacta el ritmo vertical sin reducir el área que puedes pulsar.",
   settingsSectionsAriaLabel: "Secciones de configuración",
   settingsResetSection: "Restablecer esta sección",
   settingsGitTitle: "Git",

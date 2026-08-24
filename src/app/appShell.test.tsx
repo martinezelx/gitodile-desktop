@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../i18n";
 import { CommandPalette } from "./CommandPalette";
-import { useStoredBoolean, useThemePreference } from "./preferences";
+import {
+  useStoredBoolean,
+  useStoredNavigationPreferences,
+  useThemePreference,
+} from "./preferences";
 
 beforeEach(() => {
   localStorage.clear();
@@ -28,6 +32,32 @@ describe("application-shell preferences", () => {
 
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("gitodrile-theme")).toBe("dark");
+  });
+
+  it("validates and persists navigation membership and display mode together", () => {
+    localStorage.setItem(
+      "gitodrile-navigation-preferences",
+      JSON.stringify({
+        visibleDestinationIds: ["overview", "unknown", "overview"],
+        displayMode: "icons-only",
+      }),
+    );
+    const { result } = renderHook(() =>
+      useStoredNavigationPreferences(["overview", "changes"]),
+    );
+
+    expect(result.current[0]).toEqual({
+      visibleDestinationIds: ["overview"],
+      displayMode: "icons-only",
+    });
+    act(() =>
+      result.current[1]({
+        visibleDestinationIds: ["changes"],
+        displayMode: "icons-and-text",
+      }),
+    );
+    expect(JSON.parse(localStorage.getItem("gitodrile-navigation-preferences") ?? "null"))
+      .toEqual({ visibleDestinationIds: ["changes"], displayMode: "icons-and-text" });
   });
 });
 

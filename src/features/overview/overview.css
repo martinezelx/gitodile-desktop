@@ -574,12 +574,9 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 
 @media (pointer: coarse) {
   .project-switcher__close,
-  .project-switcher-icons__button,
-  .project-switcher-icons__add,
   .project-switcher-compact__trigger,
   .compact-history-controls .titlebar-icon-button,
-  .project-overview__identity .project-path__copy,
-  .sidebar-toggle {
+  .project-overview__identity .project-path__copy {
     width: 44px;
     height: 44px;
   }

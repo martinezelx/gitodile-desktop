@@ -501,6 +501,26 @@ describe("App project restoration", () => {
     expect(
       within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: /Git/ }),
     ).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Customize navigation bar" }));
+    const navigationSettings = within(screen.getByRole("dialog", { name: "Settings" }));
+    expect(navigationSettings.getByRole("tab", { name: "Navigation" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await user.click(navigationSettings.getByRole("checkbox", { name: "Changes" }));
+    await user.click(navigationSettings.getByRole("radio", { name: /Icons only/ }));
+    await user.keyboard("{Escape}");
+
+    const projectNavigation = screen.getByRole("navigation", { name: "Project navigation" });
+    expect(projectNavigation).toHaveClass("rail-nav--icons-only");
+    expect(within(projectNavigation).queryByRole("button", { name: "Changes" })).toBeNull();
+    await user.click(within(projectNavigation).getByRole("button", { name: "More" }));
+    expect(within(screen.getByRole("menu", { name: "More" })).getByText("Changes"))
+      .toBeInTheDocument();
   });
 
   it("re-reads the open project once when watching is turned back on", async () => {
@@ -742,6 +762,9 @@ describe("App project restoration", () => {
       ).toHaveLength(1),
     );
 
+    await userEvent.click(
+      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
+    );
     await userEvent.click(screen.getByRole("button", { name: secondProject.name }));
 
     await waitFor(() =>
@@ -819,7 +842,11 @@ describe("App project restoration", () => {
     await screen.findByRole("heading", { name: "1 newer team version is available" });
     await userEvent.click(await screen.findByRole("button", { name: "Review and get" }));
     const confirm = await screen.findByRole("button", { name: "Get these versions" });
-    expect(screen.getByRole("button", { name: `Close ${restoredProject.name}` })).toBeDisabled();
+    // The rail keeps switching and closing behind one trigger, so blocking
+    // the switcher blocks both.
+    expect(
+      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
+    ).toBeDisabled();
 
     const readsBefore = mockedInvoke.mock.calls.filter(
       ([command]) => command === "read_working_tree_status",
@@ -1033,6 +1060,9 @@ describe("App project restoration", () => {
       { timeout: 3000 },
     );
 
+    await userEvent.click(
+      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
+    );
     await userEvent.click(screen.getByRole("button", { name: `Close ${restoredProject.name}` }));
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("close_project_session", {

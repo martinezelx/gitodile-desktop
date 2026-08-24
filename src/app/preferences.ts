@@ -6,16 +6,16 @@ import {
   isDiffTabWidth,
   type DiffPreferences,
 } from "../features/changes";
-import type { ThemePreference } from "../features/settings";
+import type { NavigationPreferences, ThemePreference } from "../features/settings";
 
 const THEME_STORAGE_KEY = "gitodrile-theme";
-export const SIDEBAR_COLLAPSED_STORAGE_KEY = "gitodrile-sidebar-collapsed";
 export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 export const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
 export const WATCH_PROJECTS_STORAGE_KEY = "gitodrile-watch-projects";
 export const CONFIRM_DISCARD_STORAGE_KEY = "gitodrile-confirm-discard";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
+export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodrile-navigation-preferences";
 
 /** Named because two places need to agree on them: the hook that seeds the
  * preference and the Settings panel's "reset this section". */
@@ -104,3 +104,47 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
   return [preferences, setPreferences];
 }
 
+/** Navigation is stored as one validated snapshot: membership and appearance
+ * describe one rail, so applying only half of a stale or malformed value would
+ * produce a surprising hybrid. Unknown ids are ignored and remain reachable
+ * through More when the registry grows in a later version. */
+export function useStoredNavigationPreferences(
+  defaultVisibleDestinationIds: readonly string[],
+): [NavigationPreferences, Dispatch<SetStateAction<NavigationPreferences>>] {
+  const [preferences, setPreferences] = useState<NavigationPreferences>(() => {
+    const fallback = (): NavigationPreferences => ({
+      visibleDestinationIds: [...defaultVisibleDestinationIds],
+      displayMode: "icons-and-text",
+    });
+    try {
+      const stored: unknown = JSON.parse(
+        localStorage.getItem(NAVIGATION_PREFERENCES_STORAGE_KEY) ?? "null",
+      );
+      if (stored === null || typeof stored !== "object") return fallback();
+
+      const read = stored as Partial<Record<keyof NavigationPreferences, unknown>>;
+      if (!Array.isArray(read.visibleDestinationIds)) return fallback();
+      const allowed = new Set(defaultVisibleDestinationIds);
+      const visibleDestinationIds = Array.from(
+        new Set(
+          read.visibleDestinationIds.filter(
+            (id): id is string => typeof id === "string" && allowed.has(id),
+          ),
+        ),
+      );
+      const displayMode =
+        read.displayMode === "icons-only" || read.displayMode === "icons-and-text"
+          ? read.displayMode
+          : "icons-and-text";
+      return { visibleDestinationIds, displayMode };
+    } catch {
+      return fallback();
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(NAVIGATION_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  }, [preferences]);
+
+  return [preferences, setPreferences];
+}

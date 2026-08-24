@@ -9,6 +9,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { useGitIdentity, useLineEndings } from "./useGitConfig";
 import type { SettingsPort } from "./port";
 import type { GitDiagnostics, GitLineEndings, GitUpdateStatus, SettingsSection } from "./domain";
+import type { NavigationPreferences } from "./domain";
 
 afterEach(cleanup);
 
@@ -44,6 +45,10 @@ type PanelOverrides = Partial<{
   setWatchProjects: (value: boolean) => void;
   confirmDiscard: boolean;
   setConfirmDiscard: (value: boolean) => void;
+  navigationPreferences: NavigationPreferences;
+  setNavigationPreferences: (
+    update: (previous: NavigationPreferences) => NavigationPreferences,
+  ) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
   project: { path: string; sessionEpoch: string } | null;
@@ -81,6 +86,16 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       setWatchProjects={overrides.setWatchProjects ?? vi.fn()}
       confirmDiscard={overrides.confirmDiscard ?? true}
       setConfirmDiscard={overrides.setConfirmDiscard ?? vi.fn()}
+      navigationItems={[
+        { id: "overview", label: "Overview", icon: <span /> },
+        { id: "changes", label: "Changes", icon: <span /> },
+        { id: "history", label: "History", icon: <span /> },
+      ]}
+      navigationPreferences={overrides.navigationPreferences ?? {
+        visibleDestinationIds: ["overview", "changes", "history"],
+        displayMode: "icons-and-text",
+      }}
+      setNavigationPreferences={overrides.setNavigationPreferences ?? vi.fn()}
       diffPreferences={overrides.diffPreferences ?? DEFAULT_DIFF_PREFERENCES}
       setDiffPreferences={overrides.setDiffPreferences ?? vi.fn()}
       defaults={{
@@ -88,6 +103,10 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
         confirmCloseProject: true,
         watchProjects: true,
         confirmDiscard: true,
+        navigationPreferences: {
+          visibleDestinationIds: ["overview", "changes", "history"],
+          displayMode: "icons-and-text",
+        },
       }}
       identity={identity}
       lineEndingsState={lineEndings}
@@ -161,6 +180,12 @@ describe("Settings panel native boundary", () => {
               setWatchProjects={vi.fn()}
               confirmDiscard
               setConfirmDiscard={vi.fn()}
+              navigationItems={[]}
+              navigationPreferences={{
+                visibleDestinationIds: [],
+                displayMode: "icons-and-text",
+              }}
+              setNavigationPreferences={vi.fn()}
               diffPreferences={DEFAULT_DIFF_PREFERENCES}
               setDiffPreferences={vi.fn()}
               defaults={{
@@ -168,6 +193,10 @@ describe("Settings panel native boundary", () => {
                 confirmCloseProject: true,
                 watchProjects: true,
                 confirmDiscard: true,
+                navigationPreferences: {
+                  visibleDestinationIds: [],
+                  displayMode: "icons-and-text",
+                },
               }}
               identity={identity}
               lineEndingsState={lineEndings}
@@ -436,6 +465,48 @@ describe("Settings panel option groups", () => {
 });
 
 describe("Settings panel section rail", () => {
+  it("customizes which destinations stay in the rail and its presentation", async () => {
+    const setNavigationPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "navigation" });
+
+    expect(screen.getByRole("tab", { name: "Navigation" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("heading", { name: "Sections shown in the bar" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Overview" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Icons and text/ })).toBeChecked();
+
+    cleanup();
+    renderPanel(createPort(), {
+      initialSection: "navigation",
+      setNavigationPreferences,
+    });
+    await userEvent.click(screen.getByRole("checkbox", { name: "Changes" }));
+    const visibilityUpdate = setNavigationPreferences.mock.calls[0][0] as (
+      previous: NavigationPreferences,
+    ) => NavigationPreferences;
+    expect(visibilityUpdate({
+      visibleDestinationIds: ["overview", "changes", "history"],
+      displayMode: "icons-and-text",
+    })).toEqual({
+      visibleDestinationIds: ["overview", "history"],
+      displayMode: "icons-and-text",
+    });
+
+    await userEvent.click(screen.getByRole("radio", { name: /Icons only/ }));
+    const appearanceUpdate = setNavigationPreferences.mock.calls[1][0] as (
+      previous: NavigationPreferences,
+    ) => NavigationPreferences;
+    expect(appearanceUpdate({
+      visibleDestinationIds: ["overview", "history"],
+      displayMode: "icons-and-text",
+    })).toEqual({
+      visibleDestinationIds: ["overview", "history"],
+      displayMode: "icons-only",
+    });
+  });
+
   it("moves between sections with the arrow keys", async () => {
     renderPanel(createPort());
 

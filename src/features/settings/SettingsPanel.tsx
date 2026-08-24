@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   Monitor,
   Moon,
+  PanelLeft,
   Palette,
   RotateCcw,
   Settings,
@@ -38,6 +39,8 @@ import {
   type GitDiagnostics,
   type GitUpdateStatus,
   type LineEndingChoice,
+  type NavigationDisplayMode,
+  type NavigationPreferences,
   type SettingsSection,
   type ThemePreference,
 } from "./domain";
@@ -62,6 +65,7 @@ const CODE_FONT_SAMPLE = "0O 1lI {}[] != =>";
 const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   general: <Settings />,
   appearance: <Palette />,
+  navigation: <PanelLeft />,
   reading: <WrapText />,
   git: <GitBranch />,
   "line-endings": <CornerDownLeft />,
@@ -242,6 +246,9 @@ export function SettingsPanel({
   setWatchProjects,
   confirmDiscard,
   setConfirmDiscard,
+  navigationItems,
+  navigationPreferences,
+  setNavigationPreferences,
   diffPreferences,
   setDiffPreferences,
   defaults,
@@ -269,6 +276,11 @@ export function SettingsPanel({
   setWatchProjects: (value: boolean) => void;
   confirmDiscard: boolean;
   setConfirmDiscard: (value: boolean) => void;
+  navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
+  navigationPreferences: NavigationPreferences;
+  setNavigationPreferences: (
+    update: (previous: NavigationPreferences) => NavigationPreferences,
+  ) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
   /** The app owns the seed values for the stored preferences, so "reset this
@@ -279,6 +291,7 @@ export function SettingsPanel({
     confirmCloseProject: boolean;
     watchProjects: boolean;
     confirmDiscard: boolean;
+    navigationPreferences: NavigationPreferences;
   };
   /** Both reads live above the dialog, which the shell unmounts on close, so
    * the values survive a closing instead of being fetched again. The panel
@@ -558,6 +571,23 @@ export function SettingsPanel({
     [t],
   );
   const needsGitAttention = isGitInstallationBroken(gitDiagnostics);
+  const visibleNavigationIds = new Set(navigationPreferences.visibleDestinationIds);
+  const setDestinationVisible = (id: string, isVisible: boolean): void => {
+    setNavigationPreferences((previous) => {
+      const previousVisible = new Set(previous.visibleDestinationIds);
+      if (isVisible) previousVisible.add(id);
+      else previousVisible.delete(id);
+      return {
+        ...previous,
+        visibleDestinationIds: navigationItems
+          .filter((item) => previousVisible.has(item.id))
+          .map((item) => item.id),
+      };
+    });
+  };
+  const setNavigationDisplayMode = (displayMode: NavigationDisplayMode): void => {
+    setNavigationPreferences((previous) => ({ ...previous, displayMode }));
+  };
 
   /* Only the sections whose controls have a defined default get the action.
      Git has none: an installed version and an identity are facts about the
@@ -592,6 +622,23 @@ export function SettingsPanel({
               ),
               reset: () => setDiffPreferences(() => DEFAULT_DIFF_PREFERENCES),
             }
+          : activeSection === "navigation"
+            ? {
+                isAtDefault:
+                  navigationPreferences.displayMode === defaults.navigationPreferences.displayMode &&
+                  navigationPreferences.visibleDestinationIds.length ===
+                    defaults.navigationPreferences.visibleDestinationIds.length &&
+                  defaults.navigationPreferences.visibleDestinationIds.every((id) =>
+                    visibleNavigationIds.has(id),
+                  ),
+                reset: () =>
+                  setNavigationPreferences(() => ({
+                    ...defaults.navigationPreferences,
+                    visibleDestinationIds: [
+                      ...defaults.navigationPreferences.visibleDestinationIds,
+                    ],
+                  })),
+              }
           : null;
 
   return (
@@ -727,6 +774,88 @@ export function SettingsPanel({
                     </button>
                   ))}
                 </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeSection === "navigation" && (
+          <div className="settings-groups">
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsNavigationDestinationsTitle}</h3>
+                <p>{t.settingsNavigationDestinationsDescription}</p>
+              </header>
+              <div className="settings-group__body navigation-destinations">
+                {navigationItems.map((item) => (
+                  <label className="navigation-destination" key={item.id}>
+                    <input
+                      className="navigation-destination__checkbox"
+                      type="checkbox"
+                      checked={visibleNavigationIds.has(item.id)}
+                      onChange={(event) => setDestinationVisible(item.id, event.target.checked)}
+                    />
+                    <span className="navigation-destination__icon" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    <span className="navigation-destination__copy">
+                      <strong>{item.label}</strong>
+                      {!visibleNavigationIds.has(item.id) && (
+                        <small>{t.settingsNavigationMovedToMore}</small>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsNavigationAppearanceTitle}</h3>
+                <p>{t.settingsNavigationAppearanceDescription}</p>
+              </header>
+              <div
+                className="settings-group__body navigation-display"
+                role="radiogroup"
+                aria-label={t.settingsNavigationAppearanceTitle}
+                onKeyDown={moveFocusWithinRadioGroup}
+              >
+                {(["icons-and-text", "icons-only"] as const).map((mode, index) => {
+                  const isActive = navigationPreferences.displayMode === mode;
+                  const label =
+                    mode === "icons-and-text"
+                      ? t.settingsNavigationIconsAndText
+                      : t.settingsNavigationIconsOnly;
+                  return (
+                    <button
+                      key={mode}
+                      className={`navigation-display__option${
+                        isActive ? " navigation-display__option--active" : ""
+                      }`}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
+                      tabIndex={isRadioTabStop(isActive, true, index) ? 0 : -1}
+                      onClick={() => setNavigationDisplayMode(mode)}
+                    >
+                      <span
+                        className={`navigation-display__preview navigation-display__preview--${mode}`}
+                        aria-hidden="true"
+                      >
+                        <span><PanelLeft /></span>
+                        {mode === "icons-and-text" && <small>{t.navOverview}</small>}
+                      </span>
+                      <span className="navigation-display__copy">
+                        <strong>{label}</strong>
+                        <small>
+                          {mode === "icons-and-text"
+                            ? t.settingsNavigationIconsAndTextDescription
+                            : t.settingsNavigationIconsOnlyDescription}
+                        </small>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </section>
           </div>

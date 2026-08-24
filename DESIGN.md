@@ -41,14 +41,31 @@ The main desktop window should broadly support:
    - center: the remaining native drag region, including double-click maximize/restore.
    - right: window controls (minimize/maximize/close), styled as small rounded buttons inset from the edge rather than full-height square hit targets, so they read as part of the same rounded-corner system as the rest of the UI instead of bolted-on OS chrome.
 
-2. **Navigation rail or sidebar**
-   - Overview;
-   - Changes;
-   - History;
-   - Workspaces/branches;
-   - Recovery;
-   - optional advanced Git tools;
-   - collapsible to an icon-only rail (persisted, and reachable from the command palette as "Collapse/Expand sidebar") for users working with a narrow window or wanting more room for diffs.
+2. **Navigation rail** — one 88px column, always the same width. By default,
+   each destination is an icon in a 40px rounded square with its name
+   underneath; the active state fills that square, never the whole cell, so a
+   two-line label like "Líneas de versión" does not make its neighbour look
+   shorter. Navigation Settings may switch to icons only: labels disappear and
+   the vertical rhythm tightens, but the 40px pointer target and accessible
+   name remain. This is a presentation mode, not a width-changing collapse, so
+   projects and foot controls never jump sideways.
+   - the brand mark has a clear 16px pause before Overview, so product identity
+     and project navigation read as separate groups;
+   - Overview, Changes, Version lines, History, and Recovery keep their order.
+     Navigation Settings controls which stay in the rail; deselected and
+     height-overflowed destinations remain reachable in More, in registry
+     order. Recovery stays disabled and marked "Coming soon" until its screen
+     exists;
+   - "More" is always the final destination tile. As the window loses height,
+     the trailing destinations move into its menu in order instead of making
+     the narrow rail scroll. The menu always ends after a separator with
+     "Customize navigation bar", which opens the dedicated Settings section;
+   - below the destinations: the active project as a single square that opens
+     a searchable switcher, plus a same-size "+" holding the three ways to add
+     one (open, create, clone). A 24px interval, rather than a divider,
+     distinguishes project context from navigation;
+   - at the foot: Settings above the account button. These app-level utilities
+     remain anchored and use the same footprint as the project controls.
 
 3. **Primary workspace**
    - task-focused content;

@@ -15,4 +15,4 @@ export { LoadingBar } from "./loadingBar";
 export { DialogCloseButton } from "./dialogCloseButton";
 export { useFieldErrors, FieldError } from "./fieldErrors";
 export type { FieldCheck, FieldErrorMap, FieldErrorState } from "./fieldErrors";
-export { useAnchoredPopup, handlePopupMenuKeyDown } from "./popupMenu";
+export { useAnchoredPopup, usePortalFlyout, handlePopupMenuKeyDown } from "./popupMenu";

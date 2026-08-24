@@ -8,11 +8,31 @@
  * follows the OS and only resolves at render time. */
 export type ThemePreference = "system" | "light" | "dark";
 
+/** The project rail keeps its width in both modes. "Icons only" compacts the
+ * destinations vertically by removing their labels, while preserving the
+ * same pointer target and the accessible name. */
+export type NavigationDisplayMode = "icons-and-text" | "icons-only";
+
+/** App-local interface preference. Destination ids are strings on purpose:
+ * Settings receives the current registry from the composition root instead
+ * of importing the screen registry and crossing the feature boundary. */
+export type NavigationPreferences = {
+  visibleDestinationIds: string[];
+  displayMode: NavigationDisplayMode;
+};
+
 /** The panel's sections, in rail order. The list is the feature's to define,
  * but the *selection* is app state: opening lands on General unless a caller
  * names a section, and the dialog header can steer it, so it arrives as a
  * prop. */
-export const SETTINGS_SECTIONS = ["general", "appearance", "reading", "git", "line-endings"] as const;
+export const SETTINGS_SECTIONS = [
+  "general",
+  "appearance",
+  "navigation",
+  "reading",
+  "git",
+  "line-endings",
+] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
@@ -23,6 +43,7 @@ export function settingsSectionLabel(
   t: {
     settingsGeneralTitle: string;
     settingsInterfaceTitle: string;
+    settingsNavigationTitle: string;
     settingsReadingTitle: string;
     settingsGitTitle: string;
     settingsLineEndingsTitle: string;
@@ -32,11 +53,13 @@ export function settingsSectionLabel(
     ? t.settingsGeneralTitle
     : section === "appearance"
       ? t.settingsInterfaceTitle
-      : section === "reading"
-        ? t.settingsReadingTitle
-        : section === "git"
-          ? t.settingsGitTitle
-          : t.settingsLineEndingsTitle;
+      : section === "navigation"
+        ? t.settingsNavigationTitle
+        : section === "reading"
+          ? t.settingsReadingTitle
+          : section === "git"
+            ? t.settingsGitTitle
+            : t.settingsLineEndingsTitle;
 }
 
 export type GitDiagnostics = {

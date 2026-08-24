@@ -25,9 +25,6 @@ export interface AppTranslations {
   windowMaximize: string;
   windowClose: string;
   windowControls: string;
-  brandTagline: string;
-  sidebarCollapse: string;
-  sidebarExpand: string;
   navProjectAriaLabel: string;
   navApplicationAriaLabel: string;
   navOverview: string;
@@ -40,6 +37,10 @@ export interface AppTranslations {
   navRecovery: string;
   navRecoveryTitle: string;
   navSettings: string;
+  navMore: string;
+  navCustomizeNavigation: string;
+  navAccount: string;
+  navAccountTitle: string;
   paletteAriaLabel: string;
   palettePlaceholder: string;
   paletteNoMatches: string;
@@ -64,6 +65,9 @@ export interface AppTranslations {
   projectSwitcherOperationIndicator: string;
   projectSwitcherErrorIndicator: string;
   projectSwitcherCollapsedTrigger: string;
+  projectSwitcherRailTrigger: (name: string) => string;
+  projectSwitcherSearchPlaceholder: string;
+  projectSwitcherSearchEmpty: string;
   projectSwitcherSwitchBlockedHint: string;
   projectSwitcherEmptyHint: string;
   projectSwitcherAddProject: string;
@@ -121,9 +125,6 @@ const en: AppTranslations = {
   windowMaximize: "Maximize or restore window",
   windowClose: "Close window",
   windowControls: "Window controls",
-  brandTagline: "Git without the bite",
-  sidebarCollapse: "Collapse sidebar",
-  sidebarExpand: "Expand sidebar",
   navProjectAriaLabel: "Project navigation",
   navApplicationAriaLabel: "Application",
   navOverview: "Overview",
@@ -136,6 +137,10 @@ const en: AppTranslations = {
   navRecovery: "Recovery",
   navRecoveryTitle: "Recovery — Coming soon",
   navSettings: "Settings",
+  navMore: "More",
+  navCustomizeNavigation: "Customize navigation bar",
+  navAccount: "Sign in",
+  navAccountTitle: "Sign in — Coming soon",
   paletteAriaLabel: "Command palette",
   palettePlaceholder: "Jump to a view or action…",
   paletteNoMatches: "No matching commands",
@@ -160,6 +165,9 @@ const en: AppTranslations = {
   projectSwitcherOperationIndicator: "Operation in progress",
   projectSwitcherErrorIndicator: "Needs attention",
   projectSwitcherCollapsedTrigger: "Switch project",
+  projectSwitcherRailTrigger: (name) => `${name} — switch project`,
+  projectSwitcherSearchPlaceholder: "Search a project…",
+  projectSwitcherSearchEmpty: "No project by that name",
   projectSwitcherSwitchBlockedHint: "Finish the open dialog before switching projects",
   projectSwitcherEmptyHint: "Your open projects will show up here.",
   projectSwitcherAddProject: "Add project",
@@ -220,9 +228,6 @@ const es: AppTranslations = {
   windowMaximize: "Maximizar o restaurar ventana",
   windowClose: "Cerrar ventana",
   windowControls: "Controles de ventana",
-  brandTagline: "Git sin mordiscos",
-  sidebarCollapse: "Colapsar barra lateral",
-  sidebarExpand: "Expandir barra lateral",
   navProjectAriaLabel: "Navegación del proyecto",
   navApplicationAriaLabel: "Aplicación",
   navOverview: "Resumen",
@@ -235,6 +240,10 @@ const es: AppTranslations = {
   navRecovery: "Recuperación",
   navRecoveryTitle: "Recuperación — Próximamente",
   navSettings: "Configuración",
+  navMore: "Más",
+  navCustomizeNavigation: "Personalizar barra de navegación",
+  navAccount: "Iniciar sesión",
+  navAccountTitle: "Iniciar sesión — Próximamente",
   paletteAriaLabel: "Paleta de comandos",
   palettePlaceholder: "Ir a una vista o acción…",
   paletteNoMatches: "No hay coincidencias",
@@ -259,6 +268,9 @@ const es: AppTranslations = {
   projectSwitcherOperationIndicator: "Operación en curso",
   projectSwitcherErrorIndicator: "Necesita atención",
   projectSwitcherCollapsedTrigger: "Cambiar de proyecto",
+  projectSwitcherRailTrigger: (name) => `${name} — cambiar de proyecto`,
+  projectSwitcherSearchPlaceholder: "Buscar un proyecto…",
+  projectSwitcherSearchEmpty: "Ningún proyecto con ese nombre",
   projectSwitcherSwitchBlockedHint: "Termina el diálogo abierto antes de cambiar de proyecto",
   projectSwitcherEmptyHint: "Aquí aparecerán tus proyectos abiertos.",
   projectSwitcherAddProject: "Añadir proyecto",

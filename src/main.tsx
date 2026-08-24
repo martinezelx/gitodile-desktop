@@ -4,8 +4,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import {
-  ChevronsLeft,
-  ChevronsRight,
   Sun,
   Moon,
   ChevronLeft,
@@ -13,6 +11,7 @@ import {
   Copy,
   Search,
   Square,
+  UserRound,
   X,
   // Distinct glyphs on purpose: `AlertTriangle` is an alias of `TriangleAlert`,
   // so reusing it would leave the error and needs-attention states identical
@@ -54,6 +53,7 @@ import {
   useGitIdentity,
   useGitTooling,
   useLineEndings,
+  type NavigationPreferences,
   type SettingsSection,
   type ThemePreference,
 } from "./features/settings";
@@ -75,18 +75,19 @@ import {
   CONFIRM_DISCARD_STORAGE_KEY,
   REOPEN_LAST_PROJECT_DEFAULT,
   REOPEN_LAST_PROJECT_STORAGE_KEY,
-  SIDEBAR_COLLAPSED_STORAGE_KEY,
   WATCH_PROJECTS_DEFAULT,
   WATCH_PROJECTS_STORAGE_KEY,
   applyTheme,
   resolveEffectiveTheme,
   useStoredBoolean,
   useStoredDiffPreferences,
+  useStoredNavigationPreferences,
   useThemePreference,
 } from "./app/preferences";
 import { startThemeFade, startThemeReveal } from "./app/themeTransition";
 import { planWatcherChanges } from "./app/watcherPlan";
 import { TitlebarMenu } from "./app/TitlebarMenu";
+import { RailNav, type RailNavItem } from "./app/RailNav";
 import {
   EMPTY_CHANGES_SELECTION,
   EMPTY_PENDING_VERSIONS,
@@ -101,9 +102,8 @@ import {
 import { createProjectRuntime, scheduleIdleTask, useProjectSelector } from "./projectRuntime";
 import { useProjectCacheWarming } from "./features/repository";
 import {
-  ProjectSwitcher,
   ProjectSwitcherCompact,
-  ProjectSwitcherIcons,
+  ProjectSwitcherRail,
   type ProjectSwitcherEntry,
 } from "./projectSwitcher";
 import {
@@ -140,12 +140,13 @@ const SwitchVersionLineDialog = lazy(() =>
  * `screens.tsx` owns the definition and the registry that lists them. */
 type View = ScreenId;
 
-// Screen icons live in the nav registry (`screens.tsx`); these two belong to
-// the sidebar chrome, which is not a destination.
-const NAV_ICONS = {
-  collapse: <ChevronsLeft />,
-  expand: <ChevronsRight />,
-} as const;
+const PROJECT_NAV_DESTINATIONS = NAV_DESTINATIONS.filter(
+  (destination) => destination.section === "project",
+);
+const DEFAULT_NAVIGATION_PREFERENCES = {
+  visibleDestinationIds: PROJECT_NAV_DESTINATIONS.map((destination) => destination.id),
+  displayMode: "icons-and-text",
+} satisfies NavigationPreferences;
 
 /** Suspense fallback for a lazily-loaded view (see `ChangesPanel` below).
  * Only ever visible on the first navigation into that view before its chunk
@@ -189,10 +190,6 @@ export function App(): React.JSX.Element {
   const toggleTheme = (): void => {
     startThemeReveal(themeToggleRef.current, commitTheme(effectiveTheme === "dark" ? "light" : "dark"));
   };
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useStoredBoolean(
-    SIDEBAR_COLLAPSED_STORAGE_KEY,
-    false,
-  );
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
   const [historyController] = useState(() => createHistoryController(historyPort));
@@ -424,6 +421,8 @@ export function App(): React.JSX.Element {
     setIsSettingsOpen(true);
   };
   const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
+  const [navigationPreferences, setNavigationPreferences] =
+    useStoredNavigationPreferences(DEFAULT_NAVIGATION_PREFERENCES.visibleDestinationIds);
   const [reopenLastProject, setReopenLastProject] = useStoredBoolean(
     REOPEN_LAST_PROJECT_STORAGE_KEY,
     REOPEN_LAST_PROJECT_DEFAULT,
@@ -1056,11 +1055,6 @@ export function App(): React.JSX.Element {
     { id: "theme-system", label: t.commandUseSystemTheme, action: () => changeTheme("system") },
     { id: "theme-light", label: t.commandUseLightTheme, action: () => changeTheme("light") },
     { id: "theme-dark", label: t.commandUseDarkTheme, action: () => changeTheme("dark") },
-    {
-      id: "toggle-sidebar",
-      label: isSidebarCollapsed ? t.sidebarExpand : t.sidebarCollapse,
-      action: () => setIsSidebarCollapsed((collapsed) => !collapsed),
-    },
     { id: "about", label: t.aboutGitOdrile, action: () => setIsAboutOpen(true) },
   ];
 
@@ -1090,6 +1084,26 @@ export function App(): React.JSX.Element {
     };
   });
   const closeTargetSession = closeTargetId ? sessionsState.byId[closeTargetId] : null;
+
+  const toRailItem = (destination: (typeof NAV_DESTINATIONS)[number]): RailNavItem => {
+    const { screen } = destination;
+    const isDisabled = screen === null || (destination.requiresProject && !project);
+    return {
+      id: destination.id,
+      label: t[destination.labelKey],
+      icon: destination.icon,
+      isActive: screen !== null && view === screen,
+      isDisabled,
+      isVisibleInRail: navigationPreferences.visibleDestinationIds.includes(destination.id),
+      disabledLabel:
+        isDisabled && destination.disabledLabelKey ? t[destination.disabledLabelKey] : undefined,
+      onSelect: screen ? () => navigateToView(screen) : undefined,
+    };
+  };
+  // Keep the full product map in the rail model. RailNav decides which entries
+  // stay visible from the stored preference and available height; everything
+  // else remains reachable in More without duplicating navigation policy here.
+  const railDestinations = PROJECT_NAV_DESTINATIONS.map(toRailItem);
 
   const appWindow = "__TAURI_INTERNALS__" in window
     ? getCurrentWindow()
@@ -1245,117 +1259,76 @@ export function App(): React.JSX.Element {
         </div>
       </header>
 
-      <main className={`app-shell${isSidebarCollapsed ? " app-shell--collapsed" : ""}`}>
-        <aside className="sidebar">
-          <div className="sidebar-header">
-            <div className="brand">
-              <div className="brand-mark" aria-hidden="true">{CROCODILE_MARK}</div>
-              {!isSidebarCollapsed && (
-                <div className="brand-copy">
-                  <strong>GitOdrile</strong>
-                  <span>{t.brandTagline}</span>
-                </div>
-              )}
-            </div>
+      <main className="app-shell">
+        {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
+            this panel's edge rather than from the button inside it. */}
+        <aside className="sidebar" data-flyout-anchor="">
+          <div className="brand-mark" aria-hidden="true">{CROCODILE_MARK}</div>
+
+          <RailNav
+            ariaLabel={t.navProjectAriaLabel}
+            moreLabel={t.navMore}
+            customizeLabel={t.navCustomizeNavigation}
+            items={railDestinations}
+            displayMode={navigationPreferences.displayMode}
+            onCustomize={() => openSettings("navigation")}
+          />
+
+          {/* Slack-like hierarchy: project context follows the destinations,
+              while account-level utilities stay anchored to the foot. The
+              larger interval between groups does the separating without a
+              decorative rule in an already narrow column. */}
+          <div className="sidebar-project-section" data-flyout-group-anchor="">
+            <ProjectSwitcherRail
+              entries={switcherEntries}
+              activeId={sessionsState.activeId}
+              canSwitch={!hasBlockingDialog}
+              isOpening={isOpening}
+              onActivate={activateSession}
+              onClose={requestCloseSession}
+              onOpenAnother={() => void handleOpenProject()}
+              onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
+              onClone={() => setIsCloneOpen(true)}
+            />
           </div>
 
-          <div
-            {...autoHideScrollbarProps<HTMLDivElement>()}
-            className="sidebar-scroll auto-hide-scrollbar"
-          >
-            <nav aria-label={t.navProjectAriaLabel}>
-              {NAV_DESTINATIONS.filter((destination) => destination.section === "project").map((destination) => {
-                const { screen } = destination;
-                const isDisabled = screen === null || (destination.requiresProject && !project);
-                const disabledLabel =
-                  isDisabled && destination.disabledLabelKey ? t[destination.disabledLabelKey] : undefined;
-                const isActive = screen !== null && view === screen;
-                return (
-                  <button
-                    key={destination.id}
-                    className={`nav-item${isActive ? " nav-item--active" : ""}`}
-                    type="button"
-                    disabled={isDisabled}
-                    aria-current={isActive ? "page" : undefined}
-                    aria-label={disabledLabel}
-                    data-tooltip={disabledLabel}
-                    onClick={screen ? () => navigateToView(screen) : undefined}
-                  >
-                    <span className="nav-item__icon" aria-hidden="true">{destination.icon}</span>
-                    <span className="nav-item__label">{t[destination.labelKey]}</span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            <div className="sidebar-divider" aria-hidden="true" />
-
-            {isSidebarCollapsed ? (
-              <ProjectSwitcherIcons
-                entries={switcherEntries}
-                activeId={sessionsState.activeId}
-                canSwitch={!hasBlockingDialog}
-                isOpening={isOpening}
-                onActivate={activateSession}
-                onClose={requestCloseSession}
-                onOpenAnother={() => void handleOpenProject()}
-                onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
-                onClone={() => setIsCloneOpen(true)}
-              />
-            ) : (
-              <ProjectSwitcher
-                entries={switcherEntries}
-                activeId={sessionsState.activeId}
-                canSwitch={!hasBlockingDialog}
-                isOpening={isOpening}
-                onActivate={activateSession}
-                onClose={requestCloseSession}
-                onOpenAnother={() => void handleOpenProject()}
-                onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
-                onClone={() => setIsCloneOpen(true)}
-              />
-            )}
-          </div>
-
-          <div className="sidebar-divider" aria-hidden="true" />
-
-          <div className="sidebar-footer">
-            <nav aria-label={t.navApplicationAriaLabel} className="nav--secondary">
-              {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map((destination) => {
-                const { screen, overlay } = destination;
-                const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
-                const label = t[destination.labelKey];
-                return (
-                  <button
-                    key={destination.id}
-                    className={`nav-item${isActive ? " nav-item--active" : ""}`}
-                    type="button"
-                    disabled={screen === null && overlay === undefined}
-                    aria-current={screen !== null && isActive ? "page" : undefined}
-                    aria-haspopup={overlay ? "dialog" : undefined}
-                    aria-expanded={overlay ? isSettingsOpen : undefined}
-                    // The visible label folds away with the collapsed rail;
-                    // the accessible name and tooltip keep its icon clear.
-                    aria-label={label}
-                    data-tooltip={label}
-                    onClick={overlay === "settings" ? () => openSettings() : screen ? () => navigateToView(screen) : undefined}
-                  >
-                    <span className="nav-item__icon" aria-hidden="true">{destination.icon}</span>
-                    <span className="nav-item__label">{label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+          <nav aria-label={t.navApplicationAriaLabel} className="sidebar-foot">
+            {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map((destination) => {
+              const { screen, overlay } = destination;
+              const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
+              const label = t[destination.labelKey];
+              return (
+                <button
+                  key={destination.id}
+                  className={`sidebar-round${isActive ? " sidebar-round--active" : ""}`}
+                  type="button"
+                  disabled={screen === null && overlay === undefined}
+                  aria-current={screen !== null && isActive ? "page" : undefined}
+                  aria-haspopup={overlay ? "dialog" : undefined}
+                  aria-expanded={overlay ? isSettingsOpen : undefined}
+                  // Round buttons this size carry no visible label, so their
+                  // accessible name remains available without covering the
+                  // rail with a pointer tooltip.
+                  aria-label={label}
+                  onClick={overlay === "settings" ? () => openSettings() : screen ? () => navigateToView(screen) : undefined}
+                >
+                  {destination.icon}
+                </button>
+              );
+            })}
+            {/* Signing in is not built yet, but its place in the rail is: it
+                sits with Settings the way an account always does, disabled
+                and saying so, rather than appearing later and pushing the
+                rail's furniture around. */}
             <button
-              className="sidebar-toggle"
+              className="sidebar-round"
               type="button"
-              data-tooltip={isSidebarCollapsed ? t.sidebarExpand : t.sidebarCollapse}
-              aria-label={isSidebarCollapsed ? t.sidebarExpand : t.sidebarCollapse}
-              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+              disabled
+              aria-label={t.navAccountTitle}
             >
-              <span aria-hidden="true">{isSidebarCollapsed ? NAV_ICONS.expand : NAV_ICONS.collapse}</span>
+              <UserRound aria-hidden="true" />
             </button>
-          </div>
+          </nav>
         </aside>
 
         <section
@@ -1773,6 +1746,13 @@ export function App(): React.JSX.Element {
           setWatchProjects,
           confirmDiscard,
           setConfirmDiscard,
+          navigationItems: PROJECT_NAV_DESTINATIONS.map((destination) => ({
+            id: destination.id,
+            label: t[destination.labelKey],
+            icon: destination.icon,
+          })),
+          navigationPreferences,
+          setNavigationPreferences,
           diffPreferences,
           setDiffPreferences,
           defaults: {
@@ -1780,6 +1760,7 @@ export function App(): React.JSX.Element {
             confirmCloseProject: CONFIRM_CLOSE_PROJECT_DEFAULT,
             watchProjects: WATCH_PROJECTS_DEFAULT,
             confirmDiscard: CONFIRM_DISCARD_DEFAULT,
+            navigationPreferences: DEFAULT_NAVIGATION_PREFERENCES,
           },
           identity: gitIdentity,
           lineEndings,

@@ -122,11 +122,16 @@
   display: flex;
 }
 
+/* One width, always. The rail carries an icon in a 40px square with its name
+   underneath, so nothing needs folding away and there is no second mode to
+   collapse into: 88px of panel replaces the 240px the expanded sidebar used
+   to take, and the 68px of content inside it is what the labels are measured
+   against ("Líneas de versión" wraps to two lines and stays legible). */
 .sidebar {
-  width: 240px;
+  width: 88px;
   flex-shrink: 0;
   margin: var(--space-3);
-  padding: var(--space-4);
+  padding: 10px var(--space-2) var(--space-3);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-subtle);
@@ -134,66 +139,202 @@
   background: var(--surface-panel);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: none;
 }
-.app-shell--collapsed .sidebar { width: 76px; padding-left: var(--space-2); padding-right: var(--space-2); }
 
-.sidebar-header {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  margin-bottom: 32px; min-height: 38px;
-}
-.app-shell--collapsed .sidebar-header { justify-content: center; }
-.app-shell--collapsed .brand { width: 100%; justify-content: center; }
-.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.brand-copy { display: grid; gap: 2px; min-width: 0; overflow: hidden; }
-.brand-copy > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.brand-copy span { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
 .brand-mark {
-  width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center;
+  width: 40px; height: 40px; flex-shrink: 0; margin: 0 auto var(--space-4); display: grid; place-items: center;
   border-radius: var(--radius-md); background: var(--accent-brand); color: var(--brand-mark-foreground);
 }
-.brand-mark .gitodrile-mark { width: 27px; height: 15px; }
+.brand-mark .gitodrile-mark { width: 28px; height: 15px; }
 
-.sidebar-toggle {
-  flex: none; width: 44px; height: 44px; padding: 0;
-  display: flex; align-items: center; justify-content: center;
-  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
-  transition: background var(--duration-fast), color var(--duration-fast);
+/* The destination map is stable in order, not necessarily in visible count:
+   More stays at the end and receives the suffix that no longer fits, matching
+   Slack's compact-height behaviour without turning this rail into a scroller. */
+.rail-nav {
+  --rail-nav-gap: 6px;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  /* Wider than the 2px between an icon and its own label on purpose: at equal
+     spacing every label floats between two icons and the column stops reading
+     as a list of destinations. 6 against 2 is what groups them. */
+  gap: var(--rail-nav-gap);
 }
-.sidebar-toggle svg { width: 18px; height: 18px; }
-.sidebar-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
-.sidebar-scroll {
-  flex: 1; min-height: 0; overflow-y: auto;
+.rail-nav__measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: var(--rail-nav-gap);
+  visibility: hidden;
+  pointer-events: none;
 }
-.sidebar-footer {
-  flex-shrink: 0; display: flex; align-items: center; gap: var(--space-1);
+.rail-item {
+  width: 100%; display: grid; justify-items: center; gap: 2px;
+  padding: 0; border: 0; border-radius: var(--radius-md);
+  background: transparent; color: var(--text-secondary); text-align: center;
 }
-.nav--secondary { flex: 1 1 auto; min-width: 0; }
-.app-shell--collapsed .sidebar-footer { flex-direction: column; justify-content: center; }
-.app-shell--collapsed .nav--secondary { flex: none; width: 44px; }
-.app-shell--collapsed .sidebar-toggle {
-  flex: none; width: 44px; height: 44px; padding: 0; justify-content: center;
+/* The active state fills the icon's square, not the whole cell. Wrapping the
+   label too gave neighbouring destinations blocks of different heights — one
+   line against two — and the column stopped reading as a rhythm. */
+.rail-item__icon {
+  width: 40px; height: 40px; display: grid; place-items: center;
+  border-radius: var(--radius-md);
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast),
+    transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
 }
-.nav-item {
-  display: flex; align-items: center; width: 100%; min-width: 0; height: 44px;
-  padding: 0 12px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary);
-  background: transparent; text-align: left; white-space: nowrap;
-  transition: background var(--duration-fast), color var(--duration-fast);
+.rail-item__icon svg {
+  width: 22px;
+  height: 22px;
+  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
 }
-.nav-item__icon { display: flex; width: 18px; height: 18px; flex-shrink: 0; }
-.nav-item__icon svg { width: 100%; height: 100%; }
-.nav-item__label {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; opacity: 1; max-width: 160px; margin-left: 10px;
-  transition: opacity var(--duration-fast);
+.rail-item__label {
+  max-width: 100%; overflow: hidden; overflow-wrap: anywhere;
+  font-size: 11px; line-height: 1.15; font-weight: 500; letter-spacing: -0.005em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.nav-item:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); }
-.nav-item--active { color: var(--text-primary); background: var(--surface-active); font-weight: 600; }
-.nav-item--active .nav-item__icon { color: var(--accent-primary); }
-.nav-item:disabled { opacity: 0.45; }
-.nav-item:disabled .nav-item__icon { filter: grayscale(1); }
+/* Icon-only mode compacts the destination cells, not their hit targets. The
+   40px square stays aligned with project and utility controls; removing the
+   label and tightening the inter-item rhythm is enough to fit substantially
+   more destinations without making the rail feel undersized. */
+.rail-nav--icons-only { --rail-nav-gap: 4px; }
+.rail-nav--icons-only .rail-item { gap: 0; }
+.rail-nav--icons-only .rail-item__label { display: none; }
+.rail-item:hover:not(:disabled) { color: var(--text-primary); }
+.rail-item:hover:not(:disabled) .rail-item__icon { background: var(--surface-hover); transform: translateY(-1px); }
+.rail-item:hover:not(:disabled) .rail-item__icon svg { transform: scale(1.08); }
+.rail-item:active:not(:disabled) .rail-item__icon { transform: scale(0.94); }
+.rail-item--active { color: var(--text-primary); }
+.rail-item--active .rail-item__icon { background: var(--surface-active); color: var(--accent-primary); }
+.rail-item--active .rail-item__icon svg { animation: rail-icon-settle var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1); }
+.rail-item--active .rail-item__label { font-weight: 600; }
+.rail-item:disabled { opacity: 0.45; }
+.rail-item:disabled .rail-item__icon { filter: grayscale(1); }
+.rail-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-.app-shell--collapsed .nav-item { width: 44px; padding: 0; justify-content: center; justify-self: center; }
-.app-shell--collapsed .nav-item__label { opacity: 0; max-width: 0; margin-left: 0; }
+.rail-more__menu {
+  width: 250px;
+  animation: titlebar-menu-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.rail-more__menu .app-menu__item:disabled { opacity: 0.45; }
+.rail-more__menu .app-menu__item--selected svg { color: var(--accent-primary); }
+.rail-more__divider {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border-divider);
+}
+.rail-more__customize { color: var(--text-secondary); }
+.rail-more__customize:hover { color: var(--text-primary); }
+
+@keyframes rail-icon-settle {
+  from { transform: scale(0.9); }
+  to { transform: scale(1); }
+}
+
+/* Project context follows the functional destinations; the larger 16px step
+   makes it a new group without spending scarce width on a divider. Utilities
+   remain anchored to the bottom, where desktop users expect app/account
+   controls. All controls below the labelled navigation share one 32px size. */
+.sidebar-project-section {
+  flex-shrink: 0;
+  margin-top: var(--space-5);
+}
+.sidebar-foot {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.sidebar-round {
+  width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: var(--surface-hover); color: var(--text-secondary);
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast),
+    transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-round svg {
+  width: 18px;
+  height: 18px;
+  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-round:hover:not(:disabled) { background: var(--surface-active); color: var(--text-primary); transform: translateY(-1px); }
+.sidebar-round:hover:not(:disabled) svg { transform: scale(1.08); }
+.sidebar-round:active:not(:disabled) { transform: scale(0.92); }
+.sidebar-round--active { background: var(--surface-active); color: var(--accent-primary); }
+.sidebar-round:disabled { opacity: 0.45; }
+
+.sidebar-project-group { display: grid; justify-items: center; gap: var(--space-2); }
+.sidebar-project {
+  position: relative; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent;
+}
+.sidebar-project__avatar {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  border-radius: var(--radius-md); color: var(--avatar-foreground);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+  transition: filter var(--duration-fast), transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-project:hover:not(:disabled) .sidebar-project__avatar { filter: brightness(1.08); transform: scale(1.04); }
+.sidebar-project:active:not(:disabled) .sidebar-project__avatar { transform: scale(0.94); }
+.sidebar-project:disabled { opacity: 0.45; }
+.sidebar-project:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sidebar-project__chevron {
+  position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px;
+  display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid var(--border-subtle); background: var(--surface-raised); color: var(--text-secondary);
+}
+.sidebar-project__chevron svg {
+  width: 10px;
+  height: 10px;
+  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-project[aria-expanded="true"] .sidebar-project__chevron svg { transform: rotate(180deg); }
+.sidebar-project__badge {
+  position: absolute; top: -4px; right: -4px; min-width: 14px; height: 14px; padding: 1px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 1px;
+  border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--border-subtle);
+}
+.sidebar-project__badge svg { width: 10px; height: 10px; }
+.sidebar-project__badge-count { font-size: 7px; line-height: 1; font-weight: 700; }
+.sidebar-project__badge--error { color: var(--status-danger); }
+.sidebar-project__badge--operation { color: var(--accent-primary); }
+.sidebar-project__badge--unsaved { color: var(--status-warning); }
+
+.sidebar-project-flyout {
+  width: 250px;
+  height: 180px;
+  min-width: 250px;
+  max-height: calc(100vh - 16px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.sidebar-project__popover { padding: 8px; gap: 6px; }
+.sidebar-project__search {
+  display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 9px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-secondary);
+}
+.sidebar-project__search:focus-within { border-color: var(--focus-ring); }
+.sidebar-project__search svg { width: 14px; height: 14px; flex-shrink: 0; }
+.sidebar-project__search input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  font: inherit; font-size: 13px; color: var(--text-primary);
+}
+.sidebar-project__search input::placeholder { color: var(--text-secondary); }
+.sidebar-project__empty {
+  margin: 0; padding: 14px 8px; color: var(--text-secondary); font-size: 12.5px; text-align: center;
+}
 
 .workspace { flex: 1; min-width: 0; padding: 28px 36px 40px 24px; display: flex; flex-direction: column; overflow-y: auto; }
 .screen-slot { display: contents; }
@@ -223,14 +364,6 @@
   background: linear-gradient(90deg, transparent, var(--border-divider) 25%, var(--border-divider) 75%, transparent);
   flex-shrink: 0;
 }
-.project-switcher { margin-bottom: var(--space-4); }
-.project-switcher--empty {
-  display: grid;
-  gap: var(--space-2);
-  padding: 0 8px;
-}
-.project-switcher--empty p { margin: 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.4; }
-.project-switcher--empty .project-switcher__add { width: auto; }
 .project-switcher__list { display: grid; gap: 2px; list-style: none; margin: 0; padding: 0; }
 .project-switcher__item { display: flex; align-items: center; gap: 2px; }
 .project-switcher__button {
@@ -281,39 +414,6 @@
 .project-switcher__add svg { width: 16px; height: 16px; flex-shrink: 0; }
 .project-switcher__add:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); }
 .project-switcher__add:disabled { opacity: 0.45; }
-.project-switcher-icons { display: grid; gap: 6px; justify-items: center; }
-.project-switcher-icons__button {
-  position: relative;
-  width: 36px; height: 36px; padding: 2px; display: grid; place-items: center; flex-shrink: 0;
-  border: 2px solid transparent; border-radius: var(--radius-sm); background: transparent;
-  transition: border-color var(--duration-fast);
-}
-.project-switcher-icons__button:hover:not(:disabled) .project-switcher-icons__avatar { filter: brightness(1.1); }
-.project-switcher-icons__button--active { border-color: var(--accent-primary); }
-.project-switcher-icons__button:disabled { opacity: 0.45; }
-.project-switcher-icons__avatar {
-  width: 100%; height: 100%; display: grid; place-items: center;
-  border-radius: calc(var(--radius-sm) - 2px); color: var(--avatar-foreground); font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
-}
-.project-switcher-icons__badge {
-  position: absolute; top: -4px; right: -4px; min-width: 14px; height: 14px; padding: 1px;
-  display: inline-flex; align-items: center; justify-content: center; gap: 1px;
-  border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--border-subtle);
-}
-.project-switcher-icons__badge svg { width: 10px; height: 10px; }
-.project-switcher-icons__badge-count { font-size: 7px; line-height: 1; font-weight: 700; }
-.project-switcher-icons__badge--error { color: var(--status-danger); }
-.project-switcher-icons__badge--operation { color: var(--accent-primary); }
-.project-switcher-icons__badge--unsaved { color: var(--status-warning); }
-.project-switcher-icons__add {
-  width: 36px; height: 36px; display: grid; place-items: center; flex-shrink: 0; margin-top: 2px;
-  border: 1px dashed var(--border-subtle); border-radius: var(--radius-sm); background: transparent;
-  color: var(--text-secondary);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.project-switcher-icons__add svg { width: 16px; height: 16px; }
-.project-switcher-icons__add:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
-.project-switcher-icons__add:disabled { opacity: 0.45; }
 
 /* One trigger for create/open/clone. The popup wears the shared `.app-menu`
    surface unchanged — width and z-index included — and is placed by
@@ -322,6 +422,14 @@
    weight anyway: primitives.css loads after this file, so `.app-menu` wins
    every tie at equal specificity.) */
 .project-switcher-add-menu__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary); }
+.project-switcher-add-menu__trigger > svg {
+  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
+}
+.project-switcher-add-menu__trigger[aria-expanded="true"] > svg { transform: rotate(45deg); }
+.project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
+  transform: rotate(45deg) scale(1.08);
+}
+.project-switcher-add-menu__popup.sidebar-project-flyout .app-menu__item { flex: 1; }
 
 .project-switcher-compact { position: relative; display: none; }
 .project-switcher-compact__trigger {
@@ -453,6 +561,30 @@
 
 @media (prefers-reduced-motion: reduce) {
   .titlebar-menu__list { animation: none; }
+  .rail-more__menu { animation: none; }
+  .rail-item__icon,
+  .rail-item__icon svg,
+  .sidebar-round,
+  .sidebar-round svg,
+  .sidebar-project__avatar,
+  .sidebar-project__chevron svg,
+  .project-switcher-add-menu__trigger > svg {
+    animation: none;
+    transition: none;
+  }
+  .rail-item:hover:not(:disabled) .rail-item__icon,
+  .rail-item:hover:not(:disabled) .rail-item__icon svg,
+  .rail-item:active:not(:disabled) .rail-item__icon,
+  .sidebar-round:hover:not(:disabled),
+  .sidebar-round:hover:not(:disabled) svg,
+  .sidebar-round:active:not(:disabled),
+  .sidebar-project:hover:not(:disabled) .sidebar-project__avatar,
+  .sidebar-project:active:not(:disabled) .sidebar-project__avatar,
+  .sidebar-project[aria-expanded="true"] .sidebar-project__chevron svg,
+  .project-switcher-add-menu__trigger[aria-expanded="true"] > svg { transform: rotate(45deg); }
+  .project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
+    transform: rotate(45deg);
+  }
 }
 
 @media (max-width: 1100px) {
@@ -504,6 +636,12 @@
 }
 
 @media (pointer: coarse) {
+  .rail-item__icon,
+  .sidebar-project,
+  .sidebar-round {
+    width: 44px;
+    height: 44px;
+  }
   .project-switcher__button,
   .project-switcher-compact__popover .project-switcher__button,
   .project-switcher__add {

@@ -52,6 +52,65 @@
   border-radius: var(--radius-md);
   background: var(--surface-panel);
 }
+.navigation-destinations { padding: 6px 16px; }
+.navigation-destination {
+  min-height: 46px; display: flex; align-items: center; gap: 11px; cursor: pointer;
+}
+.navigation-destination + .navigation-destination { border-top: 1px solid var(--border-divider); }
+.navigation-destination__checkbox {
+  appearance: none; width: 18px; height: 18px; flex: 0 0 auto; display: grid; place-content: center;
+  margin: 0; border: 1px solid var(--border-strong); border-radius: 5px;
+  background: var(--surface-raised); cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.navigation-destination__checkbox::before {
+  width: 8px; height: 4px; border: solid var(--accent-primary-contrast); border-width: 0 0 2px 2px;
+  content: ""; transform: translateY(-1px) rotate(-45deg) scale(0);
+  transition: transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
+}
+.navigation-destination__checkbox:checked {
+  border-color: var(--accent-primary); background: var(--accent-primary);
+}
+.navigation-destination__checkbox:checked::before {
+  transform: translateY(-1px) rotate(-45deg) scale(1);
+}
+.navigation-destination__checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.navigation-destination__icon {
+  width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center;
+  border-radius: var(--radius-sm); background: var(--surface-hover); color: var(--text-secondary);
+}
+.navigation-destination__icon svg { width: 17px; height: 17px; }
+.navigation-destination__copy { min-width: 0; display: grid; gap: 1px; }
+.navigation-destination__copy strong { font-size: 13.5px; font-weight: 600; }
+.navigation-destination__copy small { color: var(--text-secondary); font-size: 11.5px; }
+
+.navigation-display { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding: 8px; }
+.navigation-display__option {
+  min-width: 0; min-height: 72px; display: grid; grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center; gap: var(--space-3); padding: 10px 12px;
+  border: 0; border-radius: var(--radius-sm); background: transparent;
+  color: var(--text-secondary); text-align: left;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.navigation-display__option:hover:not(.navigation-display__option--active) {
+  background: var(--surface-hover); color: var(--text-primary);
+}
+.navigation-display__option--active { background: var(--surface-active); color: var(--text-primary); }
+.navigation-display__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.navigation-display__preview {
+  width: 48px; height: 48px; display: grid; align-content: center; justify-items: center; gap: 2px;
+  border-radius: var(--radius-sm); background: var(--surface-hover); color: var(--accent-primary);
+}
+.navigation-display__preview span { width: 26px; height: 26px; display: grid; place-items: center; }
+.navigation-display__preview svg { width: 18px; height: 18px; }
+.navigation-display__preview small {
+  max-width: 42px; overflow: hidden; color: var(--text-secondary); font-size: 7px;
+  line-height: 1; text-overflow: ellipsis; white-space: nowrap;
+}
+.navigation-display__preview--icons-only span { width: 32px; height: 32px; }
+.navigation-display__copy { min-width: 0; display: grid; gap: 3px; }
+.navigation-display__copy strong { color: var(--text-primary); font-size: 13.5px; font-weight: 650; }
+.navigation-display__copy small { color: var(--text-secondary); font-size: 11.5px; line-height: 1.35; }
 
 /* Two by two rather than a row of four: the sample line is what has to be
    readable, and four across would squeeze it to the point of defeating the
@@ -212,6 +271,7 @@
   .settings-view { padding: 16px 20px 24px; }
   .identity-fields { grid-template-columns: 1fr; }
   .font-picker { grid-template-columns: 1fr; }
+  .navigation-display { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .settings-row { align-items: flex-start; flex-direction: column; }
   .settings-row__actions { width: 100%; }

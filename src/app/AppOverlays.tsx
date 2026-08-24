@@ -9,6 +9,7 @@ import {
   type GitIdentityState,
   type GitToolingState,
   type LineEndingsState,
+  type NavigationPreferences,
   type SettingsSection,
   type ThemePreference,
 } from "../features/settings";
@@ -36,6 +37,9 @@ export type AppOverlaysProps = {
     setWatchProjects: BooleanSetter;
     confirmDiscard: boolean;
     setConfirmDiscard: BooleanSetter;
+    navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
+    navigationPreferences: NavigationPreferences;
+    setNavigationPreferences: Dispatch<SetStateAction<NavigationPreferences>>;
     diffPreferences: DiffPreferences;
     setDiffPreferences: Dispatch<SetStateAction<DiffPreferences>>;
     defaults: {
@@ -43,6 +47,7 @@ export type AppOverlaysProps = {
       confirmCloseProject: boolean;
       watchProjects: boolean;
       confirmDiscard: boolean;
+      navigationPreferences: NavigationPreferences;
     };
     /** Both read once after first paint and kept above this dialog, which is
      * unmounted on every close. The line-endings state already knows about the
@@ -188,6 +193,9 @@ export function AppOverlays({
               setWatchProjects={settings.setWatchProjects}
               confirmDiscard={settings.confirmDiscard}
               setConfirmDiscard={settings.setConfirmDiscard}
+              navigationItems={settings.navigationItems}
+              navigationPreferences={settings.navigationPreferences}
+              setNavigationPreferences={settings.setNavigationPreferences}
               diffPreferences={settings.diffPreferences}
               setDiffPreferences={settings.setDiffPreferences}
               defaults={settings.defaults}

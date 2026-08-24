@@ -1,9 +1,20 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CircleAlert, CloudDownload, FileDiff, FolderInput, FolderPlus, LoaderCircle, Plus, X } from "lucide-react";
+import {
+  ChevronDown,
+  CircleAlert,
+  CloudDownload,
+  FileDiff,
+  FolderInput,
+  FolderPlus,
+  LoaderCircle,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { useLanguage } from "./i18n";
 import { avatarColorVar, avatarInitials } from "./projectAvatar";
-import { handlePopupMenuKeyDown } from "./shared/ui";
+import { handlePopupMenuKeyDown, usePortalFlyout } from "./shared/ui";
 import { autoHideScrollbarProps } from "./shared/ui/autoHideScrollbar";
 
 export type ProjectSwitcherEntry = {
@@ -81,10 +92,10 @@ function RowIndicators({ entry }: { entry: ProjectSwitcherEntry }): React.JSX.El
 
 /** Trigger class per surface. The menu itself is identical everywhere; only
  * the button wearing it changes shape, so each surface keeps its own look
- * (full-width row, dashed rail square, bordered compact square). */
+ * (full-width row, round rail button, bordered compact square). */
 const ADD_MENU_TRIGGER_CLASS = {
   row: "project-switcher__add",
-  rail: "project-switcher-icons__add",
+  rail: "sidebar-round",
   compact: "project-switcher-compact__trigger",
 } as const;
 
@@ -93,14 +104,14 @@ type AddProjectMenuVariant = keyof typeof ADD_MENU_TRIGGER_CLASS;
 /**
  * The three ways to get a project — create, open, clone — behind one "+".
  * They used to sit side by side in every switcher surface, which cost three
- * rows of sidebar height (or three squares of the 76px rail) to say one thing.
+ * rows of sidebar height (or three squares of the icon rail) to say one thing.
  *
- * The popup is fixed-positioned and portaled because both `.sidebar` and
- * `.sidebar-scroll` clip their overflow: an absolutely positioned menu would
- * be cut off at the panel edge, and on the collapsed rail it would have
- * nowhere to open at all. That is the same escape `tooltip.tsx` makes, and it
- * brings the same rule with it — the anchor rect is measured once, so scroll
- * and resize dismiss the menu rather than letting it drift off its trigger.
+ * The popup is fixed-positioned and portaled because `.sidebar` clips its
+ * overflow: an absolutely positioned menu would be cut off at the panel edge,
+ * and on the 88px rail it would have nowhere to open at all. `usePortalFlyout`
+ * owns that escape — and the rule that comes with it: the anchor rect is
+ * measured once, so scroll and resize dismiss the menu rather than letting it
+ * drift off its trigger.
  */
 function AddProjectMenu({
   variant,
@@ -121,61 +132,26 @@ function AddProjectMenu({
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const close = (restoreFocus: boolean): void => {
     setIsOpen(false);
-    setPosition(null);
     if (restoreFocus) triggerRef.current?.focus();
   };
 
-  // Runs before paint, so the menu is measured and placed in the same frame it
-  // mounts — it is rendered hidden until `position` lands to keep that honest.
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    const trigger = triggerRef.current?.getBoundingClientRect();
-    const menu = menuRef.current?.getBoundingClientRect();
-    if (!trigger || !menu) return;
-    const margin = 8;
-    // The rail is only 36px wide, so its menu flies out sideways; the wider
-    // surfaces align it with the trigger's own left edge.
-    const preferredLeft = variant === "rail" ? trigger.right + 6 : trigger.left;
-    const below = trigger.bottom + 6;
-    setPosition({
-      left: Math.max(margin, Math.min(preferredLeft, window.innerWidth - menu.width - margin)),
-      top: below + menu.height + margin <= window.innerHeight
-        ? below
-        : Math.max(margin, trigger.top - menu.height - 6),
-    });
-    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus();
-  }, [isOpen, variant]);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const handlePointerDown = (event: MouseEvent): void => {
-      const target = event.target as Node;
-      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
-      close(false);
-    };
-    const handleKeyDown = (event: globalThis.KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      close(true);
-    };
-    const dismiss = (): void => close(false);
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("scroll", dismiss, true);
-    window.addEventListener("resize", dismiss);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("scroll", dismiss, true);
-      window.removeEventListener("resize", dismiss);
-    };
-  }, [isOpen]);
+  // The rail button is only 32px wide, so its menu flies out sideways; the
+  // wider surfaces align it with the trigger's own left edge.
+  const { popupRef, style } = usePortalFlyout(
+    isOpen,
+    triggerRef,
+    close,
+    variant === "rail" ? "side" : "below",
+  );
+  const attachMenu = (node: HTMLDivElement | null): void => {
+    menuRef.current = node;
+    popupRef.current = node;
+  };
 
   const choose = (action: () => void): void => {
     // Restore the trigger before running the action: every action opens a
@@ -193,7 +169,7 @@ function AddProjectMenu({
         type="button"
         className={`${ADD_MENU_TRIGGER_CLASS[variant]} project-switcher-add-menu__trigger`}
         aria-label={variant === "row" ? undefined : t.projectSwitcherAddProject}
-        data-tooltip={variant === "row" ? undefined : t.projectSwitcherAddProject}
+        data-tooltip={variant === "compact" ? t.projectSwitcherAddProject : undefined}
         aria-haspopup="menu"
         aria-expanded={isOpen}
         disabled={!canSwitch}
@@ -204,22 +180,17 @@ function AddProjectMenu({
       </button>
       {isOpen && createPortal(
         <div
-          ref={menuRef}
+          ref={attachMenu}
           // Read by the compact switcher's own outside-click guard: this menu
           // lives in a portal, so without the marker its clicks would look
           // like a click outside the popover that renders its trigger.
           data-add-project-menu=""
-          className="app-menu project-switcher-add-menu__popup"
+          {...autoHideScrollbarProps<HTMLDivElement>()}
+          className={`app-menu project-switcher-add-menu__popup${variant === "rail" ? " sidebar-project-flyout auto-hide-scrollbar" : ""}`}
           role="menu"
           aria-label={t.projectSwitcherAddProject}
           tabIndex={-1}
-          style={{
-            position: "fixed",
-            right: "auto",
-            top: position?.top ?? 0,
-            left: position?.left ?? 0,
-            visibility: position ? "visible" : "hidden",
-          }}
+          style={style}
           onKeyDown={(event) => handlePopupMenuKeyDown(event, menuRef.current, () => close(true))}
         >
           <button className="app-menu__item" role="menuitem" type="button" onClick={() => choose(onCreate)}>
@@ -257,7 +228,11 @@ function ProjectSwitcherRows({
   onOpenAnother,
   onCreate,
   onClone,
-}: ProjectSwitcherProps): React.JSX.Element {
+  // The rail's own popover leaves it out: its "+" sits right under the
+  // trigger that opened the popover, so repeating it inside would be the same
+  // control twice within 40px.
+  withAddEntry = true,
+}: ProjectSwitcherProps & { withAddEntry?: boolean }): React.JSX.Element {
   const { t } = useLanguage();
   return (
     <ul className="project-switcher__list" role="list" aria-label={t.projectSwitcherAriaLabel}>
@@ -304,131 +279,151 @@ function ProjectSwitcherRows({
           </li>
         );
       })}
-      <li className="project-switcher__item project-switcher__item--add">
-        <AddProjectMenu
-          variant="row"
-          hasEntries={entries.length > 0}
-          canSwitch={canSwitch}
-          isOpening={isOpening}
-          onOpenAnother={onOpenAnother}
-          onCreate={onCreate}
-          onClone={onClone}
-        />
-      </li>
+      {withAddEntry && (
+        <li className="project-switcher__item project-switcher__item--add">
+          <AddProjectMenu
+            variant="row"
+            hasEntries={entries.length > 0}
+            canSwitch={canSwitch}
+            isOpening={isOpening}
+            onOpenAnother={onOpenAnother}
+            onCreate={onCreate}
+            onClone={onClone}
+          />
+        </li>
+      )}
     </ul>
   );
 }
 
-/** Expanded-sidebar rendering: the switcher sits between primary navigation
- * and Settings, as its own section. With no project open yet, it still
- * marks out that spot (rather than disappearing) with a quiet hint and the
- * same "open a project" action as the row list's own last entry. */
-export function ProjectSwitcher(props: ProjectSwitcherProps): React.JSX.Element {
-  const { t } = useLanguage();
-  if (props.entries.length === 0) {
-    return (
-      <div className="project-switcher project-switcher--empty">
-        <p>{t.projectSwitcherEmptyHint}</p>
-        <AddProjectMenu
-          variant="row"
-          hasEntries={false}
-          canSwitch={props.canSwitch}
-          isOpening={props.isOpening}
-          onOpenAnother={props.onOpenAnother}
-          onCreate={props.onCreate}
-          onClone={props.onClone}
-        />
-      </div>
-    );
-  }
-  return (
-    <div className="project-switcher">
-      <ProjectSwitcherRows {...props} />
-    </div>
-  );
-}
-
 /**
- * Collapsed-sidebar rendering: one small square per open project (its
- * initial, plus a status badge when it needs attention), the same way the
- * primary nav collapses to icon-only buttons — no popover step needed since
- * there's room for every project at once. Closing a project isn't available
- * from here (there's no room for it next to a 36px icon); switch back to
- * the expanded sidebar, the command palette, or `Ctrl`/`Cmd+W`-style
- * shortcuts aren't wired up for it, so use the row list for that.
+ * Sidebar rendering: the active project as one square at the foot of the
+ * rail, with every other open project behind it in a searchable popover.
+ *
+ * The rail used to list every project at once, which cost it a row of height
+ * per project and left long names truncated to a 68px column. One square
+ * costs the same whether two projects are open or twenty, and the popover has
+ * room to spell the names out — the active one is also written in full in the
+ * screen's own heading.
+ *
+ * The popover is portaled for the same reason the add-project menu is:
+ * `.sidebar` clips its overflow, so an absolutely positioned panel would be
+ * cut off at the panel edge.
  */
-export function ProjectSwitcherIcons({
-  entries,
-  activeId,
-  canSwitch,
-  isOpening,
-  onActivate,
-  onOpenAnother,
-  onCreate,
-  onClone,
-}: ProjectSwitcherProps): React.JSX.Element {
+export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Element {
   const { t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { entries, activeId, canSwitch } = props;
+
+  const close = (restoreFocus: boolean): void => {
+    setIsOpen(false);
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+  const { popupRef, style } = usePortalFlyout(isOpen, triggerRef, close, "side", "first-control");
+
+  const activeEntry = entries.find((entry) => entry.id === activeId) ?? null;
+  const needle = query.trim().toLocaleLowerCase();
+  const matches = needle
+    ? entries.filter((entry) => entry.name.toLocaleLowerCase().includes(needle))
+    : entries;
+  const metas = activeEntry ? indicatorMetas(activeEntry, t) : [];
+  const primaryMeta = metas[0] ?? null;
+  const statusSummary = metas.map((meta) => meta.label).join(" · ");
+
   return (
-    <div className="project-switcher-icons">
-      {entries.map((entry) => {
-        const isActive = entry.id === activeId;
-        const accessibleName = entry.contextLabel
-          ? `${entry.name} (${entry.contextLabel})`
-          : entry.name;
-        const metas = indicatorMetas(entry, t);
-        const primaryMeta = metas[0] ?? null;
-        const statusSummary = metas.map((meta) => meta.label).join(" · ");
-        return (
+    <div className="sidebar-project-group">
+      {activeEntry && (
+        <>
           <button
-            key={entry.id}
+            ref={triggerRef}
             type="button"
-            className={`project-switcher-icons__button${isActive ? " project-switcher-icons__button--active" : ""}`}
-            aria-current={isActive ? "true" : undefined}
-            disabled={!canSwitch && !isActive}
-            aria-label={
-              canSwitch || isActive
-                ? statusSummary ? `${accessibleName} — ${statusSummary}` : accessibleName
-                : t.projectSwitcherSwitchBlockedHint
-            }
-            data-tooltip={
-              canSwitch || isActive
-                ? statusSummary ? `${accessibleName} — ${statusSummary}` : accessibleName
-                : t.projectSwitcherSwitchBlockedHint
-            }
-            onClick={() => onActivate(entry.id)}
+            className="sidebar-project"
+            // The name stays out of the status summary: the badge below
+            // announces that separately, and a trigger whose accessible name
+            // changed with every background operation would be a moving
+            // target for anyone navigating by voice.
+            aria-label={t.projectSwitcherRailTrigger(activeEntry.name)}
+            aria-haspopup="dialog"
+            aria-expanded={isOpen}
+            disabled={!canSwitch}
+            onClick={() => (isOpen ? close(true) : (setQuery(""), setIsOpen(true)))}
           >
             <span
-              className="project-switcher-icons__avatar"
+              className="sidebar-project__avatar"
               aria-hidden="true"
-              style={{ backgroundColor: avatarColorVar(entry.id) }}
+              style={{ backgroundColor: avatarColorVar(activeEntry.id) }}
             >
-              {avatarInitials(entry.name)}
+              {avatarInitials(activeEntry.name)}
+            </span>
+            <span className="sidebar-project__chevron" aria-hidden="true">
+              <ChevronDown />
             </span>
             {primaryMeta && (
               <span
                 aria-label={statusSummary}
-                className={`project-switcher-icons__badge project-switcher-icons__badge--${primaryMeta.tone}`}
+                className={`sidebar-project__badge sidebar-project__badge--${primaryMeta.tone}`}
               >
                 <primaryMeta.Icon
                   aria-hidden="true"
                   className={primaryMeta.tone === "operation" ? "icon--spinning" : undefined}
                 />
                 {metas.length > 1 && (
-                  <span className="project-switcher-icons__badge-count">+{metas.length - 1}</span>
+                  <span className="sidebar-project__badge-count">+{metas.length - 1}</span>
                 )}
               </span>
             )}
           </button>
-        );
-      })}
+          {isOpen && createPortal(
+            <div
+              ref={popupRef}
+              {...autoHideScrollbarProps<HTMLDivElement>()}
+              className="app-menu sidebar-project__popover sidebar-project-flyout auto-hide-scrollbar"
+              role="dialog"
+              aria-label={t.projectSwitcherAriaLabel}
+              style={style}
+            >
+              <div className="sidebar-project__search">
+                <Search aria-hidden="true" />
+                <input
+                  type="text"
+                  value={query}
+                  placeholder={t.projectSwitcherSearchPlaceholder}
+                  aria-label={t.projectSwitcherSearchPlaceholder}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </div>
+              {matches.length > 0 ? (
+                <ProjectSwitcherRows
+                  {...props}
+                  entries={matches}
+                  withAddEntry={false}
+                  onActivate={(id) => {
+                    close(true);
+                    props.onActivate(id);
+                  }}
+                  onClose={(id) => {
+                    close(true);
+                    props.onClose(id);
+                  }}
+                />
+              ) : (
+                <p className="sidebar-project__empty">{t.projectSwitcherSearchEmpty}</p>
+              )}
+            </div>,
+            document.body,
+          )}
+        </>
+      )}
       <AddProjectMenu
         variant="rail"
         hasEntries={entries.length > 0}
-        canSwitch={canSwitch}
-        isOpening={isOpening}
-        onOpenAnother={onOpenAnother}
-        onCreate={onCreate}
-        onClone={onClone}
+        canSwitch={props.canSwitch}
+        isOpening={props.isOpening}
+        onOpenAnother={props.onOpenAnother}
+        onCreate={props.onCreate}
+        onClone={props.onClone}
       />
     </div>
   );
