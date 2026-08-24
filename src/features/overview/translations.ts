@@ -36,6 +36,8 @@ export interface OverviewTranslations {
   overviewOpenFailedTitle: string;
   overviewReviewChanges: string;
   overviewSaveVersion: string;
+  overviewRefresh: string;
+  overviewRefreshing: string;
   overviewVersionsAhead: (count: number) => string;
   overviewChangesPreviewLabel: string;
   overviewChangesPreviewMore: (remaining: number) => string;
@@ -125,6 +127,8 @@ const en: OverviewTranslations = {
   overviewOpenFailedTitle: "We couldn’t open that project",
   overviewReviewChanges: "Review changes",
   overviewSaveVersion: "Save version",
+  overviewRefresh: "Refresh",
+  overviewRefreshing: "Refreshing overview…",
   overviewVersionsAhead: (count) => (count === 1 ? "1 ready to publish" : `${count} ready to publish`),
   overviewChangesPreviewLabel: "Changed files",
   overviewChangesPreviewMore: (remaining) =>
@@ -138,7 +142,7 @@ const en: OverviewTranslations = {
   overviewPublishAll: (count) => (count === 1 ? "Publish all" : `Publish all ${count}`),
   overviewHistoryTitle: "Recent history",
   overviewHistoryDescription: "Your latest saved versions, newest first.",
-  overviewHistoryViewAll: "View all history",
+  overviewHistoryViewAll: "View all",
   overviewHistoryLoading: "Loading recent history…",
   overviewHistoryErrorTitle: "Recent history is unavailable",
   overviewHistoryError: "GitOdrile couldn't load the recent saved versions.",
@@ -220,6 +224,8 @@ const es: OverviewTranslations = {
   overviewOpenFailedTitle: "No hemos podido abrir ese proyecto",
   overviewReviewChanges: "Revisar cambios",
   overviewSaveVersion: "Guardar versión",
+  overviewRefresh: "Actualizar",
+  overviewRefreshing: "Actualizando el resumen…",
   overviewVersionsAhead: (count) => (count === 1 ? "1 lista para publicar" : `${count} listas para publicar`),
   overviewChangesPreviewLabel: "Archivos modificados",
   overviewChangesPreviewMore: (remaining) =>
@@ -233,7 +239,7 @@ const es: OverviewTranslations = {
   overviewPublishAll: (count) => (count === 1 ? "Publicar todo" : `Publicar las ${count}`),
   overviewHistoryTitle: "Historial reciente",
   overviewHistoryDescription: "Tus últimas versiones guardadas, de más reciente a más antigua.",
-  overviewHistoryViewAll: "Ver todo el historial",
+  overviewHistoryViewAll: "Ver todo",
   overviewHistoryLoading: "Cargando el historial reciente…",
   overviewHistoryErrorTitle: "El historial reciente no está disponible",
   overviewHistoryError: "GitOdrile no pudo cargar las versiones guardadas recientes.",

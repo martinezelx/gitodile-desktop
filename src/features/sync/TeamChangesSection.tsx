@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine,
+  ArrowLeftRight,
   CheckCircle2,
-  ChevronDown,
   CircleAlert,
+  Cloud,
   CloudCog,
+  GitBranch,
   LoaderCircle,
-  RefreshCw,
   Send,
   Split,
   TriangleAlert,
@@ -50,20 +51,16 @@ function presentationFor(
   }
 }
 
-function shortCommit(value: string | null, fallback: string): string {
-  return value ? value.slice(0, 12) : fallback;
-}
-
 export function TeamChangesSection({
   state,
+  isRefreshing = false,
   canPublish,
-  onCheck,
   onPublish,
   onReviewAndGet,
 }: {
   state: TeamSyncViewState;
+  isRefreshing?: boolean;
   canPublish: boolean;
-  onCheck: () => void;
   onPublish: () => void;
   onReviewAndGet: () => void;
 }): React.JSX.Element {
@@ -105,7 +102,6 @@ export function TeamChangesSection({
     }
   }, [announcement, headline, message, state.isCheckingRemote]);
 
-  const showCheck = !status || status.nextActions.includes("checkAgain") || state.isStale || Boolean(state.error);
   const showPublish = Boolean(status?.nextActions.includes("publishChanges")) && canPublish;
   const showReviewAndGet = Boolean(
     status?.nextActions.includes("reviewAndGet") &&
@@ -118,18 +114,50 @@ export function TeamChangesSection({
   );
   const showStaleWarning = state.isStale && !state.isLoading;
   const tone = state.error && !status ? "danger" : (presentation?.tone ?? "neutral");
+  const teamDestination = status?.upstreamRemote && status.destinationBranch
+    ? `${status.upstreamRemote}/${status.destinationBranch}`
+    : null;
+  const showRelationship = Boolean(status?.localBranch && teamDestination);
+
+  const isChecking = state.isCheckingRemote || isRefreshing;
 
   return (
-    <section className={`team-changes team-changes--${tone}`} aria-labelledby="team-changes-title" aria-busy={state.isCheckingRemote}>
-      <div className="team-changes__icon" aria-hidden="true">
-        {state.isCheckingRemote ? <LoaderCircle className="icon--spinning" /> : (presentation?.icon ?? <CloudCog />)}
-      </div>
-      <div className="team-changes__body">
-        <h2 id="team-changes-title">{t.syncTitle}</h2>
-        <div className="team-changes__summary">
-          <h3>{headline}</h3>{" — "}
-          <p>{message}</p>
+    <section className={`team-changes team-changes--${tone}`} aria-labelledby="team-changes-title" aria-busy={isChecking}>
+      <header className="team-changes__header">
+        <div className="team-changes__heading">
+          <span className="team-changes__icon" aria-hidden="true">
+            {isChecking ? <LoaderCircle className="icon--spinning" /> : (presentation?.icon ?? <CloudCog />)}
+          </span>
+          <div>
+            <h2 id="team-changes-title">{t.syncTitle}</h2>
+            <p>{headline}</p>
+          </div>
         </div>
+      </header>
+      <div className="team-changes__body">
+        <p className="team-changes__summary">{message}</p>
+        {showRelationship && status?.localBranch && teamDestination && (
+          <div
+            className="team-changes__relationship"
+            aria-label={t.syncRelationshipLabel(status.localBranch, teamDestination)}
+          >
+            <span className="team-changes__endpoint">
+              <GitBranch aria-hidden="true" />
+              <span>
+                <small>{t.syncCurrentLine}</small>
+                <strong title={status.localBranch}>{status.localBranch}</strong>
+              </span>
+            </span>
+            <ArrowLeftRight className="team-changes__relationship-arrow" aria-hidden="true" />
+            <span className="team-changes__endpoint">
+              <Cloud aria-hidden="true" />
+              <span>
+                <small>{t.syncTeamLine}</small>
+                <strong title={teamDestination}>{teamDestination}</strong>
+              </span>
+            </span>
+          </div>
+        )}
         <div className="team-changes__knowledge" aria-live="polite">
           {showStaleWarning ? (
             <span className="team-changes__stale"><TriangleAlert aria-hidden="true" />{t.syncStaleNote}</span>
@@ -141,33 +169,8 @@ export function TeamChangesSection({
         {state.error && status && (
           <p className="team-changes__error" role="alert"><CircleAlert aria-hidden="true" />{state.error}</p>
         )}
-        {status && (
-          <details className="team-changes__details">
-            <summary><ChevronDown aria-hidden="true" />{t.syncTechnicalDetails}</summary>
-            <dl>
-              <div><dt>{t.syncRemote}</dt><dd>{status.upstreamRemote ?? t.syncNotAvailable}</dd></div>
-              <div><dt>{t.syncDestination}</dt><dd>{status.destinationBranch ?? t.syncNotAvailable}</dd></div>
-              <div><dt>{t.syncTrackingRef}</dt><dd>{status.trackingRef ?? t.syncNotAvailable}</dd></div>
-              <div><dt>{t.syncLocalCommit}</dt><dd>{shortCommit(status.localCommit, t.syncNotAvailable)}</dd></div>
-              <div><dt>{t.syncRemoteCommit}</dt><dd>{shortCommit(status.remoteCommit, t.syncNotAvailable)}</dd></div>
-              <div><dt>{t.syncAheadCount}</dt><dd>{status.ahead}</dd></div>
-              <div><dt>{t.syncBehindCount}</dt><dd>{status.behind}</dd></div>
-            </dl>
-          </details>
-        )}
       </div>
       <div className="team-changes__actions">
-        {showCheck && (
-          <button
-            className={showPublish || status?.state === "upToDate" ? "secondary-button" : "primary-button"}
-            type="button"
-            onClick={onCheck}
-            disabled={state.isCheckingRemote}
-          >
-            <RefreshCw aria-hidden="true" className={state.isCheckingRemote ? "icon--spinning" : undefined} />
-            {state.isCheckingRemote ? t.syncChecking : status ? t.syncCheckAgain : t.syncCheck}
-          </button>
-        )}
         {showPublish && (
           <button className="primary-button" type="button" onClick={onPublish}><Send aria-hidden="true" />{t.syncPublish}</button>
         )}

@@ -32,6 +32,9 @@ export interface SyncTranslations {
   syncPublish: string;
   syncReviewAndGet: string;
   syncComingSoon: string;
+  syncCurrentLine: string;
+  syncTeamLine: string;
+  syncRelationshipLabel: (local: string, team: string) => string;
   syncTechnicalDetails: string;
   syncRemote: string;
   syncDestination: string;
@@ -116,6 +119,9 @@ const en: SyncTranslations = {
   syncPublish: "Publish changes",
   syncReviewAndGet: "Review and get",
   syncComingSoon: "Coming soon",
+  syncCurrentLine: "Current line",
+  syncTeamLine: "Team line",
+  syncRelationshipLabel: (local, team) => `Current line ${local}; team line ${team}.`,
   syncTechnicalDetails: "Technical details",
   syncRemote: "Remote",
   syncDestination: "Destination branch",
@@ -200,6 +206,9 @@ const es: SyncTranslations = {
   syncPublish: "Publicar cambios",
   syncReviewAndGet: "Revisar y obtener",
   syncComingSoon: "Próximamente",
+  syncCurrentLine: "Línea actual",
+  syncTeamLine: "Línea del equipo",
+  syncRelationshipLabel: (local, team) => `Línea actual ${local}; línea del equipo ${team}.`,
   syncTechnicalDetails: "Detalles técnicos",
   syncRemote: "Remoto",
   syncDestination: "Rama de destino",

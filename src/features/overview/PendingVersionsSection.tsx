@@ -6,7 +6,6 @@ import {
   GitCommitVertical,
   Layers,
   LoaderCircle,
-  RefreshCw,
   Send,
   User,
 } from "lucide-react";
@@ -115,7 +114,6 @@ export function PendingVersionsSection({
   sessionEpoch,
   result,
   error,
-  onRetry,
   onPublishUpTo,
   canPublish,
   onPublish,
@@ -124,7 +122,6 @@ export function PendingVersionsSection({
   sessionEpoch: string;
   result: PendingVersionsResult;
   error: string | null;
-  onRetry: () => void;
   onPublishUpTo: (commit: string) => void;
   /** False on a detached HEAD or unborn line — there is nowhere for a publish
    * to go, so the header's own "Publish all" is withheld even though the
@@ -157,18 +154,11 @@ export function PendingVersionsSection({
             </p>
           )}
         </div>
-        {error ? (
-          <button className="secondary-button pending-versions__retry" type="button" onClick={onRetry}>
-            <RefreshCw aria-hidden="true" />
-            {t.saveVersionRetry}
+        {!error && canPublish && (
+          <button className="primary-button pending-versions__publish-all" type="button" onClick={onPublish}>
+            <Send aria-hidden="true" />
+            {t.overviewPublishAll(result.totalCount)}
           </button>
-        ) : (
-          canPublish && (
-            <button className="primary-button pending-versions__publish-all" type="button" onClick={onPublish}>
-              <Send aria-hidden="true" />
-              {t.overviewPublishAll(result.totalCount)}
-            </button>
-          )
         )}
       </div>
 

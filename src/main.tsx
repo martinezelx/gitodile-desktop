@@ -148,6 +148,15 @@ const DEFAULT_NAVIGATION_PREFERENCES = {
   displayMode: "icons-and-text",
 } satisfies NavigationPreferences;
 
+type OverviewRefreshSection = "changes" | "team" | "history";
+type OverviewRefreshActivity = Record<OverviewRefreshSection, boolean> & { key: string | null };
+const EMPTY_OVERVIEW_REFRESH: OverviewRefreshActivity = {
+  key: null,
+  changes: false,
+  team: false,
+  history: false,
+};
+
 /** Suspense fallback for a lazily-loaded view (see `ChangesPanel` below).
  * Only ever visible on the first navigation into that view before its chunk
  * has been fetched — normally masked entirely by the idle-time prefetch in
@@ -163,6 +172,7 @@ export function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isCloneOpen, setIsCloneOpen] = useState(false);
+  const [overviewRefresh, setOverviewRefresh] = useState<OverviewRefreshActivity>(EMPTY_OVERVIEW_REFRESH);
   const [initializeDialogRequest, setInitializeDialogRequest] = useState<{
     mode: InitializeTargetKind;
     existingPath?: string;
@@ -486,18 +496,32 @@ export function App(): React.JSX.Element {
     if (epoch) await statusController.refresh(projectRuntime, { projectId: path, sessionEpoch: epoch }, mapStatusError);
   };
 
-  const checkTeamChanges = async (path: string, sessionEpoch: string): Promise<void> => {
-    const result = await syncController.check(
-      projectRuntime,
-      { projectId: path, sessionEpoch },
-      mapSyncError,
-    );
-    // The explicit fetch mutates only shared remote-tracking metadata. Fan
-    // that local invalidation through ordinary readers; no subscriber here
-    // may contact the network.
-    if (result?.knowledge === "fresh") {
-      await repositoryReads.refreshAll(projectRuntime, projectRuntime.getSnapshot(), path);
-    }
+  const refreshOverview = async (path: string, sessionEpoch: string): Promise<void> => {
+    const key = `${path}\0${sessionEpoch}`;
+    const snapshot = projectRuntime.getSnapshot();
+    setOverviewRefresh({ key, changes: true, team: true, history: true });
+    const finish = (section: OverviewRefreshSection): void => {
+      setOverviewRefresh((current) => {
+        if (current.key !== key) return current;
+        const next = { ...current, [section]: false };
+        return next.changes || next.team || next.history ? next : EMPTY_OVERVIEW_REFRESH;
+      });
+    };
+
+    // Local facts and the explicit network check start together. Shared-ref
+    // readers wait for both, then read the final remote-tracking state once;
+    // the previous flow could repeat repository open, status, and history.
+    const changes = repositoryReads
+      .refreshProjectAndWorktree(projectRuntime, snapshot, path)
+      .finally(() => finish("changes"));
+    const team = syncController
+      .check(projectRuntime, { projectId: path, sessionEpoch }, mapSyncError)
+      .finally(() => finish("team"));
+    const history = Promise.all([changes, team])
+      .then(() => repositoryReads.refreshSharedAndWait(projectRuntime.getSnapshot(), path))
+      .finally(() => finish("history"));
+
+    await Promise.all([changes, team, history]);
   };
 
   // A successful create/switch/delete on a version line changes `HEAD`, the
@@ -1435,7 +1459,14 @@ export function App(): React.JSX.Element {
                   workingTree={workingTree}
                   workingTreeError={workingTreeError}
                   isCheckingChanges={isCheckingChanges}
-                  onCheckChanges={() => projectPath && void checkWorkingTree(projectPath)}
+                  refreshActivity={
+                    project && overviewRefresh.key === `${project.path}\0${project.sessionEpoch}`
+                      ? overviewRefresh
+                      : EMPTY_OVERVIEW_REFRESH
+                  }
+                  onRefresh={() => {
+                    if (activeSession) void refreshOverview(activeSession.id, activeSession.epoch);
+                  }}
                   onReviewChanges={(path) => {
                     if (path && sessionsState.activeId) {
                       dispatchSessions({
@@ -1457,7 +1488,6 @@ export function App(): React.JSX.Element {
                   onPublishUpTo={(commit) => openPublishDialog(commit)}
                   pendingVersions={pendingVersions}
                   pendingVersionsError={pendingVersionsError}
-                  onRetryPendingVersions={() => projectPath && void checkWorkingTree(projectPath)}
                   versionLines={activeVersionLines.snapshot}
                   isLoadingVersionLines={activeVersionLines.isLoading}
                   onQuickSwitchVersionLine={(target) => {
@@ -1479,9 +1509,6 @@ export function App(): React.JSX.Element {
                     navigateToView("changes");
                   }}
                   teamSync={teamSync}
-                  onCheckTeamChanges={() => {
-                    if (activeSession) void checkTeamChanges(activeSession.id, activeSession.epoch);
-                  }}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
                   historyController={historyController}
                   onOpenHistory={() => navigateToView("history")}

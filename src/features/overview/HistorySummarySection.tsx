@@ -2,10 +2,7 @@ import { useMemo } from "react";
 import {
   ChevronRight,
   CircleAlert,
-  Cloud,
-  CloudOff,
   GitCommitHorizontal,
-  HardDrive,
   LoaderCircle,
 } from "lucide-react";
 
@@ -15,7 +12,6 @@ import {
   formatHistoryDate,
   useActiveHistoryState,
   type HistoryController,
-  type PublicationState,
   type SavedVersionSummary,
 } from "../history";
 
@@ -25,21 +21,17 @@ function versionTitle(version: SavedVersionSummary, fallback: string): string {
   return version.subject.trim() || fallback;
 }
 
-function PublicationIcon({ publication }: { publication: PublicationState }): React.JSX.Element {
-  if (publication === "published") return <Cloud aria-hidden="true" />;
-  if (publication === "local-only") return <HardDrive aria-hidden="true" />;
-  return <CloudOff aria-hidden="true" />;
-}
-
 export function HistorySummarySection({
   controller,
   projectPath,
   sessionEpoch,
+  isRefreshing = false,
   onOpenHistory,
 }: {
   controller: HistoryController;
   projectPath: string;
   sessionEpoch: string;
+  isRefreshing?: boolean;
   onOpenHistory: () => void;
 }): React.JSX.Element {
   const { language, t } = useLanguage();
@@ -54,11 +46,11 @@ export function HistorySummarySection({
   };
 
   return (
-    <section className="overview-history" aria-labelledby="overview-history-title" aria-busy={state.isLoading}>
+    <section className="overview-history" aria-labelledby="overview-history-title" aria-busy={state.isLoading || isRefreshing}>
       <header className="overview-history__header">
         <div className="overview-history__heading">
           <span className="overview-history__icon" aria-hidden="true">
-            <GitCommitHorizontal />
+            {state.isLoading || isRefreshing ? <LoaderCircle className="icon--spinning" /> : <GitCommitHorizontal />}
           </span>
           <div>
             <h2 id="overview-history-title">{t.overviewHistoryTitle}</h2>
@@ -85,9 +77,6 @@ export function HistorySummarySection({
             <strong>{t.overviewHistoryErrorTitle}</strong>
             <p>{error}</p>
           </div>
-          <button className="secondary-button" type="button" onClick={() => void controller.refresh(query)}>
-            {t.overviewHistoryRetry}
-          </button>
         </div>
       ) : versions.length === 0 ? (
         <div className="overview-history__state">
@@ -103,12 +92,6 @@ export function HistorySummarySection({
             const title = versionTitle(version, t.overviewHistoryUntitled);
             const author = version.author?.name.trim() || t.overviewHistoryUnknownAuthor;
             const date = formatHistoryDate(version.authoredAt, language);
-            const publication =
-              version.publication === "published"
-                ? t.overviewHistoryPublished
-                : version.publication === "local-only"
-                  ? t.overviewHistoryLocalOnly
-                  : t.overviewHistoryPublicationUnknown;
             return (
               <li key={version.commit}>
                 <button
@@ -123,12 +106,7 @@ export function HistorySummarySection({
                     <span className="overview-history__meta">
                       <span>{author}</span>
                       {date && <span title={date.absolute}>{date.relative}</span>}
-                      <code>{version.shortCommit}</code>
                     </span>
-                  </span>
-                  <span className={`overview-history__publication overview-history__publication--${version.publication}`}>
-                    <PublicationIcon publication={version.publication} />
-                    {publication}
                   </span>
                   <ChevronRight className="overview-history__chevron" aria-hidden="true" />
                 </button>
@@ -141,7 +119,6 @@ export function HistorySummarySection({
       {state.snapshot && error && (
         <div className="overview-history__stale" role="alert">
           <span>{t.overviewHistoryRefreshFailed}</span>
-          <button type="button" onClick={() => void controller.refresh(query)}>{t.overviewHistoryRetry}</button>
         </div>
       )}
     </section>

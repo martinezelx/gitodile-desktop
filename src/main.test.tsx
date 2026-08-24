@@ -838,8 +838,28 @@ describe("App project restoration", () => {
       </LanguageProvider>,
     );
     await screen.findByRole("heading", { name: restoredProject.name });
-    await userEvent.click(await screen.findByRole("button", { name: "Check for team changes" }));
-    await screen.findByRole("heading", { name: "1 newer team version is available" });
+    const overviewRefresh = await screen.findByRole("button", { name: "Refresh" });
+    expect(screen.getAllByRole("button", { name: "Refresh" })).toHaveLength(1);
+    const localReadsBeforeRefresh = mockedInvoke.mock.calls.filter(
+      ([command]) => command === "read_working_tree_status",
+    ).length;
+    const repositoryOpensBeforeRefresh = mockedInvoke.mock.calls.filter(
+      ([command]) => command === "open_repository",
+    ).length;
+    await userEvent.click(overviewRefresh);
+    await screen.findByText("1 newer team version is available");
+    await waitFor(() =>
+      expect(
+        mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status").length,
+      ).toBeGreaterThan(localReadsBeforeRefresh),
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled());
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status"),
+    ).toHaveLength(localReadsBeforeRefresh + 1);
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "open_repository"),
+    ).toHaveLength(repositoryOpensBeforeRefresh + 1);
     await userEvent.click(await screen.findByRole("button", { name: "Review and get" }));
     const confirm = await screen.findByRole("button", { name: "Get these versions" });
     // The rail keeps switching and closing behind one trigger, so blocking

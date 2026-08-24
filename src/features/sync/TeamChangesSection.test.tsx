@@ -27,31 +27,29 @@ const status = (overrides: Partial<TeamSyncStatus> = {}): TeamSyncStatus => ({
   ...overrides,
 });
 
-function renderSection(state: TeamSyncViewState, canPublish = true) {
-  const onCheck = vi.fn();
+function renderSection(state: TeamSyncViewState, canPublish = true, isRefreshing = false) {
   const onPublish = vi.fn();
   const onReviewAndGet = vi.fn();
-  render(
+  const rendered = render(
     <LanguageProvider>
       <TeamChangesSection
         state={state}
+        isRefreshing={isRefreshing}
         canPublish={canPublish}
-        onCheck={onCheck}
         onPublish={onPublish}
         onReviewAndGet={onReviewAndGet}
       />
     </LanguageProvider>,
   );
-  return { onCheck, onPublish, onReviewAndGet };
+  return { ...rendered, onPublish, onReviewAndGet };
 }
 
 describe("Team changes section", () => {
-  it("starts honest and contacts the remote only from the explicit action", async () => {
-    const { onCheck } = renderSection(EMPTY_TEAM_SYNC_STATE);
-    expect(screen.getByRole("heading", { name: "Not checked yet" })).toBeInTheDocument();
-    expect(onCheck).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "Check for team changes" }));
-    expect(onCheck).toHaveBeenCalledOnce();
+  it("starts honest without owning a second refresh action", () => {
+    renderSection(EMPTY_TEAM_SYNC_STATE);
+    expect(screen.getByRole("heading", { name: "Team changes" })).toBeInTheDocument();
+    expect(screen.getByText("Not checked yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("shows a cached outcome as not checked in this session", () => {
@@ -59,7 +57,7 @@ describe("Team changes section", () => {
       ...EMPTY_TEAM_SYNC_STATE,
       status: status({ knowledge: "cached", checkedAt: null, state: "ahead", ahead: 2 }),
     });
-    expect(screen.getByRole("heading", { name: "2 saved versions are ready to publish" })).toBeInTheDocument();
+    expect(screen.getByText("2 saved versions are ready to publish")).toBeInTheDocument();
     expect(screen.getByText("They’re still only on this computer.")).toBeInTheDocument();
     expect(screen.getByText("Not checked this session · using saved remote information.")).toBeInTheDocument();
   });
@@ -72,25 +70,46 @@ describe("Team changes section", () => {
       error: "Could not connect",
       lastSuccessfulCheckAt: 1_786_000_000_000,
     });
-    expect(screen.getByRole("heading", { name: "1 saved version is ready to publish" })).toBeInTheDocument();
+    expect(screen.getByText("1 saved version is ready to publish")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("Could not connect");
     expect(screen.getByText("This result may be out of date.")).toBeInTheDocument();
   });
 
   it("does not flash the stale warning while a refresh is still running", () => {
-    renderSection({
+    const { container } = render(
+      <LanguageProvider>
+        <TeamChangesSection
+          state={{
       ...EMPTY_TEAM_SYNC_STATE,
       status: status(),
       isLoading: true,
       isCheckingRemote: true,
       isStale: true,
       lastSuccessfulCheckAt: 1_786_000_000_000,
-    });
+          }}
+          canPublish
+          onPublish={vi.fn()}
+          onReviewAndGet={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
     expect(screen.queryByText("This result may be out of date.")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Checking…" })).toBeDisabled();
+    expect(screen.getByText("You’re up to date")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Checking…" })).not.toBeInTheDocument();
+    expect(container.querySelector(".team-changes__icon .icon--spinning")).not.toBeNull();
   });
 
-  it("enables Review and get only for fresh behind-only truth and exposes technical values as text", async () => {
+  it("can enter refresh feedback in the same frame as the other Overview sections", () => {
+    const { container } = renderSection({
+      ...EMPTY_TEAM_SYNC_STATE,
+      status: status(),
+    }, true, true);
+
+    expect(container.querySelector(".team-changes__icon .icon--spinning")).not.toBeNull();
+    expect(screen.getByText("You’re up to date")).toBeInTheDocument();
+  });
+
+  it("shows the current and team lines without exposing technical details", async () => {
     const hostile = "origin<em>unsafe</em>";
     const { onReviewAndGet } = renderSection({
       ...EMPTY_TEAM_SYNC_STATE,
@@ -101,8 +120,10 @@ describe("Team changes section", () => {
     expect(review).toBeEnabled();
     await userEvent.click(review);
     expect(onReviewAndGet).toHaveBeenCalledOnce();
-    await userEvent.click(screen.getByText("Technical details"));
-    expect(screen.getByText(hostile)).toBeInTheDocument();
+    expect(screen.getByText("Current line")).toBeInTheDocument();
+    expect(screen.getByText("Team line")).toBeInTheDocument();
+    expect(screen.getByText(`${hostile}/main`)).toBeInTheDocument();
+    expect(screen.queryByText("Technical details")).not.toBeInTheDocument();
     expect(document.querySelector("em")).toBeNull();
   });
 
@@ -132,32 +153,28 @@ describe("Team changes section", () => {
     expect(screen.queryByRole("button", { name: "Check again" })).not.toBeInTheDocument();
   });
 
-  it("renders only the actions authorized by the sync domain", () => {
+  it("renders only non-refresh actions authorized by the sync domain", () => {
     renderSection({
       ...EMPTY_TEAM_SYNC_STATE,
       status: status({ state: "unknown", nextActions: ["checkAgain"] }),
     });
-    expect(screen.getByRole("button", { name: "Check again" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check again" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Publish changes" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Review and get/ })).not.toBeInTheDocument();
   });
 
-  it("keeps an explicit secondary check action after a fresh up-to-date result", async () => {
-    const { onCheck } = renderSection({
+  it("leaves a fresh up-to-date result without a card-level action", () => {
+    renderSection({
       ...EMPTY_TEAM_SYNC_STATE,
       status: status(),
       lastSuccessfulCheckAt: 1_786_000_000_000,
     });
-    const checkAgain = screen.getByRole("button", { name: "Check again" });
-    expect(checkAgain).toHaveClass("secondary-button");
-    await userEvent.click(checkAgain);
-    expect(onCheck).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("keeps its live announcement aligned when an applied update changes the sync truth", () => {
     const props = {
       canPublish: true,
-      onCheck: vi.fn(),
       onPublish: vi.fn(),
       onReviewAndGet: vi.fn(),
     };

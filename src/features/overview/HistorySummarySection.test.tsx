@@ -63,7 +63,11 @@ function port(readPage: HistoryPort["readPage"]): HistoryPort {
   };
 }
 
-function renderSection(controller: ReturnType<typeof createHistoryController>, onOpenHistory = vi.fn()) {
+function renderSection(
+  controller: ReturnType<typeof createHistoryController>,
+  onOpenHistory = vi.fn(),
+  isRefreshing = false,
+) {
   const lifecycle = createScreenLifecycleController("active");
   return {
     onOpenHistory,
@@ -74,6 +78,7 @@ function renderSection(controller: ReturnType<typeof createHistoryController>, o
             controller={controller}
             projectPath={query.projectId}
             sessionEpoch={query.sessionEpoch}
+            isRefreshing={isRefreshing}
             onOpenHistory={onOpenHistory}
           />
         </ScreenLifecycleProvider>
@@ -95,7 +100,9 @@ describe("HistorySummarySection", () => {
 
     expect(screen.getByRole("heading", { name: "Recent history" })).toBeInTheDocument();
     expect(screen.getByText("Saved version 2")).toBeInTheDocument();
-    expect(screen.getByText("Published")).toBeInTheDocument();
+    expect(screen.queryByText("Published")).not.toBeInTheDocument();
+    expect(screen.queryByText(version(2).shortCommit)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View all" })).toBeInTheDocument();
     expect(readPage).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Open “Saved version 1” in history" }));
@@ -110,23 +117,50 @@ describe("HistorySummarySection", () => {
     renderSection(controller);
 
     expect(screen.getByText("No saved versions yet")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "View all history" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View all" })).not.toBeInTheDocument();
   });
 
-  it("lets the user retry a failed history read", async () => {
+  it("shows refresh progress in the section icon while keeping cached history visible", async () => {
+    let finishRefresh: ((value: HistoryPage) => void) | undefined;
+    const pendingRefresh = new Promise<HistoryPage>((resolve) => {
+      finishRefresh = resolve;
+    });
+    const readPage = vi
+      .fn<HistoryPort["readPage"]>()
+      .mockResolvedValueOnce(page([version(2)]))
+      .mockReturnValueOnce(pendingRefresh);
+    const controller = createHistoryController(port(readPage));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    const refresh = controller.refresh(query);
+    await waitFor(() => expect(container.querySelector(".overview-history__icon .icon--spinning")).not.toBeNull());
+    expect(screen.getByText("Saved version 2")).toBeInTheDocument();
+
+    finishRefresh?.(page([version(2)]));
+    await refresh;
+  });
+
+  it("can enter refresh feedback immediately before its repository read starts", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(2)]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller, vi.fn(), true);
+
+    expect(container.querySelector(".overview-history__icon .icon--spinning")).not.toBeNull();
+    expect(screen.getByText("Saved version 2")).toBeInTheDocument();
+  });
+
+  it("leaves a failed history read to the screen-level refresh", async () => {
     const readPage = vi
       .fn<HistoryPort["readPage"]>()
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce(page([]));
     const controller = createHistoryController(port(readPage));
     await controller.refresh(query);
-    const user = userEvent.setup();
     renderSection(controller);
 
     expect(screen.getByRole("alert")).toHaveTextContent("Recent history is unavailable");
-    await user.click(screen.getByRole("button", { name: "Try again" }));
-
-    await waitFor(() => expect(screen.getByText("No saved versions yet")).toBeInTheDocument());
-    expect(readPage).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+    expect(readPage).toHaveBeenCalledTimes(1);
   });
 });

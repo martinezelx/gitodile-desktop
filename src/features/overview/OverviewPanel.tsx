@@ -16,12 +16,12 @@ import {
   GitBranchPlus,
   LoaderCircle,
   Pencil,
-  RefreshCw,
   Save,
   TriangleAlert,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import { RefreshIconButton } from "../../shared/ui";
 import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
 import {
   CATEGORY_ORDER,
@@ -416,7 +416,8 @@ export function OverviewPanel({
   workingTree,
   workingTreeError,
   isCheckingChanges,
-  onCheckChanges,
+  refreshActivity,
+  onRefresh,
   onReviewChanges,
   onOpenProject,
   onCreateProject,
@@ -426,7 +427,6 @@ export function OverviewPanel({
   onPublishUpTo,
   pendingVersions,
   pendingVersionsError,
-  onRetryPendingVersions,
   versionLines,
   isLoadingVersionLines,
   onQuickSwitchVersionLine,
@@ -435,7 +435,6 @@ export function OverviewPanel({
   onCopyPathError,
   onOpenSaveVersion,
   teamSync,
-  onCheckTeamChanges,
   onReviewAndGetTeamChanges,
   historyController,
   onOpenHistory,
@@ -450,7 +449,11 @@ export function OverviewPanel({
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
-  onCheckChanges: () => void;
+  refreshActivity: { changes: boolean; team: boolean; history: boolean };
+  /** Refreshes every Overview snapshot, including the explicit remote check.
+   * The screen owns one refresh affordance; individual cards only keep actions
+   * that operate on their content. */
+  onRefresh: () => void;
   /** Opens the Changes screen. With a path, that file is selected first, so
    * the Overview preview is a shortcut *to a file*, not just to the screen. */
   onReviewChanges: (path?: string) => void;
@@ -459,7 +462,6 @@ export function OverviewPanel({
   onCloneProject: () => void;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
-  onRetryPendingVersions: () => void;
   /** The project session's cached branch inventory, shared with the Version
    * lines screen so Overview's quick-switch menu opens instantly instead of
    * reading branches again every time (task 019). */
@@ -479,7 +481,6 @@ export function OverviewPanel({
    * reusing its one existing implementation rather than a second copy of it. */
   onOpenSaveVersion: () => void;
   teamSync: TeamSyncViewState;
-  onCheckTeamChanges: () => void;
   onReviewAndGetTeamChanges: () => void;
   /** The same project-scoped cache used by the full History screen. Overview
    * subscribes only while visible and never starts a second repository read. */
@@ -499,7 +500,10 @@ export function OverviewPanel({
     // later refresh is running.
     const summary = workingTree ? getWorkingTreeSummary(workingTree) : null;
     const breakdown = workingTree ? getWorkingTreeBreakdown(workingTree) : [];
-    const isLoading = isCheckingChanges && !workingTree;
+    const isRefreshingChanges = isCheckingChanges || refreshActivity.changes;
+    const isLoading = isRefreshingChanges && !workingTree;
+    const isRefreshing = isRefreshingChanges || teamSync.isCheckingRemote ||
+      refreshActivity.team || refreshActivity.history;
     const errorMessage = workingTree ? null : workingTreeError;
 
     let heroStatus: "loading" | "error" | "success" | "attention" | "neutral";
@@ -535,7 +539,7 @@ export function OverviewPanel({
     }
 
     return (
-      <div className="project-overview" aria-busy={isCheckingChanges}>
+      <div className="project-overview" aria-busy={isRefreshing}>
         <header className="project-overview__header">
           <div className="project-overview__identity">
             <h1>{project.name}</h1>
@@ -553,10 +557,11 @@ export function OverviewPanel({
               breadcrumb rather than a boxed card, so it reads as *about* the
               project instead of as one more panel competing with the status
               card underneath it. */}
-          <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
-            <span className="overview-meta__branch">
-              {overview.isUnborn ? (
-                <span className="overview-meta__branch-note">
+          <div className="project-overview__tools">
+            <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
+              <span className="overview-meta__branch">
+                {overview.isUnborn ? (
+                  <span className="overview-meta__branch-note">
                   {/* Icon, not the word "Branch" — GitHub/GitLab both drop
                       the label too, since a branch glyph next to a value
                       reads as self-explanatory. `aria-hidden` on the glyph,
@@ -564,39 +569,47 @@ export function OverviewPanel({
                       screen reader. Lives inside `.version-line-selector`
                       itself in the switchable case below, so there is only
                       ever one branch glyph in this row, not two flanking it. */}
-                  <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
-                  <span className="version-line-card__value">{versionValue}</span>
-                  {t[overview.versionDescriptionKey]}
-                </span>
-              ) : (
-                <OverviewVersionLineQuickActions
-                  snapshot={versionLines}
-                  isLoadingSnapshot={isLoadingVersionLines}
-                  currentValue={versionValue}
-                  canSwitch={!overview.isDetached}
-                  onSwitch={onQuickSwitchVersionLine}
-                  onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
-                  onSeeAll={onGoToVersionLines}
-                />
-              )}
-            </span>
-            {pendingVersions.totalCount > 0 && (
-              <>
-                <span className="overview-meta__sep" aria-hidden="true">
-                  ·
-                </span>
+                    <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
+                    <span className="version-line-card__value">{versionValue}</span>
+                    {t[overview.versionDescriptionKey]}
+                  </span>
+                ) : (
+                  <OverviewVersionLineQuickActions
+                    snapshot={versionLines}
+                    isLoadingSnapshot={isLoadingVersionLines}
+                    currentValue={versionValue}
+                    canSwitch={!overview.isDetached}
+                    onSwitch={onQuickSwitchVersionLine}
+                    onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
+                    onSeeAll={onGoToVersionLines}
+                  />
+                )}
+              </span>
+              {pendingVersions.totalCount > 0 && (
+                <>
+                  <span className="overview-meta__sep" aria-hidden="true">
+                    ·
+                  </span>
                 {/* Emphasized, not a link: what makes it actionable is the
                     "Publish all" button on the saved-versions section
                     itself, already visible below without any navigation. */}
-                <span className="overview-meta__stat overview-meta__stat--accent">
-                  {t.overviewVersionsAhead(pendingVersions.totalCount)}
-                </span>
-              </>
-            )}
+                  <span className="overview-meta__stat overview-meta__stat--accent">
+                    {t.overviewVersionsAhead(pendingVersions.totalCount)}
+                  </span>
+                </>
+              )}
             {/* Working-change count deliberately left out — the status card
                 right below already opens with it ("N files changed" /
                 the breakdown chips), so repeating it here was the same fact
                 twice with nothing new to add. */}
+            </div>
+            <RefreshIconButton
+              className="project-overview__refresh"
+              label={t.overviewRefresh}
+              busyLabel={t.overviewRefreshing}
+              busy={isRefreshing}
+              onClick={onRefresh}
+            />
           </div>
         </header>
 
@@ -605,8 +618,8 @@ export function OverviewPanel({
           aria-labelledby="project-hero-heading"
         >
           <div className="project-hero__icon" aria-hidden="true">
-            {isLoading ? (
-              <LoaderCircle />
+            {isRefreshingChanges ? (
+              <LoaderCircle className="icon--spinning" />
             ) : errorMessage ? (
               <CircleAlert />
             ) : heroStatus === "attention" ? (
@@ -647,24 +660,6 @@ export function OverviewPanel({
             )}
           </div>
           <div className="project-hero__actions">
-            {/* A quiet, secondary corner action — re-reading the working tree
-                isn't the thing this card wants you to do next, so it no longer
-                competes with Review/Save for primary-button weight. Publishing
-                moved out entirely: it now lives with the saved versions it
-                actually publishes (`PendingVersionsSection`'s own "Publish
-                all"), not with the unsaved files above. */}
-            <button
-              className="ghost-button project-hero__refresh"
-              type="button"
-              onClick={onCheckChanges}
-              disabled={isCheckingChanges}
-            >
-              <RefreshCw
-                aria-hidden="true"
-                className={isCheckingChanges ? "icon--spinning" : undefined}
-              />
-              {isCheckingChanges ? t.statusRefreshing : t.statusRefresh}
-            </button>
             <div className="project-hero__buttons">
               <button
                 className="secondary-button project-hero__action"
@@ -708,38 +703,40 @@ export function OverviewPanel({
                 sessionEpoch={project.sessionEpoch}
                 result={pendingVersions}
                 error={pendingVersionsError}
-                onRetry={onRetryPendingVersions}
                 onPublishUpTo={onPublishUpTo}
                 canPublish={canPublish}
                 onPublish={onPublish}
               />
             </Suspense>
           )}
-          <StatusAnnouncement isBusy={isCheckingChanges} message={`${heroHeadline}. ${heroMessage}`} />
+          <StatusAnnouncement isBusy={isRefreshingChanges} message={`${heroHeadline}. ${heroMessage}`} />
         </section>
 
-        <TeamChangesSection
-          state={teamSync}
-          canPublish={canPublish}
-          onCheck={onCheckTeamChanges}
-          onPublish={onPublish}
-          onReviewAndGet={onReviewAndGetTeamChanges}
-        />
-
-        <Suspense
-          fallback={
-            <section className="overview-history overview-history--loading" aria-label={t.overviewHistoryLoading}>
-              <LoaderCircle aria-hidden="true" className="icon--spinning" />
-            </section>
-          }
-        >
-          <HistorySummarySection
-            controller={historyController}
-            projectPath={project.path}
-            sessionEpoch={project.sessionEpoch}
-            onOpenHistory={onOpenHistory}
+        <div className="overview-support-grid">
+          <TeamChangesSection
+            state={teamSync}
+            isRefreshing={refreshActivity.team}
+            canPublish={canPublish}
+            onPublish={onPublish}
+            onReviewAndGet={onReviewAndGetTeamChanges}
           />
-        </Suspense>
+
+          <Suspense
+            fallback={
+              <section className="overview-history overview-history--loading" aria-label={t.overviewHistoryLoading}>
+                <LoaderCircle aria-hidden="true" className="icon--spinning" />
+              </section>
+            }
+          >
+            <HistorySummarySection
+              controller={historyController}
+              projectPath={project.path}
+              sessionEpoch={project.sessionEpoch}
+              isRefreshing={refreshActivity.history}
+              onOpenHistory={onOpenHistory}
+            />
+          </Suspense>
+        </div>
       </div>
     );
   }

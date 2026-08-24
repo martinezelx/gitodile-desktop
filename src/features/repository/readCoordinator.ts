@@ -76,6 +76,16 @@ export function createRepositoryReadCoordinator(
     }
   };
 
+  /** Starts only shared-ref readers and waits for every one of them. Explicit
+   * screen refreshes use this after a remote check so history, version lines,
+   * and local sync facts are read once from the final tracking-ref state. */
+  const refreshSharedAndWait = async (state: ProjectSessionsState, path: string): Promise<void> => {
+    const query = queryFor(state, path);
+    if (!query) return;
+    const selected = subscribers.filter((subscriber) => subscriber.refreshOn === "shared-change");
+    await Promise.all(selected.map(async (subscriber) => subscriber.refresh(query)));
+  };
+
   const queryFor = (state: ProjectSessionsState, path: string): RepositoryReadQuery | null => {
     const epoch = state.byId[path]?.epoch;
     return epoch ? { projectId: path, sessionEpoch: epoch } : null;
@@ -101,9 +111,30 @@ export function createRepositoryReadCoordinator(
     await notify(query, true);
   };
 
+  /** Refreshes repository identity and working-tree facts without starting
+   * shared readers. This lets an explicit remote check run in parallel, then
+   * `refreshSharedAndWait` reads remote-dependent snapshots exactly once. */
+  const refreshProjectAndWorktree = async (
+    runtime: ProjectRuntime,
+    state: ProjectSessionsState,
+    path: string,
+  ): Promise<void> => {
+    const query = queryFor(state, path);
+    if (!query) return;
+    try {
+      const project = await repository.open({ selectedPath: path, sessionEpoch: query.sessionEpoch });
+      runtime.dispatch({ type: "open", project });
+    } catch {
+      // Preserve the last truthful identity; the working-tree read is still useful.
+    }
+    await notify(query, false);
+  };
+
   return {
     refreshWorktree,
     refreshAll,
+    refreshProjectAndWorktree,
+    refreshSharedAndWait,
     /** Mutation results win over older discovery reads. Discard coalesced
      * watcher work, supersede every affected generation, then invalidate each
      * dependent feature once through the ordinary shared refresh path. */

@@ -121,6 +121,40 @@ describe("repository read coordinator", () => {
     expect(log).not.toContain("refresh:version-lines");
   });
 
+  it("refreshes project identity and working-tree facts without starting shared readers", async () => {
+    const log: string[] = [];
+    const { coordinator, runtime, background, awaited } = coordinatorWith(log);
+
+    const refreshing = coordinator.refreshProjectAndWorktree(runtime, sessionsState(), "/repo");
+    await flush();
+    awaited.settle();
+    await refreshing;
+
+    expect(log).toContain("open:repository");
+    expect(log).toContain("refresh:status");
+    expect(log).not.toContain("refresh:version-lines");
+    background.settle();
+  });
+
+  it("starts and awaits every shared reader without repeating the working-tree read", async () => {
+    const log: string[] = [];
+    const { coordinator, background } = coordinatorWith(log);
+
+    let settled = false;
+    const refreshing = coordinator.refreshSharedAndWait(sessionsState(), "/repo").then(() => {
+      settled = true;
+    });
+    await flush();
+
+    expect(log).toContain("refresh:version-lines");
+    expect(log).not.toContain("refresh:status");
+    expect(settled).toBe(false);
+
+    background.settle();
+    await refreshing;
+    expect(settled).toBe(true);
+  });
+
   it("supersedes every subscriber before refreshing after a mutation", async () => {
     const log: string[] = [];
     const { coordinator, runtime, awaited } = coordinatorWith(log);
