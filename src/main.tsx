@@ -1483,6 +1483,8 @@ export function App(): React.JSX.Element {
                     if (activeSession) void checkTeamChanges(activeSession.id, activeSession.epoch);
                   }}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
+                  historyController={historyController}
+                  onOpenHistory={() => navigateToView("history")}
                 />
               ),
               // Project-only screens are absent, not disabled, when no

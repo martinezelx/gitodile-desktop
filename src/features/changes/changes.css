@@ -195,8 +195,7 @@
 }
 .changes-freshness svg { width: 15px; height: 15px; }
 .changes-freshness__icon { color: var(--status-success); }
-.changes-view__refresh { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; }
-.changes-view__refresh svg { width: 16px; height: 16px; }
+.changes-view__refresh { flex-shrink: 0; }
 .changes-view__actions .primary-button { display: inline-flex; align-items: center; gap: 8px; }
 .changes-view__actions .primary-button svg { width: 16px; height: 16px; }
 

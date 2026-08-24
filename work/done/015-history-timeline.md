@@ -1,7 +1,7 @@
 ---
 id: 015
 title: Browse saved versions in a readable history timeline
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -9,8 +9,7 @@ areas:
   - frontend
   - history
 created: 2026-07-27
-completed:
-queue: "01"
+completed: 2026-08-24
 ---
 
 # Goal
@@ -113,7 +112,8 @@ checking out, and rewriting history remain separate safety-sensitive flows.
 # Out of scope
 
 - Full multi-branch commit graph visualization.
-- Search, filtering, author avatars, Gravatar, or network identity lookup.
+- Repository-wide/server-backed search, author avatars, Gravatar, or network
+  identity lookup. Timeline search and filters remain local to loaded rows.
 - Comparing two arbitrary saved versions.
 - Restore, revert, reset, checkout, cherry-pick, amend, rebase, or branch
   creation.
@@ -285,6 +285,32 @@ Use temporary repositories for:
   at their nodes. Clearer hollow/selected nodes, hover/focus feedback, and one
   short reduced-motion-safe selection animation add polish without continuous
   animation or repository work.
+- The 2026-08-24 simplification pass removed the redundant Files changed tab,
+  leaving Overview and Diff as the two detail destinations. Overview now lists
+  every bounded changed path in a virtualized shared-scrollbar region, while
+  Diff gives more width to code and reuses Changes' exact view picker. Timeline
+  publication and ordering controls expose both their criterion and current
+  value, filtered counts make their effect visible, and History/Changes refresh
+  actions use the same compact icon-only treatment with accessible names.
+- The 2026-08-24 follow-up moved that refresh treatment into a shared control,
+  reused Changes' exact selected-text copy menu in History diffs, and made every
+  Overview file open directly in Diff. The Overview file list now consumes the
+  full available column before scrolling. Timeline filters use the app's
+  anchored-menu language, continuation loading uses the shared progress bar,
+  and pagination keeps the first paint at 50 versions while fetching later
+  blocks at the Rust maximum of 100. Fixed-height contained rows, memoized
+  timeline rendering, and earlier prefetch remove row measurement and diff-side
+  rerenders from the commit scroll path.
+- Overview now distinguishes authored commit content from GitOdrile context:
+  **Description** contains only the commit message body and is omitted when it
+  is empty, while **Comparison** always explains which saved version supplies
+  the diff baseline. Multiline descriptions preserve their authored breaks.
+- The project Overview now closes with a bounded **Recent history** summary of
+  the four newest saved versions. It reuses History's project-session cache,
+  publication states and date formatter without loading another page; each row
+  selects that exact version before opening History. Loading, retry, stale and
+  no-version states remain truthful. The obsolete Recovery coming-soon card was
+  removed from Overview while its disabled navigation destination remains.
 
 # Validation
 
@@ -323,10 +349,21 @@ Use temporary repositories for:
   concise Refresh action, non-shadowed view selector, responsive Overview
   columns, working file filters/sort/navigation, and a fully visible selected
   file card without eager loading of the other file patches.
+- The 2026-08-24 follow-up was rechecked in the live Tauri/WebView2 app at the
+  maximized desktop size. The anchored filter menus, full-height Overview file
+  region, file-to-Diff navigation, narrower file sidebar, and shared refresh
+  glyph were verified directly. Scrolling into the prefetch threshold displayed
+  the shared loading bar and expanded the real repository from 50 to all 123
+  saved versions without reaching an empty end state first.
+- The Overview History summary was inspected in the live maximized Tauri app
+  against this repository. Four real saved versions, author/date/hash metadata,
+  publication labels, row affordances and the full-history action remained
+  clear below the action-oriented status sections; Recovery no longer occupies
+  Overview space.
 - Light/dark tokens, forced-colors and reduced-motion behavior are covered by
   the existing style contracts and the History stylesheet. macOS and Linux
   runtime validation remains pending for task 065-8; compilation, argument-only
   Git execution, path framing, and non-shell behavior remain cross-platform.
-- Final aggregate: `pnpm run check` passed with 117 Markdown files and 85 task
-  IDs, 279 frontend architecture modules, 49 Vitest files / 398 tests, the
-  production build, Rust formatting and Clippy, and 290 Rust tests.
+- Final aggregate: `pnpm run check` passed with 126 Markdown files and 94 task
+  IDs, 289 frontend architecture modules, 52 Vitest files / 423 tests, the
+  production build, Rust formatting and Clippy, and 297 Rust tests.

@@ -46,9 +46,23 @@ export interface OverviewTranslations {
   overviewCategoryRenamed: (count: number) => string;
   overviewCategoryConflicted: (count: number) => string;
   overviewPublishAll: (count: number) => string;
-  overviewComingSoonBadge: string;
-  overviewRecoveryPreviewTitle: string;
-  overviewRecoveryPreviewDescription: string;
+  overviewHistoryTitle: string;
+  overviewHistoryDescription: string;
+  overviewHistoryViewAll: string;
+  overviewHistoryLoading: string;
+  overviewHistoryErrorTitle: string;
+  overviewHistoryError: string;
+  overviewHistoryRetry: string;
+  overviewHistoryEmptyTitle: string;
+  overviewHistoryEmptyDescription: string;
+  overviewHistoryListLabel: string;
+  overviewHistoryUntitled: string;
+  overviewHistoryUnknownAuthor: string;
+  overviewHistoryPublished: string;
+  overviewHistoryLocalOnly: string;
+  overviewHistoryPublicationUnknown: string;
+  overviewHistoryOpenVersion: (title: string) => string;
+  overviewHistoryRefreshFailed: string;
   overviewChangeVersionLine: string;
   overviewNewVersionLine: string;
   overviewQuickSwitchTitle: string;
@@ -122,10 +136,23 @@ const en: OverviewTranslations = {
   overviewCategoryRenamed: (count) => `Renamed (${count})`,
   overviewCategoryConflicted: (count) => `Conflicts (${count})`,
   overviewPublishAll: (count) => (count === 1 ? "Publish all" : `Publish all ${count}`),
-  overviewComingSoonBadge: "Coming soon",
-  overviewRecoveryPreviewTitle: "Recovery",
-  overviewRecoveryPreviewDescription:
-    "Get work back after a mistake — restore a file, or undo a version you did not mean to save.",
+  overviewHistoryTitle: "Recent history",
+  overviewHistoryDescription: "Your latest saved versions, newest first.",
+  overviewHistoryViewAll: "View all history",
+  overviewHistoryLoading: "Loading recent history…",
+  overviewHistoryErrorTitle: "Recent history is unavailable",
+  overviewHistoryError: "GitOdrile couldn't load the recent saved versions.",
+  overviewHistoryRetry: "Try again",
+  overviewHistoryEmptyTitle: "No saved versions yet",
+  overviewHistoryEmptyDescription: "Your first saved version will appear here.",
+  overviewHistoryListLabel: "Recent saved versions",
+  overviewHistoryUntitled: "Saved version without a title",
+  overviewHistoryUnknownAuthor: "Unknown author",
+  overviewHistoryPublished: "Published",
+  overviewHistoryLocalOnly: "Not published",
+  overviewHistoryPublicationUnknown: "Publication unknown",
+  overviewHistoryOpenVersion: (title) => `Open “${title}” in history`,
+  overviewHistoryRefreshFailed: "Recent history may be out of date.",
   overviewChangeVersionLine: "Change",
   overviewNewVersionLine: "New",
   overviewQuickSwitchTitle: "Switch version line",
@@ -204,10 +231,23 @@ const es: OverviewTranslations = {
   overviewCategoryRenamed: (count) => `Renombrados (${count})`,
   overviewCategoryConflicted: (count) => `Conflictos (${count})`,
   overviewPublishAll: (count) => (count === 1 ? "Publicar todo" : `Publicar las ${count}`),
-  overviewComingSoonBadge: "Próximamente",
-  overviewRecoveryPreviewTitle: "Recuperación",
-  overviewRecoveryPreviewDescription:
-    "Recupera trabajo tras un error: restaura un archivo o deshaz una versión que no querías guardar.",
+  overviewHistoryTitle: "Historial reciente",
+  overviewHistoryDescription: "Tus últimas versiones guardadas, de más reciente a más antigua.",
+  overviewHistoryViewAll: "Ver todo el historial",
+  overviewHistoryLoading: "Cargando el historial reciente…",
+  overviewHistoryErrorTitle: "El historial reciente no está disponible",
+  overviewHistoryError: "GitOdrile no pudo cargar las versiones guardadas recientes.",
+  overviewHistoryRetry: "Reintentar",
+  overviewHistoryEmptyTitle: "Todavía no hay versiones guardadas",
+  overviewHistoryEmptyDescription: "Tu primera versión guardada aparecerá aquí.",
+  overviewHistoryListLabel: "Versiones guardadas recientes",
+  overviewHistoryUntitled: "Versión guardada sin título",
+  overviewHistoryUnknownAuthor: "Autor desconocido",
+  overviewHistoryPublished: "Publicada",
+  overviewHistoryLocalOnly: "Sin publicar",
+  overviewHistoryPublicationUnknown: "Publicación desconocida",
+  overviewHistoryOpenVersion: (title) => `Abrir «${title}» en el historial`,
+  overviewHistoryRefreshFailed: "El historial reciente puede estar desactualizado.",
   overviewChangeVersionLine: "Cambiar",
   overviewNewVersionLine: "Nueva",
   overviewQuickSwitchTitle: "Cambiar línea de versión",

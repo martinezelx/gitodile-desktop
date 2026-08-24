@@ -60,7 +60,7 @@ product specification.
 | Create/initialize a local repository | Delivered | Planned, revalidated, explicit local/remote effects |
 | Inspect changes and file diffs | Delivered | Audit and harden |
 | Commit all or selected files | Delivered | Required; partial-line commits deferred |
-| Browse commit history and commit diffs | Implemented; review pending | Required: task 015 |
+| Browse commit history and commit diffs | Delivered | Audit and harden |
 | Create, switch, publish, and delete branches | Mostly delivered | Audit; publish uses the existing remote flow |
 | Fetch, fast-forward pull, and push | Delivered | Audit and harden |
 | Merge a local branch or diverged upstream | Missing | Required: task 065-4 |
@@ -81,28 +81,27 @@ references and therefore do not change when priorities move.
 
 | Queue | Task | Outcome |
 | --- | --- | --- |
-| Q01 | 015 | Review and finish saved-version History |
-| Q02 | 037-1 | Establish conflict truth and recovery |
-| Q03 | 037-2 | Select the editor foundation |
-| Q04 | 037-3 | Add the read-only conflict workspace |
-| Q05 | 037-4 | Resolve text conflicts safely |
-| Q06 | 037-5 | Complete or abort a merge |
-| Q07 | 037-6 | Handle non-text and structural conflicts |
-| Q08 | 037-7 | Audit the conflict workflow |
-| Q09 | 065-4 | Integrate local lines and diverged team changes |
-| Q10 | 065-5 | Make recovery records visible/actionable |
-| Q11 | 065-6 | Undo or reverse a saved version |
-| Q12 | 064-1 | Discover and inspect saved sets |
-| Q13 | 064-2 | Set all or selected changes aside |
-| Q14 | 064-3 | Restore a saved set and keep its copy |
-| Q15 | 064-4 | Remove one saved set with recovery |
-| Q16 | 064-5 | Audit the set-aside workflow |
-| Q17 | 065-7 | Harden credential and remote diagnostics |
-| Q18 | 065-8 | Verify and distribute `1.0.0` |
+| Q01 | 037-1 | Establish conflict truth and recovery |
+| Q02 | 037-2 | Select the editor foundation |
+| Q03 | 037-3 | Add the read-only conflict workspace |
+| Q04 | 037-4 | Resolve text conflicts safely |
+| Q05 | 037-5 | Complete or abort a merge |
+| Q06 | 037-6 | Handle non-text and structural conflicts |
+| Q07 | 037-7 | Audit the conflict workflow |
+| Q08 | 065-4 | Integrate local lines and diverged team changes |
+| Q09 | 065-5 | Make recovery records visible/actionable |
+| Q10 | 065-6 | Undo or reverse a saved version |
+| Q11 | 064-1 | Discover and inspect saved sets |
+| Q12 | 064-2 | Set all or selected changes aside |
+| Q13 | 064-3 | Restore a saved set and keep its copy |
+| Q14 | 064-4 | Remove one saved set with recovery |
+| Q15 | 064-5 | Audit the set-aside workflow |
+| Q16 | 065-7 | Harden credential and remote diagnostics |
+| Q17 | 065-8 | Verify and distribute `1.0.0` |
 
 ### Gate 0 — Prove the existing loop (completed 2026-08-21)
 
-- **Q01 / 065-1: Core workflow audit.** Exercise open → inspect → save → check → get
+- **065-1: Core workflow audit.** Exercise open → inspect → save → check → get
    → publish → close/reopen against real temporary repositories. Fix only
    defects that violate the already-delivered contract and record a capability
    matrix.
@@ -119,21 +118,20 @@ and honest Windows desktop evidence. macOS/Linux runtime evidence remains task
 - **065-3 (completed 2026-08-22): Create or initialize a local project.** New
    folder and existing non-repository flows, explicit README/first-save choices,
    exact cleanup ownership, and a separate provider-neutral remote preview.
-- **Q01 / 015: History timeline.** Bounded, snapshot-aware, read-only
-  current-line history and first-parent/root commit details using the
-  established typed diff renderer. The implementation is available; final
-  product review remains active.
+- **015 (completed 2026-08-24): History timeline.** Bounded, snapshot-aware,
+  read-only current-line history and first-parent/root commit details using the
+  established typed diff renderer, with a recent-history summary in Overview.
 
 Exit condition: a first-time user can acquire or create a project, make and
 save a change, and verify the result in History.
 
 ### Gate 2 — Complete collaboration and overlaps
 
-- **Q02–Q08 / 037: Guided conflict resolution.** Deliver its child slices from conflict
+- **Q01–Q07 / 037: Guided conflict resolution.** Deliver its child slices from conflict
    truth/recovery through editing, completion/abort, accessibility, and audit.
    It first supports an externally started merge so its safety model can be
    proven independently.
-- **Q09 / 065-4: Integrate version lines and diverged team changes.** Add previewed
+- **Q08 / 065-4: Integrate version lines and diverged team changes.** Add previewed
    local-branch merge and non-fast-forward team integration. Clean results
    complete normally; overlaps enter task 037's established session contract.
 
@@ -142,12 +140,12 @@ without a terminal. Rebase and force push remain excluded.
 
 ### Gate 3 — Make safety visible and reusable
 
-- **Q10 / 065-5: Recovery center.** Inventory supported recovery records, explain
+- **Q09 / 065-5: Recovery center.** Inventory supported recovery records, explain
    retention/eligibility, and perform only state-token-safe restores.
-- **Q11 / 065-6: Restore a saved version.** From History, choose a reversible
+- **Q10 / 065-6: Restore a saved version.** From History, choose a reversible
    strategy: undo unpublished local work or create a new reverting version for
    shared work. Never hide history rewriting or use a destructive hard reset.
-- **Q12–Q16 / 064: Set changes aside.** Deliver the five epic children in order;
+- **Q11–Q15 / 064: Set changes aside.** Deliver the five epic children in order;
   discovery/create come first, then restore and
    removal after the conflict and recovery contracts they consume are stable.
 
@@ -157,11 +155,11 @@ restored safely.
 
 ### Gate 4 — Release candidate
 
-- **Q17 / 065-7: Credential and remote diagnostics.** Verify system credential
+- **Q16 / 065-7: Credential and remote diagnostics.** Verify system credential
     helper behavior for clone/fetch/publish, classify common provider-neutral
     failures, and give actionable remediation. Native provider login remains
     post-`1.0.0`.
-- **Q18 / 065-8: Release hardening and distribution.** Run the complete workflow
+- **Q17 / 065-8: Release hardening and distribution.** Run the complete workflow
     matrix, accessibility and large-repository audits; validate real WebView
     behavior on all supported platforms; produce signed/notarized packages;
     establish updates, rollback, versioning, release notes, and support docs.

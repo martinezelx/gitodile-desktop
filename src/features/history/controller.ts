@@ -24,7 +24,8 @@ type Entry = {
   usedAt: number;
 };
 
-export const HISTORY_PAGE_SIZE = 50;
+export const HISTORY_INITIAL_PAGE_SIZE = 50;
+export const HISTORY_PAGE_SIZE = 100;
 export const MAX_HISTORY_SESSION_CACHES = 4;
 export const MAX_HISTORY_ROWS = 5_000;
 export const MAX_HISTORY_DETAILS = 24;
@@ -302,7 +303,7 @@ export function createHistoryController(port: HistoryPort) {
     const previousSnapshotToken = entry.state.snapshot?.snapshotToken;
     const previousSelection = entry.state.selectedCommit;
     const promise = port
-      .readPage({ ...query, pageSize: HISTORY_PAGE_SIZE })
+      .readPage({ ...query, pageSize: HISTORY_INITIAL_PAGE_SIZE })
       .then((page) => {
         if (entry.state.generation !== generation) return;
         if (previousSnapshotToken !== page.snapshotToken) clearContentCaches(entry);

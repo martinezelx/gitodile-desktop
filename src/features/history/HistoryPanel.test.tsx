@@ -1,12 +1,13 @@
 import React from "react";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
 import { createHistoryController } from "./controller";
 import type { HistoryPage, HistoryState, SavedVersionDetail, SavedVersionSummary } from "./domain";
-import { formatHistoryDate, HistoryPanel } from "./HistoryPanel";
+import { HistoryPanel } from "./HistoryPanel";
+import { formatHistoryDate } from "./formatHistoryDate";
 import type { HistoryPort } from "./port";
 
 function version(index: number): SavedVersionSummary {
@@ -86,6 +87,7 @@ function controller() {
 function renderPanel(historyState: HistoryState, error: string | null = null) {
   const historyController = controller();
   const select = vi.spyOn(historyController, "selectVersion");
+  const selectFile = vi.spyOn(historyController, "selectFile");
   const utils = render(
     <LanguageProvider>
       <HistoryPanel
@@ -96,7 +98,7 @@ function renderPanel(historyState: HistoryState, error: string | null = null) {
       />
     </LanguageProvider>,
   );
-  return { historyController, select, ...utils };
+  return { historyController, select, selectFile, ...utils };
 }
 
 afterEach(cleanup);
@@ -132,11 +134,24 @@ describe("HistoryPanel", () => {
     expect(container.querySelectorAll("*").length).toBeLessThan(400);
   });
 
+  it("uses the shared progress bar while an older page is loading", () => {
+    const historyState = state(40);
+    renderPanel(state(40, {
+      snapshot: historyState.snapshot ? { ...historyState.snapshot, hasMore: true, nextCursor: "older-page" } : null,
+      isLoadingMore: true,
+    }));
+
+    expect(screen.getByText("Loading older versions…")).toBeInTheDocument();
+    expect(document.querySelector(".history-timeline__loading-more .loading-bar")).toBeInTheDocument();
+    expect(document.querySelector(".history-timeline__loading-more .icon--spinning")).not.toBeInTheDocument();
+  });
+
   it("moves timeline selection with the keyboard", async () => {
     const user = userEvent.setup();
     const historyState = state(20);
     const { select } = renderPanel(historyState);
-    const selected = await screen.findByRole("option", { selected: true });
+    const timeline = screen.getByRole("listbox", { name: "Saved-version timeline" });
+    const selected = await within(timeline).findByRole("option", { selected: true });
     selected.focus();
     await user.keyboard("{ArrowDown}");
     expect(select).toHaveBeenCalledWith(
@@ -192,15 +207,17 @@ describe("HistoryPanel", () => {
     expect(screen.queryByRole("option", { name: /Saved version 5/ })).not.toBeInTheDocument();
 
     await user.clear(screen.getByPlaceholderText("Search saved versions"));
-    await user.click(screen.getByRole("button", { name: "Filter saved versions: All publication states" }));
-    expect(screen.getAllByRole("option")).toHaveLength(3);
-    expect(screen.getByRole("button", { name: "Filter saved versions: Published only" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Publication: All" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Published" }));
+    expect(within(screen.getByRole("listbox", { name: "Saved-version timeline" })).getAllByRole("option")).toHaveLength(3);
+    expect(screen.getByText("3 of 6 loaded versions shown")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Newest first" }));
-    expect(screen.getByRole("button", { name: "Oldest first" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Order: Newest first" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Oldest first" }));
+    expect(screen.getByRole("button", { name: "Order: Oldest first" })).toBeInTheDocument();
   });
 
-  it("provides real overview, file, diff-view, and diff-search controls", async () => {
+  it("provides a complete overview and the shared diff-view controls", async () => {
     const user = userEvent.setup();
     const historyState = state(2);
     const selected = historyState.versions[0];
@@ -232,33 +249,73 @@ describe("HistoryPanel", () => {
         ],
       }],
     };
-    const { container } = renderPanel(state(2, {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const { container, selectFile } = renderPanel(state(2, {
       detail: { detail, isLoading: false, error: null },
       selectedFilePath: "src/feature.tsx",
       fileDiff: { diff, isLoading: false, error: null },
     }));
 
-    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).not.toHaveTextContent("Refresh");
     expect(container.querySelector(".history-detail__summary-top h2")).toHaveTextContent(selected.subject);
     expect(container.querySelector(".history-detail__summary-top h2")).not.toHaveClass("visually-hidden");
     expect(container.querySelector(".history-detail__description")).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.getByText("Technical details")).toBeInTheDocument();
-    expect(screen.getByText("Change summary")).toBeInTheDocument();
-    expect(screen.getByText("Top files")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Description" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Comparison" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Files changed" })).toBeInTheDocument();
+    const overviewFiles = screen.getByRole("listbox", { name: "Files changed in this saved version" });
+    const overviewFile = within(overviewFiles).getByRole("option", { name: /src\/feature\.tsx/ });
+    expect(within(overviewFile).getByText("feature.tsx")).toBeInTheDocument();
     expect(container.querySelector(".history-overview-subject")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: /Files changed/ }));
-    expect(screen.getByPlaceholderText("Filter files")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("all");
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue("all");
-    expect(screen.getByRole("combobox", { name: "Sort" })).toHaveValue("path");
-    expect(screen.getByText("Showing 1 of 1 files")).toBeInTheDocument();
-    expect(container.querySelector(".history-file-preview__line--addition")).toHaveTextContent("newValue");
-    await user.click(screen.getByRole("tab", { name: "Diff" }));
-    await user.click(screen.getByRole("button", { name: "Split" }));
+    expect(screen.queryByRole("tab", { name: /Files changed/ })).not.toBeInTheDocument();
+    await user.click(overviewFile);
+    expect(selectFile).toHaveBeenCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      "src/feature.tsx",
+    );
+    expect(screen.getByRole("tab", { name: "Diff" })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: "Difference view (Unified)" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Split" }));
     expect(container.querySelector(".diff-split-row")).toBeInTheDocument();
     await user.type(screen.getByPlaceholderText("Search in diff"), "newValue");
     expect(container.querySelector(".diff-search-match")).toHaveTextContent("newValue");
+
+    const code = container.querySelector<HTMLElement>(".diff-search-match");
+    expect(code).not.toBeNull();
+    if (!code) throw new Error("Expected the highlighted diff text");
+    const content = code.closest(".diff-line__content") ?? code;
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(content);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.contextMenu(code, { clientX: 200, clientY: 240 });
+    await user.click(within(screen.getByRole("menu", { name: "Context actions" })).getByRole("menuitem", { name: "Copy" }));
+    expect(writeText).toHaveBeenCalledWith("const newValue = 2;");
+    Reflect.deleteProperty(navigator, "clipboard");
+  });
+
+  it("hides the description section when the saved version has no message body", async () => {
+    const selected = version(0);
+    const detail: SavedVersionDetail = {
+      version: selected,
+      comparisonBase: "empty",
+      comparisonIsEmptyTree: true,
+      comparisonIsFirstParent: false,
+      files: [],
+      fileCounts: { changed: 0, new: 0, deleted: 0, renamed: 0, total: 0 },
+      filesTruncated: false,
+      countsAreMinimum: false,
+    };
+    renderPanel(state(1, { detail: { detail, isLoading: false, error: null } }));
+
+    await userEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    expect(screen.queryByRole("heading", { name: "Description" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Comparison" })).toBeInTheDocument();
+    expect(screen.getByText("Every file is shown as new because this is the project’s first saved version.")).toBeInTheDocument();
   });
 
   it("formats locale-aware absolute and relative dates in English and Spanish", () => {

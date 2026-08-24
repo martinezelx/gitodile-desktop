@@ -71,7 +71,7 @@ is the authoritative release sequence and capability cut.
 - `docs/PRODUCT_STRATEGY.md`
 - `docs/ROADMAP.md`
 - `docs/adr/0006-defer-macos-and-linux-runtime-validation.md`
-- `work/active/015-history-timeline.md`
+- `work/done/015-history-timeline.md`
 - `work/active/037-guided-conflict-resolution.md`
 - `work/active/064-set-changes-aside-safely.md`
 

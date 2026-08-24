@@ -135,6 +135,18 @@ nav { display: grid; gap: 6px; }
 
 .icon--spinning { animation: spin 900ms linear infinite; }
 
+.refresh-icon-button {
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-inline: 0;
+}
+.refresh-icon-button svg { width: 16px; height: 16px; }
+
 
 @keyframes spin { to { transform: rotate(360deg); } }
 

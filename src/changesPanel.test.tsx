@@ -543,7 +543,9 @@ describe("ChangesPanel review controls", () => {
 
     const freshness = await screen.findByText("Checked 3 minutes ago");
     expect(freshness).not.toHaveAttribute("role");
-    expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled();
+    const refresh = screen.getByRole("button", { name: "Refresh" });
+    expect(refresh).toBeEnabled();
+    expect(refresh).not.toHaveTextContent("Refresh");
     expect(screen.getByRole("button", { name: "Save selected (2)" })).toBeEnabled();
   });
 

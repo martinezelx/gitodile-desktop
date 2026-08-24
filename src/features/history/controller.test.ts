@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { FileDiff } from "../changes";
-import { createHistoryController, HISTORY_PAGE_SIZE, MAX_HISTORY_SESSION_CACHES } from "./controller";
+import { createHistoryController, HISTORY_INITIAL_PAGE_SIZE, HISTORY_PAGE_SIZE, MAX_HISTORY_SESSION_CACHES } from "./controller";
 import type { HistoryPage, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import type { HistoryPort, HistoryQuery } from "./port";
 
@@ -87,7 +87,9 @@ describe("HistoryController", () => {
     const controller = createHistoryController(port({ readPage }));
     const first = controller.refresh(query);
     expect(controller.refresh(query)).toBe(first);
-    expect(readPage).toHaveBeenCalledWith({ ...query, pageSize: HISTORY_PAGE_SIZE });
+    expect(HISTORY_INITIAL_PAGE_SIZE).toBe(50);
+    expect(HISTORY_PAGE_SIZE).toBe(100);
+    expect(readPage).toHaveBeenCalledWith({ ...query, pageSize: HISTORY_INITIAL_PAGE_SIZE });
     pending.resolve(page([version(1), version(0)]));
     await first;
     expect(controller.getSnapshot(query).versions).toHaveLength(2);

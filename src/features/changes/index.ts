@@ -3,6 +3,8 @@ export * from "./port";
 export * from "./controller";
 export { changesPort } from "./tauriAdapter";
 export { DiffResultView, type DiffViewMode } from "./DiffResultView";
+export { DiffViewSelector } from "./DiffViewSelector";
+export { ChangesContextMenu, type ChangesContextMenuState } from "./ChangesContextMenu";
 export {
   DEFAULT_DIFF_PREFERENCES,
   DIFF_CODE_FONTS,

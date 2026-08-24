@@ -10,7 +10,8 @@ export interface HistoryTranslations {
   historyTimelineAriaLabel: string;
   historySearchPlaceholder: string;
   historySearchAriaLabel: string;
-  historyFilterAriaLabel: string;
+  historyPublicationFilterLabel: string;
+  historySortLabel: string;
   historyFilterAll: string;
   historyFilterPublished: string;
   historyFilterLocalOnly: string;
@@ -19,6 +20,7 @@ export interface HistoryTranslations {
   historySortOldest: string;
   historyNoMatches: string;
   historyLoadedCount: (count: number) => string;
+  historyFilteredCount: (shown: number, loaded: number) => string;
   historyNoVersionsTitle: string;
   historyNoVersionsDescription: string;
   historyLoadMore: string;
@@ -49,10 +51,9 @@ export interface HistoryTranslations {
   historyOverviewTab: string;
   historyFilesTab: string;
   historyDiffTab: string;
-  historyChangeSummary: string;
+  historyDescriptionTitle: string;
   historyChangedAreas: string;
-  historyTopFiles: string;
-  historyCommitNotes: string;
+  historyComparisonTitle: string;
   historyModifiedFiles: string;
   historyNewFiles: string;
   historyDeletedFiles: string;
@@ -84,21 +85,6 @@ export interface HistoryTranslations {
   historyFilterFilesPlaceholder: string;
   historyFilterFilesAriaLabel: string;
   historyNoFileMatches: string;
-  historyFileTypeLabel: string;
-  historyFileStatusLabel: string;
-  historyFileSortLabel: string;
-  historyFilterAllFiles: string;
-  historyFileTypeCode: string;
-  historyFileTypeDocs: string;
-  historyFileTypeAssets: string;
-  historyFileTypeConfig: string;
-  historyFileTypeOther: string;
-  historySortByPath: string;
-  historySortByStatus: string;
-  historyFilesShown: (shown: number, total: number) => string;
-  historyPreviousFile: string;
-  historyNextFile: string;
-  historySelectForPreview: string;
   historySearchDiffPlaceholder: string;
   historySearchDiffAriaLabel: string;
   historyCopyFilePath: string;
@@ -122,15 +108,17 @@ const en: HistoryTranslations = {
   historyTimelineAriaLabel: "Saved-version timeline",
   historySearchPlaceholder: "Search saved versions",
   historySearchAriaLabel: "Search saved versions",
-  historyFilterAriaLabel: "Filter saved versions",
-  historyFilterAll: "All publication states",
-  historyFilterPublished: "Published only",
-  historyFilterLocalOnly: "Saved locally only",
-  historyFilterUnknown: "Unknown publication only",
+  historyPublicationFilterLabel: "Publication",
+  historySortLabel: "Order",
+  historyFilterAll: "All",
+  historyFilterPublished: "Published",
+  historyFilterLocalOnly: "Local only",
+  historyFilterUnknown: "Unknown",
   historySortNewest: "Newest first",
   historySortOldest: "Oldest first",
   historyNoMatches: "No saved versions match these filters.",
   historyLoadedCount: (count) => `${count} saved ${count === 1 ? "version" : "versions"} loaded`,
+  historyFilteredCount: (shown, loaded) => `${shown} of ${loaded} loaded ${loaded === 1 ? "version" : "versions"} shown`,
   historyNoVersionsTitle: "No saved versions yet",
   historyNoVersionsDescription: "Save your first version from Changes, then it will appear here.",
   historyLoadMore: "Load older versions",
@@ -161,10 +149,9 @@ const en: HistoryTranslations = {
   historyOverviewTab: "Overview",
   historyFilesTab: "Files changed",
   historyDiffTab: "Diff",
-  historyChangeSummary: "Change summary",
+  historyDescriptionTitle: "Description",
   historyChangedAreas: "Changed areas",
-  historyTopFiles: "Top files",
-  historyCommitNotes: "Commit notes",
+  historyComparisonTitle: "Comparison",
   historyModifiedFiles: "Modified",
   historyNewFiles: "Added",
   historyDeletedFiles: "Deleted",
@@ -196,21 +183,6 @@ const en: HistoryTranslations = {
   historyFilterFilesPlaceholder: "Filter files",
   historyFilterFilesAriaLabel: "Filter changed files",
   historyNoFileMatches: "No changed files match this search.",
-  historyFileTypeLabel: "Type",
-  historyFileStatusLabel: "Status",
-  historyFileSortLabel: "Sort",
-  historyFilterAllFiles: "All",
-  historyFileTypeCode: "Code",
-  historyFileTypeDocs: "Docs",
-  historyFileTypeAssets: "Assets",
-  historyFileTypeConfig: "Config",
-  historyFileTypeOther: "Other",
-  historySortByPath: "Path",
-  historySortByStatus: "Status",
-  historyFilesShown: (shown, total) => `Showing ${shown} of ${total} files`,
-  historyPreviousFile: "Previous",
-  historyNextFile: "Next",
-  historySelectForPreview: "Select this file to load its preview",
   historySearchDiffPlaceholder: "Search in diff",
   historySearchDiffAriaLabel: "Search in the selected file difference",
   historyCopyFilePath: "Copy file path",
@@ -234,15 +206,17 @@ const es: HistoryTranslations = {
   historyTimelineAriaLabel: "Cronología de versiones guardadas",
   historySearchPlaceholder: "Buscar versiones guardadas",
   historySearchAriaLabel: "Buscar versiones guardadas",
-  historyFilterAriaLabel: "Filtrar versiones guardadas",
-  historyFilterAll: "Todos los estados de publicación",
-  historyFilterPublished: "Solo publicadas",
-  historyFilterLocalOnly: "Solo guardadas localmente",
-  historyFilterUnknown: "Solo publicación desconocida",
+  historyPublicationFilterLabel: "Publicación",
+  historySortLabel: "Orden",
+  historyFilterAll: "Todas",
+  historyFilterPublished: "Publicadas",
+  historyFilterLocalOnly: "Solo locales",
+  historyFilterUnknown: "Desconocida",
   historySortNewest: "Más recientes primero",
   historySortOldest: "Más antiguas primero",
   historyNoMatches: "Ninguna versión guardada coincide con estos filtros.",
   historyLoadedCount: (count) => `${count} ${count === 1 ? "versión guardada cargada" : "versiones guardadas cargadas"}`,
+  historyFilteredCount: (shown, loaded) => `Mostrando ${shown} de ${loaded} ${loaded === 1 ? "versión cargada" : "versiones cargadas"}`,
   historyNoVersionsTitle: "Todavía no hay versiones guardadas",
   historyNoVersionsDescription: "Guarda la primera versión desde Cambios y aparecerá aquí.",
   historyLoadMore: "Cargar versiones anteriores",
@@ -273,10 +247,9 @@ const es: HistoryTranslations = {
   historyOverviewTab: "Resumen",
   historyFilesTab: "Archivos cambiados",
   historyDiffTab: "Diferencia",
-  historyChangeSummary: "Resumen de cambios",
+  historyDescriptionTitle: "Descripción",
   historyChangedAreas: "Áreas cambiadas",
-  historyTopFiles: "Archivos principales",
-  historyCommitNotes: "Notas del commit",
+  historyComparisonTitle: "Comparación",
   historyModifiedFiles: "Modificados",
   historyNewFiles: "Añadidos",
   historyDeletedFiles: "Eliminados",
@@ -308,21 +281,6 @@ const es: HistoryTranslations = {
   historyFilterFilesPlaceholder: "Filtrar archivos",
   historyFilterFilesAriaLabel: "Filtrar archivos cambiados",
   historyNoFileMatches: "Ningún archivo cambiado coincide con esta búsqueda.",
-  historyFileTypeLabel: "Tipo",
-  historyFileStatusLabel: "Estado",
-  historyFileSortLabel: "Orden",
-  historyFilterAllFiles: "Todos",
-  historyFileTypeCode: "Código",
-  historyFileTypeDocs: "Documentación",
-  historyFileTypeAssets: "Recursos",
-  historyFileTypeConfig: "Configuración",
-  historyFileTypeOther: "Otros",
-  historySortByPath: "Ruta",
-  historySortByStatus: "Estado",
-  historyFilesShown: (shown, total) => `Mostrando ${shown} de ${total} archivos`,
-  historyPreviousFile: "Anterior",
-  historyNextFile: "Siguiente",
-  historySelectForPreview: "Selecciona este archivo para cargar su vista previa",
   historySearchDiffPlaceholder: "Buscar en la diferencia",
   historySearchDiffAriaLabel: "Buscar en la diferencia del archivo seleccionado",
   historyCopyFilePath: "Copiar ruta del archivo",

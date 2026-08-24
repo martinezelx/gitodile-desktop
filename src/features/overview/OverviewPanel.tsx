@@ -14,7 +14,6 @@ import {
   FolderOpen,
   GitBranch,
   GitBranchPlus,
-  LifeBuoy,
   LoaderCircle,
   Pencil,
   RefreshCw,
@@ -34,11 +33,15 @@ import {
   type WorkingTreeStatus,
 } from "../status";
 import type { PendingVersionsResult } from "../publish";
+import type { HistoryController } from "../history";
 import type { VersionLine, VersionLinesSnapshot } from "../version-lines";
 import { TeamChangesSection, type TeamSyncViewState } from "../sync";
 
 const PendingVersionsSection = lazy(() =>
   import("./PendingVersionsSection").then((m) => ({ default: m.PendingVersionsSection })),
+);
+const HistorySummarySection = lazy(() =>
+  import("./HistorySummarySection").then((m) => ({ default: m.HistorySummarySection })),
 );
 function repositoryStatus(project: RepositoryInfo, t: ReturnType<typeof useLanguage>["t"]): string {
   if (project.headState === "detached") {
@@ -253,48 +256,6 @@ function OverviewChangesPreview({
   );
 }
 
-/** The slot a not-yet-built Overview summary will occupy, shown greyed out so
- * the screen's final shape is visible while the feature is missing. It shows
- * *no data at all* — placeholder bars, never plausible-looking numbers — so
- * there is no moment where the Overview appears to be reporting on a
- * repository it cannot read yet. It is paired with Recovery's disabled
- * sidebar entry and disappears when that screen lands. */
-function OverviewPlaceholderCard({
-  icon,
-  title,
-  description,
-  rows,
-}: {
-  icon: React.JSX.Element;
-  title: string;
-  description: string;
-  /** How many blocked-out lines to reserve, matching the shape the real
-   * summary will have (History lists versions; Recovery lists one action). */
-  rows: number;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-
-  return (
-    <section className="overview-placeholder" aria-label={`${title} — ${t.overviewComingSoonBadge}`}>
-      <div className="overview-placeholder__head">
-        <div className="overview-placeholder__icon" aria-hidden="true">
-          {icon}
-        </div>
-        <div className="overview-placeholder__heading">
-          <h2>{title}</h2>
-          <span className="overview-placeholder__badge">{t.overviewComingSoonBadge}</span>
-        </div>
-      </div>
-      <p className="overview-placeholder__description">{description}</p>
-      <div className="overview-placeholder__rows" aria-hidden="true">
-        {Array.from({ length: rows }, (_, index) => (
-          <span key={index} className="overview-placeholder__row" />
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /** Overview's bounded quick-switch/quick-create entry point (task 016). A
  * deliberately small menu — the searchable full list stays on the
  * Version-lines screen (`onSeeAll`). It reads the project session's cached
@@ -476,6 +437,8 @@ export function OverviewPanel({
   teamSync,
   onCheckTeamChanges,
   onReviewAndGetTeamChanges,
+  historyController,
+  onOpenHistory,
 }: {
   project: RepositoryInfo | null;
   /** Only ever drives the *empty*-state's own loading affordance below —
@@ -518,6 +481,10 @@ export function OverviewPanel({
   teamSync: TeamSyncViewState;
   onCheckTeamChanges: () => void;
   onReviewAndGetTeamChanges: () => void;
+  /** The same project-scoped cache used by the full History screen. Overview
+   * subscribes only while visible and never starts a second repository read. */
+  historyController: HistoryController;
+  onOpenHistory: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
@@ -759,17 +726,20 @@ export function OverviewPanel({
           onReviewAndGet={onReviewAndGetTeamChanges}
         />
 
-        {/* Recovery remains an honest placeholder until its screen lands.
-            History is no longer previewed here because its real screen is now
-            available from navigation and the command palette. */}
-        <div className="overview-placeholders">
-          <OverviewPlaceholderCard
-            icon={<LifeBuoy />}
-            title={t.overviewRecoveryPreviewTitle}
-            description={t.overviewRecoveryPreviewDescription}
-            rows={3}
+        <Suspense
+          fallback={
+            <section className="overview-history overview-history--loading" aria-label={t.overviewHistoryLoading}>
+              <LoaderCircle aria-hidden="true" className="icon--spinning" />
+            </section>
+          }
+        >
+          <HistorySummarySection
+            controller={historyController}
+            projectPath={project.path}
+            sessionEpoch={project.sessionEpoch}
+            onOpenHistory={onOpenHistory}
           />
-        </div>
+        </Suspense>
       </div>
     );
   }

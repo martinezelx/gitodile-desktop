@@ -176,7 +176,7 @@ was not the largest remaining cost.
 - `src/versionLinesPanel.tsx` — controlled snapshot panel from task 019.
 - `src/projectSessions.ts` — `ProjectView`, per-session state and eviction.
 - `src/diffCache.ts` — cache lifetime already tied to the session.
-- `docs/ARCHITECTURE.md`, `AGENTS.md`, `work/active/015-history-timeline.md`.
+- `docs/ARCHITECTURE.md`, `AGENTS.md`, `work/done/015-history-timeline.md`.
 
 # Dependencies
 

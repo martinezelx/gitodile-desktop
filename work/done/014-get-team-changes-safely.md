@@ -298,7 +298,7 @@ Use bare remotes, separate clones, and linked worktrees for:
 - `docs/architecture/025-ipc-contract.json`
 - `docs/adr/`
 - `work/active/013-check-team-changes.md`
-- `work/active/015-history-timeline.md`
+- `work/done/015-history-timeline.md`
 - `work/backlog.md`
 - `work/done/010-save-version.md`
 - `work/done/011-publish-changes.md`

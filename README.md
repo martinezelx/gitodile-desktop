@@ -70,8 +70,8 @@ The dependency-ordered `1.0.0` plan is in the
 [`task 065-1`](work/done/065-1-core-workflow-audit.md), clone evidence in
 [`task 065-2`](work/done/065-2-clone-remote-project.md), and local-creation
 evidence in [`task 065-3`](work/done/065-3-create-local-project.md).
-History implementation and its remaining review are recorded in active
-[`task 015`](work/active/015-history-timeline.md).
+The completed History implementation and its validation are recorded in
+[`task 015`](work/done/015-history-timeline.md).
 
 ## Architecture at a glance
 

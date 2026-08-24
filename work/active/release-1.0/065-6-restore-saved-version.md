@@ -13,7 +13,7 @@ areas:
 created: 2026-08-18
 completed:
 parent: "065"
-queue: "11"
+queue: "10"
 ---
 
 # Goal
@@ -77,7 +77,7 @@ with different consequences and recovery.
 
 # Relevant files
 
-- `work/active/015-history-timeline.md`
+- `work/done/015-history-timeline.md`
 - `work/active/037-guided-conflict-resolution.md`
 - `src-tauri/src/recovery.rs`
 - `src-tauri/src/save_version.rs`

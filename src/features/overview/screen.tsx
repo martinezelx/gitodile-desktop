@@ -24,6 +24,7 @@ export const overviewScreenModule = {
   container,
   additionalPreloads: [
     () => import("./PendingVersionsSection"),
+    () => import("./HistorySummarySection"),
     () => import("../publish"),
     () => import("../version-lines"),
   ],

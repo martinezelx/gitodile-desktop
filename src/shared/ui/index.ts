@@ -12,6 +12,7 @@
 export { autoHideScrollbarProps } from "./autoHideScrollbar";
 export { useModalFocus } from "./modalFocus";
 export { LoadingBar } from "./loadingBar";
+export { RefreshIconButton } from "./refreshIconButton";
 export { DialogCloseButton } from "./dialogCloseButton";
 export { useFieldErrors, FieldError } from "./fieldErrors";
 export type { FieldCheck, FieldErrorMap, FieldErrorState } from "./fieldErrors";

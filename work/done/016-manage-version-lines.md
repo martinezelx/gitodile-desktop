@@ -524,7 +524,7 @@ Downstream integration:
 - `work/done/012-open-and-switch-projects.md`
 - `work/active/013-check-team-changes.md`
 - `work/active/014-get-team-changes-safely.md`
-- `work/active/015-history-timeline.md`
+- `work/done/015-history-timeline.md`
 - `src/main.tsx`
 - `src/repositoryOverview.ts`
 - `src/changes.tsx`
