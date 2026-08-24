@@ -36,7 +36,7 @@ export const APP_ERROR_CODES = [
   "publish_uncertain", "get_team_changes_uncertain", "git_version_too_old", "version_line_name_taken",
   "version_line_name_collides", "version_line_checked_out_elsewhere", "version_line_is_active",
   "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
-  "dirty_working_tree", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
+  "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
   "recovery_unavailable", "recovery_conflict", "recovery_failed",
 ] as const;
 
@@ -152,6 +152,7 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     version_line_switch_obstructed: t.errorVersionLineSwitchObstructed,
     stale_version_line_plan: t.errorStaleVersionLinePlan,
     dirty_working_tree: t.errorDirtyWorkingTree,
+    incoming_tracked_change_collision: t.errorIncomingTrackedChangeCollision,
     incoming_path_collision: t.errorIncomingPathCollision,
     ref_locked: t.errorRefLocked,
     nothing_to_discard: t.errorNothingToDiscard,

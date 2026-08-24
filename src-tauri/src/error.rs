@@ -104,6 +104,7 @@ pub(crate) enum AppErrorCode {
     VersionLineSwitchObstructed,
     StaleVersionLinePlan,
     DirtyWorkingTree,
+    IncomingTrackedChangeCollision,
     IncomingPathCollision,
     RefLocked,
     NothingToDiscard,

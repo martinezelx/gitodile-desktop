@@ -392,6 +392,16 @@ and truncation flags. Untracked and ignored paths are compared by complete path
 components against added, modified, deleted, and renamed paths; when bounded
 evidence cannot prove safety, the operation blocks.
 
+Prepared and unsaved tracked changes use the same complete-path comparison,
+including both sides of local and incoming renames. Non-overlapping changes may
+continue only after a dry-run two-tree update proves Git can carry them. The
+state token also fingerprints the bytes of each changed tracked file or link,
+so an edit after preview makes the plan stale. The post-update verifier compares
+both that fingerprint and the exact porcelain-v2 tracked-change records from
+the reviewed snapshot, preserving staged and unstaged state instead of requiring
+a clean index. Truncated incoming-file evidence blocks whenever any local
+content would make non-overlap impossible to prove.
+
 Execution repeats the fetch and validation, creates and verifies recovery,
 then runs the narrow two-tree update `git read-tree -u -m <old> <target>` and
 the compare-and-swap branch move

@@ -83,7 +83,7 @@
     "publish_uncertain", "get_team_changes_uncertain", "git_version_too_old", "version_line_name_taken",
     "version_line_name_collides", "version_line_checked_out_elsewhere", "version_line_is_active",
     "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
-    "dirty_working_tree", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
+    "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
     "recovery_unavailable", "recovery_conflict", "recovery_failed"
   ],
   "watchEvent": {

@@ -6,6 +6,7 @@
 //! target for a branch without an upstream.
 
 use crate::application;
+use crate::changes::validate_repo_relative_path;
 use crate::error::{AppError, AppErrorCode};
 use crate::git;
 use crate::git_command::{checked_git_stdout, git_stdout, run_git, run_git_with_env};
@@ -21,6 +22,7 @@ use crate::repository::{
 use crate::status::{git_log_summaries, read_working_tree_status, SavedVersionSummary};
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+use std::io::Read;
 use std::path::Path;
 use std::process::ExitStatus;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -1231,6 +1233,9 @@ pub(crate) fn check_team_changes(
 #[derive(Debug, Clone)]
 struct LocalSafetyState {
     raw: Vec<u8>,
+    tracked: Vec<String>,
+    tracked_snapshot: Vec<Vec<u8>>,
+    tracked_worktree_fingerprint: u64,
     untracked: Vec<String>,
     ignored: Vec<String>,
 }
@@ -1247,6 +1252,7 @@ struct ValidatedGetTeamChanges {
     incoming_versions: Vec<SavedVersionSummary>,
     versions_truncated: bool,
     file_impact: IncomingFileImpact,
+    safety: LocalSafetyState,
 }
 
 fn checked_dynamic_output(path: &str, args: Vec<String>) -> Result<Vec<u8>, AppError> {
@@ -1260,6 +1266,74 @@ fn checked_dynamic_output(path: &str, args: Vec<String>) -> Result<Vec<u8>, AppE
         )
         .with_detail(truncate_detail(&String::from_utf8_lossy(&output.stderr))))
     }
+}
+
+fn tracked_worktree_fingerprint(root: &Path, tracked: &[String]) -> Result<u64, AppError> {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut seen = HashSet::new();
+    for relative in tracked {
+        if !seen.insert(relative) {
+            continue;
+        }
+        validate_repo_relative_path(relative)?;
+        relative.hash(&mut hasher);
+        let full_path = root.join(relative);
+        match std::fs::symlink_metadata(&full_path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                "symlink".hash(&mut hasher);
+                std::fs::read_link(&full_path)
+                    .map_err(|_| {
+                        AppError::new(
+                            AppErrorCode::GitCommandFailed,
+                            "GitOdrile couldn't read a changed symbolic link safely.",
+                        )
+                    })?
+                    .hash(&mut hasher);
+            }
+            Ok(metadata) if metadata.is_file() => {
+                "file".hash(&mut hasher);
+                metadata.len().hash(&mut hasher);
+                let mut file = std::fs::File::open(&full_path).map_err(|_| {
+                    AppError::new(
+                        AppErrorCode::GitCommandFailed,
+                        "GitOdrile couldn't read a changed file safely.",
+                    )
+                })?;
+                let mut buffer = [0_u8; 64 * 1024];
+                loop {
+                    let read = file.read(&mut buffer).map_err(|_| {
+                        AppError::new(
+                            AppErrorCode::GitCommandFailed,
+                            "GitOdrile couldn't finish reading a changed file safely.",
+                        )
+                    })?;
+                    if read == 0 {
+                        break;
+                    }
+                    hasher.write(&buffer[..read]);
+                }
+            }
+            Ok(_) => {
+                return Err(AppError::new(
+                    AppErrorCode::IncomingTrackedChangeCollision,
+                    "A changed tracked path is not a regular file or symbolic link.",
+                )
+                .with_remediation(
+                    "Save or move that path outside GitOdrile, then review the team update again.",
+                ));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                "absent".hash(&mut hasher);
+            }
+            Err(_) => {
+                return Err(AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "GitOdrile couldn't inspect a changed path safely.",
+                ));
+            }
+        }
+    }
+    Ok(hasher.finish())
 }
 
 fn read_local_safety(path: &str) -> Result<LocalSafetyState, AppError> {
@@ -1276,9 +1350,10 @@ fn read_local_safety(path: &str) -> Result<LocalSafetyState, AppError> {
         .split(|byte| *byte == 0)
         .filter(|field| !field.is_empty())
         .collect::<Vec<_>>();
+    let mut tracked = Vec::new();
+    let mut tracked_snapshot = Vec::new();
     let mut untracked = Vec::new();
     let mut ignored = Vec::new();
-    let mut tracked_dirty = false;
     let mut index = 0;
     while index < fields.len() {
         let field = std::str::from_utf8(fields[index]).map_err(|_| {
@@ -1291,25 +1366,58 @@ fn read_local_safety(path: &str) -> Result<LocalSafetyState, AppError> {
             untracked.push(path.to_string());
         } else if let Some(path) = field.strip_prefix("! ") {
             ignored.push(path.trim_end_matches('/').to_string());
-        } else if field.starts_with("1 ") || field.starts_with("u ") {
-            tracked_dirty = true;
+        } else if field.starts_with("1 ") {
+            let path = field.splitn(9, ' ').nth(8).ok_or_else(|| {
+                AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "Git returned an incomplete local-change record.",
+                )
+            })?;
+            tracked.push(path.to_string());
+            tracked_snapshot.push(fields[index].to_vec());
         } else if field.starts_with("2 ") {
-            tracked_dirty = true;
+            let path = field.splitn(10, ' ').nth(9).ok_or_else(|| {
+                AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "Git returned an incomplete local-rename record.",
+                )
+            })?;
+            let original = fields.get(index + 1).ok_or_else(|| {
+                AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "Git returned a local rename without its original path.",
+                )
+            })?;
+            let original_path = std::str::from_utf8(original).map_err(|_| {
+                AppError::new(
+                    AppErrorCode::PathEncodingUnsupported,
+                    "This project contains a path GitOdrile can't compare safely.",
+                )
+            })?;
+            tracked.push(path.to_string());
+            tracked.push(original_path.to_string());
+            let mut snapshot = fields[index].to_vec();
+            snapshot.push(0);
+            snapshot.extend_from_slice(original);
+            tracked_snapshot.push(snapshot);
             index += 1;
+        } else if field.starts_with("u ") {
+            return Err(AppError::new(
+                AppErrorCode::UnresolvedConflicts,
+                "This project contains unresolved overlapping changes.",
+            )
+            .with_remediation(
+                "Resolve or abort the current Git operation before getting team changes.",
+            ));
         }
         index += 1;
     }
-    if tracked_dirty {
-        return Err(AppError::new(
-            AppErrorCode::DirtyWorkingTree,
-            "This project has prepared or unsaved tracked changes.",
-        )
-        .with_remediation(
-            "Review and save those changes before getting team changes. GitOdrile will not stash or discard them.",
-        ));
-    }
+    let tracked_worktree_fingerprint = tracked_worktree_fingerprint(Path::new(path), &tracked)?;
     Ok(LocalSafetyState {
         raw,
+        tracked,
+        tracked_snapshot,
+        tracked_worktree_fingerprint,
         untracked,
         ignored,
     })
@@ -1494,6 +1602,19 @@ fn ensure_no_local_collisions(
         .iter()
         .flat_map(|file| std::iter::once(&file.path).chain(file.original_path.as_ref()))
         .collect::<Vec<_>>();
+    let tracked_collision = safety
+        .tracked
+        .iter()
+        .find(|candidate| incoming.iter().any(|path| paths_overlap(candidate, path)));
+    if let Some(path) = tracked_collision {
+        return Err(AppError::new(
+            AppErrorCode::IncomingTrackedChangeCollision,
+            format!("A prepared or unsaved change overlaps the team update: {path}"),
+        )
+        .with_remediation(
+            "Save, move, or discard that change yourself, then review the team update again.",
+        ));
+    }
     let collision = safety
         .untracked
         .iter()
@@ -1508,6 +1629,15 @@ fn ensure_no_local_collisions(
             "Move, save, or remove that local path yourself, then review the team update again.",
         ));
     }
+    if impact.is_truncated && !safety.tracked.is_empty() {
+        return Err(AppError::new(
+            AppErrorCode::IncomingTrackedChangeCollision,
+            "GitOdrile couldn't prove that every prepared or unsaved change is outside the bounded incoming file list.",
+        )
+        .with_remediation(
+            "Save or move tracked changes outside the project, then review the team update again.",
+        ));
+    }
     if impact.is_truncated && (!safety.untracked.is_empty() || !safety.ignored.is_empty()) {
         return Err(AppError::new(
             AppErrorCode::IncomingPathCollision,
@@ -1518,6 +1648,39 @@ fn ensure_no_local_collisions(
         ));
     }
     Ok(())
+}
+
+fn ensure_tracked_changes_can_be_carried(
+    path: &str,
+    safety: &LocalSafetyState,
+    local_commit: &str,
+    remote_commit: &str,
+) -> Result<(), AppError> {
+    if safety.tracked.is_empty() {
+        return Ok(());
+    }
+    let output = run_git(
+        path,
+        &[
+            "read-tree",
+            "--dry-run",
+            "-u",
+            "-m",
+            local_commit,
+            remote_commit,
+        ],
+    )?;
+    if output.status.success() {
+        return Ok(());
+    }
+    Err(AppError::new(
+        AppErrorCode::IncomingTrackedChangeCollision,
+        "Git could not carry every prepared or unsaved change across this team update.",
+    )
+    .with_remediation(
+        "Save, move, or discard the affected changes yourself, then review the team update again.",
+    )
+    .with_detail(truncate_detail(&String::from_utf8_lossy(&output.stderr))))
 }
 
 struct GetTeamChangesTokenEvidence<'a> {
@@ -1545,6 +1708,10 @@ fn compute_get_team_changes_state_token(evidence: GetTeamChangesTokenEvidence<'_
     evidence.remote_commit.hash(&mut hasher);
     evidence.recovery_reference.hash(&mut hasher);
     evidence.safety.raw.hash(&mut hasher);
+    evidence
+        .safety
+        .tracked_worktree_fingerprint
+        .hash(&mut hasher);
     format!("{:016x}", hasher.finish())
 }
 
@@ -1685,6 +1852,7 @@ fn validate_get_team_changes(
     let safety = read_local_safety(path)?;
     let file_impact = incoming_file_impact(path, &local_commit, &remote_commit)?;
     ensure_no_local_collisions(&safety, &file_impact)?;
+    ensure_tracked_changes_can_be_carried(path, &safety, &local_commit, &remote_commit)?;
     let range = format!("{local_commit}..{remote_commit}");
     let mut incoming_versions = git_log_summaries(path, &range)?;
     incoming_versions.truncate(MAX_INCOMING_VERSIONS);
@@ -1715,6 +1883,7 @@ fn validate_get_team_changes(
         incoming_versions,
         versions_truncated,
         file_impact,
+        safety,
     })
 }
 
@@ -1754,9 +1923,10 @@ pub(crate) fn plan_get_team_changes(
         versions_truncated: validated.versions_truncated,
         file_impact: validated.file_impact,
         consequences: vec![
-            "The active version line, index, and tracked working files advance to the reviewed team commit."
+            "The active version line and incoming tracked files advance to the reviewed team commit."
                 .to_string(),
-            "Non-colliding untracked and ignored content stays local and untouched.".to_string(),
+            "Prepared, unsaved, untracked, and ignored content proven not to collide stays local and untouched."
+                .to_string(),
         ],
         risks: vec![
             "Files open in another program may prevent the update and leave the local result uncertain."
@@ -1770,7 +1940,7 @@ pub(crate) fn plan_get_team_changes(
             "Verify the branch, commit, files, upstream relation, and recovery reference."
                 .to_string(),
         ],
-        verification: "Success is reported only when HEAD exactly matches the freshly fetched upstream, tracked files are clean, and recovery still resolves to the previous commit."
+        verification: "Success is reported only when HEAD exactly matches the freshly fetched upstream, the reviewed local-change snapshot is preserved, and recovery still resolves to the previous commit."
             .to_string(),
         recovery,
         guarantees: GetTeamChangesGuarantees {
@@ -1931,6 +2101,14 @@ pub(crate) fn get_team_changes(
             ));
         }
         let safety = read_local_safety(&path)?;
+        if safety.tracked_snapshot != validated.safety.tracked_snapshot
+            || safety.tracked_worktree_fingerprint != validated.safety.tracked_worktree_fingerprint
+        {
+            return Err(AppError::new(
+                AppErrorCode::GetTeamChangesUncertain,
+                "Prepared or unsaved changes no longer match the reviewed local state.",
+            ));
+        }
         if !safety.untracked.iter().all(|item| {
             !validated
                 .file_impact
@@ -1941,20 +2119,6 @@ pub(crate) fn get_team_changes(
             return Err(AppError::new(
                 AppErrorCode::GetTeamChangesUncertain,
                 "A local untracked path overlaps the resulting team tree.",
-            ));
-        }
-        let index_tree = checked_git_stdout(run_git(&path, &["write-tree"])?)?;
-        let target_tree = checked_git_stdout(run_git(
-            &path,
-            &[
-                "rev-parse",
-                &format!("{}^{{tree}}", validated.remote_commit),
-            ],
-        )?)?;
-        if index_tree != target_tree {
-            return Err(AppError::new(
-                AppErrorCode::GetTeamChangesUncertain,
-                "The resulting index does not match the reviewed team version.",
             ));
         }
         verify_history_recovery(&path, &recovery)?;

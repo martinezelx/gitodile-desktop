@@ -90,6 +90,7 @@ export interface SharedTranslations {
   errorVersionLineSwitchObstructed: string;
   errorStaleVersionLinePlan: string;
   errorDirtyWorkingTree: string;
+  errorIncomingTrackedChangeCollision: string;
   errorIncomingPathCollision: string;
   errorRefLocked: string;
   errorNothingToDiscard: string;
@@ -209,6 +210,8 @@ const en: SharedTranslations = {
   errorStaleVersionLinePlan: "This project changed since the preview was shown. Refresh and try again.",
   errorDirtyWorkingTree:
     "This project has unsaved changes, so GitOdrile can't switch version lines yet. Save a version, or start a new version line with this work.",
+  errorIncomingTrackedChangeCollision:
+    "Some prepared or unsaved changes overlap files in the team update. Save, move, or discard those changes yourself, then review again.",
   errorIncomingPathCollision:
     "A local untracked or ignored path could be overwritten by the team update. Move or save it yourself, then review again.",
   errorRefLocked: "Git couldn't update its references right now — another Git process may be using them.",
@@ -334,6 +337,8 @@ const es: SharedTranslations = {
   errorStaleVersionLinePlan: "Este proyecto cambió desde que se mostró la vista previa. Actualiza e inténtalo de nuevo.",
   errorDirtyWorkingTree:
     "Este proyecto tiene cambios sin guardar, así que GitOdrile no puede cambiar de línea de versión todavía. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
+  errorIncomingTrackedChangeCollision:
+    "Algunos cambios preparados o sin guardar se solapan con archivos de la actualización del equipo. Guarda, mueve o descarta esos cambios tú y vuelve a revisar.",
   errorIncomingPathCollision:
     "Una ruta local sin seguimiento o ignorada podría sobrescribirse con la actualización del equipo. Muévela o guárdala tú y vuelve a revisar.",
   errorRefLocked: "Git no pudo actualizar sus referencias ahora mismo (otro proceso de Git podría estar usándolas).",

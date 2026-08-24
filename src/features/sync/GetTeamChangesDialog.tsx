@@ -192,6 +192,7 @@ function deterministicBlock(error: unknown): boolean {
     "detached_head",
     "unborn_branch_no_version",
     "dirty_working_tree",
+    "incoming_tracked_change_collision",
     "incoming_path_collision",
     "git_operation_in_progress",
   ].includes(error.code);

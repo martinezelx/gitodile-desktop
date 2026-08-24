@@ -809,6 +809,7 @@ mod contract_tests {
             AppErrorCode::VersionLineSwitchObstructed,
             AppErrorCode::StaleVersionLinePlan,
             AppErrorCode::DirtyWorkingTree,
+            AppErrorCode::IncomingTrackedChangeCollision,
             AppErrorCode::IncomingPathCollision,
             AppErrorCode::RefLocked,
             AppErrorCode::NothingToDiscard,

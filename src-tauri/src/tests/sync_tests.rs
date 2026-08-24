@@ -471,7 +471,7 @@ fn get_plan_explicitly_blocks_up_to_date_ahead_and_diverged_relations() {
 }
 
 #[test]
-fn get_plan_blocks_dirty_and_colliding_local_content_but_allows_proven_safe_ignored_content() {
+fn get_plan_allows_proven_separate_tracked_and_ignored_content_but_blocks_collisions() {
     let _guard = sync_test_guard();
     let (dirty_repo, dirty_remote, dirty_branch) = published_repo_and_remote("get-dirty");
     let dirty_other = clone_remote(&dirty_remote, "get-dirty-other");
@@ -484,8 +484,12 @@ fn get_plan_blocks_dirty_and_colliding_local_content_but_allows_proven_safe_igno
         .unwrap()
         .success());
     write_file(&dirty_repo, "a.txt", "local dirty\n");
-    let dirty = plan_get_team_changes(dirty_repo.clone(), session("dirty"), |_| {}).unwrap_err();
-    assert_eq!(dirty.code, AppErrorCode::DirtyWorkingTree);
+    let dirty = plan_get_team_changes(dirty_repo.clone(), session("dirty"), |_| {}).unwrap();
+    assert_eq!(dirty.incoming_count, 1);
+    assert_eq!(
+        fs::read(Path::new(&dirty_repo).join("a.txt")).unwrap(),
+        b"local dirty\n"
+    );
 
     let (collision_repo, collision_remote, collision_branch) =
         published_repo_and_remote("get-collision");
@@ -546,7 +550,7 @@ fn get_plan_blocks_dirty_and_colliding_local_content_but_allows_proven_safe_igno
 }
 
 #[test]
-fn get_plan_blocks_staged_ignored_collisions_and_git_operations_without_mutating_local_state() {
+fn get_plan_allows_separate_staged_changes_and_blocks_ignored_collisions_and_git_operations() {
     let _guard = sync_test_guard();
     let (staged_repo, staged_remote, staged_branch) = published_repo_and_remote("get-staged");
     let staged_other = clone_remote(&staged_remote, "get-staged-other");
@@ -562,9 +566,9 @@ fn get_plan_blocks_staged_ignored_collisions_and_git_operations_without_mutating
     git_add_all(&staged_repo);
     let staged_index = in_test_frame(|| resolve_index_path(&staged_repo)).unwrap();
     let staged_index_before = fs::read(&staged_index).unwrap();
-    let staged_error =
-        plan_get_team_changes(staged_repo.clone(), session("staged"), |_| {}).unwrap_err();
-    assert_eq!(staged_error.code, AppErrorCode::DirtyWorkingTree);
+    let staged_plan =
+        plan_get_team_changes(staged_repo.clone(), session("staged"), |_| {}).unwrap();
+    assert_eq!(staged_plan.incoming_count, 1);
     assert_eq!(fs::read(&staged_index).unwrap(), staged_index_before);
     assert_eq!(
         fs::read(Path::new(&staged_repo).join("staged.txt")).unwrap(),
@@ -643,6 +647,174 @@ fn get_plan_blocks_staged_ignored_collisions_and_git_operations_without_mutating
         operation_remote,
         operation_other,
     ] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn get_plan_blocks_tracked_changes_that_overlap_an_incoming_source_or_destination() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("get-tracked-collision");
+    let other = clone_remote(&remote, "get-tracked-collision-other");
+    write_file(&other, "a.txt", "team edit\n");
+    git_add_all(&other);
+    git_commit(&other, "team edit");
+    assert!(git_command(&other)
+        .args(["push", "-q", "origin", &branch])
+        .status()
+        .unwrap()
+        .success());
+
+    assert!(git_command(&repo)
+        .args(["mv", "a.txt", "local-name.txt"])
+        .status()
+        .unwrap()
+        .success());
+    let status_before = test_git(&repo, &["status", "--porcelain=v2", "-z"]).unwrap();
+    let error =
+        plan_get_team_changes(repo.clone(), session("tracked-collision"), |_| {}).unwrap_err();
+    assert_eq!(error.code, AppErrorCode::IncomingTrackedChangeCollision);
+    assert_eq!(
+        test_git(&repo, &["status", "--porcelain=v2", "-z"])
+            .unwrap()
+            .stdout,
+        status_before.stdout
+    );
+    assert_eq!(
+        fs::read(Path::new(&repo).join("local-name.txt")).unwrap(),
+        b"hello\n"
+    );
+
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn get_team_changes_preserves_separate_staged_unstaged_and_untracked_work() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("get-with-local-work");
+    let other = clone_remote(&remote, "get-with-local-work-other");
+    write_file(&other, "team.txt", "team\n");
+    git_add_all(&other);
+    git_commit(&other, "team");
+    assert!(git_command(&other)
+        .args(["push", "-q", "origin", &branch])
+        .status()
+        .unwrap()
+        .success());
+
+    write_file(&repo, "a.txt", "local unstaged\n");
+    write_file(&repo, "prepared.txt", "local staged\n");
+    git_add(&repo, "prepared.txt");
+    write_file(&repo, "local-only.txt", "local untracked\n");
+    let status_before = test_git(
+        &repo,
+        &[
+            "status",
+            "--porcelain=v2",
+            "--untracked-files=all",
+            "--ignored=matching",
+            "--renames",
+            "-z",
+        ],
+    )
+    .unwrap();
+
+    let plan = plan_get_team_changes(repo.clone(), session("local-work"), |_| {}).unwrap();
+    let result = get_team_changes(
+        repo.clone(),
+        session("local-work"),
+        plan.state_token,
+        plan.recovery.reference,
+        |_| {},
+    )
+    .unwrap();
+
+    assert_eq!(result.outcome, GetTeamChangesOutcome::Completed);
+    assert_eq!(
+        test_git(
+            &repo,
+            &[
+                "status",
+                "--porcelain=v2",
+                "--untracked-files=all",
+                "--ignored=matching",
+                "--renames",
+                "-z",
+            ],
+        )
+        .unwrap()
+        .stdout,
+        status_before.stdout
+    );
+    assert_eq!(
+        fs::read(Path::new(&repo).join("a.txt")).unwrap(),
+        b"local unstaged\n"
+    );
+    assert_eq!(
+        fs::read(Path::new(&repo).join("prepared.txt")).unwrap(),
+        b"local staged\n"
+    );
+    assert_eq!(
+        fs::read(Path::new(&repo).join("local-only.txt")).unwrap(),
+        b"local untracked\n"
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&fs::read(Path::new(&repo).join("team.txt")).unwrap())
+            .replace("\r\n", "\n"),
+        "team\n"
+    );
+
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn get_team_changes_rejects_local_content_changed_after_preview_before_recovery() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("get-local-state-stale");
+    let other = clone_remote(&remote, "get-local-state-stale-other");
+    write_file(&other, "team.txt", "team\n");
+    git_add_all(&other);
+    git_commit(&other, "team");
+    assert!(git_command(&other)
+        .args(["push", "-q", "origin", &branch])
+        .status()
+        .unwrap()
+        .success());
+
+    write_file(&repo, "a.txt", "first local edit\n");
+    let plan = plan_get_team_changes(repo.clone(), session("local-state-stale"), |_| {}).unwrap();
+    let head_before = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
+    write_file(&repo, "a.txt", "newer local edit\n");
+
+    let error = get_team_changes(
+        repo.clone(),
+        session("local-state-stale"),
+        plan.state_token,
+        plan.recovery.reference.clone(),
+        |_| {},
+    )
+    .unwrap_err();
+    assert_eq!(error.code, AppErrorCode::StaleGetTeamChangesPlan);
+    assert_eq!(
+        git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap()),
+        head_before
+    );
+    assert_eq!(
+        fs::read(Path::new(&repo).join("a.txt")).unwrap(),
+        b"newer local edit\n"
+    );
+    assert!(
+        !test_git(&repo, &["show-ref", "--verify", &plan.recovery.reference])
+            .unwrap()
+            .status
+            .success()
+    );
+
+    for path in [repo, remote, other] {
         let _ = fs::remove_dir_all(path);
     }
 }
@@ -1037,6 +1209,15 @@ fn get_plan_caps_many_incoming_files_without_losing_categories_or_total() {
     assert_eq!(plan.file_impact.files.len(), MAX_INCOMING_FILES);
     assert_eq!(plan.file_impact.counts.added, MAX_INCOMING_FILES + 5);
     assert!(plan.file_impact.is_truncated);
+
+    write_file(
+        &repo,
+        "a.txt",
+        "local work outside the visible incoming sample\n",
+    );
+    let error =
+        plan_get_team_changes(repo.clone(), session("many-files-dirty"), |_| {}).unwrap_err();
+    assert_eq!(error.code, AppErrorCode::IncomingTrackedChangeCollision);
 
     for path in [repo, remote, other] {
         let _ = fs::remove_dir_all(path);

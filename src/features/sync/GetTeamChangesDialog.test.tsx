@@ -175,6 +175,21 @@ describe("Get team changes dialog", () => {
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });
 
+  it("explains an incoming tracked-file collision without referring to version-line switching", async () => {
+    renderDialog(controller({
+      planGet: vi.fn(async (): Promise<GetTeamChangesPlan> => {
+        throw {
+          code: "incoming_tracked_change_collision",
+          message: "overlap",
+          remediation: null,
+        };
+      }),
+    }));
+    expect(await screen.findByText(/overlap files in the team update/)).toBeInTheDocument();
+    expect(screen.queryByText(/switch version lines/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
+
   it("cancels a pending preview visually and rejects its late response", async () => {
     let resolve!: (value: GetTeamChangesPlan) => void;
     const syncController = controller({
