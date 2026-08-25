@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
-import { useScreenLifecycleController } from "../../screenModule";
+import { useScreenLifecycleController } from "../../runtime/screen/module";
 import type { HistoryController } from "./controller";
 import type { HistoryState } from "./domain";
 import type { HistoryQuery } from "./port";

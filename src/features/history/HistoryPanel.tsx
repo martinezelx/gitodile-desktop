@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
-import { getFileTypeIcon } from "../../fileIcons";
+import { getFileTypeIcon } from "../../shared/file-icons";
 import { autoHideScrollbarProps, handlePopupMenuKeyDown, LoadingBar, RefreshIconButton, useAnchoredPopup } from "../../shared/ui";
 import { ChangesContextMenu, DiffResultView, DiffViewSelector, type ChangesContextMenuState, type DiffViewMode, type FileDiff } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";

@@ -29,6 +29,29 @@ fn use_paths(tree: &UseTree, prefix: &str, paths: &mut Vec<String>) {
     }
 }
 
+/// Every file that makes up one owning module: the entry itself, plus the
+/// sibling files of a `mod.rs`. A module that outgrew a single file is still
+/// one owner, so the direction rules below apply to all of it.
+fn module_files(source_dir: &Path, entry: &str) -> Vec<std::path::PathBuf> {
+    let path = source_dir.join(entry);
+    if path.file_name().and_then(|name| name.to_str()) != Some("mod.rs") {
+        return vec![path];
+    }
+    let directory = path.parent().expect("mod.rs has a parent").to_path_buf();
+    let mut files = vec![path];
+    let mut siblings = fs::read_dir(&directory)
+        .unwrap_or_else(|error| panic!("read {}: {error}", directory.display()))
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.extension().and_then(|extension| extension.to_str()) == Some("rs")
+                && path.file_name().and_then(|name| name.to_str()) != Some("mod.rs")
+        })
+        .collect::<Vec<_>>();
+    siblings.sort();
+    files.extend(siblings);
+    files
+}
+
 #[test]
 fn rust_module_boundaries_keep_composition_and_domains_separate() {
     let source_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -81,7 +104,7 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         "lib.rs is the Tauri composition root; workflows belong in owning modules"
     );
 
-    for (owner, file) in [
+    for (owner, entry) in [
         ("repository", "repository.rs"),
         ("status", "status.rs"),
         ("changes", "changes.rs"),
@@ -89,13 +112,15 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         ("version_lines", "version_lines.rs"),
         ("save_version", "save_version.rs"),
         ("publish", "publish.rs"),
-        ("recovery", "recovery.rs"),
+        ("recovery", "recovery/mod.rs"),
     ] {
-        let feature = parse(&source_dir.join(file));
         let mut imports = Vec::new();
-        for item in &feature.items {
-            if let Item::Use(import) = item {
-                use_paths(&import.tree, "", &mut imports);
+        for file in module_files(&source_dir, entry) {
+            let feature = parse(&file);
+            for item in &feature.items {
+                if let Item::Use(import) = item {
+                    use_paths(&import.tree, "", &mut imports);
+                }
             }
         }
         for forbidden in ["crate::ipc", "crate::watch", "tauri"] {
@@ -169,5 +194,71 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
     assert!(
         ipc_imports.iter().all(|path| path != "crate::*"),
         "ipc.rs must name the modules it adapts instead of depending on the crate-root facade"
+    );
+}
+
+/// A module that was split into submodules must have gained something. The
+/// property that makes the split worth its extra file is that each submodule is
+/// a separate owner: shared code moves *up* into `mod.rs`, it is not reached
+/// sideways. Without this, a directory is only a longer path to the same flat
+/// namespace.
+#[test]
+fn split_modules_keep_their_submodules_independent() {
+    let source_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut checked = 0;
+    for entry in fs::read_dir(&source_dir).expect("read src") {
+        let directory = entry.expect("read src entry").path();
+        if !directory.is_dir() || !directory.join("mod.rs").is_file() {
+            continue;
+        }
+        let siblings = module_files(
+            &source_dir,
+            &format!(
+                "{}/mod.rs",
+                directory
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .expect("directory name")
+            ),
+        )
+        .into_iter()
+        .skip(1)
+        .collect::<Vec<_>>();
+        let names = siblings
+            .iter()
+            .filter_map(|path| path.file_stem().and_then(|stem| stem.to_str()))
+            .map(str::to_string)
+            .collect::<BTreeSet<_>>();
+        for path in &siblings {
+            let file = parse(path);
+            let mut imports = Vec::new();
+            for item in &file.items {
+                if let Item::Use(import) = item {
+                    use_paths(&import.tree, "", &mut imports);
+                }
+            }
+            let own = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .expect("file stem");
+            for import in &imports {
+                let Some(target) = import
+                    .strip_prefix("super::")
+                    .and_then(|rest| rest.split("::").next())
+                else {
+                    continue;
+                };
+                assert!(
+                    target == own || !names.contains(target),
+                    "{} reaches sideways into sibling submodule `{target}`; move what they share up into mod.rs",
+                    path.display(),
+                );
+            }
+            checked += 1;
+        }
+    }
+    assert!(
+        checked > 0,
+        "no split module was inspected; this guard would pass vacuously"
     );
 }

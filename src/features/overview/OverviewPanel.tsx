@@ -146,7 +146,7 @@ const PREVIEW_CATEGORY_ICONS: Record<ChangeCategory, React.JSX.Element> = {
 };
 
 const OverviewFileTypeIcon = lazy(async () => {
-  const { getFileTypeIcon } = await import("../../fileIcons");
+  const { getFileTypeIcon } = await import("../../shared/file-icons");
   return {
     default: function OverviewFileTypeIconComponent({ path }: { path: string }): React.JSX.Element {
       const FileTypeIcon = getFileTypeIcon(path);

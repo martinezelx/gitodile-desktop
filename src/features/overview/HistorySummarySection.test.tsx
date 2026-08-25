@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
-import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../screenModule";
+import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import { createHistoryController, type HistoryPage, type HistoryPort, type SavedVersionSummary } from "../history";
 import { HistorySummarySection } from "./HistorySummarySection";
 

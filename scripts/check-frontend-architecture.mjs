@@ -123,7 +123,7 @@ export function findArchitectureViolations(cruiseResult) {
       }
       if (
         sourceOwner &&
-        /(?:^|\/)(?:src|architecture-fixtures)\/(?:app\/|bootstrap\.[jt]sx?$|main\.[jt]sx?$|screens\.[jt]sx?$)/.test(target)
+        /(?:^|\/)(?:src|architecture-fixtures)\/(?:app\/|bootstrap\.[jt]sx?$)/.test(target)
       ) {
         violations.push(
           `Feature "${sourceOwner}" owns ${source} and may not import app composition ${target}. ` +
@@ -150,7 +150,7 @@ export function findArchitectureViolations(cruiseResult) {
       // pull every primitive into the entry chunk: `shared/ui/index.ts` is
       // imported by lazy feature chunks too, and one shared module reachable
       // from both ends up eagerly bundled. Measured, not assumed — routing
-      // `main.tsx` through the barrel moved popupMenu's 1.8 kB into the entry
+      // `app/App.tsx` through the barrel moved popupMenu's 1.8 kB into the entry
       // and left 0.45 kB under the task-023 warning.
       //
       // Stylesheets are exempt because `styles.css` is a deliberate, tested
@@ -192,7 +192,9 @@ export function findArchitectureViolations(cruiseResult) {
         queue.push(target);
       }
     }
-    const fileIcons = [...previous.keys()].find((source) => /(?:^|\/)src\/fileIcons\.tsx?$/.test(source));
+    const fileIcons = [...previous.keys()].find((source) =>
+      /(?:^|\/)src\/shared\/file-icons\/index\.tsx?$/.test(source),
+    );
     if (fileIcons) {
       const pathToIcons = [];
       for (let current = fileIcons; current; current = previous.get(current)) pathToIcons.unshift(current);

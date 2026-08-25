@@ -417,7 +417,7 @@
 
 /* One trigger for create/open/clone. The popup wears the shared `.app-menu`
    surface unchanged — width and z-index included — and is placed by
-   projectSwitcher.tsx, which portals it and positions it `fixed`. Only the
+   project-switcher/ProjectSwitcher.tsx, which portals it and positions it `fixed`. Only the
    trigger's open state belongs here. (A rule for the popup would be dead
    weight anyway: primitives.css loads after this file, so `.app-menu` wins
    every tie at equal specificity.) */

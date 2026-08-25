@@ -1,4 +1,4 @@
-import type { ProjectRuntimeSnapshot } from "../../projectRuntime";
+import type { ProjectRuntimeSnapshot } from "../../runtime/project/runtime";
 
 export type RemoteInfo = {
   name: string;

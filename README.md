@@ -87,11 +87,11 @@ React feature UI
 
 The frontend is a modular monolith. Product features live under
 `src/features/<feature>/` and own their UI, controller, domain types, port,
-Tauri adapter, translations, styles, and tests. `src/main.tsx` is the
-composition root for cross-feature orchestration; reusable shell UI and
-preferences live under `src/app/`. Screens are declared once in
-`src/screens.tsx` and consume a project-scoped runtime rather than fetching
-when they become visible.
+Tauri adapter, translations, styles, and tests. `src/app/App.tsx` is the
+composition root for cross-feature orchestration; the rest of the shell UI and
+preferences live beside it under `src/app/`. Screens are declared once in
+`src/app/screens.tsx` and consume the project-scoped runtime in
+`src/runtime/` rather than fetching when they become visible.
 
 Rust keeps transport, policy, coordination, domains, and infrastructure
 separate:

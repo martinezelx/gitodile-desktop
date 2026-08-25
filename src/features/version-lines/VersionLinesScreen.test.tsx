@@ -2,7 +2,7 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
-import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../screenModule";
+import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import { createVersionLinesController } from "./controller";
 import type { VersionLinesSnapshot } from "./domain";
 import type { VersionLinesPort } from "./port";

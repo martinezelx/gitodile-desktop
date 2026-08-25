@@ -1,4 +1,4 @@
-import type { ProjectRuntime, ProjectCacheWarmReason } from "../../projectRuntime";
+import type { ProjectRuntime, ProjectCacheWarmReason } from "../../runtime/project/runtime";
 import type { WorkingTreeStatus } from "../status";
 import type { DiffWarmOutcome, FileDiff } from "./domain";
 import type { ChangesPort } from "./port";

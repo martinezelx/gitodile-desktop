@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
-import { getFileTypeIcon } from "../../fileIcons";
+import { getFileTypeIcon } from "../../shared/file-icons";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import { SaveVersionDialog } from "../save-version";
 import { LoadingBar, RefreshIconButton } from "../../shared/ui";

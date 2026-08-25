@@ -1,6 +1,6 @@
-import { acceptsRepositoryInvalidation, invalidationNeedsSharedRefresh, type RepositoryInvalidation } from "../../repositoryInvalidation";
-import type { ProjectRuntime } from "../../projectRuntime";
-import { shouldRefreshOnWatchEvent, type ProjectSessionsState } from "../../projectSessions";
+import { acceptsRepositoryInvalidation, invalidationNeedsSharedRefresh, type RepositoryInvalidation } from "../../runtime/project/invalidation";
+import type { ProjectRuntime } from "../../runtime/project/runtime";
+import { shouldRefreshOnWatchEvent, type ProjectSessionsState } from "../../runtime/project/sessions";
 import type { RepositoryController } from "./controller";
 
 export type RepositoryReadQuery = { projectId: string; sessionEpoch: string };

@@ -7,10 +7,12 @@ the same registry but do not pretend to be screens.
 
 Create `src/features/<feature>/` with an explicit `index.ts`. UI, controller,
 selectors, ports, tests and the screen descriptor stay with that owner.
-Feature code may import the neutral contracts in `src/screenModule.tsx` and
-`src/projectRuntime.ts`; it must not import `main.tsx`, `bootstrap.tsx` or
-`screens.tsx`. Cross-feature consumers use the owning feature's `index.ts`,
-not an internal file.
+Feature code may import the neutral contracts under `src/runtime/` —
+`runtime/screen/module.tsx`, `runtime/project/runtime.ts`,
+`runtime/project/sessions.ts` and `runtime/project/invalidation.ts` — plus a
+shared public entry point. It must not import anything under `src/app/` or
+`src/bootstrap.tsx`. Cross-feature consumers use the owning feature's
+`index.ts`, not an internal file.
 
 ## 2. Declare one functional descriptor
 
@@ -29,10 +31,10 @@ A functional descriptor must declare:
 - `hidden-inert` accessibility and active-only announcement policy;
 - an optional numeric performance budget.
 
-Add the feature-owned descriptor to `SCREEN_MODULES` in `src/screens.tsx`.
+Add the feature-owned descriptor to `SCREEN_MODULES` in `src/app/screens.tsx`.
 Expanded/compact navigation, command palette, project guard, lazy/preload,
 keep-alive, accessibility hiding and screen profiling are derived from that
-registration. Do not wire any of those separately in `main.tsx`.
+registration. Do not wire any of those separately in `src/app/App.tsx`.
 
 ## 3. Read project state through selectors
 
@@ -86,8 +88,8 @@ At minimum add tests for:
 
 Run `pnpm run check:architecture`. It analyzes runtime, type-only, dynamic and
 test edges, rejects production cycles/directions, protects the deferred
-`fileIcons` path and self-tests a seeded forbidden feature-to-app edge with an
-owning-module error.
+`shared/file-icons` path and self-tests a seeded forbidden feature-to-app edge
+with an owning-module error.
 
 For the complete read-and-mutation example, including epoch-keyed request
 deduplication, mutation supersession, bounded eviction and the Rust service
@@ -111,7 +113,7 @@ rules with the selector owner unless the rule is genuinely shared.
 
 Put English and Spanish strings in the feature's `translations.ts`. Export one
 namespace with a feature-local interface and exact `en`/`es` object literals,
-then compose it eagerly in `src/i18n.tsx`. This keeps per-feature missing/extra
+then compose it eagerly in `src/i18n/index.tsx`. This keeps per-feature missing/extra
 keys and formatter signatures compile-checked while preserving the complete
 `Translations` type and `useLanguage()` ergonomics. Navigation, palette and
 other shell strings remain in `src/app/translations.ts`; shared errors and
@@ -127,11 +129,11 @@ footprint is a signal to look for a missing contract or misplaced policy.
 
 | File | Edit | Kind |
 | --- | --- | --- |
-| `src/screens.tsx` | import + one `SCREEN_MODULES` entry | declarative registration |
-| `src/projectSessions.ts` | widen the `ProjectView` union by one id | declarative |
+| `src/app/screens.tsx` | import + one `SCREEN_MODULES` entry | declarative registration |
+| `src/runtime/project/sessions.ts` | widen the `ProjectView` union by one id | declarative |
 | `src/app/translations.ts` | one palette label in the interface and both locales | shell copy |
-| `src/main.tsx` | create the controller, register a read subscriber when needed (§9), add one `screens` record entry | composition wiring |
-| `src/ipcContract.test.ts` | command count and name list | pinned contract |
+| `src/app/App.tsx` | create the controller, register a read subscriber when needed (§9), add one `screens` record entry | composition wiring |
+| `src/architecture/ipcContract.test.ts` | command count and name list | pinned contract |
 | `src-tauri/src/lib.rs` | one `mod` and one `generate_handler!` entry | declarative registration |
 | `src-tauri/src/ipc.rs` | one transport adapter | transport |
 | `src-tauri/src/application.rs` | one `EXECUTION_INVENTORY` policy + one checked registry name | declarative policy |
@@ -144,7 +146,7 @@ list; ADR 0003 rejects indirection that has only one consumer.
 ## 9. Staying fresh without editing another feature
 
 A screen whose snapshot must survive an external repository change registers a
-`RepositoryReadSubscriber` with the coordinator in `main.tsx`:
+`RepositoryReadSubscriber` with the coordinator in `src/app/App.tsx`:
 
 ```ts
 {

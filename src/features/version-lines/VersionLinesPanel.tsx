@@ -472,7 +472,7 @@ export function VersionLinesPanel({
   sessionEpoch: string;
   /** The project session's cached branch inventory, or `null` if this project
    * has never loaded one. Reading it (and the refresh that keeps it current)
-   * belongs to `main.tsx`, so navigating away from this screen and back
+   * belongs to `app/App.tsx`, so navigating away from this screen and back
    * re-renders the known answer instead of restarting from a spinner — see
    * task 019. */
   snapshot: VersionLinesSnapshot | null;
@@ -487,7 +487,7 @@ export function VersionLinesPanel({
   onSnapshot: (snapshot: VersionLinesSnapshot) => void;
   /** Called after any successful create/switch/delete so the rest of the
    * app (repository facts, working-tree status, selection) can invalidate
-   * itself — see `main.tsx`'s `handleVersionLineChanged`. */
+   * itself — see `app/App.tsx`'s `handleVersionLineChanged`. */
   onChanged: () => void;
   onSaveVersion: () => void;
   /** Navigates to the Changes screen — the only place conflicted files are

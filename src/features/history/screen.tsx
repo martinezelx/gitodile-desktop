@@ -1,5 +1,5 @@
 import { GitCommitHorizontal } from "lucide-react";
-import { createLazyScreenContainer, type ScreenModule } from "../../screenModule";
+import { createLazyScreenContainer, type ScreenModule } from "../../runtime/screen/module";
 
 const container = createLazyScreenContainer(
   () => import("./HistoryScreen"),

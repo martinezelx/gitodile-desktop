@@ -365,6 +365,35 @@ to hide divergence. The delivered tree differs in these explicit ways:
   parser workarounds and retained a minimum real-module count. ADR 0005 owns
   that toolchain decision and its TypeScript 7 exit condition.
 
+### Observed after task 073
+
+The physical tree now matches the ownership the migration delivered. The
+`Decision` block above still shows the shape accepted in 2026; these are the
+differences a reader should expect in `src/`:
+
+- **`app/projectRuntime.ts` is `runtime/project/runtime.ts`.** The accepted tree
+  put the project store inside the composition layer, but features depend on it
+  and must not depend on `app/`. Splitting a neutral `runtime/` owner —
+  `project/` for the store, session reducer and invalidation acceptance,
+  `screen/` for the screen/lifecycle contracts — keeps that dependency legal
+  without the store becoming an ambient global. The guard now forbids exactly
+  `src/app/**` and `src/bootstrap.tsx` to features, rather than naming three
+  root files.
+- **Translation composition owns `src/i18n/`.** It is neither a shared primitive
+  nor a feature; feature-owned `translations.ts` files and `shared/i18n`
+  (shared copy plus the `AppError` vocabulary) are unchanged.
+- **`shared/file-icons/` replaces the root `fileIcons.ts`.** It is the module
+  itself at `index.ts`, not a re-export barrel, so the deferred boundary is
+  unchanged; the entry-chunk guard now matches the new path and the icon chunk
+  is byte-identical.
+- **`contextMenu.ts` is `shared/ui/clipboard.ts`.** The file only ever exported
+  `copyTextToClipboard`; the old name described a caller, not the owner.
+- **Cross-cutting tests own `src/architecture/`.** The guard self-tests, the IPC
+  contract snapshot and the style-cascade manifest test verify the repository,
+  not a feature, and pretending otherwise was the reason they sat at the root.
+- **The root keeps only entrypoints.** `bootstrap.tsx`, `styles.css` and the two
+  ambient `.d.ts` files. An empty root was never the goal.
+
 ### Constraints
 
 - Command names, payloads, error codes, safety previews, state tokens, hooks,

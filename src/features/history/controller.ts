@@ -1,4 +1,4 @@
-import type { ProjectCacheWarmReason, ProjectRuntime } from "../../projectRuntime";
+import type { ProjectCacheWarmReason, ProjectRuntime } from "../../runtime/project/runtime";
 import { isAppError } from "../../shared/i18n";
 import type { FileDiff } from "../changes";
 import type {

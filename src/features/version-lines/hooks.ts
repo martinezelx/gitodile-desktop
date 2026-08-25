@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 
-import { useScreenLifecycleController } from "../../screenModule";
+import { useScreenLifecycleController } from "../../runtime/screen/module";
 import type { VersionLinesController } from "./controller";
 import type { VersionLinesQuery } from "./port";
 import type { VersionLinesState } from "./store";

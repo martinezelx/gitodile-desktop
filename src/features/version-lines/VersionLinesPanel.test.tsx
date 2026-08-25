@@ -75,7 +75,7 @@ function withBugfixLine(): VersionLinesSnapshot {
 /** The panel is controlled: the branch inventory, its loading flag, and its
  * error live in the project session so leaving the screen and coming back
  * renders the known answer instead of a spinner (task 019). These defaults
- * stand in for `main.tsx` holding a loaded snapshot. */
+ * stand in for `app/App.tsx` holding a loaded snapshot. */
 function renderPanel(props: Partial<React.ComponentProps<typeof VersionLinesPanel>> = {}) {
   const onChanged = vi.fn();
   const onSaveVersion = vi.fn();

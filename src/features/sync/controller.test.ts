@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createProjectRuntime } from "../../projectRuntime";
-import { initialProjectSessionsState } from "../../projectSessions";
+import { createProjectRuntime } from "../../runtime/project/runtime";
+import { initialProjectSessionsState } from "../../runtime/project/sessions";
 import type { RepositoryInfo } from "../repository";
 import { createSyncController } from "./controller";
 import type { TeamSyncStatus } from "./domain";

@@ -1,6 +1,6 @@
 import { Settings } from "lucide-react";
 
-import type { ScreenModule } from "../../screenModule";
+import type { ScreenModule } from "../../runtime/screen/module";
 
 /** Settings is registered here for the same reason every screen is registered
  * beside its feature: nav, the command palette and the compact nav all derive

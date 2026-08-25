@@ -1,5 +1,5 @@
-import type { RepositoryInvalidation } from "../../repositoryInvalidation";
-import type { ProjectRuntime, ProjectCacheWarmReason } from "../../projectRuntime";
+import type { RepositoryInvalidation } from "../../runtime/project/invalidation";
+import type { ProjectRuntime, ProjectCacheWarmReason } from "../../runtime/project/runtime";
 import type { VersionLinesSnapshot } from "./domain";
 import type { VersionLinesPort, VersionLinesQuery } from "./port";
 import { EMPTY_VERSION_LINES_STATE, versionLinesSnapshotsEqual, type VersionLinesState } from "./store";

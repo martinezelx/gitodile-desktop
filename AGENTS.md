@@ -79,10 +79,10 @@ Secondary:
 - Prefer accessible primitives and semantic HTML.
 - Use CSS variables as design tokens.
 - Avoid a large UI framework until the interaction model stabilizes.
-- Register every screen in `src/screens.tsx`. Navigation, the command palette,
-  idle chunk prefetching, the open-project guard, and keep-alive mounting all
-  derive from that table; a screen wired up by hand will silently miss them.
-  See "Screen shell and navigation cost" in `docs/ARCHITECTURE.md`.
+- Register every screen in `src/app/screens.tsx`. Navigation, the command
+  palette, idle chunk prefetching, the open-project guard, and keep-alive
+  mounting all derive from that table; a screen wired up by hand will silently
+  miss them. See "Screen shell and navigation cost" in `docs/ARCHITECTURE.md`.
 - Follow `docs/architecture/frontend-feature-guide.md`: feature-owned screen
   descriptors use the neutral runtime/lifecycle contracts, and hidden screens
   must suspend polling, costly effects, subscriptions, and announcements.
@@ -90,10 +90,11 @@ Secondary:
   snapshot; refresh on project activation or an explicit repository
   invalidation, idle-deferred where it is speculative.
 - Visual components do not call `invoke`. A feature reaches Rust through its own
-  typed port and `tauriAdapter.ts`. The only direct calls left in `main.tsx` are
-  watcher and session lifecycle wiring, which the composition root owns.
-- `main.tsx` is the app composition root and renders no screen body. Overview
-  owns an eager feature container; the other functional screens own lazy
+  typed port and `tauriAdapter.ts`. The only direct calls left in
+  `src/app/App.tsx` are watcher and session lifecycle wiring, which the
+  composition root owns.
+- `src/app/App.tsx` is the app composition root and renders no screen body.
+  Overview owns an eager feature container; the other functional screens own lazy
   containers, and the screen contract has no `host-owned` escape hatch. A new
   screen owns its own container; see the measured footprint table in
   `docs/architecture/frontend-feature-guide.md` §8 before starting one.
@@ -121,6 +122,10 @@ Secondary:
   in `git.rs`. System-Git settings belong in `tooling.rs`, watcher orchestration
   in `watch.rs`, desktop-shell services in `desktop.rs`, shared mutation
   vocabulary in `operation.rs`, and temporary-index preparation in `index.rs`.
+- Keep a Rust module in one file until it holds two separate owners, not until
+  it gets long. A directory earns its place when the split makes helpers private
+  to one owner that the other should never call; whatever they share moves up
+  into `mod.rs`, and a submodule importing a sibling fails the build.
 
 ### Git integration
 

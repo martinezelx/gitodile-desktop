@@ -4,8 +4,8 @@ import type { ChangesController } from "../changes";
 import type { HistoryController } from "../history";
 import type { VersionLinesController } from "../version-lines";
 import type { SyncController, SyncErrorMapper } from "../sync";
-import type { ProjectRuntime } from "../../projectRuntime";
-import type { ProjectSession } from "../../projectSessions";
+import type { ProjectRuntime } from "../../runtime/project/runtime";
+import type { ProjectSession } from "../../runtime/project/sessions";
 
 type ProjectCacheWarmingOptions = {
   runtime: ProjectRuntime;

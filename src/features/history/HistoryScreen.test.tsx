@@ -3,7 +3,7 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
-import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../screenModule";
+import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import { createHistoryController } from "./controller";
 import type { HistoryPage } from "./domain";
 import { HistoryScreen } from "./HistoryScreen";

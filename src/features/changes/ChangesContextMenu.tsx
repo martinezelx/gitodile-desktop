@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Copy, Trash2 } from "lucide-react";
-import { copyTextToClipboard } from "../../contextMenu";
+import { copyTextToClipboard } from "../../shared/ui";
 import type { Translations } from "../../i18n";
 import { handlePopupMenuKeyDown } from "../../shared/ui";
 

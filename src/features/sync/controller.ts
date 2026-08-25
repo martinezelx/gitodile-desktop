@@ -1,4 +1,4 @@
-import type { ProjectCacheWarmReason, ProjectRuntime } from "../../projectRuntime";
+import type { ProjectCacheWarmReason, ProjectRuntime } from "../../runtime/project/runtime";
 import { teamSyncFactsEqual, type GetTeamChangesResult, type TeamSyncStatus } from "./domain";
 import type { SyncPort, TeamSyncQuery } from "./port";
 

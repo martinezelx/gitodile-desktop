@@ -1,6 +1,6 @@
 import { LayoutDashboard } from "lucide-react";
 
-import { createEagerScreenContainer, type ScreenModule } from "../../screenModule";
+import { createEagerScreenContainer, type ScreenModule } from "../../runtime/screen/module";
 import { OverviewPanel as OverviewPanelComponent } from "./OverviewPanel";
 
 /** Eager, not lazy. Overview is what the app paints with no project open, so a

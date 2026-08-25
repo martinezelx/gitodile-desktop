@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createRepositoryController } from "./controller";
 import { createRepositoryReadCoordinator, type RepositoryReadSubscriber } from "./readCoordinator";
 import type { RepositoryInfo } from "./domain";
-import { createProjectRuntime, type ProjectRuntime } from "../../projectRuntime";
-import type { ProjectSessionsState } from "../../projectSessions";
+import { createProjectRuntime, type ProjectRuntime } from "../../runtime/project/runtime";
+import type { ProjectSessionsState } from "../../runtime/project/sessions";
 
 const EPOCH = "epoch-1";
 

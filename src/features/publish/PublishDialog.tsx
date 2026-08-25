@@ -5,7 +5,7 @@ import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import { CHANGE_CATEGORY_ICONS } from "../status";
-import { getFileTypeIcon } from "../../fileIcons";
+import { getFileTypeIcon } from "../../shared/file-icons";
 import type { CommitFileChange, PublishPlan, PublishResult, RemoteInfo } from "./domain";
 import type { PublishController } from "./controller";
 import { createPublishController } from "./controller";

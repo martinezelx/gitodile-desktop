@@ -1,4 +1,4 @@
-import type { ProjectRuntime } from "../../projectRuntime";
+import type { ProjectRuntime } from "../../runtime/project/runtime";
 import type { StatusPort, StatusQuery } from "./port";
 import { workingTreeSnapshotsEqual } from "./domain";
 

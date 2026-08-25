@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createProjectRuntime } from "../../projectRuntime";
+import { createProjectRuntime } from "../../runtime/project/runtime";
 import { createVersionLinesController } from "./controller";
 import type { VersionLinesSnapshot } from "./domain";
 import type { VersionLinesPort, VersionLinesQuery } from "./port";

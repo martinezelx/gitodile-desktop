@@ -12,7 +12,7 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { DiffResultView, type FileDiff } from "../changes";
 import { CHANGE_CATEGORY_ICONS } from "../status";
-import { getFileTypeIcon } from "../../fileIcons";
+import { getFileTypeIcon } from "../../shared/file-icons";
 import type { PendingVersionsResult } from "../publish";
 import { usePendingVersionDetails, type DiffState, type FilesState } from "./pendingVersionDetails";
 import { autoHideScrollbarProps } from "../../shared/ui";
@@ -126,7 +126,7 @@ export function PendingVersionsSection({
   /** False on a detached HEAD or unborn line — there is nowhere for a publish
    * to go, so the header's own "Publish all" is withheld even though the
    * per-version rows (still individually reachable) already guard themselves
-   * the same way one level up, in `main.tsx`'s `canPublish`. */
+   * the same way one level up, in `app/App.tsx`'s `canPublish`. */
   canPublish: boolean;
   onPublish: () => void;
 }): React.JSX.Element {

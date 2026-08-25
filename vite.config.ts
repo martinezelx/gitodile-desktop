@@ -13,7 +13,8 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(packageVersion.version),
   },
   // File-type artwork is consumed as raw SVG and rendered through an `<img>`
-  // adapter in `src/fileIcons.ts`, which isolates every icon's internal IDs.
+  // adapter in `src/shared/file-icons/index.ts`, which isolates every icon's
+  // internal IDs.
   plugins: [react(), Icons({ compiler: "raw" })],
   clearScreen: false,
   server: {

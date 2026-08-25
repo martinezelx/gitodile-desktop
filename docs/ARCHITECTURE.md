@@ -30,18 +30,44 @@ The frontend is a modular monolith:
 
 ```text
 src/
-  bootstrap.tsx             # mounts React and reveals the native window
-  main.tsx                  # composition root and cross-feature orchestration
-  screens.tsx               # single screen registry and keep-alive host
-  screenModule.tsx          # neutral screen/lifecycle contracts
-  projectRuntime.ts         # project-scoped immutable store/selectors
-  projectSessions.ts        # session state and persistence shape
-  app/                      # shell UI, overlays, preferences, branding, copy
+  bootstrap.tsx             # renderer entrypoint: mounts React, reveals the window
+  styles.css                # eager cascade manifest (tokens -> base -> shell -> features)
+  vite-env.d.ts             # build-tool ambient declarations
+  raw-icons.d.ts            # `~icons/*` ambient declarations
+
+  app/                      # application shell and composition
+    App.tsx                 # composition root and cross-feature orchestration
+    screens.tsx             # single screen registry, keep-alive host, prefetch
+    project-switcher/       # open-project switcher UI and avatar derivation
+    ...                     # overlays, rail nav, titlebar, preferences, branding
+
+  runtime/                  # neutral, product-free runtime contracts
+    project/                # runtime store, session state, invalidation acceptance
+    screen/                 # screen module and lifecycle contracts
+
+  i18n/                     # translation composition and language runtime
   features/<feature>/       # product owner
   shared/ui/                # proven multi-consumer primitives
   shared/i18n/              # shared copy/error localization
+  shared/file-icons/        # deferred file-type icon set
+  architecture/             # cross-cutting guard and IPC contract tests
+  assets/                   # static artwork
   styles/                   # tokens and base rules
 ```
+
+The root holds only real entrypoints and ambient declarations. Everything else
+has a named owner, and the three neutral owners are deliberately distinct:
+
+- `app/` composes the product. It may import anything; nothing outside it may
+  import it.
+- `runtime/` holds contracts that are neutral about both product and shell —
+  the project store, session reducer, repository-invalidation acceptance and the
+  screen lifecycle. Features depend on these; they carry no feature knowledge of
+  their own and never hold an ambient current-project singleton.
+- `shared/` holds proven multi-consumer primitives behind a public `index.ts`.
+
+There is deliberately no `common/`, `utils/` or shared-types bucket: a module
+with no owner is a design question, not a folder.
 
 A feature owns, as applicable:
 
@@ -62,10 +88,10 @@ stable, domain-neutral contract.
 
 ### Screens and lifecycle
 
-Every screen is registered once in `src/screens.tsx`. The descriptor drives
+Every screen is registered once in `src/app/screens.tsx`. The descriptor drives
 navigation, command-palette entries, project guards, chunk prefetching,
 keep-alive mounting, accessibility behavior, and optional performance budgets.
-Do not wire any of those separately in `main.tsx`.
+Do not wire any of those separately in `src/app/App.tsx`.
 
 Overview is eager because it owns first paint. Other functional screens use
 `createLazyScreenContainer`; the same loader promise serves lazy mounting and
@@ -138,14 +164,15 @@ pseudo-elements behind a theme change — sits in `styles/`, not in the sheet of
 whichever control happens to trigger it.
 
 English and Spanish dictionaries stay beside their owner and are composed in
-`src/i18n.tsx`. Exact typed locale objects make missing, extra, or incompatible
+`src/i18n/index.tsx`. Exact typed locale objects make missing, extra, or incompatible
 keys a compile-time error. Shared errors/actions belong in `shared/i18n`; shell
 copy belongs in `app/translations.ts`.
 
 ## Rust ownership
 
 The Rust side uses flat modules until a module genuinely needs internal
-submodules:
+submodules. Two do; the rest are one file each, and file size alone is not a
+reason to change that:
 
 ```text
 src-tauri/src/
@@ -169,10 +196,15 @@ src-tauri/src/
   status.rs
   changes.rs
   history.rs              # bounded read-only saved-version timeline/details
-  recovery.rs             # persistent discard snapshots and safe restore
+  recovery/               # two recovery owners that share only a clock
+    mod.rs
+    discard.rs            # working-tree discard snapshots and safe restore
+    history.rs            # pre-rewrite version-line tips as hidden refs
   save_version.rs
   publish.rs
-  sync.rs                  # remotes, upstreams, fetch and relation knowledge
+  sync/                   # remotes, upstreams, fetch and relation knowledge
+    mod.rs                # remote config and the team-sync read model
+    get_team_changes.rs   # the one destructive workflow, with its safety checks
   version_lines.rs        # product domains
   test_support.rs         # shared hermetic Git-repository test fixtures
   tests/<domain>_tests.rs # cross-module integration tests grouped by owner
@@ -184,6 +216,16 @@ repository access, Git-command, and shared error contracts; they may not depend
 on `ipc`, `watch`, or Tauri. Integration tests live under `src/tests/`, grouped
 by the product domain whose behavior they verify; reusable repository fixtures
 live in `test_support.rs`, never in the crate composition root.
+
+A module becomes a directory only when it holds responsibilities that are
+separate owners, not when it grows long. The bar is a cohesive unit whose
+helpers stop being visible to its neighbours: `recovery` split because working-
+tree discard and history recovery shared nothing but a clock (and had begun
+prefixing helpers `history_*` to avoid colliding in one namespace); `sync` split
+because the `get team changes` workflow's eighteen safety helpers were reachable
+from the read model that has no business calling them. `architecture.rs` fails
+the build if one submodule imports a sibling — whatever they share belongs in
+`mod.rs`.
 
 ### Repository identity and access
 
@@ -211,7 +253,7 @@ existing permit.
 Cloning is an acquisition workflow owned by `clone.rs`, separate from opening
 an existing project and from provider-specific integrations. The frontend
 `features/clone` owner supplies an eager dialog, attempt-generation controller,
-typed port, and Tauri adapter; only `main.tsx` hands a verified destination to
+typed port, and Tauri adapter; only `src/app/App.tsx` hands a verified destination to
 the existing repository/session lifecycle.
 
 Rust accepts HTTPS, SSH (including scp-like syntax), Git, file URLs, and local
@@ -453,12 +495,13 @@ the confirmation and recovery rules in `AGENTS.md`.
   metadata, unique task IDs, README package metadata, and application-version
   consistency across npm, Cargo, and Tauri;
 - `check:architecture` analyzes production, type-only, dynamic, and test edges,
-  rejects forbidden directions/cycles and eager `fileIcons`, and proves its
+  rejects forbidden directions/cycles and an eager `shared/file-icons`, and proves its
   rules with seeded violations;
 - TypeScript strict checking, Vitest, and the production Vite build;
 - `cargo fmt --check`, Clippy with warnings denied, and all Rust tests;
 - Rust syntax-based tests pin module ownership, keep `lib.rs` registration-only,
-  reject crate-root glob transport imports, and verify the IPC/policy inventory.
+  reject crate-root glob transport imports, keep a split module's submodules from
+  reaching sideways into each other, and verify the IPC/policy inventory.
 
 Performance comparison protocol and retained budgets live in the
 [`architecture baseline`](architecture/023-performance-baseline.md). Enable

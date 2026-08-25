@@ -3,8 +3,8 @@ import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 
 import { LanguageProvider } from "./i18n";
-import { App } from "./main";
-import { SwitchMeasurementRoot } from "./screens";
+import { App } from "./app/App";
+import { SwitchMeasurementRoot } from "./app/screens";
 import "./styles/fonts.css";
 
 document.addEventListener("contextmenu", (event) => {
