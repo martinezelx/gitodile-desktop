@@ -5,7 +5,7 @@
 //! behind the application boundary.
 
 use crate::{
-    changes::{self, CommitFileChange, FileDiff, FileLines},
+    changes::{self, CommitFileChange, FileDiff, FileLines, WorkingTreeDiffBatch},
     clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
     desktop,
     error::AppError,
@@ -35,12 +35,11 @@ use crate::{
     watch,
 };
 
-fn validate_session(path: &str, session_epoch: Option<&str>) -> Result<(), AppError> {
+/// Every repository-scoped command that acts on an already-open project proves
+/// its incarnation here. Reads and mutations share one rule; there is no
+/// weaker read path and no missing-epoch allowance.
+fn validate_session(path: &str, session_epoch: &str) -> Result<(), AppError> {
     session::global().validate(path, session_epoch)
-}
-
-fn validate_mutation_session(path: &str, session_epoch: &str) -> Result<(), AppError> {
-    session::global().validate(path, Some(session_epoch))
 }
 
 #[tauri::command]
@@ -174,9 +173,9 @@ pub(crate) fn cleanup_initialize_project(
 #[tauri::command(async)]
 pub(crate) fn read_working_tree_status(
     path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<WorkingTreeStatus, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     status::read_working_tree_status(path)
 }
 
@@ -184,9 +183,9 @@ pub(crate) fn read_working_tree_status(
 pub(crate) fn read_file_diff(
     path: String,
     file_path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<FileDiff, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     changes::read_file_diff(path, file_path)
 }
 
@@ -196,18 +195,18 @@ pub(crate) fn read_file_lines(
     file_path: String,
     start_line: u32,
     end_line: u32,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<FileLines, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     changes::read_file_lines(path, file_path, start_line, end_line)
 }
 
 #[tauri::command(async)]
 pub(crate) fn read_working_tree_diffs(
     path: String,
-    session_epoch: Option<String>,
-) -> Result<Vec<FileDiff>, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    session_epoch: String,
+) -> Result<WorkingTreeDiffBatch, AppError> {
+    validate_session(&path, &session_epoch)?;
     changes::read_working_tree_diffs(path)
 }
 
@@ -217,7 +216,7 @@ pub(crate) fn plan_discard_changes(
     selected_path: Option<String>,
     session_epoch: String,
 ) -> Result<DiscardPlan, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     recovery::plan_discard_changes(path, selected_path)
 }
 
@@ -228,7 +227,7 @@ pub(crate) fn discard_changes(
     state_token: String,
     session_epoch: String,
 ) -> Result<DiscardResult, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     recovery::discard_changes(path, selected_path, state_token)
 }
 
@@ -237,7 +236,7 @@ pub(crate) fn get_discard_recovery(
     path: String,
     session_epoch: String,
 ) -> Result<DiscardRecovery, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     recovery::get_discard_recovery(path)
 }
 
@@ -248,7 +247,7 @@ pub(crate) fn restore_discarded_changes(
     state_token: String,
     session_epoch: String,
 ) -> Result<(), AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     recovery::restore_discarded_changes(path, recovery_id, state_token)
 }
 
@@ -291,7 +290,13 @@ pub(crate) fn get_line_endings(
     session_epoch: Option<String>,
 ) -> Result<GitLineEndings, AppError> {
     if let Some(path) = path.as_deref() {
-        validate_session(path, session_epoch.as_deref())?;
+        // Semantic optionality, not compatibility: without a project there is
+        // no session to prove. With one, the epoch is required exactly like
+        // any other repository read.
+        let epoch = session_epoch
+            .as_deref()
+            .ok_or_else(session::stale_session_error)?;
+        validate_session(path, epoch)?;
     }
     Ok(tooling::get_line_endings(path))
 }
@@ -307,7 +312,7 @@ pub(crate) fn plan_save_version(
     selected_paths: Option<Vec<String>>,
     session_epoch: String,
 ) -> Result<SaveVersionPlan, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     save_version::plan_save_version(path, selected_paths)
 }
 
@@ -320,16 +325,16 @@ pub(crate) fn save_version(
     selected_paths: Option<Vec<String>>,
     session_epoch: String,
 ) -> Result<SaveVersionResult, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     save_version::save_version(path, title, description, state_token, selected_paths)
 }
 
 #[tauri::command(async)]
 pub(crate) fn discover_remotes(
     path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<RemoteDiscovery, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     sync::discover_remotes(path)
 }
 
@@ -340,7 +345,7 @@ pub(crate) fn plan_connect_remote(
     remote_name: String,
     remote_url: String,
 ) -> Result<ConnectRemotePlan, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     sync::plan_connect_remote(path, session_epoch, remote_name, remote_url)
 }
 
@@ -352,7 +357,7 @@ pub(crate) fn connect_remote(
     remote_url: String,
     state_token: String,
 ) -> Result<ConnectRemoteResult, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     sync::connect_remote(path, session_epoch, remote_name, remote_url, state_token)
 }
 
@@ -361,7 +366,7 @@ pub(crate) fn read_team_sync_status(
     path: String,
     session_epoch: String,
 ) -> Result<TeamSyncStatus, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     sync::read_team_sync_status(path, session_epoch)
 }
 
@@ -370,7 +375,7 @@ pub(crate) fn check_team_changes(
     path: String,
     session_epoch: String,
 ) -> Result<TeamSyncStatus, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     sync::check_team_changes(path, session_epoch)
 }
 
@@ -380,7 +385,7 @@ pub(crate) fn plan_get_team_changes(
     session_epoch: String,
     on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
 ) -> Result<GetTeamChangesPlan, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     sync::plan_get_team_changes(path, session_epoch, |phase| {
         let _ = on_progress.send(phase);
     })
@@ -394,7 +399,7 @@ pub(crate) fn get_team_changes(
     recovery_reference: String,
     on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
 ) -> Result<GetTeamChangesResult, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     sync::get_team_changes(
         path,
         session_epoch,
@@ -409,9 +414,9 @@ pub(crate) fn get_team_changes(
 #[tauri::command(async)]
 pub(crate) fn list_unpublished_versions(
     path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<PendingVersionsResult, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     status::list_unpublished_versions(path)
 }
 
@@ -419,9 +424,9 @@ pub(crate) fn list_unpublished_versions(
 pub(crate) fn read_commit_file_changes(
     path: String,
     commit: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<Vec<CommitFileChange>, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     changes::read_commit_file_changes(path, commit)
 }
 
@@ -430,9 +435,9 @@ pub(crate) fn read_commit_file_diff(
     path: String,
     commit: String,
     file_path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<FileDiff, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     changes::read_commit_file_diff(path, commit, file_path)
 }
 
@@ -444,7 +449,7 @@ pub(crate) fn read_history_page(
     page_size: Option<usize>,
     session_epoch: String,
 ) -> Result<HistoryPage, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     history::read_history_page_cached(&cache, path, cursor, page_size)
 }
 
@@ -456,7 +461,7 @@ pub(crate) fn read_saved_version_detail(
     commit: String,
     session_epoch: String,
 ) -> Result<SavedVersionDetail, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     history::read_saved_version_detail_cached(&cache, path, snapshot_token, commit)
 }
 
@@ -469,7 +474,7 @@ pub(crate) fn read_saved_version_file_diff(
     file_path: String,
     session_epoch: String,
 ) -> Result<FileDiff, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     history::read_saved_version_file_diff_cached(&cache, path, snapshot_token, commit, file_path)
 }
 
@@ -480,7 +485,7 @@ pub(crate) fn plan_publish(
     up_to: Option<String>,
     session_epoch: String,
 ) -> Result<PublishPlan, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     publish_domain::plan_publish(path, remote, up_to)
 }
 
@@ -492,16 +497,16 @@ pub(crate) fn publish(
     up_to: Option<String>,
     session_epoch: String,
 ) -> Result<PublishResult, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     publish_domain::publish(path, remote, state_token, up_to)
 }
 
 #[tauri::command(async)]
 pub(crate) fn get_version_lines(
     path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     version_lines::get_version_lines(path)
 }
 
@@ -512,7 +517,7 @@ pub(crate) fn plan_create_version_line(
     switch: bool,
     session_epoch: String,
 ) -> Result<CreateVersionLinePlan, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     version_lines::plan_create_version_line(path, name, switch)
 }
 
@@ -524,7 +529,7 @@ pub(crate) fn create_version_line(
     state_token: String,
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     version_lines::create_version_line(path, name, switch, state_token)
 }
 
@@ -534,7 +539,7 @@ pub(crate) fn plan_switch_version_line(
     target: String,
     session_epoch: String,
 ) -> Result<SwitchVersionLinePlan, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     version_lines::plan_switch_version_line(path, target)
 }
 
@@ -545,7 +550,7 @@ pub(crate) fn switch_version_line(
     state_token: String,
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     version_lines::switch_version_line(path, target, state_token)
 }
 
@@ -555,7 +560,7 @@ pub(crate) fn plan_delete_version_line(
     name: String,
     session_epoch: String,
 ) -> Result<DeleteVersionLinePlan, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     version_lines::plan_delete_version_line(path, name)
 }
 
@@ -566,7 +571,7 @@ pub(crate) fn delete_version_line(
     state_token: String,
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_mutation_session(&path, &session_epoch)?;
+    validate_session(&path, &session_epoch)?;
     version_lines::delete_version_line(path, name, state_token)
 }
 
@@ -575,17 +580,21 @@ pub(crate) fn watch_repository(
     app: tauri::AppHandle,
     registry: tauri::State<'_, watch::WatcherRegistry>,
     path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<bool, AppError> {
-    validate_session(&path, session_epoch.as_deref())?;
+    validate_session(&path, &session_epoch)?;
     watch::watch_repository(app, registry, path, session_epoch)
 }
 
 #[tauri::command(async)]
+/// Detaching is deliberately not validated — a renderer that has already lost
+/// its session must still be able to release the watcher it registered — but it
+/// is scoped to the exact epoch, so a late request from an older incarnation
+/// cannot detach the watcher a newer one owns.
 pub(crate) fn unwatch_repository(
     registry: tauri::State<'_, watch::WatcherRegistry>,
     path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) {
     watch::unwatch_repository(registry, path, session_epoch);
 }
@@ -596,8 +605,74 @@ pub(crate) fn close_project_session(
     path: String,
     session_epoch: String,
 ) -> Result<(), AppError> {
-    registry.unwatch(&path, Some(&session_epoch));
+    registry.unwatch(&path, &session_epoch);
     session::global().close(&path, &session_epoch)
+}
+
+#[cfg(test)]
+mod session_boundary_tests {
+    use super::*;
+    use crate::error::AppErrorCode;
+    use crate::test_support::{git_init, unique_temp_dir};
+
+    #[test]
+    fn line_endings_stay_global_without_a_project_and_are_epoch_checked_with_one() {
+        let path = unique_temp_dir("ipc-line-endings-epoch");
+        git_init(&path);
+
+        // No project path: a genuinely global read, with no session to prove.
+        assert!(get_line_endings(None, None).is_ok());
+
+        // With one, the epoch is required. Missing is not a compatibility
+        // case any more; it is a request that cannot name its session.
+        assert_eq!(
+            get_line_endings(Some(path.clone()), None).unwrap_err().code,
+            AppErrorCode::StaleSession
+        );
+        assert_eq!(
+            get_line_endings(Some(path.clone()), Some("not-an-epoch".into()))
+                .unwrap_err()
+                .code,
+            AppErrorCode::StaleSession
+        );
+
+        let epoch = session::global().open(&path, None).unwrap();
+        assert!(get_line_endings(Some(path.clone()), Some(epoch.clone())).is_ok());
+        session::global().close(&path, &epoch).unwrap();
+        assert_eq!(
+            get_line_endings(Some(path.clone()), Some(epoch))
+                .unwrap_err()
+                .code,
+            AppErrorCode::StaleSession
+        );
+
+        let _ = std::fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn a_repository_read_needs_the_current_epoch() {
+        let path = unique_temp_dir("ipc-read-epoch");
+        git_init(&path);
+        let epoch = session::global().open(&path, None).unwrap();
+
+        assert!(read_working_tree_status(path.clone(), epoch.clone()).is_ok());
+        assert_eq!(
+            read_working_tree_status(path.clone(), "not-an-epoch".into())
+                .unwrap_err()
+                .code,
+            AppErrorCode::StaleSession
+        );
+
+        session::global().close(&path, &epoch).unwrap();
+        assert_eq!(
+            read_working_tree_diffs(path.clone(), epoch)
+                .unwrap_err()
+                .code,
+            AppErrorCode::StaleSession
+        );
+
+        let _ = std::fs::remove_dir_all(&path);
+    }
 }
 
 #[cfg(test)]
@@ -615,6 +690,20 @@ mod contract_tests {
     struct Contract {
         commands: Vec<CommandContract>,
         error_codes: Vec<String>,
+        session_epoch: SessionEpochContract,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct SessionEpochContract {
+        required_for_open_repository_commands: bool,
+        semantic_exceptions: Vec<SemanticException>,
+    }
+
+    #[derive(Deserialize)]
+    struct SemanticException {
+        command: String,
+        reason: String,
     }
 
     #[derive(Deserialize)]
@@ -681,6 +770,15 @@ mod contract_tests {
             registered
         );
 
+        assert!(contract.session_epoch.required_for_open_repository_commands);
+        for exception in &contract.session_epoch.semantic_exceptions {
+            assert!(
+                !exception.reason.trim().is_empty(),
+                "{} needs a documented reason for its optional epoch",
+                exception.command
+            );
+        }
+
         let source = include_str!("ipc.rs");
         for command in &contract.commands {
             let marker = format!("fn {}(", command.name);
@@ -704,6 +802,19 @@ mod contract_tests {
                         is_optional,
                         argument.ends_with('?'),
                         "{} sessionEpoch optionality must match the checked contract",
+                        command.name,
+                    );
+                    // Optionality is a semantic property now, never
+                    // compatibility scaffolding: an optional epoch has to be
+                    // documented, with its reason, in the contract.
+                    let documented = contract
+                        .session_epoch
+                        .semantic_exceptions
+                        .iter()
+                        .any(|exception| exception.command == command.name);
+                    assert_eq!(
+                        is_optional, documented,
+                        "{} must be listed under sessionEpoch.semanticExceptions exactly when its epoch is optional",
                         command.name,
                     );
                 }
@@ -850,6 +961,18 @@ mod contract_tests {
                 "name":"project", "path":"/repo", "selectedPath":"/repo", "gitDir":"/repo/.git",
                 "commonGitDir":"/repo/.git", "branch":"main", "headState":"branch",
                 "kind":"repository", "sessionEpoch":"epoch-1"
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(changes::WorkingTreeDiffBatch {
+                outcome: changes::DiffWarmOutcome::Deferred,
+                diffs: Vec::new(),
+                changed_files: 900,
+                budget_bytes: 2 * 1024 * 1024,
+            })
+            .unwrap(),
+            serde_json::json!({
+                "outcome":"deferred", "diffs":[], "changedFiles":900, "budgetBytes":2097152
             })
         );
         assert_eq!(

@@ -1,10 +1,17 @@
-import type { DiscardPlan, DiscardRecovery, DiscardResult, FileDiff, FileLines } from "./domain";
+import type {
+  DiscardPlan,
+  DiscardRecovery,
+  DiscardResult,
+  FileDiff,
+  FileLines,
+  WorkingTreeDiffBatch,
+} from "./domain";
 export type ChangesQuery = { projectId: string; sessionEpoch: string };
 export type FileDiffQuery = ChangesQuery & { filePath: string };
 export type FileLinesQuery = FileDiffQuery & { startLine: number; endLine: number };
 export interface ChangesPort {
   readFileDiff(query: FileDiffQuery): Promise<FileDiff>;
-  readWorkingTreeDiffs(query: ChangesQuery): Promise<FileDiff[]>;
+  readWorkingTreeDiffs(query: ChangesQuery): Promise<WorkingTreeDiffBatch>;
   readFileLines(query: FileLinesQuery): Promise<FileLines>;
   planDiscard(query: ChangesQuery & { selectedPath: string | null }): Promise<DiscardPlan>;
   discard(query: ChangesQuery & { selectedPath: string | null; stateToken: string }): Promise<DiscardResult>;

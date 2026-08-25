@@ -4,7 +4,7 @@
 //! bounded domain taxonomy, coalesced with a starvation ceiling, sequenced per
 //! open incarnation, and checked again when a callback is delivered.
 
-use crate::{application, error::AppError, session};
+use crate::{application, error::AppError};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap};
@@ -193,7 +193,7 @@ impl WatcherRegistry {
     where
         F: Fn(RepositoryInvalidation) + Send + Sync + 'static,
     {
-        self.unwatch(project_id, None);
+        self.remove_watch(project_id, None);
         let generation = self.next_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let (sender, receiver) = channel::<RepositoryInvalidationKind>();
         let filter_paths = paths.clone();
@@ -336,7 +336,16 @@ impl WatcherRegistry {
         }
     }
 
-    pub(crate) fn unwatch(&self, project_id: &str, session_epoch: Option<&str>) {
+    /// Detaches the watcher registered by exactly `session_epoch`. A late
+    /// request from a closed incarnation therefore cannot take down the
+    /// watcher a newer one registered for the same project.
+    pub(crate) fn unwatch(&self, project_id: &str, session_epoch: &str) {
+        self.remove_watch(project_id, Some(session_epoch));
+    }
+
+    /// `None` means "whatever is registered for this project", which is only
+    /// correct when a new registration is about to replace it.
+    fn remove_watch(&self, project_id: &str, session_epoch: Option<&str>) {
         let mut state = self
             .state
             .lock()
@@ -377,7 +386,7 @@ pub(crate) fn watch_repository(
     app: tauri::AppHandle,
     registry: tauri::State<'_, WatcherRegistry>,
     path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) -> Result<bool, AppError> {
     let (repository, _access) = application::authorize_repository(&path, "watch_repository", None)?;
     let root = repository.worktree_root.backend_path();
@@ -393,11 +402,10 @@ pub(crate) fn watch_repository(
     git_dir.push(root.join(".git"));
     git_dir.sort();
     git_dir.dedup();
-    let epoch = session_epoch.ok_or_else(session::stale_session_error)?;
     Ok(registry.watch(
         app,
         &path,
-        &epoch,
+        &session_epoch,
         repository.common_git_dir.match_key(),
         WatchPaths {
             worktree: repository.worktree_root.watch_paths(),
@@ -410,9 +418,9 @@ pub(crate) fn watch_repository(
 pub(crate) fn unwatch_repository(
     registry: tauri::State<'_, WatcherRegistry>,
     path: String,
-    session_epoch: Option<String>,
+    session_epoch: String,
 ) {
-    registry.unwatch(&path, session_epoch.as_deref());
+    registry.unwatch(&path, &session_epoch);
 }
 
 #[cfg(test)]
@@ -557,7 +565,7 @@ mod tests {
         let after_churn = settled_count(&count, Duration::from_secs(10));
         assert_eq!(after_churn, after_write, "Git churn must stay filtered");
 
-        registry.unwatch("project", Some("epoch"));
+        registry.unwatch("project", "epoch");
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -590,14 +598,14 @@ mod tests {
         );
         assert_eq!(old_count.load(Ordering::SeqCst), 0);
         assert_eq!(new_count.load(Ordering::SeqCst), 0);
-        registry.unwatch("project", Some("old"));
+        registry.unwatch("project", "old");
         assert!(registry
             .state
             .lock()
             .unwrap()
             .watches
             .contains_key("project"));
-        registry.unwatch("project", Some("new"));
+        registry.unwatch("project", "new");
         assert!(!registry
             .state
             .lock()
@@ -670,8 +678,8 @@ mod tests {
             assert!(sequences.windows(2).all(|pair| pair[0] < pair[1]));
         }
         drop(events);
-        registry.unwatch("a", None);
-        registry.unwatch("b", None);
+        registry.remove_watch("a", None);
+        registry.remove_watch("b", None);
         for root in [&first, &second] {
             let _ = fs::remove_dir_all(root);
         }

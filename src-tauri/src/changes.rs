@@ -556,11 +556,63 @@ pub(crate) fn read_file_diff(path: String, file_path: String) -> Result<FileDiff
 // absent from the result, and the frontend falls back to `read_file_diff`
 // for exactly those paths.
 
-/// Higher than `MAX_DIFF_OUTPUT_BYTES` (which bounds one file) because this
-/// covers every ordinary tracked change in the project at once. Still bounded
-/// so a pathological changeset can't block the UI or balloon the IPC payload;
-/// see `batch_tracked_diffs` for how a cap mid-file is handled safely.
+/// Emergency ceiling for one combined `git diff` invocation, higher than
+/// `MAX_DIFF_OUTPUT_BYTES` (which bounds one file) because this covers every
+/// ordinary tracked change in the project at once. It exists so a pathological
+/// changeset can't block the UI or exhaust memory in the Git reader; it is
+/// deliberately *not* the size of a normal response. Callers pass their own
+/// budget and `batch_output_cap` clamps it here; see `batch_tracked_diffs` for
+/// how a cap reached mid-file is handled safely.
 pub(crate) const MAX_BATCH_DIFF_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
+
+/// How much aggregate diff data a *speculative* warm may pull across IPC and
+/// into renderer caches. An eighth of the emergency ceiling: enough that an
+/// ordinary changeset is warmed whole, small enough that a huge one cannot
+/// turn a cache convenience into a multi-megabyte payload nobody asked for.
+/// Anything past it is reported as truncated, and the selected file still
+/// loads on demand through `read_file_diff`.
+pub(crate) const MAX_WARM_DIFF_OUTPUT_BYTES: usize = 2 * 1024 * 1024;
+
+/// Pre-flight eligibility: past this many changed entries the warm is skipped
+/// before a single diff process is spawned. A changeset this size is one the
+/// user navigates file by file, so paying for the aggregate read (and holding
+/// its result) buys nothing. Well under the 1,000-entry working-tree payload
+/// cap, so a deferred warm is still a normal, fully usable Changes screen.
+pub(crate) const MAX_WARM_CHANGED_FILES: usize = 250;
+
+/// The requested budget, never above the emergency ceiling.
+pub(crate) fn batch_output_cap(requested_bytes: usize) -> usize {
+    requested_bytes.min(MAX_BATCH_DIFF_OUTPUT_BYTES)
+}
+
+/// Why a speculative warm produced what it produced. The frontend needs to
+/// tell "these are all the diffs" from "this was deliberately cut short",
+/// because the second case must not be mistaken for preloaded completeness —
+/// and must not trigger a per-file fallback storm either.
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum DiffWarmOutcome {
+    /// Every eligible change is present in `diffs`.
+    Completed,
+    /// The budget was reached; `diffs` holds what fit, in Git's own order.
+    Truncated,
+    /// The changeset was not eligible, so no aggregate diff was read at all.
+    Deferred,
+}
+
+/// Response of `read_working_tree_diffs`: the warmed diffs plus the policy
+/// decision that produced them.
+#[derive(serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkingTreeDiffBatch {
+    pub(crate) outcome: DiffWarmOutcome,
+    pub(crate) diffs: Vec<FileDiff>,
+    /// Changed entries the working tree reported, warmed or not.
+    pub(crate) changed_files: u32,
+    /// The speculative budget this decision was made against, so the renderer
+    /// reports the same number the backend enforced.
+    pub(crate) budget_bytes: u64,
+}
 
 /// Git's own heuristic for "treat this as binary": a NUL byte anywhere in a
 /// bounded prefix. Only needed for untracked files, which this command reads
@@ -690,17 +742,38 @@ pub(crate) fn untracked_file_diff(repo_path: &Path, entry: &RawStatusEntry) -> F
     }
 }
 
+/// What one batched tracked-diff pass produced, and what it cost against the
+/// caller's budget.
+pub(crate) struct BatchedTrackedDiffs {
+    pub(crate) diffs: Vec<FileDiff>,
+    /// True when Git's combined output reached the cap, so some changed files
+    /// have no diff here and must be loaded on demand.
+    pub(crate) truncated: bool,
+    /// Bytes of Git output actually read, for budgeting the rest of the batch.
+    pub(crate) output_bytes: usize,
+}
+
 /// Batches every ordinary (non-conflicted, tracked) change into one `git
 /// diff` process. Renamed entries contribute both their old and new path to
 /// the pathspec, matching the single-file `Rename` strategy, so Git's rename
 /// pairing still has both sides to match.
+///
+/// `budget_bytes` is the caller's own ceiling for this response — a
+/// speculative warm asks for much less than the emergency cap — and is clamped
+/// by `batch_output_cap` so no caller can raise it above
+/// `MAX_BATCH_DIFF_OUTPUT_BYTES`.
 pub(crate) fn batch_tracked_diffs(
     path: &str,
     base: &str,
     entries: &[&RawStatusEntry],
-) -> Result<Vec<FileDiff>, AppError> {
+    budget_bytes: usize,
+) -> Result<BatchedTrackedDiffs, AppError> {
     if entries.is_empty() {
-        return Ok(Vec::new());
+        return Ok(BatchedTrackedDiffs {
+            diffs: Vec::new(),
+            truncated: false,
+            output_bytes: 0,
+        });
     }
 
     let mut pathspecs: Vec<&str> = Vec::with_capacity(entries.len() * 2);
@@ -744,7 +817,7 @@ pub(crate) fn batch_tracked_diffs(
     // so Git computes and orders it identically to pass 1.
     let mut diff_args = vec!["diff", "--no-color", "--no-ext-diff", "-M", base, "--"];
     diff_args.extend(pathspecs.iter().copied());
-    let capped = run_git_capped(path, &diff_args, MAX_BATCH_DIFF_OUTPUT_BYTES)?;
+    let capped = run_git_capped(path, &diff_args, batch_output_cap(budget_bytes))?;
     if !capped.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
@@ -774,7 +847,11 @@ pub(crate) fn batch_tracked_diffs(
         let too_large = section.len() > MAX_DIFF_OUTPUT_BYTES;
         results.push(diff_result_from_text(entry, section, too_large));
     }
-    Ok(results)
+    Ok(BatchedTrackedDiffs {
+        diffs: results,
+        truncated: capped.limit_exceeded,
+        output_bytes: capped.stdout.len(),
+    })
 }
 
 #[cfg(test)]
@@ -1358,7 +1435,14 @@ pub(crate) fn read_file_lines(
     })
 }
 
-pub(crate) fn read_working_tree_diffs(path: String) -> Result<Vec<FileDiff>, AppError> {
+/// Speculative aggregate warm for the Changes screen. It is a convenience over
+/// `read_file_diff`, never a replacement, so it is allowed to answer with less
+/// than everything: the policy in `MAX_WARM_CHANGED_FILES` /
+/// `MAX_WARM_DIFF_OUTPUT_BYTES` decides how much of a changeset is worth
+/// pulling across IPC speculatively, and the typed outcome tells the caller
+/// which decision was made. Whatever is missing is loaded on demand, one file
+/// at a time, when the user actually opens it.
+pub(crate) fn read_working_tree_diffs(path: String) -> Result<WorkingTreeDiffBatch, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "read_working_tree_diffs", None)?;
     let repo_path = Path::new(&path);
@@ -1395,6 +1479,19 @@ pub(crate) fn read_working_tree_diffs(path: String) -> Result<Vec<FileDiff>, App
     }
     let records = checked_status_records(&status_output.stdout)?;
 
+    let changed_files = records.entries.len() as u32;
+    let budget_bytes = MAX_WARM_DIFF_OUTPUT_BYTES as u64;
+    if records.entries.len() > MAX_WARM_CHANGED_FILES {
+        // Eligibility is decided before any diff process is spawned, so an
+        // oversized changeset costs one `git status` and nothing else.
+        return Ok(WorkingTreeDiffBatch {
+            outcome: DiffWarmOutcome::Deferred,
+            diffs: Vec::new(),
+            changed_files,
+            budget_bytes,
+        });
+    }
+
     let tracked_entries: Vec<&RawStatusEntry> = records
         .entries
         .iter()
@@ -1406,16 +1503,46 @@ pub(crate) fn read_working_tree_diffs(path: String) -> Result<Vec<FileDiff>, App
         .filter(|entry| entry.is_untracked)
         .collect();
 
-    let mut results = if tracked_entries.is_empty() {
-        Vec::new()
+    let batched = if tracked_entries.is_empty() {
+        BatchedTrackedDiffs {
+            diffs: Vec::new(),
+            truncated: false,
+            output_bytes: 0,
+        }
     } else {
         let base = diff_base_rev(&path)?;
-        batch_tracked_diffs(&path, &base, &tracked_entries)?
+        batch_tracked_diffs(&path, &base, &tracked_entries, MAX_WARM_DIFF_OUTPUT_BYTES)?
     };
-    results.extend(
-        untracked_entries
-            .iter()
-            .map(|entry| untracked_file_diff(repo_path, entry)),
-    );
-    Ok(results)
+    let mut truncated = batched.truncated;
+    let mut results = batched.diffs;
+
+    // Untracked files are read from disk rather than diffed, so they bypass
+    // the Git output cap entirely and need their own share of the same
+    // budget. Their on-disk size is checked before reading: a file that does
+    // not fit is left to the on-demand path instead of being read anyway.
+    let mut remaining = MAX_WARM_DIFF_OUTPUT_BYTES.saturating_sub(batched.output_bytes);
+    for entry in &untracked_entries {
+        let size = repo_path
+            .join(&entry.path)
+            .metadata()
+            .map(|metadata| metadata.len())
+            .unwrap_or(0);
+        if size > remaining as u64 {
+            truncated = true;
+            continue;
+        }
+        remaining -= size as usize;
+        results.push(untracked_file_diff(repo_path, entry));
+    }
+
+    Ok(WorkingTreeDiffBatch {
+        outcome: if truncated {
+            DiffWarmOutcome::Truncated
+        } else {
+            DiffWarmOutcome::Completed
+        },
+        diffs: results,
+        changed_files,
+        budget_bytes,
+    })
 }

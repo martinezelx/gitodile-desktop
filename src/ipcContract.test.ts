@@ -29,6 +29,10 @@ describe("IPC contract snapshot", () => {
       response: "SaveVersionResult",
     });
     for (const commandName of [
+      "read_working_tree_status", "read_file_diff", "read_file_lines", "read_working_tree_diffs",
+      "discover_remotes", "list_unpublished_versions", "read_commit_file_changes",
+      "read_commit_file_diff", "get_version_lines", "watch_repository", "unwatch_repository",
+      "close_project_session",
       "plan_save_version", "save_version", "read_team_sync_status", "check_team_changes",
       "plan_connect_remote", "connect_remote",
       "plan_get_team_changes", "get_team_changes",
@@ -42,7 +46,25 @@ describe("IPC contract snapshot", () => {
       expect(command?.arguments, commandName).toContain("sessionEpoch");
       expect(command?.arguments, commandName).not.toContain("sessionEpoch?");
     }
-    expect(contract.compatibility.optionalSessionEpochConsumers).toEqual([]);
+    expect(contract.commands.find((command) => command.name === "read_working_tree_diffs")).toEqual({
+      name: "read_working_tree_diffs",
+      arguments: ["path", "sessionEpoch"],
+      response: "WorkingTreeDiffBatch",
+    });
+    // Session-epoch optionality is semantic or it does not exist: an optional
+    // epoch must be exactly the documented exceptions, never a leftover
+    // compatibility allowance.
+    expect(contract.sessionEpoch.requiredForOpenRepositoryCommands).toBe(true);
+    const optionalEpochCommands = contract.commands
+      .filter((command) => command.arguments.includes("sessionEpoch?"))
+      .map((command) => command.name);
+    expect(optionalEpochCommands).toEqual(["open_repository", "get_line_endings"]);
+    expect(contract.sessionEpoch.semanticExceptions.map(({ command }) => command)).toEqual(
+      optionalEpochCommands,
+    );
+    for (const exception of contract.sessionEpoch.semanticExceptions) {
+      expect(exception.reason.length, exception.command).toBeGreaterThan(0);
+    }
     expect(contract.errorCodes).toEqual(APP_ERROR_CODES);
     expect(contract.watchEvent).toEqual({
       name: "repository-changed",

@@ -1,6 +1,6 @@
 import type { ProjectRuntime, ProjectCacheWarmReason } from "../../projectRuntime";
 import type { WorkingTreeStatus } from "../status";
-import type { FileDiff } from "./domain";
+import type { DiffWarmOutcome, FileDiff } from "./domain";
 import type { ChangesPort } from "./port";
 
 export type DiffStore = {
@@ -10,6 +10,10 @@ export type DiffStore = {
   cache: Map<string, FileDiff>;
   requests: Map<string, Promise<FileDiff>>;
   batchStarted: boolean;
+  /** What the last speculative warm decided, once it answered. A truncated or
+   * deferred warm is a bounded partial cache, never a reason to fan out into
+   * one request per changed file. */
+  warmOutcome: DiffWarmOutcome | null;
   generation: number;
   cachedBytes: number;
 };
@@ -33,7 +37,8 @@ export function createChangesController(port: ChangesPort) {
     const existing = stores.get(key);
     if (existing?.workingTree === workingTree) return existing;
     const store: DiffStore = {
-      projectId, sessionEpoch, workingTree, cache: new Map(), requests: new Map(), batchStarted: false, cachedBytes: 0,
+      projectId, sessionEpoch, workingTree, cache: new Map(), requests: new Map(), batchStarted: false,
+      warmOutcome: null, cachedBytes: 0,
       generation: (existing?.generation ?? 0) + 1,
     };
     stores.delete(key);
@@ -86,9 +91,10 @@ export function createChangesController(port: ChangesPort) {
     store.batchStarted = true;
     const generation = store.generation;
     try {
-      const diffs = await port.readWorkingTreeDiffs({ projectId: store.projectId, sessionEpoch: store.sessionEpoch });
+      const batch = await port.readWorkingTreeDiffs({ projectId: store.projectId, sessionEpoch: store.sessionEpoch });
       if (store.generation !== generation) return;
-      for (const diff of diffs) if (!store.cache.has(diff.path)) cacheDiff(store, diff.path, diff);
+      store.warmOutcome = batch.outcome;
+      for (const diff of batch.diffs) if (!store.cache.has(diff.path)) cacheDiff(store, diff.path, diff);
     } catch {
       // Speculative only; the selected-file request owns visible errors.
     }

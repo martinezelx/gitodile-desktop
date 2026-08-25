@@ -1,15 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import { createChangesController, MAX_DIFF_CACHE_BYTES, MAX_DIFF_CACHE_ENTRIES } from "./controller";
-import type { FileDiff } from "./domain";
+import type { DiffWarmOutcome, FileDiff, WorkingTreeDiffBatch } from "./domain";
 import type { WorkingTreeStatus } from "../status";
 import type { ChangesPort } from "./port";
 
 const diff = (path: string): FileDiff => ({ kind: "unchanged", path, originalPath: null, change: "changed" });
 const tree: WorkingTreeStatus = { isClean: false, counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 }, entries: [], truncated: false, hasPreparedChanges: false, hasUnpreparedChanges: true, upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 } };
+const batch = (diffs: FileDiff[], outcome: DiffWarmOutcome = "completed"): WorkingTreeDiffBatch => ({
+  outcome,
+  diffs,
+  changedFiles: diffs.length,
+  budgetBytes: 2 * 1024 * 1024,
+});
 const port = (overrides: Partial<ChangesPort> = {}): ChangesPort => ({
   readFileDiff: async ({ filePath }) => diff(filePath),
-  readWorkingTreeDiffs: async () => [],
+  readWorkingTreeDiffs: async () => batch([]),
   readFileLines: async () => ({ startLine: 1, lines: [], truncated: false }),
   planDiscard: async () => { throw new Error("unused"); },
   discard: async () => { throw new Error("unused"); },
@@ -74,5 +80,55 @@ describe("changes controller", () => {
     resolveOld(diff("old.txt"));
     await oldRequest;
     expect(newStore.cache.has("old.txt")).toBe(false);
+  });
+
+  it("caches a completed warm and leaves a deferred one to the on-demand path", async () => {
+    const requested: string[] = [];
+    const completed = createChangesController(port({
+      readWorkingTreeDiffs: async () => batch([diff("warmed.txt")]),
+      readFileDiff: async ({ filePath }) => {
+        requested.push(filePath);
+        return diff(filePath);
+      },
+    }));
+    const warmedStore = completed.getStore("/repo", "epoch", tree);
+    await completed.warmStore(warmedStore);
+    expect(warmedStore.warmOutcome).toBe("completed");
+    expect(warmedStore.cache.has("warmed.txt")).toBe(true);
+    // A warmed file is a cache hit, so opening it costs no request at all.
+    await completed.fetchDiff(warmedStore, "warmed.txt");
+    expect(requested).toEqual([]);
+
+    const deferredRequests: string[] = [];
+    const deferred = createChangesController(port({
+      readWorkingTreeDiffs: async () => batch([], "deferred"),
+      readFileDiff: async ({ filePath }) => {
+        deferredRequests.push(filePath);
+        return diff(filePath);
+      },
+    }));
+    const deferredStore = deferred.getStore("/repo", "epoch", tree);
+    await deferred.warmStore(deferredStore);
+    expect(deferredStore.warmOutcome).toBe("deferred");
+    expect(deferredStore.cache.size).toBe(0);
+    // Deferring must never fan out into one request per changed file: only the
+    // file the user actually opens is fetched.
+    expect(deferredRequests).toEqual([]);
+    await deferred.fetchDiff(deferredStore, "opened.txt");
+    expect(deferredRequests).toEqual(["opened.txt"]);
+  });
+
+  it("never lets a stale warm response populate a newer store generation", async () => {
+    let resolveWarm!: (value: WorkingTreeDiffBatch) => void;
+    const controller = createChangesController(port({
+      readWorkingTreeDiffs: () => new Promise((resolve) => { resolveWarm = resolve; }),
+    }));
+    const store = controller.getStore("/repo", "epoch", tree);
+    const warming = controller.warmStore(store);
+    controller.close("/repo", "epoch");
+    resolveWarm(batch([diff("stale.txt")]));
+    await warming;
+    expect(store.cache.has("stale.txt")).toBe(false);
+    expect(store.warmOutcome).toBeNull();
   });
 });

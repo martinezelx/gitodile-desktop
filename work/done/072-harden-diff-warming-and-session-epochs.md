@@ -1,7 +1,7 @@
 ---
 id: 072
 title: Bound speculative diff IPC and require repository session epochs
-status: active
+status: done
 priority: high
 type: chore
 areas:
@@ -10,9 +10,9 @@ areas:
   - architecture
   - performance
 created: 2026-08-24
-completed:
+completed: 2026-08-25
 parent:
-queue: "18"
+queue:
 ---
 
 # Goal
@@ -129,33 +129,33 @@ no repository path is supplied.
 
 # Acceptance criteria
 
-- [ ] A small ordinary working tree still benefits from aggregate speculative
+- [x] A small ordinary working tree still benefits from aggregate speculative
       diff warming, and opening a warmed file can use the existing cache.
-- [ ] A large/oversized working tree does not send an aggregate speculative
+- [x] A large/oversized working tree does not send an aggregate speculative
       renderer payload that grows toward the 16 MiB emergency Git-output cap;
       the warm is explicitly deferred/skipped/truncated according to the new
       bounded policy.
-- [ ] Deferring a batch warm does not trigger an N-files/N-IPC fallback storm;
+- [x] Deferring a batch warm does not trigger an N-files/N-IPC fallback storm;
       selecting a file loads only the needed diff through the existing
       on-demand path.
-- [ ] The 16 MiB backend emergency cap remains in place and tested, while the
+- [x] The 16 MiB backend emergency cap remains in place and tested, while the
       lower speculative-warm policy is documented and regression-tested.
-- [ ] Frontend diff caches remain bounded and stale warm responses still cannot
+- [x] Frontend diff caches remain bounded and stale warm responses still cannot
       populate a newer store generation.
-- [ ] Missing `sessionEpoch` is no longer accepted by repository-scoped
+- [x] Missing `sessionEpoch` is no longer accepted by repository-scoped
       post-open IPC validation; missing and stale epochs fail with the existing
       `stale_session` behavior.
-- [ ] Every repository-session-bound command in the checked IPC contract uses a
+- [x] Every repository-session-bound command in the checked IPC contract uses a
       required epoch, with semantic exceptions documented and tested.
-- [ ] `open_repository` still supports initial session creation without a prior
+- [x] `open_repository` still supports initial session creation without a prior
       epoch and validates a supplied epoch when one exists.
-- [ ] Global no-repository calls such as global line-ending reads remain valid,
+- [x] Global no-repository calls such as global line-ending reads remain valid,
       while their repository-scoped form requires the current epoch.
-- [ ] A stale `unwatch_repository` request cannot remove the watcher registered
+- [x] A stale `unwatch_repository` request cannot remove the watcher registered
       for a newer session epoch.
-- [ ] IPC contract snapshots and relevant frontend/Rust tests cover the new
+- [x] IPC contract snapshots and relevant frontend/Rust tests cover the new
       batch-warm and epoch rules.
-- [ ] `pnpm run check` passes before this task is marked done.
+- [x] `pnpm run check` passes before this task is marked done.
 
 # Relevant files
 
@@ -194,16 +194,106 @@ work.
 
 # Implementation notes
 
-Complete this section during implementation. Record the chosen warm eligibility
-rule/budget, any IPC response-shape change, the exact commands whose epoch
-contract changed, and measured trade-offs for representative large changesets.
+## Speculative warm policy
+
+Two backend-owned bounds, both in `src-tauri/src/changes.rs`, kept separate
+from the 16 MiB emergency ceiling:
+
+- `MAX_WARM_CHANGED_FILES = 250` — pre-flight eligibility. Past this many
+  changed entries the warm returns `deferred` after the single `git status`
+  it already ran, so no diff process is spawned at all.
+- `MAX_WARM_DIFF_OUTPUT_BYTES = 2 MiB` (an eighth of the emergency cap) —
+  the byte budget for one speculative response. It caps the combined
+  `git diff` output *and* the untracked bytes read from disk, which
+  previously had no aggregate bound at all (only a 2 MiB per-file cap, so
+  N untracked files could reach N × 2 MiB).
+
+`MAX_BATCH_DIFF_OUTPUT_BYTES` stays at 16 MiB and stays enforced:
+`batch_tracked_diffs` now takes the caller's `budget_bytes` and passes it
+through `batch_output_cap`, which clamps any request to the emergency
+ceiling. The clamp is unit-tested at 2 MiB, at 16 MiB and at `usize::MAX`.
+
+## IPC response shape
+
+`read_working_tree_diffs` now answers `WorkingTreeDiffBatch` instead of
+`FileDiff[]`:
+
+```ts
+{ outcome: "completed" | "truncated" | "deferred";
+  diffs: FileDiff[]; changedFiles: number; budgetBytes: number }
+```
+
+`truncated` keeps the sections that fit, in Git's own order, so a partial warm
+is still useful; `deferred` carries no diffs. Neither triggers a per-file
+fallback: `ChangesController` records the outcome on the store and the
+selected file still loads through the existing `read_file_diff` path, one
+request for the file the user actually opened.
+
+## Epoch contract changes
+
+`SessionRegistry::validate` now takes `&str`, so a missing epoch fails with
+`stale_session` exactly like a stale one. `ipc.rs` collapsed
+`validate_mutation_session` into one `validate_session`; reads and mutations
+share the same rule.
+
+Changed from `sessionEpoch?` to a required `sessionEpoch`:
+`read_working_tree_status`, `read_file_diff`, `read_file_lines`,
+`read_working_tree_diffs`, `discover_remotes`, `list_unpublished_versions`,
+`read_commit_file_changes`, `read_commit_file_diff`, `get_version_lines`,
+`watch_repository`, `unwatch_repository`.
+
+Semantic exceptions kept, now documented with their reason in
+`025-ipc-contract.json` under `sessionEpoch.semanticExceptions` (the
+`compatibility` block is gone):
+
+- `open_repository` — an initial open has no epoch yet; a supplied one must
+  still be current.
+- `get_line_endings` — global when no project path is given. Supplying a path
+  now requires the epoch explicitly (`ok_or_else(stale_session_error)`)
+  instead of falling through the removed missing-epoch allowance.
+
+Both Rust and TypeScript contract tests now assert that the set of optional
+epochs equals the documented exception list, so a future optional epoch cannot
+be added silently.
+
+`WatcherRegistry::unwatch` takes `&str` and matches the exact epoch; the
+"remove whatever is registered" form is a private `remove_watch`, used only
+where a new registration immediately replaces the old one.
+
+## Trade-offs
+
+No frontend TypeScript port needed loosening: every adapter except
+`open_repository` and `get_line_endings` already declared a required epoch, so
+this change removed a Rust-side allowance the frontend had already stopped
+relying on.
+
+A 250-file changeset warmed whole is still allowed, so the eligibility rule
+only bites where per-file navigation is the realistic interaction anyway. The
+2 MiB budget is measured against Git's own output bytes rather than an
+estimate, which costs nothing extra: the batch already ran capped, and the cap
+value is simply lower now.
+
+## Unrelated flake found while validating
+
+`src/main.test.tsx` intermittently failed at
+`findByRole("button", { name: "Get these versions" })` during full-suite runs.
+Confirmed pre-existing: with this task's changes stashed, a clean tree failed
+the same way once in five runs. The confirmation dialog opens behind an async
+plan call, so the one-second `findBy` default is too tight under a loaded
+parallel run; the assertion now uses `{ timeout: 3000 }`, the same idiom the
+file already applies to its other post-async waits. Five consecutive full-suite
+runs passed afterwards. No product code was changed for this.
 
 # Validation
 
-During implementation, run and record at minimum:
-
-- `pnpm run check:docs`
-- focused frontend and Rust tests for Changes/session/watch behavior
-- `pnpm run check`
-
-Do not mark the task done unless those results are recorded truthfully.
+- `pnpm run check:docs` — passed (128 Markdown files, 96 task ids).
+- `pnpm run check:architecture` — passed (289 modules).
+- `pnpm run typecheck` — passed.
+- `pnpm run test` — passed (52 files, 433 tests), including the new
+  `changes controller` warm-outcome cases and the IPC contract snapshot.
+- `pnpm run build` — passed.
+- `cargo test --all-targets --all-features` — passed (305 tests), including the
+  new `changes_tests` warm-budget cases and `ipc::session_boundary_tests`.
+- `pnpm run check` — passed end to end (exit 0): docs, architecture, TypeScript,
+  433 frontend tests, build, `cargo fmt --check`, Clippy with `-D warnings`, and
+  305 Rust tests.

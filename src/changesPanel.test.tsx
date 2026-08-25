@@ -362,7 +362,7 @@ describe("ChangesPanel save selection", () => {
         });
       }
       if (command === "read_working_tree_diffs") {
-        return Promise.resolve([]);
+        return Promise.resolve({ outcome: "completed", diffs: [], changedFiles: 0, budgetBytes: 2097152 });
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -462,7 +462,12 @@ describe("ChangesPanel review controls", () => {
         return Promise.resolve(path === "new.txt" ? newDiff : editedDiff);
       }
       if (command === "read_working_tree_diffs") {
-        return Promise.resolve([editedDiff, newDiff]);
+        return Promise.resolve({
+          outcome: "completed",
+          diffs: [editedDiff, newDiff],
+          changedFiles: 2,
+          budgetBytes: 2097152,
+        });
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -494,7 +499,12 @@ describe("ChangesPanel review controls", () => {
         return Promise.resolve(editedDiff);
       }
       if (command === "read_working_tree_diffs") {
-        return Promise.resolve([editedDiff, newDiff]);
+        return Promise.resolve({
+          outcome: "completed",
+          diffs: [editedDiff, newDiff],
+          changedFiles: 2,
+          budgetBytes: 2097152,
+        });
       }
       if (command === "read_file_lines") {
         expect(args).toMatchObject({ path: "/repo", filePath: "edited.txt", startLine: 3, endLine: 49 });
@@ -520,7 +530,12 @@ describe("ChangesPanel review controls", () => {
         return Promise.resolve(editedDiff);
       }
       if (command === "read_working_tree_diffs") {
-        return Promise.resolve([editedDiff, newDiff]);
+        return Promise.resolve({
+          outcome: "completed",
+          diffs: [editedDiff, newDiff],
+          changedFiles: 2,
+          budgetBytes: 2097152,
+        });
       }
       if (command === "read_file_lines") {
         return Promise.reject(new Error("nope"));

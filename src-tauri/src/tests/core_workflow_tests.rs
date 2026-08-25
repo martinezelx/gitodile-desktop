@@ -43,7 +43,9 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
     write_file(&repo, "remaining.txt", "remaining change\n");
     let dirty = read_working_tree_status(repo.clone()).expect("inspect dirty status");
     assert_eq!(dirty.counts.total, 2);
-    let diffs = read_working_tree_diffs(repo.clone()).expect("inspect dirty diffs");
+    let diffs = read_working_tree_diffs(repo.clone())
+        .expect("inspect dirty diffs")
+        .diffs;
     assert!(find_diff(&diffs, "selected.txt").is_some());
     assert!(find_diff(&diffs, "remaining.txt").is_some());
 
@@ -158,7 +160,7 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
         .expect("close the project session");
     assert_eq!(
         crate::session::global()
-            .validate(&opened.path, Some(&opened.session_epoch))
+            .validate(&opened.path, &opened.session_epoch)
             .unwrap_err()
             .code,
         AppErrorCode::StaleSession
@@ -181,7 +183,7 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
         .close(&reopened.path, &reopened.session_epoch)
         .expect("close only the first project");
     crate::session::global()
-        .validate(&other.path, Some(&other.session_epoch))
+        .validate(&other.path, &other.session_epoch)
         .expect("the other project session stays valid");
     crate::session::global()
         .close(&other.path, &other.session_epoch)
@@ -358,6 +360,7 @@ fn repository_state_journey_covers_unborn_dirty_clean_detached_conflicted_and_sy
     ));
     assert!(read_working_tree_diffs(conflicted.clone())
         .unwrap()
+        .diffs
         .is_empty());
 
     let (ahead_repo, ahead_remote, _) = published_repo_and_remote("state-journey-ahead");

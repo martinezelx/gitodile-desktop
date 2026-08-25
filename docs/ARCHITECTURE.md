@@ -119,6 +119,15 @@ epoch-scoped diff caches, capped at four epochs and 256 diffs / approximately
 40 MiB per epoch. Lists that grow with repository size stay virtualized; the
 native 1,000-entry payload cap is not a DOM strategy.
 
+Speculative aggregate diff warming is budgeted in Rust, separately from the
+16 MiB emergency ceiling on one combined `git diff`. A changeset over 250
+entries is deferred before any diff process runs, and the batch stops at 2 MiB
+of Git output plus untracked file bytes. `read_working_tree_diffs` answers with
+a typed `completed` / `truncated` / `deferred` outcome so a bounded partial warm
+is never mistaken for a full preload — and never triggers a request per changed
+file either. Whatever the warm skipped loads on demand through `read_file_diff`
+when the user opens it.
+
 ### Styles and translations
 
 `src/styles.css` is the eager cascade manifest: tokens, base, theme transition,
@@ -286,9 +295,15 @@ TypeScript tests verify command names, arguments, responses, error codes, and
 representative serialization. Intentional changes update the JSON contract and
 both sides in one review.
 
-Authorizing actions require `sessionEpoch`. Compatibility-optional epochs are
-limited to explicitly non-authorizing read/watch entries; every current
-feature adapter supplies the epoch.
+Every command that acts on an already-open repository requires `sessionEpoch`,
+reads and mutations alike, and a missing epoch fails with `stale_session`
+exactly like a stale one. Optionality is a semantic property, never a
+compatibility allowance: the contract lists each exception with its reason, and
+today those are `open_repository` (an initial open has no epoch yet, and a
+supplied one must still be current) and `get_line_endings` (global when no
+project path is given, epoch-checked when one is). `watch_repository` and
+`unwatch_repository` are scoped to the exact epoch, so a late request from a
+closed incarnation cannot detach a newer one's watcher.
 
 Repository watchers emit only:
 

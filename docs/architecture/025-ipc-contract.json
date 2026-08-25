@@ -11,10 +11,10 @@
     { "name": "plan_initialize_project", "arguments": ["targetKind", "destinationParent", "destinationName", "existingPath", "initialBranch", "createReadme", "saveInitialVersion"], "response": "InitializeProjectPlan" },
     { "name": "initialize_project", "arguments": ["targetKind", "destinationParent", "destinationName", "existingPath", "initialBranch", "createReadme", "saveInitialVersion", "operationId", "stateToken", "onProgress"], "response": "InitializeProjectResult" },
     { "name": "cleanup_initialize_project", "arguments": ["destinationPath", "targetKind", "operationId"], "response": "void" },
-    { "name": "read_working_tree_status", "arguments": ["path", "sessionEpoch?"], "response": "WorkingTreeStatus" },
-    { "name": "read_file_diff", "arguments": ["path", "filePath", "sessionEpoch?"], "response": "FileDiff" },
-    { "name": "read_file_lines", "arguments": ["path", "filePath", "startLine", "endLine", "sessionEpoch?"], "response": "FileLines" },
-    { "name": "read_working_tree_diffs", "arguments": ["path", "sessionEpoch?"], "response": "FileDiff[]" },
+    { "name": "read_working_tree_status", "arguments": ["path", "sessionEpoch"], "response": "WorkingTreeStatus" },
+    { "name": "read_file_diff", "arguments": ["path", "filePath", "sessionEpoch"], "response": "FileDiff" },
+    { "name": "read_file_lines", "arguments": ["path", "filePath", "startLine", "endLine", "sessionEpoch"], "response": "FileLines" },
+    { "name": "read_working_tree_diffs", "arguments": ["path", "sessionEpoch"], "response": "WorkingTreeDiffBatch" },
     { "name": "plan_discard_changes", "arguments": ["path", "selectedPath?", "sessionEpoch"], "response": "DiscardPlan" },
     { "name": "discard_changes", "arguments": ["path", "selectedPath?", "stateToken", "sessionEpoch"], "response": "DiscardResult" },
     { "name": "get_discard_recovery", "arguments": ["path", "sessionEpoch"], "response": "DiscardRecovery" },
@@ -29,30 +29,30 @@
     { "name": "set_line_endings", "arguments": ["mode"], "response": "void" },
     { "name": "plan_save_version", "arguments": ["path", "selectedPaths?", "sessionEpoch"], "response": "SaveVersionPlan" },
     { "name": "save_version", "arguments": ["path", "title", "description?", "stateToken", "selectedPaths?", "sessionEpoch"], "response": "SaveVersionResult" },
-    { "name": "discover_remotes", "arguments": ["path", "sessionEpoch?"], "response": "RemoteDiscovery" },
+    { "name": "discover_remotes", "arguments": ["path", "sessionEpoch"], "response": "RemoteDiscovery" },
     { "name": "plan_connect_remote", "arguments": ["path", "sessionEpoch", "remoteName", "remoteUrl"], "response": "ConnectRemotePlan" },
     { "name": "connect_remote", "arguments": ["path", "sessionEpoch", "remoteName", "remoteUrl", "stateToken"], "response": "ConnectRemoteResult" },
     { "name": "read_team_sync_status", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
     { "name": "check_team_changes", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
     { "name": "plan_get_team_changes", "arguments": ["path", "sessionEpoch", "onProgress"], "response": "GetTeamChangesPlan" },
     { "name": "get_team_changes", "arguments": ["path", "sessionEpoch", "stateToken", "recoveryReference", "onProgress"], "response": "GetTeamChangesResult" },
-    { "name": "list_unpublished_versions", "arguments": ["path", "sessionEpoch?"], "response": "PendingVersionsResult" },
-    { "name": "read_commit_file_changes", "arguments": ["path", "commit", "sessionEpoch?"], "response": "CommitFileChange[]" },
-    { "name": "read_commit_file_diff", "arguments": ["path", "commit", "filePath", "sessionEpoch?"], "response": "FileDiff" },
+    { "name": "list_unpublished_versions", "arguments": ["path", "sessionEpoch"], "response": "PendingVersionsResult" },
+    { "name": "read_commit_file_changes", "arguments": ["path", "commit", "sessionEpoch"], "response": "CommitFileChange[]" },
+    { "name": "read_commit_file_diff", "arguments": ["path", "commit", "filePath", "sessionEpoch"], "response": "FileDiff" },
     { "name": "read_history_page", "arguments": ["path", "cursor?", "pageSize?", "sessionEpoch"], "response": "HistoryPage" },
     { "name": "read_saved_version_detail", "arguments": ["path", "snapshotToken", "commit", "sessionEpoch"], "response": "SavedVersionDetail" },
     { "name": "read_saved_version_file_diff", "arguments": ["path", "snapshotToken", "commit", "filePath", "sessionEpoch"], "response": "FileDiff" },
     { "name": "plan_publish", "arguments": ["path", "remote?", "upTo?", "sessionEpoch"], "response": "PublishPlan" },
     { "name": "publish", "arguments": ["path", "remote", "stateToken", "upTo?", "sessionEpoch"], "response": "PublishResult" },
-    { "name": "get_version_lines", "arguments": ["path", "sessionEpoch?"], "response": "VersionLinesSnapshot" },
+    { "name": "get_version_lines", "arguments": ["path", "sessionEpoch"], "response": "VersionLinesSnapshot" },
     { "name": "plan_create_version_line", "arguments": ["path", "name", "switch", "sessionEpoch"], "response": "CreateVersionLinePlan" },
     { "name": "create_version_line", "arguments": ["path", "name", "switch", "stateToken", "sessionEpoch"], "response": "VersionLinesSnapshot" },
     { "name": "plan_switch_version_line", "arguments": ["path", "target", "sessionEpoch"], "response": "SwitchVersionLinePlan" },
     { "name": "switch_version_line", "arguments": ["path", "target", "stateToken", "sessionEpoch"], "response": "VersionLinesSnapshot" },
     { "name": "plan_delete_version_line", "arguments": ["path", "name", "sessionEpoch"], "response": "DeleteVersionLinePlan" },
     { "name": "delete_version_line", "arguments": ["path", "name", "stateToken", "sessionEpoch"], "response": "VersionLinesSnapshot" },
-    { "name": "watch_repository", "arguments": ["path", "sessionEpoch?"], "response": "boolean" },
-    { "name": "unwatch_repository", "arguments": ["path", "sessionEpoch?"], "response": "void" },
+    { "name": "watch_repository", "arguments": ["path", "sessionEpoch"], "response": "boolean" },
+    { "name": "unwatch_repository", "arguments": ["path", "sessionEpoch"], "response": "void" },
     { "name": "close_project_session", "arguments": ["path", "sessionEpoch"], "response": "void" }
   ],
   "errorCodes": [
@@ -91,11 +91,17 @@
     "fields": ["projectId", "sessionEpoch", "sequence", "kind"],
     "kinds": ["worktree", "head_or_refs", "shared_repository"]
   },
-  "compatibility": {
-    "optionalSessionEpochConsumers": [],
-    "removalTasks": {
-      "reads": "026-028",
-      "mutations": "029"
-    }
+  "sessionEpoch": {
+    "requiredForOpenRepositoryCommands": true,
+    "semanticExceptions": [
+      {
+        "command": "open_repository",
+        "reason": "An initial open has no epoch yet; a supplied epoch must still be the current one."
+      },
+      {
+        "command": "get_line_endings",
+        "reason": "Reads the global Git configuration when no project path is supplied; supplying one requires that project's current epoch."
+      }
+    ]
   }
 }

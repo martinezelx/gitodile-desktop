@@ -491,7 +491,9 @@ fn read_working_tree_diffs_batches_every_tracked_change_into_one_process() {
     write_file(&path, "one.txt", "one changed\n");
     write_file(&path, "two.txt", "two changed\n");
 
-    let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Completed);
+    let diffs = batch.diffs;
     assert_eq!(diffs.len(), 2);
 
     match find_diff(&diffs, "one.txt") {
@@ -524,7 +526,9 @@ fn read_working_tree_diffs_reads_an_untracked_file_without_invoking_git_diff() {
     git_commit_empty(&path);
     write_file(&path, "new-file.txt", "hello\nworld\n");
 
-    let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Completed);
+    let diffs = batch.diffs;
     assert_eq!(diffs.len(), 1);
     match find_diff(&diffs, "new-file.txt") {
         Some(FileDiff::Text { hunks, change, .. }) => {
@@ -551,7 +555,9 @@ fn read_working_tree_diffs_reports_an_empty_untracked_file_as_unchanged() {
     git_commit_empty(&path);
     write_file(&path, "empty.txt", "");
 
-    let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Completed);
+    let diffs = batch.diffs;
     match find_diff(&diffs, "empty.txt") {
         Some(FileDiff::Unchanged { .. }) => {}
         other => panic!("expected unchanged for an empty new file, got {other:?}"),
@@ -571,7 +577,9 @@ fn read_working_tree_diffs_reports_a_binary_untracked_file_as_binary() {
     )
     .expect("write binary file");
 
-    let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Completed);
+    let diffs = batch.diffs;
     match find_diff(&diffs, "image.bin") {
         Some(FileDiff::Binary { .. }) => {}
         other => panic!("expected binary for a binary untracked file, got {other:?}"),
@@ -625,7 +633,9 @@ fn read_working_tree_diffs_excludes_conflicted_entries() {
         ])
         .status();
 
-    let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Completed);
+    let diffs = batch.diffs;
     assert!(
         find_diff(&diffs, "file.txt").is_none(),
         "a conflicted entry must be left for the per-file fallback, not guessed at here"
@@ -652,7 +662,9 @@ fn read_working_tree_diffs_batches_a_renamed_file() {
     .expect("rename file");
     git_add_all(&path);
 
-    let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Completed);
+    let diffs = batch.diffs;
     match find_diff(&diffs, "new.txt") {
         Some(FileDiff::Unchanged {
             original_path,
@@ -677,7 +689,9 @@ fn read_working_tree_diffs_batches_a_deleted_file() {
     git_commit(&path, "base");
     fs::remove_file(Path::new(&path).join("gone.txt")).expect("delete file");
 
-    let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Completed);
+    let diffs = batch.diffs;
     match find_diff(&diffs, "gone.txt") {
         Some(FileDiff::Text { change, hunks, .. }) => {
             assert_eq!(*change, ChangeCategory::Deleted);
@@ -692,13 +706,141 @@ fn read_working_tree_diffs_batches_a_deleted_file() {
     let _ = fs::remove_dir_all(&path);
 }
 
+// ---- Speculative warm policy (task 072) ----
+//
+// The 16 MiB cap in `batch_tracked_diffs` is an emergency ceiling for one Git
+// invocation, not the size of an ordinary response. Speculative warming gets
+// its own, much smaller budget, and says out loud when it stopped early.
+
+#[test]
+fn the_speculative_warm_budget_stays_materially_below_the_emergency_cap() {
+    const { assert!(MAX_WARM_DIFF_OUTPUT_BYTES * 4 <= MAX_BATCH_DIFF_OUTPUT_BYTES) };
+}
+
+#[test]
+fn batch_output_cap_clamps_any_request_to_the_emergency_ceiling() {
+    assert_eq!(
+        batch_output_cap(MAX_WARM_DIFF_OUTPUT_BYTES),
+        MAX_WARM_DIFF_OUTPUT_BYTES
+    );
+    assert_eq!(
+        batch_output_cap(MAX_BATCH_DIFF_OUTPUT_BYTES),
+        MAX_BATCH_DIFF_OUTPUT_BYTES
+    );
+    assert_eq!(batch_output_cap(usize::MAX), MAX_BATCH_DIFF_OUTPUT_BYTES);
+}
+
+#[test]
+fn read_working_tree_diffs_defers_a_changeset_past_the_warm_file_budget() {
+    let path = unique_temp_dir("batch-diffs-deferred");
+    git_init(&path);
+    git_commit_empty(&path);
+    for index in 0..MAX_WARM_CHANGED_FILES + 1 {
+        write_file(
+            &path,
+            &format!("file-{index:04}.txt"),
+            "content
+",
+        );
+    }
+
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Deferred);
+    assert!(batch.diffs.is_empty());
+    assert_eq!(batch.changed_files as usize, MAX_WARM_CHANGED_FILES + 1);
+    assert_eq!(batch.budget_bytes, MAX_WARM_DIFF_OUTPUT_BYTES as u64);
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_working_tree_diffs_truncates_a_tracked_changeset_past_the_warm_byte_budget() {
+    let path = unique_temp_dir("batch-diffs-truncated");
+    git_init(&path);
+    // Two files whose full rewrite each stays under the per-file cap but whose
+    // combined patch text is over the warm budget, plus a small one ahead of
+    // them in Git's path order.
+    let lines = MAX_WARM_DIFF_OUTPUT_BYTES * 3 / (64 * 10);
+    let before = format!(
+        "{}
+",
+        "a".repeat(63)
+    )
+    .repeat(lines);
+    let after = format!(
+        "{}
+",
+        "b".repeat(63)
+    )
+    .repeat(lines);
+    write_file(
+        &path,
+        "a-small.txt",
+        "small
+",
+    );
+    write_file(&path, "m-big-one.txt", &before);
+    write_file(&path, "z-big-two.txt", &before);
+    git_add_all(&path);
+    git_commit(&path, "base");
+    write_file(
+        &path,
+        "a-small.txt",
+        "small changed
+",
+    );
+    write_file(&path, "m-big-one.txt", &after);
+    write_file(&path, "z-big-two.txt", &after);
+
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Truncated);
+    // What fit is still warmed; the file that did not is simply absent, and
+    // the on-demand path still answers for it with one request.
+    assert!(find_diff(&batch.diffs, "a-small.txt").is_some());
+    assert!(find_diff(&batch.diffs, "m-big-one.txt").is_some());
+    assert!(find_diff(&batch.diffs, "z-big-two.txt").is_none());
+    assert!(matches!(
+        read_file_diff(path.clone(), "z-big-two.txt".to_string()),
+        Ok(FileDiff::Text { .. })
+    ));
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_working_tree_diffs_skips_an_untracked_file_past_the_warm_byte_budget() {
+    let path = unique_temp_dir("batch-diffs-untracked-budget");
+    git_init(&path);
+    git_commit_empty(&path);
+    write_file(
+        &path,
+        "a-small.txt",
+        "small
+",
+    );
+    write_file(
+        &path,
+        "z-huge.txt",
+        &"x".repeat(MAX_WARM_DIFF_OUTPUT_BYTES + 1024),
+    );
+
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Truncated);
+    assert!(find_diff(&batch.diffs, "a-small.txt").is_some());
+    assert!(find_diff(&batch.diffs, "z-huge.txt").is_none());
+
+    let _ = fs::remove_dir_all(&path);
+}
+
 #[test]
 fn read_working_tree_diffs_returns_nothing_for_a_clean_repository() {
     let path = unique_temp_dir("batch-diffs-clean");
     git_init(&path);
     git_commit_empty(&path);
 
-    let diffs = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    assert_eq!(batch.outcome, DiffWarmOutcome::Completed);
+    let diffs = batch.diffs;
     assert!(diffs.is_empty());
 
     let _ = fs::remove_dir_all(&path);

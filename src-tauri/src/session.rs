@@ -34,14 +34,13 @@ impl SessionRegistry {
         Ok(epoch)
     }
 
-    pub(crate) fn validate(&self, project_id: &str, epoch: Option<&str>) -> Result<(), AppError> {
-        // Compatibility bridge for the current direct invoke consumers. Task
-        // 029 removes this allowance for mutations. Consumers migrated in
-        // task 025 already supply an epoch; the remaining named bridge users
-        // are recorded in the checked IPC contract.
-        let Some(epoch) = epoch else {
-            return Ok(());
-        };
+    /// Proves that a repository-scoped call belongs to the incarnation that is
+    /// open right now. There is no missing-epoch allowance: a caller without an
+    /// epoch has no session to act on, so it is stale by definition. Semantic
+    /// optionality lives at the boundary instead — `open_repository` goes
+    /// through [`SessionRegistry::open`], and a genuinely global command simply
+    /// never reaches this function.
+    pub(crate) fn validate(&self, project_id: &str, epoch: &str) -> Result<(), AppError> {
         let epochs = self
             .epochs
             .lock()
@@ -97,15 +96,24 @@ mod tests {
     fn close_and_reopen_creates_a_new_epoch_and_rejects_the_old_one() {
         let registry = SessionRegistry::default();
         let first = registry.open("/repo", None).unwrap();
-        registry.validate("/repo", Some(&first)).unwrap();
+        registry.validate("/repo", &first).unwrap();
         registry.close("/repo", &first).unwrap();
         let second = registry.open("/repo", None).unwrap();
         assert_ne!(first, second);
         assert_eq!(
-            registry.validate("/repo", Some(&first)).unwrap_err().code,
+            registry.validate("/repo", &first).unwrap_err().code,
             AppErrorCode::StaleSession
         );
-        registry.validate("/repo", Some(&second)).unwrap();
+        registry.validate("/repo", &second).unwrap();
+    }
+
+    #[test]
+    fn validation_rejects_a_project_that_has_no_open_session() {
+        let registry = SessionRegistry::default();
+        assert_eq!(
+            registry.validate("/repo", "epoch").unwrap_err().code,
+            AppErrorCode::StaleSession
+        );
     }
 
     #[test]

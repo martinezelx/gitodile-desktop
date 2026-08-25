@@ -861,7 +861,13 @@ describe("App project restoration", () => {
       mockedInvoke.mock.calls.filter(([command]) => command === "open_repository"),
     ).toHaveLength(repositoryOpensBeforeRefresh + 1);
     await userEvent.click(await screen.findByRole("button", { name: "Review and get" }));
-    const confirm = await screen.findByRole("button", { name: "Get these versions" });
+    // The confirmation opens behind an async plan call, which under a loaded
+    // parallel run needs more than the one-second default (task 072).
+    const confirm = await screen.findByRole(
+      "button",
+      { name: "Get these versions" },
+      { timeout: 3000 },
+    );
     // The rail keeps switching and closing behind one trigger, so blocking
     // the switcher blocks both.
     expect(
