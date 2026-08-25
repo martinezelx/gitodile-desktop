@@ -260,7 +260,7 @@ function HistoryOverview({ detail, state, language, comparison, onSelectFile }: 
   const areas = changedAreas(detail.files);
   const description = version.description.trim();
   return <div id="history-panel-overview" className="history-workspace history-workspace--overview" role="tabpanel" aria-labelledby="history-tab-overview">
-    <div className="history-overview-grid">
+    <div {...autoHideScrollbarProps<HTMLDivElement>()} className="history-overview-grid auto-hide-scrollbar">
       <div className="history-overview-column">
         <div className="history-overview-metrics">
           <OverviewMetric label={t.historyFilesTab} value={detail.fileCounts.total} />
