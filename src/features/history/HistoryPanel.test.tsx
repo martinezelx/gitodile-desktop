@@ -160,6 +160,38 @@ describe("HistoryPanel", () => {
     );
   });
 
+  it("marks whether timeline selection moved up or down", () => {
+    const initial = state(4);
+    const { container, historyController, rerender } = renderPanel(initial);
+    const panel = (historyState: HistoryState) => (
+      <LanguageProvider>
+        <HistoryPanel
+          controller={historyController}
+          query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
+          state={historyState}
+          error={null}
+        />
+      </LanguageProvider>
+    );
+
+    rerender(panel({ ...initial, selectedCommit: initial.versions[2]?.commit ?? null }));
+    expect(container.querySelector(".history-row--selected")).toHaveAttribute("data-selection-direction", "down");
+
+    rerender(panel({ ...initial, selectedCommit: initial.versions[1]?.commit ?? null }));
+    expect(container.querySelector(".history-row--selected")).toHaveAttribute("data-selection-direction", "up");
+  });
+
+  it("marks hover travel from the order the pointer crosses timeline rows", () => {
+    renderPanel(state(4));
+    const rows = within(screen.getByRole("listbox", { name: "Saved-version timeline" })).getAllByRole("option");
+
+    fireEvent.pointerEnter(rows[2]);
+    expect(rows[2]).toHaveAttribute("data-hover-direction", "down");
+
+    fireEvent.pointerEnter(rows[1]);
+    expect(rows[1]).toHaveAttribute("data-hover-direction", "up");
+  });
+
   it("keeps the selected version identity visible while its files are loading", () => {
     const historyState = state(2, { detail: { detail: null, isLoading: true, error: null } });
     renderPanel(historyState);

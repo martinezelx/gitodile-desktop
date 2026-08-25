@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -109,6 +109,20 @@ describe("HistorySummarySection", () => {
 
     expect(controller.getSnapshot(query).selectedCommit).toBe(version(1).commit);
     expect(onOpenHistory).toHaveBeenCalledOnce();
+  });
+
+  it("marks hover travel in both directions across recent versions", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(3), version(2), version(1)]))));
+    await controller.refresh(query);
+    renderSection(controller);
+    const lower = screen.getByRole("button", { name: "Open “Saved version 1” in history" });
+    const upper = screen.getByRole("button", { name: "Open “Saved version 2” in history" });
+
+    fireEvent.pointerEnter(lower);
+    expect(lower).toHaveAttribute("data-hover-direction", "down");
+
+    fireEvent.pointerEnter(upper);
+    expect(upper).toHaveAttribute("data-hover-direction", "up");
   });
 
   it("shows a truthful empty state after history has loaded", async () => {

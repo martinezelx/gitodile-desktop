@@ -60,8 +60,8 @@ function HistoryBanner({ tone, title, children }: { tone: "neutral" | "warning" 
   return <section className={`history-banner history-banner--${tone}`}><CircleAlert aria-hidden="true" /><div><strong>{title}</strong><p>{children}</p></div></section>;
 }
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, focusable, language, onSelect, onMove, onOpenDetail }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; focusable: boolean; language: string; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void;
+const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, selectionDirection, hoverDirection, focusable, language, onSelect, onMove, onHover, onOpenDetail }: {
+  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; selectionDirection: "up" | "down"; hoverDirection: "up" | "down" | null; focusable: boolean; language: string; onSelect: (commit: string) => void; onMove: (index: number) => void; onHover: (index: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
@@ -76,7 +76,7 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
     onMove(target);
   };
   return (
-    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={selected ? t.historySelectedVersion(title) : title} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown}>
+    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={selected ? t.historySelectedVersion(title) : title} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-selection-direction={selected ? selectionDirection : undefined} data-hover-direction={hoverDirection ?? undefined} onPointerEnter={() => onHover(index)} onFocus={() => onHover(index)} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown}>
       <span className="history-row__node" aria-hidden="true" />
       <span className="history-row__body"><span className="history-row__title" title={title}>{title}</span><span className="history-row__meta"><span>{author}</span>{date && <span title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}</span></span>
     </button>
@@ -91,7 +91,13 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCo
   const scrollRef = useRef<HTMLDivElement>(null);
   const restoredRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousSelectedCommitRef = useRef(selectedCommit);
+  const previousHoveredIndexRef = useRef(-1);
+  const [hoverTravel, setHoverTravel] = useState<{ index: number; direction: "up" | "down" }>({ index: -1, direction: "down" });
   const focusCommit = versions.some((version) => version.commit === selectedCommit) ? selectedCommit : versions[0]?.commit ?? null;
+  const selectedIndex = versions.findIndex((version) => version.commit === selectedCommit);
+  const previousSelectedIndex = versions.findIndex((version) => version.commit === previousSelectedCommitRef.current);
+  const selectionDirection = previousSelectedIndex >= 0 && selectedIndex >= 0 && selectedIndex < previousSelectedIndex ? "up" : "down";
   const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: () => 80, overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
   const rows = virtualizer.getVirtualItems();
   const lastIndex = rows.at(-1)?.index ?? -1;
@@ -101,6 +107,8 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCo
     scrollRef.current.scrollTop = scrollOffset;
     restoredRef.current = true;
   }, [publicationFilter, scrollOffset, search, sort]);
+
+  useLayoutEffect(() => { previousSelectedCommitRef.current = selectedCommit; }, [selectedCommit]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -123,6 +131,12 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCo
     virtualizer.scrollToIndex(index, { align: "auto" });
     requestAnimationFrame(() => document.getElementById(`history-version-${version.commit}`)?.focus());
   }, [onSelect, versions, virtualizer]);
+  const markHoverDirection = useCallback((index: number): void => {
+    const previous = previousHoveredIndexRef.current;
+    const direction = previous >= 0 && index < previous ? "up" : "down";
+    previousHoveredIndexRef.current = index;
+    setHoverTravel({ index, direction });
+  }, []);
   const filtersActive = search.trim().length > 0 || publicationFilter !== "all";
   return (
     <section className="history-timeline" aria-label={t.historyTimelineAriaLabel}>
@@ -144,7 +158,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCo
       </header>
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} focusable={version.commit === focusCommit} language={language} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} /></div>; })}
+          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} selectionDirection={selectionDirection} hoverDirection={hoverTravel.index === virtualRow.index ? hoverTravel.direction : null} focusable={version.commit === focusCommit} language={language} onSelect={onSelect} onMove={moveSelection} onHover={markHoverDirection} onOpenDetail={onOpenDetail} /></div>; })}
         </div> : <p className="history-timeline__empty">{t.historyNoMatches}</p>}
         <div className="history-timeline__footer">
           {hasMoreError && <div className="history-inline-error" role="alert"><span>{t.historyMoreError}</span><button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyRetry}</button></div>}
