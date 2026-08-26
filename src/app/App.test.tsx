@@ -444,6 +444,10 @@ describe("App project restoration", () => {
     );
 
     const trigger = screen.getAllByRole("button", { name: "Settings" })[0];
+    expect(trigger).toHaveAttribute("data-tooltip", "Settings");
+    const login = screen.getByRole("button", { name: "Sign in — Coming soon" });
+    expect(login).toHaveAttribute("aria-disabled", "true");
+    expect(login).toHaveAttribute("data-tooltip", "Sign in — Coming soon");
     expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
     await user.click(trigger);
 
@@ -519,7 +523,11 @@ describe("App project restoration", () => {
     expect(projectNavigation).toHaveClass("rail-nav--icons-only");
     expect(within(projectNavigation).queryByRole("button", { name: "Changes" })).toBeNull();
     await user.click(within(projectNavigation).getByRole("button", { name: "More" }));
-    expect(within(screen.getByRole("menu", { name: "More" })).getByText("Changes"))
+    expect(
+      within(screen.getByRole("menu", { name: "More" })).getByText(
+        "Changes — Open a project first",
+      ),
+    )
       .toBeInTheDocument();
   });
 
@@ -872,7 +880,7 @@ describe("App project restoration", () => {
     // the switcher blocks both.
     expect(
       screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
-    ).toBeDisabled();
+    ).toHaveAttribute("aria-disabled", "true");
 
     const readsBefore = mockedInvoke.mock.calls.filter(
       ([command]) => command === "read_working_tree_status",

@@ -1456,7 +1456,7 @@ export function App(): React.JSX.Element {
                 aria-label={t.navAccountTitle}
               >
                 <UserRound aria-hidden="true" />
-                <span>{t.navAccount}</span>
+                <span>{t.navAccountTitle}</span>
               </button>
             </div>,
             document.body,
@@ -1598,6 +1598,7 @@ export function App(): React.JSX.Element {
                   aria-current={screen !== null && isActive ? "page" : undefined}
                   aria-haspopup={overlay ? "dialog" : undefined}
                   aria-expanded={overlay ? isSettingsOpen : undefined}
+                  data-tooltip={label}
                   // These carry no visible name in either display mode, so the
                   // accessible name lives on the control itself rather than in
                   // a caption that only one mode renders.
@@ -1615,8 +1616,9 @@ export function App(): React.JSX.Element {
             <button
               className="sidebar-round"
               type="button"
-              disabled
+              aria-disabled="true"
               aria-label={t.navAccountTitle}
+              data-tooltip={t.navAccountTitle}
             >
               <UserRound aria-hidden="true" />
             </button>

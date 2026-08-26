@@ -98,14 +98,22 @@ The main desktop window should broadly support:
      remain anchored and use the same footprint as the project controls;
    - only destinations are captioned. The controls below the rule — project,
      add, Settings, account — carry no visible label in either display mode:
-     they are shapes people arrive already knowing, and the two that are not
-     self-evident sit directly under what they act on (the avatar is the
-     project's own initials; the "+" is under it). Captioning four controls
-     that never change cost a line of text each and turned the column into a
-     wall of words. Their accessible names stay on the buttons, so nothing is
-     lost to a screen reader — but note that they also have no tooltip, so a
-     pointer user gets no name at all. If that ever proves to be a problem,
-     add tooltips rather than bringing the captions back;
+     they are stable shapes, and the two that are less self-evident sit
+     directly under what they act on (the avatar is the project's own
+     initials; the "+" is under it). Captioning four controls that never
+     change cost a line of text each and turned the column into a wall of
+     words. Their accessible names stay on the buttons and concise localized
+     tooltips give pointer and keyboard users the same names. The project
+     tooltip includes its display name; the reserved account control states
+     that sign-in is coming soon without implying an account is required;
+   - unavailable destinations remain focusable but guarded from activation so
+     their localized reason is reachable by pointer, keyboard and screen
+     reader. In a text menu, show that reason directly rather than requiring a
+     tooltip to explain a disabled row;
+   - hover confirms interactivity with a stable neutral fill and foreground
+     change. It never lifts or enlarges rail furniture, and never borrows the
+     accent-tinted selected surface. Accent fill and green iconography remain
+     reserved for the active destination or selected control;
    - a single faded rule separates the destinations from everything below.
      Spacing alone used to carry that split, and did while the utilities were
      unlabelled; once they gained captions the whole column became evenly

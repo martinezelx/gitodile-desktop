@@ -57,6 +57,7 @@ describe("ProjectSwitcherRail", () => {
 
     // The rail itself shows one square; the status rides along on its badge.
     const trigger = screen.getByRole("button", { name: "alpha — switch project" });
+    expect(trigger).toHaveAttribute("data-tooltip", "alpha — switch project");
     expect(screen.getByLabelText("Has unsaved changes")).toBeInTheDocument();
 
     await userEvent.click(trigger);
@@ -65,6 +66,23 @@ describe("ProjectSwitcherRail", () => {
       "aria-current",
       "true",
     );
+  });
+
+  it("keeps a long non-ASCII project name intact in the rail tooltip", () => {
+    const longName = "Diseño_日本語_del proyecto con un nombre especialmente largo";
+    render(
+      <LanguageProvider>
+        <ProjectSwitcherRail
+          {...commonProps()}
+          entries={[{ ...entries[0], name: longName }]}
+          activeId={entries[0].id}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: `${longName} — switch project` }),
+    ).toHaveAttribute("data-tooltip", `${longName} — switch project`);
   });
 
   it("shows duplicate-name context and exposes every simultaneous status", async () => {
@@ -125,15 +143,24 @@ describe("ProjectSwitcherRail", () => {
     expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
   });
 
-  it("blocks switching while a dialog owns the active project", () => {
+  it("keeps blocked rail controls explainable without allowing activation", async () => {
     render(
       <LanguageProvider>
         <ProjectSwitcherRail {...commonProps()} canSwitch={false} />
       </LanguageProvider>,
     );
 
-    expect(screen.getByRole("button", { name: "alpha — switch project" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Add project" })).toBeDisabled();
+    const project = screen.getByRole("button", { name: "alpha — switch project" });
+    const add = screen.getByRole("button", { name: "Add project" });
+    expect(project).toHaveAttribute("aria-disabled", "true");
+    expect(project).toHaveAttribute("data-tooltip", "alpha — switch project");
+    expect(add).toHaveAttribute("aria-disabled", "true");
+    expect(add).toHaveAttribute("data-tooltip", "Add project");
+
+    await userEvent.click(project);
+    await userEvent.click(add);
+    expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menu", { name: "Add project" })).not.toBeInTheDocument();
   });
 
   it("filters the list to favourites and says so when there are none", async () => {
@@ -184,7 +211,7 @@ describe("ProjectSwitcherRail", () => {
     );
 
     const trigger = screen.getByRole("button", { name: "Add project" });
-    expect(trigger).not.toHaveAttribute("data-tooltip");
+    expect(trigger).toHaveAttribute("data-tooltip", "Add project");
     expect(screen.queryByRole("menuitem", { name: "Create local project" })).not.toBeInTheDocument();
 
     await userEvent.click(trigger);

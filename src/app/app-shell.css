@@ -413,16 +413,17 @@
 .rail-nav--icons-only { --rail-nav-gap: 4px; }
 .rail-nav--icons-only .rail-item { gap: 0; }
 .rail-nav--icons-only .rail-item__label { display: none; }
-.rail-item:hover:not(:disabled) { color: var(--text-primary); }
-.rail-item:hover:not(:disabled) .rail-item__icon { background: var(--surface-hover); transform: translateY(-1px); }
-.rail-item:hover:not(:disabled) .rail-item__icon svg { transform: scale(1.08); }
-.rail-item:active:not(:disabled) .rail-item__icon { transform: scale(0.94); }
+.rail-item:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--text-primary); }
+.rail-item:hover:not(:disabled):not([aria-disabled="true"]) .rail-item__icon { background: var(--surface-hover); }
+.rail-item:active:not(:disabled):not([aria-disabled="true"]) .rail-item__icon { transform: scale(0.97); }
 .rail-item--active { color: var(--text-primary); }
 .rail-item--active .rail-item__icon { background: var(--surface-active); color: var(--accent-primary); }
 .rail-item--active .rail-item__icon svg { animation: rail-icon-settle var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1); }
 .rail-item--active .rail-item__label { font-weight: 600; }
-.rail-item:disabled { opacity: 0.45; }
-.rail-item:disabled .rail-item__icon { filter: grayscale(1); }
+.rail-item:disabled,
+.rail-item[aria-disabled="true"] { opacity: 0.55; }
+.rail-item:disabled .rail-item__icon,
+.rail-item[aria-disabled="true"] .rail-item__icon { filter: grayscale(1); }
 .rail-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 .rail-more__menu {
@@ -461,11 +462,12 @@
 }
 
 /* Only destinations are captioned. The controls below the rule — project,
-   add, settings, account — are shapes people already know, and the two that
-   are not self-evident (the avatar, the "+") sit directly under what they act
-   on. Naming them cost a line of text each and turned the column into a wall
-   of words for four controls that never change. Their accessible names live on
-   the buttons.
+   add, settings, account — are stable shapes, and the two that are less
+   self-evident (the avatar, the "+") sit directly under what they act on.
+   Naming them cost a line of text each and turned the column into a wall of
+   words for four controls that never change. Accessible names and delegated
+   tooltips keep those compact controls discoverable without restoring the
+   captions.
 
    With the captions gone the widest element is the 40px icon square, so the
    88px measure the labels needed becomes 24px of dead margin on either side
@@ -488,13 +490,12 @@
 .sidebar-round svg {
   width: 18px;
   height: 18px;
-  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
 }
-.sidebar-round:hover:not(:disabled) { background: var(--surface-active); color: var(--text-primary); transform: translateY(-1px); }
-.sidebar-round:hover:not(:disabled) svg { transform: scale(1.08); }
-.sidebar-round:active:not(:disabled) { transform: scale(0.92); }
+.sidebar-round:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-hover); color: var(--text-primary); }
+.sidebar-round:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.97); }
 .sidebar-round--active { background: var(--surface-active); color: var(--accent-primary); }
-.sidebar-round:disabled { opacity: 0.45; }
+.sidebar-round:disabled,
+.sidebar-round[aria-disabled="true"] { opacity: 0.55; }
 
 .sidebar-project-group { display: grid; justify-items: center; gap: var(--space-3); }
 .sidebar-project {
@@ -506,9 +507,10 @@
   font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
   transition: filter var(--duration-fast), transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
 }
-.sidebar-project:hover:not(:disabled) .sidebar-project__avatar { filter: brightness(1.08); transform: scale(1.04); }
-.sidebar-project:active:not(:disabled) .sidebar-project__avatar { transform: scale(0.94); }
-.sidebar-project:disabled { opacity: 0.45; }
+.sidebar-project:hover:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { filter: brightness(1.08); }
+.sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { transform: scale(0.97); }
+.sidebar-project:disabled,
+.sidebar-project[aria-disabled="true"] { opacity: 0.55; }
 .sidebar-project:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .sidebar-project__chevron {
   position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px;
@@ -843,24 +845,19 @@
   .rail-more__menu { animation: none; }
   .sidebar-jump__menu { animation: none; }
   .rail-item__icon,
-  .rail-item__icon svg,
   .sidebar-round,
-  .sidebar-round svg,
   .sidebar-project__avatar,
   .sidebar-project__chevron svg,
   .project-switcher-add-menu__trigger > svg {
     animation: none;
     transition: none;
   }
-  .rail-item:hover:not(:disabled) .rail-item__icon,
-  .rail-item:hover:not(:disabled) .rail-item__icon svg,
-  .rail-item:active:not(:disabled) .rail-item__icon,
-  .sidebar-round:hover:not(:disabled),
-  .sidebar-round:hover:not(:disabled) svg,
-  .sidebar-round:active:not(:disabled),
-  .sidebar-project:hover:not(:disabled) .sidebar-project__avatar,
-  .sidebar-project:active:not(:disabled) .sidebar-project__avatar,
-  .sidebar-project[aria-expanded="true"] .sidebar-project__chevron svg,
+  .rail-item:active:not(:disabled):not([aria-disabled="true"]) .rail-item__icon,
+  .sidebar-round:active:not(:disabled):not([aria-disabled="true"]),
+  .sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar {
+    transform: none;
+  }
+  .sidebar-project[aria-expanded="true"] .sidebar-project__chevron svg { transform: rotate(180deg); }
   .project-switcher-add-menu__trigger[aria-expanded="true"] > svg { transform: rotate(45deg); }
   .project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
     transform: rotate(45deg);

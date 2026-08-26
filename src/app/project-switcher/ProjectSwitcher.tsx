@@ -187,11 +187,15 @@ function AddProjectMenu({
         type="button"
         className={`${ADD_MENU_TRIGGER_CLASS[variant]} project-switcher-add-menu__trigger`}
         aria-label={variant === "row" ? undefined : t.projectSwitcherAddProject}
-        data-tooltip={variant === "compact" ? t.projectSwitcherAddProject : undefined}
+        data-tooltip={variant === "row" ? undefined : t.projectSwitcherAddProject}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        disabled={!canSwitch}
-        onClick={() => (isOpen ? close(true) : setIsOpen(true))}
+        aria-disabled={variant === "rail" && !canSwitch ? true : undefined}
+        disabled={variant === "rail" ? undefined : !canSwitch}
+        onClick={() => {
+          if (!canSwitch) return;
+          isOpen ? close(true) : setIsOpen(true);
+        }}
       >
         <Plus aria-hidden="true" />
         {variant === "row" && <span>{t.projectSwitcherAddProject}</span>}
@@ -389,12 +393,14 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
             // changed with every background operation would be a moving
             // target for anyone navigating by voice.
             aria-label={t.projectSwitcherRailTrigger(activeEntry.name)}
+            data-tooltip={t.projectSwitcherRailTrigger(activeEntry.name)}
             aria-haspopup="dialog"
             aria-expanded={isOpen}
-            disabled={!canSwitch}
-            onClick={() =>
-              isOpen ? close(true) : (setQuery(""), setFavouritesOnly(false), setIsOpen(true))
-            }
+            aria-disabled={!canSwitch || undefined}
+            onClick={() => {
+              if (!canSwitch) return;
+              isOpen ? close(true) : (setQuery(""), setFavouritesOnly(false), setIsOpen(true));
+            }}
           >
             <span
               className="sidebar-project__avatar"

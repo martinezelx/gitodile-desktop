@@ -169,10 +169,11 @@ export function RailNav({
           key={item.id}
           className={`rail-item${item.isActive ? " rail-item--active" : ""}`}
           type="button"
-          disabled={item.isDisabled}
+          aria-disabled={item.isDisabled || undefined}
           aria-current={item.isActive ? "page" : undefined}
           aria-label={item.disabledLabel ?? (hideLabels ? item.label : undefined)}
-          onClick={item.onSelect}
+          data-tooltip={hideLabels || item.isDisabled ? item.disabledLabel ?? item.label : undefined}
+          onClick={item.isDisabled ? undefined : item.onSelect}
         >
           <RailItemContent item={item} hideLabel={hideLabels} />
         </button>
@@ -186,6 +187,7 @@ export function RailNav({
         aria-haspopup="menu"
         aria-expanded={isMoreOpen}
         aria-current={moreIsActive ? "page" : undefined}
+        data-tooltip={hideLabels ? moreLabel : undefined}
         onClick={() => (isMoreOpen ? closeMore(true) : setIsMoreOpen(true))}
       >
         <span className="rail-item__icon" aria-hidden="true"><Ellipsis /></span>
@@ -230,10 +232,11 @@ export function RailNav({
               disabled={item.isDisabled}
               aria-current={item.isActive ? "page" : undefined}
               aria-label={item.disabledLabel}
+              data-tooltip={item.isDisabled ? item.disabledLabel : undefined}
               onClick={() => chooseItem(item)}
             >
               {item.icon}
-              <span>{item.label}</span>
+              <span>{item.isDisabled ? item.disabledLabel ?? item.label : item.label}</span>
             </button>
           ))}
           {overflowItems.length > 0 && <div className="rail-more__divider" role="separator" />}

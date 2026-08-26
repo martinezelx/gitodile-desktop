@@ -47,7 +47,7 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof RailNav>> = {
 }
 
 describe("RailNav", () => {
-  it("keeps every destination in order while the available height fits them", () => {
+  it("keeps every destination in order and explains unavailable ones", async () => {
     renderRail();
 
     expect(
@@ -55,7 +55,11 @@ describe("RailNav", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["Overview", "Changes", "Version lines", "History", "Recovery", "More"]);
-    expect(screen.getByRole("button", { name: "Recovery — Coming soon" })).toBeDisabled();
+    const recovery = screen.getByRole("button", { name: "Recovery — Coming soon" });
+    expect(recovery).toHaveAttribute("aria-disabled", "true");
+    expect(recovery).toHaveAttribute("data-tooltip", "Recovery — Coming soon");
+    await userEvent.click(recovery);
+    expect(items[4].onSelect).not.toHaveBeenCalled();
     expect(screen.getByRole("navigation", { name: "Project navigation" })).not.toHaveClass(
       "auto-hide-scrollbar",
     );
@@ -117,7 +121,7 @@ describe("RailNav", () => {
     expect(within(menu).getAllByRole("menuitem").map((entry) => entry.textContent)).toEqual([
       "Version lines",
       "History",
-      "Recovery",
+      "Recovery — Coming soon",
       "Customize navigation bar",
     ]);
     expect(within(menu).getByRole("menuitem", { name: "Recovery — Coming soon" })).toBeDisabled();
@@ -158,6 +162,11 @@ describe("RailNav", () => {
     expect(nav).toHaveClass("rail-nav--icons-only");
     const overview = within(nav).getByRole("button", { name: "Overview" });
     expect(overview).toBeInTheDocument();
+    expect(overview).toHaveAttribute("data-tooltip", "Overview");
     expect(overview.querySelector(".rail-item__label")).toHaveAttribute("aria-hidden", "true");
+    expect(within(nav).getByRole("button", { name: "More" })).toHaveAttribute(
+      "data-tooltip",
+      "More",
+    );
   });
 });
