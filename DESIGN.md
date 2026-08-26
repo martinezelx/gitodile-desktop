@@ -36,22 +36,44 @@ Blur/translucency is not the default depth mechanism for GitOdrile chrome. Reser
 The main desktop window should broadly support:
 
 1. **Top bar** — implemented as a custom titlebar rather than a traditional File/Edit/View menu bar, which reads as legacy Win32/desktop-app chrome:
-   - left: the command-palette trigger (`Ctrl`/`Cmd`+`K`) and a compact overflow menu. The palette is a labeled rounded control, making it the visual entry point for app-wide actions instead of another anonymous icon.
+   - far left: the app mark, corner-anchored at a small fixed inset. It is deliberately *not* centred over the rail's icon column: centring means reserving a rail-wide block for it, and the part of that block the mark does not fill pushes every titlebar control right by the same amount — a permanent cost to the toolbar for an alignment only visible when looked for. Desktop Git clients park a small mark in the corner and start the controls immediately.
+   - left: the command-palette trigger (`Ctrl`/`Cmd`+`K`), the rail collapse control, and a compact overflow menu. The palette is a labeled rounded control, making it the visual entry point for app-wide actions instead of another anonymous icon.
+   - the collapse control doubles as a jump menu: while the rail is collapsed, resting on it opens the rail's destinations as a short menu hanging off the button, so a destination can be reached without expanding and re-collapsing the rail around a single click. It carries the rail's three groups — destinations, projects (favourites only), and the app-level utilities — with the project group's two nested menus flattened, since a list this short can just say what those menus would have said. It is a menu, not a miniature rail — same furniture as every other flyout in the app.
    - contextual history: Back/Forward stay together with the command controls. They remain visibly disabled until there is history to traverse, then become available without moving the surrounding chrome.
    - center: the remaining native drag region, including double-click maximize/restore.
    - right: window controls (minimize/maximize/close), styled as small rounded buttons inset from the edge rather than full-height square hit targets, so they read as part of the same rounded-corner system as the rest of the UI instead of bolted-on OS chrome.
 
-2. **Navigation rail** — one 88px column, always the same width. By default,
-   each destination is an icon in a 40px rounded square with its name
-   underneath; the active state fills that square, never the whole cell, so a
-   two-line label like "Líneas de versión" does not make its neighbour look
-   shorter. Navigation Settings may switch to icons only: labels disappear and
-   the vertical rhythm tightens, but the 40px pointer target and accessible
-   name remain. This is a presentation mode, not a width-changing collapse, so
-   projects and foot controls never jump sideways.
-   - the brand mark has a clear 16px pause before Overview, so product identity
-     and project navigation read as separate groups;
-   - Overview, Changes, Version lines, History, and Recovery keep their order.
+2. **Navigation rail** — a 64px column with no surface of its own: no fill, no
+   border, no shadow. The window chrome (titlebar, rail, status bar) is one
+   continuous plane, and only *content* sits in cards on top of it. Each
+   destination is an icon in a 40px rounded square with its name underneath;
+   the active state fills that square, never the whole cell, so a two-line
+   label like "Iniciar sesión" does not make its neighbour look shorter.
+
+   The width is derived, not chosen. 64px is 8px of padding either side of the
+   widest thing the column must hold, which is the longest unbreakable
+   *destination* label across every shipped language — "Overview", at 46.3px.
+   Chromium ships no Spanish hyphenation dictionary, so a narrower column can
+   only break such a word mid-syllable, which is why Recovery is "Rescate" in
+   Spanish and not "Recuperación" (66.7px). Settings was renamed to "Ajustes"
+   for the same reason while the utilities were still captioned; that
+   constraint is gone now that they are not, and the shorter name was kept on
+   its own merits. **Re-measure before narrowing, and treat
+   a new long destination name as a width decision, not just a copy one.**
+
+   Destination names are one word for the same reason. Where the concept needs
+   more, the short name is an *abbreviation* of the full term, never a second
+   vocabulary: the Lines destination shows version lines, and the prose keeps
+   saying "version line" — the same relationship the sync screen already had
+   with "Current line" and "Team line". A destination named from a different
+   word than its own prose (say "Branches") would make the user learn that two
+   names mean one thing.
+
+   Navigation Settings may switch to icons only: every caption disappears —
+   destinations and utilities alike, since a rail that labels one and not the
+   other reads as an accident — and the column narrows to 56px, the icon square
+   plus its padding. The 40px pointer target and accessible name remain.
+   - Overview, Changes, Lines, History, and Recovery keep their order.
      Navigation Settings controls which stay in the rail; deselected and
      height-overflowed destinations remain reachable in More, in registry
      order. Recovery stays disabled and marked "Coming soon" until its screen
@@ -62,18 +84,83 @@ The main desktop window should broadly support:
      "Customize navigation bar", which opens the dedicated Settings section;
    - below the destinations: the active project as a single square that opens
      a searchable switcher, plus a same-size "+" holding the three ways to add
-     one (open, create, clone). A 24px interval, rather than a divider,
-     distinguishes project context from navigation;
+     one (open, create, clone);
+   - projects can be starred. Favourites sort to the top of the switcher and
+     are the only ones the collapsed rail's jump menu lists, so that menu stays
+     a shortcut rather than a second copy of the switcher. Until the first star
+     is set it lists them all, because an empty group explains neither why it
+     is empty nor how to fill it. The sort is display-only — the session order
+     stays canonical, so starring a project never changes what Ctrl/Cmd+Tab
+     cycles through. A favourite survives closing its project and is stored
+     against the canonical worktree root, the same identity the session
+     reducer uses, so it also survives restarts, path aliases and symlinks;
    - at the foot: Settings above the account button. These app-level utilities
-     remain anchored and use the same footprint as the project controls.
+     remain anchored and use the same footprint as the project controls;
+   - only destinations are captioned. The controls below the rule — project,
+     add, Settings, account — carry no visible label in either display mode:
+     they are shapes people arrive already knowing, and the two that are not
+     self-evident sit directly under what they act on (the avatar is the
+     project's own initials; the "+" is under it). Captioning four controls
+     that never change cost a line of text each and turned the column into a
+     wall of words. Their accessible names stay on the buttons, so nothing is
+     lost to a screen reader — but note that they also have no tooltip, so a
+     pointer user gets no name at all. If that ever proves to be a problem,
+     add tooltips rather than bringing the captions back;
+   - a single faded rule separates the destinations from everything below.
+     Spacing alone used to carry that split, and did while the utilities were
+     unlabelled; once they gained captions the whole column became evenly
+     stacked tiles and the interval stopped reading as a boundary. This is the
+     documented exception to "separate rows with spacing alone": it divides two
+     *groups*, not consecutive rows within one.
+   - the rail can be collapsed entirely (`Ctrl`/`Cmd`+`B`, or the titlebar
+     control), giving the window over to content. Collapsed means `display:
+     none`, never a zero width or a transparent column: a rail still in the tab
+     order is a trap for keyboard and screen-reader users. The state persists
+     across sessions like every other chrome preference.
 
-3. **Primary workspace**
+3. **Status bar** — a 30px strip along the bottom of the content column,
+   spanning from the rail's edge to the window's, on every screen including
+   Overview. It reports what is true of the project right now: branch, unsaved
+   work, sync state and when that was last learned, and the app version.
+   - it is chrome, not content: no fill, no radius, no shadow. Shadow signals
+     stacking order, and this strip is the floor of the window rather than
+     something resting on it; at 30px tall it could not carry the 14–18px card
+     radius without reading as a pill;
+   - it shares the workspace's horizontal inset through a variable rather than
+     repeating the number, so its text sits in the same column as the content
+     above it at every breakpoint;
+   - no rules anywhere in it — not between its items, and not along its top
+     edge. Spacing does all the separating, per the rule above: 5px binds an
+     icon to its text, 8px binds the parts of one fact, 24px separates one fact
+     from the next, and the workspace's own bottom padding leaves the band
+     between the last card and this line of text;
+   - the cut mid-scroll is softened by a fade to the window's colour drawn
+     directly above the strip, not by a rule. It is drawn from the strip rather
+     than masked onto the workspace because a mask on a scroll container
+     recomposites every frame, and the screens that scroll most are the
+     virtualized diff lists. Its height is the workspace's own bottom inset,
+     from the same variable — that equality is what makes the fade free at the
+     end of a scroll, where the band then contains only padding. The effect
+     appears exactly when there is more to see and disappears when there is
+     not, with no scroll listener deciding that;
+   - the fade eases (`x²(3−2x)`) rather than ramping linearly. Equal steps of
+     alpha are not equal steps of what the eye sees: near black it resolves far
+     smaller luminance differences, so a linear ramp shows its own startpoint as
+     an edge in dark mode while passing unnoticed in light. Easing moves alpha
+     4% across the first eighth instead of 12.5%, so both ends dissolve into
+     their surroundings. Any future scrim in this app wants the same curve;
+   - the version is shown as `v0.1.0` — no product name, since the window is
+     already the product;
+   - it must never state something untrue about a repository. It is the one
+     surface in the app whose whole purpose is to be believed at a glance.
+
+4. **Primary workspace**
    - task-focused content;
    - clear empty states;
    - contextual primary action;
    - secondary technical details on demand.
 
-4. **Optional inspector**
+5. **Optional inspector**
    - metadata;
    - exact Git details;
    - file or commit information.
@@ -112,7 +199,6 @@ Colors should be defined semantically rather than by component:
 - `--text-secondary`
 - `--border-subtle`
 - `--accent-brand` / `--accent-brand-contrast` (the fixed lime brand mark and primary CTA)
-- `--brand-mark-foreground` (theme-aware crocodile color used only inside the lime brand tile)
 - `--accent-primary`
 - `--accent-primary-contrast` (text/icon color placed on top of `--accent-primary`)
 - `--accent-primary-fill` (fixed lime fill for selected controls)
@@ -139,7 +225,9 @@ Use shadows to signal stacking order, not to decorate: `--shadow-sm` for resting
 
 Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`lucide-react`, ISC) at 16–18px, imported by name so unused icons are tree-shaken out of the bundle. Chosen over hand-drawing our own because it ships real Git-specific glyphs (`GitCompare`, `GitCommitHorizontal`) instead of the generic pencil/clock metaphors the app used before — see the icon-library comparison done when this was decided. An active nav item tints its icon with `--accent-primary`; the label stays `--text-primary`. Don't mix in a second icon library or hand-drawn icons alongside it — pick the closest Lucide glyph even when it's not a perfect semantic match.
 
-Brand identity (mark + name) appears in exactly one visible place at a time, never two. The sidebar's brand block is the canonical one; the titlebar carries no branding of its own while the sidebar is visible, matching Arc/Notion/Linear-style custom titlebars — a second icon+name stacked a few pixels above the sidebar's reads as an accidental duplicate, not an intentional echo. The titlebar's brand block only reappears (icon and name together) once the sidebar is hidden below the 800px breakpoint, since it's then the sole remaining identity signal.
+Brand identity (mark + name) appears in exactly one visible place at a time, never two. **The titlebar is the canonical one**, and the rail carries no brand block: a 40px lockup at the top of the rail spent that column's most valuable real estate on something that never changes, and forced the titlebar to suppress its own mark to avoid reading as a double logo. One mark, in the window furniture, next to the controls it belongs with. The wordmark joins it only below the 800px breakpoint, where the rail is gone and nothing else on screen names the app.
+
+The mark is the crocodile silhouette itself, not a silhouette knocked out of a green tile, and it is painted in `--accent-primary` — *not* `--accent-brand`. This follows the standing rule below rather than breaking it: the brand lime is a single fixed value in both themes, which works behind a tile it also supplies the contrast for, but a bare mark on the light app surface measures 1.95:1 with it. `--accent-primary` is the per-theme green and measures 5.09:1 on light and 11.46:1 on dark. The About dialog uses the same treatment at hero scale — one identity, one rendering.
 
 ### Honest affordances
 
@@ -160,7 +248,6 @@ The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and prima
 | `--border-subtle` | `#27272a` | `#e7e5e4` |
 | `--accent-brand` | `#8bc53f` | `#8bc53f` |
 | `--accent-brand-contrast` | `#14170f` | `#14170f` |
-| `--brand-mark-foreground` | `#14170f` | `#faf8f5` |
 | `--accent-primary` | `#9bd65a` | `#4f751e` |
 | `--accent-primary-contrast` | `#0a0a0a` | `#14170f` |
 | `--accent-primary-fill` | `#9bd65a` | `#9bd65a` |

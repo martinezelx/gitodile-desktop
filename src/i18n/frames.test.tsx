@@ -25,10 +25,10 @@ describe("eager first-frame translations", () => {
   beforeEach(() => localStorage.clear());
 
   it("renders core and first feature copy in English without a key or fallback frame", () => {
-    expect(renderFirstFrame("en")).toBe("en|Overview|Changes|Version lines");
+    expect(renderFirstFrame("en")).toBe("en|Overview|Changes|Lines");
   });
 
   it("renders core and first feature copy in Spanish without a key or fallback frame", () => {
-    expect(renderFirstFrame("es")).toBe("es|Resumen|Cambios|Líneas de versión");
+    expect(renderFirstFrame("es")).toBe("es|Resumen|Cambios|Líneas");
   });
 });

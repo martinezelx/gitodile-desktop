@@ -271,7 +271,7 @@ const es: InitializeProjectTranslations = {
   initializeSafetyBody: "GitOdrile vuelve a comprobar la ruta justo antes de escribir, nunca limpia ni repuebla una carpeta existente y solo elimina artefactos vacíos exactos marcados como propiedad de este intento.",
   initializeIdentityTitle: "Identidad para la primera versión",
   initializeIdentityReady: "Tu identidad Git actual está disponible. Los hooks y la configuración de firma seguirán activos.",
-  initializeIdentityMissing: "La primera versión necesita un nombre y correo de Git. Añádelos en Configuración o desactiva por ahora la primera versión.",
+  initializeIdentityMissing: "La primera versión necesita un nombre y correo de Git. Añádelos en Ajustes o desactiva por ahora la primera versión.",
   initializeOpenIdentitySettings: "Abrir configuración de identidad",
   initializeEditAction: "Editar configuración",
   initializeConfirmAction: "Crear y abrir proyecto",

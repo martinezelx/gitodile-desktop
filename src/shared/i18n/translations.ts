@@ -281,7 +281,7 @@ const es: SharedTranslations = {
   errorDetachedHead: "Este proyecto no está en una línea de versión ahora mismo. Cambia a una antes de guardar una versión.",
   errorGitOperationInProgress:
     "Ya hay una operación de Git en curso en este proyecto. Termínala o cancélala, y vuelve a intentarlo.",
-  errorMissingIdentity: "GitOdrile todavía no sabe quién está guardando esta versión. Añade un nombre y un correo en Configuración.",
+  errorMissingIdentity: "GitOdrile todavía no sabe quién está guardando esta versión. Añade un nombre y un correo en Ajustes.",
   errorEmptyTitle: "Escribe un nombre breve antes de guardar.",
   errorInvalidTitle: "Escribe el nombre de la versión en una sola línea.",
   errorStalePreview: "Este proyecto cambió desde que se mostró la vista previa. Revisa los cambios actualizados e inténtalo de nuevo.",

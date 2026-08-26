@@ -47,7 +47,6 @@
      everyday tone used for nav/focus/status so the UI isn't awash in green. */
   --accent-brand: #8bc53f;
   --accent-brand-contrast: #14170f;
-  --brand-mark-foreground: #faf8f5;
   --accent-primary: #4f751e;
   --accent-primary-contrast: #14170f;
   --accent-primary-fill: #9bd65a;
@@ -123,7 +122,6 @@
     --border-divider: #3f3f46;
     --accent-brand: #8bc53f;
     --accent-brand-contrast: #14170f;
-    --brand-mark-foreground: #14170f;
     --accent-primary: #9bd65a;
     --accent-primary-contrast: #0a0a0a;
     --accent-primary-fill: #9bd65a;
@@ -162,7 +160,6 @@
   --border-divider: #e7e5e4;
   --accent-brand: #8bc53f;
   --accent-brand-contrast: #14170f;
-  --brand-mark-foreground: #faf8f5;
   --accent-primary: #4f751e;
   --accent-primary-contrast: #14170f;
   --accent-primary-fill: #9bd65a;
@@ -200,7 +197,6 @@
   --border-divider: #3f3f46;
   --accent-brand: #8bc53f;
   --accent-brand-contrast: #14170f;
-  --brand-mark-foreground: #14170f;
   --accent-primary: #9bd65a;
   --accent-primary-contrast: #0a0a0a;
   --accent-primary-fill: #9bd65a;

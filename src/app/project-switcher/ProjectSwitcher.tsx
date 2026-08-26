@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Plus,
   Search,
+  Star,
   X,
 } from "lucide-react";
 import { useLanguage } from "../../i18n";
@@ -24,6 +25,7 @@ export type ProjectSwitcherEntry = {
   hasError: boolean;
   hasOperationInProgress: boolean;
   hasUnsavedChanges: boolean;
+  isFavourite: boolean;
 };
 
 type ProjectSwitcherProps = {
@@ -41,7 +43,23 @@ type ProjectSwitcherProps = {
   onOpenAnother: () => void;
   onCreate: () => void;
   onClone: () => void;
+  onToggleFavourite: (id: string) => void;
 };
+
+/**
+ * Favourites first, everything else after, each group keeping the order it
+ * already had. Display order only — `sessionsState.order` stays canonical, so
+ * favouriting a project never silently rearranges what Ctrl/Cmd+Tab cycles
+ * through or which project the reducer considers next.
+ */
+export function orderByFavourite(
+  entries: readonly ProjectSwitcherEntry[],
+): ProjectSwitcherEntry[] {
+  return [
+    ...entries.filter((entry) => entry.isFavourite),
+    ...entries.filter((entry) => !entry.isFavourite),
+  ];
+}
 
 type IndicatorMeta = {
   Icon: typeof CircleAlert;
@@ -186,7 +204,7 @@ function AddProjectMenu({
           // like a click outside the popover that renders its trigger.
           data-add-project-menu=""
           {...autoHideScrollbarProps<HTMLDivElement>()}
-          className={`app-menu project-switcher-add-menu__popup${variant === "rail" ? " sidebar-project-flyout auto-hide-scrollbar" : ""}`}
+          className="app-menu project-switcher-add-menu__popup"
           role="menu"
           aria-label={t.projectSwitcherAddProject}
           tabIndex={-1}
@@ -228,6 +246,7 @@ function ProjectSwitcherRows({
   onOpenAnother,
   onCreate,
   onClone,
+  onToggleFavourite,
   // The rail's own popover leaves it out: its "+" sits right under the
   // trigger that opened the popover, so repeating it inside would be the same
   // control twice within 40px.
@@ -236,7 +255,7 @@ function ProjectSwitcherRows({
   const { t } = useLanguage();
   return (
     <ul className="project-switcher__list" role="list" aria-label={t.projectSwitcherAriaLabel}>
-      {entries.map((entry) => {
+      {orderByFavourite(entries).map((entry) => {
         const isActive = entry.id === activeId;
         const accessibleName = entry.contextLabel
           ? `${entry.name} (${entry.contextLabel})`
@@ -265,6 +284,26 @@ function ProjectSwitcherRows({
                 )}
               </span>
               <RowIndicators entry={entry} />
+            </button>
+            {/* Before Close, so the destructive control stays last in reading
+                and tab order. Always rendered rather than revealed on hover: a
+                marked favourite has to be readable without pointing at it, and
+                a hover-only control cannot be reached by keyboard at all. */}
+            <button
+              type="button"
+              className={`project-switcher__favourite${entry.isFavourite ? " project-switcher__favourite--on" : ""}`}
+              aria-pressed={entry.isFavourite}
+              aria-label={
+                entry.isFavourite
+                  ? t.projectSwitcherUnfavourite(accessibleName)
+                  : t.projectSwitcherFavourite(accessibleName)
+              }
+              data-tooltip={
+                entry.isFavourite ? t.projectSwitcherUnfavouriteHint : t.projectSwitcherFavouriteHint
+              }
+              onClick={() => onToggleFavourite(entry.id)}
+            >
+              <Star aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -314,6 +353,10 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // Not persisted: a filter is a way of looking at the list right now, not a
+  // preference. Reopening the switcher always shows everything that is open,
+  // or the projects hidden by a forgotten filter would look closed.
+  const [favouritesOnly, setFavouritesOnly] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { entries, activeId, canSwitch } = props;
 
@@ -325,9 +368,10 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
 
   const activeEntry = entries.find((entry) => entry.id === activeId) ?? null;
   const needle = query.trim().toLocaleLowerCase();
+  const scope = favouritesOnly ? entries.filter((entry) => entry.isFavourite) : entries;
   const matches = needle
-    ? entries.filter((entry) => entry.name.toLocaleLowerCase().includes(needle))
-    : entries;
+    ? scope.filter((entry) => entry.name.toLocaleLowerCase().includes(needle))
+    : scope;
   const metas = activeEntry ? indicatorMetas(activeEntry, t) : [];
   const primaryMeta = metas[0] ?? null;
   const statusSummary = metas.map((meta) => meta.label).join(" · ");
@@ -348,7 +392,9 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
             aria-haspopup="dialog"
             aria-expanded={isOpen}
             disabled={!canSwitch}
-            onClick={() => (isOpen ? close(true) : (setQuery(""), setIsOpen(true)))}
+            onClick={() =>
+              isOpen ? close(true) : (setQuery(""), setFavouritesOnly(false), setIsOpen(true))
+            }
           >
             <span
               className="sidebar-project__avatar"
@@ -393,6 +439,22 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
                   aria-label={t.projectSwitcherSearchPlaceholder}
                   onChange={(event) => setQuery(event.target.value)}
                 />
+                {/* Inside the search row rather than on a row of its own: this
+                    panel is short, and a filter that costs a line of height to
+                    show three more projects is a bad trade. */}
+                <button
+                  type="button"
+                  className={`sidebar-project__filter${favouritesOnly ? " sidebar-project__filter--on" : ""}`}
+                  aria-pressed={favouritesOnly}
+                  aria-label={
+                    favouritesOnly
+                      ? t.projectSwitcherFavouritesOnlyOff
+                      : t.projectSwitcherFavouritesOnly
+                  }
+                  onClick={() => setFavouritesOnly((only) => !only)}
+                >
+                  <Star aria-hidden="true" />
+                </button>
               </div>
               {matches.length > 0 ? (
                 <ProjectSwitcherRows
@@ -409,7 +471,11 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
                   }}
                 />
               ) : (
-                <p className="sidebar-project__empty">{t.projectSwitcherSearchEmpty}</p>
+                <p className="sidebar-project__empty">
+                  {favouritesOnly && !needle
+                    ? t.projectSwitcherFavouritesEmpty
+                    : t.projectSwitcherSearchEmpty}
+                </p>
               )}
             </div>,
             document.body,

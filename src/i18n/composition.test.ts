@@ -53,8 +53,8 @@ describe("translation composition", () => {
     expect(translations.es.navOverview).toBe("Resumen");
     expect(translations.en.changesHeading).toBe("Changes");
     expect(translations.es.changesHeading).toBe("Cambios");
-    expect(translations.en.versionLinesTitle).toBe("Version lines");
-    expect(translations.es.versionLinesTitle).toBe("Líneas de versión");
+    expect(translations.en.versionLinesTitle).toBe("Lines");
+    expect(translations.es.versionLinesTitle).toBe("Líneas");
     expect(translations.en.statusChangesMessage(3)).toBe("3 files have changed since your last saved version.");
     expect(translations.es.statusChangesMessage(3)).toBe("3 archivos han cambiado desde tu última versión guardada.");
   });

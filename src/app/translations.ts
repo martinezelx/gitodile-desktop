@@ -13,6 +13,7 @@ export interface AppTranslations {
   shortcutsDialogTitle: string;
   shortcutsOpenPalette: string;
   shortcutsOpenSettings: string;
+  shortcutsToggleSidebar: string;
   shortcutsNextProject: string;
   shortcutsPreviousProject: string;
   shortcutsCloseDialogs: string;
@@ -71,11 +72,26 @@ export interface AppTranslations {
   projectSwitcherSwitchBlockedHint: string;
   projectSwitcherEmptyHint: string;
   projectSwitcherAddProject: string;
+  projectSwitcherFavourite: (name: string) => string;
+  projectSwitcherUnfavourite: (name: string) => string;
+  projectSwitcherFavouriteHint: string;
+  projectSwitcherFavouritesOnly: string;
+  projectSwitcherFavouritesOnlyOff: string;
+  projectSwitcherFavouritesEmpty: string;
+  projectSwitcherUnfavouriteHint: string;
   projectSwitcherCloneProject: string;
   projectSwitcherCreateProject: string;
   projectSwitcherActiveAnnouncement: (name: string) => string;
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
+  statusBarAriaLabel: string;
+  statusBarUnsaved: (count: number) => string;
+  statusBarUpToDate: string;
+  statusBarLastChecked: (relative: string) => string;
+  statusBarCheckNow: string;
+  statusBarVersion: (version: string) => string;
+  titlebarHideSidebar: string;
+  titlebarShowSidebar: string;
   titlebarSwitchToLightTheme: string;
   titlebarSwitchToDarkTheme: string;
   startupRestoreSkippedNotice: (count: number) => string;
@@ -112,6 +128,7 @@ const en: AppTranslations = {
   shortcutsDialogTitle: "Keyboard shortcuts",
   shortcutsOpenPalette: "Open command palette",
   shortcutsOpenSettings: "Open Settings",
+  shortcutsToggleSidebar: "Show or hide the sidebar",
   shortcutsNextProject: "Next project",
   shortcutsPreviousProject: "Previous project",
   shortcutsCloseDialogs: "Close dialogs and menus",
@@ -129,8 +146,8 @@ const en: AppTranslations = {
   navOverview: "Overview",
   navChanges: "Changes",
   navChangesTitle: "Changes — Open a project first",
-  navVersionLines: "Version lines",
-  navVersionLinesTitle: "Version lines — Open a project first",
+  navVersionLines: "Lines",
+  navVersionLinesTitle: "Lines — Open a project first",
   navHistory: "History",
   navHistoryTitle: "History — Open a project first",
   navRecovery: "Recovery",
@@ -144,7 +161,7 @@ const en: AppTranslations = {
   palettePlaceholder: "Jump to a view or action…",
   paletteNoMatches: "No matching commands",
   commandGoOverview: "Go to Overview",
-  commandGoVersionLines: "Go to Version lines",
+  commandGoVersionLines: "Go to Lines",
   commandGoHistory: "Go to History",
   commandNewVersionLine: "New version line",
   commandGoSettings: "Go to Settings",
@@ -170,6 +187,13 @@ const en: AppTranslations = {
   projectSwitcherSwitchBlockedHint: "Finish the open dialog before switching projects",
   projectSwitcherEmptyHint: "Your open projects will show up here.",
   projectSwitcherAddProject: "Add project",
+  projectSwitcherFavourite: (name) => `Add ${name} to favourites`,
+  projectSwitcherUnfavourite: (name) => `Remove ${name} from favourites`,
+  projectSwitcherFavouriteHint: "Add to favourites",
+  projectSwitcherFavouritesOnly: "Show favourites only",
+  projectSwitcherFavouritesOnlyOff: "Show every open project",
+  projectSwitcherFavouritesEmpty: "No favourites yet. Star a project to keep it here.",
+  projectSwitcherUnfavouriteHint: "Remove from favourites",
   projectSwitcherCloneProject: "Clone remote project",
   projectSwitcherCreateProject: "Create local project",
   projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
@@ -177,6 +201,14 @@ const en: AppTranslations = {
     `Wait for the operation in ${name} to finish before starting another one in a linked workspace.`,
   projectSwitcherCloseBlocked: (name) =>
     `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
+  statusBarAriaLabel: "Project status",
+  statusBarUnsaved: (count) => (count === 1 ? "1 unsaved change" : `${count} unsaved changes`),
+  statusBarUpToDate: "Up to date",
+  statusBarLastChecked: (relative) => `Checked ${relative}`,
+  statusBarCheckNow: "Check for team changes",
+  statusBarVersion: (version) => `v${version}`,
+  titlebarHideSidebar: "Hide sidebar",
+  titlebarShowSidebar: "Show sidebar",
   titlebarSwitchToLightTheme: "Switch to light theme",
   titlebarSwitchToDarkTheme: "Switch to dark theme",
   startupRestoreSkippedNotice: (count) =>
@@ -213,7 +245,8 @@ const es: AppTranslations = {
   titlebarKeyboardShortcuts: "Atajos de teclado",
   shortcutsDialogTitle: "Atajos de teclado",
   shortcutsOpenPalette: "Abrir la paleta de comandos",
-  shortcutsOpenSettings: "Abrir Configuración",
+  shortcutsOpenSettings: "Abrir Ajustes",
+  shortcutsToggleSidebar: "Mostrar u ocultar la barra lateral",
   shortcutsNextProject: "Proyecto siguiente",
   shortcutsPreviousProject: "Proyecto anterior",
   shortcutsCloseDialogs: "Cerrar diálogos y menús",
@@ -231,13 +264,13 @@ const es: AppTranslations = {
   navOverview: "Resumen",
   navChanges: "Cambios",
   navChangesTitle: "Cambios — Abre un proyecto primero",
-  navVersionLines: "Líneas de versión",
-  navVersionLinesTitle: "Líneas de versión — Abre un proyecto primero",
+  navVersionLines: "Líneas",
+  navVersionLinesTitle: "Líneas — Abre un proyecto primero",
   navHistory: "Historial",
   navHistoryTitle: "Historial — Abre un proyecto primero",
-  navRecovery: "Recuperación",
-  navRecoveryTitle: "Recuperación — Próximamente",
-  navSettings: "Configuración",
+  navRecovery: "Rescate",
+  navRecoveryTitle: "Rescate — Próximamente",
+  navSettings: "Ajustes",
   navMore: "Más",
   navCustomizeNavigation: "Personalizar barra de navegación",
   navAccount: "Iniciar sesión",
@@ -246,11 +279,11 @@ const es: AppTranslations = {
   palettePlaceholder: "Ir a una vista o acción…",
   paletteNoMatches: "No hay coincidencias",
   commandGoOverview: "Ir a Resumen",
-  commandGoVersionLines: "Ir a Líneas de versión",
+  commandGoVersionLines: "Ir a Líneas",
   commandGoHistory: "Ir al Historial",
   commandNewVersionLine: "Nueva línea de versión",
-  commandGoSettings: "Ir a Configuración",
-  commandGoSettingsSection: (section) => `Configuración: ${section}`,
+  commandGoSettings: "Ir a Ajustes",
+  commandGoSettingsSection: (section) => `Ajustes: ${section}`,
   commandUseSystemTheme: "Usar el tema del sistema",
   commandUseLightTheme: "Usar el tema claro",
   commandUseDarkTheme: "Usar el tema oscuro",
@@ -272,6 +305,13 @@ const es: AppTranslations = {
   projectSwitcherSwitchBlockedHint: "Termina el diálogo abierto antes de cambiar de proyecto",
   projectSwitcherEmptyHint: "Aquí aparecerán tus proyectos abiertos.",
   projectSwitcherAddProject: "Añadir proyecto",
+  projectSwitcherFavourite: (name) => `Añadir ${name} a favoritos`,
+  projectSwitcherUnfavourite: (name) => `Quitar ${name} de favoritos`,
+  projectSwitcherFavouriteHint: "Añadir a favoritos",
+  projectSwitcherFavouritesOnly: "Ver solo favoritos",
+  projectSwitcherFavouritesOnlyOff: "Ver todos los proyectos abiertos",
+  projectSwitcherFavouritesEmpty: "Todavía no hay favoritos. Marca un proyecto con la estrella para tenerlo aquí.",
+  projectSwitcherUnfavouriteHint: "Quitar de favoritos",
   projectSwitcherCloneProject: "Clonar proyecto remoto",
   projectSwitcherCreateProject: "Crear proyecto local",
   projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,
@@ -279,6 +319,14 @@ const es: AppTranslations = {
     `Espera a que termine la operación de ${name} antes de iniciar otra en un espacio de trabajo vinculado.`,
   projectSwitcherCloseBlocked: (name) =>
     `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
+  statusBarAriaLabel: "Estado del proyecto",
+  statusBarUnsaved: (count) => (count === 1 ? "1 cambio sin guardar" : `${count} cambios sin guardar`),
+  statusBarUpToDate: "Al día",
+  statusBarLastChecked: (relative) => `Comprobado ${relative}`,
+  statusBarCheckNow: "Comprobar cambios del equipo",
+  statusBarVersion: (version) => `v${version}`,
+  titlebarHideSidebar: "Ocultar la barra lateral",
+  titlebarShowSidebar: "Mostrar la barra lateral",
   titlebarSwitchToLightTheme: "Cambiar a tema claro",
   titlebarSwitchToDarkTheme: "Cambiar a tema oscuro",
   startupRestoreSkippedNotice: (count) =>

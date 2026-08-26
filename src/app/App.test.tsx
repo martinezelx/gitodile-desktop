@@ -966,10 +966,10 @@ describe("App project restoration", () => {
     await waitFor(() =>
       expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1),
     );
-    await userEvent.click(within(nav).getByRole("button", { name: "Version lines" }));
-    expect(await screen.findByRole("heading", { name: "Version lines" })).toBeInTheDocument();
+    await userEvent.click(within(nav).getByRole("button", { name: "Lines" }));
+    expect(await screen.findByRole("heading", { name: "Lines" })).toBeInTheDocument();
     await userEvent.click(within(nav).getByRole("button", { name: "Overview" }));
-    await userEvent.click(within(nav).getByRole("button", { name: "Version lines" }));
+    await userEvent.click(within(nav).getByRole("button", { name: "Lines" }));
 
     // Screen navigation consumes the cached snapshot. Freshness comes from
     // project activation and repository-watch invalidation, not from arrival.
@@ -1109,7 +1109,7 @@ describe("App project restoration", () => {
     resolveOldRequest?.(staleVersionLines);
     await userEvent.click(
       within(screen.getByRole("navigation", { name: "Project navigation" })).getByRole("button", {
-        name: "Version lines",
+        name: "Lines",
       }),
     );
     expect(screen.queryByText("stale/old-session")).toBeNull();

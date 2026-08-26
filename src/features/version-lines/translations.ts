@@ -112,7 +112,7 @@ export interface VersionLinesTranslations {
 }
 
 const en: VersionLinesTranslations = {
-  versionLinesTitle: "Version lines",
+  versionLinesTitle: "Lines",
   versionLinesExplanation:
     "Separate tracks for your saved versions. Switch lines to work in a different one.",
   versionLinesSearchPlaceholder: "Search version lines…",
@@ -246,7 +246,7 @@ const en: VersionLinesTranslations = {
 };
 
 const es: VersionLinesTranslations = {
-  versionLinesTitle: "Líneas de versión",
+  versionLinesTitle: "Líneas",
   versionLinesExplanation:
     "Vías independientes para tus versiones guardadas. Cambia de línea para trabajar en otra.",
   versionLinesSearchPlaceholder: "Buscar líneas de versión…",

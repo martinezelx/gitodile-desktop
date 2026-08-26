@@ -253,7 +253,7 @@ const es: ChangesTranslations = {
     `La diferencia de este archivo supera ${limit}, el límite de seguridad de GitOdrile para revisar cambios aquí. El archivo en sí no se ve afectado.`,
   changesDiffWhitespaceOnlyTitle: "Solo cambió el espaciado",
   changesDiffWhitespaceOnlyDescription:
-    "Todos los cambios de este archivo son espacios en blanco, y pediste ignorarlos. Desactiva esa opción en Configuración para verlos.",
+    "Todos los cambios de este archivo son espacios en blanco, y pediste ignorarlos. Desactiva esa opción en Ajustes para verlos.",
   changesDiffUnchangedTitle: "No hay cambios de contenido",
   changesDiffUnchangedDescription: "Solo cambió el nombre o los permisos del archivo. No hay diferencia de texto que mostrar.",
   changesDiffConflictTitle: "Este archivo necesita tu atención",

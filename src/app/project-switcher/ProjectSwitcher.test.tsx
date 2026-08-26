@@ -5,6 +5,7 @@ import { LanguageProvider } from "../../i18n";
 import {
   ProjectSwitcherCompact,
   ProjectSwitcherRail,
+  orderByFavourite,
   type ProjectSwitcherEntry,
 } from "./ProjectSwitcher";
 
@@ -16,6 +17,7 @@ const entries: ProjectSwitcherEntry[] = [
     hasError: false,
     hasOperationInProgress: false,
     hasUnsavedChanges: true,
+    isFavourite: false,
   },
   {
     id: "/projects/beta",
@@ -24,6 +26,7 @@ const entries: ProjectSwitcherEntry[] = [
     hasError: false,
     hasOperationInProgress: false,
     hasUnsavedChanges: false,
+    isFavourite: false,
   },
 ];
 
@@ -38,6 +41,7 @@ function commonProps() {
     onOpenAnother: vi.fn(),
     onCreate: vi.fn(),
     onClone: vi.fn(),
+    onToggleFavourite: vi.fn(),
   };
 }
 
@@ -132,6 +136,45 @@ describe("ProjectSwitcherRail", () => {
     expect(screen.getByRole("button", { name: "Add project" })).toBeDisabled();
   });
 
+  it("filters the list to favourites and says so when there are none", async () => {
+    const props = commonProps();
+    render(
+      <LanguageProvider>
+        <ProjectSwitcherRail
+          {...props}
+          entries={[entries[0], { ...entries[1], isFavourite: true }]}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
+    // Anchored to the start: inside the popover "alpha" also appears in the
+    // row's star ("Add alpha to favourites") and its close button.
+    const popover = screen.getByRole("dialog", { name: "Open projects" });
+    expect(within(popover).getByRole("button", { name: /^alpha/i })).toBeInTheDocument();
+    expect(within(popover).getByRole("button", { name: "beta" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Show favourites only" }));
+    expect(within(popover).getByRole("button", { name: "beta" })).toBeInTheDocument();
+    expect(within(popover).queryByRole("button", { name: /^alpha/i })).not.toBeInTheDocument();
+  });
+
+  it("explains an empty favourites filter instead of showing the search empty text", async () => {
+    render(
+      <LanguageProvider>
+        <ProjectSwitcherRail {...commonProps()} />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show favourites only" }));
+
+    // "No projects match that search" would be a lie: nothing was searched.
+    expect(
+      screen.getByText("No favourites yet. Star a project to keep it here."),
+    ).toBeInTheDocument();
+  });
+
   it("folds creating, opening and cloning into one add-project menu", async () => {
     const props = commonProps();
     render(
@@ -147,7 +190,11 @@ describe("ProjectSwitcherRail", () => {
     await userEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     const menu = screen.getByRole("menu", { name: "Add project" });
-    expect(menu).toHaveClass("sidebar-project-flyout", "auto-hide-scrollbar");
+    // Plain menu furniture, sized by its three items. It used to borrow the
+    // project switcher's panel class, which carries a flat `height: 180px` —
+    // three options stretched across a panel built for a scrolling list.
+    expect(menu).toHaveClass("app-menu", "project-switcher-add-menu__popup");
+    expect(menu).not.toHaveClass("sidebar-project-flyout");
     expect(within(menu).getAllByRole("menuitem")).toHaveLength(3);
     await waitFor(() =>
       expect(within(menu).getByRole("menuitem", { name: "Create local project" })).toHaveFocus(),
@@ -224,5 +271,53 @@ describe("ProjectSwitcherRail", () => {
     expect(props.onClose).toHaveBeenCalledWith(entries[1].id);
     await waitFor(() => expect(trigger).toHaveFocus());
     expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
+  });
+});
+
+describe("project favourites", () => {
+  it("lists favourites first without disturbing the order inside each group", () => {
+    const ordered = orderByFavourite([
+      { ...entries[0], id: "a", isFavourite: false },
+      { ...entries[0], id: "b", isFavourite: true },
+      { ...entries[0], id: "c", isFavourite: false },
+      { ...entries[0], id: "d", isFavourite: true },
+    ]);
+
+    // b before d, and a before c: favouriting promotes a group, it does not
+    // reshuffle within one.
+    expect(ordered.map((entry) => entry.id)).toEqual(["b", "d", "a", "c"]);
+  });
+
+  it("returns the same order when nothing is favourited", () => {
+    const ids = ["a", "b", "c"];
+    const ordered = orderByFavourite(ids.map((id) => ({ ...entries[0], id, isFavourite: false })));
+    expect(ordered.map((entry) => entry.id)).toEqual(ids);
+  });
+
+  it("marks a favourite row so it reads without hovering, and toggles back", async () => {
+    const onToggleFavourite = vi.fn();
+    const props = commonProps();
+    render(
+      <LanguageProvider>
+        <ProjectSwitcherCompact
+          {...props}
+          entries={[{ ...entries[0], isFavourite: true }, entries[1]]}
+          onToggleFavourite={onToggleFavourite}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /switch project|alpha/i }));
+
+    // The marked one offers removal and reports itself pressed; the unmarked
+    // one offers the opposite. That pair is what a screen reader has to
+    // distinguish, since the difference is otherwise only colour and fill.
+    const marked = await screen.findByRole("button", { name: "Remove alpha from favourites" });
+    expect(marked).toHaveAttribute("aria-pressed", "true");
+    const unmarked = screen.getByRole("button", { name: "Add beta to favourites" });
+    expect(unmarked).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(marked);
+    expect(onToggleFavourite).toHaveBeenCalledWith("/projects/alpha");
   });
 });

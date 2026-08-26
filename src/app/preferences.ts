@@ -16,6 +16,8 @@ export const CONFIRM_DISCARD_STORAGE_KEY = "gitodrile-confirm-discard";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
 export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodrile-navigation-preferences";
+export const SIDEBAR_HIDDEN_STORAGE_KEY = "gitodrile-sidebar-hidden";
+export const FAVOURITE_PROJECTS_STORAGE_KEY = "gitodrile-favourite-projects";
 
 /** Named because two places need to agree on them: the hook that seeds the
  * preference and the Settings panel's "reset this section". */
@@ -59,6 +61,49 @@ export function useThemePreference(): [ThemePreference, Dispatch<SetStateAction<
 export function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {
   if (theme !== "system") return theme;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+/**
+ * Favourite projects, stored as the canonical worktree roots the session
+ * reducer already uses as identity — stable across restarts, path aliases,
+ * symlinks and case variants, which a generated session id would not be.
+ *
+ * A favourite is kept even while its project is closed: closing a project is
+ * not un-favouriting it, and the set would otherwise empty itself every time
+ * the last window of a project went away. That means the stored set can name
+ * projects that are not open, which is why every read filters against what is
+ * actually open rather than trusting the list.
+ */
+export function useStoredFavouriteProjects(): [
+  ReadonlySet<string>,
+  (id: string) => void,
+] {
+  const [ids, setIds] = useState<ReadonlySet<string>>(() => {
+    try {
+      const stored: unknown = JSON.parse(
+        localStorage.getItem(FAVOURITE_PROJECTS_STORAGE_KEY) ?? "null",
+      );
+      return new Set(
+        Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : [],
+      );
+    } catch {
+      return new Set<string>();
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(FAVOURITE_PROJECTS_STORAGE_KEY, JSON.stringify([...ids]));
+  }, [ids]);
+
+  const toggle = (id: string): void => {
+    setIds((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  };
+
+  return [ids, toggle];
 }
 
 export function useStoredBoolean(

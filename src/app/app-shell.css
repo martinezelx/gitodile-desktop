@@ -1,7 +1,48 @@
+/* `--rail-width` lives here, not on `.sidebar`, because the display-mode class
+   that retunes it lives here too — it also drives the caption and spacing
+   rules further down. Base value and override stay in one place. */
 .app-window {
+  --rail-width: 64px;
   height: 100%;
   overflow: hidden;
   background: var(--surface-app);
+}
+.app-window--icons-only { --rail-width: 56px; }
+/* Collapsed on request. `display: none` rather than a zero width so the rail
+   stops being focusable and stops being announced — a 0px sidebar still in the
+   tab order is a trap for keyboard and screen-reader users. The workspace is
+   already `flex: 1`, so it takes the whole row with nothing else to change.
+   Reaching a destination without bringing the rail back is the jump menu's
+   job, not a ghost rail's. */
+.app-window--sidebar-hidden .sidebar { display: none; }
+
+/* The jump menu: the rail's destinations as a short list hanging off the
+   collapse control, so a collapsed rail still answers "take me to X" without
+   being expanded and re-collapsed around a single click. Same menu furniture
+   as every other flyout here — it is a menu, not a miniature sidebar. */
+.sidebar-jump__menu {
+  width: 240px;
+  /* The rail it stands in for is a full column; this carries the same three
+     groups, so it can outgrow a short window. Capped and scrolled rather than
+     clipped by the viewport. */
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  animation: titlebar-menu-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.sidebar-jump__menu .app-menu__item:disabled { opacity: 0.45; }
+.sidebar-jump__menu .app-menu__item--selected svg { color: var(--accent-primary); }
+.sidebar-jump__menu .app-menu__item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-jump__divider {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border-divider);
+}
+/* The rail's 36px project avatar, reduced to menu-row scale. */
+.sidebar-jump__avatar {
+  width: 20px; height: 20px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm); color: var(--avatar-foreground);
+  font-size: 9px; font-weight: 700; letter-spacing: 0.02em;
 }
 
 .window-titlebar {
@@ -15,18 +56,41 @@
 }
 
 .window-titlebar__drag { flex: 1; height: 100%; min-width: 0; }
+/* Identity lives here and only here. It used to sit in the sidebar, where a
+   40px lockup spent the rail's most valuable real estate — its top — saying
+   something that never changes, and forced the titlebar to hide its own mark
+   to avoid reading as a double logo. One mark, in the window furniture, next
+   to the controls it belongs with: the rail gets that height back for
+   destinations, and the identity stops moving between two places depending on
+   the viewport. */
 .window-titlebar__brand {
-  /* The sidebar brand lockup (icon + name + tagline) already carries the app's
-     identity a few pixels below. Showing the icon again here read as an
-     accidental double logo, not an intentional echo — so, like Arc/Notion/
-     Linear, the titlebar carries no branding at all while the sidebar is
-     visible. It only reappears once the sidebar (and its brand block) is
-     hidden below, as the sole remaining identity signal. */
-  display: none;
-  align-items: center; gap: 8px; padding-left: 6px; color: var(--text-secondary); font-size: 13px; font-weight: 700;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center; gap: 8px; margin-right: 4px;
+  color: var(--text-secondary); font-size: 13px; font-weight: 700;
 }
-.window-titlebar__mark { width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--radius-sm); background: var(--accent-brand); color: var(--brand-mark-foreground); }
-.window-titlebar__mark .gitodrile-mark { width: 16px; height: 10px; }
+/* The crocodile itself, not a crocodile-shaped hole in a green tile.
+
+   Anchored to the corner rather than centred over the rail. Centring it meant
+   giving the brand a rail-wide column, and the ~60px of that column the mark
+   did not fill pushed every titlebar control right by the same amount — a
+   permanent cost to the toolbar in exchange for an alignment only visible when
+   you look for it. Desktop Git clients all park a small mark in the corner and
+   start the controls immediately; the mark is window furniture, not a heading.
+
+   `--accent-primary`, not `--accent-brand`. The brand lime is one fixed value
+   in both themes, which is fine behind a tile it also supplies the contrast
+   for — but painted directly on the light app surface it lands at 1.95:1 and
+   the head all but disappears. `--accent-primary` is the per-theme green and
+   measures 5.09:1 on light, 11.46:1 on dark. */
+.window-titlebar__mark {
+  width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center;
+  color: var(--accent-primary);
+}
+.window-titlebar__mark .gitodrile-mark { width: 24px; height: 13px; }
+/* The wordmark is the narrow-window affordance only: with the sidebar gone
+   there is room for it, and nothing else on screen names the app. */
+.window-titlebar__name { display: none; }
 
 .window-titlebar__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .titlebar-icon-button {
@@ -117,35 +181,176 @@
 .palette-item__hint { color: var(--text-secondary); font-size: 12px; }
 .palette-empty { padding: 24px 16px; text-align: center; color: var(--text-secondary); font-size: 13px; list-style: none; }
 
+/* Grid rather than a row of two, so the status bar can span from the rail's
+   edge to the window's without the workspace being wrapped in a column of its
+   own. The rail owns column 1 across both rows; the workspace and the bar
+   stack in column 2. With the rail hidden — collapsed or below the breakpoint
+   — column 1 simply measures zero and both stretch to the full width. */
 .app-shell {
+  /* The horizontal inset of everything in column 2. A variable because two
+     elements have to agree on it — the workspace and the status bar — and a
+     bar whose text sits a few pixels left of the content above it reads as a
+     mistake. Retuned per breakpoint in one place so they cannot drift. */
+  --workspace-inset-left: 24px;
+  --workspace-inset-right: 36px;
+  /* Also the height of the fade above the status bar, and not by coincidence:
+     the two being equal is what makes the fade free at the end of a scroll. */
+  --workspace-inset-bottom: 40px;
   height: calc(100vh - 44px);
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
 }
+.sidebar { grid-column: 1; grid-row: 1 / -1; }
+.workspace { grid-column: 2; grid-row: 1; }
+.status-bar { grid-column: 2; grid-row: 2; }
+
+/* Chrome, not content: no fill, no radius, no shadow. Friendly Card is the
+   language for surfaces that stack — DESIGN.md reserves shadow for stacking
+   order, and this strip is the floor of the window rather than something
+   resting on it. It also could not carry the system's 14-18px card radius at
+   30px tall without reading as a pill. Same reasoning that took the panel off
+   the rail: the window chrome is one continuous plane, and only content sits
+   in cards on top of it. */
+.status-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: 30px;
+  padding: 0 var(--workspace-inset-right) 0 var(--workspace-inset-left);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  line-height: 1;
+}
+/* No rule above it either — a hairline was drawing a boundary the layout
+   already draws. What was missing is what happens *mid-scroll*, where content
+   was clipped dead against this strip with nothing marking the cut.
+
+   So: a short fade to the window's own colour, sitting directly above the bar.
+   It is drawn from here rather than as a mask on the workspace because a mask
+   on a scroll container recomposites every frame, and the screens that scroll
+   most are the virtualized diff lists.
+
+   It costs nothing when the list is fully scrolled: the workspace keeps 40px
+   of bottom padding, so at the end of the scroll this 28px band contains only
+   padding and there is nothing in it to fade. The effect appears exactly when
+   there is more to see and disappears when there is not, with no scroll
+   listener deciding that. */
+.status-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--workspace-inset-bottom);
+  pointer-events: none;
+  /* Smoothstep, not a straight ramp. A linear alpha ramp changes by the same
+     amount at every step, but the eye does not read it that way: near black it
+     resolves far smaller luminance differences, so in dark mode the point where
+     the ramp *begins* shows up as an edge — which is why this read as abrupt in
+     dark and fine in light. These stops follow x²(3−2x), so alpha moves 4% over
+     the first eighth instead of 12.5%, and the same at the far end. Both ends
+     ease into their surroundings and neither has a startpoint to see.
+
+     The stops are the surface colour at a decreasing alpha rather than a fade
+     to `transparent`, which interpolates towards transparent *black* and greys
+     the middle of the ramp on the light surface. The final stop is the one
+     exception — `color-mix(… 0%, transparent)` is transparent black by
+     definition — but it only affects the span above 4% alpha, where a 2% grey
+     veil is not something an eye can find. */
+  background: linear-gradient(
+    to top,
+    var(--surface-app) 0%,
+    color-mix(in srgb, var(--surface-app) 95.7%, transparent) 12.5%,
+    color-mix(in srgb, var(--surface-app) 84.4%, transparent) 25%,
+    color-mix(in srgb, var(--surface-app) 68.4%, transparent) 37.5%,
+    color-mix(in srgb, var(--surface-app) 50%, transparent) 50%,
+    color-mix(in srgb, var(--surface-app) 31.6%, transparent) 62.5%,
+    color-mix(in srgb, var(--surface-app) 15.6%, transparent) 75%,
+    color-mix(in srgb, var(--surface-app) 4.3%, transparent) 87.5%,
+    color-mix(in srgb, var(--surface-app) 0%, transparent) 100%
+  );
+}
+/* Three tiers of gap and no rules between them: 5px binds an icon to its own
+   text, 8px binds the parts of one fact, 24px separates one fact from the
+   next. DESIGN.md reserves hairlines for the edges of cards and asks for
+   spacing alone inside a row of items — the rail already groups this way, and
+   a strip this short reads more calmly for it. */
+.status-bar__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.status-bar__cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.status-bar__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-bar__item svg { width: 13px; height: 13px; flex-shrink: 0; }
+/* The hierarchy is two text tokens, not one token at two opacities. Fading
+   `--text-secondary` to 0.72 to make a third tier measured 2.92:1 on the light
+   surface and 4.45:1 on the dark one — both under the 4.5:1 that 11.5px text
+   needs. Primary against secondary gives the same separation at 16.5:1 and
+   5.05:1. */
+.status-bar__item--muted { color: var(--text-secondary); }
+.status-bar__action {
+  width: 20px; height: 20px; flex-shrink: 0;
+  display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: inherit;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.status-bar__action svg { width: 12px; height: 12px; }
+.status-bar__action:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
+.status-bar__action:disabled { opacity: 0.45; }
 
 /* One width, always. The rail carries an icon in a 40px square with its name
    underneath, so nothing needs folding away and there is no second mode to
-   collapse into: 88px of panel replaces the 240px the expanded sidebar used
-   to take, and the 68px of content inside it is what the labels are measured
-   against ("Líneas de versión" wraps to two lines and stays legible). */
+   collapse into.
+
+   64px, and the number is measured rather than chosen: the 48px of content
+   inside it is set by the longest unbreakable label across both languages,
+   which after the rename is "Overview" at 46.3px. It sat at 88px while
+   "Configuración" (69.7px) and "Recuperación" (66.7px) were destination
+   names — two words holding 24px hostage, with every other label fitting in
+   48px. Chromium ships no Spanish hyphenation dictionary here (`hyphens:
+   auto` changes no line box at any width), so a narrower column could only
+   have broken those words mid-syllable. Renaming them to "Ajustes" and
+   "Rescate" was the way down. Re-measure before narrowing further, and treat
+   a new long destination name as a width decision.
+
+   No panel of its own: the rail is icons and captions painted straight onto
+   the window, so the surface the eye reads as "the app" is one continuous
+   plane and the only card in the shell is the content. The controls carry
+   their own hover and active fills, which is what a floating rail needs to
+   stay legible without a container behind it.
+
+   The width is a variable because it is a function of the widest thing the
+   rail has to hold, and that changes with the display mode: captions need a
+   measure, bare icons need a 40px square and nothing else. */
 .sidebar {
-  width: 88px;
+  width: var(--rail-width);
   flex-shrink: 0;
-  margin: var(--space-3);
   padding: 10px var(--space-2) var(--space-3);
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
   overflow: hidden;
+  transition: width var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.brand-mark {
-  width: 40px; height: 40px; flex-shrink: 0; margin: 0 auto var(--space-4); display: grid; place-items: center;
-  border-radius: var(--radius-md); background: var(--accent-brand); color: var(--brand-mark-foreground);
-}
-.brand-mark .gitodrile-mark { width: 28px; height: 15px; }
 
 /* The destination map is stable in order, not necessarily in visible count:
    More stays at the end and receives the suffix that no longer fits, matching
@@ -239,24 +444,39 @@
   to { transform: scale(1); }
 }
 
-/* Project context follows the functional destinations; the larger 16px step
-   makes it a new group without spending scarce width on a divider. Utilities
-   remain anchored to the bottom, where desktop users expect app/account
-   controls. All controls below the labelled navigation share one 32px size. */
+/* Everything under the rule is one group: project context first, then the
+   app-level utilities that desktop users expect at the foot. `.rail-nav`
+   grows into the free height above, so this block always sits against the
+   bottom without an auto margin fighting it. */
 .sidebar-project-section {
   flex-shrink: 0;
-  margin-top: var(--space-5);
 }
 .sidebar-foot {
   flex-shrink: 0;
-  margin-top: auto;
-  padding-top: var(--space-5);
+  padding-top: var(--space-3);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
+
+/* Only destinations are captioned. The controls below the rule — project,
+   add, settings, account — are shapes people already know, and the two that
+   are not self-evident (the avatar, the "+") sit directly under what they act
+   on. Naming them cost a line of text each and turned the column into a wall
+   of words for four controls that never change. Their accessible names live on
+   the buttons.
+
+   With the captions gone the widest element is the 40px icon square, so the
+   88px measure the labels needed becomes 24px of dead margin on either side
+   of every icon — the column reads as a wide empty strip rather than a
+   compact tool rail. 56px is that square plus the panel's own padding, and
+   nothing else. */
+.app-window--icons-only .sidebar-foot { gap: var(--space-2); }
+.app-window--icons-only .sidebar-project-group { gap: var(--space-2); }
+/* The rule spans a 40px column now, so it needs proportionally less inset to
+   still read as a divider and not as a stray dash. */
+.app-window--icons-only .sidebar-divider { margin: var(--space-3) 2px; }
 .sidebar-round {
   width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
   border: 0; border-radius: 50%; background: var(--surface-hover); color: var(--text-secondary);
@@ -276,7 +496,7 @@
 .sidebar-round--active { background: var(--surface-active); color: var(--accent-primary); }
 .sidebar-round:disabled { opacity: 0.45; }
 
-.sidebar-project-group { display: grid; justify-items: center; gap: var(--space-2); }
+.sidebar-project-group { display: grid; justify-items: center; gap: var(--space-3); }
 .sidebar-project {
   position: relative; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent;
 }
@@ -312,14 +532,20 @@
 .sidebar-project__badge--operation { color: var(--accent-primary); }
 .sidebar-project__badge--unsaved { color: var(--status-warning); }
 
+/* Sized by its content, capped rather than fixed. It used to declare a flat
+   `height: 180px`, which did two bad things at once: it left dead space under
+   a short list, and — because the add-project menu borrowed this same class —
+   it stretched that menu's three items across 180px, making three options look
+   like a screen. The list below keeps a floor so filtering cannot collapse the
+   panel under the pointer, which is the one thing the fixed height did well. */
 .sidebar-project-flyout {
-  width: 250px;
-  height: 180px;
-  min-width: 250px;
-  max-height: calc(100vh - 16px);
+  width: 280px;
+  min-width: 280px;
+  max-height: min(440px, calc(100vh - 16px));
   overflow-x: hidden;
   overflow-y: auto;
 }
+.sidebar-project__popover .project-switcher__list { min-height: 124px; }
 .sidebar-project__popover { padding: 8px; gap: 6px; }
 .sidebar-project__search {
   display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 9px;
@@ -332,11 +558,43 @@
   font: inherit; font-size: 13px; color: var(--text-primary);
 }
 .sidebar-project__search input::placeholder { color: var(--text-secondary); }
+/* Rides in the search row, sized to the row's own height so it reads as part
+   of the field rather than a button parked next to it. Same star, same on-state
+   accent as the per-row control, so "marked" and "showing only marked" are
+   visibly the same idea.
+
+   24 around 14 on purpose: both even, so the icon's inset lands on a whole 5px
+   on every side. At 22 around 13 it was 4.5px, and a half pixel rounds to a
+   different whole one top and bottom once the display is scaled — the hover
+   fill then reads as offset from the star it is meant to sit behind. No
+   negative margin either: the row's 9px padding puts this the same distance
+   from its edge as the magnifier is from the other.
+
+   `padding: 0` is load-bearing, not tidiness. A button keeps the UA's default
+   `1px 6px` unless told otherwise, and with `border-box` that left a 12px
+   content box for a 14px icon: too narrow to centre in, so the grid pushed the
+   icon to the start and the hover fill sat 6px to its left and 4px to its
+   right. The vertical axis hid it, having 22px of content box for the same
+   14px. */
+.sidebar-project__filter {
+  width: 24px; height: 24px; flex-shrink: 0;
+  display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.sidebar-project__filter svg { width: 14px; height: 14px; }
+.sidebar-project__filter:hover { background: var(--surface-hover); color: var(--text-primary); }
+.sidebar-project__filter--on { color: var(--accent-primary); }
+.sidebar-project__filter--on svg { fill: currentColor; }
 .sidebar-project__empty {
   margin: 0; padding: 14px 8px; color: var(--text-secondary); font-size: 12.5px; text-align: center;
 }
 
-.workspace { flex: 1; min-width: 0; padding: 28px 36px 40px 24px; display: flex; flex-direction: column; overflow-y: auto; }
+.workspace {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto;
+  padding: 28px var(--workspace-inset-right) var(--workspace-inset-bottom) var(--workspace-inset-left);
+}
 .screen-slot { display: contents; }
 .screen-slot[hidden] { display: none; }
 .compact-nav { display: none; }
@@ -357,9 +615,14 @@
   .app-tooltip--above { animation: none; transform: translate(-50%, -100%); }
   .app-tooltip--below { animation: none; transform: translate(-50%, 0); }
 }
+/* The one rule in the column. It separates "where am I in this project" from
+   "which project, and which app control" — the split spacing alone stopped
+   carrying once the utilities gained captions of their own and the whole
+   column became evenly stacked tiles. Fading at both ends keeps it from
+   reading as the edge of a panel now that there is no panel. */
 .sidebar-divider {
   height: 1px;
-  margin: var(--space-4) 2px;
+  margin: var(--space-3) 4px;
   border: 0;
   background: linear-gradient(90deg, transparent, var(--border-divider) 25%, var(--border-divider) 75%, transparent);
   flex-shrink: 0;
@@ -405,6 +668,28 @@
 .project-switcher__close:focus-visible { opacity: 1; }
 .project-switcher__close:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
 .project-switcher__close:disabled { opacity: 0.3; }
+/* Mirrors Close in footprint so the two trailing controls line up, but not in
+   behaviour: Close fades until the row is hovered because it is destructive
+   and rarely wanted, while a star has to be readable at rest — the whole point
+   is telling favourites apart at a glance. Unmarked it sits at the same low
+   opacity as Close; marked it goes solid and takes the brand accent, which is
+   the one state that must survive not pointing at the row. */
+.project-switcher__favourite {
+  flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
+  opacity: 0.55;
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.project-switcher__favourite svg { width: 14px; height: 14px; }
+.project-switcher__item:hover .project-switcher__favourite,
+.project-switcher__favourite:focus-visible { opacity: 1; }
+.project-switcher__favourite:hover { background: var(--surface-hover); color: var(--text-primary); }
+.project-switcher__favourite--on {
+  opacity: 1;
+  color: var(--accent-primary);
+}
+.project-switcher__favourite--on svg { fill: currentColor; }
+
 .project-switcher__item--add { margin-top: 2px; }
 .project-switcher__add {
   display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px;
@@ -429,7 +714,6 @@
 .project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
   transform: rotate(45deg) scale(1.08);
 }
-.project-switcher-add-menu__popup.sidebar-project-flyout .app-menu__item { flex: 1; }
 
 .project-switcher-compact { position: relative; display: none; }
 .project-switcher-compact__trigger {
@@ -508,8 +792,11 @@
 }
 .about-dialog__close:hover { background: var(--surface-hover); color: var(--text-primary); }
 .about-dialog__close svg { width: 16px; height: 16px; }
-.about-dialog__mark { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px; border-radius: var(--radius-lg); background: var(--accent-brand); color: var(--brand-mark-foreground); }
-.about-dialog__mark .gitodrile-mark { width: 31px; height: 18px; }
+/* The same mark as the titlebar, at hero scale: one identity, one treatment.
+   `--accent-primary` measures 5.39:1 on the light dialog surface and 8.99:1 on
+   the dark one, so the silhouette carries without the tile it used to sit in. */
+.about-dialog__mark { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px; color: var(--accent-primary); }
+.about-dialog__mark .gitodrile-mark { width: 44px; height: 23px; }
 .about-dialog__copy {
   width: 100%; margin-top: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   font-size: 13px;
@@ -554,6 +841,7 @@
 @media (prefers-reduced-motion: reduce) {
   .titlebar-menu__list { animation: none; }
   .rail-more__menu { animation: none; }
+  .sidebar-jump__menu { animation: none; }
   .rail-item__icon,
   .rail-item__icon svg,
   .sidebar-round,
@@ -580,7 +868,7 @@
 }
 
 @media (max-width: 1100px) {
-  .workspace { padding-right: var(--space-5); }
+  .app-shell { --workspace-inset-right: var(--space-5); }
 }
 
 @media (max-width: 800px) {
@@ -588,12 +876,20 @@
   .settings-dialog { height: calc(100vh - 24px); min-height: 0; }
   .settings-dialog__header { min-height: 68px; padding: 14px 16px; flex-wrap: wrap; }
   .settings-dialog__header p { max-width: 46ch; }
-  .window-titlebar__brand { display: flex; padding-left: 4px; }
+  .window-titlebar__name { display: inline; }
   .titlebar-badge { display: none; }
   .titlebar-history-controls { display: none; }
+  /* The rail is already hidden at this width and the compact nav has replaced
+     it, so the toggle has nothing to toggle. */
+  .titlebar-sidebar-toggle { display: none; }
   .window-control { width: 38px; }
   .sidebar { display: none; }
-  .workspace { padding: 20px; }
+  .app-shell {
+    --workspace-inset-left: 20px;
+    --workspace-inset-right: 20px;
+    --workspace-inset-bottom: 20px;
+  }
+  .workspace { padding-top: 20px; }
   .compact-nav-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
   .compact-nav-row .project-switcher-compact { display: flex; }
   .compact-history-controls { display: flex; align-items: center; gap: var(--space-1); }

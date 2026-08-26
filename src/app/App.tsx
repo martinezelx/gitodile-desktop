@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -8,7 +9,12 @@ import {
   Moon,
   ChevronLeft,
   ChevronRight,
+  CloudDownload,
   Copy,
+  FolderInput,
+  FolderPlus,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Square,
   UserRound,
@@ -22,6 +28,7 @@ import { useLanguage } from "../i18n";
 import { isAppError, localizeAppError } from "../shared/i18n";
 import type { RepositoryInvalidation } from "../runtime/project/invalidation";
 import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
+import { handlePopupMenuKeyDown, usePortalFlyout } from "../shared/ui";
 import { DiffPreferencesProvider, createChangesController, changesPort } from "../features/changes";
 import { CloneDialog, clonePort, createCloneController, type CloneResult } from "../features/clone";
 import {
@@ -75,11 +82,13 @@ import {
   CONFIRM_DISCARD_STORAGE_KEY,
   REOPEN_LAST_PROJECT_DEFAULT,
   REOPEN_LAST_PROJECT_STORAGE_KEY,
+  SIDEBAR_HIDDEN_STORAGE_KEY,
   WATCH_PROJECTS_DEFAULT,
   WATCH_PROJECTS_STORAGE_KEY,
   applyTheme,
   resolveEffectiveTheme,
   useStoredBoolean,
+  useStoredFavouriteProjects,
   useStoredDiffPreferences,
   useStoredNavigationPreferences,
   useThemePreference,
@@ -88,6 +97,7 @@ import { startThemeFade, startThemeReveal } from "./themeTransition";
 import { planWatcherChanges } from "./watcherPlan";
 import { TitlebarMenu } from "./TitlebarMenu";
 import { RailNav, type RailNavItem } from "./RailNav";
+import { StatusBar } from "./StatusBar";
 import {
   EMPTY_CHANGES_SELECTION,
   EMPTY_PENDING_VERSIONS,
@@ -105,7 +115,9 @@ import {
   ProjectSwitcherCompact,
   ProjectSwitcherRail,
   type ProjectSwitcherEntry,
+  orderByFavourite,
 } from "./project-switcher/ProjectSwitcher";
+import { avatarColorVar, avatarInitials } from "./project-switcher/projectAvatar";
 import {
   ChangesPanel,
   HistoryScreen,
@@ -449,6 +461,51 @@ export function App(): React.JSX.Element {
   const [confirmDiscard, setConfirmDiscard] = useStoredBoolean(
     CONFIRM_DISCARD_STORAGE_KEY,
     CONFIRM_DISCARD_DEFAULT,
+  );
+  // Stored, not per-session: someone who works with the rail collapsed wants
+  // it collapsed the next time they open the app, the same as every other
+  // chrome preference here.
+  const [isSidebarHidden, setIsSidebarHidden] = useStoredBoolean(
+    SIDEBAR_HIDDEN_STORAGE_KEY,
+    false,
+  );
+  const [favouriteProjectIds, toggleFavouriteProject] = useStoredFavouriteProjects();
+  // A short jump menu hanging off the collapse control, for reaching a
+  // destination while the rail is away. Hover-opened, so it needs the same
+  // grace period any hover menu does: the menu portals to `body` and sits a
+  // few pixels below its trigger, and closing on the first `mouseleave` would
+  // put the gap between them out of reach.
+  const [isJumpMenuOpen, setIsJumpMenuOpen] = useState(false);
+  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
+  const jumpCloseTimer = useRef<number | null>(null);
+
+  const cancelJumpClose = (): void => {
+    if (jumpCloseTimer.current !== null) {
+      window.clearTimeout(jumpCloseTimer.current);
+      jumpCloseTimer.current = null;
+    }
+  };
+  const openJumpMenu = (): void => {
+    cancelJumpClose();
+    setIsJumpMenuOpen(true);
+  };
+  const closeJumpMenu = (): void => {
+    cancelJumpClose();
+    setIsJumpMenuOpen(false);
+  };
+  const scheduleJumpClose = (): void => {
+    cancelJumpClose();
+    jumpCloseTimer.current = window.setTimeout(() => {
+      jumpCloseTimer.current = null;
+      setIsJumpMenuOpen(false);
+    }, 260);
+  };
+  useEffect(() => cancelJumpClose, []);
+  const { popupRef: jumpMenuRef, style: jumpMenuStyle } = usePortalFlyout(
+    isJumpMenuOpen,
+    sidebarToggleRef,
+    closeJumpMenu,
+    "below",
   );
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -962,6 +1019,17 @@ export function App(): React.JSX.Element {
         openPalette();
         return;
       }
+      // The desktop convention for collapsing a sidebar. Guarded like the
+      // preferences shortcut: while a dialog owns the screen, rearranging the
+      // chrome behind it is never what the keystroke meant.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        if (hasOpenDialog) {
+          return;
+        }
+        event.preventDefault();
+        setIsSidebarHidden((hidden) => !hidden);
+        return;
+      }
       // The desktop convention for preferences. Not taken while any dialog
       // owns the screen, so it cannot stack a second focus trap on top of one.
       if ((event.metaKey || event.ctrlKey) && event.key === ",") {
@@ -1106,8 +1174,23 @@ export function App(): React.JSX.Element {
           session.operation.phase !== "success",
       ),
       hasUnsavedChanges: Boolean(session.workingTree && !session.workingTree.isClean),
+      isFavourite: favouriteProjectIds.has(id),
     };
   });
+  /**
+   * What the collapsed rail's jump menu offers. Favourites only — the menu is
+   * a shortcut, and a shortcut that lists everything is just the switcher
+   * again in a worse place.
+   *
+   * Until the first project is favourited it lists them all, so the menu is
+   * useful before anyone has been taught the feature exists. The alternative
+   * was an empty group with nothing on screen explaining why it was empty or
+   * how to fill it.
+   */
+  const favouriteEntries = switcherEntries.filter((entry) => entry.isFavourite);
+  const jumpMenuEntries = orderByFavourite(
+    favouriteEntries.length > 0 ? favouriteEntries : switcherEntries,
+  );
   const closeTargetSession = closeTargetId ? sessionsState.byId[closeTargetId] : null;
 
   const toRailItem = (destination: (typeof NAV_DESTINATIONS)[number]): RailNavItem => {
@@ -1181,7 +1264,13 @@ export function App(): React.JSX.Element {
     // versions list under Overview renders diffs too, through an entirely
     // different panel.
     <DiffPreferencesProvider value={diffPreferences}>
-    <div className="app-window">
+    <div
+      className={
+        `app-window` +
+        (navigationPreferences.displayMode === "icons-only" ? " app-window--icons-only" : "") +
+        (isSidebarHidden ? " app-window--sidebar-hidden" : "")
+      }
+    >
       <span className="visually-hidden" role="status" aria-live="polite">
         {projectAnnouncement}
       </span>
@@ -1204,6 +1293,174 @@ export function App(): React.JSX.Element {
             isOpeningProject={isOpening}
             canReloadWindow={!hasUnsettledOperation(sessionsState)}
           />
+          {/* Sits with the menu rather than in the rail it collapses: a
+              control that hides its own container would vanish with it, and
+              the way back has to stay where it was.
+
+              While collapsed it is also the way back *without* committing:
+              resting on it slides the rail out so a destination can be picked
+              and the rail put away again, leaving the click for when someone
+              actually wants it back for good. */}
+          <button
+            ref={sidebarToggleRef}
+            className="titlebar-icon-button titlebar-sidebar-toggle"
+            type="button"
+            aria-pressed={isSidebarHidden}
+            aria-label={isSidebarHidden ? t.titlebarShowSidebar : t.titlebarHideSidebar}
+            data-tooltip={isSidebarHidden ? t.titlebarShowSidebar : t.titlebarHideSidebar}
+            onMouseEnter={isSidebarHidden ? openJumpMenu : undefined}
+            onMouseLeave={isSidebarHidden ? scheduleJumpClose : undefined}
+            onClick={() => {
+              closeJumpMenu();
+              setIsSidebarHidden((hidden) => !hidden);
+            }}
+          >
+            {isSidebarHidden ? (
+              <PanelLeftOpen aria-hidden="true" />
+            ) : (
+              <PanelLeftClose aria-hidden="true" />
+            )}
+          </button>
+          {isSidebarHidden && isJumpMenuOpen && createPortal(
+            <div
+              ref={jumpMenuRef}
+              className="app-menu sidebar-jump__menu"
+              role="menu"
+              aria-label={t.navProjectAriaLabel}
+              style={jumpMenuStyle}
+              onMouseEnter={openJumpMenu}
+              onMouseLeave={scheduleJumpClose}
+              onKeyDown={(event) => handlePopupMenuKeyDown(event, jumpMenuRef.current, closeJumpMenu)}
+            >
+              {railDestinations.map((item) => (
+                <button
+                  key={item.id}
+                  className={`app-menu__item${item.isActive ? " app-menu__item--selected" : ""}`}
+                  type="button"
+                  role="menuitem"
+                  disabled={item.isDisabled}
+                  aria-current={item.isActive ? "page" : undefined}
+                  aria-label={item.disabledLabel}
+                  onClick={() => {
+                    closeJumpMenu();
+                    item.onSelect?.();
+                  }}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              ))}
+
+              <div className="sidebar-jump__divider" role="separator" />
+
+              {/* The project group, flattened. The rail spends an avatar and a
+                  "+" on two menus of their own; a list this short can just say
+                  what those menus would have said. */}
+              {jumpMenuEntries.map((entry) => (
+                <button
+                  key={entry.id}
+                  className={`app-menu__item${entry.id === sessionsState.activeId ? " app-menu__item--selected" : ""}`}
+                  type="button"
+                  role="menuitem"
+                  disabled={hasBlockingDialog}
+                  aria-current={entry.id === sessionsState.activeId ? "true" : undefined}
+                  aria-label={t.projectSwitcherRailTrigger(entry.name)}
+                  onClick={() => {
+                    closeJumpMenu();
+                    activateSession(entry.id);
+                  }}
+                >
+                  <span
+                    className="sidebar-jump__avatar"
+                    aria-hidden="true"
+                    style={{ backgroundColor: avatarColorVar(entry.id) }}
+                  >
+                    {avatarInitials(entry.name)}
+                  </span>
+                  <span>{entry.name}</span>
+                </button>
+              ))}
+              <button
+                className="app-menu__item"
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  closeJumpMenu();
+                  setInitializeDialogRequest({ mode: "new-folder" });
+                }}
+              >
+                <FolderInput aria-hidden="true" />
+                <span>{t.projectSwitcherCreateProject}</span>
+              </button>
+              <button
+                className="app-menu__item"
+                type="button"
+                role="menuitem"
+                disabled={isOpening}
+                onClick={() => {
+                  closeJumpMenu();
+                  void handleOpenProject();
+                }}
+              >
+                <FolderPlus aria-hidden="true" />
+                <span>
+                  {switcherEntries.length > 0 ? t.overviewOpenAnotherProject : t.overviewOpenProject}
+                </span>
+              </button>
+              <button
+                className="app-menu__item"
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  closeJumpMenu();
+                  setIsCloneOpen(true);
+                }}
+              >
+                <CloudDownload aria-hidden="true" />
+                <span>{t.projectSwitcherCloneProject}</span>
+              </button>
+
+              <div className="sidebar-jump__divider" role="separator" />
+
+              {/* The foot, in the same order the rail stacks it. */}
+              {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map(
+                (destination) => {
+                  const { screen, overlay } = destination;
+                  const isActive =
+                    overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
+                  return (
+                    <button
+                      key={destination.id}
+                      className={`app-menu__item${isActive ? " app-menu__item--selected" : ""}`}
+                      type="button"
+                      role="menuitem"
+                      disabled={screen === null && overlay === undefined}
+                      aria-current={screen !== null && isActive ? "page" : undefined}
+                      onClick={() => {
+                        closeJumpMenu();
+                        if (overlay === "settings") openSettings();
+                        else if (screen) navigateToView(screen);
+                      }}
+                    >
+                      {destination.icon}
+                      <span>{t[destination.labelKey]}</span>
+                    </button>
+                  );
+                },
+              )}
+              <button
+                className="app-menu__item"
+                type="button"
+                role="menuitem"
+                disabled
+                aria-label={t.navAccountTitle}
+              >
+                <UserRound aria-hidden="true" />
+                <span>{t.navAccount}</span>
+              </button>
+            </div>,
+            document.body,
+          )}
           <button
             className="titlebar-icon-button"
             type="button"
@@ -1296,8 +1553,6 @@ export function App(): React.JSX.Element {
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}
         <aside className="sidebar" data-flyout-anchor="">
-          <div className="brand-mark" aria-hidden="true">{CROCODILE_MARK}</div>
-
           <RailNav
             ariaLabel={t.navProjectAriaLabel}
             moreLabel={t.navMore}
@@ -1307,10 +1562,13 @@ export function App(): React.JSX.Element {
             onCustomize={() => openSettings("navigation")}
           />
 
-          {/* Slack-like hierarchy: project context follows the destinations,
-              while account-level utilities stay anchored to the foot. The
-              larger interval between groups does the separating without a
-              decorative rule in an already narrow column. */}
+          {/* Slack-like hierarchy: the destinations answer "where in this
+              project am I", everything below the rule answers "which project,
+              and which app-level control". Spacing alone used to carry that
+              split; at 88px the eye reads a column of evenly stacked circles
+              instead, so the rule states it. */}
+          <hr className="sidebar-divider" />
+
           <div className="sidebar-project-section" data-flyout-group-anchor="">
             <ProjectSwitcherRail
               entries={switcherEntries}
@@ -1322,6 +1580,7 @@ export function App(): React.JSX.Element {
               onOpenAnother={() => void handleOpenProject()}
               onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
               onClone={() => setIsCloneOpen(true)}
+              onToggleFavourite={toggleFavouriteProject}
             />
           </div>
 
@@ -1339,9 +1598,9 @@ export function App(): React.JSX.Element {
                   aria-current={screen !== null && isActive ? "page" : undefined}
                   aria-haspopup={overlay ? "dialog" : undefined}
                   aria-expanded={overlay ? isSettingsOpen : undefined}
-                  // Round buttons this size carry no visible label, so their
-                  // accessible name remains available without covering the
-                  // rail with a pointer tooltip.
+                  // These carry no visible name in either display mode, so the
+                  // accessible name lives on the control itself rather than in
+                  // a caption that only one mode renders.
                   aria-label={label}
                   onClick={overlay === "settings" ? () => openSettings() : screen ? () => navigateToView(screen) : undefined}
                 >
@@ -1379,6 +1638,7 @@ export function App(): React.JSX.Element {
               onOpenAnother={() => void handleOpenProject()}
               onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
               onClone={() => setIsCloneOpen(true)}
+              onToggleFavourite={toggleFavouriteProject}
             />
             <div className="compact-history-controls" aria-label={t.titlebarHistoryControls}>
               <button
@@ -1615,6 +1875,12 @@ export function App(): React.JSX.Element {
             }}
           />
         </section>
+
+        {/* On every screen, Overview included: a strip that came and went
+            would make the window resize under the pointer on each navigation,
+            and the one place state is always visible is worth more than the
+            small duplication with Overview's own cards. */}
+        <StatusBar />
       </main>
 
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
