@@ -145,6 +145,7 @@ const PROJECT_NAV_DESTINATIONS = NAV_DESTINATIONS.filter(
 );
 const DEFAULT_NAVIGATION_PREFERENCES = {
   visibleDestinationIds: PROJECT_NAV_DESTINATIONS.map((destination) => destination.id),
+  destinationOrderIds: PROJECT_NAV_DESTINATIONS.map((destination) => destination.id),
   displayMode: "icons-and-text",
 } satisfies NavigationPreferences;
 
@@ -1127,7 +1128,15 @@ export function App(): React.JSX.Element {
   // Keep the full product map in the rail model. RailNav decides which entries
   // stay visible from the stored preference and available height; everything
   // else remains reachable in More without duplicating navigation policy here.
-  const railDestinations = PROJECT_NAV_DESTINATIONS.map(toRailItem);
+  const destinationOrder = new Map(
+    navigationPreferences.destinationOrderIds.map((id, index) => [id, index]),
+  );
+  const orderedProjectNavDestinations = [...PROJECT_NAV_DESTINATIONS].sort(
+    (left, right) =>
+      (destinationOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+      (destinationOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+  );
+  const railDestinations = orderedProjectNavDestinations.map(toRailItem);
 
   const appWindow = "__TAURI_INTERNALS__" in window
     ? getCurrentWindow()
@@ -1775,7 +1784,7 @@ export function App(): React.JSX.Element {
           setWatchProjects,
           confirmDiscard,
           setConfirmDiscard,
-          navigationItems: PROJECT_NAV_DESTINATIONS.map((destination) => ({
+          navigationItems: orderedProjectNavDestinations.map((destination) => ({
             id: destination.id,
             label: t[destination.labelKey],
             icon: destination.icon,
@@ -1784,13 +1793,6 @@ export function App(): React.JSX.Element {
           setNavigationPreferences,
           diffPreferences,
           setDiffPreferences,
-          defaults: {
-            reopenLastProject: REOPEN_LAST_PROJECT_DEFAULT,
-            confirmCloseProject: CONFIRM_CLOSE_PROJECT_DEFAULT,
-            watchProjects: WATCH_PROJECTS_DEFAULT,
-            confirmDiscard: CONFIRM_DISCARD_DEFAULT,
-            navigationPreferences: DEFAULT_NAVIGATION_PREFERENCES,
-          },
           identity: gitIdentity,
           lineEndings,
         }}

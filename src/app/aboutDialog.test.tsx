@@ -53,17 +53,14 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       confirmDiscard: true,
       setConfirmDiscard: vi.fn(),
       navigationItems: [],
-      navigationPreferences: { visibleDestinationIds: [], displayMode: "icons-and-text" },
+      navigationPreferences: {
+        visibleDestinationIds: [],
+        destinationOrderIds: [],
+        displayMode: "icons-and-text",
+      },
       setNavigationPreferences: vi.fn(),
       diffPreferences: DEFAULT_DIFF_PREFERENCES,
       setDiffPreferences: vi.fn(),
-      defaults: {
-        reopenLastProject: false,
-        confirmCloseProject: true,
-        watchProjects: true,
-        confirmDiscard: true,
-        navigationPreferences: { visibleDestinationIds: [], displayMode: "icons-and-text" },
-      },
       identity: {
         identity: { name: "", email: "" },
         isLoaded: true,

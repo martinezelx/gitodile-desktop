@@ -104,16 +104,17 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
   return [preferences, setPreferences];
 }
 
-/** Navigation is stored as one validated snapshot: membership and appearance
- * describe one rail, so applying only half of a stale or malformed value would
- * produce a surprising hybrid. Unknown ids are ignored and remain reachable
- * through More when the registry grows in a later version. */
+/** Navigation is stored as one validated snapshot: membership, order and
+ * appearance describe one rail, so applying only part of a stale or malformed
+ * value would produce a surprising hybrid. Unknown ids are ignored; newly
+ * registered destinations are appended without disturbing the user's order. */
 export function useStoredNavigationPreferences(
-  defaultVisibleDestinationIds: readonly string[],
+  defaultDestinationIds: readonly string[],
 ): [NavigationPreferences, Dispatch<SetStateAction<NavigationPreferences>>] {
   const [preferences, setPreferences] = useState<NavigationPreferences>(() => {
     const fallback = (): NavigationPreferences => ({
-      visibleDestinationIds: [...defaultVisibleDestinationIds],
+      visibleDestinationIds: [...defaultDestinationIds],
+      destinationOrderIds: [...defaultDestinationIds],
       displayMode: "icons-and-text",
     });
     try {
@@ -124,7 +125,7 @@ export function useStoredNavigationPreferences(
 
       const read = stored as Partial<Record<keyof NavigationPreferences, unknown>>;
       if (!Array.isArray(read.visibleDestinationIds)) return fallback();
-      const allowed = new Set(defaultVisibleDestinationIds);
+      const allowed = new Set(defaultDestinationIds);
       const visibleDestinationIds = Array.from(
         new Set(
           read.visibleDestinationIds.filter(
@@ -136,7 +137,15 @@ export function useStoredNavigationPreferences(
         read.displayMode === "icons-only" || read.displayMode === "icons-and-text"
           ? read.displayMode
           : "icons-and-text";
-      return { visibleDestinationIds, displayMode };
+      const storedOrder = Array.isArray(read.destinationOrderIds)
+        ? read.destinationOrderIds.filter(
+            (id): id is string => typeof id === "string" && allowed.has(id),
+          )
+        : [];
+      const destinationOrderIds = Array.from(
+        new Set([...storedOrder, ...defaultDestinationIds]),
+      );
+      return { visibleDestinationIds, destinationOrderIds, displayMode };
     } catch {
       return fallback();
     }

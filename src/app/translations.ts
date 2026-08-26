@@ -76,7 +76,6 @@ export interface AppTranslations {
   projectSwitcherActiveAnnouncement: (name: string) => string;
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
-  settingsDialogDescription: string;
   titlebarSwitchToLightTheme: string;
   titlebarSwitchToDarkTheme: string;
   startupRestoreSkippedNotice: (count: number) => string;
@@ -178,7 +177,6 @@ const en: AppTranslations = {
     `Wait for the operation in ${name} to finish before starting another one in a linked workspace.`,
   projectSwitcherCloseBlocked: (name) =>
     `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
-  settingsDialogDescription: "Adjust how GitOdrile looks, behaves, and works with Git.",
   titlebarSwitchToLightTheme: "Switch to light theme",
   titlebarSwitchToDarkTheme: "Switch to dark theme",
   startupRestoreSkippedNotice: (count) =>
@@ -281,7 +279,6 @@ const es: AppTranslations = {
     `Espera a que termine la operación de ${name} antes de iniciar otra en un espacio de trabajo vinculado.`,
   projectSwitcherCloseBlocked: (name) =>
     `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
-  settingsDialogDescription: "Ajusta el aspecto y el comportamiento de GitOdrile y cómo trabaja con Git.",
   titlebarSwitchToLightTheme: "Cambiar a tema claro",
   titlebarSwitchToDarkTheme: "Cambiar a tema oscuro",
   startupRestoreSkippedNotice: (count) =>

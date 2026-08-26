@@ -42,13 +42,6 @@ export type AppOverlaysProps = {
     setNavigationPreferences: Dispatch<SetStateAction<NavigationPreferences>>;
     diffPreferences: DiffPreferences;
     setDiffPreferences: Dispatch<SetStateAction<DiffPreferences>>;
-    defaults: {
-      reopenLastProject: boolean;
-      confirmCloseProject: boolean;
-      watchProjects: boolean;
-      confirmDiscard: boolean;
-      navigationPreferences: NavigationPreferences;
-    };
     /** Both read once after first paint and kept above this dialog, which is
      * unmounted on every close. The line-endings state already knows about the
      * open project, so the overlay never has to pass one down. */
@@ -151,20 +144,20 @@ export function AppOverlays({
             role="dialog"
             aria-modal="true"
             aria-labelledby="settings-dialog-title"
-            aria-describedby="settings-dialog-description"
             tabIndex={-1}
             onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="settings-dialog__header">
               <div className="settings-dialog__heading">
                 <h2 id="settings-dialog-title">{t.navSettings}</h2>
-                <p id="settings-dialog-description">{t.settingsDialogDescription}</p>
               </div>
               {/* A broken Git installation stops every screen in the app, so it
                   cannot wait in the third section for someone to look. */}
               {isGitInstallationBroken(settings.gitTooling.diagnostics) && (
                 <button
-                  className="settings-dialog__alert"
+                  className={`settings-dialog__alert${
+                    settings.section === "git" ? " settings-dialog__alert--active" : ""
+                  }`}
                   type="button"
                   onClick={() => settings.setSection("git")}
                 >
@@ -198,7 +191,6 @@ export function AppOverlays({
               setNavigationPreferences={settings.setNavigationPreferences}
               diffPreferences={settings.diffPreferences}
               setDiffPreferences={settings.setDiffPreferences}
-              defaults={settings.defaults}
               identity={settings.identity}
               lineEndingsState={settings.lineEndings}
               onClose={closeSettings}

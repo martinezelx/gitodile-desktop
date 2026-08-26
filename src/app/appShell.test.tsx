@@ -34,11 +34,12 @@ describe("application-shell preferences", () => {
     expect(localStorage.getItem("gitodrile-theme")).toBe("dark");
   });
 
-  it("validates and persists navigation membership and display mode together", () => {
+  it("validates and persists navigation membership, order and display mode together", () => {
     localStorage.setItem(
       "gitodrile-navigation-preferences",
       JSON.stringify({
         visibleDestinationIds: ["overview", "unknown", "overview"],
+        destinationOrderIds: ["changes", "unknown", "changes"],
         displayMode: "icons-only",
       }),
     );
@@ -48,16 +49,22 @@ describe("application-shell preferences", () => {
 
     expect(result.current[0]).toEqual({
       visibleDestinationIds: ["overview"],
+      destinationOrderIds: ["changes", "overview"],
       displayMode: "icons-only",
     });
     act(() =>
       result.current[1]({
         visibleDestinationIds: ["changes"],
+        destinationOrderIds: ["changes", "overview"],
         displayMode: "icons-and-text",
       }),
     );
     expect(JSON.parse(localStorage.getItem("gitodrile-navigation-preferences") ?? "null"))
-      .toEqual({ visibleDestinationIds: ["changes"], displayMode: "icons-and-text" });
+      .toEqual({
+        visibleDestinationIds: ["changes"],
+        destinationOrderIds: ["changes", "overview"],
+        displayMode: "icons-and-text",
+      });
   });
 });
 

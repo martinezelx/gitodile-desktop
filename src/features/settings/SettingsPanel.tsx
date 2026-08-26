@@ -1,17 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   CircleAlert,
   CircleArrowUp,
   CornerDownLeft,
   GitBranch,
+  GripVertical,
   Info,
   LoaderCircle,
   Monitor,
   Moon,
   PanelLeft,
   Palette,
-  RotateCcw,
   Settings,
   Sun,
   TriangleAlert,
@@ -23,7 +25,6 @@ import { localizeAppError } from "../../shared/i18n";
 import { autoHideScrollbarProps } from "../../shared/ui";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
-  DEFAULT_DIFF_PREFERENCES,
   DIFF_CODE_FONTS,
   DIFF_CODE_FONT_STACKS,
   DIFF_TAB_WIDTHS,
@@ -153,7 +154,11 @@ const SettingsNav = React.memo(function SettingsNav({
   railLabel,
   attentionLabel,
 }: {
-  sections: Array<{ id: SettingsSection; label: string; icon: React.JSX.Element }>;
+  sections: Array<{
+    id: SettingsSection;
+    label: string;
+    icon: React.JSX.Element;
+  }>;
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   needsGitAttention: boolean;
@@ -198,7 +203,7 @@ const SettingsNav = React.memo(function SettingsNav({
             role="tab"
             id={`settings-tab-${section.id}`}
             aria-selected={isActive}
-            aria-controls={isActive ? "settings-panel" : undefined}
+            aria-controls="settings-panel"
             /* Roving tabindex: one Tab stop for the whole rail, arrows to
                move inside it. Without it, reaching the panel took as many
                Tab presses as there are sections. */
@@ -211,7 +216,9 @@ const SettingsNav = React.memo(function SettingsNav({
             <span aria-hidden="true">{section.icon}</span>
             {section.label}
             {section.id === "git" && needsGitAttention && (
-              <span className="settings-nav__alert" role="img" aria-label={attentionLabel} />
+              <span className="settings-nav__alert" role="img" aria-label={attentionLabel}>
+                <CircleAlert aria-hidden="true" />
+              </span>
             )}
           </button>
         );
@@ -251,7 +258,6 @@ export function SettingsPanel({
   setNavigationPreferences,
   diffPreferences,
   setDiffPreferences,
-  defaults,
   identity,
   lineEndingsState,
   onClose,
@@ -283,16 +289,6 @@ export function SettingsPanel({
   ) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
-  /** The app owns the seed values for the stored preferences, so "reset this
-   * section" gets them from the same place the hooks do rather than keeping a
-   * second copy here that could drift. */
-  defaults: {
-    reopenLastProject: boolean;
-    confirmCloseProject: boolean;
-    watchProjects: boolean;
-    confirmDiscard: boolean;
-    navigationPreferences: NavigationPreferences;
-  };
   /** Both reads live above the dialog, which the shell unmounts on close, so
    * the values survive a closing instead of being fetched again. The panel
    * still owns the draft, the notices and the close guard: those are the parts
@@ -316,6 +312,9 @@ export function SettingsPanel({
   const [isStartingGitInstallation, setIsStartingGitInstallation] = useState(false);
   const [isStartingGitUpdate, setIsStartingGitUpdate] = useState(false);
   const [lineEndingNotice, setLineEndingNotice] = useState<Notice | null>(null);
+  const [draggedNavigationId, setDraggedNavigationId] = useState<string | null>(null);
+  const [dragOverNavigationId, setDragOverNavigationId] = useState<string | null>(null);
+  const [navigationOrderNotice, setNavigationOrderNotice] = useState("");
   const keepEditingRef = useRef<HTMLButtonElement>(null);
 
   const savedIdentity = identity.identity;
@@ -585,61 +584,29 @@ export function SettingsPanel({
       };
     });
   };
+  const moveNavigationDestination = (id: string, toIndex: number): void => {
+    const availableIds = navigationItems.map((item) => item.id);
+    const allowedIds = new Set(availableIds);
+    setNavigationPreferences((previous) => {
+      const order = Array.from(
+        new Set([...previous.destinationOrderIds, ...availableIds]),
+      ).filter((destinationId) => allowedIds.has(destinationId));
+      const fromIndex = order.indexOf(id);
+      if (fromIndex < 0) return previous;
+      order.splice(fromIndex, 1);
+      order.splice(Math.max(0, Math.min(toIndex, order.length)), 0, id);
+      return { ...previous, destinationOrderIds: order };
+    });
+    const item = navigationItems.find((candidate) => candidate.id === id);
+    if (item) {
+      setNavigationOrderNotice(
+        `${item.label}. ${t.settingsNavigationOrderPosition} ${toIndex + 1} ${t.settingsNavigationOrderOf} ${navigationItems.length}.`,
+      );
+    }
+  };
   const setNavigationDisplayMode = (displayMode: NavigationDisplayMode): void => {
     setNavigationPreferences((previous) => ({ ...previous, displayMode }));
   };
-
-  /* Only the sections whose controls have a defined default get the action.
-     Git has none: an installed version and an identity are facts about the
-     machine, not preferences with a factory setting to return to. */
-  const sectionReset: { isAtDefault: boolean; reset: () => void } | null =
-    activeSection === "general"
-      ? {
-          isAtDefault:
-            reopenLastProject === defaults.reopenLastProject &&
-            confirmCloseProject === defaults.confirmCloseProject &&
-            watchProjects === defaults.watchProjects &&
-            confirmDiscard === defaults.confirmDiscard,
-          reset: () => {
-            setReopenLastProject(defaults.reopenLastProject);
-            setConfirmCloseProject(defaults.confirmCloseProject);
-            setWatchProjects(defaults.watchProjects);
-            setConfirmDiscard(defaults.confirmDiscard);
-          },
-        }
-      : activeSection === "appearance"
-        ? {
-            isAtDefault: theme === "system" && languagePreference === "system",
-            reset: () => {
-              setTheme("system");
-              setLanguagePreference("system");
-            },
-          }
-        : activeSection === "reading"
-          ? {
-              isAtDefault: (Object.keys(DEFAULT_DIFF_PREFERENCES) as Array<keyof DiffPreferences>).every(
-                (key) => diffPreferences[key] === DEFAULT_DIFF_PREFERENCES[key],
-              ),
-              reset: () => setDiffPreferences(() => DEFAULT_DIFF_PREFERENCES),
-            }
-          : activeSection === "navigation"
-            ? {
-                isAtDefault:
-                  navigationPreferences.displayMode === defaults.navigationPreferences.displayMode &&
-                  navigationPreferences.visibleDestinationIds.length ===
-                    defaults.navigationPreferences.visibleDestinationIds.length &&
-                  defaults.navigationPreferences.visibleDestinationIds.every((id) =>
-                    visibleNavigationIds.has(id),
-                  ),
-                reset: () =>
-                  setNavigationPreferences(() => ({
-                    ...defaults.navigationPreferences,
-                    visibleDestinationIds: [
-                      ...defaults.navigationPreferences.visibleDestinationIds,
-                    ],
-                  })),
-              }
-          : null;
 
   return (
     <div className="settings-layout">
@@ -787,14 +754,94 @@ export function SettingsPanel({
                 <p>{t.settingsNavigationDestinationsDescription}</p>
               </header>
               <div className="settings-group__body navigation-destinations">
-                {navigationItems.map((item) => (
-                  <label className="navigation-destination" key={item.id}>
-                    <input
-                      className="navigation-destination__checkbox"
-                      type="checkbox"
-                      checked={visibleNavigationIds.has(item.id)}
-                      onChange={(event) => setDestinationVisible(item.id, event.target.checked)}
-                    />
+                {navigationItems.map((item, index) => (
+                  <div
+                    data-navigation-id={item.id}
+                    className={`navigation-destination${
+                      draggedNavigationId === item.id ? " navigation-destination--dragging" : ""
+                    }${
+                      dragOverNavigationId === item.id ? " navigation-destination--drag-over" : ""
+                    }`}
+                    key={item.id}
+                  >
+                    <div className="navigation-destination__order-controls">
+                      <button
+                        className="navigation-destination__handle"
+                        type="button"
+                        aria-label={`${t.settingsNavigationReorderLabel}: ${item.label}`}
+                        title={`${t.settingsNavigationReorderLabel}: ${item.label}`}
+                        onPointerDown={(event) => {
+                          if (event.button !== 0) return;
+                          event.preventDefault();
+                          event.currentTarget.setPointerCapture(event.pointerId);
+                          setDraggedNavigationId(item.id);
+                        }}
+                        onPointerMove={(event) => {
+                          if (draggedNavigationId !== item.id) return;
+                          const target = document
+                            .elementFromPoint(event.clientX, event.clientY)
+                            ?.closest<HTMLElement>("[data-navigation-id]");
+                          const targetId = target?.dataset.navigationId;
+                          const targetIndex = navigationItems.findIndex(
+                            (destination) => destination.id === targetId,
+                          );
+                          setDragOverNavigationId(targetId ?? null);
+                          if (targetIndex >= 0 && targetId !== item.id) {
+                            moveNavigationDestination(item.id, targetIndex);
+                          }
+                        }}
+                        onPointerUp={(event) => {
+                          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                            event.currentTarget.releasePointerCapture(event.pointerId);
+                          }
+                          setDraggedNavigationId(null);
+                          setDragOverNavigationId(null);
+                        }}
+                        onPointerCancel={() => {
+                          setDraggedNavigationId(null);
+                          setDragOverNavigationId(null);
+                        }}
+                        onKeyDown={(event) => {
+                          const toIndex =
+                            event.key === "ArrowUp"
+                              ? index - 1
+                              : event.key === "ArrowDown"
+                                ? index + 1
+                                : event.key === "Home"
+                                  ? 0
+                                  : event.key === "End"
+                                    ? navigationItems.length - 1
+                                    : null;
+                          if (toIndex === null || toIndex < 0 || toIndex >= navigationItems.length) return;
+                          event.preventDefault();
+                          moveNavigationDestination(item.id, toIndex);
+                        }}
+                      >
+                        <GripVertical aria-hidden="true" />
+                      </button>
+                      <div className="navigation-destination__move-buttons">
+                        <button
+                          type="button"
+                          className="navigation-destination__move-button"
+                          aria-label={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
+                          title={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
+                          disabled={index === 0}
+                          onClick={() => moveNavigationDestination(item.id, index - 1)}
+                        >
+                          <ChevronUp aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="navigation-destination__move-button"
+                          aria-label={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
+                          title={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
+                          disabled={index === navigationItems.length - 1}
+                          onClick={() => moveNavigationDestination(item.id, index + 1)}
+                        >
+                          <ChevronDown aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
                     <span className="navigation-destination__icon" aria-hidden="true">
                       {item.icon}
                     </span>
@@ -804,8 +851,16 @@ export function SettingsPanel({
                         <small>{t.settingsNavigationMovedToMore}</small>
                       )}
                     </span>
-                  </label>
+                    <ToggleSwitch
+                      label={item.label}
+                      checked={visibleNavigationIds.has(item.id)}
+                      onChange={(isVisible) => setDestinationVisible(item.id, isVisible)}
+                    />
+                  </div>
                 ))}
+                <p className="visually-hidden" role="status" aria-live="polite">
+                  {navigationOrderNotice}
+                </p>
               </div>
             </section>
 
@@ -1235,19 +1290,6 @@ export function SettingsPanel({
                 )}
               </div>
             </section>
-          </div>
-        )}
-        {sectionReset && (
-          <div className="settings-view__footer">
-            <button
-              className="secondary-button settings-reset"
-              type="button"
-              disabled={sectionReset.isAtDefault}
-              onClick={sectionReset.reset}
-            >
-              <RotateCcw aria-hidden="true" />
-              {t.settingsResetSection}
-            </button>
           </div>
         )}
       </div>

@@ -18,6 +18,7 @@ export type NavigationDisplayMode = "icons-and-text" | "icons-only";
  * of importing the screen registry and crossing the feature boundary. */
 export type NavigationPreferences = {
   visibleDestinationIds: string[];
+  destinationOrderIds: string[];
   displayMode: NavigationDisplayMode;
 };
 

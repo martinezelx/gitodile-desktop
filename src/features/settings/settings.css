@@ -1,80 +1,105 @@
-.settings-layout { min-height: 0; display: grid; grid-template-columns: 160px minmax(0, 1fr); }
+.settings-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  background: var(--surface-raised);
+}
 .settings-nav {
-  position: relative;
   /* `display: grid` used to be inherited from the `nav` element rule in
      shared primitives; the rail is a tablist now, so it declares its own. */
-  display: grid; align-content: start; gap: 4px; padding: 14px 10px;
-  background: var(--surface-panel);
-}
-.settings-nav::after {
-  position: absolute; top: 12px; right: 0; bottom: 12px; width: 1px;
-  background: linear-gradient(180deg, transparent, var(--border-divider) 18%, var(--border-divider) 82%, transparent);
-  content: "";
+  display: grid; align-content: start; gap: 4px; padding: 20px 14px;
+  background: var(--surface-raised);
 }
 .settings-nav__item {
-  width: 100%; min-height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 42px; padding: 0 12px; display: flex; align-items: center; gap: 11px;
   border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
-  text-align: left; font-size: 13.5px; font-weight: 600;
-  transition: background var(--duration-fast), color var(--duration-fast);
+  text-align: left; font-size: 13.5px; font-weight: 600; line-height: 1.25;
+  transition: background var(--duration-fast), color var(--duration-fast), box-shadow var(--duration-fast);
 }
 .settings-nav__item:hover { background: var(--surface-hover); color: var(--text-primary); }
-.settings-nav__item--active { background: var(--surface-active); color: var(--text-primary); }
+.settings-nav__item--active {
+  background: color-mix(in srgb, var(--text-primary) 9%, var(--surface-raised));
+  color: var(--text-primary); font-weight: 700;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
 .settings-nav__item--active > span:first-child { color: var(--accent-primary); }
 .settings-nav__item > span:first-child { width: 18px; height: 18px; display: grid; place-items: center; }
 .settings-nav__item svg { width: 18px; height: 18px; }
 /* Marks the rail item whose section holds a problem. Paired with the header
    chip, which carries the wording — this is the "where", not the "what". */
 .settings-nav__alert {
-  width: 7px; height: 7px; margin-left: auto; flex-shrink: 0;
-  border-radius: 50%; background: var(--status-danger);
+  width: 17px; height: 17px; margin-left: auto; flex-shrink: 0;
+  display: grid; place-items: center; color: var(--status-danger);
 }
+.settings-nav__alert svg { width: 15px; height: 15px; }
 .settings-view {
   min-height: 0; overflow-y: auto; scrollbar-gutter: stable;
   display: grid; align-content: start; gap: 0;
-  padding: 20px 24px 24px;
+  padding: 28px 36px 36px;
+  background: var(--surface-raised);
 }
 .settings-view:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -4px; }
-.settings-groups { display: grid; gap: 24px; }
-/* Sits after the groups and reads as an escape hatch, not as one more
-   setting: quieter than the section's own controls and disabled while there
-   is nothing to undo. */
-.settings-view__footer { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
-.settings-reset { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
-.settings-reset svg { width: 14px; height: 14px; }
-.settings-reset:disabled { opacity: 0.45; }
-.settings-group { display: grid; gap: 10px; }
-.settings-group__header { padding: 0 4px; }
-.settings-group__header h3 { margin: 0 0 3px; font-size: 14px; }
-.settings-group__header p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.settings-groups { width: 100%; max-width: 720px; margin-inline: auto; }
+.settings-groups { display: grid; gap: 0; }
+.settings-group { display: grid; gap: var(--space-4); }
+.settings-group + .settings-group {
+  margin-top: var(--space-6); padding-top: var(--space-6);
+  border-top: 1px solid var(--border-divider);
+}
+.settings-group__header { padding: 0; }
+.settings-group__header h3 { margin: 0 0 4px; font-size: 14.5px; line-height: 1.35; }
+.settings-group__header p {
+  max-width: 68ch; margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.45;
+}
 .settings-group__body {
-  padding: 16px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-panel);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
-.navigation-destinations { padding: 6px 16px; }
+.settings-view .segmented-control {
+  gap: var(--space-2); padding: 0;
+  border: 0; border-radius: 0; background: transparent;
+}
+.settings-view .segmented-control__option {
+  border: 0;
+  background: transparent;
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast),
+    font-weight var(--duration-fast);
+}
+.settings-view .segmented-control__option:hover:not(.segmented-control__option--active) {
+  background: var(--surface-hover);
+}
+.settings-view .segmented-control__option--active {
+  background: color-mix(in srgb, var(--text-primary) 9%, var(--surface-raised));
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.settings-view .segmented-control__option--active svg { color: var(--accent-primary); }
+.navigation-destinations { display: grid; gap: var(--space-1); padding: 0; }
 .navigation-destination {
-  min-height: 46px; display: flex; align-items: center; gap: 11px; cursor: pointer;
+  min-height: 48px; display: grid; grid-template-columns: auto 28px minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; padding: 3px var(--space-1);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast), opacity var(--duration-fast);
 }
-.navigation-destination + .navigation-destination { border-top: 1px solid var(--border-divider); }
-.navigation-destination__checkbox {
-  appearance: none; width: 18px; height: 18px; flex: 0 0 auto; display: grid; place-content: center;
-  margin: 0; border: 1px solid var(--border-strong); border-radius: 5px;
-  background: var(--surface-raised); cursor: pointer;
-  transition: border-color var(--duration-fast), background var(--duration-fast);
+.navigation-destination__order-controls {
+  display: flex; align-items: center; gap: 2px;
 }
-.navigation-destination__checkbox::before {
-  width: 8px; height: 4px; border: solid var(--accent-primary-contrast); border-width: 0 0 2px 2px;
-  content: ""; transform: translateY(-1px) rotate(-45deg) scale(0);
-  transition: transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
+.navigation-destination--dragging { opacity: 0.5; }
+.navigation-destination--drag-over { background: var(--surface-hover); }
+.navigation-destination__handle {
+  width: 32px; height: 36px; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-sm); background: transparent;
+  color: var(--text-tertiary, var(--text-secondary)); cursor: grab;
+  touch-action: none; user-select: none;
 }
-.navigation-destination__checkbox:checked {
-  border-color: var(--accent-primary); background: var(--accent-primary);
-}
-.navigation-destination__checkbox:checked::before {
-  transform: translateY(-1px) rotate(-45deg) scale(1);
-}
-.navigation-destination__checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.navigation-destination__handle:hover { background: var(--surface-hover); color: var(--text-primary); }
+.navigation-destination__handle:active { cursor: grabbing; }
+.navigation-destination__handle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.navigation-destination__handle svg { width: 17px; height: 17px; }
 .navigation-destination__icon {
   width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center;
   border-radius: var(--radius-sm); background: var(--surface-hover); color: var(--text-secondary);
@@ -83,8 +108,28 @@
 .navigation-destination__copy { min-width: 0; display: grid; gap: 1px; }
 .navigation-destination__copy strong { font-size: 13.5px; font-weight: 600; }
 .navigation-destination__copy small { color: var(--text-secondary); font-size: 11.5px; }
+.navigation-destination__move-buttons {
+  display: flex; align-items: center; gap: 2px;
+  opacity: 0.46;
+  transition: opacity var(--duration-fast);
+}
+.navigation-destination:hover .navigation-destination__move-buttons,
+.navigation-destination:focus-within .navigation-destination__move-buttons { opacity: 1; }
+.navigation-destination__move-button {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-sm); background: transparent;
+  color: var(--text-secondary);
+}
+.navigation-destination__move-button:hover:not(:disabled) {
+  background: var(--surface-hover); color: var(--text-primary);
+}
+.navigation-destination__move-button:focus-visible {
+  outline: 2px solid var(--focus-ring); outline-offset: -2px;
+}
+.navigation-destination__move-button:disabled { opacity: 0.4; cursor: default; }
+.navigation-destination__move-button svg { width: 16px; height: 16px; }
 
-.navigation-display { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding: 8px; }
+.navigation-display { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding: 0; }
 .navigation-display__option {
   min-width: 0; min-height: 72px; display: grid; grid-template-columns: 48px minmax(0, 1fr);
   align-items: center; gap: var(--space-3); padding: 10px 12px;
@@ -95,7 +140,10 @@
 .navigation-display__option:hover:not(.navigation-display__option--active) {
   background: var(--surface-hover); color: var(--text-primary);
 }
-.navigation-display__option--active { background: var(--surface-active); color: var(--text-primary); }
+.navigation-display__option--active {
+  background: color-mix(in srgb, var(--text-primary) 9%, var(--surface-raised));
+  color: var(--text-primary);
+}
 .navigation-display__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .navigation-display__preview {
   width: 48px; height: 48px; display: grid; align-content: center; justify-items: center; gap: 2px;
@@ -128,11 +176,12 @@
 .font-picker__option:hover:not(.font-picker__option--active) {
   border-color: var(--text-secondary); color: var(--text-primary);
 }
-/* The selected card is stated by border and fill rather than by a tick in the
-   corner: the card is already a specimen, and a glyph laid over it would
-   compete with the thing being judged. */
+/* The card is already a specimen, so its stable neutral surface states the
+   selection without laying a checkmark over the thing being judged. */
 .font-picker__option--active {
-  border-color: var(--accent-primary); background: var(--surface-active); color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-primary) 7%, var(--surface-panel));
+  color: var(--text-primary);
 }
 .font-picker__name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
 /* The diff's own size and surface, so the sample previews the real thing
@@ -166,8 +215,8 @@
 
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .settings-row + .settings-row { margin-top: var(--space-4); }
-.settings-row strong { display: block; margin-bottom: 2px; }
-.settings-row p { color: var(--text-secondary); font-size: 14px; margin-bottom: 0; }
+.settings-row strong { display: block; margin-bottom: 3px; font-size: 13.5px; line-height: 1.35; }
+.settings-row p { max-width: 64ch; color: var(--text-secondary); font-size: 13.5px; line-height: 1.45; margin-bottom: 0; }
 .settings-row__hint {
   display: flex; align-items: center; gap: 6px; margin: 0;
   color: var(--text-secondary); font-size: 12px;
@@ -229,8 +278,8 @@
 .line-endings__option:disabled { cursor: default; opacity: 0.6; }
 .line-endings__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .line-endings__option--active {
-  border-color: color-mix(in srgb, var(--accent-primary) 55%, transparent);
-  background: var(--surface-active);
+  border-color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-primary) 7%, var(--surface-raised));
 }
 .line-endings__option-label {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
@@ -242,6 +291,7 @@
   background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
   color: var(--accent-primary); font-size: 11px; font-weight: 600;
 }
+
 /* Provenance is context, not an alert: it reads as a caption under the list,
    with no box or icon competing with the caveat below it. */
 .line-endings__status { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
@@ -261,18 +311,30 @@
 
 @media (max-width: 800px) {
   .settings-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-  .settings-nav { display: flex; overflow-x: auto; padding: 10px 12px; }
-  .settings-nav::after {
-    top: auto; right: 12px; bottom: 0; left: 12px; width: auto; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--border-divider) 18%, var(--border-divider) 82%, transparent);
+  .settings-nav {
+    display: flex; overflow-x: auto; overscroll-behavior-x: contain;
+    padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--border-divider);
+    scrollbar-width: none;
   }
+  .settings-nav::-webkit-scrollbar { display: none; }
   .settings-nav__item { width: auto; flex: 0 0 auto; padding: 0 12px; }
   .settings-nav__alert { margin-left: 2px; }
-  .settings-view { padding: 16px 20px 24px; }
+  .settings-view { padding: 22px 20px 28px; }
+  /* Settings still has a wide dialog at this breakpoint. Keep short choices
+     together and let them wrap only when they genuinely run out of room; the
+     shared mobile primitive otherwise turns three one-word options into a
+     tall, mostly empty card. */
+  .settings-view .segmented-control { flex-flow: row wrap; }
   .identity-fields { grid-template-columns: 1fr; }
   .font-picker { grid-template-columns: 1fr; }
   .navigation-display { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .settings-row { align-items: flex-start; flex-direction: column; }
   .settings-row__actions { width: 100%; }
+}
+
+@media (pointer: coarse) {
+  .navigation-destination__move-buttons { opacity: 1; }
+  .settings-nav__item { min-height: 44px; }
+  .navigation-destination__handle { width: 44px; height: 44px; }
 }

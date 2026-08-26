@@ -458,54 +458,46 @@
   position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
   padding: 28px; background: var(--overlay); backdrop-filter: blur(8px);
 }
-/* Sized to the content, not to the window, and a fixed height rather than one
-   that follows the active section, so the card does not resize under the
-   pointer every time the rail is clicked.
-
-   Measured with the shipped stylesheet at this width. Line endings arrived as
-   a third group under Git and pushed that section to 827px, twice the tallest
-   of the others; it now has its own rail entry, and the five sections need
-   337 / 376 / 400 / 395 / 398px of scrolling area — 60-72% of the 559px this
-   height provides, with nothing scrolling.
-
-   640 rather than the ~500 those five would justify: the line-endings section
-   grows when it has something to report, and its worst case — a project
-   override plus the `.gitattributes` warning plus `core.eol` — reaches 492px
-   in both English and Spanish. That leaves 67px of slack, which is the room
-   the next setting has before this number needs revisiting. */
+/* A wide, stable preference workspace: the dialog does not resize under the
+   pointer when the active category changes, and the 208px category rail still
+   leaves room for a deliberately capped reading measure. The viewport caps
+   retain the narrow-window fallback below without turning Settings into a
+   full screen. */
 .settings-dialog {
-  width: min(880px, 100%); height: min(640px, calc(100vh - 56px)); min-height: 380px;
+  width: min(1000px, 100%); height: min(680px, calc(100vh - 56px)); min-height: 420px;
   display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-xl);
   outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .settings-dialog__header {
-  position: relative;
-  min-height: 72px; padding: 16px 20px; display: flex; align-items: center;
+  min-height: 76px; padding: 16px 22px; display: flex; align-items: center;
   gap: var(--space-4);
+  border-bottom: 1px solid var(--border-divider);
+  background: var(--surface-raised);
 }
 .settings-dialog__heading { flex: 1 1 auto; min-width: 0; }
 .settings-dialog__alert {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px;
   padding: 6px var(--space-3); border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--status-danger) 40%, transparent);
-  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+  border: 1px solid transparent; background: transparent;
   color: var(--status-danger); font-size: 12.5px; font-weight: 650;
-  transition: background var(--duration-fast), border-color var(--duration-fast);
+  opacity: 0.78;
+  transition: background var(--duration-fast), border-color var(--duration-fast), opacity var(--duration-fast);
 }
-/* Hover deepens the border rather than the fill: the text is `--status-danger`
-   on its own tint, and past a 14% fill that pair drops under 4.5:1 in dark. */
 .settings-dialog__alert:hover {
+  background: color-mix(in srgb, var(--status-danger) 8%, transparent); opacity: 1;
+}
+.settings-dialog__alert--active {
+  border-color: color-mix(in srgb, var(--status-danger) 40%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+  opacity: 1;
+}
+.settings-dialog__alert--active:hover {
   border-color: color-mix(in srgb, var(--status-danger) 75%, transparent);
   background: color-mix(in srgb, var(--status-danger) 14%, transparent);
 }
 .settings-dialog__alert svg { width: 14px; height: 14px; }
-.settings-dialog__header::after {
-  position: absolute; right: 18px; bottom: 0; left: 18px; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent);
-  content: "";
-}
-.settings-dialog__header h2 { margin: 0 0 3px; font-size: 20px; letter-spacing: -0.015em; }
+.settings-dialog__header h2 { margin: 0 0 3px; font-size: 21px; letter-spacing: -0.018em; }
 .settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
 .about-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--overlay); backdrop-filter: blur(8px); }
 .about-dialog { position: relative; width: min(100%, 420px); padding: 32px; border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg); }

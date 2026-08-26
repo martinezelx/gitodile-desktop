@@ -511,7 +511,7 @@ describe("App project restoration", () => {
       "true",
     );
 
-    await user.click(navigationSettings.getByRole("checkbox", { name: "Changes" }));
+    await user.click(navigationSettings.getByRole("switch", { name: "Changes" }));
     await user.click(navigationSettings.getByRole("radio", { name: /Icons only/ }));
     await user.keyboard("{Escape}");
 

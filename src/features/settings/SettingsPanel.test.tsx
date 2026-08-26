@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -93,21 +93,12 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       ]}
       navigationPreferences={overrides.navigationPreferences ?? {
         visibleDestinationIds: ["overview", "changes", "history"],
+        destinationOrderIds: ["overview", "changes", "history"],
         displayMode: "icons-and-text",
       }}
       setNavigationPreferences={overrides.setNavigationPreferences ?? vi.fn()}
       diffPreferences={overrides.diffPreferences ?? DEFAULT_DIFF_PREFERENCES}
       setDiffPreferences={overrides.setDiffPreferences ?? vi.fn()}
-      defaults={{
-        reopenLastProject: false,
-        confirmCloseProject: true,
-        watchProjects: true,
-        confirmDiscard: true,
-        navigationPreferences: {
-          visibleDestinationIds: ["overview", "changes", "history"],
-          displayMode: "icons-and-text",
-        },
-      }}
       identity={identity}
       lineEndingsState={lineEndings}
       onClose={overrides.onClose}
@@ -183,21 +174,12 @@ describe("Settings panel native boundary", () => {
               navigationItems={[]}
               navigationPreferences={{
                 visibleDestinationIds: [],
+                destinationOrderIds: [],
                 displayMode: "icons-and-text",
               }}
               setNavigationPreferences={vi.fn()}
               diffPreferences={DEFAULT_DIFF_PREFERENCES}
               setDiffPreferences={vi.fn()}
-              defaults={{
-                reopenLastProject: false,
-                confirmCloseProject: true,
-                watchProjects: true,
-                confirmDiscard: true,
-                navigationPreferences: {
-                  visibleDestinationIds: [],
-                  displayMode: "icons-and-text",
-                },
-              }}
               identity={identity}
               lineEndingsState={lineEndings}
               port={port}
@@ -465,6 +447,22 @@ describe("Settings panel option groups", () => {
 });
 
 describe("Settings panel section rail", () => {
+  it("uses the selected rail label as the single heading for one shared tabpanel", async () => {
+    renderPanel(createPort());
+
+    const panel = screen.getByRole("tabpanel", { name: "General" });
+    expect(screen.queryByRole("heading", { name: "General" })).toBeNull();
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveAttribute("aria-controls", "settings-panel");
+    }
+    expect(panel).not.toHaveAttribute("aria-describedby");
+
+    await userEvent.click(screen.getByRole("tab", { name: "Interface" }));
+    expect(screen.getByRole("tabpanel", { name: "Interface" })).toBe(panel);
+    expect(screen.queryByRole("heading", { name: "Interface" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Theme", level: 3 })).toBeInTheDocument();
+  });
+
   it("customizes which destinations stay in the rail and its presentation", async () => {
     const setNavigationPreferences = vi.fn();
     renderPanel(createPort(), { initialSection: "navigation" });
@@ -474,7 +472,7 @@ describe("Settings panel section rail", () => {
       "true",
     );
     expect(screen.getByRole("heading", { name: "Sections shown in the bar" })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Overview" })).toBeChecked();
+    expect(screen.getByRole("switch", { name: "Overview" })).toBeChecked();
     expect(screen.getByRole("radio", { name: /Icons and text/ })).toBeChecked();
 
     cleanup();
@@ -482,15 +480,17 @@ describe("Settings panel section rail", () => {
       initialSection: "navigation",
       setNavigationPreferences,
     });
-    await userEvent.click(screen.getByRole("checkbox", { name: "Changes" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Changes" }));
     const visibilityUpdate = setNavigationPreferences.mock.calls[0][0] as (
       previous: NavigationPreferences,
     ) => NavigationPreferences;
     expect(visibilityUpdate({
       visibleDestinationIds: ["overview", "changes", "history"],
+      destinationOrderIds: ["overview", "changes", "history"],
       displayMode: "icons-and-text",
     })).toEqual({
       visibleDestinationIds: ["overview", "history"],
+      destinationOrderIds: ["overview", "changes", "history"],
       displayMode: "icons-and-text",
     });
 
@@ -500,11 +500,90 @@ describe("Settings panel section rail", () => {
     ) => NavigationPreferences;
     expect(appearanceUpdate({
       visibleDestinationIds: ["overview", "history"],
+      destinationOrderIds: ["overview", "changes", "history"],
       displayMode: "icons-and-text",
     })).toEqual({
       visibleDestinationIds: ["overview", "history"],
+      destinationOrderIds: ["overview", "changes", "history"],
       displayMode: "icons-only",
     });
+  });
+
+  it("reorders destinations from the drag handle without changing visibility", async () => {
+    const setNavigationPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "navigation", setNavigationPreferences });
+
+    const handle = screen.getByRole("button", { name: "Reorder: Overview" });
+    handle.focus();
+    await userEvent.keyboard("{ArrowDown}");
+
+    const reorder = setNavigationPreferences.mock.calls[0][0] as (
+      previous: NavigationPreferences,
+    ) => NavigationPreferences;
+    expect(reorder({
+      visibleDestinationIds: ["overview", "changes", "history"],
+      destinationOrderIds: ["overview", "changes", "history"],
+      displayMode: "icons-and-text",
+    })).toEqual({
+      visibleDestinationIds: ["overview", "changes", "history"],
+      destinationOrderIds: ["changes", "overview", "history"],
+      displayMode: "icons-and-text",
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Overview. New position 2 of 3.");
+  });
+
+  it("reorders with captured pointer movement over another row", () => {
+    const setNavigationPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "navigation", setNavigationPreferences });
+    const source = screen.getByRole("button", { name: "Reorder: Overview" });
+    const target = screen.getByRole("switch", { name: "History" }).closest(".navigation-destination");
+    expect(target).not.toBeNull();
+    Object.defineProperties(source, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: { configurable: true, value: vi.fn(() => true) },
+      releasePointerCapture: { configurable: true, value: vi.fn() },
+    });
+    const originalElementFromPoint = document.elementFromPoint;
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: vi.fn(() => target),
+    });
+
+    fireEvent.pointerDown(source, { button: 0, pointerId: 1 });
+    fireEvent.pointerMove(source, { clientX: 400, clientY: 400, pointerId: 1 });
+    fireEvent.pointerUp(source, { pointerId: 1 });
+
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: originalElementFromPoint,
+    });
+
+    const reorder = setNavigationPreferences.mock.calls[0][0] as (
+      previous: NavigationPreferences,
+    ) => NavigationPreferences;
+    expect(reorder({
+      visibleDestinationIds: ["overview", "changes", "history"],
+      destinationOrderIds: ["overview", "changes", "history"],
+      displayMode: "icons-and-text",
+    }).destinationOrderIds).toEqual(["changes", "history", "overview"]);
+  });
+
+  it("moves a destination with the explicit arrow buttons", async () => {
+    const setNavigationPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "navigation", setNavigationPreferences });
+
+    expect(screen.getByRole("button", { name: "Move up: Overview" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Move down: Overview" }));
+
+    const reorder = setNavigationPreferences.mock.calls[0][0] as (
+      previous: NavigationPreferences,
+    ) => NavigationPreferences;
+    expect(reorder({
+      visibleDestinationIds: ["overview", "changes", "history"],
+      destinationOrderIds: ["overview", "changes", "history"],
+      displayMode: "icons-and-text",
+    }).destinationOrderIds).toEqual(["changes", "overview", "history"]);
+    expect(screen.getByRole("button", { name: "Move down: History" })).toBeDisabled();
   });
 
   it("moves between sections with the arrow keys", async () => {
@@ -524,43 +603,6 @@ describe("Settings panel section rail", () => {
     expect(screen.getByRole("tab", { name: "Line endings" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("offers to reset only the sections that have defaults to return to", async () => {
-    renderPanel(createPort());
-
-    // General starts away from its defaults in this harness (confirm-close is
-    // false, the default is true), so the action is live.
-    const reset = screen.getByRole("button", { name: "Reset this section" });
-    expect(reset).toBeEnabled();
-
-    await userEvent.click(screen.getByRole("tab", { name: "Interface" }));
-    // Interface is already at system/system, so there is nothing to undo.
-    expect(screen.getByRole("button", { name: "Reset this section" })).toBeDisabled();
-
-    // Git holds facts about the machine, not preferences with a factory value.
-    await userEvent.click(screen.getByRole("tab", { name: /Git/ }));
-    expect(screen.queryByRole("button", { name: "Reset this section" })).toBeNull();
-  });
-
-  it("puts the section's controls back to their defaults", async () => {
-    const setReopenLastProject = vi.fn();
-    const setConfirmCloseProject = vi.fn();
-    const setWatchProjects = vi.fn();
-    const setConfirmDiscard = vi.fn();
-    renderPanel(createPort(), {
-      setReopenLastProject,
-      setConfirmCloseProject,
-      setWatchProjects,
-      setConfirmDiscard,
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "Reset this section" }));
-
-    expect(setReopenLastProject).toHaveBeenCalledWith(false);
-    expect(setConfirmCloseProject).toHaveBeenCalledWith(true);
-    expect(setWatchProjects).toHaveBeenCalledWith(true);
-    expect(setConfirmDiscard).toHaveBeenCalledWith(true);
-  });
-
   it("offers watching and discard confirmation as General toggles, both on by default", async () => {
     const setWatchProjects = vi.fn();
     const setConfirmDiscard = vi.fn();
@@ -576,18 +618,6 @@ describe("Settings panel section rail", () => {
 
     expect(setWatchProjects).toHaveBeenCalledWith(false);
     expect(setConfirmDiscard).toHaveBeenCalledWith(false);
-  });
-
-  it("counts the new toggles when deciding whether anything differs from the defaults", () => {
-    // Everything else sits on its default here, so the action can only be live
-    // because watching is off — which is what `isAtDefault` has to notice.
-    renderPanel(createPort(), { confirmCloseProject: true, watchProjects: false });
-
-    expect(screen.getByRole("button", { name: "Reset this section" })).toBeEnabled();
-
-    cleanup();
-    renderPanel(createPort(), { confirmCloseProject: true });
-    expect(screen.getByRole("button", { name: "Reset this section" })).toBeDisabled();
   });
 
   it("edits the diff reading preferences without touching the others", async () => {
@@ -637,25 +667,6 @@ describe("Settings panel section rail", () => {
     for (const name of ["Hyperlegible", "JetBrains", "Plex", "System"]) {
       expect(screen.getByRole("radio", { name }).style.fontFamily).toContain("monospace");
     }
-  });
-
-  it("offers its own reset once a diff preference is off its default", async () => {
-    const setDiffPreferences = vi.fn();
-    renderPanel(createPort(), {
-      initialSection: "reading",
-      diffPreferences: { ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2, codeFont: "plex" },
-      setDiffPreferences,
-    });
-
-    // Reading has its own reset, covering only the diff preferences.
-    const reset = screen.getByRole("button", { name: "Reset this section" });
-    expect(reset).toBeEnabled();
-
-    await userEvent.click(reset);
-    const update = setDiffPreferences.mock.calls[0][0] as (p: DiffPreferences) => DiffPreferences;
-    expect(update({ ...DEFAULT_DIFF_PREFERENCES, tabWidth: 2, codeFont: "plex" })).toEqual(
-      DEFAULT_DIFF_PREFERENCES,
-    );
   });
 
   it("marks the Git section when the installation needs attention", () => {

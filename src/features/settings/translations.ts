@@ -4,6 +4,11 @@ export interface SettingsTranslations {
   settingsNavigationDestinationsTitle: string;
   settingsNavigationDestinationsDescription: string;
   settingsNavigationMovedToMore: string;
+  settingsNavigationReorderLabel: string;
+  settingsNavigationMoveUpLabel: string;
+  settingsNavigationMoveDownLabel: string;
+  settingsNavigationOrderPosition: string;
+  settingsNavigationOrderOf: string;
   settingsNavigationAppearanceTitle: string;
   settingsNavigationAppearanceDescription: string;
   settingsNavigationIconsAndText: string;
@@ -11,7 +16,6 @@ export interface SettingsTranslations {
   settingsNavigationIconsOnly: string;
   settingsNavigationIconsOnlyDescription: string;
   settingsSectionsAriaLabel: string;
-  settingsResetSection: string;
   settingsGitTitle: string;
   settingsGitNeedsAttention: string;
   themeAriaLabel: string;
@@ -116,20 +120,24 @@ const en: SettingsTranslations = {
   settingsNavigationTitle: "Navigation",
   settingsNavigationDestinationsTitle: "Sections shown in the bar",
   settingsNavigationDestinationsDescription:
-    "On shorter windows, selected sections may still move into More until there is room again.",
+    "Choose visible sections and drag or use the arrows to reorder them. Some move to More in shorter windows.",
   settingsNavigationMovedToMore: "Available from More",
+  settingsNavigationReorderLabel: "Reorder",
+  settingsNavigationMoveUpLabel: "Move up",
+  settingsNavigationMoveDownLabel: "Move down",
+  settingsNavigationOrderPosition: "New position",
+  settingsNavigationOrderOf: "of",
   settingsNavigationAppearanceTitle: "Appearance",
-  settingsNavigationAppearanceDescription: "Choose how project destinations are presented.",
+  settingsNavigationAppearanceDescription: "Choose whether the bar shows labels.",
   settingsNavigationIconsAndText: "Icons and text",
-  settingsNavigationIconsAndTextDescription: "Keep labels visible for faster recognition.",
+  settingsNavigationIconsAndTextDescription: "Show labels for quicker recognition.",
   settingsNavigationIconsOnly: "Icons only",
-  settingsNavigationIconsOnlyDescription: "Use a more compact vertical rhythm without shrinking the click targets.",
+  settingsNavigationIconsOnlyDescription: "Hide labels for a more compact bar.",
   settingsSectionsAriaLabel: "Settings sections",
-  settingsResetSection: "Reset this section",
   settingsGitTitle: "Git",
   settingsGitNeedsAttention: "Git needs attention",
   themeAriaLabel: "Theme",
-  settingsThemeDescription: '"System" follows your operating system.',
+  settingsThemeDescription: '"System" matches your device.',
   themeLight: "Light",
   themeDark: "Dark",
   settingsGeneralTitle: "General",
@@ -163,8 +171,7 @@ const en: SettingsTranslations = {
   gitUpdateAlreadyStarting: "The Git update is already starting.",
   gitCouldntStart: "Couldn't start that.",
   settingsIdentityTitle: "Identity",
-  settingsIdentityDescription:
-    "Used to record you as the author of versions you save. This is a normal, global Git setting — not stored only inside GitOdrile.",
+  settingsIdentityDescription: "Your name and email are added to saved versions through your global Git settings.",
   identityNameLabel: "Name",
   identityEmailLabel: "Email",
   identityNamePlaceholder: "Ada Lovelace",
@@ -179,16 +186,14 @@ const en: SettingsTranslations = {
   identityDiscardAndClose: "Discard and close",
   settingsLineEndingsTitle: "Line endings",
   settingsLineEndingsDescription:
-    "Every line of a text file ends with invisible characters, and Windows uses different ones from macOS and Linux. This is why a file nobody touched can show up as changed from top to bottom.",
+    "Choose how Git stores line endings to avoid whole-file changes across operating systems.",
   lineEndingsWindowsLabel: "Save the shared format, keep the Windows one on your computer",
-  lineEndingsWindowsDescription:
-    "Files are saved into the project the way teammates expect, and stay in Windows format on your disk so other Windows tools read them correctly.",
+  lineEndingsWindowsDescription: "Store the shared format in Git and keep Windows format on disk.",
   lineEndingsNormalizeLabel: "Save the shared format, leave your files as they are",
-  lineEndingsNormalizeDescription:
-    "Nothing on your computer is rewritten. Only what goes into the project is converted to the shared format.",
+  lineEndingsNormalizeDescription: "Keep files on disk unchanged; convert only what Git stores.",
   lineEndingsKeepLabel: "Don't convert anything",
   lineEndingsKeepDescription:
-    "Files are saved exactly as they are on disk. Fine on your own; in a mixed team it is what produces diffs where every line looks changed.",
+    "Store files exactly as they are. Mixed systems may show whole-file changes.",
   lineEndingsRecommended: "Recommended here",
   lineEndingsFromGlobal: "This comes from your Git settings and applies to every project.",
   lineEndingsFromProject:
@@ -201,35 +206,33 @@ const en: SettingsTranslations = {
   lineEndingsCouldntSave: "Couldn't save that.",
   settingsStartupTitle: "Startup",
   startupReopenLabel: "Reopen projects from the previous session",
-  startupReopenDescription: "Skip picking folders again if you had projects open last time.",
+  startupReopenDescription: "Restore projects that were open when you quit.",
   settingsWatchingTitle: "Live updates",
   watchingLabel: "Watch open projects for changes",
-  watchingDescription:
-    "Screens update as files change. Turn this off on huge projects or network drives.",
+  watchingDescription: "Update screens as files change. Disable for very large projects or network drives.",
   settingsSafetyTitle: "Safety",
   safetyConfirmLabel: "Confirm before closing a project",
-  safetyConfirmDescription: "Ask before clearing the open project, in case that was a misclick.",
+  safetyConfirmDescription: "Ask before closing an open project.",
   safetyConfirmDiscardLabel: "Confirm before discarding changes",
-  safetyConfirmDiscardDescription:
-    "Ask before throwing work away. With this off, you can still undo it afterwards.",
+  safetyConfirmDiscardDescription: "Ask before discarding work. You can still undo afterwards.",
   settingsLanguageTitle: "Language",
-  settingsLanguageDescription: '"System" follows your operating system\'s language.',
+  settingsLanguageDescription: '"System" matches your device language.',
   languageAriaLabel: "Language",
   settingsReadingTitle: "Reading",
   settingsReadingDiffsTitle: "Diffs",
-  settingsReadingDescription: "How changed files are shown when you review them.",
+  settingsReadingDescription: "Choose how file changes are displayed.",
   readingWrapLabel: "Wrap long lines",
-  readingWrapDescription: "Off puts each line on one row and scrolls sideways instead.",
+  readingWrapDescription: "Off keeps each line on one row with horizontal scrolling.",
   readingIgnoreWhitespaceLabel: "Ignore whitespace-only changes",
-  readingIgnoreWhitespaceDescription: "A line that only changed its spacing or indentation reads as unchanged.",
+  readingIgnoreWhitespaceDescription: "Treat spacing-only changes as unchanged.",
   readingSyntaxLabel: "Syntax highlighting",
-  readingSyntaxDescription: "Highlight code by language. Off shows plain text.",
+  readingSyntaxDescription: "Color code by language. Off uses plain text.",
   readingTabWidthLabel: "Tab width",
-  readingTabWidthDescription: "How many spaces wide a tab character looks.",
+  readingTabWidthDescription: "Display tabs as 2, 4, or 8 spaces.",
   readingCodeFontTitle: "Code font",
   readingCodeFontLabel: "Code font",
   readingCodeFontDescription:
-    "Only code is shown in this typeface — diffs in Changes, History and pending versions. The rest of the app is unaffected. Every option is monospaced, so columns stay aligned.",
+    "Used for diffs in Changes, History, and pending versions. All options are monospaced.",
   readingCodeFontAtkinson: "Hyperlegible",
   readingCodeFontJetBrains: "JetBrains",
   readingCodeFontPlex: "Plex",
@@ -241,21 +244,24 @@ const es: SettingsTranslations = {
   settingsNavigationTitle: "Navegación",
   settingsNavigationDestinationsTitle: "Secciones visibles en la barra",
   settingsNavigationDestinationsDescription:
-    "En ventanas más bajas, las secciones seleccionadas pueden pasar a Más hasta que vuelva a haber espacio.",
+    "Elige las secciones visibles y ordénalas con el asa o las flechas. Algunas pasan a Más en ventanas bajas.",
   settingsNavigationMovedToMore: "Disponible desde Más",
+  settingsNavigationReorderLabel: "Reordenar",
+  settingsNavigationMoveUpLabel: "Subir",
+  settingsNavigationMoveDownLabel: "Bajar",
+  settingsNavigationOrderPosition: "Nueva posición",
+  settingsNavigationOrderOf: "de",
   settingsNavigationAppearanceTitle: "Apariencia",
-  settingsNavigationAppearanceDescription: "Elige cómo se presentan las secciones del proyecto.",
+  settingsNavigationAppearanceDescription: "Elige si la barra muestra etiquetas.",
   settingsNavigationIconsAndText: "Iconos y texto",
-  settingsNavigationIconsAndTextDescription: "Mantiene las etiquetas visibles para reconocerlas más rápido.",
+  settingsNavigationIconsAndTextDescription: "Muestra etiquetas para reconocer cada sección.",
   settingsNavigationIconsOnly: "Solo iconos",
-  settingsNavigationIconsOnlyDescription:
-    "Compacta el ritmo vertical sin reducir el área que puedes pulsar.",
+  settingsNavigationIconsOnlyDescription: "Oculta las etiquetas para compactar la barra.",
   settingsSectionsAriaLabel: "Secciones de configuración",
-  settingsResetSection: "Restablecer esta sección",
   settingsGitTitle: "Git",
   settingsGitNeedsAttention: "Git necesita atención",
   themeAriaLabel: "Tema",
-  settingsThemeDescription: '"Sistema" sigue tu sistema operativo.',
+  settingsThemeDescription: '"Sistema" usa el tema de tu dispositivo.',
   themeLight: "Claro",
   themeDark: "Oscuro",
   settingsGeneralTitle: "General",
@@ -296,7 +302,7 @@ const es: SettingsTranslations = {
   gitCouldntStart: "No se pudo iniciar eso.",
   settingsIdentityTitle: "Identidad",
   settingsIdentityDescription:
-    "Se usa para indicar que eres el autor de las versiones que guardas. Es un ajuste normal y global de Git, no algo exclusivo de GitOdrile.",
+    "Tu nombre y correo se añaden a las versiones guardadas mediante la configuración global de Git.",
   identityNameLabel: "Nombre",
   identityEmailLabel: "Correo electrónico",
   identityNamePlaceholder: "Ada Lovelace",
@@ -312,16 +318,14 @@ const es: SettingsTranslations = {
   identityDiscardAndClose: "Descartar y cerrar",
   settingsLineEndingsTitle: "Finales de línea",
   settingsLineEndingsDescription:
-    "Cada línea de un archivo de texto termina con caracteres invisibles, y Windows usa unos distintos de macOS y Linux. Por eso un archivo que nadie ha tocado puede aparecer como modificado de arriba abajo.",
+    "Elige cómo guarda Git los finales de línea para evitar cambios de archivos completos entre sistemas.",
   lineEndingsWindowsLabel: "Guardar en el formato común y dejar el de Windows en tu equipo",
-  lineEndingsWindowsDescription:
-    "Los archivos se guardan en el proyecto como esperan tus compañeros, y en tu disco se quedan en formato Windows para que otras herramientas los lean bien.",
+  lineEndingsWindowsDescription: "Guarda el formato compartido en Git y conserva el de Windows en el disco.",
   lineEndingsNormalizeLabel: "Guardar en el formato común y no tocar tus archivos",
-  lineEndingsNormalizeDescription:
-    "No se reescribe nada en tu equipo. Solo se convierte lo que entra en el proyecto.",
+  lineEndingsNormalizeDescription: "No cambia los archivos del disco; solo convierte lo que guarda Git.",
   lineEndingsKeepLabel: "No convertir nada",
   lineEndingsKeepDescription:
-    "Los archivos se guardan tal cual están en el disco. A solas no pasa nada; en un equipo mixto es lo que produce cambios donde parece que se modificaron todas las líneas.",
+    "Guarda los archivos tal cual. Entre sistemas puede mostrar cambios en el archivo completo.",
   lineEndingsRecommended: "Recomendado aquí",
   lineEndingsFromGlobal: "Viene de tu configuración de Git y se aplica a todos los proyectos.",
   lineEndingsFromProject:
@@ -335,35 +339,33 @@ const es: SettingsTranslations = {
   lineEndingsCouldntSave: "No se pudo guardar eso.",
   settingsStartupTitle: "Inicio",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
-  startupReopenDescription: "Evita elegir carpetas de nuevo si tenías proyectos abiertos la última vez.",
+  startupReopenDescription: "Recupera los proyectos abiertos al cerrar la aplicación.",
   settingsWatchingTitle: "Actualización en vivo",
   watchingLabel: "Vigilar los proyectos abiertos",
-  watchingDescription:
-    "Sigue los archivos y actualiza las pantallas. Desactívalo en proyectos enormes o unidades de red.",
+  watchingDescription: "Actualiza las pantallas al cambiar archivos. Desactívalo en proyectos enormes o unidades de red.",
   settingsSafetyTitle: "Seguridad",
   safetyConfirmLabel: "Confirmar antes de cerrar un proyecto",
-  safetyConfirmDescription: "Pregunta antes de cerrar el proyecto abierto, por si fue un clic accidental.",
+  safetyConfirmDescription: "Pregunta antes de cerrar un proyecto abierto.",
   safetyConfirmDiscardLabel: "Confirmar antes de descartar cambios",
-  safetyConfirmDiscardDescription:
-    "Pregunta antes de tirar trabajo. Si lo desactivas, aún puedes deshacerlo después.",
+  safetyConfirmDiscardDescription: "Pregunta antes de descartar trabajo. Aún puedes deshacerlo después.",
   settingsLanguageTitle: "Idioma",
-  settingsLanguageDescription: '"Sistema" usa el idioma de tu sistema operativo.',
+  settingsLanguageDescription: '"Sistema" usa el idioma de tu dispositivo.',
   languageAriaLabel: "Idioma",
   settingsReadingTitle: "Lectura",
   settingsReadingDiffsTitle: "Cambios",
-  settingsReadingDescription: "Cómo se muestran los archivos modificados al revisarlos.",
+  settingsReadingDescription: "Elige cómo se muestran los cambios en archivos.",
   readingWrapLabel: "Ajustar líneas largas",
-  readingWrapDescription: "Al desactivarlo cada línea ocupa una fila y se desplaza en horizontal.",
+  readingWrapDescription: "Desactivado mantiene cada línea en una fila con desplazamiento horizontal.",
   readingIgnoreWhitespaceLabel: "Ignorar cambios solo de espacios",
-  readingIgnoreWhitespaceDescription: "Una línea que solo cambió su espaciado o sangría se lee como sin cambios.",
+  readingIgnoreWhitespaceDescription: "Trata como iguales los cambios solo de espacios o sangría.",
   readingSyntaxLabel: "Resaltado de sintaxis",
-  readingSyntaxDescription: "Colorea el código según el lenguaje. Al desactivarlo se ve texto plano.",
+  readingSyntaxDescription: "Colorea el código según el lenguaje. Desactivado usa texto plano.",
   readingTabWidthLabel: "Ancho de tabulación",
-  readingTabWidthDescription: "Cuántos espacios de ancho aparenta un carácter de tabulación.",
+  readingTabWidthDescription: "Muestra cada tabulación como 2, 4 u 8 espacios.",
   readingCodeFontTitle: "Fuente del código",
   readingCodeFontLabel: "Fuente del código",
   readingCodeFontDescription:
-    "Solo el código se muestra con esta tipografía: los cambios en Cambios, Historial y versiones pendientes. El resto de la aplicación no se ve afectado. Todas son monoespaciadas, así que las columnas siguen alineadas.",
+    "Se usa en Cambios, Historial y versiones pendientes. Todas las opciones son monoespaciadas.",
   readingCodeFontAtkinson: "Hyperlegible",
   readingCodeFontJetBrains: "JetBrains",
   readingCodeFontPlex: "Plex",
