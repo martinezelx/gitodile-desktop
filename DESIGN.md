@@ -21,7 +21,7 @@ Settled direction: **Friendly Card** — chosen after benchmarking against Subli
 
 The visual language uses:
 
-- moderate rounded corners (18px on cards and panels, 14px on controls, 10px on the rows inside them) with circles for avatars, glyph tiles and action-row icon buttons — rounded enough to feel approachable, not so large it reads as a decorative concept app. The tiers are roles, not sizes; see Shape;
+- fully rounded controls — a capsule for anything on one line, a circle for anything square — over 18px cards and panels and 10px rows, with circles for avatars and glyph tiles. Rounded enough to feel approachable, not so large it reads as a decorative concept app. The tiers are roles, not sizes; see Shape;
 - **opaque panels**, not translucent glass — depth comes from `--shadow-sm/md/lg`, not `backdrop-filter` blur;
 - layered surfaces distinguished by shadow and a subtle tone shift, not by transparency;
 - thin, low-contrast borders around cards/panels as a secondary depth cue alongside shadow — but not as divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item;
@@ -71,7 +71,7 @@ The main desktop window should broadly support:
 
    Navigation Settings may switch to icons only: every caption disappears —
    destinations and utilities alike, since a rail that labels one and not the
-   other reads as an accident — and the column narrows to 56px, the icon square
+   other reads as an accident — and the column narrows to 56px, the icon circle
    plus its padding. The 40px pointer target and accessible name remain.
    - Overview, Changes, Lines, History, and Recovery keep their order.
      Navigation Settings controls which stay in the rail; deselected and
@@ -82,7 +82,7 @@ The main desktop window should broadly support:
      the trailing destinations move into its menu in order instead of making
      the narrow rail scroll. The menu always ends after a separator with
      "Customize navigation bar", which opens the dedicated Settings section;
-   - below the destinations: the active project as a single square that opens
+   - below the destinations: the active project as a single circle that opens
      a searchable switcher, plus a same-size "+" holding the three ways to add
      one (open, create, clone);
    - projects can be starred. Favourites sort to the top of the switcher and
@@ -246,9 +246,9 @@ values before this was written down. Choose the tier by what the thing *is*:
 | Token | What it is | Examples |
 | --- | --- | --- |
 | `--radius-round` (50%) | An atomic thing with no reading direction | Project avatar, **any single glyph on a fill** (section, status and dialog-header icons), rail destination, refresh, create, overflow trigger, checkbox, timeline node |
-| `--radius-pill` (999px) | A capsule of short text, or a pure geometric form | Badge, count, status chip, progress bar, scrollbar thumb, toggle track |
+| `--radius-pill` (999px) | **Any single-line control**, a capsule of short text, or a pure geometric form | Labelled button, single-line input, search box, selector or trigger; badge, count, status chip, progress bar, scrollbar thumb, toggle track |
 | `--radius-item` (10px) | A row or option that lives inside a container | Menu row, list option, file row, segmented-control option, inline code, keycap, square icon button of 24–36px that is not in an action row |
-| `--radius-control` (14px) | Something pressed or typed into | Labelled button, input, textarea, select, selector, segmented-control frame, square icon button of 40px and up that is not in an action row |
+| `--radius-control` (14px) | A control that *cannot* be a capsule | Multi-line field (textarea), a frame wrapping its own options (segmented control), a preview box, square icon button of 40px and up that is not in an action row |
 | `--radius-surface` (18px) | A container carrying its own background | Card, dialog, popover, menu, notice, banner, panel |
 
 A circle has no "length", so it has no radius to scale — that is why it is a
@@ -258,6 +258,22 @@ to its icon-only satellites without spending an accent color on the difference,
 since a circle of the same box reads optically smaller and lighter. Three radii
 in one row is where it stops being a system and starts being drift; keep it to
 two.
+
+A single-line control is **fully rounded**: a capsule when it carries a label,
+a circle when its box is square. The two are the same shape at different aspect
+ratios, so a button, a search field and an icon button read as one family, and
+hierarchy comes from fill and colour rather than from corner size. Two things
+follow. A capsule needs inline padding near its radius — about 0.4 of its own
+height — or the label sits inside the curve. And capsules nest concentrically
+with each other for free: radius is half the height, so `outer = inner +
+padding` holds at every size without anyone computing it. The Changes action
+cluster is the worked example — a capsule wrapping two circles and a capsule.
+
+What stays rectangular is what *cannot* be a capsule: a textarea, because it is
+multi-line and a capsule would deform it; a frame that wraps its own options,
+like the segmented control, whose options are rows and would have to become
+capsules with it; and a preview box, which holds a layout rather than a line of
+text.
 
 The three rectangular tiers are a **concentric chain**, so a container is
 already the right radius for what it wraps:

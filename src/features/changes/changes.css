@@ -73,9 +73,9 @@
   align-items: center;
   gap: 2px;
   margin-top: var(--space-2);
-  padding: 4px var(--space-2);
+  padding: 4px var(--space-3);
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--accent-primary);
   font: inherit;
@@ -155,9 +155,11 @@
   min-height: 38px;
   border-color: var(--border-control);
 }
-/* Same rule as the Overview summary row: an icon-only control is a circle,
-   anything carrying a label keeps the rounded-rectangle scale. Save sits
-   between the two and is never at a corner, so it stays a rectangle. */
+/* Same rule as the Overview summary row: a single-line control is fully
+   rounded — a circle where it is square, a capsule where it carries a label.
+   Save is the capsule between these two circles, and every radius in the
+   cluster is now half its own height, so the whole row nests concentrically
+   without a single number needing to be worked out. */
 .changes-header-actions__refresh,
 .changes-actions-menu__trigger {
   width: 38px;
@@ -222,7 +224,7 @@
 .changes-discard-dialog .dialog-actions button { display: inline-flex; align-items: center; gap: 8px; }
 .changes-discard-dialog .dialog-actions button svg { width: 16px; height: 16px; }
 .changes-danger-button {
-  min-height: 38px; padding: 8px 14px; border: 1px solid transparent; border-radius: var(--radius-control);
+  min-height: 38px; padding: 8px var(--space-4); border: 1px solid transparent; border-radius: var(--radius-pill);
   background: var(--status-danger); color: var(--status-danger-contrast); font: inherit; font-weight: 700;
 }
 .changes-danger-button:hover { filter: brightness(1.06); }
@@ -316,8 +318,8 @@
 }
 .changes-search-box {
   flex: 1; min-width: 0; box-sizing: border-box; height: var(--changes-toolbar-control-height);
-  display: flex; align-items: center; gap: 8px; padding: 0 10px;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+  display: flex; align-items: center; gap: 8px; padding: 0 var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: var(--surface-hover); transition: border-color var(--duration-fast), background var(--duration-fast);
 }
 .changes-search-box:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
@@ -490,7 +492,7 @@
 .changes-view-picker { position: relative; display: inline-flex; }
 .changes-view-picker__trigger {
   box-sizing: border-box; height: var(--changes-toolbar-control-height);
-  padding: 0 10px; gap: 7px; border-radius: var(--radius-control);
+  padding: 0 var(--space-4); gap: 7px; border-radius: var(--radius-pill);
 }
 .changes-view-picker__value { font-size: 13.5px; font-weight: 500; white-space: nowrap; }
 .changes-view-picker__menu { right: auto; left: 0; min-width: 180px; }

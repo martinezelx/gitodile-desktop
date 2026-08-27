@@ -48,9 +48,9 @@
   grid-template-columns: 24px minmax(0, 1fr) 14px;
   align-items: center;
   gap: 7px;
-  padding: 5px 8px;
+  padding: 5px var(--space-3);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
   color: var(--text-primary);
   text-align: left;
@@ -90,9 +90,9 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 0 11px;
+  padding: 0 var(--space-4);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
   color: var(--text-secondary);
 }

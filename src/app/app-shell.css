@@ -556,8 +556,8 @@
 .sidebar-project__popover .project-switcher__list { min-height: 124px; }
 .sidebar-project__popover { padding: 8px; gap: 6px; }
 .sidebar-project__search {
-  display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 9px;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-control); color: var(--text-secondary);
+  display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); color: var(--text-secondary);
 }
 .sidebar-project__search:focus-within { border-color: var(--focus-ring); }
 .sidebar-project__search svg { width: 14px; height: 14px; flex-shrink: 0; }

@@ -393,10 +393,10 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   justify-content: center;
   gap: 6px;
   min-height: 34px;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   flex-shrink: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: var(--surface-hover);
   color: var(--text-secondary);
   font: inherit;
@@ -536,9 +536,9 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   align-items: center;
   gap: 4px;
   min-height: 36px;
-  padding: 0 var(--space-2) 0 var(--space-3);
+  padding: 0 var(--space-3);
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
