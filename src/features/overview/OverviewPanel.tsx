@@ -410,6 +410,86 @@ function OverviewVersionLineQuickActions({
   );
 }
 
+function ProjectSummaryCard({
+  project,
+  overview,
+  versionValue,
+  versionLines,
+  isLoadingVersionLines,
+  pendingVersionsCount,
+  isRefreshing,
+  onQuickSwitchVersionLine,
+  onQuickCreateVersionLine,
+  onGoToVersionLines,
+  onRefresh,
+  onCopyPathError,
+}: {
+  project: RepositoryInfo;
+  overview: ReturnType<typeof getRepositoryOverviewState>;
+  versionValue: string;
+  versionLines: VersionLinesSnapshot | null;
+  isLoadingVersionLines: boolean;
+  pendingVersionsCount: number;
+  isRefreshing: boolean;
+  onQuickSwitchVersionLine: (target: string) => void;
+  onQuickCreateVersionLine: (forceSwitch: boolean) => void;
+  onGoToVersionLines: () => void;
+  onRefresh: () => void;
+  onCopyPathError: () => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+
+  return (
+    <section className="project-summary-card" aria-labelledby="project-summary-heading">
+      <div className="project-summary-card__identity">
+        <h1 id="project-summary-heading">{project.name}</h1>
+        <ProjectPath path={project.path} onCopyError={onCopyPathError} />
+        {overview.wasOpenedFromNestedFolder && (
+          <p className="project-overview__nested">
+            {t.overviewOpenedFrom}
+            <span data-tooltip={project.selectedPath}>{project.selectedPath}</span>
+          </p>
+        )}
+      </div>
+      <div className="project-summary-card__actions">
+        <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
+          <span className="overview-meta__branch">
+            {overview.isUnborn ? (
+              <span className="overview-meta__branch-note">
+                <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
+                <span className="version-line-card__value">{versionValue}</span>
+                {t[overview.versionDescriptionKey]}
+              </span>
+            ) : (
+              <OverviewVersionLineQuickActions
+                snapshot={versionLines}
+                isLoadingSnapshot={isLoadingVersionLines}
+                currentValue={versionValue}
+                canSwitch={!overview.isDetached}
+                onSwitch={onQuickSwitchVersionLine}
+                onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
+                onSeeAll={onGoToVersionLines}
+              />
+            )}
+          </span>
+          {pendingVersionsCount > 0 && (
+            <span className="overview-meta__stat overview-meta__stat--accent">
+              {t.overviewVersionsAhead(pendingVersionsCount)}
+            </span>
+          )}
+        </div>
+        <RefreshIconButton
+          className="project-summary-card__refresh"
+          label={t.overviewRefresh}
+          busyLabel={t.overviewRefreshing}
+          busy={isRefreshing}
+          onClick={onRefresh}
+        />
+      </div>
+    </section>
+  );
+}
+
 export function OverviewPanel({
   project,
   isOpening,
@@ -540,78 +620,20 @@ export function OverviewPanel({
 
     return (
       <div className="project-overview" aria-busy={isRefreshing}>
-        <header className="project-overview__header">
-          <div className="project-overview__identity">
-            <h1>{project.name}</h1>
-            <ProjectPath path={project.path} onCopyError={onCopyPathError} />
-            {overview.wasOpenedFromNestedFolder && (
-              <p className="project-overview__nested">
-                {t.overviewOpenedFrom}
-                <span data-tooltip={project.selectedPath}>{project.selectedPath}</span>
-              </p>
-            )}
-          </div>
-          {/* Fills the header's empty right half, opposite the identity it
-              qualifies: the project, the line its new work goes to, and the
-              two counts that summarize everything below — a scannable
-              breadcrumb rather than a boxed card, so it reads as *about* the
-              project instead of as one more panel competing with the status
-              card underneath it. */}
-          <div className="project-overview__tools">
-            <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
-              <span className="overview-meta__branch">
-                {overview.isUnborn ? (
-                  <span className="overview-meta__branch-note">
-                  {/* Icon, not the word "Branch" — GitHub/GitLab both drop
-                      the label too, since a branch glyph next to a value
-                      reads as self-explanatory. `aria-hidden` on the glyph,
-                      the group's own `aria-label` still carries it for a
-                      screen reader. Lives inside `.version-line-selector`
-                      itself in the switchable case below, so there is only
-                      ever one branch glyph in this row, not two flanking it. */}
-                    <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
-                    <span className="version-line-card__value">{versionValue}</span>
-                    {t[overview.versionDescriptionKey]}
-                  </span>
-                ) : (
-                  <OverviewVersionLineQuickActions
-                    snapshot={versionLines}
-                    isLoadingSnapshot={isLoadingVersionLines}
-                    currentValue={versionValue}
-                    canSwitch={!overview.isDetached}
-                    onSwitch={onQuickSwitchVersionLine}
-                    onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
-                    onSeeAll={onGoToVersionLines}
-                  />
-                )}
-              </span>
-              {pendingVersions.totalCount > 0 && (
-                <>
-                  <span className="overview-meta__sep" aria-hidden="true">
-                    ·
-                  </span>
-                {/* Emphasized, not a link: what makes it actionable is the
-                    "Publish all" button on the saved-versions section
-                    itself, already visible below without any navigation. */}
-                  <span className="overview-meta__stat overview-meta__stat--accent">
-                    {t.overviewVersionsAhead(pendingVersions.totalCount)}
-                  </span>
-                </>
-              )}
-            {/* Working-change count deliberately left out — the status card
-                right below already opens with it ("N files changed" /
-                the breakdown chips), so repeating it here was the same fact
-                twice with nothing new to add. */}
-            </div>
-            <RefreshIconButton
-              className="project-overview__refresh"
-              label={t.overviewRefresh}
-              busyLabel={t.overviewRefreshing}
-              busy={isRefreshing}
-              onClick={onRefresh}
-            />
-          </div>
-        </header>
+        <ProjectSummaryCard
+          project={project}
+          overview={overview}
+          versionValue={versionValue}
+          versionLines={versionLines}
+          isLoadingVersionLines={isLoadingVersionLines}
+          pendingVersionsCount={pendingVersions.totalCount}
+          isRefreshing={isRefreshing}
+          onQuickSwitchVersionLine={onQuickSwitchVersionLine}
+          onQuickCreateVersionLine={onQuickCreateVersionLine}
+          onGoToVersionLines={onGoToVersionLines}
+          onRefresh={onRefresh}
+          onCopyPathError={onCopyPathError}
+        />
 
         <section
           className={`project-hero project-hero--${heroStatus}`}

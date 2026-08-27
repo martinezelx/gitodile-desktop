@@ -5,7 +5,7 @@
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-5);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-surface);
   background: var(--surface-raised);
   box-shadow: var(--shadow-sm);
 }
@@ -28,7 +28,7 @@
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-round);
   background: var(--surface-hover);
   color: var(--text-secondary);
 }
@@ -83,7 +83,7 @@
   width: 28px;
   height: 28px;
   padding: 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-item);
   background: var(--surface-hover);
   color: var(--text-secondary);
 }
@@ -158,7 +158,7 @@
   overflow: auto;
   padding: var(--space-5);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-surface);
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
 }
@@ -175,7 +175,7 @@
   height: 42px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-round);
   background: var(--surface-active);
   color: var(--accent-primary);
 }
@@ -210,7 +210,7 @@
   display: grid;
   place-items: center;
   border: 1px solid var(--border-subtle);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 .get-team-phases li > span svg { width: 13px; height: 13px; }
@@ -234,7 +234,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-surface);
   background: var(--surface-panel);
   box-shadow: var(--shadow-sm);
 }
@@ -272,7 +272,7 @@
 .get-team-plan__assurances section { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-3); }
 .get-team-plan__assurances h3 { margin-bottom: var(--space-1); }
 .get-team-plan__assurances p { margin: 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.5; }
-.get-team-plan__assurance-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--surface-hover); color: var(--accent-primary); }
+.get-team-plan__assurance-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--accent-primary); }
 .get-team-plan__assurance-icon svg { width: 16px; height: 16px; }
 
 .get-team-plan__local-note {
@@ -281,7 +281,7 @@
   gap: var(--space-2);
   margin: 0;
   padding: var(--space-3);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-surface);
   background: var(--surface-panel);
   color: var(--text-secondary);
   font-size: 12.5px;
@@ -298,7 +298,7 @@
 .get-team-technical dd { margin: 2px 0 0; overflow-wrap: anywhere; font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
 .get-team-technical > p { margin: var(--space-3) 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 
-.get-team-message { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-lg); background: var(--surface-panel); }
+.get-team-message { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-surface); background: var(--surface-panel); }
 .get-team-message > svg { width: 20px; height: 20px; flex: 0 0 auto; }
 .get-team-message h3 { margin: 0 0 var(--space-1); font-size: 15px; }
 .get-team-message p { margin: 0; line-height: 1.5; }
@@ -313,7 +313,7 @@
 
 @media (max-width: 800px) {
   .get-team-backdrop { padding: var(--space-3); align-items: end; }
-  .get-team-dialog { max-height: calc(100vh - 24px); padding: var(--space-4); border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+  .get-team-dialog { max-height: calc(100vh - 24px); padding: var(--space-4); border-radius: var(--radius-surface) var(--radius-surface) 0 0; }
   .get-team-plan__lead,
   .get-team-plan__assurances,
   .get-team-technical dl { grid-template-columns: 1fr; }

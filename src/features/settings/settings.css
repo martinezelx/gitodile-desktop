@@ -12,7 +12,7 @@
 }
 .settings-nav__item {
   width: 100%; min-height: 42px; padding: 0 12px; display: flex; align-items: center; gap: 11px;
-  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
   text-align: left; font-size: 13.5px; font-weight: 600; line-height: 1.25;
   transition: background var(--duration-fast), color var(--duration-fast), box-shadow var(--duration-fast);
 }
@@ -82,7 +82,7 @@
 .navigation-destination {
   min-height: 48px; display: grid; grid-template-columns: auto 28px minmax(0, 1fr) auto;
   align-items: center; gap: 10px; padding: 3px var(--space-1);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-item);
   transition: background var(--duration-fast), opacity var(--duration-fast);
 }
 .navigation-destination__order-controls {
@@ -92,7 +92,7 @@
 .navigation-destination--drag-over { background: var(--surface-hover); }
 .navigation-destination__handle {
   width: 32px; height: 36px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-sm); background: transparent;
+  border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-tertiary, var(--text-secondary)); cursor: grab;
   touch-action: none; user-select: none;
 }
@@ -102,7 +102,7 @@
 .navigation-destination__handle svg { width: 17px; height: 17px; }
 .navigation-destination__icon {
   width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center;
-  border-radius: var(--radius-sm); background: var(--surface-hover); color: var(--text-secondary);
+  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary);
 }
 .navigation-destination__icon svg { width: 17px; height: 17px; }
 .navigation-destination__copy { min-width: 0; display: grid; gap: 1px; }
@@ -117,7 +117,7 @@
 .navigation-destination:focus-within .navigation-destination__move-buttons { opacity: 1; }
 .navigation-destination__move-button {
   width: 28px; height: 28px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-sm); background: transparent;
+  border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-secondary);
 }
 .navigation-destination__move-button:hover:not(:disabled) {
@@ -133,7 +133,7 @@
 .navigation-display__option {
   min-width: 0; min-height: 72px; display: grid; grid-template-columns: 48px minmax(0, 1fr);
   align-items: center; gap: var(--space-3); padding: 10px 12px;
-  border: 0; border-radius: var(--radius-sm); background: transparent;
+  border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-secondary); text-align: left;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
@@ -147,7 +147,7 @@
 .navigation-display__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .navigation-display__preview {
   width: 48px; height: 48px; display: grid; align-content: center; justify-items: center; gap: 2px;
-  border-radius: var(--radius-sm); background: var(--surface-hover); color: var(--accent-primary);
+  border-radius: var(--radius-control); background: var(--surface-hover); color: var(--accent-primary);
 }
 .navigation-display__preview span { width: 26px; height: 26px; display: grid; place-items: center; }
 .navigation-display__preview svg { width: 18px; height: 18px; }
@@ -166,7 +166,7 @@
 .font-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .font-picker__option {
   display: grid; gap: 5px; padding: 11px 13px; justify-items: start;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
   background: var(--surface-panel); color: var(--text-secondary); text-align: left;
   transition:
     border-color var(--duration-fast),
@@ -194,7 +194,7 @@
    judged, and a specimen shown fainter than it will really render is a
    misleading preview, not a de-emphasised one. */
 .font-picker__sample {
-  width: 100%; padding: 5px 7px; border-radius: var(--radius-sm);
+  width: 100%; padding: 5px 7px; border-radius: var(--radius-control);
   background: var(--surface-code); color: var(--text-primary);
   font-size: 12.5px; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -207,7 +207,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
   margin-top: var(--space-3); padding: var(--space-3);
   border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--status-warning) 10%, transparent);
 }
 .identity-block__confirm strong { display: block; margin-bottom: 2px; font-size: 13.5px; }
@@ -237,7 +237,7 @@
 .git-install .git-install__status {
   display: inline-flex; align-items: flex-start; gap: 7px; align-self: flex-start;
   max-width: 60ch; margin: 0; padding: 5px var(--space-3);
-  border: 1px solid transparent; border-radius: var(--radius-md);
+  border: 1px solid transparent; border-radius: var(--radius-surface);
   background: var(--surface-hover);
   color: var(--text-secondary); font-size: 12.5px; line-height: 1.45;
 }
@@ -271,7 +271,7 @@
 .line-endings { display: grid; gap: var(--space-2); }
 .line-endings__option {
   display: grid; gap: 3px; padding: 10px var(--space-3); text-align: left;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
   background: var(--surface-raised); color: var(--text-primary); cursor: pointer;
 }
 .line-endings__option:hover:not(:disabled) { background: var(--surface-hover); }
@@ -287,7 +287,7 @@
 }
 .line-endings__option-description { color: var(--text-secondary); font-size: 12.5px; line-height: 1.45; }
 .line-endings__recommended {
-  padding: 1px 7px; border-radius: 999px;
+  padding: 1px 7px; border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
   color: var(--accent-primary); font-size: 11px; font-weight: 600;
 }
@@ -301,7 +301,7 @@
 .line-endings__caveat {
   display: flex; gap: var(--space-2); padding: 10px var(--space-3);
   border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-surface);
   background: color-mix(in srgb, var(--status-warning) 10%, transparent);
   color: var(--status-warning); font-size: 12.5px; line-height: 1.45;
 }

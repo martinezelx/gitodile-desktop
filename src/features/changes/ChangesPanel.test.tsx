@@ -561,7 +561,10 @@ describe("ChangesPanel review controls", () => {
     const refresh = screen.getByRole("button", { name: "Refresh" });
     expect(refresh).toBeEnabled();
     expect(refresh).not.toHaveTextContent("Refresh");
-    expect(screen.getByRole("button", { name: "Save selected (2)" })).toBeEnabled();
+    const actions = screen.getByRole("group", { name: "Changes" });
+    expect(within(actions).getByRole("button", { name: "Refresh" })).toBe(refresh);
+    expect(within(actions).getByRole("button", { name: "Save selected (2)" })).toBeEnabled();
+    expect(within(actions).getByRole("button", { name: "More change actions" })).toBeEnabled();
   });
 
   it("shows no freshness note before the first check returns", () => {

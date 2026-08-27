@@ -21,7 +21,7 @@ Settled direction: **Friendly Card** — chosen after benchmarking against Subli
 
 The visual language uses:
 
-- moderate rounded corners (14–18px on cards/panels, 8–10px on controls) — rounded enough to feel approachable, not so large it reads as a decorative concept app;
+- moderate rounded corners (18px on cards and panels, 14px on controls, 10px on the rows inside them) with circles for avatars, glyph tiles and action-row icon buttons — rounded enough to feel approachable, not so large it reads as a decorative concept app. The tiers are roles, not sizes; see Shape;
 - **opaque panels**, not translucent glass — depth comes from `--shadow-sm/md/lg`, not `backdrop-filter` blur;
 - layered surfaces distinguished by shadow and a subtle tone shift, not by transparency;
 - thin, low-contrast borders around cards/panels as a secondary depth cue alongside shadow — but not as divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item;
@@ -46,9 +46,9 @@ The main desktop window should broadly support:
 2. **Navigation rail** — a 64px column with no surface of its own: no fill, no
    border, no shadow. The window chrome (titlebar, rail, status bar) is one
    continuous plane, and only *content* sits in cards on top of it. Each
-   destination is an icon in a 40px rounded square with its name underneath;
-   the active state fills that square, never the whole cell, so a two-line
-   label like "Iniciar sesión" does not make its neighbour look shorter.
+   destination is an icon in a 40px circle with its name underneath; the
+   active state fills that circle, never the whole cell, so a two-line label
+   like "Iniciar sesión" does not make its neighbour look shorter.
 
    The width is derived, not chosen. 64px is 8px of padding either side of the
    widest thing the column must hold, which is the longest unbreakable
@@ -157,6 +157,10 @@ The main desktop window should broadly support:
      an edge in dark mode while passing unnoticed in light. Easing moves alpha
      4% across the first eighth instead of 12.5%, so both ends dissolve into
      their surroundings. Any future scrim in this app wants the same curve;
+   - fixed workbench screens whose panels own their scrolling, such as Changes
+     and History, do not use the global fade. Their panel edge is already the
+     scroll boundary; fading it makes the surface appear not to end. They keep
+     only a compact 8px gap above the status bar;
    - the version is shown as `v0.1.0` — no product name, since the window is
      already the product;
    - it must never state something untrue about a repository. It is the one
@@ -179,10 +183,12 @@ The app should work well between approximately 1024px and large desktop displays
 
 ```css
 :root {
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* Radius states a role, not a size — see Shape below. */
+  --radius-item: 10px;
+  --radius-control: 14px;
+  --radius-surface: 18px;
+  --radius-pill: 999px;
+  --radius-round: 50%;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -220,6 +226,7 @@ Colors should be defined semantically rather than by component:
 - `--diff-removed`
 - `--overlay` (modal/backdrop scrim)
 - `--surface-hover` / `--surface-active` (neutral interactive-state tints, used for any hover/pressed/selected state instead of one-off `rgba(...)` values)
+- `--surface-control` / `--border-control` (the fill and edge of a control that sits *on* a raised card — see Shape below; never use `--surface-panel` for this, it is the same white as `--surface-raised` in light mode and leaves the control with no step of its own)
 - `--focus-ring` (the visible keyboard focus color, distinct enough against every focusable surface)
 - `--shadow-sm` / `--shadow-md` / `--shadow-lg` (elevation; theme-aware, see below)
 
@@ -228,6 +235,93 @@ Do not hard-code product colors throughout components.
 ### Elevation
 
 Use shadows to signal stacking order, not to decorate: `--shadow-sm` for resting cards and controls, `--shadow-md` for content the user is meant to focus on (hero card, a lifted hover state), `--shadow-lg` for anything floating above the whole UI (dialogs, popovers). In dark mode shadows read as depth against the near-black background; in light mode they carry more of the separation work since borders alone are subtler there — both are defined per theme so neither look goes flat.
+
+### Shape
+
+**Radius states a role, never a size.** There is no house radius applied to
+everything, and there is no "small/medium/large" scale to pick from — sizing
+the radius by eye is exactly what left buttons scattered across three different
+values before this was written down. Choose the tier by what the thing *is*:
+
+| Token | What it is | Examples |
+| --- | --- | --- |
+| `--radius-round` (50%) | An atomic thing with no reading direction | Project avatar, **any single glyph on a fill** (section, status and dialog-header icons), rail destination, refresh, create, overflow trigger, checkbox, timeline node |
+| `--radius-pill` (999px) | A capsule of short text, or a pure geometric form | Badge, count, status chip, progress bar, scrollbar thumb, toggle track |
+| `--radius-item` (10px) | A row or option that lives inside a container | Menu row, list option, file row, segmented-control option, inline code, keycap, square icon button of 24–36px that is not in an action row |
+| `--radius-control` (14px) | Something pressed or typed into | Labelled button, input, textarea, select, selector, segmented-control frame, square icon button of 40px and up that is not in an action row |
+| `--radius-surface` (18px) | A container carrying its own background | Card, dialog, popover, menu, notice, banner, panel |
+
+A circle has no "length", so it has no radius to scale — that is why it is a
+role and not a number. Mixing circles with the rectangular tiers in one row is
+correct and intended: it is what lets a labelled control read as primary next
+to its icon-only satellites without spending an accent color on the difference,
+since a circle of the same box reads optically smaller and lighter. Three radii
+in one row is where it stops being a system and starts being drift; keep it to
+two.
+
+The three rectangular tiers are a **concentric chain**, so a container is
+already the right radius for what it wraps:
+
+```
+item 10    + 4 padding = control 14    a segmented control around its options
+item 10    + 8 padding = surface 18    a menu around its rows
+control 14 + 4 padding = surface 18    a toolbar around its buttons
+```
+
+Six constraints keep this honest:
+
+- **Concentricity** (`outer = inner + padding`) is measured against whichever
+  child sits at the container's *corners*, not against its tallest or its
+  first. The Changes action cluster hugs 38px circles (r=19) with 8px of
+  padding, so it is `--radius-pill`, which resolves to 27 at that height and
+  stays correct when a coarse pointer grows the controls to 44px. Get it wrong
+  and the corners look pinched. It only binds when a child is actually near a
+  corner: the Overview summary card stays `--radius-surface` because its
+  controls sit 24px inside it.
+- **A circle needs a square box.** Only apply `--radius-round` where width and
+  height are both pinned. If a narrow layout lets the control stretch, the
+  circle becomes an ellipse — give the free width to the labelled action and
+  leave the icon buttons at `flex: 0 0 auto`.
+- **A container stops being a card at half its own height.** `--radius-surface`
+  on a 54px cluster still reads as a rectangle; on a 36px one it is a pill, and
+  the contrast against the circles inside it is gone. Reach for
+  `--radius-pill` deliberately in that case rather than arriving there by
+  accident.
+- **A glyph tile is a circle at every size.** A square holding one icon on a
+  fill — a section heading, a status marker, a dialog header, a row's leading
+  icon — is the same atomic thing as an avatar, so it takes `--radius-round`
+  whether it is 24px or 52px. It is not sized into a tier, because it has no
+  length to scale. The two exclusions are worth knowing: a tile with a
+  transparent fill is not a tile (it is a bare glyph, and rounding nothing is
+  nothing), and a preview holding a miniature layout rather than one glyph is a
+  container, so it stays `--radius-control`.
+- **A square icon button is a circle when it lives in an action row.** Ask
+  where it sits, not what it does. An *action row* is a strip whose whole
+  content is standalone actions — the rail, the titlebar cluster, a panel
+  header's action group; there, an icon-only button takes `--radius-round` and
+  joins the family. Anywhere else the button is an **affordance attached to a
+  host** — a notice's dismiss, a path's copy button, a dialog header's close, a
+  settings row's reorder arrows — and it stays rectangular, because rounding it
+  would make it compete with the thing it belongs to. The one exclusion is
+  `.window-control`: minimise/maximise/close are the operating system's chrome
+  and follow its conventions, not ours, even though they sit in an action row.
+- **A rectangular icon button takes the tier below its side.** This is the one
+  place size still enters the decision, because one value cannot serve a 24px
+  box and a 52px one. Up to 22px use `--radius-round`: at that size any radius
+  worth seeing has already closed the shape into a circle, so name it one. From
+  24 to 36px use `--radius-item`, from 40px `--radius-control`. Both bands land
+  the shape between 0.27 and 0.42 of radius over side, which is what reads as
+  clearly rounded and clearly not a circle — `--radius-control` on a 28px
+  button is exactly 0.5, an accidental circle. A guard in
+  `styleComposition.test.ts` fails the build on anything that lands in the
+  0.43–0.5 gap between the two readings.
+
+One caveat that applies to every circle above: `border-radius` clips pointer
+hit-testing, so a circle loses about a fifth of its clickable area and its
+corners go dead. That is a real cost only where the shape is a *target* — keep
+the 44px coarse-pointer override on circular controls, and prefer a rectangle
+for a small interactive one. It costs nothing on an avatar or a glyph tile,
+which is why those are circles at any size.
 
 ### Icons
 
@@ -444,4 +538,4 @@ Avoid vague labels such as “Continue” when a more precise action fits.
 
 Each screen must define loading, empty, success, warning, and error states.
 
-Reuse one visual pattern for all of these across screens rather than each screen inventing its own: a centered block with a small icon in a bordered/shadowed square (`--radius-lg`), one short headline, one line of supporting copy, and 1–2 actions — see `.empty-state` in `styles.css`, first built for the "no project open" Overview state. A loading state is the same layout with a spinner/skeleton instead of the icon; an error state swaps in `--status-danger`. Do not build a bespoke illustration or a different card shape per screen — that's how a "no repository" panel and a "no results" panel end up looking like they belong to two different apps.
+Reuse one visual pattern for all of these across screens rather than each screen inventing its own: a centered block with a small icon in a bordered/shadowed circle (`--radius-round`, like every glyph tile), one short headline, one line of supporting copy, and 1–2 actions — see `.empty-state` in `styles.css`, first built for the "no project open" Overview state. A loading state is the same layout with a spinner/skeleton instead of the icon; an error state swaps in `--status-danger`. Do not build a bespoke illustration or a different card shape per screen — that's how a "no repository" panel and a "no results" panel end up looking like they belong to two different apps.

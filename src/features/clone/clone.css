@@ -14,7 +14,7 @@
   max-height: min(820px, calc(100vh - 48px));
   overflow: auto;
   padding: var(--space-5);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-surface);
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
 }
@@ -33,7 +33,7 @@
   height: 44px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-round);
   background: var(--surface-active);
   color: var(--accent-primary);
 }
@@ -90,7 +90,7 @@
 .clone-dialog__progress .loading-state { margin-bottom: var(--space-2); }
 .clone-dialog__progress ol { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .clone-dialog__progress li { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; color: var(--text-secondary); font-size: 13px; }
-.clone-dialog__progress li > span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 999px; background: var(--surface-hover); }
+.clone-dialog__progress li > span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-pill); background: var(--surface-hover); }
 .clone-dialog__progress li svg { width: 14px; height: 14px; }
 .clone-dialog__progress li.is-current { color: var(--text-primary); font-weight: 700; }
 .clone-dialog__progress li.is-current > span { background: var(--surface-active); color: var(--accent-primary); }
@@ -105,7 +105,7 @@
   max-height: 150px;
   overflow: auto;
   padding: var(--space-3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-surface);
   background: var(--surface-code);
   color: var(--text-primary);
   font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
@@ -115,7 +115,7 @@
 
 @media (max-width: 720px) {
   .clone-backdrop { align-items: end; padding: var(--space-3); }
-  .clone-dialog { max-height: calc(100vh - 24px); padding: var(--space-4); border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+  .clone-dialog { max-height: calc(100vh - 24px); padding: var(--space-4); border-radius: var(--radius-surface) var(--radius-surface) 0 0; }
   .clone-dialog__effects { grid-template-columns: 1fr; }
   .clone-dialog__summary > div { grid-template-columns: 1fr; gap: var(--space-1); }
   .clone-dialog__path-picker { grid-template-columns: 1fr; }

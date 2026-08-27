@@ -89,4 +89,87 @@ describe("production style composition", () => {
     expect(primitives).toContain("@media (forced-colors: active)");
     expect(primitives).toContain('url("../../assets/gitodrile-mark.svg")');
   });
+
+  // DESIGN.md § Shape: radius states a role, never a size. A raw length here is
+  // how buttons ended up spread across three different values before, so the
+  // rule is only worth writing down if something keeps new ones from appearing.
+  it("expresses every border-radius as a role token", () => {
+    // `0`, `inherit` and the 2px underline/highlight are not shape tiers: they
+    // are squaring a corner off, following a parent, or drawing a 2px bar.
+    const allowedLiterals = new Set(["0", "inherit", "2px", "2px 2px 0 0"]);
+    const offenders: string[] = [];
+
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      const source = readSource(relativePath);
+      for (const match of source.matchAll(/border-radius:\s*([^;}]+)/g)) {
+        const value = match[1].trim();
+        if (allowedLiterals.has(value)) continue;
+        // Every remaining declaration must be built only from radius tokens,
+        // optionally with `0` corners for a shape squared off on one side.
+        const withoutTokens = value.replace(/var\(--radius-[a-z]+\)/g, "").replace(/\b0\b/g, "").trim();
+        if (withoutTokens !== "") {
+          offenders.push(`${relativePath}: border-radius: ${value}`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Shape: a square shape must read as clearly rounded or as a
+  // circle, never as a failed circle. This caught three real regressions when
+  // it was first run — a 32px copy button that had picked up the surface
+  // radius from its container's name, and two project avatars left square
+  // while the same avatar was round in the rail.
+  it("keeps every square shape out of the failed-circle band", () => {
+    const scale: Record<string, number> = { item: 10, control: 14, surface: 18 };
+    const offenders: string[] = [];
+
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      const source = readSource(relativePath);
+      for (const rule of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const [, selector, body] = rule;
+        const token = body.match(/border-radius:\s*var\(--radius-(item|control|surface)\)/);
+        // Only rules that pin their own box can be judged; the rest depend on
+        // content. The lookbehind has to reject any hyphenated prefix, not just
+        // min-/max-: `\b` matches between the hyphen and the word, so a bare
+        // `\bwidth` also finds `stroke-width` and `\bheight` finds `line-height`.
+        const width = body.match(/(?<![\w-])width:\s*(\d+)px/);
+        const height = body.match(/(?<![\w-])height:\s*(\d+)px/);
+        if (!token || !width || !height) continue;
+
+        const side = Math.min(Number(width[1]), Number(height[1]));
+        const ratio = scale[token[1]] / side;
+        if (ratio >= 0.43) {
+          offenders.push(
+            `${relativePath}: ${selector.trim().split("\n").pop()?.trim()} ` +
+              `— ${side}px at --radius-${token[1]} is ${ratio.toFixed(2)} of its side`,
+          );
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the radius roles a concentric chain", () => {
+    const tokens = readSource("styles/tokens.css");
+    const read = (name: string): number => {
+      const match = tokens.match(new RegExp(`--radius-${name}:\\s*(\\d+)px`));
+      if (!match) throw new Error(`--radius-${name} is not defined`);
+      return Number(match[1]);
+    };
+    const item = read("item");
+    const control = read("control");
+    const surface = read("surface");
+
+    // The values are only allowed to move together: a container has to stay
+    // the radius of the thing it wraps plus that thing's inset, or every
+    // toolbar and menu in the app starts pinching at the corners.
+    expect(control).toBe(item + 4);
+    expect(surface).toBe(item + 8);
+    expect(surface).toBe(control + 4);
+  });
 });

@@ -41,7 +41,7 @@
 .sidebar-jump__avatar {
   width: 20px; height: 20px; flex-shrink: 0;
   display: grid; place-items: center;
-  border-radius: var(--radius-sm); color: var(--avatar-foreground);
+  border-radius: var(--radius-round); color: var(--avatar-foreground);
   font-size: 9px; font-weight: 700; letter-spacing: 0.02em;
 }
 
@@ -93,8 +93,12 @@
 .window-titlebar__name { display: none; }
 
 .window-titlebar__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+/* Circular because the titlebar cluster is an action row, the rail's sibling:
+   sidebar toggle, palette, back/forward, theme, account are all standalone
+   global actions. `.window-control` beside them deliberately stays rectangular
+   — it is the operating system's chrome, not the app's. */
 .titlebar-icon-button {
-  width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm);
+  width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
@@ -112,7 +116,7 @@
 }
 .titlebar-history-controls { display: flex; align-items: center; gap: 2px; }
 .titlebar-badge {
-  margin-right: 8px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-subtle);
+  margin-right: 8px; padding: 3px 8px; border-radius: var(--radius-pill); border: 1px solid var(--border-subtle);
   background: var(--surface-hover); color: var(--text-secondary); font-size: 12px; font-weight: 700;
   letter-spacing: .015em; line-height: 1.2; white-space: nowrap; flex-shrink: 0;
 }
@@ -128,7 +132,7 @@
   min-width: 210px;
   padding: 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-surface);
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
   transform-origin: top left;
@@ -143,7 +147,7 @@
   min-height: 34px;
   padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-item);
   background: transparent;
   color: var(--text-primary);
   text-align: left;
@@ -156,7 +160,7 @@
 .titlebar-menu__item[aria-disabled="true"] { color: var(--text-secondary); }
 .titlebar-menu__item[aria-disabled="true"]:hover { background: transparent; }
 .window-control {
-  width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm);
+  width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--radius-item);
   color: var(--text-primary); background: transparent; transition: background var(--duration-fast);
 }
 .window-control:hover { background: var(--surface-hover); }
@@ -169,14 +173,14 @@
 .window-control__close::after { transform: rotate(-45deg); }
 
 .palette-backdrop { position: fixed; inset: 0; z-index: 20; display: flex; justify-content: center; padding: 14vh 24px 24px; background: var(--overlay); }
-.palette-dialog { width: min(100%, 560px); height: fit-content; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-lg); overflow: hidden; }
+.palette-dialog { width: min(100%, 560px); height: fit-content; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-raised); box-shadow: var(--shadow-lg); overflow: hidden; }
 .palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
 .palette-input-row:focus-within { box-shadow: inset 0 -2px 0 var(--focus-ring); }
 .palette-input-row svg { width: 16px; height: 16px; flex-shrink: 0; }
 .palette-input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: 15px; color: var(--text-primary); }
 .palette-input::placeholder { color: var(--text-secondary); }
 .palette-list { list-style: none; margin: 0; max-height: 280px; overflow-y: auto; padding: 6px; }
-.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); font-size: 13.5px; color: var(--text-primary); }
+.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: var(--radius-item); font-size: 13.5px; color: var(--text-primary); }
 .palette-item[aria-selected="true"] { background: var(--surface-active); }
 .palette-item__hint { color: var(--text-secondary); font-size: 12px; }
 .palette-empty { padding: 24px 16px; text-align: center; color: var(--text-secondary); font-size: 13px; list-style: none; }
@@ -192,7 +196,7 @@
      bar whose text sits a few pixels left of the content above it reads as a
      mistake. Retuned per breakpoint in one place so they cannot drift. */
   --workspace-inset-left: 24px;
-  --workspace-inset-right: 36px;
+  --workspace-inset-right: var(--space-5);
   /* Also the height of the fade above the status bar, and not by coincidence:
      the two being equal is what makes the fade free at the end of a scroll. */
   --workspace-inset-bottom: 40px;
@@ -230,8 +234,9 @@
 
    So: a short fade to the window's own colour, sitting directly above the bar.
    It is drawn from here rather than as a mask on the workspace because a mask
-   on a scroll container recomposites every frame, and the screens that scroll
-   most are the virtualized diff lists.
+   on a scroll container recomposites every frame. Fixed workbenches whose
+   panes own scrolling opt out below: their panel edge already marks the end,
+   and fading that edge makes the surface look unfinished.
 
    It costs nothing when the list is fully scrolled: the workspace keeps 40px
    of bottom padding, so at the end of the scroll this 28px band contains only
@@ -273,6 +278,7 @@
     color-mix(in srgb, var(--surface-app) 0%, transparent) 100%
   );
 }
+.app-shell--internal-scroll .status-bar::before { display: none; }
 /* Three tiers of gap and no rules between them: 5px binds an icon to its own
    text, 8px binds the parts of one fact, 24px separates one fact from the
    next. DESIGN.md reserves hairlines for the edges of cards and asks for
@@ -309,7 +315,7 @@
 .status-bar__action {
   width: 20px; height: 20px; flex-shrink: 0;
   display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: var(--radius-sm);
+  padding: 0; border: 0; border-radius: var(--radius-round);
   background: transparent; color: inherit;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
@@ -382,15 +388,15 @@
 }
 .rail-item {
   width: 100%; display: grid; justify-items: center; gap: 2px;
-  padding: 0; border: 0; border-radius: var(--radius-md);
+  padding: 0; border: 0; border-radius: var(--radius-control);
   background: transparent; color: var(--text-secondary); text-align: center;
 }
-/* The active state fills the icon's square, not the whole cell. Wrapping the
+/* The active state fills the icon's circle, not the whole cell. Wrapping the
    label too gave neighbouring destinations blocks of different heights — one
    line against two — and the column stopped reading as a rhythm. */
 .rail-item__icon {
   width: 40px; height: 40px; display: grid; place-items: center;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-round);
   transition:
     background var(--duration-fast),
     color var(--duration-fast),
@@ -481,7 +487,7 @@
 .app-window--icons-only .sidebar-divider { margin: var(--space-3) 2px; }
 .sidebar-round {
   width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
-  border: 0; border-radius: 50%; background: var(--surface-hover); color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary);
   transition:
     background var(--duration-fast),
     color var(--duration-fast),
@@ -499,11 +505,11 @@
 
 .sidebar-project-group { display: grid; justify-items: center; gap: var(--space-3); }
 .sidebar-project {
-  position: relative; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent;
+  position: relative; padding: 0; border: 0; border-radius: var(--radius-round); background: transparent;
 }
 .sidebar-project__avatar {
   width: 36px; height: 36px; display: grid; place-items: center;
-  border-radius: var(--radius-md); color: var(--avatar-foreground);
+  border-radius: var(--radius-round); color: var(--avatar-foreground);
   font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
   transition: filter var(--duration-fast), transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -514,7 +520,7 @@
 .sidebar-project:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .sidebar-project__chevron {
   position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px;
-  display: grid; place-items: center; border-radius: 50%;
+  display: grid; place-items: center; border-radius: var(--radius-round);
   border: 1px solid var(--border-subtle); background: var(--surface-raised); color: var(--text-secondary);
 }
 .sidebar-project__chevron svg {
@@ -526,7 +532,7 @@
 .sidebar-project__badge {
   position: absolute; top: -4px; right: -4px; min-width: 14px; height: 14px; padding: 1px;
   display: inline-flex; align-items: center; justify-content: center; gap: 1px;
-  border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-round); background: var(--surface-raised); border: 1px solid var(--border-subtle);
 }
 .sidebar-project__badge svg { width: 10px; height: 10px; }
 .sidebar-project__badge-count { font-size: 7px; line-height: 1; font-weight: 700; }
@@ -551,7 +557,7 @@
 .sidebar-project__popover { padding: 8px; gap: 6px; }
 .sidebar-project__search {
   display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 9px;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-secondary);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control); color: var(--text-secondary);
 }
 .sidebar-project__search:focus-within { border-color: var(--focus-ring); }
 .sidebar-project__search svg { width: 14px; height: 14px; flex-shrink: 0; }
@@ -581,7 +587,7 @@
 .sidebar-project__filter {
   width: 24px; height: 24px; flex-shrink: 0;
   display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: var(--radius-sm);
+  padding: 0; border: 0; border-radius: var(--radius-item);
   background: transparent; color: var(--text-secondary);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
@@ -597,6 +603,13 @@
   flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto;
   padding: 28px var(--workspace-inset-right) var(--workspace-inset-bottom) var(--workspace-inset-left);
 }
+/* Changes and History are fixed workbenches whose child panes own scrolling.
+   The shell's full bottom inset is useful for document-style screens, where it
+   creates the quiet end of the outer scroll, but here it becomes a permanent
+   empty strip. Keep only one compact step so the panel has a visible ending
+   without giving back the space recovered from the old 40px gap. */
+.workspace--changes,
+.workspace--history { padding-bottom: var(--space-2); }
 .screen-slot { display: contents; }
 .screen-slot[hidden] { display: none; }
 .compact-nav { display: none; }
@@ -604,7 +617,7 @@
 .topbar { margin-bottom: 40px; }
 .app-tooltip {
   position: fixed; max-width: 260px; width: max-content;
-  padding: 5px 8px; border-radius: 6px;
+  padding: 5px 8px; border-radius: var(--radius-item);
   background: var(--tooltip-surface); color: var(--tooltip-text);
   box-shadow: var(--tooltip-shadow);
   font-size: 12px; font-weight: 500; line-height: 1.4; text-align: center;
@@ -633,7 +646,7 @@
 .project-switcher__item { display: flex; align-items: center; gap: 2px; }
 .project-switcher__button {
   display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; height: 40px;
-  padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: transparent;
+  padding: 0 8px; border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-secondary); text-align: left;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
@@ -645,7 +658,7 @@
 .project-switcher__button:disabled { opacity: 0.45; }
 .project-switcher__avatar {
   flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
-  border-radius: var(--radius-sm); color: var(--avatar-foreground); font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
+  border-radius: var(--radius-round); color: var(--avatar-foreground); font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
 }
 .project-switcher__button--active .project-switcher__avatar { box-shadow: 0 0 0 2px var(--accent-primary); }
 .project-switcher__copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
@@ -661,7 +674,7 @@
 .project-switcher__indicator--unsaved { color: var(--status-warning); }
 .project-switcher__close {
   flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
   opacity: 0.55;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
@@ -678,7 +691,7 @@
    the one state that must survive not pointing at the row. */
 .project-switcher__favourite {
   flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
   opacity: 0.55;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
@@ -695,7 +708,7 @@
 .project-switcher__item--add { margin-top: 2px; }
 .project-switcher__add {
   display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px;
-  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
   font-size: 13px; transition: background var(--duration-fast), color var(--duration-fast);
 }
 .project-switcher__add svg { width: 16px; height: 16px; flex-shrink: 0; }
@@ -720,7 +733,7 @@
 .project-switcher-compact { position: relative; display: none; }
 .project-switcher-compact__trigger {
   width: 32px; height: 32px; padding: 2px; display: grid; place-items: center; flex-shrink: 0;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-panel);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-round); background: var(--surface-panel);
   color: var(--text-secondary);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
@@ -729,13 +742,13 @@
 .project-switcher-compact__trigger svg { width: 16px; height: 16px; }
 .project-switcher-compact__avatar {
   width: 100%; height: 100%; display: grid; place-items: center;
-  border-radius: calc(var(--radius-sm) - 1px); color: var(--avatar-foreground); font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+  border-radius: var(--radius-round); color: var(--avatar-foreground); font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
 }
 .project-switcher-compact__popover {
   position: absolute; z-index: 5; top: calc(100% + var(--space-2)); left: 0; min-width: 220px;
   max-height: min(420px, calc(100vh - 140px)); overflow-y: auto; overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  padding: 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .project-switcher-compact__popover .project-switcher__button { height: 36px; }
@@ -752,7 +765,7 @@
 .settings-dialog {
   width: min(1000px, 100%); height: min(680px, calc(100vh - 56px)); min-height: 420px;
   display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .settings-dialog__header {
@@ -764,7 +777,7 @@
 .settings-dialog__heading { flex: 1 1 auto; min-width: 0; }
 .settings-dialog__alert {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px;
-  padding: 6px var(--space-3); border-radius: 999px;
+  padding: 6px var(--space-3); border-radius: var(--radius-pill);
   border: 1px solid transparent; background: transparent;
   color: var(--status-danger); font-size: 12.5px; font-weight: 650;
   opacity: 0.78;
@@ -786,10 +799,10 @@
 .settings-dialog__header h2 { margin: 0 0 3px; font-size: 21px; letter-spacing: -0.018em; }
 .settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
 .about-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--overlay); backdrop-filter: blur(8px); }
-.about-dialog { position: relative; width: min(100%, 420px); padding: 32px; border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg); }
+.about-dialog { position: relative; width: min(100%, 420px); padding: 32px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg); }
 .about-dialog__close {
   position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .about-dialog__close:hover { background: var(--surface-hover); color: var(--text-primary); }
@@ -832,7 +845,7 @@
   min-width: 20px;
   padding: 3px 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-item);
   background: var(--surface-hover);
   color: var(--text-secondary);
   font: inherit;
@@ -862,10 +875,6 @@
   .project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
     transform: rotate(45deg);
   }
-}
-
-@media (max-width: 1100px) {
-  .app-shell { --workspace-inset-right: var(--space-5); }
 }
 
 @media (max-width: 800px) {
@@ -898,7 +907,7 @@
     margin-bottom: 0;
     padding: var(--space-1);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-surface);
     background: var(--surface-panel);
     box-shadow: var(--shadow-sm);
   }
@@ -910,7 +919,7 @@
     gap: var(--space-2);
     padding: 0 var(--space-3);
     border: 0;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-item);
     background: transparent;
     color: var(--text-secondary);
     font: inherit;

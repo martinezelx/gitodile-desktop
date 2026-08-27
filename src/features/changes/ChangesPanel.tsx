@@ -267,6 +267,83 @@ function CheckFreshnessNote({
   );
 }
 
+function ChangesHeaderActions({
+  controller,
+  projectPath,
+  sessionEpoch,
+  workingTree,
+  checkedAt,
+  isChecking,
+  selectedPath,
+  canChooseFiles,
+  canSaveSelection,
+  includedCount,
+  onRefresh,
+  onSave,
+  onChooseDiscard,
+  t,
+}: {
+  controller: ChangesController;
+  projectPath: string;
+  sessionEpoch: string;
+  workingTree: WorkingTreeStatus | null;
+  checkedAt: number | null;
+  isChecking: boolean;
+  selectedPath: string | null;
+  canChooseFiles: boolean;
+  canSaveSelection: boolean;
+  includedCount: number;
+  onRefresh: () => void;
+  onSave: () => void;
+  onChooseDiscard: (request: DiscardDialogRequest) => void;
+  t: Translations;
+}): React.JSX.Element {
+  const hasSavableChanges = workingTree !== null && !workingTree.isClean;
+  const actionsDisabled = !hasSavableChanges || isChecking;
+
+  return (
+    <div className="changes-header-actions">
+      <CheckFreshnessNote checkedAt={checkedAt} isChecking={isChecking} t={t} />
+      <div className="changes-header-actions__buttons" role="group" aria-label={t.changesHeading}>
+        <RefreshIconButton
+          className="changes-header-actions__refresh"
+          label={t.changesRefresh}
+          busyLabel={t.statusCheckingMessage}
+          busy={isChecking}
+          onClick={onRefresh}
+        />
+        <button
+          className="primary-button changes-header-actions__save"
+          type="button"
+          onClick={onSave}
+          disabled={actionsDisabled || !canSaveSelection}
+          data-tooltip={
+            !hasSavableChanges
+              ? t.changesSaveVersionDisabledHint
+              : !canSaveSelection
+                ? t.changesSaveVersionNoSelectionHint
+                : undefined
+          }
+        >
+          <Save aria-hidden="true" />
+          {/* Names the actual selection when per-file choices are available;
+              a truncated status has no trustworthy selection count. */}
+          {canChooseFiles && canSaveSelection ? t.changesSaveSelected(includedCount) : t.changesSaveVersion}
+        </button>
+        <ChangesActionsMenu
+          controller={controller}
+          projectPath={projectPath}
+          sessionEpoch={sessionEpoch}
+          selectedPath={selectedPath}
+          disabled={actionsDisabled}
+          onChoose={onChooseDiscard}
+          t={t}
+        />
+      </div>
+    </div>
+  );
+}
+
 
 /** What a discard that was never confirmed reports back. The Undo is the
  * recovery point Rust already created, offered in place rather than left to be
@@ -1020,48 +1097,22 @@ export function ChangesPanel({
             </p>
           )}
         </div>
-        <div className="changes-view__actions">
-          <CheckFreshnessNote checkedAt={workingTreeCheckedAt} isChecking={isCheckingChanges} t={t} />
-          {/* The two buttons are one group; the freshness note beside them is
-              status text, not a third action, so it sits further out. */}
-          <div className="changes-view__buttons">
-            <RefreshIconButton
-              className="changes-view__refresh"
-              label={t.changesRefresh}
-              busyLabel={t.statusCheckingMessage}
-              busy={isCheckingChanges}
-              onClick={onRefresh}
-            />
-            <button
-              className="primary-button"
-              type="button"
-              onClick={onOpenSaveVersion}
-              disabled={!workingTree || workingTree.isClean || isCheckingChanges || !canSaveSelection}
-              data-tooltip={
-                !workingTree || workingTree.isClean
-                  ? t.changesSaveVersionDisabledHint
-                  : !canSaveSelection
-                    ? t.changesSaveVersionNoSelectionHint
-                    : undefined
-              }
-            >
-              <Save aria-hidden="true" />
-              {/* Names what it will actually save. Without a per-file choice
-                (a truncated status) there is no selection to count, so it
-                falls back to the plain label. */}
-              {canChooseFiles && canSaveSelection ? t.changesSaveSelected(includedCount) : t.changesSaveVersion}
-            </button>
-            <ChangesActionsMenu
-              controller={controller}
-              projectPath={projectPath}
-              sessionEpoch={sessionEpoch}
-              selectedPath={selectedPath}
-              disabled={!workingTree || workingTree.isClean || isCheckingChanges}
-              onChoose={requestDiscard}
-              t={t}
-            />
-          </div>
-        </div>
+        <ChangesHeaderActions
+          controller={controller}
+          projectPath={projectPath}
+          sessionEpoch={sessionEpoch}
+          workingTree={workingTree}
+          checkedAt={workingTreeCheckedAt}
+          isChecking={isCheckingChanges}
+          selectedPath={selectedPath}
+          canChooseFiles={canChooseFiles}
+          canSaveSelection={canSaveSelection}
+          includedCount={includedCount}
+          onRefresh={onRefresh}
+          onSave={onOpenSaveVersion}
+          onChooseDiscard={requestDiscard}
+          t={t}
+        />
       </header>
 
       <DiscardOutcomeNotice

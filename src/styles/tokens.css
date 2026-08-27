@@ -3,10 +3,20 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* Radius states a role, not a size. Pick the tier by what the thing *is*,
+     never by how big it happens to be — that is what kept buttons scattered
+     across three different values before. See DESIGN.md § Shape.
+
+     The three rectangular tiers are a concentric chain, so a container is
+     already the right radius for the thing it wraps:
+       item 10 + 4 padding = control 14   (a segmented control and its options)
+       item 10 + 8 padding = surface 18   (a menu and its rows)
+       control 14 + 4 padding = surface 18 (a toolbar hugging its buttons)  */
+  --radius-item: 10px;    /* a row or option living inside a container */
+  --radius-control: 14px; /* anything pressed or typed into, and icon tiles ≥40px */
+  --radius-surface: 18px; /* a container with its own background: card, dialog, popover, notice */
+  --radius-pill: 999px;   /* a capsule: badge, count, short-text chip */
+  --radius-round: 50%;    /* a circle: avatar, single-glyph control */
 
   --space-1: 4px;
   --space-2: 8px;
@@ -42,6 +52,18 @@
      visibility problem here); dark mode gives it its own, more visible
      value below instead of reusing the near-invisible `--border-subtle`. */
   --border-divider: #e7e5e4;
+  /* A control sitting *on* a raised card cannot use `--surface-panel`: in this
+     theme panel and raised are both #ffffff, so the control would have no fill
+     of its own and its whole edge would rest on `--border-subtle` at 1.26:1.
+     These two give it a step of its own in either theme — fill ~1.12:1 plus
+     border ~1.4:1, which is roughly twice the separation of the hairline
+     alone. They deliberately stop short of the 3:1 that WCAG 1.4.11 asks of a
+     component boundary: at 3:1 against white the border is a mid grey that
+     reads as a heavy outline, and 1.4.11 does not require it where the
+     component is identifiable by other means — here the glyph inside, which
+     clears 3:1 on its own in both themes (measured 4.79:1 light, 6.79:1 dark). */
+  --surface-control: #f4f2ef;
+  --border-control: #dcd9d4;
   /* Two-tone green: --accent-brand is the vivid crocodile lima, reserved for
      punctual brand moments (mark, primary CTA). --accent-primary is the
      everyday tone used for nav/focus/status so the UI isn't awash in green. */
@@ -120,6 +142,8 @@
     --text-secondary: #a1a1aa;
     --border-subtle: #27272a;
     --border-divider: #3f3f46;
+    --surface-control: #1a1a1a;
+    --border-control: #3f3f46;
     --accent-brand: #8bc53f;
     --accent-brand-contrast: #14170f;
     --accent-primary: #9bd65a;
@@ -158,6 +182,8 @@
   --text-secondary: #6f6a64;
   --border-subtle: #e7e5e4;
   --border-divider: #e7e5e4;
+  --surface-control: #f4f2ef;
+  --border-control: #dcd9d4;
   --accent-brand: #8bc53f;
   --accent-brand-contrast: #14170f;
   --accent-primary: #4f751e;
@@ -195,6 +221,8 @@
   --text-secondary: #a1a1aa;
   --border-subtle: #27272a;
   --border-divider: #3f3f46;
+  --surface-control: #1a1a1a;
+  --border-control: #3f3f46;
   --accent-brand: #8bc53f;
   --accent-brand-contrast: #14170f;
   --accent-primary: #9bd65a;

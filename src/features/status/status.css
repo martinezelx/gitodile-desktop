@@ -9,7 +9,7 @@
 .status-breakdown__item {
   padding: 3px var(--space-3);
   border: 1px solid var(--border-subtle);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-panel);
   color: var(--text-secondary);
   font-size: 12.5px;

@@ -28,7 +28,7 @@
   max-width: 100%;
   padding: 4px 10px;
   border: 1px solid var(--border-subtle);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-panel);
   color: var(--text-primary);
   font-size: 12.5px;
@@ -47,7 +47,7 @@
 }
 .publish-plan__destination code {
   padding: 3px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-item);
   background: var(--surface-panel);
   color: var(--text-primary);
   font-size: 12.5px;
@@ -58,7 +58,7 @@
   gap: var(--space-2);
   margin: 0;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-surface);
   background: var(--surface-active);
   color: var(--text-primary);
   font-size: 13px;
@@ -71,7 +71,7 @@
   margin: 0;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-surface);
   max-height: 220px;
   overflow-y: auto;
   list-style: none;
@@ -108,7 +108,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .publish-commit-list__hash {
   flex-shrink: 0;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-panel);
   color: var(--text-secondary);
   font-size: 12px;

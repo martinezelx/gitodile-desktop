@@ -2,7 +2,7 @@
 .save-version-dialog {
   width: min(100%, 480px); max-height: min(100%, 640px); overflow-y: auto; padding: 28px;
   display: flex; flex-direction: column; gap: var(--space-3);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); outline: none;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); outline: none;
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .save-version-dialog h2 { margin: 0; font-size: 22px; }
@@ -14,12 +14,12 @@
 .save-version-success { display: grid; gap: var(--space-2); }
 .save-version-success > p { margin: 0; }
 .save-version-success-details {
-  margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-hover);
+  margin: 0; padding: 10px 12px; border-radius: var(--radius-surface); background: var(--surface-hover);
   color: var(--text-primary); font-size: 13px; white-space: pre-wrap; word-break: break-word;
 }
 .save-version-error {
   display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px;
-  border-radius: var(--radius-sm); background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+  border-radius: var(--radius-surface); background: color-mix(in srgb, var(--status-danger) 12%, transparent);
   color: var(--status-danger); font-size: 13px;
 }
 .save-version-error svg { flex-shrink: 0; width: 16px; height: 16px; margin-top: 1px; }
@@ -30,11 +30,11 @@
 }
 .save-version-detail__heading { margin: 8px 0 4px; font-size: 12px; color: var(--text-secondary); }
 .save-version-detail__body {
-  margin: 0; padding: 10px; border-radius: var(--radius-sm); background: var(--surface-hover);
+  margin: 0; padding: 10px; border-radius: var(--radius-surface); background: var(--surface-hover);
   color: var(--text-secondary); font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto;
 }
 .save-version-description textarea {
-  padding: 9px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  padding: 9px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
   background: var(--surface-hover); color: var(--text-primary); font: inherit; font-size: 14px; outline: none;
   resize: vertical; min-height: 64px;
   transition: border-color var(--duration-fast), background var(--duration-fast);
