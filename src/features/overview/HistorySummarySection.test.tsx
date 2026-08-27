@@ -125,6 +125,35 @@ describe("HistorySummarySection", () => {
     expect(upper).toHaveAttribute("data-hover-direction", "up");
   });
 
+  it("names the line a recent version sits on without turning it into prose", async () => {
+    const tip: SavedVersionSummary = {
+      ...version(2),
+      decorations: [
+        { kind: "head", name: "HEAD", fullRef: "HEAD" },
+        { kind: "localBranch", name: "main", fullRef: "refs/heads/main" },
+      ],
+    };
+    const controller = createHistoryController(port(vi.fn(async () => page([tip, version(1)]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    const rows = container.querySelectorAll<HTMLButtonElement>(".overview-history__row");
+    const badge = rows[0].querySelector(".history-ref-badge");
+    expect(badge).toHaveTextContent("main");
+    expect(badge).toHaveClass("history-ref-badge--current");
+    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in history — Version line main");
+    expect(rows[1].querySelector(".history-ref-badge")).toBeNull();
+    expect(rows[1].getAttribute("aria-label")).toBe("Open “Saved version 1” in history");
+
+    // Author, reference, time — the same order the History timeline uses.
+    const order = (row: HTMLElement): string[] =>
+      [...row.querySelectorAll<HTMLElement>(".overview-history__meta > *")].map((element) => element.className.split(" ")[0]);
+    expect(order(rows[0])).toEqual([
+      "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__date",
+    ]);
+    expect(order(rows[1])).toEqual(["overview-history__author", "history-meta-dot", "overview-history__date"]);
+  });
+
   it("shows a truthful empty state after history has loaded", async () => {
     const controller = createHistoryController(port(vi.fn(async () => page([]))));
     await controller.refresh(query);

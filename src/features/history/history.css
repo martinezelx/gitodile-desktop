@@ -202,9 +202,52 @@
 .history-row--selected .history-row__node::before { animation: history-node-halo 360ms cubic-bezier(.16, 1, .3, 1) 270ms both; }
 .history-row__body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
 .history-row__title { display: -webkit-box; overflow: hidden; color: var(--text-primary); font-size: 12.5px; font-weight: 680; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.history-row__meta { min-width: 0; display: flex; justify-content: space-between; gap: 8px; color: var(--text-secondary); font-size: 10.5px; }
-.history-row__meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-row__meta span:first-child { max-width: 62%; }
+/* Author, then the reference, then when — one sentence packed from the left,
+   the same three facts in the same order as the Overview summary's rows. The
+   date used to be justified to the trailing edge by `space-between`, which
+   reads as two columns rather than one line and stops describing the row the
+   moment a third fact can sit between the ends. */
+.history-row__meta { min-width: 0; display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 10.5px; }
+.history-row__meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The author is the only one that may give up width: it is the longest of the
+   three and the most repetitive down the column, and the other two are already
+   as short as they can be said. */
+.history-row__author { flex: 0 1 auto; }
+.history-row__date { flex: 0 0 auto; }
+
+/* Shared with the Overview summary, like the badge below it. */
+.history-meta-dot { flex: 0 0 auto; color: var(--border-subtle); }
+
+/* The version line or tag a saved version sits on, said in the same breath as
+   who saved it and when — and the only one of the three that is not prose.
+   Author and date are bare text; a reference is a name Git owns, so it takes a
+   capsule and a glyph and cannot be read as the continuation of a sentence.
+
+   Shared with the Overview history summary, which renders the same badge in
+   its own rows. This sheet loads after `overview.css`, so one definition
+   serves both without an override.
+
+   Only the checked-out line spends a color. A tag is not a warning and a
+   remote line is not a status, so they part from a local line by glyph and by
+   nothing else: the accent marks a state, never a category. */
+.history-ref-badge {
+  min-width: 0; max-width: 40%; flex-shrink: 0;
+  /* 17, not 18: a badged row is two clamped title lines plus this capsule
+     inside a timeline row the virtualizer pins at exactly 80px, and 18 left
+     0.25px of headroom for it. */
+  height: 17px; display: inline-flex; align-items: center; gap: 4px; padding: 0 7px;
+  border: 1px solid var(--border-divider); border-radius: var(--radius-pill);
+  /* Relative, not fixed: the two hosts set their meta line at 10.5px and
+     11.5px, and one badge that stays a constant fraction of whatever it sits
+     beside reads as part of that line in both. */
+  color: var(--text-secondary); font-size: .9em; font-weight: 680; line-height: 1;
+}
+.history-ref-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
+.history-ref-badge__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-ref-badge--current {
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  background: var(--surface-active); color: var(--accent-primary);
+}
 
 .history-detail { min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
 .history-detail--state, .history-detail--loading { gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); }
@@ -384,7 +427,7 @@
   .history-row--selected, .history-file--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .history-row__node { border-color: ButtonText; }
   .history-row--selected .history-row__node { background: Highlight; }
-  .history-publication, .history-kind-chip, .history-ref-chip { border: 1px solid CanvasText; }
+  .history-publication, .history-kind-chip, .history-ref-chip, .history-ref-badge { border: 1px solid CanvasText; }
 }
 
 @keyframes history-line-arrive-down {

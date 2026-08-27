@@ -10,6 +10,10 @@ import { HistoryPanel } from "./HistoryPanel";
 import { formatHistoryDate } from "./formatHistoryDate";
 import type { HistoryPort } from "./port";
 
+function metaOrder(row: HTMLElement, meta: string): string[] {
+  return [...row.querySelectorAll<HTMLElement>(`${meta} > *`)].map((element) => element.className.split(" ")[0]);
+}
+
 function version(index: number): SavedVersionSummary {
   const commit = index.toString(16).padStart(40, "0");
   return {
@@ -227,6 +231,73 @@ describe("HistoryPanel", () => {
     expect(within(detailRegion).getByText("Published")).toBeInTheDocument();
     expect(within(detailRegion).getByText("v2.0")).toBeInTheDocument();
     expect(detailRegion.querySelector(".history-file__type img")).toBeInTheDocument();
+  });
+
+  it("prefers the tag, then the checked-out line, over every other reference", () => {
+    const base = state(5);
+    const [tip, released, sibling, remote, plain] = base.versions;
+    const { container } = renderPanel({
+      ...base,
+      versions: [
+        {
+          ...tip,
+          // The shape this repository's own tip has: two local lines and a
+          // remote one on a single commit, sorted by name the way Rust sends
+          // them, with the checked-out one *not* sorting first.
+          decorations: [
+            { kind: "head", name: "HEAD", fullRef: "HEAD" },
+            { kind: "localBranch", name: "codex/app-shell", fullRef: "refs/heads/codex/app-shell" },
+            { kind: "localBranch", name: "main", fullRef: "refs/heads/main" },
+            { kind: "remoteBranch", name: "origin/main", fullRef: "refs/remotes/origin/main" },
+          ],
+        },
+        {
+          ...released,
+          decorations: [
+            { kind: "localBranch", name: "release/1.0", fullRef: "refs/heads/release/1.0" },
+            { kind: "tag", name: "v1.0.0", fullRef: "refs/tags/v1.0.0" },
+          ],
+        },
+        { ...sibling, decorations: [{ kind: "localBranch", name: "codex/app-shell", fullRef: "refs/heads/codex/app-shell" }] },
+        { ...remote, decorations: [{ kind: "remoteBranch", name: "origin/legacy", fullRef: "refs/remotes/origin/legacy" }] },
+        { ...plain, decorations: [] },
+      ],
+    });
+    const rows = container.querySelectorAll<HTMLButtonElement>(".history-row");
+
+    // With no tag in play the checked-out line wins the row, even though a
+    // sibling line sorts first, and it outranks both the synthetic HEAD
+    // marker, which names no line, and the remote ref that repeats it.
+    const current = rows[0].querySelector(".history-ref-badge");
+    expect(current).toHaveTextContent("main");
+    expect(current).toHaveClass("history-ref-badge--current");
+    expect(current).toHaveAttribute("title", "Version line main — refs/heads/main");
+    expect(rows[0].getAttribute("aria-label")).toContain("Version line main");
+
+    // A tag outranks a line sharing its commit: the line is implied by being
+    // there, the tag is the fact you cannot infer. It is never accented.
+    const tag = rows[1].querySelector(".history-ref-badge");
+    expect(tag).toHaveTextContent("v1.0.0");
+    expect(tag).not.toHaveClass("history-ref-badge--current");
+    expect(rows[1].getAttribute("aria-label")).toContain("Tag v1.0.0");
+
+    // A line that shares no commit with HEAD is named, never accented.
+    expect(rows[2].querySelector(".history-ref-badge")).toHaveTextContent("codex/app-shell");
+    expect(rows[2].querySelector(".history-ref-badge")).not.toHaveClass("history-ref-badge--current");
+    expect(rows[3].querySelector(".history-ref-badge")).toHaveTextContent("origin/legacy");
+
+    // No ref points here, so the row keeps exactly the metadata it always had.
+    expect(rows[4].querySelector(".history-ref-badge")).toBeNull();
+    expect(within(rows[4]).getByText("Ada Lovelace")).toBeInTheDocument();
+
+    // Author, reference, time — the order the Overview summary uses too. Both
+    // hosts read the same three facts, so neither may drift from the other.
+    expect(metaOrder(rows[0], ".history-row__meta")).toEqual([
+      "history-row__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "history-row__date",
+    ]);
+    expect(metaOrder(rows[4], ".history-row__meta")).toEqual([
+      "history-row__author", "history-meta-dot", "history-row__date",
+    ]);
   });
 
   it("searches, filters, and sorts the visible timeline without changing repository history", async () => {

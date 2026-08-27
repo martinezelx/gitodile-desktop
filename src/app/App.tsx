@@ -1277,7 +1277,6 @@ export function App(): React.JSX.Element {
       <header className="window-titlebar">
         <div className="window-titlebar__brand" data-tauri-drag-region>
           <span className="window-titlebar__mark" aria-hidden="true">{CROCODILE_MARK}</span>
-          <span className="window-titlebar__name" data-tauri-drag-region>GitOdrile</span>
         </div>
 
         <div className="window-titlebar__actions">

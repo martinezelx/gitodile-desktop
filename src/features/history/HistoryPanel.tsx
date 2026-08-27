@@ -15,6 +15,7 @@ import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
 import type { HistoryFileChange, HistoryState, PublicationState, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import { formatHistoryDate } from "./formatHistoryDate";
+import { decorationLabel, HistoryMetaDot, HistoryRefBadge, primaryDecoration } from "./HistoryRefBadge";
 import type { HistoryQuery } from "./port";
 
 const CATEGORY_LABEL_KEYS = {
@@ -60,13 +61,18 @@ function HistoryBanner({ tone, title, children }: { tone: "neutral" | "warning" 
   return <section className={`history-banner history-banner--${tone}`}><CircleAlert aria-hidden="true" /><div><strong>{title}</strong><p>{children}</p></div></section>;
 }
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, selectionDirection, hoverDirection, focusable, language, onSelect, onMove, onHover, onOpenDetail }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; selectionDirection: "up" | "down"; hoverDirection: "up" | "down" | null; focusable: boolean; language: string; onSelect: (commit: string) => void; onMove: (index: number) => void; onHover: (index: number) => void; onOpenDetail: () => void;
+const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, selectionDirection, hoverDirection, focusable, language, currentBranch, onSelect, onMove, onHover, onOpenDetail }: {
+  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; selectionDirection: "up" | "down"; hoverDirection: "up" | "down" | null; focusable: boolean; language: string; currentBranch: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onHover: (index: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
   const date = formatHistoryDate(version.authoredAt, language);
   const author = version.author?.name.trim() || t.historyAuthorUnknown;
+  // The row is a button with an explicit `aria-label`, which replaces its
+  // subtree, so the reference has to be spoken here or not at all.
+  const decoration = primaryDecoration(version, currentBranch);
+  const name = selected ? t.historySelectedVersion(title) : title;
+  const label = decoration ? `${name} — ${decorationLabel(decoration, t)}` : name;
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>): void => {
     const target = event.key === "ArrowDown" ? index + 1 : event.key === "ArrowUp" ? index - 1
       : event.key === "Home" ? 0 : event.key === "End" ? Number.MAX_SAFE_INTEGER
@@ -76,15 +82,15 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
     onMove(target);
   };
   return (
-    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={selected ? t.historySelectedVersion(title) : title} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-selection-direction={selected ? selectionDirection : undefined} data-hover-direction={hoverDirection ?? undefined} onPointerEnter={() => onHover(index)} onFocus={() => onHover(index)} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown}>
+    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={label} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-selection-direction={selected ? selectionDirection : undefined} data-hover-direction={hoverDirection ?? undefined} onPointerEnter={() => onHover(index)} onFocus={() => onHover(index)} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown}>
       <span className="history-row__node" aria-hidden="true" />
-      <span className="history-row__body"><span className="history-row__title" title={title}>{title}</span><span className="history-row__meta"><span>{author}</span>{date && <span title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}</span></span>
+      <span className="history-row__body"><span className="history-row__title" title={title}>{title}</span><span className="history-row__meta"><span className="history-row__author" title={author}>{author}</span><HistoryRefBadge version={version} currentBranch={currentBranch} />{date && <><HistoryMetaDot /><span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span></>}</span></span>
     </button>
   );
 });
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCount, selectedCommit, scrollOffset, hasMore, isLoadingMore, hasMoreError, clientTruncated, language, search, publicationFilter, sort, onSearch, onPublicationFilter, onSort, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; loadedCount: number; selectedCommit: string | null; scrollOffset: number; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; language: string; search: string; publicationFilter: PublicationFilter; sort: HistorySort;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCount, selectedCommit, scrollOffset, hasMore, isLoadingMore, hasMoreError, clientTruncated, language, currentBranch, search, publicationFilter, sort, onSearch, onPublicationFilter, onSort, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; loadedCount: number; selectedCommit: string | null; scrollOffset: number; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; language: string; currentBranch: string | null; search: string; publicationFilter: PublicationFilter; sort: HistorySort;
   onSearch: (value: string) => void; onPublicationFilter: (value: PublicationFilter) => void; onSort: (value: HistorySort) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -158,7 +164,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCo
       </header>
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} selectionDirection={selectionDirection} hoverDirection={hoverTravel.index === virtualRow.index ? hoverTravel.direction : null} focusable={version.commit === focusCommit} language={language} onSelect={onSelect} onMove={moveSelection} onHover={markHoverDirection} onOpenDetail={onOpenDetail} /></div>; })}
+          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} selectionDirection={selectionDirection} hoverDirection={hoverTravel.index === virtualRow.index ? hoverTravel.direction : null} focusable={version.commit === focusCommit} language={language} currentBranch={currentBranch} onSelect={onSelect} onMove={moveSelection} onHover={markHoverDirection} onOpenDetail={onOpenDetail} /></div>; })}
         </div> : <p className="history-timeline__empty">{t.historyNoMatches}</p>}
         <div className="history-timeline__footer">
           {hasMoreError && <div className="history-inline-error" role="alert"><span>{t.historyMoreError}</span><button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyRetry}</button></div>}
@@ -451,7 +457,7 @@ export function HistoryPanel({ controller, query, state, error }: { controller: 
       {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(MAX_HISTORY_ROWS)}</p>}
     </div>
     <div className="history-layout">
-      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} loadedCount={state.versions.length} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} language={language} search={search} publicationFilter={publicationFilter} sort={sort} onSearch={setSearch} onPublicationFilter={setPublicationFilter} onSort={setSort} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
+      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} loadedCount={state.versions.length} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} language={language} currentBranch={state.snapshot?.branch ?? null} search={search} publicationFilter={publicationFilter} sort={sort} onSearch={setSearch} onPublicationFilter={setPublicationFilter} onSort={setSort} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
       <HistoryDetail state={state} language={language} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onRefresh={refreshHistory} onBack={closeNarrowDetail} />
     </div>
   </div>;

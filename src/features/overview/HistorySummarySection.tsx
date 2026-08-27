@@ -9,7 +9,11 @@ import {
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
 import {
+  decorationLabel,
   formatHistoryDate,
+  HistoryMetaDot,
+  HistoryRefBadge,
+  primaryDecoration,
   useActiveHistoryState,
   type HistoryController,
   type SavedVersionSummary,
@@ -38,6 +42,7 @@ export function HistorySummarySection({
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
   const state = useActiveHistoryState(controller, query);
   const versions = state.versions.slice(0, HISTORY_PREVIEW_LIMIT);
+  const currentBranch = state.snapshot?.branch ?? null;
   const error = state.error ? localizeAppError(state.error, t, t.overviewHistoryError) : null;
   const previousHoveredIndexRef = useRef(-1);
   const [hoverTravel, setHoverTravel] = useState<{ index: number; direction: "up" | "down" }>({ index: -1, direction: "down" });
@@ -101,6 +106,10 @@ export function HistorySummarySection({
             const title = versionTitle(version, t.overviewHistoryUntitled);
             const author = version.author?.name.trim() || t.overviewHistoryUnknownAuthor;
             const date = formatHistoryDate(version.authoredAt, language);
+            // The row's `aria-label` replaces its subtree, so the badge only
+            // reaches assistive tech by being folded into the label.
+            const decoration = primaryDecoration(version, currentBranch);
+            const label = t.overviewHistoryOpenVersion(title);
             return (
               <li key={version.commit}>
                 <button
@@ -110,14 +119,15 @@ export function HistorySummarySection({
                   onPointerEnter={() => markHoverDirection(index)}
                   onFocus={() => markHoverDirection(index)}
                   data-hover-direction={hoverTravel.index === index ? hoverTravel.direction : undefined}
-                  aria-label={t.overviewHistoryOpenVersion(title)}
+                  aria-label={decoration ? `${label} — ${decorationLabel(decoration, t)}` : label}
                 >
                   <span className="overview-history__node" aria-hidden="true" />
                   <span className="overview-history__body">
                     <span className="overview-history__subject" title={title}>{title}</span>
                     <span className="overview-history__meta">
-                      <span>{author}</span>
-                      {date && <span title={date.absolute}>{date.relative}</span>}
+                      <span className="overview-history__author" title={author}>{author}</span>
+                      <HistoryRefBadge version={version} currentBranch={currentBranch} />
+                      {date && <><HistoryMetaDot /><span className="overview-history__date" title={date.absolute}>{date.relative}</span></>}
                     </span>
                   </span>
                   <ChevronRight className="overview-history__chevron" aria-hidden="true" />

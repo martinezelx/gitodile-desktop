@@ -56,10 +56,24 @@ describe("production style composition", () => {
     expect(settings).toContain(".git-install__status");
     expect(settings).toContain("@media (max-width: 800px)");
 
+    // The reference badge is History's vocabulary and Overview renders it
+    // inside its own rows, so exactly one sheet may define it — the later one,
+    // or the two definitions start racing in the cascade.
+    const history = readSource("features/history/history.css");
+    const overview = readSource("features/overview/overview.css");
+    expect(EXPECTED_IMPORTS.indexOf("./features/history/history.css"))
+      .toBeGreaterThan(EXPECTED_IMPORTS.indexOf("./features/overview/overview.css"));
+    expect(history).toContain(".history-ref-badge {");
+    expect(overview).not.toContain(".history-ref-badge {");
+
     const appShell = readSource("app/app-shell.css");
     expect(appShell).toContain(".settings-dialog");
     expect(appShell).not.toContain(".settings-layout");
     expect(settings).not.toContain(".settings-dialog");
+    // The mark is the whole identity in the window furniture: no wordmark
+    // beside it, at any width.
+    expect(appShell).toContain(".window-titlebar__mark");
+    expect(appShell).not.toContain(".window-titlebar__name");
   });
 
   it("loads shared app menus before feature alignment overrides", () => {
