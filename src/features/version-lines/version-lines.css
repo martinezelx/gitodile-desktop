@@ -211,30 +211,96 @@
   justify-content: center;
 }
 .version-lines-quick-switch__create svg { width: 15px; height: 15px; }
-/* Deliberately not sharing a selector list with `.app-menu` (now in
-   `shared/ui/primitives.css`): a shared popup rule that lives in a feature
-   file lands *after* every earlier feature in the cascade, so it silently
-   outranks the per-feature overrides that are supposed to win. This menu
-   keeps its own declarations; `.app-menu` keeps the shared ones. */
 .version-lines-quick-switch__menu {
-  position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 5;
-  min-width: 220px; max-width: min(320px, calc(100vw - 2 * var(--space-5)));
-  display: flex; flex-direction: column; padding: 6px;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
-  background: var(--surface-raised); box-shadow: var(--shadow-lg);
+  box-sizing: border-box;
+  width: min(400px, calc(100vw - 2 * var(--space-4)));
+  height: min(380px, calc(100vh - 2 * var(--space-4)));
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+}
+.version-lines-quick-switch__menu--status {
+  width: min(320px, calc(100vw - 2 * var(--space-2)));
+  height: min(292px, calc(100vh - 56px));
 }
 .version-lines-quick-switch__menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.version-lines-quick-switch__item {
-  text-align: left; padding: 8px 10px; border-radius: var(--radius-item); background: transparent; border: 0;
-  color: var(--text-primary); font-size: 13px; overflow-wrap: anywhere;
+.version-lines-quick-switch__search {
+  display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px;
+  padding: 0 var(--space-3); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill); color: var(--text-secondary);
 }
-.version-lines-quick-switch__item:hover { background: var(--surface-hover); }
+.version-lines-quick-switch__search:focus-within { border-color: var(--focus-ring); }
+.version-lines-quick-switch__search > svg { width: 14px; height: 14px; flex-shrink: 0; }
+.version-lines-quick-switch__search input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+  color: var(--text-primary); font: inherit; font-size: 13px;
+}
+.version-lines-quick-switch__search input::placeholder { color: var(--text-secondary); }
+.version-lines-quick-switch__filter {
+  width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.version-lines-quick-switch__filter svg { width: 14px; height: 14px; }
+.version-lines-quick-switch__filter:hover { background: var(--surface-hover); color: var(--text-primary); }
+.version-lines-quick-switch__filter--on { color: var(--accent-primary); }
+.version-lines-quick-switch__filter--on svg { fill: currentColor; }
+.version-lines-quick-switch__results {
+  flex: 1; min-height: 0; margin: 6px -2px 0; padding: 0 2px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+.version-lines-quick-switch__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.version-lines-quick-switch__item { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.version-lines-quick-switch__choose {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 46px;
+  padding: 5px 8px; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-primary); text-align: left;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.version-lines-quick-switch__choose:hover { background: var(--surface-hover); }
+.version-lines-quick-switch__glyph {
+  flex-shrink: 0; width: 28px; height: 28px; display: grid; place-items: center;
+  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary);
+}
+.version-lines-quick-switch__glyph svg { width: 14px; height: 14px; }
+.version-lines-quick-switch__copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.version-lines-quick-switch__name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 13px; font-weight: 600;
+}
+.version-lines-quick-switch__context {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-secondary); font-size: 11.5px;
+}
+.version-lines-quick-switch__favourite {
+  flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary); opacity: 0.55;
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.version-lines-quick-switch__favourite svg { width: 14px; height: 14px; }
+.version-lines-quick-switch__item:hover .version-lines-quick-switch__favourite,
+.version-lines-quick-switch__favourite:focus-visible { opacity: 1; }
+.version-lines-quick-switch__favourite:hover { background: var(--surface-hover); color: var(--text-primary); }
+.version-lines-quick-switch__favourite--on { color: var(--accent-primary); opacity: 1; }
+.version-lines-quick-switch__favourite--on svg { fill: currentColor; }
+.version-lines-quick-switch__menu--status .version-lines-quick-switch__glyph {
+  width: 24px; height: 24px;
+}
+.version-lines-quick-switch__menu--status .version-lines-quick-switch__favourite {
+  width: 32px; height: 32px;
+}
 .version-lines-quick-switch__see-all {
-  margin-top: 4px; padding: 8px 10px; border-radius: var(--radius-item); border: 0; border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0; margin-top: 6px; padding: 8px 10px; border-radius: var(--radius-item); border: 0;
   background: transparent; color: var(--accent-primary); font-size: 12.5px; text-align: left; cursor: pointer;
 }
-.version-lines-quick-switch__empty { margin: 0; padding: 8px 10px; color: var(--text-secondary); font-size: 12.5px; }
-.version-lines-quick-switch__status { display: flex; justify-content: center; padding: 10px; }
+.version-lines-quick-switch__empty {
+  display: grid; place-items: center; min-height: 100%; margin: 0; padding: var(--space-4);
+  color: var(--text-secondary); font-size: 12.5px; line-height: 1.45; text-align: center;
+}
+.version-lines-quick-switch__status { display: grid; place-items: center; min-height: 100%; padding: 10px; }
 .version-lines-quick-switch__status svg { width: 16px; height: 16px; color: var(--text-secondary); }
 
 @media (max-width: 800px) {
@@ -245,4 +311,12 @@
 
 @media (forced-colors: active) {
   .version-lines-banner { outline: 1px solid CanvasText; outline-offset: -1px; }
+  .version-lines-quick-switch__filter--on,
+  .version-lines-quick-switch__favourite--on { outline: 1px solid Highlight; }
+}
+
+@media (pointer: coarse) {
+  .version-lines-quick-switch__filter,
+  .version-lines-quick-switch__favourite { width: 44px; height: 44px; }
+  .version-lines-quick-switch__choose { min-height: 44px; }
 }

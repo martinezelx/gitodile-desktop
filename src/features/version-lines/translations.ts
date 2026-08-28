@@ -18,6 +18,15 @@ export interface VersionLinesTranslations {
   versionLinesUnreadableNote: (count: number) => string;
   versionLinesQuickSwitchChangeLabel: (current: string) => string;
   versionLinesQuickSwitchTitle: string;
+  versionLinesQuickSwitchSearchPlaceholder: string;
+  versionLinesQuickSwitchSearchEmpty: string;
+  versionLinesQuickSwitchFavourite: (name: string) => string;
+  versionLinesQuickSwitchUnfavourite: (name: string) => string;
+  versionLinesQuickSwitchFavouriteHint: string;
+  versionLinesQuickSwitchUnfavouriteHint: string;
+  versionLinesQuickSwitchFavouritesOnly: string;
+  versionLinesQuickSwitchFavouritesOnlyOff: string;
+  versionLinesQuickSwitchFavouritesEmpty: string;
   versionLinesQuickSwitchEmpty: string;
   versionLinesQuickSwitchSeeAll: string;
   versionLinesQuickSwitchNew: string;
@@ -140,6 +149,15 @@ const en: VersionLinesTranslations = {
       : `${count} version lines aren't shown: their names use characters GitOdrile can't read exactly. Use Git directly to rename them.`,
   versionLinesQuickSwitchChangeLabel: (current) => `Change version line (${current})`,
   versionLinesQuickSwitchTitle: "Switch version line",
+  versionLinesQuickSwitchSearchPlaceholder: "Search version lines…",
+  versionLinesQuickSwitchSearchEmpty: "No version lines match that search.",
+  versionLinesQuickSwitchFavourite: (name) => `Add ${name} to favourites`,
+  versionLinesQuickSwitchUnfavourite: (name) => `Remove ${name} from favourites`,
+  versionLinesQuickSwitchFavouriteHint: "Add to favourites",
+  versionLinesQuickSwitchUnfavouriteHint: "Remove from favourites",
+  versionLinesQuickSwitchFavouritesOnly: "Show favourites only",
+  versionLinesQuickSwitchFavouritesOnlyOff: "Show all version lines",
+  versionLinesQuickSwitchFavouritesEmpty: "No favourites yet. Star a version line to keep it here.",
   versionLinesQuickSwitchEmpty: "There are no other version lines yet.",
   versionLinesQuickSwitchSeeAll: "See all version lines",
   versionLinesQuickSwitchNew: "New version line",
@@ -279,6 +297,16 @@ const es: VersionLinesTranslations = {
       : `Hay ${count} líneas de versión que no se muestran: sus nombres usan caracteres que GitOdrile no puede leer con exactitud. Cámbiales el nombre desde Git.`,
   versionLinesQuickSwitchChangeLabel: (current) => `Cambiar línea de versión (${current})`,
   versionLinesQuickSwitchTitle: "Cambiar línea de versión",
+  versionLinesQuickSwitchSearchPlaceholder: "Buscar líneas de versión…",
+  versionLinesQuickSwitchSearchEmpty: "Ninguna línea de versión coincide con la búsqueda.",
+  versionLinesQuickSwitchFavourite: (name) => `Añadir ${name} a favoritos`,
+  versionLinesQuickSwitchUnfavourite: (name) => `Quitar ${name} de favoritos`,
+  versionLinesQuickSwitchFavouriteHint: "Añadir a favoritos",
+  versionLinesQuickSwitchUnfavouriteHint: "Quitar de favoritos",
+  versionLinesQuickSwitchFavouritesOnly: "Mostrar solo favoritos",
+  versionLinesQuickSwitchFavouritesOnlyOff: "Mostrar todas las líneas de versión",
+  versionLinesQuickSwitchFavouritesEmpty:
+    "Todavía no hay favoritos. Marca una línea de versión para guardarla aquí.",
   versionLinesQuickSwitchEmpty: "Todavía no hay otras líneas de versión.",
   versionLinesQuickSwitchSeeAll: "Ver todas las líneas de versión",
   versionLinesQuickSwitchNew: "Nueva línea de versión",

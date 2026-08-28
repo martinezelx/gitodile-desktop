@@ -15,6 +15,7 @@ import { VersionLineQuickSwitch, type VersionLinesSnapshot } from "../features/v
 import { CURRENT_APP_RELEASE } from "./appRelease";
 
 const CLOCK_TICK_MS = 30_000;
+const NO_FAVOURITE_VERSION_LINES: ReadonlySet<string> = new Set();
 
 export type StatusBarProps = {
   project: Pick<RepositoryInfo, "branch" | "headState"> | null;
@@ -23,6 +24,8 @@ export type StatusBarProps = {
   isCheckingChanges: boolean;
   versionLines: VersionLinesSnapshot | null;
   isLoadingVersionLines: boolean;
+  favouriteVersionLines?: ReadonlySet<string>;
+  onToggleFavouriteVersionLine?: (name: string) => void;
   teamSync: TeamSyncViewState;
   onSwitchVersionLine: (target: string) => void;
   onSeeAllVersionLines: () => void;
@@ -128,6 +131,8 @@ export function StatusBar({
   isCheckingChanges,
   versionLines,
   isLoadingVersionLines,
+  favouriteVersionLines = NO_FAVOURITE_VERSION_LINES,
+  onToggleFavouriteVersionLine,
   teamSync,
   onSwitchVersionLine,
   onSeeAllVersionLines,
@@ -165,6 +170,8 @@ export function StatusBar({
             currentValue={versionLineLabel(project, t)}
             canSwitch={project.headState === "branch" && Boolean(project.branch)}
             variant="status"
+            favouriteLines={favouriteVersionLines}
+            onToggleFavourite={onToggleFavouriteVersionLine}
             onSwitch={onSwitchVersionLine}
             onSeeAll={onSeeAllVersionLines}
           />

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -12,7 +12,7 @@ function line(name: string, options: Partial<VersionLine> = {}): VersionLine {
     tip: {
       commit: name.padEnd(40, "0").slice(0, 40),
       shortCommit: name.padEnd(7, "0").slice(0, 7),
-      subject: name,
+      subject: `Latest saved work for ${name}`,
       committedAt: "2026-08-28T10:00:00Z",
     },
     isActive: false,
@@ -44,7 +44,7 @@ const snapshot: VersionLinesSnapshot = {
 afterEach(() => cleanup());
 
 describe("VersionLineQuickSwitch", () => {
-  it("offers a bounded, keyboard-accessible list and returns only the chosen target", async () => {
+  it("offers a bounded, searchable dialog and returns only the chosen target", async () => {
     const onSwitch = vi.fn();
     const onSeeAll = vi.fn();
     render(
@@ -64,20 +64,98 @@ describe("VersionLineQuickSwitch", () => {
     const trigger = screen.getByRole("button", { name: "Change version line (main)" });
     await userEvent.click(trigger);
 
-    const items = screen.getAllByRole("menuitem");
-    expect(items).toHaveLength(7);
-    expect(screen.queryByRole("menuitem", { name: "main" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "feature/7" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "feature/in-other-worktree" })).not.toBeInTheDocument();
-    expect(items[0]).toHaveFocus();
+    expect(screen.getByRole("dialog", { name: "Switch version line" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search version lines…" })).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "main" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "feature/7" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "feature/in-other-worktree" })).not.toBeInTheDocument();
 
-    await userEvent.keyboard("{ArrowDown}{Enter}");
+    await userEvent.click(screen.getByRole("button", { name: "feature/2" }));
     expect(onSwitch).toHaveBeenCalledWith("feature/2");
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Switch version line" })).not.toBeInTheDocument();
 
     await userEvent.click(trigger);
     await userEvent.keyboard("{Escape}");
     expect(trigger).toHaveFocus();
+  });
+
+  it("finds an eligible line beyond the initial status-bar rows", async () => {
+    const onSwitch = vi.fn();
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          canSwitch
+          variant="status"
+          onSwitch={onSwitch}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search version lines…" }), "feature/7");
+    await userEvent.click(screen.getByRole("button", { name: "feature/7" }));
+    expect(onSwitch).toHaveBeenCalledWith("feature/7");
+  });
+
+  it("keeps the status selector open while its own results scroll and shows commit context", async () => {
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          canSwitch
+          variant="status"
+          onSwitch={vi.fn()}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    const dialog = screen.getByRole("dialog", { name: "Switch version line" });
+    expect(screen.getByText("Latest saved work for feature/1")).toBeVisible();
+
+    const results = dialog.querySelector(".version-lines-quick-switch__results");
+    expect(results).not.toBeNull();
+    fireEvent.scroll(results as HTMLElement);
+    expect(dialog).toBeInTheDocument();
+
+    fireEvent.scroll(document);
+    expect(screen.queryByRole("dialog", { name: "Switch version line" })).not.toBeInTheDocument();
+  });
+
+  it("sorts favourites first and filters to them without closing the dialog", async () => {
+    const favouriteLines = new Set(["feature/4"]);
+    const onToggleFavourite = vi.fn();
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          canSwitch
+          favouriteLines={favouriteLines}
+          onToggleFavourite={onToggleFavourite}
+          onSwitch={vi.fn()}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    const lineButtons = screen.getAllByRole("button", { name: /^feature\/\d$/ });
+    expect(lineButtons[0]).toHaveAccessibleName("feature/4");
+    await userEvent.click(screen.getByRole("button", { name: "Add feature/2 to favourites" }));
+    expect(onToggleFavourite).toHaveBeenCalledWith("feature/2");
+
+    await userEvent.click(screen.getByRole("button", { name: "Show favourites only" }));
+    expect(screen.getByRole("button", { name: "feature/4" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "feature/1" })).not.toBeInTheDocument();
   });
 
   it("renders a non-interactive line label when switching is unavailable", () => {
@@ -118,7 +196,7 @@ describe("VersionLineQuickSwitch", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
-    expect(screen.queryByRole("menuitem", { name: "main" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "feature/1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "main" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "feature/1" })).not.toBeInTheDocument();
   });
 });

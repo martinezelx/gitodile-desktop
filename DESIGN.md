@@ -170,10 +170,17 @@ The main desktop window should broadly support:
      stays reserved for global actions and window controls; no product name is
      repeated because the window is already the product;
    - the current version line is the strip's one navigation shortcut. Its
-     quiet text treatment gains a hover/expanded fill and opens a bounded menu
-     above the strip; choosing a target still enters the normal previewed,
-     state-checked switch flow. The full inventory and management actions stay
-     in Lines. Detached and not-yet-saved states remain static facts;
+     quiet text treatment gains a hover/expanded fill and opens a compact,
+     searchable selector above the strip. It shares search and project-scoped
+     favourites with Overview's roomier selector: favourites sort first and
+     may be isolated without changing repository or session order. The status
+     version keeps fewer rows visible, while the Overview version uses its
+     content surface to show more rows. Both show the latest saved-version
+     subject under the line name so the same target has the same information
+     hierarchy wherever it opens. Choosing a target still enters the normal
+     previewed, state-checked switch flow. The full inventory and management
+     actions stay in Lines. Detached and not-yet-saved states remain static
+     facts;
    - the cloud refresh belongs only to the adjacent project-sync fact. It checks
      remote information without refreshing files, history, or line inventory,
      so each screen keeps the refresh and retry action owned by its own data;

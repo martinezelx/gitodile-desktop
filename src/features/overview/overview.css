@@ -45,7 +45,9 @@
 .project-summary-card .version-lines-quick-switch {
   align-items: stretch;
   gap: var(--space-2);
+  max-width: min(100%, 400px);
 }
+.project-summary-card .version-line-selector { flex: 1 1 auto; }
 .project-summary-card .version-line-selector,
 .project-summary-card .version-lines-quick-switch__create,
 .project-summary-card__refresh {

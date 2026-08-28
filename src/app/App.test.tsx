@@ -1218,13 +1218,13 @@ describe("App project restoration", () => {
     );
 
     await userEvent.click(trigger);
-    expect(await screen.findByRole("menuitem", { name: /feature\/spike/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "feature/spike" })).toBeInTheDocument();
     await userEvent.click(trigger);
 
     // The regression this guards: the menu used to refetch on every open and
     // blank itself to a spinner while it waited (task 019).
     await userEvent.click(trigger);
-    expect(screen.getByRole("menuitem", { name: /feature\/spike/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "feature/spike" })).toBeInTheDocument();
   });
 
   it("replaces Overview's switch dialog instead of stacking a second one on top", async () => {
@@ -1281,7 +1281,7 @@ describe("App project restoration", () => {
       "button",
       { name: "Change version line (main)" },
     ));
-    await userEvent.click(await screen.findByRole("menuitem", { name: /feature\/spike/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "feature/spike" }));
 
     const createWithWork = await screen.findByRole("button", {
       name: "New version line with this work",

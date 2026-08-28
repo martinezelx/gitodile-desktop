@@ -260,6 +260,8 @@ function ProjectSummaryCard({
   versionValue,
   versionLines,
   isLoadingVersionLines,
+  favouriteVersionLines,
+  onToggleFavouriteVersionLine,
   pendingVersionsCount,
   isRefreshing,
   onQuickSwitchVersionLine,
@@ -273,6 +275,8 @@ function ProjectSummaryCard({
   versionValue: string;
   versionLines: VersionLinesSnapshot | null;
   isLoadingVersionLines: boolean;
+  favouriteVersionLines: ReadonlySet<string>;
+  onToggleFavouriteVersionLine: (name: string) => void;
   pendingVersionsCount: number;
   isRefreshing: boolean;
   onQuickSwitchVersionLine: (target: string) => void;
@@ -310,6 +314,8 @@ function ProjectSummaryCard({
                 isLoadingSnapshot={isLoadingVersionLines}
                 currentValue={versionValue}
                 canSwitch={!overview.isDetached}
+                favouriteLines={favouriteVersionLines}
+                onToggleFavourite={onToggleFavouriteVersionLine}
                 onSwitch={onQuickSwitchVersionLine}
                 onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
                 onSeeAll={onGoToVersionLines}
@@ -353,6 +359,8 @@ export function OverviewPanel({
   pendingVersionsError,
   versionLines,
   isLoadingVersionLines,
+  favouriteVersionLines,
+  onToggleFavouriteVersionLine,
   onQuickSwitchVersionLine,
   onQuickCreateVersionLine,
   onGoToVersionLines,
@@ -391,6 +399,8 @@ export function OverviewPanel({
    * reading branches again every time (task 019). */
   versionLines: VersionLinesSnapshot | null;
   isLoadingVersionLines: boolean;
+  favouriteVersionLines: ReadonlySet<string>;
+  onToggleFavouriteVersionLine: (name: string) => void;
   canPublish: boolean;
   onPublish: () => void;
   onPublishUpTo: (commit: string) => void;
@@ -470,6 +480,8 @@ export function OverviewPanel({
           versionValue={versionValue}
           versionLines={versionLines}
           isLoadingVersionLines={isLoadingVersionLines}
+          favouriteVersionLines={favouriteVersionLines}
+          onToggleFavouriteVersionLine={onToggleFavouriteVersionLine}
           pendingVersionsCount={pendingVersions.totalCount}
           isRefreshing={isRefreshing}
           onQuickSwitchVersionLine={onQuickSwitchVersionLine}

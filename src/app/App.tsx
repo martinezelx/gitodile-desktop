@@ -66,6 +66,7 @@ import {
 } from "../features/settings";
 import {
   createVersionLinesController,
+  useStoredFavouriteVersionLines,
   useVersionLinesState,
   versionLinesPort,
 } from "../features/version-lines";
@@ -277,6 +278,8 @@ export function App(): React.JSX.Element {
   );
   const activeVersionLines = useVersionLinesState(versionLinesController, activeVersionLinesQuery);
   const project = activeSession?.project ?? null;
+  const [favouriteVersionLines, toggleFavouriteVersionLine] =
+    useStoredFavouriteVersionLines(project?.commonGitDir ?? null);
   const workingTree = activeSession?.workingTree ?? null;
   const workingTreeError = activeSession?.workingTreeError ?? null;
   const isCheckingChanges = activeSession?.isCheckingChanges ?? false;
@@ -1761,6 +1764,8 @@ export function App(): React.JSX.Element {
                   pendingVersionsError={pendingVersionsError}
                   versionLines={activeVersionLines.snapshot}
                   isLoadingVersionLines={activeVersionLines.isLoading}
+                  favouriteVersionLines={favouriteVersionLines}
+                  onToggleFavouriteVersionLine={toggleFavouriteVersionLine}
                   onQuickSwitchVersionLine={(target) => {
                     if (projectPath && startVersionLineOperation(projectPath)) {
                       setVersionLineSwitchTarget(target);
@@ -1889,6 +1894,8 @@ export function App(): React.JSX.Element {
           isCheckingChanges={isCheckingChanges}
           versionLines={activeVersionLines.snapshot}
           isLoadingVersionLines={activeVersionLines.isLoading}
+          favouriteVersionLines={favouriteVersionLines}
+          onToggleFavouriteVersionLine={toggleFavouriteVersionLine}
           teamSync={teamSync}
           onSwitchVersionLine={(target) => {
             if (projectPath && startVersionLineOperation(projectPath)) {

@@ -143,7 +143,7 @@ describe("StatusBar", () => {
     await userEvent.click(screen.getByRole("button", {
       name: "Change version line (feature/a-very-long-version-line-name)",
     }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "feature/other" }));
+    await userEvent.click(screen.getByRole("button", { name: "feature/other" }));
     expect(onSwitchVersionLine).toHaveBeenCalledWith("feature/other");
 
     await userEvent.click(screen.getByRole("button", { name: "Check for project changes" }));

@@ -160,15 +160,24 @@ export function usePortalFlyout(
       event.preventDefault();
       closeRef.current(true);
     };
+    const dismissOnExternalScroll = (event: Event): void => {
+      const target = event.target;
+      // Scroll events are observed in the capture phase so an ancestor scroll
+      // can dismiss a fixed popup before it drifts away from its trigger. The
+      // popup's own results are different: their scroll position is local to
+      // the panel and must not close the control under the pointer.
+      if (target instanceof Node && popupRef.current?.contains(target)) return;
+      closeRef.current(false);
+    };
     const dismiss = (): void => closeRef.current(false);
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("scroll", dismissOnExternalScroll, true);
     window.addEventListener("resize", dismiss);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("scroll", dismissOnExternalScroll, true);
       window.removeEventListener("resize", dismiss);
     };
   }, [isOpen, triggerRef]);
