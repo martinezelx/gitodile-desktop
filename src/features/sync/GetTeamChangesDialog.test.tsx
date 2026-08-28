@@ -120,7 +120,7 @@ function renderDialog(syncController: SyncController, onApplied = vi.fn(async ()
   return { onApplied, onClose, onPhaseChange };
 }
 
-describe("Get team changes dialog", () => {
+describe("Get project changes dialog", () => {
   it("leads with incoming versions, affected files, destination, guarantees, and technical evidence", async () => {
     renderDialog(controller());
     expect(await screen.findByRole("heading", { name: "2 incoming saved versions" })).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe("Get team changes dialog", () => {
     });
     const { onPhaseChange } = renderDialog(syncController, onApplied);
     await userEvent.click(await screen.findByRole("button", { name: "Get these versions" }));
-    await screen.findByRole("heading", { name: "Team changes are now included" });
+    await screen.findByRole("heading", { name: "Project changes are now included" });
     expect(onApplied).toHaveBeenCalledOnce();
     expect(onPhaseChange).toHaveBeenCalledWith("verifying");
     expect(onPhaseChange).toHaveBeenLastCalledWith("success");

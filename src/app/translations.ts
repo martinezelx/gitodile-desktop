@@ -1,3 +1,5 @@
+import type { AppReleaseNoteId } from "./appRelease";
+
 export interface AppTranslations {
   titlebarOpenCommandPalette: string;
   titlebarJumpToHint: string;
@@ -20,8 +22,6 @@ export interface AppTranslations {
   titlebarGoBack: string;
   titlebarGoForward: string;
   titlebarHistoryControls: string;
-  alphaBadge: string;
-  alphaBadgeAriaLabel: string;
   windowMinimize: string;
   windowMaximize: string;
   windowClose: string;
@@ -85,11 +85,36 @@ export interface AppTranslations {
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
   statusBarAriaLabel: string;
+  statusBarNoProject: string;
+  statusBarDetached: string;
+  statusBarUnbornLine: string;
+  statusBarVersionLineUnavailable: string;
+  statusBarCheckingChanges: string;
+  statusBarChangesUnavailable: string;
+  statusBarChangesNotChecked: string;
+  statusBarEverythingSaved: string;
   statusBarUnsaved: (count: number) => string;
   statusBarUpToDate: string;
+  statusBarAhead: (count: number) => string;
+  statusBarBehind: (count: number) => string;
+  statusBarDiverged: string;
+  statusBarNoRemote: string;
+  statusBarNoUpstream: string;
+  statusBarSyncUnborn: string;
+  statusBarSyncDetached: string;
+  statusBarSyncUnknown: string;
+  statusBarTeamNotChecked: string;
+  statusBarCheckingTeam: string;
+  statusBarReadingTeam: string;
+  statusBarTeamUnavailable: string;
+  statusBarLocalSnapshot: string;
+  statusBarMayBeOutdated: string;
+  statusBarCheckFailed: string;
+  statusBarJustNow: string;
   statusBarLastChecked: (relative: string) => string;
   statusBarCheckNow: string;
   statusBarVersion: (version: string) => string;
+  statusBarOpenReleaseDetails: (version: string, channel: string) => string;
   titlebarHideSidebar: string;
   titlebarShowSidebar: string;
   titlebarSwitchToLightTheme: string;
@@ -98,6 +123,9 @@ export interface AppTranslations {
   aboutGitOdrile: string;
   aboutHeading: string;
   aboutDescription: string;
+  aboutReleaseTitle: (version: string) => string;
+  aboutReleaseNotes: Record<AppReleaseNoteId, string>;
+  aboutTechnicalDetails: string;
   aboutSystem: string;
   aboutSystemVersion: string;
   aboutGitVersion: string;
@@ -135,8 +163,6 @@ const en: AppTranslations = {
   titlebarGoBack: "Go back",
   titlebarGoForward: "Go forward",
   titlebarHistoryControls: "Navigation history",
-  alphaBadge: "alpha",
-  alphaBadgeAriaLabel: "Development version: alpha",
   windowMinimize: "Minimize window",
   windowMaximize: "Maximize or restore window",
   windowClose: "Close window",
@@ -202,11 +228,36 @@ const en: AppTranslations = {
   projectSwitcherCloseBlocked: (name) =>
     `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
   statusBarAriaLabel: "Project status",
+  statusBarNoProject: "No project open",
+  statusBarDetached: "Specific saved version",
+  statusBarUnbornLine: "New version line",
+  statusBarVersionLineUnavailable: "Version line unavailable",
+  statusBarCheckingChanges: "Checking changes…",
+  statusBarChangesUnavailable: "Changes unavailable",
+  statusBarChangesNotChecked: "Changes not checked",
+  statusBarEverythingSaved: "Everything is saved",
   statusBarUnsaved: (count) => (count === 1 ? "1 unsaved change" : `${count} unsaved changes`),
   statusBarUpToDate: "Up to date",
+  statusBarAhead: (count) => `${count} ${count === 1 ? "version" : "versions"} to publish`,
+  statusBarBehind: (count) => `${count} project ${count === 1 ? "version" : "versions"} available`,
+  statusBarDiverged: "Both sides changed",
+  statusBarNoRemote: "No remote connected",
+  statusBarNoUpstream: "No publish destination",
+  statusBarSyncUnborn: "Save a version to compare",
+  statusBarSyncDetached: "Switch lines to compare",
+  statusBarSyncUnknown: "Project sync unavailable",
+  statusBarTeamNotChecked: "Project changes not checked",
+  statusBarCheckingTeam: "Checking project changes…",
+  statusBarReadingTeam: "Reading remote project status…",
+  statusBarTeamUnavailable: "Couldn’t check project changes",
+  statusBarLocalSnapshot: "Local snapshot",
+  statusBarMayBeOutdated: "May be outdated",
+  statusBarCheckFailed: "Check failed",
+  statusBarJustNow: "just now",
   statusBarLastChecked: (relative) => `Checked ${relative}`,
-  statusBarCheckNow: "Check for team changes",
+  statusBarCheckNow: "Check for project changes",
   statusBarVersion: (version) => `v${version}`,
+  statusBarOpenReleaseDetails: (version, channel) => `About GitOdrile v${version} ${channel}`,
   titlebarHideSidebar: "Hide sidebar",
   titlebarShowSidebar: "Show sidebar",
   titlebarSwitchToLightTheme: "Switch to light theme",
@@ -218,6 +269,13 @@ const en: AppTranslations = {
   aboutGitOdrile: "About",
   aboutHeading: "Git without the bite.",
   aboutDescription: "Turns version control into clear, worry-free steps.",
+  aboutReleaseTitle: (version) => `What's new in v${version}`,
+  aboutReleaseNotes: {
+    truthfulStatus: "See your current version line, unsaved work, and when project changes were last checked from every screen.",
+    safeLineSwitching: "Switch version lines from the status bar with the same preview and unsaved-work safeguards.",
+    releaseDetails: "Open these build details directly from the version tag whenever you need them.",
+  },
+  aboutTechnicalDetails: "Technical details",
   aboutSystem: "System",
   aboutSystemVersion: "System version",
   aboutGitVersion: "Git",
@@ -253,8 +311,6 @@ const es: AppTranslations = {
   titlebarGoBack: "Atrás",
   titlebarGoForward: "Adelante",
   titlebarHistoryControls: "Historial de navegación",
-  alphaBadge: "alpha",
-  alphaBadgeAriaLabel: "Versión en desarrollo: alpha",
   windowMinimize: "Minimizar ventana",
   windowMaximize: "Maximizar o restaurar ventana",
   windowClose: "Cerrar ventana",
@@ -320,11 +376,36 @@ const es: AppTranslations = {
   projectSwitcherCloseBlocked: (name) =>
     `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
   statusBarAriaLabel: "Estado del proyecto",
+  statusBarNoProject: "Ningún proyecto abierto",
+  statusBarDetached: "Versión guardada concreta",
+  statusBarUnbornLine: "Línea de versión nueva",
+  statusBarVersionLineUnavailable: "Línea de versión no disponible",
+  statusBarCheckingChanges: "Comprobando cambios…",
+  statusBarChangesUnavailable: "Cambios no disponibles",
+  statusBarChangesNotChecked: "Cambios sin comprobar",
+  statusBarEverythingSaved: "Todo está guardado",
   statusBarUnsaved: (count) => (count === 1 ? "1 cambio sin guardar" : `${count} cambios sin guardar`),
   statusBarUpToDate: "Al día",
+  statusBarAhead: (count) => `${count} ${count === 1 ? "versión por publicar" : "versiones por publicar"}`,
+  statusBarBehind: (count) => `${count} ${count === 1 ? "versión del proyecto disponible" : "versiones del proyecto disponibles"}`,
+  statusBarDiverged: "Ambos lados han cambiado",
+  statusBarNoRemote: "Sin remoto conectado",
+  statusBarNoUpstream: "Sin destino de publicación",
+  statusBarSyncUnborn: "Guarda una versión para comparar",
+  statusBarSyncDetached: "Cambia de línea para comparar",
+  statusBarSyncUnknown: "Sincronización del proyecto no disponible",
+  statusBarTeamNotChecked: "Cambios del proyecto sin comprobar",
+  statusBarCheckingTeam: "Comprobando cambios del proyecto…",
+  statusBarReadingTeam: "Leyendo el estado remoto del proyecto…",
+  statusBarTeamUnavailable: "No se pudieron comprobar los cambios del proyecto",
+  statusBarLocalSnapshot: "Estado local",
+  statusBarMayBeOutdated: "Puede estar desactualizado",
+  statusBarCheckFailed: "La comprobación falló",
+  statusBarJustNow: "ahora mismo",
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
-  statusBarCheckNow: "Comprobar cambios del equipo",
+  statusBarCheckNow: "Comprobar cambios del proyecto",
   statusBarVersion: (version) => `v${version}`,
+  statusBarOpenReleaseDetails: (version, channel) => `Acerca de GitOdrile v${version} ${channel}`,
   titlebarHideSidebar: "Ocultar la barra lateral",
   titlebarShowSidebar: "Mostrar la barra lateral",
   titlebarSwitchToLightTheme: "Cambiar a tema claro",
@@ -336,6 +417,13 @@ const es: AppTranslations = {
   aboutGitOdrile: "Acerca de",
   aboutHeading: "Git sin mordiscos.",
   aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
+  aboutReleaseTitle: (version) => `Novedades de v${version}`,
+  aboutReleaseNotes: {
+    truthfulStatus: "Consulta la línea de versión actual, el trabajo sin guardar y cuándo se comprobaron por última vez los cambios del proyecto desde cualquier pantalla.",
+    safeLineSwitching: "Cambia de línea desde la barra de estado con la misma previsualización y protección del trabajo sin guardar.",
+    releaseDetails: "Abre los detalles de esta build directamente desde la etiqueta de versión cuando los necesites.",
+  },
+  aboutTechnicalDetails: "Detalles técnicos",
   aboutSystem: "Sistema",
   aboutSystemVersion: "Versión del sistema",
   aboutGitVersion: "Git",

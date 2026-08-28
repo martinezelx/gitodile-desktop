@@ -40,7 +40,7 @@ Current application version: **0.1.0**.
   protects the real index through a collision-safe temporary-index workflow.
 - Discover remotes and publish saved versions through a previewed,
   state-token-validated flow that reports uncertain remote outcomes honestly.
-- Explicitly check the configured upstream for team changes without moving the
+- Explicitly check the configured upstream for project changes without moving the
   current version line or files, with cached/fresh status and clear next steps.
 - Review and get strictly newer upstream versions through a confirmed,
   fast-forward-only update. GitOdrile blocks local work and path collisions,
@@ -181,8 +181,8 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 383 frontend tests, the production build, Rust formatting,
-Clippy with warnings denied, and 271 Rust tests. Individual commands remain
+rules, TypeScript, 463 frontend tests, the production build, Rust formatting,
+Clippy with warnings denied, and 306 Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.
 

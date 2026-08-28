@@ -64,8 +64,8 @@ The main desktop window should broadly support:
    Destination names are one word for the same reason. Where the concept needs
    more, the short name is an *abbreviation* of the full term, never a second
    vocabulary: the Lines destination shows version lines, and the prose keeps
-   saying "version line" — the same relationship the sync screen already had
-   with "Current line" and "Team line". A destination named from a different
+   saying "version line" — the same relationship the sync screen already has
+   with "Current line" and "Remote line". A destination named from a different
    word than its own prose (say "Branches") would make the user learn that two
    names mean one thing.
 
@@ -126,7 +126,7 @@ The main desktop window should broadly support:
      order is a trap for keyboard and screen-reader users. The state persists
      across sessions like every other chrome preference.
 
-3. **Status bar** — a 30px strip along the bottom of the content column,
+3. **Status bar** — a 34px strip along the bottom of the content column,
    spanning from the rail's edge to the window's, on every screen including
    Overview. It reports what is true of the project right now: branch, unsaved
    work, sync state and when that was last learned, and the app version.
@@ -161,8 +161,25 @@ The main desktop window should broadly support:
      and History, do not use the global fade. Their panel edge is already the
      scroll boundary; fading it makes the surface appear not to end. They keep
      only a compact 8px gap above the status bar;
-   - the version is shown as `v0.1.0` — no product name, since the window is
-     already the product;
+   - the release metadata is grouped at the far right: the version is shown as
+     `v0.1.0` with its compact lifecycle tag (`alpha`) beside it. Together they
+     form one quiet button that opens the shared About dialog and its bundled,
+     localized current-build summary. Release notes open without a network
+     request; a future application updater may report through this surface but
+     must keep its remote state separate from the local notes. The titlebar
+     stays reserved for global actions and window controls; no product name is
+     repeated because the window is already the product;
+   - the current version line is the strip's one navigation shortcut. Its
+     quiet text treatment gains a hover/expanded fill and opens a bounded menu
+     above the strip; choosing a target still enters the normal previewed,
+     state-checked switch flow. The full inventory and management actions stay
+     in Lines. Detached and not-yet-saved states remain static facts;
+   - the cloud refresh belongs only to the adjacent project-sync fact. It checks
+     remote information without refreshing files, history, or line inventory,
+     so each screen keeps the refresh and retry action owned by its own data;
+   - interactive chrome raised the text to 13px, inline icons to 14px, and the
+     remote-check target to 28px. Coarse pointers receive the standard 44px
+     target and a correspondingly taller strip;
    - it must never state something untrue about a repository. It is the one
      surface in the app whose whole purpose is to be believed at a glance.
 
@@ -533,7 +550,7 @@ Action labels should describe outcomes:
 
 - Save version
 - Publish changes
-- Get team changes
+- Get project changes
 - Set changes aside
 - Restore this version
 - Create separate workspace

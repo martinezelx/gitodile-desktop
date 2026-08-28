@@ -16,6 +16,7 @@ import {
 import { DialogCloseButton } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
+import { CURRENT_APP_RELEASE } from "./appRelease";
 import { describePlatform, formatDiagnostics, useSystemInfo } from "./systemInfo";
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
@@ -113,7 +114,7 @@ export function AppOverlays({
   const copyDiagnostics = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(
-        formatDiagnostics({ appVersion: __APP_VERSION__, system: systemInfo, gitVersion }),
+        formatDiagnostics({ appVersion: CURRENT_APP_RELEASE.version, system: systemInfo, gitVersion }),
       );
       setDidCopyDiagnostics(true);
     } catch {
@@ -210,23 +211,34 @@ export function AppOverlays({
             <p className="eyebrow">{t.aboutGitOdrile}</p>
             <h2 id="about-title">{t.aboutHeading}</h2>
             <p>{t.aboutDescription}</p>
-            {/* One list, two groups: GitOdrile's own version first, then a rule,
-                then what it is running on. Sharing the row grammar is what keeps
-                the version from reading as a stray caption; the rule is drawn by
-                the row itself, so it disappears when nothing follows it. */}
-            <dl className="about-details">
-              <div className="about-details__app"><dt>{t.commonVersion}</dt><dd>{__APP_VERSION__}</dd></div>
-              {systemInfo && (
-                <>
-                  {/* Name and build are separate rows on purpose. Windows 11
-                      reports NT 10.0, so a combined "Windows 10.0.26200" tells
-                      a Windows 11 user the wrong thing. */}
-                  <div><dt>{t.aboutSystem}</dt><dd>{describePlatform(systemInfo)} ({systemInfo.arch})</dd></div>
-                  <div><dt>{t.aboutSystemVersion}</dt><dd>{systemInfo.version}</dd></div>
-                </>
-              )}
-              {gitVersion && <div><dt>{t.aboutGitVersion}</dt><dd>{gitVersion}</dd></div>}
-            </dl>
+            <section className="about-release" aria-labelledby="about-release-title">
+              <div className="about-release__heading">
+                <h3 id="about-release-title">{t.aboutReleaseTitle(CURRENT_APP_RELEASE.version)}</h3>
+                <span className="about-release__channel">{CURRENT_APP_RELEASE.channel}</span>
+              </div>
+              <ul>
+                {CURRENT_APP_RELEASE.noteIds.map((noteId) => (
+                  <li key={noteId}>{t.aboutReleaseNotes[noteId]}</li>
+                ))}
+              </ul>
+            </section>
+            {(systemInfo || gitVersion) && (
+              <section className="about-technical" aria-labelledby="about-technical-title">
+                <h3 id="about-technical-title">{t.aboutTechnicalDetails}</h3>
+                <dl className="about-details">
+                  {systemInfo && (
+                    <>
+                      {/* Name and build are separate rows on purpose. Windows 11
+                          reports NT 10.0, so a combined "Windows 10.0.26200" tells
+                          a Windows 11 user the wrong thing. */}
+                      <div><dt>{t.aboutSystem}</dt><dd>{describePlatform(systemInfo)} ({systemInfo.arch})</dd></div>
+                      <div><dt>{t.aboutSystemVersion}</dt><dd>{systemInfo.version}</dd></div>
+                    </>
+                  )}
+                  {gitVersion && <div><dt>{t.aboutGitVersion}</dt><dd>{gitVersion}</dd></div>}
+                </dl>
+              </section>
+            )}
             <button className="secondary-button about-dialog__copy" type="button" onClick={() => void copyDiagnostics()}>
               {didCopyDiagnostics ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
               {didCopyDiagnostics ? t.aboutCopied : t.aboutCopySystemInfo}

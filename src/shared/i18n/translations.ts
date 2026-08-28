@@ -174,12 +174,12 @@ const en: SharedTranslations = {
   errorRemoteSelectionRequired: "This project has more than one remote project. Choose which one to publish to.",
   errorUnbornBranchNoVersion: "There's no saved version on this version line yet. Save a version first.",
   errorNothingToPublish: "Every saved version is already published.",
-  errorNothingToGet: "This project no longer has newer team versions that can be applied as a direct update.",
-  errorBehindRemote: "The remote project has newer versions this project doesn't have yet. Get the team's changes first.",
+  errorNothingToGet: "This project no longer has newer project versions that can be applied as a direct update.",
+  errorBehindRemote: "The remote project has newer versions this project doesn't have yet. Get the project changes first.",
   errorDivergedHistories:
-    "This version line and the remote project have both moved apart. Get the team's changes first.",
+    "This version line and the remote project have both moved apart. Get the project changes first.",
   errorStalePublishPlan: "This project or the remote project changed since the preview was shown. Try publishing again.",
-  errorStaleGetTeamChangesPlan: "This project or its team destination changed since the preview. Review the updated plan.",
+  errorStaleGetTeamChangesPlan: "This project or its remote destination changed since the preview. Review the updated plan.",
   errorInvalidRefName: "This version line's name isn't a valid Git reference.",
   errorAuthenticationFailed: "GitOdrile couldn't sign in to the remote project. Check your Git credentials and try again.",
   errorNetworkTimeout: "GitOdrile couldn't reach the remote project in time. Check your connection and try again.",
@@ -190,7 +190,7 @@ const en: SharedTranslations = {
   errorStaleConnectRemotePlan: "The project, remote name, or URL changed after the preview. Review the remote connection again.",
   errorRemoteConnectFailed: "Git could not add this remote configuration. No network request was made.",
   errorRemoteConnectUncertain: "Git changed remote configuration, but GitOdrile could not verify the exact result. Inspect .git/config before retrying.",
-  errorRemoteRefMissing: "The configured team version no longer exists on the remote project. Check the upstream setup before trying again.",
+  errorRemoteRefMissing: "The configured remote version no longer exists on the remote project. Check the upstream setup before trying again.",
   errorRemoteRejected: "The remote project rejected this publish. Check the remote project's rules for this branch.",
   errorPublishUncertain:
     "GitOdrile lost the connection while publishing. Refresh and check whether it was published before trying again.",
@@ -297,15 +297,15 @@ const es: SharedTranslations = {
   errorRemoteSelectionRequired: "Este proyecto tiene más de un proyecto remoto. Elige a cuál publicar.",
   errorUnbornBranchNoVersion: "Todavía no hay ninguna versión guardada en esta línea de versión. Guarda una versión primero.",
   errorNothingToPublish: "Todas las versiones guardadas ya están publicadas.",
-  errorNothingToGet: "Este proyecto ya no tiene versiones nuevas del equipo que se puedan aplicar como actualización directa.",
+  errorNothingToGet: "Este proyecto ya no tiene versiones nuevas del proyecto que se puedan aplicar como actualización directa.",
   errorBehindRemote:
-    "El proyecto remoto tiene versiones más recientes que este proyecto todavía no tiene. Obtén primero los cambios del equipo.",
+    "El proyecto remoto tiene versiones más recientes que este proyecto todavía no tiene. Obtén primero los cambios del proyecto.",
   errorDivergedHistories:
-    "Esta línea de versión y el proyecto remoto se han separado. Obtén primero los cambios del equipo.",
+    "Esta línea de versión y el proyecto remoto se han separado. Obtén primero los cambios del proyecto.",
   errorStalePublishPlan:
     "Este proyecto o el proyecto remoto cambiaron desde que se mostró la vista previa. Intenta publicar de nuevo.",
   errorStaleGetTeamChangesPlan:
-    "Este proyecto o su destino del equipo cambiaron desde la vista previa. Revisa el plan actualizado.",
+    "Este proyecto o su destino remoto cambiaron desde la vista previa. Revisa el plan actualizado.",
   errorInvalidRefName: "El nombre de esta línea de versión no es una referencia de Git válida.",
   errorAuthenticationFailed:
     "GitOdrile no pudo iniciar sesión en el proyecto remoto. Comprueba tus credenciales de Git e inténtalo de nuevo.",

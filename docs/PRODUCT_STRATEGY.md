@@ -55,7 +55,7 @@ Default actions should describe outcomes:
 
 - Save version, not Commit.
 - Publish changes, not Push.
-- Get team changes, not Pull.
+- Get project changes, not Pull.
 - Try this separately, not Create branch.
 - Set changes aside, not Stash.
 - Restore this version, not Reset or Revert.

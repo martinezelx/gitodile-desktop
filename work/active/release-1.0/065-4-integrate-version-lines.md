@@ -1,6 +1,6 @@
 ---
 id: 065-4
-title: Integrate version lines and diverged team changes safely
+title: Integrate version lines and diverged project changes safely
 status: active
 priority: high
 type: feature
@@ -37,7 +37,7 @@ merge and connects clean/conflicting outcomes to those established contracts.
 # Scope
 
 - Offer **Bring in changes from...** for another local/remote version line and
-  extend **Get team changes** when the configured upstream has diverged.
+  extend **Get project changes** when the configured upstream has diverged.
 - Fetch only on explicit remote planning/execution; local merge planning never
   contacts the network.
 - Preview source/destination commits, relation, changed-file evidence, local and

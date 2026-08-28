@@ -16,7 +16,7 @@ Examples:
 
 - “Save a version” may create a commit.
 - “Publish changes” may push the current branch.
-- “Get team changes” may fetch and integrate remote changes.
+- “Get project changes” may fetch and integrate remote changes.
 - “Try this separately” may create a branch.
 - “Go back to this moment” may use revert, reset, checkout, or a recovery branch depending on context.
 
@@ -183,13 +183,13 @@ Default simple-mode wording:
 | commit | saved version |
 | commit changes | save version |
 | push | publish changes |
-| fetch/pull | get team changes |
+| fetch/pull | get project changes |
 | branch | separate workspace / version line |
 | checkout/switch | switch workspace |
 | merge conflict | overlapping changes |
 | clean working tree | everything is saved |
 | ahead of remote | saved locally, not published |
-| behind remote | newer team changes are available |
+| behind remote | newer project changes are available |
 | stash | set changes aside |
 
 This table is guidance, not a rigid translation layer. Use exact Git terminology in advanced views and educational explanations.

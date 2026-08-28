@@ -44,10 +44,10 @@ function renderSection(state: TeamSyncViewState, canPublish = true, isRefreshing
   return { ...rendered, onPublish, onReviewAndGet };
 }
 
-describe("Team changes section", () => {
+describe("Project changes section", () => {
   it("starts honest without owning a second refresh action", () => {
     renderSection(EMPTY_TEAM_SYNC_STATE);
-    expect(screen.getByRole("heading", { name: "Team changes" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Project changes" })).toBeInTheDocument();
     expect(screen.getByText("Not checked yet")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
@@ -109,7 +109,7 @@ describe("Team changes section", () => {
     expect(screen.getByText("You’re up to date")).toBeInTheDocument();
   });
 
-  it("shows the current and team lines without exposing technical details", async () => {
+  it("shows the current and remote lines without exposing technical details", async () => {
     const hostile = "origin<em>unsafe</em>";
     const { onReviewAndGet } = renderSection({
       ...EMPTY_TEAM_SYNC_STATE,
@@ -121,7 +121,7 @@ describe("Team changes section", () => {
     await userEvent.click(review);
     expect(onReviewAndGet).toHaveBeenCalledOnce();
     expect(screen.getByText("Current line")).toBeInTheDocument();
-    expect(screen.getByText("Team line")).toBeInTheDocument();
+    expect(screen.getByText("Remote line")).toBeInTheDocument();
     expect(screen.getByText(`${hostile}/main`)).toBeInTheDocument();
     expect(screen.queryByText("Technical details")).not.toBeInTheDocument();
     expect(document.querySelector("em")).toBeNull();

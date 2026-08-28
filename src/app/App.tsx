@@ -355,10 +355,11 @@ export function App(): React.JSX.Element {
   const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
   const [saveDialogSessionId, setSaveDialogSessionId] = useState<string | null>(null);
   const [getTeamDialogSessionId, setGetTeamDialogSessionId] = useState<string | null>(null);
-  // Overview's bounded quick-switch/quick-create: distinct from the
-  // Version-lines feature screen's own dialog state because Overview isn't
-  // that screen's React subtree. Both use the feature-owned dialogs and port.
-  const [overviewSwitchTarget, setOverviewSwitchTarget] = useState<string | null>(null);
+  // App-wide bounded quick-switch and Overview's quick-create are distinct
+  // from the Lines screen's own dialog state because neither entry point is
+  // inside that screen's React subtree. All use the feature-owned dialogs and
+  // port, so the safety plan stays identical whichever shortcut was used.
+  const [versionLineSwitchTarget, setVersionLineSwitchTarget] = useState<string | null>(null);
   const [overviewCreateRequest, setOverviewCreateRequest] = useState<{ forceSwitch: boolean } | null>(null);
   const [versionLinesAutoOpenCreate, setVersionLinesAutoOpenCreate] = useState(false);
   const publishDialogSession = publishDialogSessionId
@@ -1514,8 +1515,6 @@ export function App(): React.JSX.Element {
           onDoubleClick={() => performWindowAction(() => appWindow.toggleMaximize())}
         />
 
-        <span className="titlebar-badge" aria-label={t.alphaBadgeAriaLabel}>{t.alphaBadge}</span>
-
         <div className="window-controls" aria-label={t.windowControls}>
           <button
             className="window-control"
@@ -1764,7 +1763,7 @@ export function App(): React.JSX.Element {
                   isLoadingVersionLines={activeVersionLines.isLoading}
                   onQuickSwitchVersionLine={(target) => {
                     if (projectPath && startVersionLineOperation(projectPath)) {
-                      setOverviewSwitchTarget(target);
+                      setVersionLineSwitchTarget(target);
                     }
                   }}
                   onQuickCreateVersionLine={(forceSwitch) => {
@@ -1883,7 +1882,30 @@ export function App(): React.JSX.Element {
             would make the window resize under the pointer on each navigation,
             and the one place state is always visible is worth more than the
             small duplication with Overview's own cards. */}
-        <StatusBar />
+        <StatusBar
+          project={project}
+          workingTree={workingTree}
+          workingTreeError={workingTreeError}
+          isCheckingChanges={isCheckingChanges}
+          versionLines={activeVersionLines.snapshot}
+          isLoadingVersionLines={activeVersionLines.isLoading}
+          teamSync={teamSync}
+          onSwitchVersionLine={(target) => {
+            if (projectPath && startVersionLineOperation(projectPath)) {
+              setVersionLineSwitchTarget(target);
+            }
+          }}
+          onSeeAllVersionLines={() => navigateToView("version-lines")}
+          onCheckTeamChanges={() => {
+            if (!activeSession) return;
+            void syncController.check(
+              projectRuntime,
+              { projectId: activeSession.id, sessionEpoch: activeSession.epoch },
+              mapSyncError,
+            );
+          }}
+          onOpenReleaseDetails={() => setIsAboutOpen(true)}
+        />
       </main>
 
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
@@ -1983,20 +2005,20 @@ export function App(): React.JSX.Element {
         />
       )}
 
-      {project && overviewSwitchTarget && (
+      {project && versionLineSwitchTarget && (
         <Suspense fallback={null}>
           <SwitchVersionLineDialog
             isOpen
             projectPath={project.path}
             sessionEpoch={activeSession?.epoch ?? ""}
-            target={overviewSwitchTarget}
+            target={versionLineSwitchTarget}
             onClose={() => {
-              setOverviewSwitchTarget(null);
+              setVersionLineSwitchTarget(null);
               finishSessionOperation(project.path);
             }}
             onSwitched={(snapshot) => {
               versionLinesController.commit(activeVersionLinesQuery, snapshot);
-              setOverviewSwitchTarget(null);
+              setVersionLineSwitchTarget(null);
               void handleVersionLineChanged(project.path);
               finishSessionOperation(project.path);
             }}

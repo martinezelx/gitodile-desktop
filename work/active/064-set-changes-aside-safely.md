@@ -93,7 +93,7 @@ Use a hybrid of the best competitor behaviors without copying any product:
 - Restore with `apply --index`, not `pop`. Keep the stash until the user removes
   it in a separate action, so a successful-looking restore never destroys the
   only safety copy.
-- Never auto-stash before switching a version line, getting team changes,
+- Never auto-stash before switching a version line, getting project changes,
   publishing, closing a project, or quitting. Those flows may link to this
   explicit action, but they must not invoke it silently.
 

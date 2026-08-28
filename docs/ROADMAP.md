@@ -14,7 +14,7 @@ ordinary lifecycle of a project without falling back to the terminal:
 2. understand and inspect current changes;
 3. save all or selected files as a version and review saved history;
 4. create, switch, publish, integrate, and remove version lines safely;
-5. check for, get, and publish team changes, including a diverged history;
+5. check for, get, and publish project changes, including a diverged history;
 6. resolve overlaps without silent data loss;
 7. set unfinished work aside and restore it later;
 8. recover from the destructive/history-changing operations GitOdrile performs;
@@ -88,7 +88,7 @@ references and therefore do not change when priorities move.
 | Q05 | 037-5 | Complete or abort a merge |
 | Q06 | 037-6 | Handle non-text and structural conflicts |
 | Q07 | 037-7 | Audit the conflict workflow |
-| Q08 | 065-4 | Integrate local lines and diverged team changes |
+| Q08 | 065-4 | Integrate local lines and diverged project changes |
 | Q09 | 065-5 | Make recovery records visible/actionable |
 | Q10 | 065-6 | Undo or reverse a saved version |
 | Q11 | 064-1 | Discover and inspect saved sets |
@@ -131,7 +131,7 @@ save a change, and verify the result in History.
    truth/recovery through editing, completion/abort, accessibility, and audit.
    It first supports an externally started merge so its safety model can be
    proven independently.
-- **Q08 / 065-4: Integrate version lines and diverged team changes.** Add previewed
+- **Q08 / 065-4: Integrate version lines and diverged project changes.** Add previewed
    local-branch merge and non-fast-forward team integration. Clean results
    complete normally; overlaps enter task 037's established session contract.
 

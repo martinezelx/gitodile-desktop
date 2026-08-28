@@ -115,12 +115,6 @@
   view-transition-name: theme-toggle-icon;
 }
 .titlebar-history-controls { display: flex; align-items: center; gap: 2px; }
-.titlebar-badge {
-  margin-right: 8px; padding: 3px 8px; border-radius: var(--radius-pill); border: 1px solid var(--border-subtle);
-  background: var(--surface-hover); color: var(--text-secondary); font-size: 12px; font-weight: 700;
-  letter-spacing: .015em; line-height: 1.2; white-space: nowrap; flex-shrink: 0;
-}
-
 .window-controls { display: flex; align-items: center; gap: 3px; }
 
 .titlebar-menu { position: relative; flex-shrink: 0; }
@@ -213,7 +207,7 @@
    language for surfaces that stack — DESIGN.md reserves shadow for stacking
    order, and this strip is the floor of the window rather than something
    resting on it. It also could not carry the system's 14-18px card radius at
-   30px tall without reading as a pill. Same reasoning that took the panel off
+   34px tall without reading as a pill. Same reasoning that took the panel off
    the rail: the window chrome is one continuous plane, and only content sits
    in cards on top of it. */
 .status-bar {
@@ -222,11 +216,11 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  height: 30px;
+  height: 34px;
   padding: 0 var(--workspace-inset-right) 0 var(--workspace-inset-left);
   color: var(--text-primary);
-  font-size: 11.5px;
-  line-height: 1;
+  font-size: 13px;
+  line-height: 1.35;
 }
 /* No rule above it either — a hairline was drawing a boundary the layout
    already draws. What was missing is what happens *mid-scroll*, where content
@@ -290,6 +284,11 @@
   gap: var(--space-5);
   min-width: 0;
 }
+.status-bar__group--project {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.status-bar__group--system { flex: 0 1 auto; }
 .status-bar__cluster {
   display: inline-flex;
   align-items: center;
@@ -305,23 +304,98 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.status-bar__item svg { width: 13px; height: 13px; flex-shrink: 0; }
+.status-bar__item svg { width: 14px; height: 14px; flex-shrink: 0; }
+.status-bar__item > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-bar__sync { max-width: min(30vw, 320px); }
+.status-bar__release {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.status-bar__release:hover { background: var(--surface-hover); color: var(--text-primary); }
+.status-bar__release:active { background: var(--surface-active); }
+.status-bar__release:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+.status-bar__version { font-variant-numeric: tabular-nums; }
+.status-bar__channel {
+  padding: 2px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.015em;
+}
+.status-bar .version-lines-quick-switch {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(24vw, 260px);
+}
+.status-bar .version-line-selector {
+  width: 100%;
+  height: 28px;
+  min-width: 0;
+  padding: 0 6px;
+  gap: 5px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary);
+}
+.status-bar .version-line-selector:hover { background: var(--surface-hover); }
+.status-bar .version-line-selector[aria-expanded="true"] { background: var(--surface-active); }
+.status-bar .version-line-selector:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
+.status-bar .version-line-selector__icon { width: 14px; height: 14px; }
+.status-bar .version-line-selector__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.status-bar .version-line-selector__chevron { width: 12px; height: 12px; }
 /* The hierarchy is two text tokens, not one token at two opacities. Fading
    `--text-secondary` to 0.72 to make a third tier measured 2.92:1 on the light
-   surface and 4.45:1 on the dark one — both under the 4.5:1 that 11.5px text
+   surface and 4.45:1 on the dark one — both under the 4.5:1 that small text
    needs. Primary against secondary gives the same separation at 16.5:1 and
    5.05:1. */
 .status-bar__item--muted { color: var(--text-secondary); }
 .status-bar__action {
-  width: 20px; height: 20px; flex-shrink: 0;
+  width: 28px; height: 28px; flex-shrink: 0;
   display: grid; place-items: center;
   padding: 0; border: 0; border-radius: var(--radius-round);
   background: transparent; color: inherit;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.status-bar__action svg { width: 12px; height: 12px; }
+.status-bar__action svg { width: 14px; height: 14px; }
 .status-bar__action:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
 .status-bar__action:disabled { opacity: 0.45; }
+.status-bar__action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
 
 /* One width, always. The rail carries an icon in a 40px square with its name
    underneath, so nothing needs folding away and there is no second mode to
@@ -799,7 +873,18 @@
 .settings-dialog__header h2 { margin: 0 0 3px; font-size: 21px; letter-spacing: -0.018em; }
 .settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
 .about-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--overlay); backdrop-filter: blur(8px); }
-.about-dialog { position: relative; width: min(100%, 420px); padding: 32px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg); }
+.about-dialog {
+  position: relative;
+  width: min(100%, 420px);
+  max-height: calc(100vh - 48px);
+  padding: 32px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  outline: none;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
 .about-dialog__close {
   position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
@@ -821,20 +906,60 @@
 .about-dialog__heart { color: var(--accent-heart); }
 .about-dialog h2 { margin-bottom: 12px; font-size: 28px; }
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: 1.6; }
-.about-details { margin: 22px 0 0; }
+.about-release {
+  margin-top: 22px;
+  padding: 18px 0;
+  border-block: 1px solid var(--border-divider);
+}
+.about-release__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.about-release h3,
+.about-technical h3 { margin: 0; font-size: 13px; font-weight: 700; }
+.about-release__channel {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.015em;
+}
+.about-release ul {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+}
+.about-release li {
+  position: relative;
+  padding-left: 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.about-release li::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-round);
+  background: var(--accent-primary);
+}
+.about-technical { margin-top: 18px; }
+.about-details { margin: 8px 0 0; }
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
 .about-details dt { color: var(--text-secondary); }
 .about-details dd { margin: 0; text-align: right; }
-/* GitOdrile's own version leads the list and carries the rule, so the group
-   below it reads as "and this is what it is running on". `:not(:last-child)`
-   suppresses the rule when there is nothing to separate — the state of every
-   browser dev run, where no OS bridge exists. */
-.about-details__app dd { font-weight: 650; }
-.about-details__app:not(:last-child) {
-  margin-bottom: 10px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border-divider);
-}
 
 .shortcuts-dialog { width: min(100%, 380px); }
 .shortcuts-list { list-style: none; margin: 4px 0 0; padding: 0; }
@@ -882,7 +1007,6 @@
   .settings-dialog { height: calc(100vh - 24px); min-height: 0; }
   .settings-dialog__header { min-height: 68px; padding: 14px 16px; flex-wrap: wrap; }
   .settings-dialog__header p { max-width: 46ch; }
-  .titlebar-badge { display: none; }
   .titlebar-history-controls { display: none; }
   /* The rail is already hidden at this width and the compact nav has replaced
      it, so the toggle has nothing to toggle. */
@@ -935,6 +1059,13 @@
     width: 44px;
     height: 44px;
   }
+  .status-bar { height: 48px; }
+  .status-bar .version-line-selector,
+  .status-bar__action {
+    height: 44px;
+    min-height: 44px;
+  }
+  .status-bar__action { width: 44px; }
   .project-switcher__button,
   .project-switcher-compact__popover .project-switcher__button,
   .project-switcher__add {

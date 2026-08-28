@@ -16,6 +16,11 @@ export interface VersionLinesTranslations {
   versionLinesNoSearchMatches: string;
   versionLinesTruncatedNote: (visible: number, total: number) => string;
   versionLinesUnreadableNote: (count: number) => string;
+  versionLinesQuickSwitchChangeLabel: (current: string) => string;
+  versionLinesQuickSwitchTitle: string;
+  versionLinesQuickSwitchEmpty: string;
+  versionLinesQuickSwitchSeeAll: string;
+  versionLinesQuickSwitchNew: string;
   versionLinesDetachedTitle: string;
   versionLinesDetachedDescription: string;
   versionLinesDetachedRecoverButton: string;
@@ -133,6 +138,11 @@ const en: VersionLinesTranslations = {
     count === 1
       ? "One version line isn't shown: its name uses characters GitOdrile can't read exactly. Use Git directly to rename it."
       : `${count} version lines aren't shown: their names use characters GitOdrile can't read exactly. Use Git directly to rename them.`,
+  versionLinesQuickSwitchChangeLabel: (current) => `Change version line (${current})`,
+  versionLinesQuickSwitchTitle: "Switch version line",
+  versionLinesQuickSwitchEmpty: "There are no other version lines yet.",
+  versionLinesQuickSwitchSeeAll: "See all version lines",
+  versionLinesQuickSwitchNew: "New version line",
   versionLinesDetachedTitle: "This project isn't on a version line right now",
   versionLinesDetachedDescription:
     "You're looking at one specific saved version. Create a named version line here to keep this work easy to find.",
@@ -267,6 +277,11 @@ const es: VersionLinesTranslations = {
     count === 1
       ? "Hay una línea de versión que no se muestra: su nombre usa caracteres que GitOdrile no puede leer con exactitud. Cámbiale el nombre desde Git."
       : `Hay ${count} líneas de versión que no se muestran: sus nombres usan caracteres que GitOdrile no puede leer con exactitud. Cámbiales el nombre desde Git.`,
+  versionLinesQuickSwitchChangeLabel: (current) => `Cambiar línea de versión (${current})`,
+  versionLinesQuickSwitchTitle: "Cambiar línea de versión",
+  versionLinesQuickSwitchEmpty: "Todavía no hay otras líneas de versión.",
+  versionLinesQuickSwitchSeeAll: "Ver todas las líneas de versión",
+  versionLinesQuickSwitchNew: "Nueva línea de versión",
   versionLinesDetachedTitle: "Este proyecto no está en una línea de versión ahora mismo",
   versionLinesDetachedDescription:
     "Estás viendo una versión guardada concreta. Crea aquí una línea de versión con nombre para que este trabajo sea fácil de encontrar.",

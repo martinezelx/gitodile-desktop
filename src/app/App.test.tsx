@@ -98,7 +98,7 @@ const getTeamPlan: GetTeamChangesPlan = {
   incomingVersions: [{
     commit: "2222222222222222222222222222222222222222",
     shortCommit: "2222222",
-    title: "Team version",
+    title: "Project version",
     description: null,
     committedAt: "2026-08-16T10:00:00Z",
     author: "Team",
@@ -345,6 +345,49 @@ describe("ProjectPath", () => {
 });
 
 describe("App project restoration", () => {
+  it("wires the status bar to the active project and its remote check", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+      if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(<LanguageProvider><App /></LanguageProvider>);
+
+    const statusBar = await screen.findByRole("contentinfo", { name: "Project status" });
+    expect(within(statusBar).getByText("main")).toBeInTheDocument();
+    expect(within(statusBar).getByText("Everything is saved")).toBeInTheDocument();
+    expect(await within(statusBar).findByText("Up to date")).toBeInTheDocument();
+    expect(within(statusBar).getByText("Local snapshot")).toBeInTheDocument();
+
+    await userEvent.click(within(statusBar).getByRole("button", { name: "Check for project changes" }));
+    expect(await within(statusBar).findByText("1 project version available")).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("check_team_changes", {
+      path: restoredProject.path,
+      sessionEpoch: restoredProject.sessionEpoch,
+    });
+
+    await userEvent.click(within(statusBar).getByRole("button", { name: "About GitOdrile v0.1.0 alpha" }));
+    expect(screen.getByRole("dialog", { name: "Git without the bite." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What's new in v0.1.0" })).toBeInTheDocument();
+  });
+
   it("opens the eager clone flow from the empty state and command palette", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") {
@@ -855,7 +898,7 @@ describe("App project restoration", () => {
       ([command]) => command === "open_repository",
     ).length;
     await userEvent.click(overviewRefresh);
-    await screen.findByText("1 newer team version is available");
+    await screen.findByText("1 newer project version is available");
     await waitFor(() =>
       expect(
         mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status").length,
@@ -889,7 +932,7 @@ describe("App project restoration", () => {
       ([command]) => command === "open_repository",
     ).length;
     await userEvent.click(confirm);
-    await screen.findByRole("heading", { name: "Team changes are now included" });
+    await screen.findByRole("heading", { name: "Project changes are now included" });
 
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status"),
@@ -1169,7 +1212,10 @@ describe("App project restoration", () => {
     );
 
     await screen.findByRole("heading", { name: restoredProject.name });
-    const trigger = screen.getByRole("button", { name: "Change (main)" });
+    const trigger = within(screen.getByRole("group", { name: "Current version line" })).getByRole(
+      "button",
+      { name: "Change version line (main)" },
+    );
 
     await userEvent.click(trigger);
     expect(await screen.findByRole("menuitem", { name: /feature\/spike/ })).toBeInTheDocument();
@@ -1231,7 +1277,10 @@ describe("App project restoration", () => {
     );
 
     await screen.findByRole("heading", { name: restoredProject.name });
-    await userEvent.click(screen.getByRole("button", { name: "Change (main)" }));
+    await userEvent.click(within(screen.getByRole("contentinfo", { name: "Project status" })).getByRole(
+      "button",
+      { name: "Change version line (main)" },
+    ));
     await userEvent.click(await screen.findByRole("menuitem", { name: /feature\/spike/ }));
 
     const createWithWork = await screen.findByRole("button", {

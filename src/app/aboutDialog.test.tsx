@@ -24,7 +24,10 @@ vi.mock("@tauri-apps/plugin-os", () => ({
   arch: vi.fn(() => "x86_64"),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 const closedOverlay = { isOpen: false, setOpen: vi.fn() };
 
@@ -146,34 +149,35 @@ describe("readSystemInfo", () => {
 });
 
 describe("About dialog", () => {
-  it("reports the app version, the machine, and Git on separate rows", () => {
+  it("reports the current release, the machine, and Git", () => {
     renderOverlays();
 
     const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
-    expect(dialog).toHaveTextContent(__APP_VERSION__);
+    expect(screen.getByRole("heading", { name: `What's new in v${__APP_VERSION__}` })).toBeInTheDocument();
+    expect(dialog.querySelectorAll(".about-release li")).toHaveLength(3);
     expect(dialog).toHaveTextContent("Windows 11 (x86_64)");
     expect(dialog).toHaveTextContent("10.0.26200");
     expect(dialog).toHaveTextContent("2.45.0");
   });
 
-  it("leads the list with GitOdrile's own version, then the machine", () => {
+  it("puts release notes before the technical environment rows", () => {
     renderOverlays();
 
     const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
     const rows = [...dialog.querySelectorAll(".about-details > div")];
-    // The rule is the first row's `border-bottom`, so "the app above, the
-    // machine below" is the row order plus that row carrying the class.
     expect(rows.map((row) => row.querySelector("dt")?.textContent)).toEqual([
-      "Version",
       "System",
       "System version",
       "Git",
     ]);
-    expect(rows[0]).toHaveClass("about-details__app");
-    expect(rows[0]).toHaveTextContent(__APP_VERSION__);
+    const release = dialog.querySelector(".about-release");
+    const technical = dialog.querySelector(".about-technical");
+    expect(release).not.toBeNull();
+    expect(technical).not.toBeNull();
+    expect(release!.compareDocumentPosition(technical!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("leaves the rule with nothing to draw when it knows nothing about the machine", async () => {
+  it("keeps local release notes and omits empty technical details without a platform bridge", async () => {
     const os = await import("@tauri-apps/plugin-os");
     vi.mocked(os.platform).mockImplementationOnce(() => {
       throw new TypeError("no bridge");
@@ -181,12 +185,16 @@ describe("About dialog", () => {
     renderOverlaysWithoutGit();
 
     const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
-    const rows = [...dialog.querySelectorAll(".about-details > div")];
-    // Being last-child is what suppresses the rule in CSS; a second row here
-    // would put a line under the version with nothing beneath it.
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toHaveClass("about-details__app");
-    expect(rows[0]).toHaveTextContent(__APP_VERSION__);
+    expect(dialog.querySelectorAll(".about-release li")).toHaveLength(3);
+    expect(dialog.querySelector(".about-technical")).not.toBeInTheDocument();
+  });
+
+  it("localizes the bundled release notes", () => {
+    localStorage.setItem("gitodrile-language", "es");
+    renderOverlays();
+
+    expect(screen.getByRole("heading", { name: `Novedades de v${__APP_VERSION__}` })).toBeInTheDocument();
+    expect(screen.getByText(/Consulta la línea de versión actual/)).toBeInTheDocument();
   });
 
   it("copies a diagnostics block for a bug report", async () => {

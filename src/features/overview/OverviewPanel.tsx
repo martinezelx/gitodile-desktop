@@ -4,7 +4,6 @@ import {
   Check,
   CheckCircle2,
   CircleAlert,
-  ChevronDown,
   ChevronRight,
   Copy,
   Eye,
@@ -13,7 +12,6 @@ import {
   FilePlus,
   FolderOpen,
   GitBranch,
-  GitBranchPlus,
   LoaderCircle,
   Pencil,
   Save,
@@ -34,7 +32,7 @@ import {
 } from "../status";
 import type { PendingVersionsResult } from "../publish";
 import type { HistoryController } from "../history";
-import type { VersionLine, VersionLinesSnapshot } from "../version-lines";
+import { VersionLineQuickSwitch, type VersionLinesSnapshot } from "../version-lines";
 import { TeamChangesSection, type TeamSyncViewState } from "../sync";
 
 const PendingVersionsSection = lazy(() =>
@@ -256,160 +254,6 @@ function OverviewChangesPreview({
   );
 }
 
-/** Overview's bounded quick-switch/quick-create entry point (task 016). A
- * deliberately small menu — the searchable full list stays on the
- * Version-lines screen (`onSeeAll`). It reads the project session's cached
- * branch inventory (task 019) instead of fetching its own copy on every
- * open, and asks for a background refresh when opened so the menu is both
- * instant and current. */
-function OverviewVersionLineQuickActions({
-  snapshot,
-  isLoadingSnapshot,
-  currentValue,
-  canSwitch,
-  onSwitch,
-  onCreate,
-  onSeeAll,
-}: {
-  snapshot: VersionLinesSnapshot | null;
-  /** Distinguishes "still reading, for the first time" from "read failed and
-   * left nothing to show", which would otherwise both look like a menu stuck
-   * on its spinner. */
-  isLoadingSnapshot: boolean;
-  /** The active branch name (or the detached/unborn placeholder text) —
-   * shown as the selector's own trigger label, not a separate static value
-   * next to a generic "Change" button. */
-  currentValue: string;
-  canSwitch: boolean;
-  /** Fired each time the menu opens, so the caller can revalidate the shared
-   * snapshot behind it. The menu never waits on that: it renders whatever is
-   * cached and swaps in the newer answer if one arrives. */
-  onSwitch: (target: string) => void;
-  onCreate: () => void;
-  onSeeAll: () => void;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
-  // Bounded on purpose: this is the shortcut, not the inventory. Lines
-  // checked out in another worktree are dropped because this window cannot
-  // switch to them.
-  const lines: VersionLine[] | null = snapshot
-    ? snapshot.lines.filter((line) => !line.isActive && !line.worktreePath).slice(0, 6)
-    : null;
-  const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Moves focus into the open menu for keyboard/screen-reader users, and
-  // gives Escape an explicit place to send focus back to (native outside-
-  // click dismissal already leaves focus wherever the click landed, so that
-  // path is left alone).
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-    const frame = window.requestAnimationFrame(() => menuRef.current?.focus());
-    const handlePointerDown = (event: MouseEvent): void => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    const handleKey = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [isOpen]);
-
-  return (
-    <div className="version-lines-quick-switch" ref={containerRef}>
-      {canSwitch ? (
-        <button
-          ref={triggerRef}
-          className="version-line-selector"
-          type="button"
-          aria-haspopup="menu"
-          aria-expanded={isOpen}
-          aria-label={`${t.overviewChangeVersionLine} (${currentValue})`}
-          onClick={() => setIsOpen((value) => !value)}
-        >
-          <GitBranch aria-hidden="true" className="version-line-selector__icon" />
-          <span className="version-line-selector__value">{currentValue}</span>
-          <ChevronDown aria-hidden="true" className="version-line-selector__chevron" />
-        </button>
-      ) : (
-        <span className="version-line-selector version-line-selector--static">
-          <GitBranch aria-hidden="true" className="version-line-selector__icon" />
-          <span className="version-line-selector__value">{currentValue}</span>
-        </span>
-      )}
-      {/* Icon-only: the branch-with-a-plus glyph carries the meaning, and the
-          name stays reachable as both the accessible name and the tooltip. A
-          text button here would be as wide as the line name beside it, which
-          reads as the more important of the two. */}
-      <button
-        className="secondary-button version-lines-quick-switch__create"
-        type="button"
-        onClick={onCreate}
-        aria-label={t.overviewNewVersionLine}
-        data-tooltip={t.overviewNewVersionLine}
-      >
-        <GitBranchPlus aria-hidden="true" />
-      </button>
-      {isOpen && (
-        <div
-          ref={menuRef}
-          className="version-lines-quick-switch__menu"
-          role="menu"
-          aria-label={t.overviewQuickSwitchTitle}
-          tabIndex={-1}
-        >
-          {lines === null && isLoadingSnapshot ? (
-            <div className="version-lines-quick-switch__status" role="status">
-              <LoaderCircle aria-hidden="true" className="icon--spinning" />
-            </div>
-          ) : lines === null || lines.length === 0 ? (
-            <p className="version-lines-quick-switch__empty">{t.overviewQuickSwitchEmpty}</p>
-          ) : (
-            lines.map((line) => (
-              <button
-                key={line.name}
-                type="button"
-                role="menuitem"
-                className="version-lines-quick-switch__item"
-                onClick={() => {
-                  setIsOpen(false);
-                  onSwitch(line.name);
-                }}
-              >
-                {line.name}
-              </button>
-            ))
-          )}
-          <button
-            type="button"
-            className="version-lines-quick-switch__see-all"
-            onClick={() => {
-              setIsOpen(false);
-              onSeeAll();
-            }}
-          >
-            {t.overviewQuickSwitchSeeAll}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ProjectSummaryCard({
   project,
   overview,
@@ -461,7 +305,7 @@ function ProjectSummaryCard({
                 {t[overview.versionDescriptionKey]}
               </span>
             ) : (
-              <OverviewVersionLineQuickActions
+              <VersionLineQuickSwitch
                 snapshot={versionLines}
                 isLoadingSnapshot={isLoadingVersionLines}
                 currentValue={versionValue}

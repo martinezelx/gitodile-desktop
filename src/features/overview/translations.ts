@@ -65,11 +65,6 @@ export interface OverviewTranslations {
   overviewHistoryPublicationUnknown: string;
   overviewHistoryOpenVersion: (title: string) => string;
   overviewHistoryRefreshFailed: string;
-  overviewChangeVersionLine: string;
-  overviewNewVersionLine: string;
-  overviewQuickSwitchTitle: string;
-  overviewQuickSwitchEmpty: string;
-  overviewQuickSwitchSeeAll: string;
   overviewPublishChanges: string;
   overviewPendingVersionsTitle: (count: number) => string;
   overviewPendingVersionsGuidance: string;
@@ -157,11 +152,6 @@ const en: OverviewTranslations = {
   overviewHistoryPublicationUnknown: "Publication unknown",
   overviewHistoryOpenVersion: (title) => `Open “${title}” in history`,
   overviewHistoryRefreshFailed: "Recent history may be out of date.",
-  overviewChangeVersionLine: "Change",
-  overviewNewVersionLine: "New",
-  overviewQuickSwitchTitle: "Switch version line",
-  overviewQuickSwitchEmpty: "There are no other version lines yet.",
-  overviewQuickSwitchSeeAll: "See all version lines",
   overviewPublishChanges: "Publish changes",
   overviewPendingVersionsTitle: (count) => `Saved versions not yet published (${count})`,
   overviewPendingVersionsGuidance:
@@ -254,11 +244,6 @@ const es: OverviewTranslations = {
   overviewHistoryPublicationUnknown: "Publicación desconocida",
   overviewHistoryOpenVersion: (title) => `Abrir «${title}» en el historial`,
   overviewHistoryRefreshFailed: "El historial reciente puede estar desactualizado.",
-  overviewChangeVersionLine: "Cambiar",
-  overviewNewVersionLine: "Nueva",
-  overviewQuickSwitchTitle: "Cambiar línea de versión",
-  overviewQuickSwitchEmpty: "Todavía no hay otras líneas de versión.",
-  overviewQuickSwitchSeeAll: "Ver todas las líneas de versión",
   overviewPublishChanges: "Publicar cambios",
   overviewPendingVersionsTitle: (count) => `Versiones guardadas sin publicar (${count})`,
   overviewPendingVersionsGuidance:
