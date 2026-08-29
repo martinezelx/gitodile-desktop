@@ -114,6 +114,7 @@ export function PendingVersionsSection({
   sessionEpoch,
   result,
   error,
+  onRetry,
   onPublishUpTo,
   canPublish,
   onPublish,
@@ -122,6 +123,7 @@ export function PendingVersionsSection({
   sessionEpoch: string;
   result: PendingVersionsResult;
   error: string | null;
+  onRetry: () => void;
   onPublishUpTo: (commit: string) => void;
   /** False on a detached HEAD or unborn line — there is nowhere for a publish
    * to go, so the header's own "Publish all" is withheld even though the
@@ -163,10 +165,13 @@ export function PendingVersionsSection({
       </div>
 
       {error && (
-        <p className="pending-versions__error" role="alert">
+        <div className="pending-versions__error" role="alert">
           <CircleAlert aria-hidden="true" />
-          {error}
-        </p>
+          <span>{error}</span>
+          <button className="secondary-button" type="button" onClick={onRetry}>
+            {t.overviewCheckLocalAgain}
+          </button>
+        </div>
       )}
 
       {result.versions.length > 0 && (

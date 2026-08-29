@@ -98,16 +98,20 @@
 .changes-view__lines { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13.5px; }
 .changes-view__lines--added { color: var(--diff-added); }
 .changes-view__lines--removed { color: var(--diff-removed); }
-.changes-header__error { color: var(--status-danger) !important; }
-.changes-header__note { color: var(--status-warning) !important; font-size: 13px !important; }
-/* Says the screen has stopped updating itself. Warning-toned rather than
-   danger: nothing is broken, the user asked for this — but it must not read
-   as ordinary secondary copy either, or the whole point is lost. */
-.changes-header__watch-off {
-  display: flex; align-items: center; gap: 6px;
-  color: var(--status-warning) !important; font-size: 13px !important;
+.changes-status-notice {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 11px;
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
 }
-.changes-header__watch-off svg { width: 15px; height: 15px; flex-shrink: 0; }
+.changes-status-notice__body { flex: 1; min-width: 0; }
+.changes-status-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
+.changes-status-notice strong { display: block; margin-bottom: 2px; font-size: 12px; }
+.changes-status-notice p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.changes-status-notice > .secondary-button { flex: 0 0 auto; align-self: center; display: inline-flex; align-items: center; gap: 7px; }
+.changes-status-notice > .secondary-button svg { width: 14px; height: 14px; }
+.changes-status-notice--danger { outline: 1px solid var(--status-danger); outline-offset: -1px; }
+.changes-status-notice--danger > svg { color: var(--status-danger); }
 /* The result of a discard that was never confirmed. Sits under the header,
    full width, so the Undo is where the eye already is after the list changed
    under it. */
@@ -145,9 +149,6 @@
   background: var(--surface-raised);
   box-shadow: var(--shadow-sm);
 }
-/* Status text, not a control: it needs its own inset from the pill's curve,
-   where a button of the same height is already inset by its own round edge. */
-.changes-header-actions .changes-freshness { padding-inline-start: var(--space-3); }
 .changes-header-actions__buttons { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .changes-header-actions .secondary-button,
 .changes-header-actions__save {
@@ -160,7 +161,6 @@
    Save is the capsule between these two circles, and every radius in the
    cluster is now half its own height, so the whole row nests concentrically
    without a single number needing to be worked out. */
-.changes-header-actions__refresh,
 .changes-actions-menu__trigger {
   width: 38px;
   min-width: 38px;
@@ -229,14 +229,6 @@
 }
 .changes-danger-button:hover { filter: brightness(1.06); }
 .changes-danger-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.changes-freshness {
-  display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0;
-  color: var(--text-secondary); font-size: 13px; white-space: nowrap;
-}
-.changes-freshness svg { width: 15px; height: 15px; }
-.changes-freshness__icon { color: var(--status-success); }
-.changes-header-actions__refresh { flex-shrink: 0; }
-
 .changes-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; max-width: 380px; margin: 0 auto; padding: 40px 24px; text-align: center;
@@ -402,7 +394,7 @@
   font-size: 11.5px; color: var(--text-secondary);
 }
 @media (forced-colors: active) {
-  .changes-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
+  .changes-notice, .changes-status-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
   .changes-file-row__checkbox { appearance: auto; }
 }
 .changes-file-item__origin {
@@ -618,14 +610,11 @@
     gap: var(--space-2);
     border-radius: var(--radius-surface);
   }
-  .changes-header-actions .changes-freshness { padding-inline-start: 0; }
-  .changes-freshness { justify-content: flex-end; }
   .changes-header-actions__buttons { width: 100%; }
   /* Only the labelled action takes the free width. Stretching the two icon
      buttons would turn their 50% radius into an ellipse, and neither gains
      anything from being 200px wide. */
   .changes-header-actions__save { flex: 1 1 auto; justify-content: center; }
-  .changes-header-actions__refresh,
   .changes-actions-menu { flex: 0 0 auto; }
 }
 
@@ -635,7 +624,6 @@
     height: 44px;
     min-height: 44px;
   }
-  .changes-header-actions__refresh,
   .changes-actions-menu__trigger {
     width: 44px;
     min-width: 44px;

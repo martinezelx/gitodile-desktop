@@ -51,6 +51,7 @@ import {
   EMPTY_TEAM_SYNC_STATE,
   GetTeamChangesDialog,
   syncPort,
+  useAutomaticRemoteCheck,
   type SyncErrorMapper,
 } from "../features/sync";
 import {
@@ -92,6 +93,7 @@ import {
   useStoredFavouriteProjects,
   useStoredDiffPreferences,
   useStoredNavigationPreferences,
+  useStoredRemoteCheckInterval,
   useThemePreference,
 } from "./preferences";
 import { startThemeFade, startThemeReveal } from "./themeTransition";
@@ -162,14 +164,8 @@ const DEFAULT_NAVIGATION_PREFERENCES = {
   displayMode: "icons-and-text",
 } satisfies NavigationPreferences;
 
-type OverviewRefreshSection = "changes" | "team" | "history";
-type OverviewRefreshActivity = Record<OverviewRefreshSection, boolean> & { key: string | null };
-const EMPTY_OVERVIEW_REFRESH: OverviewRefreshActivity = {
-  key: null,
-  changes: false,
-  team: false,
-  history: false,
-};
+type WatcherRegistrationState = "starting" | "watching" | "unavailable";
+type WatcherRegistration = { epoch: string; state: WatcherRegistrationState };
 
 /** Suspense fallback for a lazily-loaded view (see `ChangesPanel` below).
  * Only ever visible on the first navigation into that view before its chunk
@@ -186,7 +182,10 @@ export function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isCloneOpen, setIsCloneOpen] = useState(false);
-  const [overviewRefresh, setOverviewRefresh] = useState<OverviewRefreshActivity>(EMPTY_OVERVIEW_REFRESH);
+  const [watcherRegistrations, setWatcherRegistrations] = useState<Record<string, WatcherRegistration>>({});
+  const [repositoryListenerState, setRepositoryListenerState] = useState<"starting" | "listening" | "unavailable">(
+    () => "__TAURI_INTERNALS__" in window ? "starting" : "unavailable",
+  );
   const [initializeDialogRequest, setInitializeDialogRequest] = useState<{
     mode: InitializeTargetKind;
     existingPath?: string;
@@ -283,7 +282,6 @@ export function App(): React.JSX.Element {
   const workingTree = activeSession?.workingTree ?? null;
   const workingTreeError = activeSession?.workingTreeError ?? null;
   const isCheckingChanges = activeSession?.isCheckingChanges ?? false;
-  const workingTreeCheckedAt = activeSession?.workingTreeCheckedAt ?? null;
   const pendingVersions = activeSession?.pendingVersions ?? EMPTY_PENDING_VERSIONS;
   const pendingVersionsError = activeSession?.pendingVersionsError ?? null;
   const teamSync = activeSession?.teamSync ?? EMPTY_TEAM_SYNC_STATE;
@@ -462,6 +460,16 @@ export function App(): React.JSX.Element {
     WATCH_PROJECTS_STORAGE_KEY,
     WATCH_PROJECTS_DEFAULT,
   );
+  const [remoteCheckInterval, setRemoteCheckInterval] = useStoredRemoteCheckInterval();
+  const activeWatcherRegistration = activeSession ? watcherRegistrations[activeSession.id] : undefined;
+  const activeWatcherState: "starting" | "watching" | "off" | "unavailable" =
+    !watchProjects
+      ? "off"
+      : repositoryListenerState !== "listening"
+        ? repositoryListenerState
+        : activeWatcherRegistration && activeWatcherRegistration.epoch === activeSession?.epoch
+          ? activeWatcherRegistration.state
+          : "starting";
   const [confirmDiscard, setConfirmDiscard] = useStoredBoolean(
     CONFIRM_DISCARD_STORAGE_KEY,
     CONFIRM_DISCARD_DEFAULT,
@@ -556,34 +564,6 @@ export function App(): React.JSX.Element {
   const checkWorkingTree = async (path: string, requestedEpoch?: string): Promise<void> => {
     const epoch = requestedEpoch ?? sessionsState.byId[path]?.epoch;
     if (epoch) await statusController.refresh(projectRuntime, { projectId: path, sessionEpoch: epoch }, mapStatusError);
-  };
-
-  const refreshOverview = async (path: string, sessionEpoch: string): Promise<void> => {
-    const key = `${path}\0${sessionEpoch}`;
-    const snapshot = projectRuntime.getSnapshot();
-    setOverviewRefresh({ key, changes: true, team: true, history: true });
-    const finish = (section: OverviewRefreshSection): void => {
-      setOverviewRefresh((current) => {
-        if (current.key !== key) return current;
-        const next = { ...current, [section]: false };
-        return next.changes || next.team || next.history ? next : EMPTY_OVERVIEW_REFRESH;
-      });
-    };
-
-    // Local facts and the explicit network check start together. Shared-ref
-    // readers wait for both, then read the final remote-tracking state once;
-    // the previous flow could repeat repository open, status, and history.
-    const changes = repositoryReads
-      .refreshProjectAndWorktree(projectRuntime, snapshot, path)
-      .finally(() => finish("changes"));
-    const team = syncController
-      .check(projectRuntime, { projectId: path, sessionEpoch }, mapSyncError)
-      .finally(() => finish("team"));
-    const history = Promise.all([changes, team])
-      .then(() => repositoryReads.refreshSharedAndWait(projectRuntime.getSnapshot(), path))
-      .finally(() => finish("history"));
-
-    await Promise.all([changes, team, history]);
   };
 
   // A successful create/switch/delete on a version line changes `HEAD`, the
@@ -823,11 +803,13 @@ export function App(): React.JSX.Element {
           stop();
         } else {
           unlisten = stop;
+          setRepositoryListenerState("listening");
         }
       })
       .catch(() => {
         // A listener that can't be registered leaves the app exactly as it
         // was before this feature: manual refreshes only.
+        if (!cancelled) setRepositoryListenerState("unavailable");
       });
     return () => {
       cancelled = true;
@@ -856,6 +838,24 @@ export function App(): React.JSX.Element {
     if (!hasCompletedSessionRestore || !("__TAURI_INTERNALS__" in window)) {
       return;
     }
+    const updateWatcherRegistration = (
+      path: string,
+      registration: WatcherRegistration | null,
+    ): void => {
+      setWatcherRegistrations((current) => {
+        const existing = current[path];
+        if (registration === null) {
+          if (!existing) return current;
+          const next = { ...current };
+          delete next[path];
+          return next;
+        }
+        if (existing?.epoch === registration.epoch && existing.state === registration.state) {
+          return current;
+        }
+        return { ...current, [path]: registration };
+      });
+    };
     // The preference is honored by the plan, not by this loop: with watching
     // off the plan unregisters everything and asks for nothing, so turning it
     // back on re-registers without the project being reopened.
@@ -867,18 +867,25 @@ export function App(): React.JSX.Element {
     for (const { path, epoch } of plan.unwatch) {
       void invoke("unwatch_repository", { path, sessionEpoch: epoch }).catch(() => {});
       delete watchedSessionsRef.current[path];
+      updateWatcherRegistration(path, null);
     }
     for (const { path, epoch } of plan.watch) {
       watchedSessionsRef.current[path] = epoch;
+      updateWatcherRegistration(path, { epoch, state: "starting" });
       void invoke<boolean>("watch_repository", { path, sessionEpoch: epoch })
         .then((watching) => {
-          if (!watching && watchedSessionsRef.current[path] === epoch) {
+          if (watchedSessionsRef.current[path] !== epoch) return;
+          if (watching) {
+            updateWatcherRegistration(path, { epoch, state: "watching" });
+          } else {
             delete watchedSessionsRef.current[path];
+            updateWatcherRegistration(path, { epoch, state: "unavailable" });
           }
         })
         .catch(() => {
           if (watchedSessionsRef.current[path] === epoch) {
             delete watchedSessionsRef.current[path];
+            updateWatcherRegistration(path, { epoch, state: "unavailable" });
           }
         });
     }
@@ -897,6 +904,30 @@ export function App(): React.JSX.Element {
     }
     void repositoryReads.refreshAll(projectRuntime, projectRuntime.getSnapshot(), projectPath);
   }, [watchProjects, hasCompletedSessionRestore, projectPath, projectRuntime, repositoryReads]);
+
+  const automaticRemoteCheckEligible = Boolean(
+    hasCompletedSessionRestore &&
+    project?.headState === "branch" &&
+    project.branch &&
+    teamSync.status?.state !== "noRemote" &&
+    teamSync.status?.state !== "noUpstream" &&
+    teamSync.status?.state !== "unborn" &&
+    teamSync.status?.state !== "detached",
+  );
+  useAutomaticRemoteCheck({
+    intervalMinutes: remoteCheckInterval,
+    projectId: projectPath,
+    sessionEpoch: activeSession?.epoch ?? null,
+    eligible: automaticRemoteCheckEligible,
+    onCheck: () => {
+      if (!projectPath || !activeSession?.epoch) return;
+      void syncController.check(
+        projectRuntime,
+        { projectId: projectPath, sessionEpoch: activeSession.epoch },
+        mapSyncError,
+      );
+    },
+  });
 
   // Refreshes once when a project becomes active, not whenever a screen is
   // visited. This covers startup and changes made while another project was
@@ -1139,6 +1170,46 @@ export function App(): React.JSX.Element {
       : []),
     ...(project && !hasBlockingDialog
       ? [{ id: "close-project", label: t.commandCloseActiveProject, action: requestCloseActiveProject }]
+      : []),
+    ...(project && activeSession && !hasBlockingDialog
+      ? [
+          {
+            id: "check-local-changes",
+            label: t.commandCheckLocalChanges,
+            action: () => void checkWorkingTree(activeSession.id, activeSession.epoch),
+          },
+          ...(project.headState === "branch" && project.branch
+            ? [{
+                id: "check-remote-changes",
+                label: t.commandCheckRemoteChanges,
+                action: () => void syncController.check(
+                  projectRuntime,
+                  { projectId: activeSession.id, sessionEpoch: activeSession.epoch },
+                  mapSyncError,
+                ),
+              }]
+            : []),
+          ...(view === "history"
+            ? [{
+                id: "refresh-history",
+                label: t.commandRefreshHistory,
+                action: () => void historyController.refresh({
+                  projectId: activeSession.id,
+                  sessionEpoch: activeSession.epoch,
+                }),
+              }]
+            : []),
+          ...(view === "version-lines"
+            ? [{
+                id: "refresh-version-lines",
+                label: t.commandRefreshVersionLines,
+                action: () => void versionLinesController.refresh({
+                  projectId: activeSession.id,
+                  sessionEpoch: activeSession.epoch,
+                }),
+              }]
+            : []),
+        ]
       : []),
     ...(!hasBlockingDialog
       ? sessionsState.order
@@ -1733,13 +1804,8 @@ export function App(): React.JSX.Element {
                   workingTree={workingTree}
                   workingTreeError={workingTreeError}
                   isCheckingChanges={isCheckingChanges}
-                  refreshActivity={
-                    project && overviewRefresh.key === `${project.path}\0${project.sessionEpoch}`
-                      ? overviewRefresh
-                      : EMPTY_OVERVIEW_REFRESH
-                  }
-                  onRefresh={() => {
-                    if (activeSession) void refreshOverview(activeSession.id, activeSession.epoch);
+                  onCheckLocalChanges={() => {
+                    if (projectPath) void checkWorkingTree(projectPath);
                   }}
                   onReviewChanges={(path) => {
                     if (path && sessionsState.activeId) {
@@ -1785,6 +1851,14 @@ export function App(): React.JSX.Element {
                     navigateToView("changes");
                   }}
                   teamSync={teamSync}
+                  onCheckTeamChanges={() => {
+                    if (!activeSession) return;
+                    void syncController.check(
+                      projectRuntime,
+                      { projectId: activeSession.id, sessionEpoch: activeSession.epoch },
+                      mapSyncError,
+                    );
+                  }}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
                   historyController={historyController}
                   onOpenHistory={() => navigateToView("history")}
@@ -1801,12 +1875,12 @@ export function App(): React.JSX.Element {
                           workingTree={workingTree}
                           workingTreeError={workingTreeError}
                           isCheckingChanges={isCheckingChanges}
-                          workingTreeCheckedAt={workingTreeCheckedAt}
                           controller={changesController}
                           sessionEpoch={activeSession?.epoch ?? ""}
-                          isWatching={watchProjects}
+                          watcherState={activeWatcherState}
                           confirmBeforeDiscarding={confirmDiscard}
                           onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
+                          onOpenSettings={() => openSettings("general")}
                           onSaveCompleted={() => void handleMutationSucceeded(project.path)}
                           onNavigateOverview={() => navigateToView("overview")}
                           onPublishNow={() => openPublishDialog()}
@@ -1854,6 +1928,8 @@ export function App(): React.JSX.Element {
                           controller={versionLinesController}
                           projectPath={project.path}
                           sessionEpoch={activeSession?.epoch ?? ""}
+                          watcherState={activeWatcherState}
+                          onOpenSettings={() => openSettings("general")}
                           onChanged={() => void handleVersionLineChanged(project.path)}
                           onOperationStart={() => startVersionLineOperation(project.path)}
                           onOperationFinish={() => finishSessionOperation(project.path)}
@@ -1874,6 +1950,8 @@ export function App(): React.JSX.Element {
                           controller={historyController}
                           projectPath={project.path}
                           sessionEpoch={activeSession?.epoch ?? ""}
+                          watcherState={activeWatcherState}
+                          onOpenSettings={() => openSettings("general")}
                         />
                       </Suspense>
                     ),
@@ -2080,6 +2158,8 @@ export function App(): React.JSX.Element {
           setConfirmCloseProject,
           watchProjects,
           setWatchProjects,
+          remoteCheckInterval,
+          setRemoteCheckInterval,
           confirmDiscard,
           setConfirmDiscard,
           navigationItems: orderedProjectNavDestinations.map((destination) => ({

@@ -33,15 +33,17 @@ Current application version: **0.1.0**.
   flow that creates a persistent local recovery record and offers Undo. The
   confirmation can be turned off; the recovery record and Undo cannot.
 - Receive live, debounced repository updates without exposing raw filesystem
-  paths to the frontend, or turn watching off — in which case the Changes
-  screen says it is no longer updating itself and points at its refresh.
+  paths to the frontend, or turn watching off — in which case Changes, History,
+  and Lines disclose that their local snapshot may be out of date and offer a
+  focused update.
 - Save all or selected changes as a version with a title and description. The
   flow is planned and revalidated in Rust, preserves Git hooks and signing, and
   protects the real index through a collision-safe temporary-index workflow.
 - Discover remotes and publish saved versions through a previewed,
   state-token-validated flow that reports uncertain remote outcomes honestly.
-- Explicitly check the configured upstream for project changes without moving the
-  current version line or files, with cached/fresh status and clear next steps.
+- Check the configured upstream for project changes without moving the current
+  version line or files, manually or on an opt-in 15/30/60-minute cadence, with
+  cached/fresh status and clear next steps.
 - Review and get strictly newer upstream versions through a confirmed,
   fast-forward-only update. GitOdrile blocks local work and path collisions,
   creates a verified durable recovery point first, and reports uncertain local

@@ -90,6 +90,9 @@ export function HistorySummarySection({
           <div>
             <strong>{t.overviewHistoryErrorTitle}</strong>
             <p>{error}</p>
+            <button className="secondary-button" type="button" onClick={() => void controller.refresh(query)}>
+              {t.overviewHistoryRetry}
+            </button>
           </div>
         </div>
       ) : versions.length === 0 ? (
@@ -141,6 +144,9 @@ export function HistorySummarySection({
       {state.snapshot && error && (
         <div className="overview-history__stale" role="alert">
           <span>{t.overviewHistoryRefreshFailed}</span>
+          <button className="secondary-button" type="button" onClick={() => void controller.refresh(query)}>
+            {t.overviewHistoryRetry}
+          </button>
         </div>
       )}
     </section>

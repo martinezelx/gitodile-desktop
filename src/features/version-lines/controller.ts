@@ -59,11 +59,10 @@ export function createVersionLinesController(port: VersionLinesPort) {
     const entry = entryFor(query);
     if (entry.inFlight) return entry.inFlight.promise;
     const generation = entry.state.generation + 1;
-    if (!entry.state.snapshot) {
-      publish(entry, { ...entry.state, isLoading: true, error: null, generation });
-    } else {
-      publish(entry, { ...entry.state, generation });
-    }
+    // Cached content remains rendered, but consumers still need the busy bit:
+    // the contextual Update action uses it to confirm the click, prevent a
+    // duplicate request, and keep its progress animation truthful.
+    publish(entry, { ...entry.state, isLoading: true, error: null, generation });
     const promise = port
       .read(query)
       .then((snapshot) => {

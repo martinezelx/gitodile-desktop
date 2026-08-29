@@ -191,8 +191,8 @@ export function StatusBar({
 
       <div className="status-bar__group status-bar__group--system">
         {project && (
-          <span className="status-bar__cluster">
-            <span className="status-bar__item status-bar__sync" aria-live="polite">
+          <span className="status-bar__cluster" aria-live="polite">
+            <span className="status-bar__item status-bar__sync">
               {teamSync.isCheckingRemote || isReadingTeamStatus
                 ? <LoaderCircle className="icon--spinning" aria-hidden="true" />
                 : <Cloud aria-hidden="true" />}

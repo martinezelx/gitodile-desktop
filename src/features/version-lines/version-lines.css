@@ -47,6 +47,19 @@
 .version-lines-banner p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
 .version-lines-banner .primary-button { display: inline-flex; align-items: center; gap: 8px; }
 .version-lines-banner .primary-button svg { width: 16px; height: 16px; }
+.version-lines-refresh-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) 10%, var(--surface-panel));
+  color: var(--status-danger);
+  font-size: 13px;
+}
+.version-lines-refresh-error > span { min-width: 0; }
+.version-lines-refresh-error .secondary-button { flex: 0 0 auto; }
 .version-lines-stats {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   margin: 8px 0 0; color: var(--text-secondary); font-size: 13px;

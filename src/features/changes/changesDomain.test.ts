@@ -12,7 +12,6 @@ import {
 import {
   countDiffLines,
   filterEntriesBySearch,
-  getCheckFreshness,
   getOrderedChangeEntries,
   resolveSelectedPath,
   sumCachedDiffLines,
@@ -335,30 +334,6 @@ describe("buildSplitRows with expanded gaps", () => {
       left: { kind: "context", content: "two", oldLineNumber: 2, newLineNumber: 2 },
       right: { kind: "context", content: "two", oldLineNumber: 2, newLineNumber: 2 },
     });
-  });
-});
-
-describe("getCheckFreshness", () => {
-  const now = 1_700_000_000_000;
-
-  it("calls anything under a minute 'just now'", () => {
-    expect(getCheckFreshness(now, now)).toEqual({ unit: "now" });
-    expect(getCheckFreshness(now - 59_000, now)).toEqual({ unit: "now" });
-  });
-
-  it("counts whole minutes, then whole hours", () => {
-    expect(getCheckFreshness(now - 60_000, now)).toEqual({ unit: "minutes", value: 1 });
-    expect(getCheckFreshness(now - 59 * 60_000, now)).toEqual({ unit: "minutes", value: 59 });
-    expect(getCheckFreshness(now - 60 * 60_000, now)).toEqual({ unit: "hours", value: 1 });
-    expect(getCheckFreshness(now - 23 * 60 * 60_000, now)).toEqual({ unit: "hours", value: 23 });
-  });
-
-  it("stops counting past a day", () => {
-    expect(getCheckFreshness(now - 24 * 60 * 60_000, now)).toEqual({ unit: "long-ago" });
-  });
-
-  it("treats a clock that jumped backwards as 'just now' rather than a negative age", () => {
-    expect(getCheckFreshness(now + 5_000, now)).toEqual({ unit: "now" });
   });
 });
 

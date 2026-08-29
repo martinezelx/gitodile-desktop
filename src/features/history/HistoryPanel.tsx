@@ -9,7 +9,7 @@ import {
 
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
-import { autoHideScrollbarProps, handlePopupMenuKeyDown, LoadingBar, RefreshIconButton, useAnchoredPopup } from "../../shared/ui";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, handlePopupMenuKeyDown, LoadingBar, useAnchoredPopup } from "../../shared/ui";
 import { ChangesContextMenu, DiffResultView, DiffViewSelector, type ChangesContextMenuState, type DiffViewMode, type FileDiff } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -57,8 +57,14 @@ function PublicationIcon({ publication }: { publication: PublicationState }): Re
   return <CloudOff aria-hidden="true" />;
 }
 
-function HistoryBanner({ tone, title, children }: { tone: "neutral" | "warning" | "danger"; title: string; children: React.ReactNode }): React.JSX.Element {
-  return <section className={`history-banner history-banner--${tone}`}><CircleAlert aria-hidden="true" /><div><strong>{title}</strong><p>{children}</p></div></section>;
+function HistoryBanner({ tone, title, action, children }: { tone: "neutral" | "warning" | "danger"; title: string; action?: React.ReactNode; children: React.ReactNode }): React.JSX.Element {
+  return <section className={`history-banner history-banner--${tone}`}><CircleAlert aria-hidden="true" /><div className="history-banner__body"><strong>{title}</strong><p>{children}</p></div>{action}</section>;
+}
+
+function HistoryWatchingNotice({ watcherState, busy, onRefresh, onOpenSettings }: { watcherState: "starting" | "watching" | "off" | "unavailable"; busy: boolean; onRefresh: () => void; onOpenSettings: () => void }): React.JSX.Element | null {
+  const { t } = useLanguage();
+  if (watcherState !== "off" && watcherState !== "unavailable") return null;
+  return <AutomaticUpdatesNotice title={watcherState === "off" ? t.automaticUpdatesOffTitle : t.automaticUpdatesUnavailableTitle} description={t.automaticUpdatesOutdatedDescription} updateLabel={t.automaticUpdatesUpdateNow} updateAriaLabel={t.historyRefresh} updatingLabel={t.automaticUpdatesUpdating} updatingAriaLabel={t.historyRefreshing} busy={busy} settingsLabel={t.automaticUpdatesOpenSettings} onUpdate={onRefresh} onOpenSettings={onOpenSettings} />;
 }
 
 const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, selectionDirection, hoverDirection, focusable, language, currentBranch, onSelect, onMove, onHover, onOpenDetail }: {
@@ -236,9 +242,9 @@ function authorInitials(version: SavedVersionSummary, fallback: string): string 
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toLocaleUpperCase();
 }
 
-function HistoryDetailHeader({ detail, language, activeTab, isRefreshing, onTab, onRefresh }: {
-  detail: SavedVersionDetail; language: string; activeTab: HistoryTab; isRefreshing: boolean;
-  onTab: (tab: HistoryTab) => void; onRefresh: () => void;
+function HistoryDetailHeader({ detail, language, activeTab, onTab }: {
+  detail: SavedVersionDetail; language: string; activeTab: HistoryTab;
+  onTab: (tab: HistoryTab) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const version = detail.version;
@@ -250,7 +256,7 @@ function HistoryDetailHeader({ detail, language, activeTab, isRefreshing, onTab,
   ];
   return <header className="history-detail__summary"><div className="history-detail__summary-top"><div className="history-detail__identity"><h2 id="history-detail-title">{title}</h2><div className="history-detail__compact-info"><p className="history-detail__meta"><span className="history-author-avatar" aria-hidden="true">{authorInitials(version, t.historyAuthorUnknown)}</span><strong>{version.author?.name || t.historyAuthorUnknown}</strong>{date && <span title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}<code>{version.shortCommit}</code><span className={`history-publication history-publication--${version.publication}`}><PublicationIcon publication={version.publication} />{publicationCopy(version.publication, t)}</span></p>
     <div className="history-detail__badges">{version.isRoot && <span className="history-kind-chip">{t.historyRoot}</span>}{version.isMerge && <span className="history-kind-chip">{t.historyMerge}</span>}{version.decorations.slice(0, 3).map((decoration) => <span key={decoration.fullRef} className="history-ref-chip" title={decoration.fullRef}>{decoration.kind === "tag" && <Tag aria-hidden="true" />}{decoration.name}</span>)}</div></div>
-    </div><RefreshIconButton className="history-refresh-button" label={t.historyRefresh} busyLabel={t.historyRefreshing} busy={isRefreshing} onClick={onRefresh} /></div>
+    </div></div>
     <div className="history-tabs" role="tablist" aria-label={t.historyTitle}>{tabs.map((tab) => <button key={tab.id} id={`history-tab-${tab.id}`} className={activeTab === tab.id ? "history-tab history-tab--active" : "history-tab"} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`history-panel-${tab.id}`} onClick={() => onTab(tab.id)}>{tab.icon}<span>{tab.label}</span>{tab.count !== undefined && <span className="history-tab__count">{tab.count}</span>}</button>)}</div></header>;
 }
 
@@ -335,8 +341,8 @@ function HistoryFilterMenu({ label, value, options, onChange }: {
   </div>;
 }
 
-function HistoryDetail({ state, language, onSelectFile, onRetryDetail, onRetryDiff, onRefresh, onBack }: {
-  state: HistoryState; language: string; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onRefresh: () => void; onBack: () => void;
+function HistoryDetail({ state, language, onSelectFile, onRetryDetail, onRetryDiff, onBack }: {
+  state: HistoryState; language: string; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<HistoryTab>("diff");
@@ -400,7 +406,7 @@ function HistoryDetail({ state, language, onSelectFile, onRetryDetail, onRetryDi
 
   return <section className="history-detail" aria-labelledby="history-detail-title">
     <button className="history-detail__back secondary-button" type="button" onClick={onBack}><ArrowLeft aria-hidden="true" />{t.historyBackToTimeline}</button>
-    <HistoryDetailHeader detail={detail} language={language} activeTab={activeTab} isRefreshing={state.isLoading} onTab={setActiveTab} onRefresh={onRefresh} />
+    <HistoryDetailHeader detail={detail} language={language} activeTab={activeTab} onTab={setActiveTab} />
     {activeTab === "overview" && <HistoryOverview detail={detail} state={state} language={language} comparison={comparison} onSelectFile={openFileFromOverview} />}
     {activeTab === "diff" && <div id="history-panel-diff" className="history-workspace history-workspace--diff" role="tabpanel" aria-labelledby="history-tab-diff">
       <header className="history-workspace__toolbar"><div className="history-change-summary"><strong>{fileCount}</strong>{totals && <><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></>}</div><div className="history-diff-controls"><label className="history-search-box history-search-box--diff"><Search aria-hidden="true" /><input type="search" value={diffSearch} onChange={(event) => setDiffSearch(event.target.value)} placeholder={t.historySearchDiffPlaceholder} aria-label={t.historySearchDiffAriaLabel} /></label><DiffViewSelector value={viewMode} onChange={setViewMode} t={t} /></div></header>
@@ -414,7 +420,7 @@ function HistoryDetail({ state, language, onSelectFile, onRetryDetail, onRetryDi
   </section>;
 }
 
-export function HistoryPanel({ controller, query, state, error }: { controller: HistoryController; query: HistoryQuery; state: HistoryState; error: string | null }): React.JSX.Element {
+export function HistoryPanel({ controller, query, state, watcherState, onOpenSettings, error }: { controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; onOpenSettings: () => void; error: string | null }): React.JSX.Element {
   const { t, language } = useLanguage();
   const [showNarrowDetail, setShowNarrowDetail] = useState(false);
   const [search, setSearch] = useState("");
@@ -442,12 +448,13 @@ export function HistoryPanel({ controller, query, state, error }: { controller: 
 
   if (!state.snapshot && state.isLoading) return <div className="history-screen"><div className="empty-state" aria-busy="true"><LoadingBar label={t.historyLoading} /><h1>{t.historyTitle}</h1><p>{t.historyLoading}</p></div></div>;
   if (!state.snapshot && error) return <div className="history-screen"><div className="empty-state empty-state--error" role="alert"><CircleAlert /><h1>{t.historyErrorTitle}</h1><p>{error}</p><button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button></div></div>;
-  if (state.snapshot && state.versions.length === 0) return <div className="history-screen"><div className="empty-state"><GitCommitHorizontal aria-hidden="true" /><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p><RefreshIconButton className="history-refresh-button" label={t.historyRefresh} busyLabel={t.historyRefreshing} busy={false} onClick={refreshHistory} /></div></div>;
+  if (state.snapshot && state.versions.length === 0) return <div className="history-screen"><div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div><div className="empty-state"><GitCommitHorizontal aria-hidden="true" /><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div></div>;
 
   return <div className={`history-screen${showNarrowDetail ? " history-screen--narrow-detail" : ""}`}>
     <div className="history-notices">
+      <HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} />
       {state.staleNotice && <HistoryBanner tone="neutral" title={t.historyStaleNotice}>{t.historyLoadedCount(state.versions.length)}</HistoryBanner>}
-      {state.snapshot && error && <HistoryBanner tone="danger" title={t.historyErrorTitle}>{error}</HistoryBanner>}
+      {state.snapshot && error && <HistoryBanner tone="danger" title={t.historyErrorTitle} action={<button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button>}>{error}</HistoryBanner>}
       {state.selectionRemoved && <p className="history-announcement" role="status">{t.historySelectionRemoved}</p>}
       {state.snapshot?.shallow && <HistoryBanner tone="warning" title={t.historyShallowTitle}>{t.historyShallowDescription}</HistoryBanner>}
       {state.snapshot?.headState === "detached" && <HistoryBanner tone="warning" title={t.historyDetachedTitle}>{t.historyDetachedDescription}</HistoryBanner>}
@@ -458,7 +465,7 @@ export function HistoryPanel({ controller, query, state, error }: { controller: 
     </div>
     <div className="history-layout">
       <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} loadedCount={state.versions.length} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} language={language} currentBranch={state.snapshot?.branch ?? null} search={search} publicationFilter={publicationFilter} sort={sort} onSearch={setSearch} onPublicationFilter={setPublicationFilter} onSort={setSort} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
-      <HistoryDetail state={state} language={language} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onRefresh={refreshHistory} onBack={closeNarrowDetail} />
+      <HistoryDetail state={state} language={language} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} />
     </div>
   </div>;
 }

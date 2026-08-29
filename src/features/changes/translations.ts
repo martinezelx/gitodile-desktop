@@ -57,14 +57,10 @@ export interface ChangesTranslations {
   changesHunkPosition: (position: number, total: number) => string;
   changesPreviousHunk: string;
   changesNextHunk: string;
-  changesRefresh: string;
-  changesWatchingOff: string;
+  changesCheckLocal: string;
+  changesRefreshFailedTitle: string;
   changesDiscardingNow: string;
   changesSaveSelected: (count: number) => string;
-  changesCheckedJustNow: string;
-  changesCheckedMinutesAgo: (minutes: number) => string;
-  changesCheckedHoursAgo: (hours: number) => string;
-  changesCheckedLongAgo: string;
   changesSaveVersion: string;
   changesSaveVersionDisabledHint: string;
   changesSaveVersionNoSelectionHint: string;
@@ -171,15 +167,10 @@ const en: ChangesTranslations = {
   changesHunkPosition: (position, total) => `Change ${position} of ${total}`,
   changesPreviousHunk: "Previous change",
   changesNextHunk: "Next change",
-  changesRefresh: "Refresh",
-  changesWatchingOff: "This screen isn’t updating itself. Use Refresh to check for changes.",
+  changesCheckLocal: "Check local changes",
+  changesRefreshFailedTitle: "Changes couldn’t be refreshed",
   changesDiscardingNow: "Discarding…",
   changesSaveSelected: (count) => `Save selected (${count})`,
-  changesCheckedJustNow: "Checked just now",
-  changesCheckedMinutesAgo: (minutes) =>
-    minutes === 1 ? "Checked 1 minute ago" : `Checked ${minutes} minutes ago`,
-  changesCheckedHoursAgo: (hours) => (hours === 1 ? "Checked 1 hour ago" : `Checked ${hours} hours ago`),
-  changesCheckedLongAgo: "Checked a while ago",
   changesSaveVersion: "Save version",
   changesSaveVersionDisabledHint: "Make some changes first, then come back to save a version.",
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
@@ -289,15 +280,10 @@ const es: ChangesTranslations = {
   changesHunkPosition: (position, total) => `Cambio ${position} de ${total}`,
   changesPreviousHunk: "Cambio anterior",
   changesNextHunk: "Cambio siguiente",
-  changesRefresh: "Actualizar",
-  changesWatchingOff: "Esta pantalla no se actualiza sola. Usa Actualizar para comprobar los cambios.",
+  changesCheckLocal: "Comprobar cambios locales",
+  changesRefreshFailedTitle: "No se pudieron actualizar los cambios",
   changesDiscardingNow: "Descartando…",
   changesSaveSelected: (count) => `Guardar selección (${count})`,
-  changesCheckedJustNow: "Comprobado ahora mismo",
-  changesCheckedMinutesAgo: (minutes) =>
-    minutes === 1 ? "Comprobado hace 1 minuto" : `Comprobado hace ${minutes} minutos`,
-  changesCheckedHoursAgo: (hours) => (hours === 1 ? "Comprobado hace 1 hora" : `Comprobado hace ${hours} horas`),
-  changesCheckedLongAgo: "Comprobado hace un rato",
   changesSaveVersion: "Guardar versión",
   changesSaveVersionDisabledHint: "Haz algún cambio primero y vuelve para guardar una versión.",
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",

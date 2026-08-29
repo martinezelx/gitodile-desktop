@@ -10,6 +10,8 @@ export type VersionLinesScreenProps = {
   controller: VersionLinesController;
   projectPath: string;
   sessionEpoch: string;
+  watcherState: "starting" | "watching" | "off" | "unavailable";
+  onOpenSettings: () => void;
   onChanged: () => void;
   onSaveVersion: () => void;
   onOpenChanges?: () => void;
@@ -24,6 +26,8 @@ export function VersionLinesScreen({
   controller,
   projectPath,
   sessionEpoch,
+  watcherState,
+  onOpenSettings,
   ...callbacks
 }: VersionLinesScreenProps): React.JSX.Element {
   const { t } = useLanguage();
@@ -36,6 +40,8 @@ export function VersionLinesScreen({
       snapshot={state.snapshot}
       error={state.error ? localizeAppError(state.error, t, t.versionLinesErrorLoading) : null}
       isLoading={state.isLoading}
+      watcherState={watcherState}
+      onOpenSettings={onOpenSettings}
       onRefresh={() => void controller.refresh(query)}
       onSnapshot={(snapshot) => controller.commit(query, snapshot)}
       {...callbacks}

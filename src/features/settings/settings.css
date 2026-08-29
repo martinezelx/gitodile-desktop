@@ -227,6 +227,10 @@
 .settings-row__hint--success { color: var(--status-success); }
 .settings-row__hint--danger { color: var(--status-danger); }
 .settings-row__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.remote-check-cadence { flex-shrink: 0; }
+.settings-view .remote-check-cadence .segmented-control__option {
+  min-width: 54px; justify-content: center; padding-inline: 11px; white-space: nowrap;
+}
 .git-install { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .git-install__version { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin: 0; }
 .git-install__version-label { color: var(--text-secondary); font-size: 12px; }
@@ -331,6 +335,8 @@
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .settings-row { align-items: flex-start; flex-direction: column; }
   .settings-row__actions { width: 100%; }
+  .remote-check-cadence { width: 100%; }
+  .settings-view .remote-check-cadence .segmented-control__option { flex: 1 1 auto; }
 }
 
 @media (pointer: coarse) {

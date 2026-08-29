@@ -87,6 +87,14 @@ export interface SettingsTranslations {
   settingsWatchingTitle: string;
   watchingLabel: string;
   watchingDescription: string;
+  remoteCheckLabel: string;
+  remoteCheckDescription: string;
+  remoteCheckIntervalLabel: string;
+  remoteCheckNever: string;
+  remoteCheckMinutesShort: (minutes: number) => string;
+  remoteCheckHourShort: string;
+  remoteCheckEveryMinutes: (minutes: number) => string;
+  remoteCheckEveryHour: string;
   settingsSafetyTitle: string;
   safetyConfirmLabel: string;
   safetyConfirmDescription: string;
@@ -207,9 +215,17 @@ const en: SettingsTranslations = {
   settingsStartupTitle: "Startup",
   startupReopenLabel: "Reopen projects from the previous session",
   startupReopenDescription: "Restore projects that were open when you quit.",
-  settingsWatchingTitle: "Live updates",
-  watchingLabel: "Watch open projects for changes",
-  watchingDescription: "Update screens as files change. Disable for very large projects or network drives.",
+  settingsWatchingTitle: "Automatic updates",
+  watchingLabel: "Keep project screens up to date",
+  watchingDescription: "Updates open projects when files or saved versions change. Turn it off only if a large or network project becomes slow.",
+  remoteCheckLabel: "Check remote project changes",
+  remoteCheckDescription: "Uses the network for the active project. You can still check manually.",
+  remoteCheckIntervalLabel: "Automatic remote check frequency",
+  remoteCheckNever: "Never",
+  remoteCheckMinutesShort: (minutes) => `${minutes} min`,
+  remoteCheckHourShort: "1 hr",
+  remoteCheckEveryMinutes: (minutes) => `Every ${minutes} minutes`,
+  remoteCheckEveryHour: "Every hour",
   settingsSafetyTitle: "Safety",
   safetyConfirmLabel: "Confirm before closing a project",
   safetyConfirmDescription: "Ask before closing an open project.",
@@ -340,9 +356,17 @@ const es: SettingsTranslations = {
   settingsStartupTitle: "Inicio",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
   startupReopenDescription: "Recupera los proyectos abiertos al cerrar la aplicación.",
-  settingsWatchingTitle: "Actualización en vivo",
-  watchingLabel: "Vigilar los proyectos abiertos",
-  watchingDescription: "Actualiza las pantallas al cambiar archivos. Desactívalo en proyectos enormes o unidades de red.",
+  settingsWatchingTitle: "Actualizaciones automáticas",
+  watchingLabel: "Mantener actualizadas las pantallas del proyecto",
+  watchingDescription: "Actualiza los proyectos abiertos cuando cambian archivos o versiones guardadas. Desactívalo solo si un proyecto grande o de red va lento.",
+  remoteCheckLabel: "Comprobar cambios del proyecto remoto",
+  remoteCheckDescription: "Usa la red para el proyecto activo. También puedes comprobarlo manualmente.",
+  remoteCheckIntervalLabel: "Frecuencia de comprobación remota automática",
+  remoteCheckNever: "Nunca",
+  remoteCheckMinutesShort: (minutes) => `${minutes} min`,
+  remoteCheckHourShort: "1 h",
+  remoteCheckEveryMinutes: (minutes) => `Cada ${minutes} minutos`,
+  remoteCheckEveryHour: "Cada hora",
   settingsSafetyTitle: "Seguridad",
   safetyConfirmLabel: "Confirmar antes de cerrar un proyecto",
   safetyConfirmDescription: "Pregunta antes de cerrar un proyecto abierto.",

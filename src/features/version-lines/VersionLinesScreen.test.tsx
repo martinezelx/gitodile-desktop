@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
@@ -34,6 +35,45 @@ function snapshot(name: string): VersionLinesSnapshot {
 afterEach(cleanup);
 
 describe("VersionLinesScreen lifecycle", () => {
+  it("runs a real refresh and reports progress from the watcher notice", async () => {
+    let resolveRead!: (value: VersionLinesSnapshot) => void;
+    const read = vi.fn(() => new Promise<VersionLinesSnapshot>((resolve) => { resolveRead = resolve; }));
+    const port = {
+      read,
+      planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(),
+    } satisfies VersionLinesPort;
+    const controller = createVersionLinesController(port);
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    controller.commit(query, snapshot("main"));
+    const lifecycle = createScreenLifecycleController("active");
+    render(
+      <LanguageProvider>
+        <ScreenLifecycleProvider controller={lifecycle}>
+          <VersionLinesScreen
+            controller={controller}
+            projectPath="/repo"
+            sessionEpoch="epoch-1"
+            watcherState="off"
+            onOpenSettings={vi.fn()}
+            onChanged={vi.fn()}
+            onSaveVersion={vi.fn()}
+            onOperationStart={() => true}
+            onOperationFinish={vi.fn()}
+            onOperationPhaseChange={vi.fn()}
+          />
+        </ScreenLifecycleProvider>
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Update version lines" }));
+    expect(read).toHaveBeenCalledWith(query);
+    expect(screen.getByRole("button", { name: "Loading version lines…" })).toBeDisabled();
+
+    resolveRead(snapshot("feature/new"));
+    expect(await screen.findAllByText("feature/new")).not.toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Update version lines" })).toBeEnabled();
+  });
+
   it("does not read on arrival, freezes while hidden, and synchronizes on activation", () => {
     const read = vi.fn(async () => snapshot("unexpected"));
     const port = {
@@ -51,6 +91,8 @@ describe("VersionLinesScreen lifecycle", () => {
             controller={controller}
             projectPath="/repo"
             sessionEpoch="epoch-1"
+            watcherState="watching"
+            onOpenSettings={vi.fn()}
             onChanged={vi.fn()}
             onSaveVersion={vi.fn()}
             onOperationStart={() => true}

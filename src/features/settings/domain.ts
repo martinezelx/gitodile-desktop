@@ -8,6 +8,16 @@
  * follows the OS and only resolves at render time. */
 export type ThemePreference = "system" | "light" | "dark";
 
+/** Network polling is opt-in and deliberately coarse. Shorter intervals would
+ * create background credential/network churn without making a Git workflow
+ * meaningfully safer. Zero means manual checks only. */
+export const REMOTE_CHECK_INTERVALS = [0, 15, 30, 60] as const;
+export type RemoteCheckIntervalMinutes = (typeof REMOTE_CHECK_INTERVALS)[number];
+
+export function isRemoteCheckIntervalMinutes(value: unknown): value is RemoteCheckIntervalMinutes {
+  return typeof value === "number" && REMOTE_CHECK_INTERVALS.some((interval) => interval === value);
+}
+
 /** The project rail keeps its width in both modes. "Icons only" compacts the
  * destinations vertically by removing their labels, while preserving the
  * same pointer target and the accessible name. */

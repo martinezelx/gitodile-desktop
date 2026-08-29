@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  EyeOff,
   LoaderCircle,
   Ellipsis,
   RotateCcw,
@@ -20,9 +19,9 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
-import { autoHideScrollbarProps } from "../../shared/ui";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps } from "../../shared/ui";
 import { SaveVersionDialog } from "../save-version";
-import { LoadingBar, RefreshIconButton } from "../../shared/ui";
+import { LoadingBar } from "../../shared/ui";
 import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
 import { CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
@@ -191,94 +190,16 @@ export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<strin
   return totals;
 }
 
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-
-/** How to word "when was this last checked". Coarse buckets on purpose: the
- * point is confidence that the screen is current, not a stopwatch, and a
- * label that ticks every second is noise beside a list the user is reading.
- * Anything past a day stops counting — at that age the number is no longer
- * the useful part of the answer. */
-export type CheckFreshness =
-  { unit: "now" } | { unit: "minutes"; value: number } | { unit: "hours"; value: number } | { unit: "long-ago" };
-
-export function getCheckFreshness(checkedAt: number, now: number): CheckFreshness {
-  const elapsed = Math.max(0, now - checkedAt);
-  if (elapsed < MINUTE_MS) {
-    return { unit: "now" };
-  }
-  if (elapsed < HOUR_MS) {
-    return { unit: "minutes", value: Math.floor(elapsed / MINUTE_MS) };
-  }
-  if (elapsed < 24 * HOUR_MS) {
-    return { unit: "hours", value: Math.floor(elapsed / HOUR_MS) };
-  }
-  return { unit: "long-ago" };
-}
-
-export function formatCheckFreshness(freshness: CheckFreshness, t: Translations): string {
-  switch (freshness.unit) {
-    case "now":
-      return t.changesCheckedJustNow;
-    case "minutes":
-      return t.changesCheckedMinutesAgo(freshness.value);
-    case "hours":
-      return t.changesCheckedHoursAgo(freshness.value);
-    case "long-ago":
-      return t.changesCheckedLongAgo;
-  }
-}
-
-/** The "Checked just now" line beside the refresh button. Re-renders on its
- * own timer rather than on the screen's, so the wording ages while the user
- * reads — a minute-granularity label only needs a minute-granularity tick. */
-function CheckFreshnessNote({
-  checkedAt,
-  isChecking,
-  t,
-}: {
-  checkedAt: number | null;
-  isChecking: boolean;
-  t: Translations;
-}): React.JSX.Element | null {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), MINUTE_MS);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  if (isChecking) {
-    return (
-      <span className="changes-freshness" role="status">
-        <LoaderCircle aria-hidden="true" className="icon--spinning" />
-        {t.statusRefreshing}
-      </span>
-    );
-  }
-  if (checkedAt === null) {
-    return null;
-  }
-  return (
-    <span className="changes-freshness">
-      {formatCheckFreshness(getCheckFreshness(checkedAt, now), t)}
-      <CheckCircle2 aria-hidden="true" className="changes-freshness__icon" />
-    </span>
-  );
-}
-
 function ChangesHeaderActions({
   controller,
   projectPath,
   sessionEpoch,
   workingTree,
-  checkedAt,
   isChecking,
   selectedPath,
   canChooseFiles,
   canSaveSelection,
   includedCount,
-  onRefresh,
   onSave,
   onChooseDiscard,
   t,
@@ -287,13 +208,11 @@ function ChangesHeaderActions({
   projectPath: string;
   sessionEpoch: string;
   workingTree: WorkingTreeStatus | null;
-  checkedAt: number | null;
   isChecking: boolean;
   selectedPath: string | null;
   canChooseFiles: boolean;
   canSaveSelection: boolean;
   includedCount: number;
-  onRefresh: () => void;
   onSave: () => void;
   onChooseDiscard: (request: DiscardDialogRequest) => void;
   t: Translations;
@@ -303,15 +222,7 @@ function ChangesHeaderActions({
 
   return (
     <div className="changes-header-actions">
-      <CheckFreshnessNote checkedAt={checkedAt} isChecking={isChecking} t={t} />
       <div className="changes-header-actions__buttons" role="group" aria-label={t.changesHeading}>
-        <RefreshIconButton
-          className="changes-header-actions__refresh"
-          label={t.changesRefresh}
-          busyLabel={t.statusCheckingMessage}
-          busy={isChecking}
-          onClick={onRefresh}
-        />
         <button
           className="primary-button changes-header-actions__save"
           type="button"
@@ -342,6 +253,25 @@ function ChangesHeaderActions({
       </div>
     </div>
   );
+}
+
+function ChangesStatusNotice({ watcherState, error, busy, onRefresh, onOpenSettings, t }: {
+  watcherState: "starting" | "watching" | "off" | "unavailable";
+  error: string | null;
+  busy: boolean;
+  onRefresh: () => void;
+  onOpenSettings: () => void;
+  t: Translations;
+}): React.JSX.Element | null {
+  if (error) {
+    return <section className="changes-status-notice changes-status-notice--danger" role="alert">
+      <CircleAlert aria-hidden="true" />
+      <div className="changes-status-notice__body"><strong>{t.changesRefreshFailedTitle}</strong><p>{error}</p></div>
+      <button className="secondary-button" type="button" onClick={onRefresh}>{t.changesCheckLocal}</button>
+    </section>;
+  }
+  if (watcherState !== "off" && watcherState !== "unavailable") return null;
+  return <AutomaticUpdatesNotice title={watcherState === "off" ? t.automaticUpdatesOffTitle : t.automaticUpdatesUnavailableTitle} description={t.automaticUpdatesOutdatedDescription} updateLabel={t.automaticUpdatesUpdateNow} updateAriaLabel={t.changesCheckLocal} updatingLabel={t.automaticUpdatesUpdating} updatingAriaLabel={t.statusCheckingMessage} busy={busy} settingsLabel={t.automaticUpdatesOpenSettings} onUpdate={onRefresh} onOpenSettings={onOpenSettings} />;
 }
 
 
@@ -801,12 +731,12 @@ export function ChangesPanel({
   workingTree,
   workingTreeError,
   isCheckingChanges,
-  workingTreeCheckedAt,
   controller,
   sessionEpoch,
-  isWatching,
+  watcherState,
   confirmBeforeDiscarding,
   onRefresh,
+  onOpenSettings,
   onSaveCompleted,
   onNavigateOverview,
   onPublishNow,
@@ -824,23 +754,21 @@ export function ChangesPanel({
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
-  /** When the last successful check landed, for the freshness note beside
-   * the refresh button. `null` before the first one returns. */
-  workingTreeCheckedAt: number | null;
   /** Owned by the caller, not this component, so already-read diffs survive
    * navigating away from Changes and back within the same project (see task
    * 019). Invalidation is unchanged: `getDiffStore` replaces the store
    * whenever the project or the working-tree snapshot changes. */
   controller: ChangesController;
   sessionEpoch: string;
-  /** Whether a filesystem watcher is registered for this project. When it is
-   * not, this screen says so: a list that stopped updating but still looks
-   * live is worse than one that admits it and points at Refresh. */
-  isWatching: boolean;
+  /** Actual watcher registration state for this project session. A stored
+   * preference is not enough: manual recovery is hidden only after Rust has
+   * confirmed the current epoch is being watched. */
+  watcherState: "starting" | "watching" | "off" | "unavailable";
   /** Whether discarding opens the confirmation dialog. Off means the discard
    * runs immediately and reports its result — with an Undo — in the header. */
   confirmBeforeDiscarding: boolean;
   onRefresh: () => void;
+  onOpenSettings: () => void;
   onSaveCompleted: () => void;
   onNavigateOverview: () => void;
   onPublishNow: () => void;
@@ -1041,12 +969,6 @@ export function ChangesPanel({
   let headerMessage: React.ReactNode = null;
   if (isLoadingList) {
     headerMessage = <p>{t.statusCheckingMessage}</p>;
-  } else if (!workingTree && workingTreeError) {
-    headerMessage = (
-      <p role="alert" className="changes-header__error">
-        {workingTreeError}
-      </p>
-    );
   } else if (workingTree) {
     const { conflicted, total } = workingTree.counts;
     headerMessage = (
@@ -1081,34 +1003,22 @@ export function ChangesPanel({
 
   return (
     <div className="changes-view" aria-busy={isCheckingChanges}>
+      <ChangesStatusNotice watcherState={watcherState} error={workingTreeError} busy={isCheckingChanges} onRefresh={onRefresh} onOpenSettings={onOpenSettings} t={t} />
       <header className="changes-view__header">
         <div>
           <h1>{t.changesHeading}</h1>
           {headerMessage}
-          {workingTree && workingTreeError && !isCheckingChanges && (
-            <p className="changes-header__note" role="alert">
-              {t.statusRefreshFailedNote}
-            </p>
-          )}
-          {!isWatching && (
-            <p className="changes-header__watch-off" role="status">
-              <EyeOff aria-hidden="true" />
-              <span>{t.changesWatchingOff}</span>
-            </p>
-          )}
         </div>
         <ChangesHeaderActions
           controller={controller}
           projectPath={projectPath}
           sessionEpoch={sessionEpoch}
           workingTree={workingTree}
-          checkedAt={workingTreeCheckedAt}
           isChecking={isCheckingChanges}
           selectedPath={selectedPath}
           canChooseFiles={canChooseFiles}
           canSaveSelection={canSaveSelection}
           includedCount={includedCount}
-          onRefresh={onRefresh}
           onSave={onOpenSaveVersion}
           onChooseDiscard={requestDiscard}
           t={t}

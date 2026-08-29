@@ -193,7 +193,7 @@ describe("HistorySummarySection", () => {
     expect(screen.getByText("Saved version 2")).toBeInTheDocument();
   });
 
-  it("leaves a failed history read to the screen-level refresh", async () => {
+  it("offers a contextual retry when the first history read fails", async () => {
     const readPage = vi
       .fn<HistoryPort["readPage"]>()
       .mockRejectedValueOnce(new Error("offline"))
@@ -203,7 +203,8 @@ describe("HistorySummarySection", () => {
     renderSection(controller);
 
     expect(screen.getByRole("alert")).toHaveTextContent("Recent history is unavailable");
-    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
-    expect(readPage).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(readPage).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("No saved versions yet")).toBeInTheDocument();
   });
 });

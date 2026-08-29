@@ -36,8 +36,7 @@ export interface OverviewTranslations {
   overviewOpenFailedTitle: string;
   overviewReviewChanges: string;
   overviewSaveVersion: string;
-  overviewRefresh: string;
-  overviewRefreshing: string;
+  overviewCheckLocalAgain: string;
   overviewVersionsAhead: (count: number) => string;
   overviewChangesPreviewLabel: string;
   overviewChangesPreviewMore: (remaining: number) => string;
@@ -122,8 +121,7 @@ const en: OverviewTranslations = {
   overviewOpenFailedTitle: "We couldn’t open that project",
   overviewReviewChanges: "Review changes",
   overviewSaveVersion: "Save version",
-  overviewRefresh: "Refresh",
-  overviewRefreshing: "Refreshing overview…",
+  overviewCheckLocalAgain: "Check local changes again",
   overviewVersionsAhead: (count) => (count === 1 ? "1 ready to publish" : `${count} ready to publish`),
   overviewChangesPreviewLabel: "Changed files",
   overviewChangesPreviewMore: (remaining) =>
@@ -214,8 +212,7 @@ const es: OverviewTranslations = {
   overviewOpenFailedTitle: "No hemos podido abrir ese proyecto",
   overviewReviewChanges: "Revisar cambios",
   overviewSaveVersion: "Guardar versión",
-  overviewRefresh: "Actualizar",
-  overviewRefreshing: "Actualizando el resumen…",
+  overviewCheckLocalAgain: "Comprobar de nuevo los cambios locales",
   overviewVersionsAhead: (count) => (count === 1 ? "1 lista para publicar" : `${count} listas para publicar`),
   overviewChangesPreviewLabel: "Archivos modificados",
   overviewChangesPreviewMore: (remaining) =>

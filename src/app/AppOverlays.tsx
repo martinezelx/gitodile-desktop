@@ -10,6 +10,7 @@ import {
   type GitToolingState,
   type LineEndingsState,
   type NavigationPreferences,
+  type RemoteCheckIntervalMinutes,
   type SettingsSection,
   type ThemePreference,
 } from "../features/settings";
@@ -36,6 +37,8 @@ export type AppOverlaysProps = {
     setConfirmCloseProject: BooleanSetter;
     watchProjects: boolean;
     setWatchProjects: BooleanSetter;
+    remoteCheckInterval: RemoteCheckIntervalMinutes;
+    setRemoteCheckInterval: Dispatch<SetStateAction<RemoteCheckIntervalMinutes>>;
     confirmDiscard: boolean;
     setConfirmDiscard: BooleanSetter;
     navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
@@ -185,6 +188,8 @@ export function AppOverlays({
               setConfirmCloseProject={settings.setConfirmCloseProject}
               watchProjects={settings.watchProjects}
               setWatchProjects={settings.setWatchProjects}
+              remoteCheckInterval={settings.remoteCheckInterval}
+              setRemoteCheckInterval={settings.setRemoteCheckInterval}
               confirmDiscard={settings.confirmDiscard}
               setConfirmDiscard={settings.setConfirmDiscard}
               navigationItems={settings.navigationItems}

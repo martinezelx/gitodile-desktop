@@ -33,7 +33,7 @@ describe("HistoryScreen lifecycle", () => {
     render(
       <LanguageProvider>
         <ScreenLifecycleProvider controller={lifecycle}>
-          <HistoryScreen controller={controller} projectPath="/repo" sessionEpoch="epoch-1" />
+          <HistoryScreen controller={controller} projectPath="/repo" sessionEpoch="epoch-1" watcherState="watching" onOpenSettings={() => {}} />
         </ScreenLifecycleProvider>
       </LanguageProvider>,
     );

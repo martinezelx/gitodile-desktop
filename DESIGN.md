@@ -182,8 +182,30 @@ The main desktop window should broadly support:
      actions stay in Lines. Detached and not-yet-saved states remain static
      facts;
    - the cloud refresh belongs only to the adjacent project-sync fact. It checks
-     remote information without refreshing files, history, or line inventory,
-     so each screen keeps the refresh and retry action owned by its own data;
+     remote information without refreshing files, history, or line inventory.
+     Local repository facts normally follow watcher invalidation, so screens do
+     not repeat permanent checkers just to appear fresh. A screen exposes a
+     manual action only where its ownership is useful: Changes when watching is
+     off, unavailable, or a read failed; History inside the equivalent watcher
+     notice or beside a failed snapshot; Lines
+     beside a retained stale snapshot; and Overview beside the specific failed
+     local, remote, or history fact. Overview never coordinates an omnibus
+     refresh across unrelated local and network reads;
+   - watcher notices precede the screen title, use the same visible “Update
+     now” action in Changes, History, and Lines, and link directly to General settings
+     to restore automatic updates. Their accessible names may retain the exact
+     data scope while their visible recovery wording stays consistent. Both
+     actions use the same quiet control treatment; a manual update keeps the
+     notice mounted, changes its label to “Updating…”, and spins its refresh
+     icon until the owning read settles;
+   - automatic-update copy stays literal and compact: Settings explains that
+     file and saved-version changes update open projects, while the warning
+     says only that updates are off/unavailable and the current screen may be
+     out of date. The adjacent actions carry the recovery instructions;
+   - remote checks remain independent from screen visibility. General settings
+     offers manual-only, 15-minute, 30-minute, and hourly cadences; one timer
+     follows the active project session, skips states without a usable upstream,
+     and shares the same deduplicated check path as the status-bar action;
    - interactive chrome raised the text to 13px, inline icons to 14px, and the
      remote-check target to 28px. Coarse pointers receive the standard 44px
      target and a correspondingly taller strip;

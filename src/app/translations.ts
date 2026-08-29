@@ -49,8 +49,18 @@ export interface AppTranslations {
   commandGoVersionLines: string;
   commandGoHistory: string;
   commandNewVersionLine: string;
+  commandCheckLocalChanges: string;
+  commandCheckRemoteChanges: string;
+  commandRefreshHistory: string;
+  commandRefreshVersionLines: string;
   commandGoSettings: string;
   commandGoSettingsSection: (section: string) => string;
+  automaticUpdatesUpdateNow: string;
+  automaticUpdatesUpdating: string;
+  automaticUpdatesOpenSettings: string;
+  automaticUpdatesOffTitle: string;
+  automaticUpdatesUnavailableTitle: string;
+  automaticUpdatesOutdatedDescription: string;
   commandUseSystemTheme: string;
   commandUseLightTheme: string;
   commandUseDarkTheme: string;
@@ -190,8 +200,18 @@ const en: AppTranslations = {
   commandGoVersionLines: "Go to Lines",
   commandGoHistory: "Go to History",
   commandNewVersionLine: "New version line",
+  commandCheckLocalChanges: "Check local changes",
+  commandCheckRemoteChanges: "Check remote project changes",
+  commandRefreshHistory: "Update history",
+  commandRefreshVersionLines: "Update version lines",
   commandGoSettings: "Go to Settings",
   commandGoSettingsSection: (section) => `Settings: ${section}`,
+  automaticUpdatesUpdateNow: "Update now",
+  automaticUpdatesUpdating: "Updating…",
+  automaticUpdatesOpenSettings: "Turn on automatic updates",
+  automaticUpdatesOffTitle: "Automatic updates are off",
+  automaticUpdatesUnavailableTitle: "Automatic updates aren’t available",
+  automaticUpdatesOutdatedDescription: "This screen may be out of date.",
   commandUseSystemTheme: "Use system theme",
   commandUseLightTheme: "Use light theme",
   commandUseDarkTheme: "Use dark theme",
@@ -255,7 +275,7 @@ const en: AppTranslations = {
   statusBarCheckFailed: "Check failed",
   statusBarJustNow: "just now",
   statusBarLastChecked: (relative) => `Checked ${relative}`,
-  statusBarCheckNow: "Check for project changes",
+  statusBarCheckNow: "Check remote project changes",
   statusBarVersion: (version) => `v${version}`,
   statusBarOpenReleaseDetails: (version, channel) => `About GitOdrile v${version} ${channel}`,
   titlebarHideSidebar: "Hide sidebar",
@@ -338,8 +358,18 @@ const es: AppTranslations = {
   commandGoVersionLines: "Ir a Líneas",
   commandGoHistory: "Ir al Historial",
   commandNewVersionLine: "Nueva línea de versión",
+  commandCheckLocalChanges: "Comprobar cambios locales",
+  commandCheckRemoteChanges: "Comprobar cambios del proyecto remoto",
+  commandRefreshHistory: "Actualizar historial",
+  commandRefreshVersionLines: "Actualizar líneas de versión",
   commandGoSettings: "Ir a Ajustes",
   commandGoSettingsSection: (section) => `Ajustes: ${section}`,
+  automaticUpdatesUpdateNow: "Actualizar ahora",
+  automaticUpdatesUpdating: "Actualizando…",
+  automaticUpdatesOpenSettings: "Activar actualizaciones automáticas",
+  automaticUpdatesOffTitle: "Las actualizaciones automáticas están desactivadas",
+  automaticUpdatesUnavailableTitle: "Las actualizaciones automáticas no están disponibles",
+  automaticUpdatesOutdatedDescription: "Esta pantalla puede estar desactualizada.",
   commandUseSystemTheme: "Usar el tema del sistema",
   commandUseLightTheme: "Usar el tema claro",
   commandUseDarkTheme: "Usar el tema oscuro",
@@ -403,7 +433,7 @@ const es: AppTranslations = {
   statusBarCheckFailed: "La comprobación falló",
   statusBarJustNow: "ahora mismo",
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
-  statusBarCheckNow: "Comprobar cambios del proyecto",
+  statusBarCheckNow: "Comprobar cambios del proyecto remoto",
   statusBarVersion: (version) => `v${version}`,
   statusBarOpenReleaseDetails: (version, channel) => `Acerca de GitOdrile v${version} ${channel}`,
   titlebarHideSidebar: "Ocultar la barra lateral",

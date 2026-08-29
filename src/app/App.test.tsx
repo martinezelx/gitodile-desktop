@@ -376,12 +376,18 @@ describe("App project restoration", () => {
     expect(await within(statusBar).findByText("Up to date")).toBeInTheDocument();
     expect(within(statusBar).getByText("Local snapshot")).toBeInTheDocument();
 
-    await userEvent.click(within(statusBar).getByRole("button", { name: "Check for project changes" }));
+    await userEvent.click(within(statusBar).getByRole("button", { name: "Check remote project changes" }));
     expect(await within(statusBar).findByText("1 project version available")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("check_team_changes", {
       path: restoredProject.path,
       sessionEpoch: restoredProject.sessionEpoch,
     });
+
+    await userEvent.keyboard("{Control>}k{/Control}");
+    const palette = screen.getByRole("dialog", { name: "Command palette" });
+    expect(within(palette).getByText("Check local changes")).toBeInTheDocument();
+    expect(within(palette).getByText("Check remote project changes")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
 
     await userEvent.click(within(statusBar).getByRole("button", { name: "About GitOdrile v0.1.0 alpha" }));
     expect(screen.getByRole("dialog", { name: "Git without the bite." })).toBeInTheDocument();
@@ -622,7 +628,7 @@ describe("App project restoration", () => {
     const readsBeforeToggle = statusReads;
 
     await userEvent.click(screen.getAllByRole("button", { name: "Settings" })[0]);
-    await userEvent.click(screen.getByRole("switch", { name: "Watch open projects for changes" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Keep project screens up to date" }));
 
     // Re-registering only catches what changes next, so turning it back on
     // has to close the gap itself — without the project being reopened.
@@ -829,7 +835,7 @@ describe("App project restoration", () => {
     );
   });
 
-  it("commits a completed team update before one coordinated refresh without a watcher fetch", async () => {
+  it("keeps the global remote check narrow and refreshes local facts after a completed team update", async () => {
     localStorage.setItem("gitodrile-reopen-last-project", "true");
     localStorage.setItem(
       "gitodrile-projects",
@@ -889,28 +895,24 @@ describe("App project restoration", () => {
       </LanguageProvider>,
     );
     await screen.findByRole("heading", { name: restoredProject.name });
-    const overviewRefresh = await screen.findByRole("button", { name: "Refresh" });
-    expect(screen.getAllByRole("button", { name: "Refresh" })).toHaveLength(1);
-    const localReadsBeforeRefresh = mockedInvoke.mock.calls.filter(
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+    const localReadsBeforeRemoteCheck = mockedInvoke.mock.calls.filter(
       ([command]) => command === "read_working_tree_status",
     ).length;
-    const repositoryOpensBeforeRefresh = mockedInvoke.mock.calls.filter(
+    const repositoryOpensBeforeRemoteCheck = mockedInvoke.mock.calls.filter(
       ([command]) => command === "open_repository",
     ).length;
-    await userEvent.click(overviewRefresh);
-    await screen.findByText("1 newer project version is available");
-    await waitFor(() =>
-      expect(
-        mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status").length,
-      ).toBeGreaterThan(localReadsBeforeRefresh),
+    const statusBar = screen.getByRole("contentinfo", { name: "Project status" });
+    await userEvent.click(
+      within(statusBar).getByRole("button", { name: "Check remote project changes" }),
     );
-    await waitFor(() => expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled());
+    await screen.findByText("1 newer project version is available");
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status"),
-    ).toHaveLength(localReadsBeforeRefresh + 1);
+    ).toHaveLength(localReadsBeforeRemoteCheck);
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "open_repository"),
-    ).toHaveLength(repositoryOpensBeforeRefresh + 1);
+    ).toHaveLength(repositoryOpensBeforeRemoteCheck);
     await userEvent.click(await screen.findByRole("button", { name: "Review and get" }));
     // The confirmation opens behind an async plan call, which under a loaded
     // parallel run needs more than the one-second default (task 072).

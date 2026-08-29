@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { RefreshIconButton } from "../../shared/ui";
 import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
 import {
   CATEGORY_ORDER,
@@ -263,11 +262,9 @@ function ProjectSummaryCard({
   favouriteVersionLines,
   onToggleFavouriteVersionLine,
   pendingVersionsCount,
-  isRefreshing,
   onQuickSwitchVersionLine,
   onQuickCreateVersionLine,
   onGoToVersionLines,
-  onRefresh,
   onCopyPathError,
 }: {
   project: RepositoryInfo;
@@ -278,11 +275,9 @@ function ProjectSummaryCard({
   favouriteVersionLines: ReadonlySet<string>;
   onToggleFavouriteVersionLine: (name: string) => void;
   pendingVersionsCount: number;
-  isRefreshing: boolean;
   onQuickSwitchVersionLine: (target: string) => void;
   onQuickCreateVersionLine: (forceSwitch: boolean) => void;
   onGoToVersionLines: () => void;
-  onRefresh: () => void;
   onCopyPathError: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -328,13 +323,6 @@ function ProjectSummaryCard({
             </span>
           )}
         </div>
-        <RefreshIconButton
-          className="project-summary-card__refresh"
-          label={t.overviewRefresh}
-          busyLabel={t.overviewRefreshing}
-          busy={isRefreshing}
-          onClick={onRefresh}
-        />
       </div>
     </section>
   );
@@ -346,8 +334,7 @@ export function OverviewPanel({
   workingTree,
   workingTreeError,
   isCheckingChanges,
-  refreshActivity,
-  onRefresh,
+  onCheckLocalChanges,
   onReviewChanges,
   onOpenProject,
   onCreateProject,
@@ -367,6 +354,7 @@ export function OverviewPanel({
   onCopyPathError,
   onOpenSaveVersion,
   teamSync,
+  onCheckTeamChanges,
   onReviewAndGetTeamChanges,
   historyController,
   onOpenHistory,
@@ -381,11 +369,9 @@ export function OverviewPanel({
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
-  refreshActivity: { changes: boolean; team: boolean; history: boolean };
-  /** Refreshes every Overview snapshot, including the explicit remote check.
-   * The screen owns one refresh affordance; individual cards only keep actions
-   * that operate on their content. */
-  onRefresh: () => void;
+  /** Explicit local recovery. Healthy Overview data stays watcher-driven; this
+   * action appears only beside a failed local snapshot. */
+  onCheckLocalChanges: () => void;
   /** Opens the Changes screen. With a path, that file is selected first, so
    * the Overview preview is a shortcut *to a file*, not just to the screen. */
   onReviewChanges: (path?: string) => void;
@@ -415,6 +401,7 @@ export function OverviewPanel({
    * reusing its one existing implementation rather than a second copy of it. */
   onOpenSaveVersion: () => void;
   teamSync: TeamSyncViewState;
+  onCheckTeamChanges: () => void;
   onReviewAndGetTeamChanges: () => void;
   /** The same project-scoped cache used by the full History screen. Overview
    * subscribes only while visible and never starts a second repository read. */
@@ -434,10 +421,9 @@ export function OverviewPanel({
     // later refresh is running.
     const summary = workingTree ? getWorkingTreeSummary(workingTree) : null;
     const breakdown = workingTree ? getWorkingTreeBreakdown(workingTree) : [];
-    const isRefreshingChanges = isCheckingChanges || refreshActivity.changes;
+    const isRefreshingChanges = isCheckingChanges;
     const isLoading = isRefreshingChanges && !workingTree;
-    const isRefreshing = isRefreshingChanges || teamSync.isCheckingRemote ||
-      refreshActivity.team || refreshActivity.history;
+    const isRefreshing = isRefreshingChanges || teamSync.isCheckingRemote;
     const errorMessage = workingTree ? null : workingTreeError;
 
     let heroStatus: "loading" | "error" | "success" | "attention" | "neutral";
@@ -483,11 +469,9 @@ export function OverviewPanel({
           favouriteVersionLines={favouriteVersionLines}
           onToggleFavouriteVersionLine={onToggleFavouriteVersionLine}
           pendingVersionsCount={pendingVersions.totalCount}
-          isRefreshing={isRefreshing}
           onQuickSwitchVersionLine={onQuickSwitchVersionLine}
           onQuickCreateVersionLine={onQuickCreateVersionLine}
           onGoToVersionLines={onGoToVersionLines}
-          onRefresh={onRefresh}
           onCopyPathError={onCopyPathError}
         />
 
@@ -539,6 +523,15 @@ export function OverviewPanel({
           </div>
           <div className="project-hero__actions">
             <div className="project-hero__buttons">
+              {workingTreeError && !isCheckingChanges && (
+                <button
+                  className="secondary-button project-hero__action"
+                  type="button"
+                  onClick={onCheckLocalChanges}
+                >
+                  {t.overviewCheckLocalAgain}
+                </button>
+              )}
               <button
                 className="secondary-button project-hero__action"
                 type="button"
@@ -581,6 +574,7 @@ export function OverviewPanel({
                 sessionEpoch={project.sessionEpoch}
                 result={pendingVersions}
                 error={pendingVersionsError}
+                onRetry={onCheckLocalChanges}
                 onPublishUpTo={onPublishUpTo}
                 canPublish={canPublish}
                 onPublish={onPublish}
@@ -593,8 +587,8 @@ export function OverviewPanel({
         <div className="overview-support-grid">
           <TeamChangesSection
             state={teamSync}
-            isRefreshing={refreshActivity.team}
             canPublish={canPublish}
+            onCheck={onCheckTeamChanges}
             onPublish={onPublish}
             onReviewAndGet={onReviewAndGetTeamChanges}
           />
@@ -610,7 +604,6 @@ export function OverviewPanel({
               controller={historyController}
               projectPath={project.path}
               sessionEpoch={project.sessionEpoch}
-              isRefreshing={refreshActivity.history}
               onOpenHistory={onOpenHistory}
             />
           </Suspense>

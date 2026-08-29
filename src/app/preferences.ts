@@ -6,12 +6,18 @@ import {
   isDiffTabWidth,
   type DiffPreferences,
 } from "../features/changes";
-import type { NavigationPreferences, ThemePreference } from "../features/settings";
+import {
+  isRemoteCheckIntervalMinutes,
+  type NavigationPreferences,
+  type RemoteCheckIntervalMinutes,
+  type ThemePreference,
+} from "../features/settings";
 
 const THEME_STORAGE_KEY = "gitodrile-theme";
 export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 export const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
 export const WATCH_PROJECTS_STORAGE_KEY = "gitodrile-watch-projects";
+export const REMOTE_CHECK_INTERVAL_STORAGE_KEY = "gitodrile-remote-check-interval";
 export const CONFIRM_DISCARD_STORAGE_KEY = "gitodrile-confirm-discard";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
@@ -27,6 +33,7 @@ export const CONFIRM_CLOSE_PROJECT_DEFAULT = true;
  * before a destructive change is the safe answer. Turning either off is a
  * deliberate choice, never something the app arrives at on its own. */
 export const WATCH_PROJECTS_DEFAULT = true;
+export const REMOTE_CHECK_INTERVAL_DEFAULT: RemoteCheckIntervalMinutes = 0;
 export const CONFIRM_DISCARD_DEFAULT = true;
 
 export function readStoredBoolean(key: string, defaultValue: boolean): boolean {
@@ -112,6 +119,20 @@ export function useStoredBoolean(
 ): [boolean, Dispatch<SetStateAction<boolean>>] {
   const [value, setValue] = useState(() => readStoredBoolean(key, defaultValue));
   useEffect(() => localStorage.setItem(key, String(value)), [key, value]);
+  return [value, setValue];
+}
+
+export function useStoredRemoteCheckInterval(): [
+  RemoteCheckIntervalMinutes,
+  Dispatch<SetStateAction<RemoteCheckIntervalMinutes>>,
+] {
+  const [value, setValue] = useState<RemoteCheckIntervalMinutes>(() => {
+    const stored = Number(localStorage.getItem(REMOTE_CHECK_INTERVAL_STORAGE_KEY));
+    return isRemoteCheckIntervalMinutes(stored) ? stored : REMOTE_CHECK_INTERVAL_DEFAULT;
+  });
+  useEffect(() => {
+    localStorage.setItem(REMOTE_CHECK_INTERVAL_STORAGE_KEY, String(value));
+  }, [value]);
   return [value, setValue];
 }
 

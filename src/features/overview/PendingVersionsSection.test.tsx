@@ -31,6 +31,7 @@ const versions: SavedVersionSummary[] = [
 const result: PendingVersionsResult = { totalCount: 2, versions, isTruncated: false };
 
 function renderSection(overrides: Partial<React.ComponentProps<typeof PendingVersionsSection>> = {}) {
+  const onRetry = vi.fn();
   const onPublishUpTo = vi.fn();
   const onPublish = vi.fn();
   const utils = render(
@@ -40,6 +41,7 @@ function renderSection(overrides: Partial<React.ComponentProps<typeof PendingVer
         sessionEpoch="test-epoch"
         result={result}
         error={null}
+        onRetry={onRetry}
         onPublishUpTo={onPublishUpTo}
         canPublish
         onPublish={onPublish}
@@ -47,7 +49,7 @@ function renderSection(overrides: Partial<React.ComponentProps<typeof PendingVer
       />
     </LanguageProvider>,
   );
-  return { onPublishUpTo, onPublish, ...utils };
+  return { onRetry, onPublishUpTo, onPublish, ...utils };
 }
 
 afterEach(() => {
@@ -224,11 +226,12 @@ describe("PendingVersionsSection", () => {
     expect(screen.getByText("Showing the 2 newest of 83.")).toBeInTheDocument();
   });
 
-  it("shows a recoverable loading error without a second refresh action", () => {
-    renderSection({ error: "Couldn't refresh pending versions." });
+  it("keeps cached versions visible and offers a contextual local retry", async () => {
+    const { onRetry } = renderSection({ error: "Couldn't refresh pending versions." });
 
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't refresh pending versions.");
     expect(screen.getByText("fix the thing")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Check local changes again" }));
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 });

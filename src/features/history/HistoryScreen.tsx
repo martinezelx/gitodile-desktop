@@ -9,10 +9,14 @@ export function HistoryScreen({
   controller,
   projectPath,
   sessionEpoch,
+  watcherState,
+  onOpenSettings,
 }: {
   controller: HistoryController;
   projectPath: string;
   sessionEpoch: string;
+  watcherState: "starting" | "watching" | "off" | "unavailable";
+  onOpenSettings: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
@@ -22,6 +26,8 @@ export function HistoryScreen({
       controller={controller}
       query={query}
       state={state}
+      watcherState={watcherState}
+      onOpenSettings={onOpenSettings}
       error={state.error ? localizeAppError(state.error, t, t.historyErrorLoading) : null}
     />
   );

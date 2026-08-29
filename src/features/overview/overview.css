@@ -49,8 +49,7 @@
 }
 .project-summary-card .version-line-selector { flex: 1 1 auto; }
 .project-summary-card .version-line-selector,
-.project-summary-card .version-lines-quick-switch__create,
-.project-summary-card__refresh {
+.project-summary-card .version-lines-quick-switch__create {
   height: 38px;
   min-height: 38px;
   border-color: var(--border-control);
@@ -60,21 +59,18 @@
   padding-block: 0;
 }
 .project-summary-card .version-line-selector__icon { color: var(--accent-primary); }
-.project-summary-card .version-lines-quick-switch__create,
-.project-summary-card__refresh {
+.project-summary-card .version-lines-quick-switch__create {
   width: 38px;
   min-width: 38px;
   padding: 0;
   border-radius: var(--radius-round);
   color: var(--text-secondary);
 }
-.project-summary-card .version-lines-quick-switch__create:hover:not(:disabled),
-.project-summary-card__refresh:hover:not(:disabled) {
+.project-summary-card .version-lines-quick-switch__create:hover:not(:disabled) {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
-.project-summary-card .version-lines-quick-switch__create:active:not(:disabled),
-.project-summary-card__refresh:active:not(:disabled) { background: var(--surface-active); }
+.project-summary-card .version-lines-quick-switch__create:active:not(:disabled) { background: var(--surface-active); }
 .project-summary-card .version-line-selector:hover { background: var(--surface-hover); }
 .project-summary-card .version-line-selector[aria-expanded="true"] {
   border-color: var(--accent-primary);
@@ -260,6 +256,8 @@
   color: var(--status-danger);
   font-size: 13px;
 }
+.pending-versions__error > span { min-width: 0; flex: 1; align-self: center; }
+.pending-versions__error .secondary-button { flex: 0 0 auto; }
 .pending-versions__list {
   position: relative;
   display: flex;
@@ -674,7 +672,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .overview-history__state strong { display: block; margin-bottom: 3px; color: var(--text-primary); }
 .overview-history__state p { margin: 0; line-height: 1.45; }
 .overview-history__state--error > svg { color: var(--status-danger); }
-.overview-history__state--error .secondary-button { margin-left: auto; }
+.overview-history__state--error .secondary-button { margin-top: var(--space-2); }
 .overview-history__stale {
   display: flex;
   align-items: center;
@@ -811,13 +809,11 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   }
   .project-summary-card .version-line-selector,
   .project-summary-card .version-lines-quick-switch__create,
-  .project-summary-card__refresh,
   .project-hero__action {
     min-height: 44px;
     height: 44px;
   }
-  .project-summary-card .version-lines-quick-switch__create,
-  .project-summary-card__refresh {
+  .project-summary-card .version-lines-quick-switch__create {
     width: 44px;
     min-width: 44px;
   }

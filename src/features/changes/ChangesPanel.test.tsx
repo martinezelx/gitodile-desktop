@@ -39,19 +39,19 @@ function ControlledChangesPanel(
     | "onCloseSaveVersion"
     | "onSaveVersionPhaseChange"
     | "onSaveCompleted"
-    | "workingTreeCheckedAt"
-    | "isWatching"
+    | "watcherState"
     | "confirmBeforeDiscarding"
     | "onBeginDiscard"
     | "onDiscardClose"
     | "onDiscardPhaseChange"
+    | "onOpenSettings"
   > & {
     controller?: ChangesController;
-    workingTreeCheckedAt?: number | null;
     /** Both default to the app's defaults, so only the tests that are about
      * these preferences have to mention them. */
-    isWatching?: boolean;
+    watcherState?: "starting" | "watching" | "off" | "unavailable";
     confirmBeforeDiscarding?: boolean;
+    onOpenSettings?: () => void;
   },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -62,8 +62,7 @@ function ControlledChangesPanel(
       {...props}
       controller={props.controller ?? ownController.current}
       sessionEpoch="test-epoch"
-      workingTreeCheckedAt={props.workingTreeCheckedAt ?? null}
-      isWatching={props.isWatching ?? true}
+      watcherState={props.watcherState ?? "watching"}
       confirmBeforeDiscarding={props.confirmBeforeDiscarding ?? true}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
@@ -75,6 +74,7 @@ function ControlledChangesPanel(
       onBeginDiscard={() => true}
       onDiscardClose={() => {}}
       onDiscardPhaseChange={() => {}}
+      onOpenSettings={props.onOpenSettings ?? (() => {})}
     />
   );
 }
@@ -473,7 +473,7 @@ describe("ChangesPanel review controls", () => {
     });
   });
 
-  function renderPanel(checkedAt: number | null = null, controller = createChangesController(changesPort)): void {
+  function renderPanel(controller = createChangesController(changesPort)): void {
     render(
       <LanguageProvider>
         <ControlledChangesPanel
@@ -481,7 +481,6 @@ describe("ChangesPanel review controls", () => {
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
-          workingTreeCheckedAt={checkedAt}
           controller={controller}
           onRefresh={vi.fn()}
           onNavigateOverview={vi.fn()}
@@ -553,30 +552,19 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
   });
 
-  it("says how fresh the check is, and names the count the save button will save", async () => {
-    renderPanel(Date.now() - 3 * 60_000);
+  it("keeps the healthy action cluster focused on saving and change actions", () => {
+    renderPanel();
 
-    const freshness = await screen.findByText("Checked 3 minutes ago");
-    expect(freshness).not.toHaveAttribute("role");
-    const refresh = screen.getByRole("button", { name: "Refresh" });
-    expect(refresh).toBeEnabled();
-    expect(refresh).not.toHaveTextContent("Refresh");
     const actions = screen.getByRole("group", { name: "Changes" });
-    expect(within(actions).getByRole("button", { name: "Refresh" })).toBe(refresh);
+    expect(within(actions).queryByRole("button", { name: "Check local changes" })).not.toBeInTheDocument();
     expect(within(actions).getByRole("button", { name: "Save selected (2)" })).toBeEnabled();
     expect(within(actions).getByRole("button", { name: "More change actions" })).toBeEnabled();
-  });
-
-  it("shows no freshness note before the first check returns", () => {
-    renderPanel(null);
-
-    expect(screen.queryByText(/^Checked/)).not.toBeInTheDocument();
   });
 
   it("shows the snapshot's added and removed line totals once the diff cache is warm", async () => {
     const controller = createChangesController(changesPort);
     await controller.warmStore(controller.getStore("/repo", "test-epoch", workingTree));
-    renderPanel(null, controller);
+    renderPanel(controller);
 
     expect(await screen.findByText("3 lines added")).toBeInTheDocument();
     expect(screen.getByText("1 line removed")).toBeInTheDocument();
@@ -828,17 +816,33 @@ describe("ChangesPanel review controls", () => {
       ? Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" })
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     const onRefresh = vi.fn();
-    render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} isWatching={false} onRefresh={onRefresh} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
-    );
+    const onOpenSettings = vi.fn();
+    const panel = (isCheckingChanges: boolean) => <LanguageProvider>
+      <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={isCheckingChanges} watcherState="off" onRefresh={onRefresh} onOpenSettings={onOpenSettings} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+    </LanguageProvider>;
+    const view = render(panel(false));
 
-    expect(
-      await screen.findByText("This screen isn’t updating itself. Use Refresh to check for changes."),
-    ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    const description = await screen.findByText("This screen may be out of date.");
+    expect(description).toBeInTheDocument();
+    const notice = description.closest(".automatic-updates-notice");
+    const title = screen.getByRole("heading", { name: "Changes" });
+    expect(notice).not.toBeNull();
+    expect((notice as HTMLElement).compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const update = screen.getByRole("button", { name: "Check local changes" });
+    const settings = screen.getByRole("button", { name: "Turn on automatic updates" });
+    expect(update).toHaveClass("ghost-button");
+    expect(settings).toHaveClass("ghost-button");
+    await userEvent.click(update);
     expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Check local changes" })).toHaveTextContent("Update now");
+    view.rerender(panel(true));
+    expect(screen.getByText("Automatic updates are off")).toBeInTheDocument();
+    const busyUpdate = screen.getByRole("button", { name: "GitOdrile is looking at your project files." });
+    expect(busyUpdate).toHaveTextContent("Updating…");
+    expect(busyUpdate.querySelector(".icon--spinning")).not.toBeNull();
+    view.rerender(panel(false));
+    await userEvent.click(screen.getByRole("button", { name: "Turn on automatic updates" }));
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the notice away while the project is being watched", async () => {
@@ -853,8 +857,38 @@ describe("ChangesPanel review controls", () => {
 
     await screen.findByRole("button", { name: /edited\.txt/ });
     expect(
-      screen.queryByText("This screen isn’t updating itself. Use Refresh to check for changes."),
+      screen.queryByText("This screen may be out of date."),
     ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Check local changes" })).not.toBeInTheDocument();
+  });
+
+  it("keeps transitional watcher startup quiet", async () => {
+    mockedInvoke.mockImplementation((command) => command === "read_file_diff"
+      ? Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" })
+      : Promise.reject(new Error(`Unexpected command: ${command}`)));
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="starting" onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    expect(screen.queryByRole("button", { name: "Check local changes" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Automatic updates are off")).not.toBeInTheDocument();
+  });
+
+  it("keeps manual recovery visible when native watching is unavailable", async () => {
+    mockedInvoke.mockImplementation((command) => command === "read_file_diff"
+      ? Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" })
+      : Promise.reject(new Error(`Unexpected command: ${command}`)));
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="unavailable" onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    expect(await screen.findByText("Automatic updates aren’t available")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check local changes" })).toBeEnabled();
   });
 
   it("discards without asking when the confirmation is off, and still offers the undo", async () => {

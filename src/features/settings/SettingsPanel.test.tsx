@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -43,6 +43,8 @@ type PanelOverrides = Partial<{
   setConfirmCloseProject: (value: boolean) => void;
   watchProjects: boolean;
   setWatchProjects: (value: boolean) => void;
+  remoteCheckInterval: 0 | 15 | 30 | 60;
+  setRemoteCheckInterval: (value: 0 | 15 | 30 | 60) => void;
   confirmDiscard: boolean;
   setConfirmDiscard: (value: boolean) => void;
   navigationPreferences: NavigationPreferences;
@@ -84,6 +86,8 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       setConfirmCloseProject={overrides.setConfirmCloseProject ?? vi.fn()}
       watchProjects={overrides.watchProjects ?? true}
       setWatchProjects={overrides.setWatchProjects ?? vi.fn()}
+      remoteCheckInterval={overrides.remoteCheckInterval ?? 0}
+      setRemoteCheckInterval={overrides.setRemoteCheckInterval ?? vi.fn()}
       confirmDiscard={overrides.confirmDiscard ?? true}
       setConfirmDiscard={overrides.setConfirmDiscard ?? vi.fn()}
       navigationItems={[
@@ -169,6 +173,8 @@ describe("Settings panel native boundary", () => {
               setConfirmCloseProject={vi.fn()}
               watchProjects
               setWatchProjects={vi.fn()}
+              remoteCheckInterval={0}
+              setRemoteCheckInterval={vi.fn()}
               confirmDiscard
               setConfirmDiscard={vi.fn()}
               navigationItems={[]}
@@ -608,7 +614,7 @@ describe("Settings panel section rail", () => {
     const setConfirmDiscard = vi.fn();
     renderPanel(createPort(), { setWatchProjects, setConfirmDiscard });
 
-    const watching = screen.getByRole("switch", { name: "Watch open projects for changes" });
+    const watching = screen.getByRole("switch", { name: "Keep project screens up to date" });
     const confirming = screen.getByRole("switch", { name: "Confirm before discarding changes" });
     expect(watching).toBeChecked();
     expect(confirming).toBeChecked();
@@ -618,6 +624,16 @@ describe("Settings panel section rail", () => {
 
     expect(setWatchProjects).toHaveBeenCalledWith(false);
     expect(setConfirmDiscard).toHaveBeenCalledWith(false);
+  });
+
+  it("offers an opt-in automatic remote-check frequency", async () => {
+    const setRemoteCheckInterval = vi.fn();
+    renderPanel(createPort(), { setRemoteCheckInterval });
+
+    const frequency = screen.getByRole("radiogroup", { name: "Automatic remote check frequency" });
+    expect(within(frequency).getByRole("radio", { name: "Never" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(within(frequency).getByRole("radio", { name: "Every 15 minutes" }));
+    expect(setRemoteCheckInterval).toHaveBeenCalledWith(15);
   });
 
   it("edits the diff reading preferences without touching the others", async () => {

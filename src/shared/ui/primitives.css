@@ -81,6 +81,28 @@ nav { display: grid; gap: 6px; }
 .ghost-button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
 .ghost-button:disabled { opacity: 0.5; }
 .ghost-button svg { width: 14px; height: 14px; flex-shrink: 0; }
+.automatic-updates-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: var(--radius-surface);
+  outline: 1px solid var(--status-warning);
+  outline-offset: -1px;
+  background: var(--surface-raised);
+}
+.automatic-updates-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; color: var(--status-warning); }
+.automatic-updates-notice__body { flex: 1; min-width: 0; }
+.automatic-updates-notice strong { display: block; margin-bottom: 2px; font-size: 12px; }
+.automatic-updates-notice p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.automatic-updates-notice__actions { flex: 0 0 auto; align-self: center; display: flex; align-items: center; gap: var(--space-2); }
+@media (max-width: 760px) {
+  .automatic-updates-notice { flex-wrap: wrap; }
+  .automatic-updates-notice__actions { width: 100%; padding-inline-start: 26px; flex-wrap: wrap; }
+}
+@media (forced-colors: active) {
+  .automatic-updates-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
+}
 @keyframes tooltip-in-above {
   from { opacity: 0; transform: translate(-50%, calc(-100% - 2px)); }
   to { opacity: 1; transform: translate(-50%, -100%); }

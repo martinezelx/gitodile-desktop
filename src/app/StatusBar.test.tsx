@@ -126,7 +126,7 @@ describe("StatusBar", () => {
     expect(release).toHaveTextContent("v0.1.0alpha");
     await userEvent.click(release);
     expect(onOpenReleaseDetails).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("button", { name: "Check for project changes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();
     expect(screen.queryByText("Up to date")).not.toBeInTheDocument();
   });
 
@@ -146,7 +146,7 @@ describe("StatusBar", () => {
     await userEvent.click(screen.getByRole("button", { name: "feature/other" }));
     expect(onSwitchVersionLine).toHaveBeenCalledWith("feature/other");
 
-    await userEvent.click(screen.getByRole("button", { name: "Check for project changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Check remote project changes" }));
     expect(onCheckTeamChanges).toHaveBeenCalledOnce();
   });
 
@@ -227,7 +227,7 @@ describe("StatusBar", () => {
     renderBar({ project: { branch: null, headState: "detached" } });
     expect(screen.getByText("Specific saved version")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Change version line/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check for project changes" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Check remote project changes" })).toBeDisabled();
   });
 });
 

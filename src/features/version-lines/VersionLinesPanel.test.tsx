@@ -89,6 +89,8 @@ function renderPanel(props: Partial<React.ComponentProps<typeof VersionLinesPane
         snapshot={snapshot()}
         error={null}
         isLoading={false}
+        watcherState="watching"
+        onOpenSettings={vi.fn()}
         onRefresh={onRefresh}
         onSnapshot={onSnapshot}
         onChanged={onChanged}
@@ -109,6 +111,25 @@ afterEach(() => {
 });
 
 describe("VersionLinesPanel", () => {
+  it("keeps manual refresh and Settings available when automatic updates are off", async () => {
+    const onOpenSettings = vi.fn();
+    const { onRefresh } = renderPanel({ watcherState: "off", onOpenSettings, isLoading: false });
+
+    const notice = screen.getByText("This screen may be out of date.").closest(".automatic-updates-notice");
+    expect(notice).not.toBeNull();
+    await userEvent.click(within(notice as HTMLElement).getByRole("button", { name: "Update version lines" }));
+    expect(onRefresh).toHaveBeenCalledOnce();
+    await userEvent.click(within(notice as HTMLElement).getByRole("button", { name: "Turn on automatic updates" }));
+    expect(onOpenSettings).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the automatic-updates notice mounted while version lines refresh", () => {
+    renderPanel({ watcherState: "unavailable", isLoading: true });
+
+    expect(screen.getByText("Automatic updates aren’t available")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Loading version lines…" })).toBeDisabled();
+  });
+
   it("lists the active line and the other local lines from the session snapshot", async () => {
     renderPanel();
 
@@ -133,13 +154,15 @@ describe("VersionLinesPanel", () => {
     expect(screen.getByText("Loading version lines…")).toBeInTheDocument();
   });
 
-  it("keeps a stale list visible and flags it when a refresh fails", () => {
-    renderPanel({ error: "Git couldn't read the version lines." });
+  it("keeps a stale list visible and offers a contextual retry when a refresh fails", async () => {
+    const { onRefresh } = renderPanel({ error: "Git couldn't read the version lines." });
 
     expect(screen.getAllByText("feature/new-thing").length).toBeGreaterThan(0);
     expect(
       screen.getByText("This is the last result we could read. The latest check didn’t work."),
     ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRefresh).toHaveBeenCalledOnce();
   });
 
   it("filters the list by search text without hiding the active line", async () => {

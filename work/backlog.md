@@ -73,8 +73,8 @@ not implied by the `1.0.0` merge and restore workflows.
     save planning, watcher invalidation, and cancellation;
   - `reaching_refs_by_commit` memory/CPU with many branches and commits;
   - temporary-index cost when planning a new version line in a large worktree.
-- Research background refresh intervals only after watcher/large-repository
-  measurements justify them. Visibility alone must never trigger network work.
+- Measure automatic remote checks across slow/offline remotes and long-running
+  multi-project sessions. Visibility alone must never trigger network work.
 - Extend accessibility audits to additional assistive technologies and desktop
   environments after the release matrix is established.
 

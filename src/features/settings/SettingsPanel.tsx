@@ -34,6 +34,8 @@ import {
 } from "../changes";
 import {
   LINE_ENDING_CHOICES,
+  REMOTE_CHECK_INTERVALS,
+  isRemoteCheckIntervalMinutes,
   recommendedLineEndingChoice,
   SETTINGS_SECTIONS,
   settingsSectionLabel,
@@ -42,6 +44,7 @@ import {
   type LineEndingChoice,
   type NavigationDisplayMode,
   type NavigationPreferences,
+  type RemoteCheckIntervalMinutes,
   type SettingsSection,
   type ThemePreference,
 } from "./domain";
@@ -251,6 +254,8 @@ export function SettingsPanel({
   setConfirmCloseProject,
   watchProjects,
   setWatchProjects,
+  remoteCheckInterval,
+  setRemoteCheckInterval,
   confirmDiscard,
   setConfirmDiscard,
   navigationItems,
@@ -280,6 +285,8 @@ export function SettingsPanel({
   setConfirmCloseProject: (value: boolean) => void;
   watchProjects: boolean;
   setWatchProjects: (value: boolean) => void;
+  remoteCheckInterval: RemoteCheckIntervalMinutes;
+  setRemoteCheckInterval: (value: RemoteCheckIntervalMinutes) => void;
   confirmDiscard: boolean;
   setConfirmDiscard: (value: boolean) => void;
   navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
@@ -653,6 +660,47 @@ export function SettingsPanel({
                     <p>{t.watchingDescription}</p>
                   </div>
                   <ToggleSwitch label={t.watchingLabel} checked={watchProjects} onChange={setWatchProjects} />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.remoteCheckLabel}</strong>
+                    <p>{t.remoteCheckDescription}</p>
+                  </div>
+                  <div
+                    className="segmented-control remote-check-cadence"
+                    role="radiogroup"
+                    aria-label={t.remoteCheckIntervalLabel}
+                    onKeyDown={moveFocusWithinRadioGroup}
+                  >
+                    {REMOTE_CHECK_INTERVALS.map((minutes, index) => {
+                      const isActive = remoteCheckInterval === minutes;
+                      const fullLabel = minutes === 0
+                        ? t.remoteCheckNever
+                        : minutes === 60
+                          ? t.remoteCheckEveryHour
+                          : t.remoteCheckEveryMinutes(minutes);
+                      return (
+                        <button
+                          key={minutes}
+                          className={`segmented-control__option${isActive ? " segmented-control__option--active" : ""}`}
+                          type="button"
+                          role="radio"
+                          aria-checked={isActive}
+                          aria-label={fullLabel}
+                          tabIndex={isRadioTabStop(isActive, true, index) ? 0 : -1}
+                          onClick={() => {
+                            if (isRemoteCheckIntervalMinutes(minutes)) setRemoteCheckInterval(minutes);
+                          }}
+                        >
+                          {minutes === 0
+                            ? t.remoteCheckNever
+                            : minutes === 60
+                              ? t.remoteCheckHourShort
+                              : t.remoteCheckMinutesShort(minutes)}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </section>

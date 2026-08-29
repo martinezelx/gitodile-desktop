@@ -17,6 +17,9 @@
   border-radius: var(--radius-surface);
   background: var(--surface-raised);
 }
+.history-banner__body { flex: 1; min-width: 0; }
+.history-banner > .secondary-button { flex: 0 0 auto; align-self: center; display: inline-flex; align-items: center; gap: 7px; }
+.history-banner > .secondary-button svg { width: 14px; height: 14px; }
 .history-banner > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
 .history-banner strong { display: block; margin-bottom: 2px; font-size: 12px; }
 .history-banner p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }

@@ -55,12 +55,14 @@ export function TeamChangesSection({
   state,
   isRefreshing = false,
   canPublish,
+  onCheck,
   onPublish,
   onReviewAndGet,
 }: {
   state: TeamSyncViewState;
   isRefreshing?: boolean;
   canPublish: boolean;
+  onCheck: () => void;
   onPublish: () => void;
   onReviewAndGet: () => void;
 }): React.JSX.Element {
@@ -120,6 +122,7 @@ export function TeamChangesSection({
   const showRelationship = Boolean(status?.localBranch && teamDestination);
 
   const isChecking = state.isCheckingRemote || isRefreshing;
+  const showCheck = !isChecking && (status === null || state.isStale || state.error !== null);
 
   return (
     <section className={`team-changes team-changes--${tone}`} aria-labelledby="team-changes-title" aria-busy={isChecking}>
@@ -171,6 +174,12 @@ export function TeamChangesSection({
         )}
       </div>
       <div className="team-changes__actions">
+        {showCheck && (
+          <button className="secondary-button" type="button" onClick={onCheck}>
+            <Cloud aria-hidden="true" />
+            {status || state.error ? t.syncCheckAgain : t.syncCheck}
+          </button>
+        )}
         {showPublish && (
           <button className="primary-button" type="button" onClick={onPublish}><Send aria-hidden="true" />{t.syncPublish}</button>
         )}

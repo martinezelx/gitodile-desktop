@@ -88,7 +88,7 @@ function controller() {
   return createHistoryController(port);
 }
 
-function renderPanel(historyState: HistoryState, error: string | null = null) {
+function renderPanel(historyState: HistoryState, error: string | null = null, watcherState: "starting" | "watching" | "off" | "unavailable" = "watching") {
   const historyController = controller();
   const select = vi.spyOn(historyController, "selectVersion");
   const selectFile = vi.spyOn(historyController, "selectFile");
@@ -98,6 +98,8 @@ function renderPanel(historyState: HistoryState, error: string | null = null) {
         controller={historyController}
         query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
         state={historyState}
+        watcherState={watcherState}
+        onOpenSettings={() => {}}
         error={error}
       />
     </LanguageProvider>,
@@ -120,6 +122,20 @@ describe("HistoryPanel", () => {
 
     renderPanel(state(1, { error: new Error("failed") }), "Last successful result is still shown.");
     expect(screen.getByText("Last successful result is still shown.")).toBeInTheDocument();
+  });
+
+  it("keeps refresh contextual to watcher and invokes the history controller", async () => {
+    const healthy = renderPanel(state(3));
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+    healthy.unmount();
+
+    const inactive = renderPanel(state(3), null, "off");
+    const refresh = vi.spyOn(inactive.historyController, "refresh").mockResolvedValue();
+    expect(screen.getByText("Automatic updates are off")).toBeInTheDocument();
+    const update = screen.getByRole("button", { name: "Refresh" });
+    expect(update).toHaveTextContent("Update now");
+    await userEvent.click(update);
+    expect(refresh).toHaveBeenCalledWith({ projectId: "/repo", sessionEpoch: "epoch-1" });
   });
 
   it("explains detached, shallow, and unknown publication states without guessing", () => {
@@ -173,6 +189,8 @@ describe("HistoryPanel", () => {
           controller={historyController}
           query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
           state={historyState}
+          watcherState="watching"
+          onOpenSettings={() => {}}
           error={null}
         />
       </LanguageProvider>
@@ -360,7 +378,14 @@ describe("HistoryPanel", () => {
       fileDiff: { diff, isLoading: false, error: null },
     }));
 
-    expect(screen.getByRole("button", { name: "Refresh" })).not.toHaveTextContent("Refresh");
+    const timelineHeader = container.querySelector(".history-timeline__header");
+    const detailHeader = container.querySelector(".history-detail__summary");
+    expect(timelineHeader).not.toBeNull();
+    expect(detailHeader).not.toBeNull();
+    expect(within(timelineHeader as HTMLElement).queryByRole("button", { name: "Refresh" }))
+      .not.toBeInTheDocument();
+    expect(within(detailHeader as HTMLElement).queryByRole("button", { name: "Refresh" }))
+      .not.toBeInTheDocument();
     expect(container.querySelector(".history-detail__summary-top h2")).toHaveTextContent(selected.subject);
     expect(container.querySelector(".history-detail__summary-top h2")).not.toHaveClass("visually-hidden");
     expect(container.querySelector(".history-detail__description")).not.toBeInTheDocument();

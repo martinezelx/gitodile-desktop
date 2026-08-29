@@ -30,26 +30,29 @@ const status = (overrides: Partial<TeamSyncStatus> = {}): TeamSyncStatus => ({
 function renderSection(state: TeamSyncViewState, canPublish = true, isRefreshing = false) {
   const onPublish = vi.fn();
   const onReviewAndGet = vi.fn();
+  const onCheck = vi.fn();
   const rendered = render(
     <LanguageProvider>
       <TeamChangesSection
         state={state}
         isRefreshing={isRefreshing}
         canPublish={canPublish}
+        onCheck={onCheck}
         onPublish={onPublish}
         onReviewAndGet={onReviewAndGet}
       />
     </LanguageProvider>,
   );
-  return { ...rendered, onPublish, onReviewAndGet };
+  return { ...rendered, onCheck, onPublish, onReviewAndGet };
 }
 
 describe("Project changes section", () => {
-  it("starts honest without owning a second refresh action", () => {
-    renderSection(EMPTY_TEAM_SYNC_STATE);
+  it("starts honest with a contextual remote check", async () => {
+    const { onCheck } = renderSection(EMPTY_TEAM_SYNC_STATE);
     expect(screen.getByRole("heading", { name: "Project changes" })).toBeInTheDocument();
     expect(screen.getByText("Not checked yet")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Check for project changes" }));
+    expect(onCheck).toHaveBeenCalledOnce();
   });
 
   it("shows a cached outcome as not checked in this session", () => {
@@ -88,6 +91,7 @@ describe("Project changes section", () => {
       lastSuccessfulCheckAt: 1_786_000_000_000,
           }}
           canPublish
+          onCheck={vi.fn()}
           onPublish={vi.fn()}
           onReviewAndGet={vi.fn()}
         />
@@ -175,6 +179,7 @@ describe("Project changes section", () => {
   it("keeps its live announcement aligned when an applied update changes the sync truth", () => {
     const props = {
       canPublish: true,
+      onCheck: vi.fn(),
       onPublish: vi.fn(),
       onReviewAndGet: vi.fn(),
     };

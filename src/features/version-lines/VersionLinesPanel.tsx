@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
+import { AutomaticUpdatesNotice, handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
 import type { VersionLine, VersionLinesSnapshot } from "./domain";
 import { CreateVersionLineDialog, DeleteVersionLineDialog, SwitchVersionLineDialog } from "./VersionLinesDialog";
 import { LoadingBar } from "../../shared/ui";
@@ -457,6 +457,8 @@ export function VersionLinesPanel({
   snapshot,
   error,
   isLoading,
+  watcherState,
+  onOpenSettings,
   onRefresh,
   onSnapshot,
   onChanged,
@@ -481,6 +483,8 @@ export function VersionLinesPanel({
    * "this may be stale" note. */
   error: string | null;
   isLoading: boolean;
+  watcherState: "starting" | "watching" | "off" | "unavailable";
+  onOpenSettings: () => void;
   onRefresh: () => void;
   /** A fresh snapshot returned by a create/switch/delete, handed back so the
    * session cache reflects the mutation without waiting for a re-read. */
@@ -632,6 +636,20 @@ export function VersionLinesPanel({
 
   return (
     <div className="version-lines-view">
+      {(watcherState === "off" || watcherState === "unavailable") && (
+        <AutomaticUpdatesNotice
+          title={watcherState === "off" ? t.automaticUpdatesOffTitle : t.automaticUpdatesUnavailableTitle}
+          description={t.automaticUpdatesOutdatedDescription}
+          updateLabel={t.automaticUpdatesUpdateNow}
+          updateAriaLabel={t.commandRefreshVersionLines}
+          updatingLabel={t.automaticUpdatesUpdating}
+          updatingAriaLabel={t.versionLinesLoading}
+          busy={isLoading}
+          settingsLabel={t.automaticUpdatesOpenSettings}
+          onUpdate={onRefresh}
+          onOpenSettings={onOpenSettings}
+        />
+      )}
       <header className="version-lines-view__header">
         <div>
           <h1>{t.versionLinesTitle}</h1>
@@ -699,9 +717,12 @@ export function VersionLinesPanel({
           {/* A refresh that fails after a successful one keeps the known list
               visible, but must still say it may be out of date. */}
           {error && !isLoading && (
-            <p className="save-version-note" role="alert">
-              {t.statusRefreshFailedNote}
-            </p>
+            <div className="version-lines-refresh-error" role="alert">
+              <span>{t.statusRefreshFailedNote}</span>
+              <button className="secondary-button" type="button" onClick={onRefresh}>
+                {t.versionLinesRetry}
+              </button>
+            </div>
           )}
           {snapshot.headState === "detached" && (
             <div className="version-lines-banner" role="status">

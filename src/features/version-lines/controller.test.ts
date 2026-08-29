@@ -65,6 +65,19 @@ describe("VersionLinesController", () => {
     await first;
   });
 
+  it("reports progress while refreshing a cached snapshot", async () => {
+    const pending = deferred<VersionLinesSnapshot>();
+    const controller = createVersionLinesController(port(() => pending.promise));
+    controller.commit(query, snapshot());
+
+    const refresh = controller.refresh(query);
+    expect(controller.getSnapshot(query).isLoading).toBe(true);
+    expect(controller.getSnapshot(query).snapshot).not.toBeNull();
+    pending.resolve(snapshot());
+    await refresh;
+    expect(controller.getSnapshot(query).isLoading).toBe(false);
+  });
+
   it("lets a mutation snapshot supersede an older discovery response", async () => {
     const pending = deferred<VersionLinesSnapshot>();
     const controller = createVersionLinesController(port(() => pending.promise));
