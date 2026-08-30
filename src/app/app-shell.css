@@ -82,10 +82,24 @@
    for — but painted directly on the light app surface it lands at 1.95:1 and
    the head all but disappears. `--accent-primary` is the per-theme green and
    measures 5.09:1 on light, 11.46:1 on dark. */
+/* A button, not an ornament: the mark is how About opens, matching the
+   convention every desktop app follows. But it is the quiet route, so it does
+   not dress up as a toolbar control — no fill, no plate, no tooltip. The
+   silhouette itself answers: it deepens toward `--text-primary` on hover and
+   presses like the rail icons do, which is enough to tell a pointer that
+   something is there without putting a button where the identity should be.
+
+   The box stays 30px anyway. Nothing paints it, so it costs no ink, and a
+   target wider than the 24px glyph is what keeps an unadvertised control
+   findable once someone has found it. */
 .window-titlebar__mark {
-  width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center;
-  color: var(--accent-primary);
+  width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--accent-primary);
+  transition: color var(--duration-fast), transform var(--duration-fast);
 }
+.window-titlebar__mark:hover { color: color-mix(in srgb, var(--accent-primary) 76%, var(--text-primary)); }
+.window-titlebar__mark:active { transform: scale(0.94); }
 .window-titlebar__mark .gitodrile-mark { width: 24px; height: 13px; }
 /* No wordmark beside it. The mark is the identity at every width, and the
    width where a second name used to appear — under 800px, with the rail gone
@@ -906,46 +920,85 @@
 .about-dialog__heart { color: var(--accent-heart); }
 .about-dialog h2 { margin-bottom: 12px; font-size: 28px; }
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: 1.6; }
-.about-release {
-  margin-top: 22px;
-  padding: 18px 0;
-  border-block: 1px solid var(--border-divider);
+.about-technical h3 { margin: 0; font-size: 13px; font-weight: 700; }
+.about-technical { margin-top: 18px; }
+
+/* The changelog is About's shell with a different document inside it, the same
+   way the shortcuts dialog is. Only the release list is its own vocabulary;
+   the backdrop, surface, close button, eyebrow and heading are shared, so the
+   two surfaces cannot drift apart visually. Slightly wider than About because
+   a release note is a sentence, not a label. */
+.changelog-dialog { width: min(100%, 460px); }
+/* A glyph on a fill, so it is round — the identity mark belongs to About and
+   is not repeated here. */
+.changelog-dialog__mark {
+  width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
 }
-.about-release__heading {
+.changelog-dialog__mark svg { width: 22px; height: 22px; }
+.changelog { margin: 24px 0 0; padding: 0; list-style: none; }
+.changelog-release { padding-top: 18px; border-top: 1px solid var(--border-divider); }
+.changelog-release + .changelog-release { margin-top: 18px; }
+.changelog-release__heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
-.about-release h3,
-.about-technical h3 { margin: 0; font-size: 13px; font-weight: 700; }
-.about-release__channel {
+.changelog-release h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.changelog-release__channel,
+.changelog-release__current {
   flex-shrink: 0;
   padding: 2px 7px;
-  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  color: var(--text-secondary);
   font-size: 10px;
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.015em;
 }
-.about-release ul {
+.changelog-release__channel {
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+/* Which build the reader is actually running is the one fact a changelog has
+   to answer before any note means anything, so it is the only accented thing
+   in the list.
+
+   The tint is 12%, not more: the label is 10px bold — normal-size text as far
+   as WCAG is concerned — and every extra percent of accent behind accent-
+   colored text moves the two closer together. Measured against
+   `--surface-raised`, 12% holds 4.59:1 on light and 6.90:1 on dark, where 14%
+   fell to 4.47:1 on light and missed AA. The border does the work the fill is
+   not allowed to do. */
+.changelog-release__current {
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+.changelog-release__date {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.changelog-release__notes {
   margin: 12px 0 0;
   padding: 0;
   list-style: none;
   display: grid;
   gap: 9px;
 }
-.about-release li {
+.changelog-release__notes li {
   position: relative;
   padding-left: 16px;
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.45;
 }
-.about-release li::before {
+.changelog-release__notes li::before {
   content: "";
   position: absolute;
   left: 1px;
@@ -955,7 +1008,6 @@
   border-radius: var(--radius-round);
   background: var(--accent-primary);
 }
-.about-technical { margin-top: 18px; }
 .about-details { margin: 8px 0 0; }
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
 .about-details dt { color: var(--text-secondary); }
@@ -990,6 +1042,7 @@
     animation: none;
     transition: none;
   }
+  .window-titlebar__mark:active,
   .rail-item:active:not(:disabled):not([aria-disabled="true"]) .rail-item__icon,
   .sidebar-round:active:not(:disabled):not([aria-disabled="true"]),
   .sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar {

@@ -30,7 +30,7 @@ export type StatusBarProps = {
   onSwitchVersionLine: (target: string) => void;
   onSeeAllVersionLines: () => void;
   onCheckTeamChanges: () => void;
-  onOpenReleaseDetails: () => void;
+  onOpenChangelog: () => void;
 };
 
 function useStatusBarClock(): number {
@@ -137,7 +137,7 @@ export function StatusBar({
   onSwitchVersionLine,
   onSeeAllVersionLines,
   onCheckTeamChanges,
-  onOpenReleaseDetails,
+  onOpenChangelog,
 }: StatusBarProps): React.JSX.Element {
   const { t, language } = useLanguage();
   const now = useStatusBarClock();
@@ -218,9 +218,9 @@ export function StatusBar({
         <button
           className="status-bar__release status-bar__item--muted"
           type="button"
-          onClick={onOpenReleaseDetails}
-          aria-label={t.statusBarOpenReleaseDetails(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
-          data-tooltip={t.statusBarOpenReleaseDetails(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
+          onClick={onOpenChangelog}
+          aria-label={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
+          data-tooltip={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
         >
           <span className="status-bar__version">{t.statusBarVersion(CURRENT_APP_RELEASE.version)}</span>
           <span className="status-bar__channel" aria-hidden="true">

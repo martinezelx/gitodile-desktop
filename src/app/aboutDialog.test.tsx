@@ -75,6 +75,7 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       lineEndings: { lineEndings: null, isSaving: false, choose: vi.fn(async () => undefined) },
     },
     about: { isOpen: true, setOpen: vi.fn() },
+    changelog: closedOverlay,
     shortcuts: closedOverlay,
     closeConfirmation: { ...closedOverlay, projectName: null, onConfirm: vi.fn() },
     error: { ...closedOverlay, title: "", message: null },
@@ -151,18 +152,21 @@ describe("readSystemInfo", () => {
 });
 
 describe("About dialog", () => {
-  it("reports the current release, the machine, and Git", () => {
+  it("reports the product and the machine, and leaves release notes to the changelog", () => {
     renderOverlays();
 
     const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
-    expect(screen.getByRole("heading", { name: `What's new in v${__APP_VERSION__}` })).toBeInTheDocument();
-    expect(dialog.querySelectorAll(".about-release li")).toHaveLength(3);
+    expect(dialog).toHaveTextContent("Turns version control into clear, worry-free steps.");
     expect(dialog).toHaveTextContent("Windows 11 (x86_64)");
     expect(dialog).toHaveTextContent("10.0.26200");
     expect(dialog).toHaveTextContent("2.45.0");
+    // The release list moved to its own surface. About is identity and
+    // diagnostics again, which is what the version tag stopped opening.
+    expect(dialog.querySelector(".changelog")).not.toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent("What's new");
   });
 
-  it("puts release notes before the technical environment rows", () => {
+  it("lists the technical environment rows in a fixed order", () => {
     renderOverlays();
 
     const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
@@ -172,14 +176,9 @@ describe("About dialog", () => {
       "System version",
       "Git",
     ]);
-    const release = dialog.querySelector(".about-release");
-    const technical = dialog.querySelector(".about-technical");
-    expect(release).not.toBeNull();
-    expect(technical).not.toBeNull();
-    expect(release!.compareDocumentPosition(technical!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("keeps local release notes and omits empty technical details without a platform bridge", async () => {
+  it("omits empty technical details without a platform bridge", async () => {
     const os = await import("@tauri-apps/plugin-os");
     vi.mocked(os.platform).mockImplementationOnce(() => {
       throw new TypeError("no bridge");
@@ -187,16 +186,7 @@ describe("About dialog", () => {
     renderOverlaysWithoutGit();
 
     const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
-    expect(dialog.querySelectorAll(".about-release li")).toHaveLength(3);
     expect(dialog.querySelector(".about-technical")).not.toBeInTheDocument();
-  });
-
-  it("localizes the bundled release notes", () => {
-    localStorage.setItem("gitodrile-language", "es");
-    renderOverlays();
-
-    expect(screen.getByRole("heading", { name: `Novedades de v${__APP_VERSION__}` })).toBeInTheDocument();
-    expect(screen.getByText(/Consulta la línea de versión actual/)).toBeInTheDocument();
   });
 
   it("copies a diagnostics block for a bug report", async () => {

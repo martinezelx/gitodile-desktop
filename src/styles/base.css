@@ -25,7 +25,7 @@ input:focus-visible,
 .palette-dialog:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  body, .window-control, .titlebar-icon-button, .sidebar, .primary-button, .secondary-button, .segmented-control__option, .project-switcher__button, .project-switcher__close, .project-switcher__add, .project-switcher-compact__trigger {
+  body, .window-control, .titlebar-icon-button, .window-titlebar__mark, .sidebar, .primary-button, .secondary-button, .segmented-control__option, .project-switcher__button, .project-switcher__close, .project-switcher__add, .project-switcher-compact__trigger {
     transition: none;
   }
 }

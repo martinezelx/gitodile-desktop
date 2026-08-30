@@ -124,7 +124,7 @@ export interface AppTranslations {
   statusBarLastChecked: (relative: string) => string;
   statusBarCheckNow: string;
   statusBarVersion: (version: string) => string;
-  statusBarOpenReleaseDetails: (version: string, channel: string) => string;
+  statusBarOpenChangelog: (version: string, channel: string) => string;
   titlebarHideSidebar: string;
   titlebarShowSidebar: string;
   titlebarSwitchToLightTheme: string;
@@ -133,8 +133,6 @@ export interface AppTranslations {
   aboutGitOdrile: string;
   aboutHeading: string;
   aboutDescription: string;
-  aboutReleaseTitle: (version: string) => string;
-  aboutReleaseNotes: Record<AppReleaseNoteId, string>;
   aboutTechnicalDetails: string;
   aboutSystem: string;
   aboutSystemVersion: string;
@@ -146,6 +144,12 @@ export interface AppTranslations {
   aboutFooterMadeWith: string;
   aboutFooterByAuthor: string;
   aboutHeartLabel: string;
+  changelogEyebrow: string;
+  changelogTitle: string;
+  changelogDescription: string;
+  changelogVersionHeading: (version: string) => string;
+  changelogCurrentRelease: string;
+  changelogNotes: Record<AppReleaseNoteId, string>;
   closeConfirmTitle: string;
   closeConfirmBodyGeneric: string;
   closeConfirmBodyNamed: (name: string) => string;
@@ -277,7 +281,7 @@ const en: AppTranslations = {
   statusBarLastChecked: (relative) => `Checked ${relative}`,
   statusBarCheckNow: "Check remote project changes",
   statusBarVersion: (version) => `v${version}`,
-  statusBarOpenReleaseDetails: (version, channel) => `About GitOdrile v${version} ${channel}`,
+  statusBarOpenChangelog: (version, channel) => `What's new in GitOdrile v${version} ${channel}`,
   titlebarHideSidebar: "Hide sidebar",
   titlebarShowSidebar: "Show sidebar",
   titlebarSwitchToLightTheme: "Switch to light theme",
@@ -289,12 +293,6 @@ const en: AppTranslations = {
   aboutGitOdrile: "About",
   aboutHeading: "Git without the bite.",
   aboutDescription: "Turns version control into clear, worry-free steps.",
-  aboutReleaseTitle: (version) => `What's new in v${version}`,
-  aboutReleaseNotes: {
-    truthfulStatus: "See your current version line, unsaved work, and when project changes were last checked from every screen.",
-    safeLineSwitching: "Switch version lines from the status bar with the same preview and unsaved-work safeguards.",
-    releaseDetails: "Open these build details directly from the version tag whenever you need them.",
-  },
   aboutTechnicalDetails: "Technical details",
   aboutSystem: "System",
   aboutSystemVersion: "System version",
@@ -304,6 +302,19 @@ const en: AppTranslations = {
   aboutFooterMadeWith: "Made with",
   aboutFooterByAuthor: "by Luis M. Martínez.",
   aboutHeartLabel: "love",
+  changelogEyebrow: "Release notes",
+  changelogTitle: "What's new",
+  changelogDescription: "Every note ships with the build you are running and opens without a network request.",
+  changelogVersionHeading: (version) => `v${version}`,
+  changelogCurrentRelease: "You are running this",
+  changelogNotes: {
+    projectSessions: "Open, clone, or create local projects, and pick your last session up where you left it.",
+    saveAndPublish: "Save all or selected changes as a version, then publish it through a previewed flow that reports uncertain remote outcomes honestly.",
+    historyTimeline: "Browse the saved-version timeline and read syntax-colored diffs for any change.",
+    truthfulStatus: "See your current version line, unsaved work, and when project changes were last checked from every screen.",
+    safeLineSwitching: "Switch version lines from the status bar with the same preview and unsaved-work safeguards.",
+    releaseDetails: "Open these release notes from the version tag in the status bar, or from the toolbar menu.",
+  },
   closeConfirmTitle: "Close this project?",
   closeConfirmBodyGeneric: "The project stays exactly as it is on disk. You can reopen it anytime.",
   closeConfirmBodyNamed: (name) => `"${name}" stays exactly as it is on disk. You can reopen it anytime.`,
@@ -435,7 +446,7 @@ const es: AppTranslations = {
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
   statusBarCheckNow: "Comprobar cambios del proyecto remoto",
   statusBarVersion: (version) => `v${version}`,
-  statusBarOpenReleaseDetails: (version, channel) => `Acerca de GitOdrile v${version} ${channel}`,
+  statusBarOpenChangelog: (version, channel) => `Novedades de GitOdrile v${version} ${channel}`,
   titlebarHideSidebar: "Ocultar la barra lateral",
   titlebarShowSidebar: "Mostrar la barra lateral",
   titlebarSwitchToLightTheme: "Cambiar a tema claro",
@@ -447,12 +458,6 @@ const es: AppTranslations = {
   aboutGitOdrile: "Acerca de",
   aboutHeading: "Git sin mordiscos.",
   aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
-  aboutReleaseTitle: (version) => `Novedades de v${version}`,
-  aboutReleaseNotes: {
-    truthfulStatus: "Consulta la línea de versión actual, el trabajo sin guardar y cuándo se comprobaron por última vez los cambios del proyecto desde cualquier pantalla.",
-    safeLineSwitching: "Cambia de línea desde la barra de estado con la misma previsualización y protección del trabajo sin guardar.",
-    releaseDetails: "Abre los detalles de esta build directamente desde la etiqueta de versión cuando los necesites.",
-  },
   aboutTechnicalDetails: "Detalles técnicos",
   aboutSystem: "Sistema",
   aboutSystemVersion: "Versión del sistema",
@@ -462,6 +467,19 @@ const es: AppTranslations = {
   aboutFooterMadeWith: "Hecho con",
   aboutFooterByAuthor: "por Luis M. Martínez.",
   aboutHeartLabel: "amor",
+  changelogEyebrow: "Notas de versión",
+  changelogTitle: "Novedades",
+  changelogDescription: "Todas las notas vienen con la build que estás usando y se abren sin ninguna petición de red.",
+  changelogVersionHeading: (version) => `v${version}`,
+  changelogCurrentRelease: "Estás usando esta",
+  changelogNotes: {
+    projectSessions: "Abre, clona o crea proyectos locales, y retoma tu última sesión donde la dejaste.",
+    saveAndPublish: "Guarda todos los cambios o los que elijas como una versión y publícala con un flujo previsualizado que reconoce cuando el resultado remoto es incierto.",
+    historyTimeline: "Recorre la línea de tiempo de versiones guardadas y lee las diferencias con color de sintaxis de cualquier cambio.",
+    truthfulStatus: "Consulta la línea de versión actual, el trabajo sin guardar y cuándo se comprobaron por última vez los cambios del proyecto desde cualquier pantalla.",
+    safeLineSwitching: "Cambia de línea desde la barra de estado con la misma previsualización y protección del trabajo sin guardar.",
+    releaseDetails: "Abre estas notas de versión desde la etiqueta de versión de la barra de estado o desde el menú de la barra de herramientas.",
+  },
   closeConfirmTitle: "¿Cerrar este proyecto?",
   closeConfirmBodyGeneric: "El proyecto se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.",
   closeConfirmBodyNamed: (name) => `"${name}" se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.`,

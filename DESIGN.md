@@ -163,12 +163,15 @@ The main desktop window should broadly support:
      only a compact 8px gap above the status bar;
    - the release metadata is grouped at the far right: the version is shown as
      `v0.1.0` with its compact lifecycle tag (`alpha`) beside it. Together they
-     form one quiet button that opens the shared About dialog and its bundled,
-     localized current-build summary. Release notes open without a network
-     request; a future application updater may report through this surface but
-     must keep its remote state separate from the local notes. The titlebar
-     stays reserved for global actions and window controls; no product name is
-     repeated because the window is already the product;
+     form one quiet button that opens the Changelog — the version the reader
+     can already see is what a release note is *about*, so the tag leads to the
+     notes and not to the product description. The changelog shares the About
+     dialog's shell and lists each release with its channel, date, notes, and a
+     marker for the build being run. Notes are bundled and open without a
+     network request; a future application updater may report through this
+     surface but must keep its remote state separate from the local notes. The
+     titlebar stays reserved for global actions and window controls; no product
+     name is repeated because the window is already the product;
    - the current version line is the strip's one navigation shortcut. Its
      quiet text treatment gains a hover/expanded fill and opens a compact,
      searchable selector above the strip. It shares search and project-scoped
@@ -392,6 +395,8 @@ Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`
 Brand identity (mark + name) appears in exactly one visible place at a time, never two. **The titlebar is the canonical one**, and the rail carries no brand block: a 40px lockup at the top of the rail spent that column's most valuable real estate on something that never changes, and forced the titlebar to suppress its own mark to avoid reading as a double logo. One mark, in the window furniture, next to the controls it belongs with. The wordmark joins it only below the 800px breakpoint, where the rail is gone and nothing else on screen names the app.
 
 The mark is the crocodile silhouette itself, not a silhouette knocked out of a green tile, and it is painted in `--accent-primary` — *not* `--accent-brand`. This follows the standing rule below rather than breaking it: the brand lime is a single fixed value in both themes, which works behind a tile it also supplies the contrast for, but a bare mark on the light app surface measures 1.95:1 with it. `--accent-primary` is the per-theme green and measures 5.09:1 on light and 11.46:1 on dark. The About dialog uses the same treatment at hero scale — one identity, one rendering.
+
+The titlebar mark is also the About affordance, as it is in every desktop application: clicking the identity is how you ask what the thing is. It is deliberately the *quiet* route — no tooltip and no hover plate, because a fill would turn the identity into the first button of the toolbar and advertise a shortcut nobody needs advertised. The signposted routes are the toolbar menu and the command palette; this one rewards knowing the convention. What it does keep: an accessible name, which is invisible to a sighted user and is the only thing naming the button to a screen reader; a 30px target around the 24px glyph, since nothing paints that box and an unadvertised control still has to be easy to hit once found; and a response on the silhouette itself — the mark deepens toward `--text-primary` on hover (6.85:1 on light, 12.97:1 on dark, from a resting 5.09:1 and 11.46:1) and presses with the same `scale(0.94)` the rail icons use. `data-tauri-drag-region` stays on the wrapper around it, so the chrome still drags the window while the button keeps its click.
 
 ### Honest affordances
 

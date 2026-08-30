@@ -179,6 +179,7 @@ function ViewLoadingFallback(): React.JSX.Element {
 export function App(): React.JSX.Element {
   const { t } = useLanguage();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isCloneOpen, setIsCloneOpen] = useState(false);
@@ -1042,6 +1043,7 @@ export function App(): React.JSX.Element {
   const hasOpenDialog =
     hasBlockingDialog ||
     isAboutOpen ||
+    isChangelogOpen ||
     isShortcutsOpen ||
     isCloseConfirmOpen ||
     isOpenErrorDialogOpen ||
@@ -1223,6 +1225,7 @@ export function App(): React.JSX.Element {
     { id: "theme-system", label: t.commandUseSystemTheme, action: () => changeTheme("system") },
     { id: "theme-light", label: t.commandUseLightTheme, action: () => changeTheme("light") },
     { id: "theme-dark", label: t.commandUseDarkTheme, action: () => changeTheme("dark") },
+    { id: "changelog", label: t.changelogTitle, action: () => setIsChangelogOpen(true) },
     { id: "about", label: t.aboutGitOdrile, action: () => setIsAboutOpen(true) },
   ];
 
@@ -1350,13 +1353,33 @@ export function App(): React.JSX.Element {
         {projectAnnouncement}
       </span>
       <header className="window-titlebar">
+        {/* The mark is the About affordance, the way it is in every desktop
+            app: identity in the corner, and clicking identity tells you what
+            the thing is. Deliberately unadvertised — no tooltip, no fill —
+            because it is the alternative route, not the signposted one; the
+            menu and the palette are where someone looks when they do not
+            already know the convention. The accessible name stays: it is
+            invisible to a sighted user, so it costs the quiet nothing, and
+            without it the button is unnamed to a screen reader.
+
+            `data-tauri-drag-region` stays on the wrapper only — Tauri reads
+            the attribute off the element under the pointer, so the button
+            keeps its click and the chrome around it still drags the window. */}
         <div className="window-titlebar__brand" data-tauri-drag-region>
-          <span className="window-titlebar__mark" aria-hidden="true">{CROCODILE_MARK}</span>
+          <button
+            className="window-titlebar__mark"
+            type="button"
+            aria-label={t.aboutGitOdrile}
+            onClick={() => setIsAboutOpen(true)}
+          >
+            {CROCODILE_MARK}
+          </button>
         </div>
 
         <div className="window-titlebar__actions">
           <TitlebarMenu
             onOpenAbout={() => setIsAboutOpen(true)}
+            onOpenChangelog={() => setIsChangelogOpen(true)}
             onOpenProject={() => void handleOpenProject()}
             onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
             onCloneProject={() => setIsCloneOpen(true)}
@@ -1989,7 +2012,7 @@ export function App(): React.JSX.Element {
               mapSyncError,
             );
           }}
-          onOpenReleaseDetails={() => setIsAboutOpen(true)}
+          onOpenChangelog={() => setIsChangelogOpen(true)}
         />
       </main>
 
@@ -2175,6 +2198,7 @@ export function App(): React.JSX.Element {
           lineEndings,
         }}
         about={{ isOpen: isAboutOpen, setOpen: setIsAboutOpen }}
+        changelog={{ isOpen: isChangelogOpen, setOpen: setIsChangelogOpen }}
         shortcuts={{ isOpen: isShortcutsOpen, setOpen: setIsShortcutsOpen }}
         closeConfirmation={{
           isOpen: isCloseConfirmOpen,

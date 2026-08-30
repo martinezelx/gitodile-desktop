@@ -99,7 +99,7 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
     onSwitchVersionLine: vi.fn(),
     onSeeAllVersionLines: vi.fn(),
     onCheckTeamChanges: vi.fn(),
-    onOpenReleaseDetails: vi.fn(),
+    onOpenChangelog: vi.fn(),
     ...overrides,
   } as StatusBarProps;
   return render(<LanguageProvider><StatusBar {...props} /></LanguageProvider>);
@@ -112,20 +112,20 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("StatusBar", () => {
-  it("renders honest no-project state and opens the shared release details", async () => {
-    const onOpenReleaseDetails = vi.fn();
+  it("renders honest no-project state and opens the changelog", async () => {
+    const onOpenChangelog = vi.fn();
     renderBar({
       project: null,
       workingTree: null,
       teamSync: EMPTY_TEAM_SYNC_STATE,
-      onOpenReleaseDetails,
+      onOpenChangelog,
     });
 
     expect(screen.getByText("No project open")).toBeInTheDocument();
-    const release = screen.getByRole("button", { name: "About GitOdrile v0.1.0 alpha" });
+    const release = screen.getByRole("button", { name: "What's new in GitOdrile v0.1.0 alpha" });
     expect(release).toHaveTextContent("v0.1.0alpha");
     await userEvent.click(release);
-    expect(onOpenReleaseDetails).toHaveBeenCalledOnce();
+    expect(onOpenChangelog).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();
     expect(screen.queryByText("Up to date")).not.toBeInTheDocument();
   });
@@ -187,7 +187,7 @@ describe("StatusBar", () => {
           onSwitchVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
-          onOpenReleaseDetails={vi.fn()}
+          onOpenChangelog={vi.fn()}
         />
       </LanguageProvider>,
     );
@@ -206,7 +206,7 @@ describe("StatusBar", () => {
           onSwitchVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
-          onOpenReleaseDetails={vi.fn()}
+          onOpenChangelog={vi.fn()}
         />
       </LanguageProvider>,
     );

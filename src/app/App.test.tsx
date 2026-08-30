@@ -227,6 +227,7 @@ describe("TitlebarMenu", () => {
   function renderMenu(overrides: Partial<React.ComponentProps<typeof TitlebarMenu>> = {}) {
     const props: React.ComponentProps<typeof TitlebarMenu> = {
       onOpenAbout: vi.fn(),
+      onOpenChangelog: vi.fn(),
       onOpenProject: vi.fn(),
       onCreateProject: vi.fn(),
       onCloneProject: vi.fn(),
@@ -312,6 +313,20 @@ describe("TitlebarMenu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("lists both help surfaces, with the changelog beside About", async () => {
+    const user = userEvent.setup();
+    const onOpenChangelog = vi.fn();
+    renderMenu({ onOpenChangelog });
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    const names = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(names.slice(-2)).toEqual(["What's new", "About"]);
+
+    await user.click(screen.getByRole("menuitem", { name: "What's new" }));
+    expect(onOpenChangelog).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("keeps reload focusable but unavailable while an operation is unsettled", async () => {
     const user = userEvent.setup();
     renderMenu({ canReloadWindow: false });
@@ -389,9 +404,17 @@ describe("App project restoration", () => {
     expect(within(palette).getByText("Check remote project changes")).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
-    await userEvent.click(within(statusBar).getByRole("button", { name: "About GitOdrile v0.1.0 alpha" }));
+    // The version tag is the changelog's entry point; About moved to the mark.
+    await userEvent.click(
+      within(statusBar).getByRole("button", { name: "What's new in GitOdrile v0.1.0 alpha" }),
+    );
+    const changelog = screen.getByRole("dialog", { name: "What's new" });
+    expect(within(changelog).getByRole("heading", { name: "v0.1.0" })).toBeInTheDocument();
+    expect(within(changelog).getByText("You are running this")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+
+    await userEvent.click(screen.getByRole("button", { name: "About" }));
     expect(screen.getByRole("dialog", { name: "Git without the bite." })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "What's new in v0.1.0" })).toBeInTheDocument();
   });
 
   it("opens the eager clone flow from the empty state and command palette", async () => {

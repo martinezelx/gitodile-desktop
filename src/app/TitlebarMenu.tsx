@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Bug, CloudDownload, Ellipsis, FolderInput, FolderOpen, FolderX, Info, Keyboard, RotateCw, Settings } from "lucide-react";
+import { Bug, CloudDownload, Ellipsis, FolderInput, FolderOpen, FolderX, Info, Keyboard, RotateCw, Settings, Sparkles } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLanguage } from "../i18n";
 
@@ -7,6 +7,7 @@ const ISSUES_URL = "https://github.com/martinezelx/project-gitodrile/issues/new"
 
 export function TitlebarMenu({
   onOpenAbout,
+  onOpenChangelog,
   onOpenProject,
   onCreateProject,
   onCloneProject,
@@ -18,6 +19,7 @@ export function TitlebarMenu({
   canReloadWindow,
 }: {
   onOpenAbout: () => void;
+  onOpenChangelog: () => void;
   onOpenProject: () => void;
   onCreateProject: () => void;
   onCloneProject: () => void;
@@ -176,6 +178,10 @@ export function TitlebarMenu({
           >
             <Bug aria-hidden="true" />
             <span>{t.titlebarReportIssue}</span>
+          </button>
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenChangelog)}>
+            <Sparkles aria-hidden="true" />
+            <span>{t.changelogTitle}</span>
           </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenAbout)}>
             <Info aria-hidden="true" />

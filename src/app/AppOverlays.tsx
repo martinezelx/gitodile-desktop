@@ -18,6 +18,7 @@ import { DialogCloseButton } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
+import { ChangelogDialog } from "./ChangelogDialog";
 import { describePlatform, formatDiagnostics, useSystemInfo } from "./systemInfo";
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
@@ -53,6 +54,7 @@ export type AppOverlaysProps = {
     lineEndings: LineEndingsState;
   };
   about: { isOpen: boolean; setOpen: BooleanSetter };
+  changelog: { isOpen: boolean; setOpen: BooleanSetter };
   shortcuts: { isOpen: boolean; setOpen: BooleanSetter };
   closeConfirmation: {
     isOpen: boolean;
@@ -72,6 +74,7 @@ export type AppOverlaysProps = {
 export function AppOverlays({
   settings,
   about,
+  changelog,
   shortcuts,
   closeConfirmation,
   error,
@@ -216,17 +219,6 @@ export function AppOverlays({
             <p className="eyebrow">{t.aboutGitOdrile}</p>
             <h2 id="about-title">{t.aboutHeading}</h2>
             <p>{t.aboutDescription}</p>
-            <section className="about-release" aria-labelledby="about-release-title">
-              <div className="about-release__heading">
-                <h3 id="about-release-title">{t.aboutReleaseTitle(CURRENT_APP_RELEASE.version)}</h3>
-                <span className="about-release__channel">{CURRENT_APP_RELEASE.channel}</span>
-              </div>
-              <ul>
-                {CURRENT_APP_RELEASE.noteIds.map((noteId) => (
-                  <li key={noteId}>{t.aboutReleaseNotes[noteId]}</li>
-                ))}
-              </ul>
-            </section>
             {(systemInfo || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">
                 <h3 id="about-technical-title">{t.aboutTechnicalDetails}</h3>
@@ -256,6 +248,8 @@ export function AppOverlays({
           </div>
         </div>
       )}
+
+      <ChangelogDialog isOpen={changelog.isOpen} setOpen={changelog.setOpen} />
 
       {shortcuts.isOpen && (
         <div className="about-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
