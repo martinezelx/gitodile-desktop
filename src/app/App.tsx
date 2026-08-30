@@ -357,7 +357,7 @@ export function App(): React.JSX.Element {
   const [openError, setOpenError] = useState<string | null>(null);
   const [openErrorTitle, setOpenErrorTitle] = useState(t.overviewOpenFailedTitle);
   const [isOpenErrorDialogOpen, setIsOpenErrorDialogOpen] = useState(false);
-  const [openErrorSecondaryAction, setOpenErrorSecondaryAction] = useState<{
+  const [openErrorRecoveryAction, setOpenErrorRecoveryAction] = useState<{
     label: string;
     onAction: () => void;
   } | null>(null);
@@ -398,7 +398,7 @@ export function App(): React.JSX.Element {
   const showErrorDialog = (title: string, message: string): void => {
     setOpenErrorTitle(title);
     setOpenError(message);
-    setOpenErrorSecondaryAction(null);
+    setOpenErrorRecoveryAction(null);
     setIsOpenErrorDialogOpen(true);
   };
 
@@ -550,7 +550,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     if (!isOpenErrorDialogOpen) {
       setOpenError(null);
-      setOpenErrorSecondaryAction(null);
+      setOpenErrorRecoveryAction(null);
     }
   }, [isOpenErrorDialogOpen]);
 
@@ -727,7 +727,7 @@ export function App(): React.JSX.Element {
       // would read as if the *active* project were the one that failed.
       setOpenErrorTitle(t.overviewOpenFailedTitle);
       setOpenError(localizeAppError(error, t, t.overviewCouldntOpenFolder));
-      setOpenErrorSecondaryAction(
+      setOpenErrorRecoveryAction(
         selectedPath && isAppError(error) && error.code === "not_repository"
           ? {
               label: t.commandTurnFolderIntoProject,
@@ -2337,7 +2337,7 @@ export function App(): React.JSX.Element {
           setOpen: setIsOpenErrorDialogOpen,
           title: openErrorTitle,
           message: openError,
-          secondaryAction: openErrorSecondaryAction,
+          recoveryAction: openErrorRecoveryAction,
         }}
       />
       <TooltipHost />

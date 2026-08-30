@@ -927,7 +927,12 @@
 .settings-dialog__alert svg { width: 14px; height: 14px; }
 .settings-dialog__header h2 { margin: 0 0 3px; font-size: 21px; letter-spacing: -0.018em; }
 .settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
-.about-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--overlay); backdrop-filter: blur(8px); }
+/* Every modal in the app shell sits on this one backdrop — About, the
+   changelog, the shortcut sheet, the close confirmation and the open-failure
+   alert. It was called `.about-backdrop` while About happened to be the first
+   thing that needed it, which is how two later dialogs ended up reaching for
+   About's *identity* shell as well. */
+.dialog-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--overlay); backdrop-filter: blur(8px); }
 .about-dialog {
   position: relative;
   width: min(100%, 420px);
@@ -940,6 +945,55 @@
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
 }
+/* A short message and the choices that go with it: the open-failure alert and
+   the close-project confirmation. Both used to borrow `.about-dialog`, which
+   is the product-identity surface — a 28px hero heading and 32px of padding,
+   sized for the mark above it — and spent it on two lines of text. This is the
+   same shell vocabulary every other dialog in the app already uses (compare
+   `.changes-discard-dialog`): 22px heading, 28px padding, one gap, actions
+   last. */
+.message-dialog {
+  /* Wide enough for a recovery label beside Close on one row: "Convertir esta
+     carpeta en un proyecto" plus Close needs 405px of the 424 this leaves. */
+  width: min(100%, 480px);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 28px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  /* Suppressed here and restored on `:focus-visible` in base.css, exactly as
+     `.about-dialog` does it — these dialogs take focus on open, and a keyboard
+     user has to see where it landed. */
+  outline: none;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+.message-dialog h2 { margin: 0; font-size: 22px; }
+.message-dialog p { margin: 0; color: var(--text-secondary); line-height: 1.55; }
+/* A capsule is a single-line control (DESIGN.md § Shape), so a label that no
+   longer fits takes its own row rather than wrapping to two lines inside the
+   pill — which is exactly what the welcome screen's old capsule row did, and
+   what a longer translation would do here. */
+.message-dialog .dialog-actions { flex-wrap: wrap; margin-top: var(--space-1); }
+.message-dialog .dialog-actions button { white-space: nowrap; }
+/* DESIGN.md § Shape: a dialog-header glyph is a circle at any size. It is what
+   says "this is a failure" before the sentence is read — the alert had no
+   visual mark of its own at all, only its wording. Tinted fill rather than a
+   solid one, like the settings alert it is a sibling of. */
+.message-dialog__icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--status-danger) 14%, transparent);
+  color: var(--status-danger);
+}
+.message-dialog__icon svg { width: 20px; height: 20px; }
+
 .about-dialog__close {
   position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);

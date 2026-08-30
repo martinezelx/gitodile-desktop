@@ -85,6 +85,9 @@ export interface OverviewTranslations {
   overviewCreateLocalProjectHint: string;
   overviewOpenProjectHint: string;
   overviewCloneRemoteProjectHint: string;
+  /** Discovery line for the window's drag-and-drop: the gesture works, and
+   * nothing on screen said so. */
+  overviewDropFolderHint: string;
   overviewRecentProjectsTitle: string;
   overviewForgetRecentProject: (name: string) => string;
   overviewForgetRecentProjectShort: string;
@@ -179,6 +182,7 @@ const en: OverviewTranslations = {
   overviewCreateLocalProjectHint: "A new folder, or one you already have",
   overviewOpenProjectHint: "A folder that already uses Git",
   overviewCloneRemoteProjectHint: "Download it from a remote server",
+  overviewDropFolderHint: "Or drag a project folder onto this window.",
   overviewRecentProjectsTitle: "Back to a recent project",
   overviewForgetRecentProject: (name) => `Remove ${name} from recent projects`,
   overviewForgetRecentProjectShort: "Remove from recent projects",
@@ -277,6 +281,7 @@ const es: OverviewTranslations = {
   overviewCreateLocalProjectHint: "Una carpeta nueva o una que ya tienes",
   overviewOpenProjectHint: "Una carpeta que ya usa Git",
   overviewCloneRemoteProjectHint: "Descárgalo de un servidor remoto",
+  overviewDropFolderHint: "O arrastra la carpeta de un proyecto a esta ventana.",
   overviewRecentProjectsTitle: "Vuelve a un proyecto reciente",
   overviewForgetRecentProject: (name) => `Quitar ${name} de proyectos recientes`,
   overviewForgetRecentProjectShort: "Quitar de proyectos recientes",

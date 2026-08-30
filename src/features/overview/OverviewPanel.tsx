@@ -861,6 +861,12 @@ export function OverviewPanel({
           onClick={onCloneProject}
         />
       </div>
+      {/* The window has taken a dropped folder since task 093 and nothing said
+          so — a gesture nobody is told about is a gesture nobody uses. It sits
+          under the cards as one quiet line rather than as a fourth card,
+          because it is another way to reach one of the three, not a fourth
+          thing to do. */}
+      <p className="welcome-drop-hint">{t.overviewDropFolderHint}</p>
       {recentProjects.length > 0 && (
         <WelcomeRecents
           entries={recentProjects}

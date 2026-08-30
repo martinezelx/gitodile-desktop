@@ -22,6 +22,7 @@ button:focus-visible,
 summary:focus-visible,
 input:focus-visible,
 .about-dialog:focus-visible,
+.message-dialog:focus-visible,
 .palette-dialog:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {

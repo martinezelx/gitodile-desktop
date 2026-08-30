@@ -806,6 +806,18 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .welcome-action__label { font-size: 13px; font-weight: 600; line-height: 1.35; text-wrap: balance; }
 .welcome-action__hint { color: var(--text-secondary); font-size: 12px; line-height: 1.4; text-wrap: balance; }
 
+/* Quieter than the card hints it sits under: it describes an alternative
+   route, not one of the choices. `.empty-state p`'s own 22px bottom margin
+   would push the recents divider away, so this one states its own spacing —
+   and has to out-specify `.empty-state p` (0,1,1) to do it, hence the block
+   class in front. */
+.empty-state--welcome .welcome-drop-hint {
+  margin: var(--space-3) 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* ---- Recent projects, under the launcher ----
    Left-aligned rows inside a centred block on purpose: names and paths are
    read down an edge, not from the middle out. The row carries the project's

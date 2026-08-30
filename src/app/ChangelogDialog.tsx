@@ -46,7 +46,7 @@ export function ChangelogDialog({
     release.version === CURRENT_APP_RELEASE.version && release.channel === CURRENT_APP_RELEASE.channel;
 
   return (
-    <div className="about-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
+    <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
       <div
         ref={dialogRef}
         className="about-dialog changelog-dialog"

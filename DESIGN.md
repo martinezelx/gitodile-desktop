@@ -657,3 +657,18 @@ and it does not appear under a blocking dialog, which is exactly when a drop is
 ignored. Its dashed edge is the only dashed border in the app and is meant to
 stay that way: dashes are the universal "drop here" mark, and a solid edge at
 that size would read as a dialog.
+
+**A dialog that carries a message is not the About dialog.** About is the
+product-identity surface — the mark at hero scale, a 28px heading, 32px of
+padding — and for a while the open-failure alert and the close-project
+confirmation borrowed its shell, which is why a two-line sentence arrived under
+a heading sized for a logo. (The changelog and the shortcut sheet still extend
+About's shell on purpose: they are documents to read, not messages to answer.)
+Short message dialogs use the same shell as every other dialog in the app: a
+22px heading, 28px of padding, one gap between parts, and `.dialog-actions`
+last. Two rules go with them. An error carries a
+circular `--status-danger` glyph above its heading, because a failure should be
+recognizable before the sentence is read. And **the constructive choice is the
+primary button** — "Turn this folder into a project", not "Close": spending the
+brand green on dismissing a problem tells the user the way out is the way back.
+Dismiss reads first, constructive last, the order every other dialog uses.

@@ -681,7 +681,17 @@ describe("App project restoration", () => {
     );
 
     await user.click(screen.getAllByRole("button", { name: "Open a project" }).at(-1)!);
-    await user.click(await screen.findByRole("button", { name: "Turn this folder into a project" }));
+
+    // The way out of the failure is the primary action; dismissing steps down
+    // to secondary. The alert describes itself through its message rather than
+    // announcing it a second time as a live region.
+    const alert = await screen.findByRole("alertdialog", { name: "We couldn’t open that project" });
+    expect(alert).toHaveAccessibleDescription(/Git project|repository/);
+    const recovery = within(alert).getByRole("button", { name: "Turn this folder into a project" });
+    expect(recovery).toHaveClass("primary-button");
+    expect(within(alert).getByRole("button", { name: "Close" })).toHaveClass("secondary-button");
+
+    await user.click(recovery);
     expect(screen.getByRole("dialog", { name: "Create a local project" })).toBeInTheDocument();
     expect(screen.getByLabelText("Existing ordinary folder")).toHaveValue("C:\\ordinary folder");
   });

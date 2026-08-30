@@ -67,7 +67,11 @@ export type AppOverlaysProps = {
     setOpen: BooleanSetter;
     title: string;
     message: string | null;
-    secondaryAction?: { label: string; onAction: () => void } | null;
+    /** The way *out* of the failure — "turn this folder into a project" after
+     * opening an ordinary folder. It is the constructive choice, so it takes
+     * the primary button and Close steps down to secondary; when there is no
+     * recovery, Close is the only action and keeps the primary treatment. */
+    recoveryAction?: { label: string; onAction: () => void } | null;
   };
 };
 
@@ -210,7 +214,7 @@ export function AppOverlays({
       )}
 
       {about.isOpen && (
-        <div className="about-backdrop" role="presentation" onMouseDown={() => about.setOpen(false)}>
+        <div className="dialog-backdrop" role="presentation" onMouseDown={() => about.setOpen(false)}>
           <div ref={aboutRef} className="about-dialog" role="dialog" aria-modal="true" aria-labelledby="about-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
             <button className="about-dialog__close" type="button" aria-label={t.commonClose} onClick={() => about.setOpen(false)}>
               <X aria-hidden="true" />
@@ -252,7 +256,7 @@ export function AppOverlays({
       <ChangelogDialog isOpen={changelog.isOpen} setOpen={changelog.setOpen} />
 
       {shortcuts.isOpen && (
-        <div className="about-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
+        <div className="dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
           <div ref={shortcutsRef} className="about-dialog shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
             <button className="about-dialog__close" type="button" aria-label={t.commonClose} onClick={() => shortcuts.setOpen(false)}>
               <X aria-hidden="true" />
@@ -271,10 +275,10 @@ export function AppOverlays({
       )}
 
       {closeConfirmation.isOpen && (
-        <div className="about-backdrop" role="presentation" onMouseDown={() => closeConfirmation.setOpen(false)}>
-          <div ref={closeRef} className="about-dialog" role="dialog" aria-modal="true" aria-labelledby="close-confirm-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="dialog-backdrop" role="presentation" onMouseDown={() => closeConfirmation.setOpen(false)}>
+          <div ref={closeRef} className="message-dialog" role="dialog" aria-modal="true" aria-labelledby="close-confirm-title" aria-describedby="close-confirm-body" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
             <h2 id="close-confirm-title">{t.closeConfirmTitle}</h2>
-            <p>{closeConfirmation.projectName ? t.closeConfirmBodyNamed(closeConfirmation.projectName) : t.closeConfirmBodyGeneric}</p>
+            <p id="close-confirm-body">{closeConfirmation.projectName ? t.closeConfirmBodyNamed(closeConfirmation.projectName) : t.closeConfirmBodyGeneric}</p>
             <div className="dialog-actions">
               <button className="secondary-button" type="button" onClick={() => closeConfirmation.setOpen(false)}>{t.commonCancel}</button>
               <button className="primary-button" type="button" onClick={closeConfirmation.onConfirm}>{t.overviewCloseProject}</button>
@@ -284,17 +288,31 @@ export function AppOverlays({
       )}
 
       {error.isOpen && error.message && (
-        <div className="about-backdrop" role="presentation" onMouseDown={() => error.setOpen(false)}>
-          <div ref={errorRef} className="about-dialog" role="alertdialog" aria-modal="true" aria-labelledby="open-error-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="dialog-backdrop" role="presentation" onMouseDown={() => error.setOpen(false)}>
+          {/* `aria-describedby` rather than a `role="alert"` on the message:
+              an alertdialog already announces its own body on open, and the
+              live region made a screen reader read the failure twice. */}
+          <div ref={errorRef} className="message-dialog" role="alertdialog" aria-modal="true" aria-labelledby="open-error-title" aria-describedby="open-error-message" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
+            <span className="message-dialog__icon" aria-hidden="true">
+              <CircleAlert />
+            </span>
             <h2 id="open-error-title">{error.title}</h2>
-            <p role="alert">{error.message}</p>
+            <p id="open-error-message">{error.message}</p>
+            {/* Dismiss first, constructive last — the order every other dialog
+                in the app uses (Cancel then Close project, Cancel then Save). */}
             <div className="dialog-actions">
-              {error.secondaryAction && (
-                <button className="secondary-button" type="button" onClick={error.secondaryAction.onAction}>
-                  {error.secondaryAction.label}
+              <button
+                className={error.recoveryAction ? "secondary-button" : "primary-button"}
+                type="button"
+                onClick={() => error.setOpen(false)}
+              >
+                {t.commonClose}
+              </button>
+              {error.recoveryAction && (
+                <button className="primary-button" type="button" onClick={error.recoveryAction.onAction}>
+                  {error.recoveryAction.label}
                 </button>
               )}
-              <button className="primary-button" type="button" onClick={() => error.setOpen(false)}>{t.commonClose}</button>
             </div>
           </div>
         </div>
