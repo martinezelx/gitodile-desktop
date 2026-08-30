@@ -42,6 +42,9 @@ export interface AppTranslations {
   navCustomizeNavigation: string;
   navAccount: string;
   navAccountTitle: string;
+  /** Shown over the whole window while a folder is being dragged onto it. */
+  dropFolderTitle: string;
+  dropFolderHint: string;
   paletteAriaLabel: string;
   palettePlaceholder: string;
   paletteNoMatches: string;
@@ -197,6 +200,8 @@ const en: AppTranslations = {
   navCustomizeNavigation: "Customize navigation bar",
   navAccount: "Sign in",
   navAccountTitle: "Sign in — Coming soon",
+  dropFolderTitle: "Drop a folder to open it",
+  dropFolderHint: "One folder at a time. If it isn't a project yet, GitOdrile offers to make it one.",
   paletteAriaLabel: "Command palette",
   palettePlaceholder: "Jump to a view or action…",
   paletteNoMatches: "No matching commands",
@@ -362,6 +367,8 @@ const es: AppTranslations = {
   navCustomizeNavigation: "Personalizar barra de navegación",
   navAccount: "Iniciar sesión",
   navAccountTitle: "Iniciar sesión — Próximamente",
+  dropFolderTitle: "Suelta una carpeta para abrirla",
+  dropFolderHint: "Una carpeta cada vez. Si todavía no es un proyecto, GitOdrile te ofrece convertirla en uno.",
   paletteAriaLabel: "Paleta de comandos",
   palettePlaceholder: "Ir a una vista o acción…",
   paletteNoMatches: "No hay coincidencias",

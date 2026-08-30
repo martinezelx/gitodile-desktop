@@ -79,6 +79,15 @@ export interface OverviewTranslations {
   overviewOpenProject: string;
   overviewCloneRemoteProject: string;
   overviewCreateLocalProject: string;
+  /** One line under each welcome action, answering "which of these three is
+   * mine?" — the labels alone don't separate opening a folder that is already
+   * a project from creating or downloading one. */
+  overviewCreateLocalProjectHint: string;
+  overviewOpenProjectHint: string;
+  overviewCloneRemoteProjectHint: string;
+  overviewRecentProjectsTitle: string;
+  overviewForgetRecentProject: (name: string) => string;
+  overviewForgetRecentProjectShort: string;
   overviewOpenDialogTitle: string;
   overviewCouldntOpenFolder: string;
 }
@@ -162,12 +171,17 @@ const en: OverviewTranslations = {
   overviewPublishUpTo: "Publish up to here",
   overviewCloseProject: "Close project",
   overviewEmptyTitle: "No project open",
-  overviewEmptyDescription:
-    "Open a Git project to review changes, save versions, publish work, and recover from mistakes.",
+  overviewEmptyDescription: "Pick how you want to start. Everything stays on this computer until you publish.",
   overviewOpening: "Opening…",
   overviewOpenProject: "Open a project",
   overviewCloneRemoteProject: "Clone a remote project",
   overviewCreateLocalProject: "Create a local project",
+  overviewCreateLocalProjectHint: "A new folder, or one you already have",
+  overviewOpenProjectHint: "A folder that already uses Git",
+  overviewCloneRemoteProjectHint: "Download it from a remote server",
+  overviewRecentProjectsTitle: "Back to a recent project",
+  overviewForgetRecentProject: (name) => `Remove ${name} from recent projects`,
+  overviewForgetRecentProjectShort: "Remove from recent projects",
   overviewOpenDialogTitle: "Open a Git project",
   overviewCouldntOpenFolder: "Couldn't open that folder.",
 };
@@ -255,12 +269,17 @@ const es: OverviewTranslations = {
   overviewPublishUpTo: "Publicar hasta aquí",
   overviewCloseProject: "Cerrar proyecto",
   overviewEmptyTitle: "No hay ningún proyecto abierto",
-  overviewEmptyDescription:
-    "Abre un proyecto de Git para revisar cambios, guardar versiones, publicar tu trabajo y recuperarte de errores.",
+  overviewEmptyDescription: "Elige cómo quieres empezar. Todo se queda en tu equipo hasta que publiques.",
   overviewOpening: "Abriendo…",
   overviewOpenProject: "Abrir un proyecto",
   overviewCloneRemoteProject: "Clonar un proyecto remoto",
   overviewCreateLocalProject: "Crear un proyecto local",
+  overviewCreateLocalProjectHint: "Una carpeta nueva o una que ya tienes",
+  overviewOpenProjectHint: "Una carpeta que ya usa Git",
+  overviewCloneRemoteProjectHint: "Descárgalo de un servidor remoto",
+  overviewRecentProjectsTitle: "Vuelve a un proyecto reciente",
+  overviewForgetRecentProject: (name) => `Quitar ${name} de proyectos recientes`,
+  overviewForgetRecentProjectShort: "Quitar de proyectos recientes",
   overviewOpenDialogTitle: "Abrir un proyecto de Git",
   overviewCouldntOpenFolder: "No se pudo abrir esa carpeta.",
 };

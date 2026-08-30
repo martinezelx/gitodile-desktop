@@ -605,4 +605,55 @@ Avoid vague labels such as “Continue” when a more precise action fits.
 
 Each screen must define loading, empty, success, warning, and error states.
 
-Reuse one visual pattern for all of these across screens rather than each screen inventing its own: a centered block with a small icon in a bordered/shadowed circle (`--radius-round`, like every glyph tile), one short headline, one line of supporting copy, and 1–2 actions — see `.empty-state` in `styles.css`, first built for the "no project open" Overview state. A loading state is the same layout with a spinner/skeleton instead of the icon; an error state swaps in `--status-danger`. Do not build a bespoke illustration or a different card shape per screen — that's how a "no repository" panel and a "no results" panel end up looking like they belong to two different apps.
+Reuse one visual pattern for all of these across screens rather than each screen inventing its own: a centered block with a small icon in a bordered/shadowed circle (`--radius-round`, like every glyph tile), one short headline, one line of supporting copy, and 1–2 actions — see `.empty-state` in `src/shared/ui/primitives.css`, first built for the "no project open" Overview state. A loading state is the same layout with a spinner/skeleton instead of the icon; an error state swaps in `--status-danger`. Do not build a bespoke illustration or a different card shape per screen — that's how a "no repository" panel and a "no results" panel end up looking like they belong to two different apps.
+
+**The welcome screen is the one documented departure, and it departs in one
+direction only.** Screen 1 is a front door, not a "nothing here" report: it has
+three peer entry points — create, open, clone — where the pattern allows one or
+two, and as capsules their labels wrapped to three lines *inside* the pill,
+because a capsule is a single-line control by definition (§ Shape). It keeps
+the block, the headline and the one supporting line, and replaces only the
+action row with a launcher: one card per action (`--radius-surface`), each a
+circular glyph tile with its label and a one-line hint underneath, reusing the
+add-project menu's own icons so both routes to the same three flows look
+related. The pattern's own glyph tile goes away there rather than becoming a
+fourth circle above three, and **the three read as peers**: same tile, same
+weight, no accent on any of them. The old row had one green pill and two grey
+buttons, so the shape carried a recommendation; as cards it would be a claim
+the screen cannot support, since which action is right depends entirely on what
+the user already has on disk. The hint under each label answers that, and it
+answers it better than a colour that only says "this one".
+Progress lives on the card that is working — opening a project reports in the
+Open card — not in a spinner at the top of the screen. This screen also owns
+the app's only `h1` while no project is open; the shell does not additionally
+title it "Overview". Read the departure as "a launcher earns cards", not as
+"empty states may invent shapes".
+
+Under the launcher the same screen lists **recent projects** — left-aligned
+rows inside the centred block, because names and paths are read down an edge
+rather than from the middle out. Each row carries the project's own avatar,
+the same colour and initials the rail and the switcher give it, since the
+point of a recents list is recognizing a project without reading it; the name
+is the row's accessible name and the path its description, so two projects
+sharing a folder name are still told apart. Its "remove from recents" control
+follows the switcher's Close: faded until the row is pointed at, because it is
+destructive and rarely wanted, and always solid where there is no pointer.
+
+The row's star is the **same favourite the rail and the switcher show**, from
+the same store and with the same strings — one mark on one project, not a
+list-local flag, so starring it here stars it everywhere. Favourites sort to
+the top of the list before it is sliced, which is what keeps a project someone
+cares about reachable on the front door after it has aged out of the newest
+few. Like the switcher's star it is rendered at rest rather than on hover: a
+marked favourite has to be readable without pointing at it, and a hover-only
+control cannot be reached by keyboard at all.
+
+**Dropping a folder on the window** opens it. While a drag is over the window
+— and only then — a window-sized overlay names what a drop will do. It is
+feedback about a gesture, not chrome: it never takes the pointer (an overlay
+that swallowed the pointer would cancel the drop it invites), it stays out of
+the accessibility tree because a drag has no keyboard equivalent to narrate,
+and it does not appear under a blocking dialog, which is exactly when a drop is
+ignored. Its dashed edge is the only dashed border in the app and is meant to
+stay that way: dashes are the universal "drop here" mark, and a solid edge at
+that size would read as a dialog.

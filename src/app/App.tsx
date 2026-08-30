@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
@@ -12,6 +13,7 @@ import {
   CloudDownload,
   Copy,
   FolderInput,
+  FolderOpen,
   FolderPlus,
   PanelLeftClose,
   PanelLeftOpen,
@@ -112,6 +114,12 @@ import {
   writeStoredProjects,
   type ProjectView,
 } from "../runtime/project/sessions";
+import {
+  forgetRecentProject,
+  readRecentProjects,
+  rememberRecentProject,
+  type RecentProject,
+} from "../runtime/project/recentProjects";
 import { createProjectRuntime, scheduleIdleTask, useProjectSelector } from "../runtime/project/runtime";
 import { useProjectCacheWarming } from "../features/repository";
 import {
@@ -120,7 +128,7 @@ import {
   type ProjectSwitcherEntry,
   orderByFavourite,
 } from "./project-switcher/ProjectSwitcher";
-import { avatarColorVar, avatarInitials } from "./project-switcher/projectAvatar";
+import { avatarColorVar, avatarInitials } from "../shared/ui/projectAvatar";
 import {
   ChangesPanel,
   HistoryScreen,
@@ -303,6 +311,7 @@ export function App(): React.JSX.Element {
   mapSyncErrorRef.current = mapSyncError;
   const [projectAnnouncement, setProjectAnnouncement] = useState("");
   const [storedProjectsOnLaunch] = useState(readStoredProjects);
+  const [recentProjects, setRecentProjects] = useState<readonly RecentProject[]>(readRecentProjects);
   const [hasCompletedSessionRestore, setHasCompletedSessionRestore] = useState(false);
 
   const navigateToView = (next: View): void => {
@@ -353,6 +362,9 @@ export function App(): React.JSX.Element {
     onAction: () => void;
   } | null>(null);
   const [isOpening, setIsOpening] = useState(false);
+  /** True only while a drag is actually over the window, so the drop overlay
+   * is feedback about a gesture in progress and never app chrome. */
+  const [isFolderDropTarget, setIsFolderDropTarget] = useState(false);
   const [publishDialogSessionId, setPublishDialogSessionId] = useState<string | null>(null);
   const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
   const [saveDialogSessionId, setSaveDialogSessionId] = useState<string | null>(null);
@@ -552,6 +564,38 @@ export function App(): React.JSX.Element {
     writeStoredProjects(projectSessionsStateToStored(sessionsState));
   }, [hasCompletedSessionRestore, sessionsState.order, sessionsState.activeId]);
 
+  // Recents are recorded from *sessions appearing*, not from each open call
+  // site: opening a folder, finishing a clone, initializing a project and
+  // restoring last session all end in the same `"open"` dispatch, and a
+  // per-caller `rememberRecentProject` would have to be added to each one and
+  // then kept there. Reopening a project makes its id appear again, which is
+  // what promotes it back to the front of the list.
+  const recordedProjectIdsRef = useRef<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    const opened = sessionsState.order.filter((id) => !recordedProjectIdsRef.current.has(id));
+    recordedProjectIdsRef.current = new Set(sessionsState.order);
+    if (opened.length === 0) {
+      return;
+    }
+    let entries = recentProjects;
+    for (const id of opened) {
+      const session = sessionsState.byId[id];
+      if (session) entries = rememberRecentProject({ path: id, name: session.project.name });
+    }
+    setRecentProjects(entries);
+    // `recentProjects` is read, never depended on: this effect writes it, and
+    // depending on it would re-run the pass it just caused.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionsState.order, sessionsState.byId]);
+
+  // Favourites first, then by recency — ordered *before* the welcome screen
+  // takes its slice, so a project someone starred stays reachable there after
+  // it has aged out of the newest few. The star itself is the app's existing
+  // project favourite, not a second list-local mark.
+  const recentProjectEntries = orderByFavourite(
+    recentProjects.map((entry) => ({ ...entry, isFavourite: favouriteProjectIds.has(entry.path) })),
+  );
+
   const openPalette = (): void => {
     palettePreviouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setIsPaletteOpen(true);
@@ -641,14 +685,26 @@ export function App(): React.JSX.Element {
     void checkWorkingTree(target.project.path);
   };
 
-  const handleOpenProject = async (): Promise<void> => {
-    if (hasBlockingDialog) {
+  /** The one open path. `preselectedPath` skips the folder picker for a folder
+   * the user has already named some other way — a row in the welcome screen's
+   * recent list, or a folder dropped on the window — so those routes inherit
+   * this one's validation, its already-open handling, its announcement, and
+   * its "that folder isn't a project yet" recovery instead of copying them. */
+  const handleOpenProject = async (preselectedPath?: string): Promise<void> => {
+    // `isOpening` guards the one route that can arrive unprompted: a second
+    // folder dropped while the first is still opening would run two
+    // `open_repository` calls against a single in-flight flag, and the first
+    // to finish would clear it under the second. The picker and the recent
+    // rows cannot reach this — their controls are disabled meanwhile.
+    if (hasBlockingDialog || isOpening) {
       return;
     }
     setOpenError(null);
     let selectedPath: string | null = null;
     try {
-      const selected = await openFolderDialog({ directory: true, multiple: false, title: t.overviewOpenDialogTitle });
+      const selected =
+        preselectedPath ??
+        (await openFolderDialog({ directory: true, multiple: false, title: t.overviewOpenDialogTitle }));
       if (!selected || Array.isArray(selected)) {
         return;
       }
@@ -815,6 +871,55 @@ export function App(): React.JSX.Element {
     return () => {
       cancelled = true;
       unlisten?.();
+    };
+  }, []);
+
+  // Dropping a folder on the window opens it. Session lifecycle wiring, like
+  // the watcher above, so it lives here rather than in a feature: it ends in
+  // the same `handleOpenProject` every other route uses, and therefore in the
+  // same validation, the same already-open handling and the same "that folder
+  // isn't a project yet" recovery. The ref keeps the subscription registered
+  // once while still calling the current handler, which closes over state.
+  const handleOpenProjectRef = useRef(handleOpenProject);
+  handleOpenProjectRef.current = handleOpenProject;
+
+  useEffect(() => {
+    // Outside Tauri (tests, a plain `vite dev`) the webview emits no drag
+    // events at all; every other way into a project is unaffected.
+    if (!("__TAURI_INTERNALS__" in window)) {
+      return undefined;
+    }
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (event.payload.type === "enter" || event.payload.type === "over") {
+          setIsFolderDropTarget(true);
+          return;
+        }
+        setIsFolderDropTarget(false);
+        if (event.payload.type !== "drop") {
+          return;
+        }
+        // One drop opens one project, which is what the overlay promises
+        // while the pointer is still over the window ("drop a folder"). The
+        // rest of a multi-folder drag is ignored rather than opening a queue
+        // of projects the user did not ask to switch between.
+        const [droppedPath] = event.payload.paths;
+        if (droppedPath) void handleOpenProjectRef.current(droppedPath);
+      })
+      .then((stop) => {
+        if (cancelled) stop();
+        else unlisten = stop;
+      })
+      .catch(() => {
+        // No drop affordance, no error surfaced: the folder picker, the
+        // recent list and the clone flow are all still there.
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+      setIsFolderDropTarget(false);
     };
   }, []);
 
@@ -1793,11 +1898,6 @@ export function App(): React.JSX.Element {
               })}
             </nav>
           </div>
-          {view === "overview" && !project && (
-            <header className="topbar">
-              <h1>{t.navOverview}</h1>
-            </header>
-          )}
 
           {view === "overview" && skippedRestoreCount > 0 && (
             <p className="restore-skipped-notice" role="status">
@@ -1846,6 +1946,10 @@ export function App(): React.JSX.Element {
                   onOpenProject={() => void handleOpenProject()}
                   onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
                   onCloneProject={() => setIsCloneOpen(true)}
+                  recentProjects={recentProjectEntries}
+                  onOpenRecentProject={(path) => void handleOpenProject(path)}
+                  onToggleFavouriteRecentProject={toggleFavouriteProject}
+                  onForgetRecentProject={(path) => setRecentProjects(forgetRecentProject(path))}
                   canPublish={canPublish}
                   onPublish={() => openPublishDialog()}
                   onPublishUpTo={(commit) => openPublishDialog(commit)}
@@ -2015,6 +2119,24 @@ export function App(): React.JSX.Element {
           onOpenChangelog={() => setIsChangelogOpen(true)}
         />
       </main>
+
+      {/* Feedback about a gesture in progress, not app chrome: it exists only
+          while something is actually being dragged over the window, never
+          takes the pointer, and stays out of the accessibility tree because
+          there is no keyboard or screen-reader equivalent of a drag to
+          narrate. It is suppressed under a blocking dialog, which is exactly
+          when a drop is ignored. */}
+      {isFolderDropTarget && !hasBlockingDialog && (
+        <div className="folder-drop-overlay" aria-hidden="true">
+          <div className="folder-drop-overlay__panel">
+            <span className="folder-drop-overlay__icon">
+              <FolderOpen />
+            </span>
+            <p className="folder-drop-overlay__title">{t.dropFolderTitle}</p>
+            <p className="folder-drop-overlay__hint">{t.dropFolderHint}</p>
+          </div>
+        </div>
+      )}
 
       <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
 

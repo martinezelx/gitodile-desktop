@@ -24,3 +24,7 @@ export { useFieldErrors, FieldError } from "./fieldErrors";
 export type { FieldCheck, FieldErrorMap, FieldErrorState } from "./fieldErrors";
 export { useAnchoredPopup, usePortalFlyout, handlePopupMenuKeyDown } from "./popupMenu";
 export { copyTextToClipboard } from "./clipboard";
+/* ADR 0003's two-consumer bar: the project switcher had this to itself until
+   the welcome screen's recent-projects list needed the same identity — same
+   colour, same initials, for the same project. */
+export { avatarColorVar, avatarInitials } from "./projectAvatar";

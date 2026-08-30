@@ -741,14 +741,210 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   white-space: nowrap;
 }
 
+/* ---- Welcome screen (Overview with no project open) ----
+   The shared `.empty-state` block still supplies the centred column, but this
+   is the app's front door rather than a "no results" panel, so it widens for a
+   row of entry points and drops the pattern's single glyph tile: the three
+   cards carry the icons now, and a fourth circle above them only competed. */
+/* The shared block centres itself with `margin: 0 auto`, which in a column
+   flex container means auto cross-axis margins — so it shrinks to fit its
+   content instead of stretching. Without a definite width the launcher grid
+   resolves `auto-fit` against an indefinite size, collapses to one column and
+   the three cards wrap 2 + 1. */
+.empty-state--welcome { width: 100%; max-width: 560px; }
+.empty-state--welcome h1 { margin-bottom: var(--space-1); font-size: 20px; }
+.empty-state--welcome p { max-width: 420px; text-wrap: balance; }
+
+.welcome-actions {
+  width: 100%;
+  /* auto-fit rather than a fixed three: the same row reflows to two cards and
+     then to one as the workspace narrows, with no breakpoint to keep in sync
+     with the shell's own. */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+.welcome-action {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+  text-align: center;
+  transition: border-color var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+.welcome-action:hover:not(:disabled) {
+  border-color: var(--border-control);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.welcome-action:active:not(:disabled) { box-shadow: var(--shadow-sm); transform: translateY(0); }
+.welcome-action:disabled { opacity: 0.5; }
+.welcome-action__icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-round);
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  transition: color var(--duration-fast);
+}
+.welcome-action__icon svg { width: 20px; height: 20px; }
+.welcome-action:hover:not(:disabled) .welcome-action__icon { color: var(--text-primary); }
+.welcome-action__icon--loading svg { animation: spin 900ms linear infinite; }
+/* Three short strings in three narrow columns: greedy wrapping leaves a single
+   word alone on the last line of most of them ("…proyecto / remoto"), which
+   reads as a mistake next to a card whose label happens to fit. Balanced lines
+   are ignored by anything that does not support them. */
+.welcome-action__label { font-size: 13px; font-weight: 600; line-height: 1.35; text-wrap: balance; }
+.welcome-action__hint { color: var(--text-secondary); font-size: 12px; line-height: 1.4; text-wrap: balance; }
+
+/* ---- Recent projects, under the launcher ----
+   Left-aligned rows inside a centred block on purpose: names and paths are
+   read down an edge, not from the middle out. The row carries the project's
+   own avatar — same colour and initials as the rail and the switcher — because
+   the point of a recents list is recognizing a project without reading it. */
+.welcome-recents {
+  width: 100%;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-divider);
+  text-align: left;
+}
+.welcome-recents__title {
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.welcome-recents__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.welcome-recents__item { display: flex; align-items: center; gap: var(--space-1); }
+.welcome-recents__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background var(--duration-fast);
+}
+.welcome-recents__open:hover:not(:disabled) { background: var(--surface-hover); }
+.welcome-recents__open:disabled { opacity: 0.5; }
+.welcome-recents__avatar {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  color: var(--avatar-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.welcome-recents__copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.welcome-recents__name { min-width: 0; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.welcome-recents__path {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Mirrors Remove in footprint so the two trailing controls line up, but not in
+   behaviour — the same split the switcher makes: unmarked it sits at the same
+   low opacity, marked it goes solid and takes the accent, which is the one
+   state that must survive not pointing at the row. */
+.welcome-recents__favourite {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary);
+  opacity: 0.55;
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.welcome-recents__favourite svg { width: 14px; height: 14px; }
+.welcome-recents__item:hover .welcome-recents__favourite,
+.welcome-recents__favourite:focus-visible { opacity: 1; }
+.welcome-recents__favourite:hover { background: var(--surface-hover); color: var(--text-primary); }
+.welcome-recents__favourite--on { opacity: 1; color: var(--accent-primary); }
+.welcome-recents__favourite--on svg { fill: currentColor; }
+
+/* Same reasoning as the switcher's Close: destructive, rarely wanted, so it
+   fades until the row is pointed at — and is always solid where there is no
+   pointer to hover with. */
+.welcome-recents__forget {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary);
+  opacity: 0.55;
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.welcome-recents__forget svg { width: 14px; height: 14px; }
+.welcome-recents__item:hover .welcome-recents__forget,
+.welcome-recents__forget:focus-visible { opacity: 1; }
+.welcome-recents__forget:hover { background: var(--surface-hover); color: var(--text-primary); }
+@media (hover: none) {
+  .welcome-recents__forget { opacity: 1; }
+}
+
+/* Narrower than the row needs, the same three cards turn on their side — icon
+   left, text right — rather than stacking as three tall tiles or stranding the
+   third one alone on a second line. Same trio, same order, one column. */
+@media (max-width: 560px) {
+  .welcome-actions { grid-template-columns: minmax(0, 1fr); }
+  .welcome-action {
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    align-items: center;
+    padding: var(--space-3);
+    column-gap: var(--space-3);
+    row-gap: 2px;
+    text-align: left;
+  }
+  .welcome-action__icon { grid-row: 1 / span 2; width: 40px; height: 40px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .empty-state__icon--loading svg,
+  .welcome-action__icon--loading svg,
   .icon--spinning { animation: none; }
   .overview-history__list li::after,
   .overview-history__node { transition: none; }
   .overview-history__row:hover .overview-history__node,
   .overview-history__row:focus-visible .overview-history__node { animation: none; }
   .overview-history__row::before { display: none; animation: none; }
+  .welcome-action { transition: none; }
+  .welcome-action:hover:not(:disabled) { transform: none; }
+  .welcome-recents__open,
+  .welcome-recents__favourite,
+  .welcome-recents__forget { transition: none; }
 }
 
 @keyframes overview-history-line-arrive {

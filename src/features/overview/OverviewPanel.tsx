@@ -1,24 +1,30 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useId, useRef, useState } from "react";
 import {
   ArrowRightLeft,
   Check,
   CheckCircle2,
   CircleAlert,
   ChevronRight,
+  CloudDownload,
   Copy,
   Eye,
   FileDiff,
   FileMinus,
   FilePlus,
-  FolderOpen,
+  FolderInput,
+  FolderPlus,
   GitBranch,
   LoaderCircle,
   Pencil,
   Save,
+  Star,
   TriangleAlert,
+  X,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import type { RecentProject } from "../../runtime/project/recentProjects";
+import { avatarColorVar, avatarInitials } from "../../shared/ui";
 import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
 import {
   CATEGORY_ORDER,
@@ -53,8 +59,6 @@ function repositoryStatus(project: RepositoryInfo, t: ReturnType<typeof useLangu
     ? t.overviewWorktreeBranch(project.branch ?? "")
     : t.overviewRepositoryBranch(project.branch ?? "");
 }
-
-const FOLDER_ICON = <FolderOpen />;
 
 /** Truncated paths stay fully available: readable on hover/AT, and copyable. */
 export function ProjectPath({ path, onCopyError }: { path: string; onCopyError: () => void }): React.JSX.Element {
@@ -253,6 +257,202 @@ function OverviewChangesPreview({
   );
 }
 
+/** A recent project plus whether it is one of the app's favourite projects —
+ * the *same* favourites the rail and the project switcher show, from the same
+ * store, so a project starred in either place is starred in both. Ordering is
+ * done by the caller (`orderByFavourite`), which owns that rule for every list
+ * that shows favourites. */
+type WelcomeRecentEntry = RecentProject & { isFavourite: boolean };
+
+/** How many recent projects the welcome screen lists. The store keeps more
+ * (see `RECENT_PROJECTS_LIMIT`) so closing a project does not truncate the
+ * tail; this is how many fit under the launcher before the front door starts
+ * reading as a file manager. */
+const WELCOME_RECENTS_VISIBLE = 5;
+
+/** A project this machine has opened before. The name is the accessible name
+ * and the path is its description, so a screen reader announces "gitodrile,
+ * C:\workspace\gitodrile" rather than reading the path as part of the
+ * label — and two projects that share a folder name are still told apart. */
+function WelcomeRecentRow({
+  entry,
+  isDisabled,
+  onOpen,
+  onToggleFavourite,
+  onForget,
+}: {
+  entry: WelcomeRecentEntry;
+  /** Gates opening only. Starring and forgetting a row touch nothing but this
+   * machine's own lists, so an open already in flight is no reason to block
+   * them. */
+  isDisabled: boolean;
+  onOpen: (path: string) => void;
+  onToggleFavourite: (path: string) => void;
+  onForget: (path: string) => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const nameId = useId();
+  const pathId = useId();
+
+  return (
+    <li className="welcome-recents__item">
+      <button
+        className="welcome-recents__open"
+        type="button"
+        disabled={isDisabled}
+        aria-labelledby={nameId}
+        aria-describedby={pathId}
+        onClick={() => onOpen(entry.path)}
+      >
+        <span className="welcome-recents__avatar" aria-hidden="true" style={{ backgroundColor: avatarColorVar(entry.path) }}>
+          {avatarInitials(entry.name)}
+        </span>
+        <span className="welcome-recents__copy">
+          <span className="welcome-recents__name" id={nameId}>
+            {entry.name}
+          </span>
+          <span className="welcome-recents__path" id={pathId} data-tooltip={entry.path}>
+            {entry.path}
+          </span>
+        </span>
+      </button>
+      {/* Before Remove, so the destructive control stays last in reading and
+          tab order — and rendered at rest rather than on hover, because a
+          marked favourite has to be readable without pointing at it. Same
+          reasoning, same shape and same strings as the switcher's own star:
+          it is the same mark on the same project. */}
+      <button
+        className={`welcome-recents__favourite${entry.isFavourite ? " welcome-recents__favourite--on" : ""}`}
+        type="button"
+        aria-pressed={entry.isFavourite}
+        aria-label={
+          entry.isFavourite
+            ? t.projectSwitcherUnfavourite(entry.name)
+            : t.projectSwitcherFavourite(entry.name)
+        }
+        data-tooltip={
+          entry.isFavourite ? t.projectSwitcherUnfavouriteHint : t.projectSwitcherFavouriteHint
+        }
+        onClick={() => onToggleFavourite(entry.path)}
+      >
+        <Star aria-hidden="true" />
+      </button>
+      <button
+        className="welcome-recents__forget"
+        type="button"
+        aria-label={t.overviewForgetRecentProject(entry.name)}
+        data-tooltip={t.overviewForgetRecentProjectShort}
+        onClick={() => onForget(entry.path)}
+      >
+        <X aria-hidden="true" />
+      </button>
+    </li>
+  );
+}
+
+/**
+ * The welcome screen's second half: what you already work on, under the three
+ * ways to start something new. It exists because the front door's real
+ * question is usually "let me back into the thing I had open", and the answer
+ * used to be the folder picker every single time.
+ *
+ * Entries outlive their sessions on purpose — a closed project is exactly the
+ * one worth offering — so a row can name a folder that has since moved. That
+ * is reported by the open attempt through the normal failure path, and the row
+ * can be dropped by hand; it is never silently removed here.
+ */
+function WelcomeRecents({
+  entries,
+  isDisabled,
+  onOpen,
+  onToggleFavourite,
+  onForget,
+}: {
+  entries: readonly WelcomeRecentEntry[];
+  isDisabled: boolean;
+  onOpen: (path: string) => void;
+  onToggleFavourite: (path: string) => void;
+  onForget: (path: string) => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const headingId = useId();
+
+  return (
+    <section className="welcome-recents" aria-labelledby={headingId}>
+      <h2 className="welcome-recents__title" id={headingId}>
+        {t.overviewRecentProjectsTitle}
+      </h2>
+      <ul className="welcome-recents__list">
+        {entries.slice(0, WELCOME_RECENTS_VISIBLE).map((entry) => (
+          <WelcomeRecentRow
+            key={entry.path}
+            entry={entry}
+            isDisabled={isDisabled}
+            onOpen={onOpen}
+            onToggleFavourite={onToggleFavourite}
+            onForget={onForget}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * One entry point on the welcome screen: a circular glyph tile with its label
+ * and a one-line hint underneath. Three peer actions is one more than the
+ * shared `.empty-state` pattern's "1–2 actions", and as capsules their labels
+ * wrapped to three lines *inside* the pill — the card puts the text under the
+ * icon instead, where wrapping is normal, and reuses the add-project menu's
+ * own glyphs so the two routes to the same three flows look related.
+ *
+ * The three are peers and look it: no accent, no recommended one. Which of
+ * them is right depends entirely on what the user already has on disk, and the
+ * hint answers that better than a colour that only says "this one".
+ *
+ * The label carries the accessible name on its own (`aria-labelledby`) so the
+ * hint stays a description rather than being read as part of the name.
+ */
+function WelcomeAction({
+  icon,
+  label,
+  hint,
+  isBusy = false,
+  disabled,
+  onClick,
+}: {
+  icon: React.JSX.Element;
+  label: string;
+  hint: string;
+  isBusy?: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}): React.JSX.Element {
+  const labelId = useId();
+  const hintId = useId();
+
+  return (
+    <button
+      className="welcome-action"
+      type="button"
+      disabled={disabled}
+      aria-labelledby={labelId}
+      aria-describedby={hintId}
+      onClick={onClick}
+    >
+      <span className={`welcome-action__icon${isBusy ? " welcome-action__icon--loading" : ""}`} aria-hidden="true">
+        {icon}
+      </span>
+      <span className="welcome-action__label" id={labelId}>
+        {label}
+      </span>
+      <span className="welcome-action__hint" id={hintId}>
+        {hint}
+      </span>
+    </button>
+  );
+}
+
 function ProjectSummaryCard({
   project,
   overview,
@@ -339,6 +539,10 @@ export function OverviewPanel({
   onOpenProject,
   onCreateProject,
   onCloneProject,
+  recentProjects,
+  onOpenRecentProject,
+  onToggleFavouriteRecentProject,
+  onForgetRecentProject,
   canPublish,
   onPublish,
   onPublishUpTo,
@@ -378,6 +582,16 @@ export function OverviewPanel({
   onOpenProject: () => void;
   onCreateProject: () => void;
   onCloneProject: () => void;
+  /** Projects opened before on this machine, already in display order
+   * (favourites first, then by recency) — read from the app's own stores, not
+   * from repository state, so the welcome screen never touches Git to draw
+   * them. Empty until one has been opened. */
+  recentProjects: readonly WelcomeRecentEntry[];
+  onOpenRecentProject: (path: string) => void;
+  /** Marks the *project*, not the row: the same favourites store the rail and
+   * the switcher read, so the star survives closing and reopening the app. */
+  onToggleFavouriteRecentProject: (path: string) => void;
+  onForgetRecentProject: (path: string) => void;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
   /** The project session's cached branch inventory, shared with the Version
@@ -612,24 +826,50 @@ export function OverviewPanel({
     );
   }
 
+  // The welcome screen owns the app's only `h1` while no project is open: the
+  // shell drops its "Overview" topbar here, because naming the screen twice —
+  // once as a heading nobody navigated to, once as this headline — spent the
+  // front door's first line on the wrong sentence.
   return (
-    <div className="empty-state" aria-busy={isOpening}>
-      <div className={`empty-state__icon${isOpening ? " empty-state__icon--loading" : ""}`} aria-hidden="true">
-        {isOpening ? <LoaderCircle /> : FOLDER_ICON}
-      </div>
-      <h2>{t.overviewEmptyTitle}</h2>
+    <div className="empty-state empty-state--welcome" aria-busy={isOpening}>
+      <h1>{t.overviewEmptyTitle}</h1>
       <p>{t.overviewEmptyDescription}</p>
-      <div className="empty-state__actions">
-        <button className="primary-button" type="button" onClick={onCreateProject} disabled={isOpening}>
-          {t.overviewCreateLocalProject}
-        </button>
-        <button className="secondary-button" type="button" onClick={onOpenProject} disabled={isOpening}>
-          {isOpening ? t.overviewOpening : t.overviewOpenProject}
-        </button>
-        <button className="secondary-button" type="button" onClick={onCloneProject} disabled={isOpening}>
-          {t.overviewCloneRemoteProject}
-        </button>
+      <div className="welcome-actions">
+        <WelcomeAction
+          icon={<FolderInput />}
+          label={t.overviewCreateLocalProject}
+          hint={t.overviewCreateLocalProjectHint}
+          disabled={isOpening}
+          onClick={onCreateProject}
+        />
+        <WelcomeAction
+          // Opening is the only one of the three that runs here rather than in
+          // a dialog, so its own card carries the progress instead of a
+          // spinner at the top of a screen that is otherwise unchanged.
+          icon={isOpening ? <LoaderCircle /> : <FolderPlus />}
+          label={isOpening ? t.overviewOpening : t.overviewOpenProject}
+          hint={t.overviewOpenProjectHint}
+          isBusy={isOpening}
+          disabled={isOpening}
+          onClick={onOpenProject}
+        />
+        <WelcomeAction
+          icon={<CloudDownload />}
+          label={t.overviewCloneRemoteProject}
+          hint={t.overviewCloneRemoteProjectHint}
+          disabled={isOpening}
+          onClick={onCloneProject}
+        />
       </div>
+      {recentProjects.length > 0 && (
+        <WelcomeRecents
+          entries={recentProjects}
+          isDisabled={isOpening}
+          onOpen={onOpenRecentProject}
+          onToggleFavourite={onToggleFavouriteRecentProject}
+          onForget={onForgetRecentProject}
+        />
+      )}
     </div>
   );
 }

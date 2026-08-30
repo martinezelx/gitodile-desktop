@@ -702,7 +702,48 @@
 .screen-slot[hidden] { display: none; }
 .compact-nav { display: none; }
 .compact-history-controls { display: none; }
-.topbar { margin-bottom: 40px; }
+/* The window is the drop target, so the affordance is window-sized. It sits
+   under the dialog layer (z-index 10 and up) and never paints at the same time
+   as one; `pointer-events: none` keeps it out of the drag it is describing —
+   an overlay that swallowed the pointer would cancel the drop it invites. The
+   dashed edge is the one dashed border in the app, and it is deliberate: it is
+   the universal "drop here" mark, and a solid one would read as a dialog. */
+.folder-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: var(--overlay);
+  pointer-events: none;
+}
+.folder-drop-overlay__panel {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  max-width: 380px;
+  padding: var(--space-5) var(--space-6);
+  border: 2px dashed var(--accent-primary);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+.folder-drop-overlay__icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-round);
+  background: var(--surface-control);
+  color: var(--accent-primary);
+}
+.folder-drop-overlay__icon svg { width: 20px; height: 20px; }
+.folder-drop-overlay__title { margin: 0; font-size: 15px; font-weight: 600; }
+.folder-drop-overlay__hint { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
+
 .app-tooltip {
   position: fixed; max-width: 260px; width: max-content;
   padding: 5px 8px; border-radius: var(--radius-item);

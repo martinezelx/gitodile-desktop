@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage } from "../../i18n";
-import { avatarColorVar, avatarInitials } from "./projectAvatar";
+import { avatarColorVar, avatarInitials } from "../../shared/ui/projectAvatar";
 import { handlePopupMenuKeyDown, usePortalFlyout } from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui/autoHideScrollbar";
 
@@ -51,10 +51,16 @@ type ProjectSwitcherProps = {
  * already had. Display order only — `sessionsState.order` stays canonical, so
  * favouriting a project never silently rearranges what Ctrl/Cmd+Tab cycles
  * through or which project the reducer considers next.
+ *
+ * Generic over anything that knows whether it is a favourite, because the
+ * welcome screen's recent-projects list shows the same favourites, from the
+ * same store, and has to order them the same way. One rule, stated once: two
+ * copies of "favourites first, stable within group" is exactly how the two
+ * lists start disagreeing.
  */
-export function orderByFavourite(
-  entries: readonly ProjectSwitcherEntry[],
-): ProjectSwitcherEntry[] {
+export function orderByFavourite<Entry extends { isFavourite: boolean }>(
+  entries: readonly Entry[],
+): Entry[] {
   return [
     ...entries.filter((entry) => entry.isFavourite),
     ...entries.filter((entry) => !entry.isFavourite),

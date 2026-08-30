@@ -447,8 +447,8 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
   const closeNarrowDetail = useCallback(() => setShowNarrowDetail(false), []);
 
   if (!state.snapshot && state.isLoading) return <div className="history-screen"><div className="empty-state" aria-busy="true"><LoadingBar label={t.historyLoading} /><h1>{t.historyTitle}</h1><p>{t.historyLoading}</p></div></div>;
-  if (!state.snapshot && error) return <div className="history-screen"><div className="empty-state empty-state--error" role="alert"><CircleAlert /><h1>{t.historyErrorTitle}</h1><p>{error}</p><button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button></div></div>;
-  if (state.snapshot && state.versions.length === 0) return <div className="history-screen"><div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div><div className="empty-state"><GitCommitHorizontal aria-hidden="true" /><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div></div>;
+  if (!state.snapshot && error) return <div className="history-screen"><div className="empty-state empty-state--error" role="alert"><div className="empty-state__icon" aria-hidden="true"><CircleAlert /></div><h1>{t.historyErrorTitle}</h1><p>{error}</p><div className="empty-state__actions"><button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button></div></div></div>;
+  if (state.snapshot && state.versions.length === 0) return <div className="history-screen"><div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div><div className="empty-state"><div className="empty-state__icon" aria-hidden="true"><GitCommitHorizontal /></div><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div></div>;
 
   return <div className={`history-screen${showNarrowDetail ? " history-screen--narrow-detail" : ""}`}>
     <div className="history-notices">

@@ -127,6 +127,9 @@ nav { display: grid; gap: 6px; }
 .empty-state__actions { display: flex; gap: 10px; }
 
 .empty-state__icon--loading svg { animation: spin 900ms linear infinite; }
+/* DESIGN.md § Core screens: an error state is this same block with the danger
+   colour swapped into the glyph tile — not a second, differently shaped panel. */
+.empty-state--error .empty-state__icon { border-color: var(--status-danger); color: var(--status-danger); }
 
 .restore-skipped-notice {
   display: flex; align-items: center; gap: var(--space-2); justify-content: space-between;

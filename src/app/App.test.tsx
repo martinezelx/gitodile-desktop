@@ -444,6 +444,195 @@ describe("App project restoration", () => {
     expect(screen.getByRole("dialog", { name: "Clone a remote project" })).toBeInTheDocument();
   });
 
+  it("welcomes with three described entry points under a single heading", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") {
+        return Promise.resolve({ name: "", email: "" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    // The welcome copy is the only page heading now: the shell no longer also
+    // titles this screen "Overview" above it.
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("No project open");
+    expect(screen.queryByRole("heading", { name: "Overview" })).not.toBeInTheDocument();
+
+    // Each hint has to stay a *description*: folded into the name instead, it
+    // would break every "Open a project" lookup in the app.
+    for (const [name, hint] of [
+      ["Create a local project", "A new folder, or one you already have"],
+      ["Open a project", "A folder that already uses Git"],
+      ["Clone a remote project", "Download it from a remote server"],
+    ]) {
+      expect(screen.getByRole("button", { name, description: hint })).toBeEnabled();
+    }
+  });
+
+  it("offers recent projects on the welcome screen, opens one, and forgets one", async () => {
+    localStorage.setItem(
+      "gitodrile-recent-projects",
+      JSON.stringify({
+        version: 1,
+        entries: [
+          { path: restoredProject.path, name: restoredProject.name },
+          { path: secondProject.path, name: secondProject.name },
+        ],
+      }),
+    );
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") return Promise.resolve({ name: "", email: "" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    // The path is the row's description, not part of its name: two projects
+    // can share a folder name, and the name alone has to stay the label.
+    const recent = screen.getByRole("button", {
+      name: secondProject.name,
+      description: secondProject.path,
+    });
+    expect(recent).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: `Remove ${secondProject.name} from recent projects` }));
+    expect(screen.queryByRole("button", { name: secondProject.name })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("gitodrile-recent-projects") ?? "{}")).toEqual({
+      version: 1,
+      entries: [{ path: restoredProject.path, name: restoredProject.name }],
+    });
+
+    // Opening a recent goes through the same open path as the folder picker —
+    // no dialog, and the picker is never reached.
+    await user.click(screen.getByRole("button", { name: restoredProject.name }));
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("open_repository", {
+        path: restoredProject.path,
+        sessionEpoch: undefined,
+      }),
+    );
+    expect(mockedOpenFolderDialog).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "No project open" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps a favourite recent above newer ones, sharing the switcher's own store", async () => {
+    localStorage.setItem(
+      "gitodrile-recent-projects",
+      JSON.stringify({
+        version: 1,
+        entries: [
+          { path: secondProject.path, name: secondProject.name },
+          { path: restoredProject.path, name: restoredProject.name },
+        ],
+      }),
+    );
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") return Promise.resolve({ name: "", email: "" });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    // Newest first to begin with.
+    const listedBefore = screen
+      .getAllByRole("listitem")
+      .map((item) => item.textContent ?? "")
+      .filter((text) => text.includes(restoredProject.name) || text.includes(secondProject.name));
+    expect(listedBefore[0]).toContain(secondProject.name);
+
+    await user.click(
+      screen.getByRole("button", { name: `Add ${restoredProject.name} to favourites` }),
+    );
+
+    // The mark is the app's own project favourite, not a row-local flag.
+    expect(JSON.parse(localStorage.getItem("gitodrile-favourite-projects") ?? "[]")).toEqual([
+      restoredProject.path,
+    ]);
+    const star = screen.getByRole("button", {
+      name: `Remove ${restoredProject.name} from favourites`,
+    });
+    expect(star).toHaveAttribute("aria-pressed", "true");
+
+    const listedAfter = screen
+      .getAllByRole("listitem")
+      .map((item) => item.textContent ?? "")
+      .filter((text) => text.includes(restoredProject.name) || text.includes(secondProject.name));
+    expect(listedAfter[0]).toContain(restoredProject.name);
+  });
+
+  it("remembers a project it opened, newest first", async () => {
+    mockedOpenFolderDialog.mockResolvedValue(secondProject.path);
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") return Promise.resolve({ name: "", email: "" });
+      if (command === "open_repository") return Promise.resolve(secondProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    localStorage.setItem(
+      "gitodrile-recent-projects",
+      JSON.stringify({ version: 1, entries: [{ path: restoredProject.path, name: restoredProject.name }] }),
+    );
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Open a project" }).at(-1)!);
+
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem("gitodrile-recent-projects") ?? "{}")).toEqual({
+        version: 1,
+        entries: [
+          { path: secondProject.path, name: secondProject.name },
+          { path: restoredProject.path, name: restoredProject.name },
+        ],
+      }),
+    );
+  });
+
   it("opens the eager local-creation flow from the empty state", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") {
