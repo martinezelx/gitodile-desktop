@@ -43,7 +43,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof PublishDialog>>
   const onPublished = vi.fn(async () => undefined);
   const utils = render(
     <LanguageProvider>
-      <PublishDialog isOpen projectPath="/repo" sessionEpoch="epoch-1" onClose={onClose} onPublished={onPublished} {...props} />
+      <PublishDialog isOpen projectPath="/repo" sessionEpoch="epoch-1" runHooks={false} onClose={onClose} onPublished={onPublished} {...props} />
     </LanguageProvider>,
   );
   return { onClose, onPublished, ...utils };
@@ -58,7 +58,7 @@ describe("PublishDialog", () => {
   it("renders nothing when closed, and never calls the planner", () => {
     const { container } = render(
       <LanguageProvider>
-        <PublishDialog isOpen={false} projectPath="/repo" sessionEpoch="epoch-1" onClose={vi.fn()} onPublished={vi.fn()} />
+        <PublishDialog isOpen={false} projectPath="/repo" sessionEpoch="epoch-1" runHooks={false} onClose={vi.fn()} onPublished={vi.fn()} />
       </LanguageProvider>,
     );
     expect(container).toBeEmptyDOMElement();
@@ -281,6 +281,7 @@ describe("PublishDialog", () => {
       remote: "origin",
       stateToken: "publish-token-1",
       upTo: undefined,
+      runHooks: false,
     });
   });
 
@@ -427,7 +428,7 @@ describe("PublishDialog", () => {
           <button type="button" onClick={() => setIsOpen(true)}>
             open
           </button>
-          <PublishDialog isOpen={isOpen} projectPath="/repo" sessionEpoch="epoch-1" onClose={() => setIsOpen(false)} onPublished={vi.fn()} />
+          <PublishDialog isOpen={isOpen} projectPath="/repo" sessionEpoch="epoch-1" runHooks={false} onClose={() => setIsOpen(false)} onPublished={vi.fn()} />
         </>
       );
     }

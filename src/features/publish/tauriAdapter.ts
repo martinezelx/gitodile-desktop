@@ -9,6 +9,6 @@ export const publishPort: PublishPort = {
     invoke("discover_remotes", { path, sessionEpoch }),
   readCommitFileChanges: ({ projectId: path, sessionEpoch, commit }) =>
     invoke("read_commit_file_changes", { path, sessionEpoch, commit }),
-  publish: ({ projectId: path, sessionEpoch, remote, stateToken, upTo }) =>
-    invoke("publish", { path, sessionEpoch, remote, stateToken, upTo }),
+  publish: ({ projectId: path, sessionEpoch, remote, stateToken, upTo, runHooks }) =>
+    invoke("publish", { path, sessionEpoch, remote, stateToken, upTo, runHooks }),
 };

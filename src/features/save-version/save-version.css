@@ -43,5 +43,13 @@
 .save-version-description__error { color: var(--status-danger); font-size: 12.5px; }
 .save-version-title__guidance { color: var(--text-secondary); font-size: 12.5px; }
 .save-version-title__error { color: var(--status-danger); font-size: 12.5px; }
+/* The way past a hook rejection, kept with the hook's own output. The button
+   leads and the note explains it, because the note is a caveat about a choice
+   already made rather than a label for one being offered. */
+.save-version-hook-escape {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: var(--space-3);
+}
+.save-version-hook-escape .save-version-note { max-width: 46ch; }
+
 .save-version-dialog .dialog-actions button { display: inline-flex; align-items: center; gap: 8px; }
 .save-version-dialog .dialog-actions button svg { width: 16px; height: 16px; flex-shrink: 0; }

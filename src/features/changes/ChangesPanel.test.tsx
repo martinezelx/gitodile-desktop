@@ -41,6 +41,7 @@ function ControlledChangesPanel(
     | "onSaveCompleted"
     | "watcherState"
     | "confirmBeforeDiscarding"
+    | "runGitHooks"
     | "onBeginDiscard"
     | "onDiscardClose"
     | "onDiscardPhaseChange"
@@ -51,6 +52,7 @@ function ControlledChangesPanel(
      * these preferences have to mention them. */
     watcherState?: "starting" | "watching" | "off" | "unavailable";
     confirmBeforeDiscarding?: boolean;
+    runGitHooks?: boolean;
     onOpenSettings?: () => void;
   },
 ): React.JSX.Element {
@@ -64,6 +66,7 @@ function ControlledChangesPanel(
       sessionEpoch="test-epoch"
       watcherState={props.watcherState ?? "watching"}
       confirmBeforeDiscarding={props.confirmBeforeDiscarding ?? true}
+      runGitHooks={props.runGitHooks ?? false}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
       isSaveVersionOpen={isSaveVersionOpen}

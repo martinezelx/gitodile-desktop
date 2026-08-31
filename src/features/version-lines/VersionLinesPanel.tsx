@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
+import { formatDate, type LocaleFormats } from "../../shared/i18n";
 import { AutomaticUpdatesNotice, handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
 import type { VersionLine, VersionLinesSnapshot } from "./domain";
 import { CreateVersionLineDialog, DeleteVersionLineDialog, SwitchVersionLineDialog } from "./VersionLinesDialog";
@@ -78,13 +79,13 @@ function syncStatusOf(line: VersionLine): SyncStatus {
 
 function VersionLineRow({
   line,
-  language,
+  formats,
   onSwitch,
   onDelete,
   onNewFromLine,
 }: {
   line: VersionLine;
-  language: string;
+  formats: LocaleFormats;
   onSwitch: () => void;
   onDelete: () => void;
   /** Active row only: branch a new line from the one you're already on. */
@@ -93,7 +94,7 @@ function VersionLineRow({
   const { t } = useLanguage();
   const [showDetails, setShowDetails] = useState(false);
   const savedDate = line.tip.committedAt
-    ? new Date(line.tip.committedAt).toLocaleDateString(language, { year: "numeric", month: "short", day: "numeric" })
+    ? formatDate(new Date(line.tip.committedAt), formats)
     : "";
   const isCheckedOutElsewhere = line.worktreePath !== null;
   const deletability = deletabilityOf(line);
@@ -508,7 +509,7 @@ export function VersionLinesPanel({
   autoOpenCreate?: boolean;
   onAutoOpenCreateHandled?: () => void;
 }): React.JSX.Element {
-  const { t, language } = useLanguage();
+  const { t, formats } = useLanguage();
   const [search, setSearch] = useState("");
   const [prefixFilters, setPrefixFilters] = useState<string[]>([]);
   const [stateFilters, setStateFilters] = useState<StateFilter[]>([]);
@@ -791,7 +792,7 @@ export function VersionLinesPanel({
               <ul className="version-lines-list version-lines-list--active">
                 <VersionLineRow
                   line={active}
-                  language={language}
+                  formats={formats}
                   onSwitch={() => undefined}
                   onDelete={() => undefined}
                   onNewFromLine={() => openDialog({ kind: "create", forceSwitch: false })}
@@ -812,7 +813,7 @@ export function VersionLinesPanel({
                   <VersionLineRow
                     key={line.name}
                     line={line}
-                    language={language}
+                    formats={formats}
                     onSwitch={() => openDialog({ kind: "switch", target: line.name })}
                     onDelete={() => openDialog({ kind: "delete", target: line.name })}
                   />

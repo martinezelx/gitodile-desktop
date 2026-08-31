@@ -1,4 +1,5 @@
 import type {
+  GitDefaultBranch,
   GitDiagnostics,
   GitIdentity,
   GitInstallationResult,
@@ -26,6 +27,11 @@ export interface SettingsPort {
   updateGit(): Promise<GitUpdateLaunchResult>;
   getIdentity(): Promise<GitIdentity>;
   setIdentity(identity: { name: string; email: string }): Promise<void>;
+  getDefaultBranch(): Promise<GitDefaultBranch>;
+  /** Rejects with an `invalid_initial_branch` error when Git would not accept
+   * the name, so the panel reports Git's answer rather than pre-judging it
+   * against a rule of its own that could drift from Git's. */
+  setDefaultBranch(name: string): Promise<void>;
   readLineEndings(project: { path: string; sessionEpoch: string } | null): Promise<GitLineEndings>;
   setLineEndings(mode: LineEndingChoice): Promise<void>;
   /** Which platform this is, for the recommended line-ending choice. Reading it

@@ -25,7 +25,10 @@ type DialogState =
   | { status: "blocked"; error: unknown }
   | { status: "ready"; plan: SaveVersionPlan }
   | { status: "submitting"; plan: SaveVersionPlan }
-  | { status: "save-error"; plan: SaveVersionPlan; error: unknown }
+  /** `ranHooks` records the attempt, not the preference: the offer to retry
+   * without hooks is only honest when a hook actually ran, and the preference
+   * can be read at any time while this state is on screen. */
+  | { status: "save-error"; plan: SaveVersionPlan; error: unknown; ranHooks: boolean }
   | { status: "success"; result: SaveVersionResult };
 
 function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): React.JSX.Element {
@@ -53,8 +56,19 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): R
   );
 }
 
-function FailureDetail({ error, t }: { error: unknown; t: Translations }): React.JSX.Element | null {
-  const [expanded, setExpanded] = useState(false);
+function FailureDetail({
+  error,
+  t,
+  startExpanded = false,
+}: {
+  error: unknown;
+  t: Translations;
+  /** A hook rejection opens its own output: the hook's message *is* the
+   * explanation, and hiding the only thing that says what to fix behind a
+   * toggle makes the failure look arbitrary. */
+  startExpanded?: boolean;
+}): React.JSX.Element | null {
+  const [expanded, setExpanded] = useState(startExpanded);
   if (!isAppError(error) || !error.detail) {
     return null;
   }
@@ -84,6 +98,7 @@ export function SaveVersionDialog({
   projectPath,
   sessionEpoch,
   selectedPaths,
+  runHooks,
   onClose,
   onSaved,
   onPublishNow,
@@ -94,6 +109,9 @@ export function SaveVersionDialog({
   projectPath: string;
   sessionEpoch: string;
   selectedPaths: string[] | null;
+  /** The Settings switch, passed in rather than read here: this feature owns
+   * the save request, not the app's preferences. */
+  runHooks: boolean;
   onClose: () => void;
   onSaved: () => void;
   onPublishNow: () => void;
@@ -203,6 +221,15 @@ export function SaveVersionDialog({
   }
 
   const plan = "plan" in state ? state.plan : null;
+  /* Both halves matter. `hook_rejected` is Rust's best-effort classification,
+     and it is only ever produced for an attempt that ran the hooks — but the
+     attempt is what this asserts, so the escape can never be offered after a
+     save that already skipped them. */
+  const wasRejectedByHook =
+    state.status === "save-error" &&
+    state.ranHooks &&
+    isAppError(state.error) &&
+    state.error.code === "hook_rejected";
   const isFirstVersion = plan?.isFirstVersion ?? false;
   const isBusy = state.status === "submitting";
   isBusyRef.current = isBusy;
@@ -213,7 +240,10 @@ export function SaveVersionDialog({
     }
   }
 
-  function handleConfirm(): void {
+  /* `attemptHooks` defaults to the preference. It is only ever passed as
+     `false`, by the escape offered after a hook rejection, and that stays a
+     one-time choice: nothing here writes the preference back. */
+  function handleConfirm(attemptHooks: boolean = runHooks): void {
     if (!plan) {
       return;
     }
@@ -233,6 +263,7 @@ export function SaveVersionDialog({
       description: trimmedDetails ? trimmedDetails : null,
       stateToken: plan.stateToken,
       selectedPaths: selectedPathsRef.current,
+      runHooks: attemptHooks,
     })
       .then((result) => {
         setState({ status: "success", result });
@@ -240,7 +271,7 @@ export function SaveVersionDialog({
         onSaved();
       })
       .catch((error: unknown) => {
-        setState({ status: "save-error", plan, error });
+        setState({ status: "save-error", plan, error, ranHooks: attemptHooks });
         onPhaseChangeRef.current?.("error");
       });
   }
@@ -303,7 +334,34 @@ export function SaveVersionDialog({
                   <CircleAlert aria-hidden="true" />
                   {localizeAppError(state.error, t, t.errorGitCommandFailed)}
                 </p>
-                <FailureDetail error={state.error} t={t} />
+                {/* Keyed by the kind of failure: `startExpanded` only seeds
+                    the initial state, so without this a hook rejection that
+                    followed a signing failure would inherit the collapsed
+                    toggle and hide the only message that says what to fix. */}
+                <FailureDetail
+                  key={wasRejectedByHook ? "hook" : "generic"}
+                  error={state.error}
+                  t={t}
+                  startExpanded={wasRejectedByHook}
+                />
+                {/* Sits with the failure rather than in the action row below:
+                    the hook's output is the reason this button exists, and the
+                    row has 424px for two buttons, not three. The note is
+                    visible text, not a `title` — it is the part that says this
+                    changes nothing beyond this save. */}
+                {wasRejectedByHook && (
+                  <div className="save-version-hook-escape">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => handleConfirm(false)}
+                      disabled={isBusy}
+                    >
+                      {t.saveVersionSkipHooks}
+                    </button>
+                    <p className="save-version-note">{t.saveVersionSkipHooksNote}</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -359,7 +417,7 @@ export function SaveVersionDialog({
               <button className="secondary-button" type="button" onClick={onClose} disabled={isBusy}>
                 {t.commonCancel}
               </button>
-              <button className="primary-button" type="button" onClick={handleConfirm} disabled={isBusy}>
+              <button className="primary-button" type="button" onClick={() => handleConfirm()} disabled={isBusy}>
                 {isBusy ? (
                   <>
                     <LoaderCircle aria-hidden="true" className="icon--spinning" />

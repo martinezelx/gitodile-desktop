@@ -5,7 +5,7 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(53);
+    expect(contract.commands).toHaveLength(55);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "open_repository", "plan_clone", "clone_repository",
       "cancel_clone", "cleanup_clone", "plan_initialize_project", "initialize_project",
@@ -13,7 +13,7 @@ describe("IPC contract snapshot", () => {
       "read_file_diff", "read_file_lines", "read_working_tree_diffs", "plan_discard_changes",
       "discard_changes", "get_discard_recovery", "restore_discarded_changes", "git_diagnostics",
       "install_git", "update_git", "check_git_update", "get_git_identity", "set_git_identity",
-      "get_line_endings", "set_line_endings",
+      "get_line_endings", "set_line_endings", "get_default_branch", "set_default_branch",
       "plan_save_version", "save_version", "discover_remotes", "plan_connect_remote",
       "connect_remote", "read_team_sync_status",
       "check_team_changes", "plan_get_team_changes", "get_team_changes", "list_unpublished_versions",
@@ -25,7 +25,7 @@ describe("IPC contract snapshot", () => {
     ]);
     expect(contract.commands.find((command) => command.name === "save_version")).toEqual({
       name: "save_version",
-      arguments: ["path", "title", "description?", "stateToken", "selectedPaths?", "sessionEpoch"],
+      arguments: ["path", "title", "description?", "stateToken", "selectedPaths?", "runHooks", "sessionEpoch"],
       response: "SaveVersionResult",
     });
     for (const commandName of [

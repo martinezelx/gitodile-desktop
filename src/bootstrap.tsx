@@ -4,8 +4,12 @@ import { invoke } from "@tauri-apps/api/core";
 
 import { LanguageProvider } from "./i18n";
 import { App } from "./app/App";
+import { repairEagerlyStoredDefaults } from "./app/preferences";
 import { SwitchMeasurementRoot } from "./app/screens";
 import "./styles/fonts.css";
+
+// Before the first render reads any preference, and exactly once per machine.
+repairEagerlyStoredDefaults();
 
 document.addEventListener("contextmenu", (event) => {
   event.preventDefault();

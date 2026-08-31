@@ -16,6 +16,18 @@ export interface SettingsTranslations {
   settingsNavigationIconsOnly: string;
   settingsNavigationIconsOnlyDescription: string;
   settingsSectionsAriaLabel: string;
+  settingsFormatsTitle: string;
+  settingsFormatsDescription: string;
+  formatsDateLabel: string;
+  formatsNumberLabel: string;
+  formatsSystem: string;
+  formatsDateIso: string;
+  formatsDateDayFirst: string;
+  formatsDateMonthFirst: string;
+  formatsNumberCommaDot: string;
+  formatsNumberDotComma: string;
+  formatsNumberSpaceComma: string;
+  formatsPreviewLabel: string;
   settingsGitTitle: string;
   settingsGitNeedsAttention: string;
   themeAriaLabel: string;
@@ -51,6 +63,18 @@ export interface SettingsTranslations {
   gitUpdateLaunched: string;
   gitUpdateAlreadyStarting: string;
   gitCouldntStart: string;
+  settingsDefaultBranchTitle: string;
+  settingsDefaultBranchDescription: string;
+  defaultBranchOtherLabel: string;
+  defaultBranchCustomLabel: string;
+  defaultBranchPlaceholder: string;
+  defaultBranchUnset: string;
+  defaultBranchSaved: string;
+  defaultBranchCouldntSave: string;
+  settingsHooksTitle: string;
+  hooksLabel: string;
+  hooksDescription: string;
+  hooksSkippedHint: string;
   settingsIdentityTitle: string;
   settingsIdentityDescription: string;
   identityNameLabel: string;
@@ -95,6 +119,18 @@ export interface SettingsTranslations {
   remoteCheckHourShort: string;
   remoteCheckEveryMinutes: (minutes: number) => string;
   remoteCheckEveryHour: string;
+  remoteCheckCustomShort: string;
+  remoteCheckCustom: string;
+  remoteCheckCustomValueLabel: string;
+  remoteCheckCustomUnitLabel: string;
+  remoteCheckUnitMinutes: string;
+  remoteCheckUnitHours: string;
+  remoteCheckEveryHours: (hours: number) => string;
+  /** A bare quantity with its unit, pluralized — "1 minute", "24 hours" — so
+   * the range message below can name its bounds without inventing grammar. */
+  remoteCheckMinutesUnit: (minutes: number) => string;
+  remoteCheckHoursUnit: (hours: number) => string;
+  remoteCheckOutOfRange: (min: string, max: string) => string;
   settingsSafetyTitle: string;
   safetyConfirmLabel: string;
   safetyConfirmDescription: string;
@@ -142,6 +178,18 @@ const en: SettingsTranslations = {
   settingsNavigationIconsOnly: "Icons only",
   settingsNavigationIconsOnlyDescription: "Hide labels for a more compact bar.",
   settingsSectionsAriaLabel: "Settings sections",
+  settingsFormatsTitle: "Dates and numbers",
+  settingsFormatsDescription: "How dates and numbers are written, whichever language you read in.",
+  formatsDateLabel: "Date format",
+  formatsNumberLabel: "Number format",
+  formatsSystem: "System",
+  formatsDateIso: "Year first",
+  formatsDateDayFirst: "Day first",
+  formatsDateMonthFirst: "Month first",
+  formatsNumberCommaDot: "Comma groups",
+  formatsNumberDotComma: "Dot groups",
+  formatsNumberSpaceComma: "Space groups",
+  formatsPreviewLabel: "Example",
   settingsGitTitle: "Git",
   settingsGitNeedsAttention: "Git needs attention",
   themeAriaLabel: "Theme",
@@ -178,6 +226,22 @@ const en: SettingsTranslations = {
   gitUpdateLaunched: "Update launched — this can take a moment to appear. Reopen GitOdrile once it finishes.",
   gitUpdateAlreadyStarting: "The Git update is already starting.",
   gitCouldntStart: "Couldn't start that.",
+  settingsDefaultBranchTitle: "Default version line",
+  settingsDefaultBranchDescription:
+    "The name given to the first version line of every new project. Saved in your Git configuration, so other Git tools use it too.",
+  defaultBranchOtherLabel: "Other",
+  defaultBranchCustomLabel: "Version-line name",
+  defaultBranchPlaceholder: "main",
+  defaultBranchUnset:
+    "Not saved to your Git configuration yet, so other Git tools still use their own default. Pick an option to save it for all of them.",
+  defaultBranchSaved: "Default version line saved.",
+  defaultBranchCouldntSave: "GitOdrile couldn't save that name.",
+  settingsHooksTitle: "Git hooks",
+  hooksLabel: "Run Git hooks when saving and publishing",
+  hooksDescription:
+    "Hooks are scripts a project can run automatically when a version is saved or published. This setting applies to every project you open in GitOdrile.",
+  hooksSkippedHint:
+    "While this is off, GitOdrile skips them in every project, so checks a project would normally run do not run. No project's configuration is changed either way.",
   settingsIdentityTitle: "Identity",
   settingsIdentityDescription: "Your name and email are added to saved versions through your global Git settings.",
   identityNameLabel: "Name",
@@ -226,6 +290,16 @@ const en: SettingsTranslations = {
   remoteCheckHourShort: "1 hr",
   remoteCheckEveryMinutes: (minutes) => `Every ${minutes} minutes`,
   remoteCheckEveryHour: "Every hour",
+  remoteCheckCustomShort: "Custom",
+  remoteCheckCustom: "A custom frequency",
+  remoteCheckCustomValueLabel: "How often to check",
+  remoteCheckCustomUnitLabel: "Time unit",
+  remoteCheckUnitMinutes: "minutes",
+  remoteCheckUnitHours: "hours",
+  remoteCheckEveryHours: (hours) => (hours === 1 ? "Every hour" : `Every ${hours} hours`),
+  remoteCheckMinutesUnit: (minutes) => (minutes === 1 ? "1 minute" : `${minutes} minutes`),
+  remoteCheckHoursUnit: (hours) => (hours === 1 ? "1 hour" : `${hours} hours`),
+  remoteCheckOutOfRange: (min, max) => `Choose between ${min} and ${max}.`,
   settingsSafetyTitle: "Safety",
   safetyConfirmLabel: "Confirm before closing a project",
   safetyConfirmDescription: "Ask before closing an open project.",
@@ -274,6 +348,18 @@ const es: SettingsTranslations = {
   settingsNavigationIconsOnly: "Solo iconos",
   settingsNavigationIconsOnlyDescription: "Oculta las etiquetas para compactar la barra.",
   settingsSectionsAriaLabel: "Secciones de configuración",
+  settingsFormatsTitle: "Fechas y números",
+  settingsFormatsDescription: "Cómo se escriben las fechas y los números, sea cual sea tu idioma.",
+  formatsDateLabel: "Formato de fecha",
+  formatsNumberLabel: "Formato de número",
+  formatsSystem: "Sistema",
+  formatsDateIso: "Año primero",
+  formatsDateDayFirst: "Día primero",
+  formatsDateMonthFirst: "Mes primero",
+  formatsNumberCommaDot: "Grupos con coma",
+  formatsNumberDotComma: "Grupos con punto",
+  formatsNumberSpaceComma: "Grupos con espacio",
+  formatsPreviewLabel: "Ejemplo",
   settingsGitTitle: "Git",
   settingsGitNeedsAttention: "Git necesita atención",
   themeAriaLabel: "Tema",
@@ -316,6 +402,22 @@ const es: SettingsTranslations = {
     "Actualización iniciada — puede tardar un momento en aparecer. Vuelve a abrir GitOdrile cuando termine.",
   gitUpdateAlreadyStarting: "La actualización de Git ya se está iniciando.",
   gitCouldntStart: "No se pudo iniciar eso.",
+  settingsDefaultBranchTitle: "Línea de versión predeterminada",
+  settingsDefaultBranchDescription:
+    "El nombre de la primera línea de versión de cada proyecto nuevo. Se guarda en tu configuración de Git, así que otras herramientas de Git también lo usan.",
+  defaultBranchOtherLabel: "Otro",
+  defaultBranchCustomLabel: "Nombre de la línea de versión",
+  defaultBranchPlaceholder: "main",
+  defaultBranchUnset:
+    "Todavía no está guardado en tu configuración de Git, así que otras herramientas siguen usando su propio valor. Elige una opción para guardarlo para todas.",
+  defaultBranchSaved: "Línea de versión predeterminada guardada.",
+  defaultBranchCouldntSave: "GitOdrile no pudo guardar ese nombre.",
+  settingsHooksTitle: "Hooks de Git",
+  hooksLabel: "Ejecutar los hooks de Git al guardar y publicar",
+  hooksDescription:
+    "Los hooks son scripts que un proyecto puede ejecutar automáticamente al guardar o publicar una versión. Este ajuste se aplica a todos los proyectos que abras en GitOdrile.",
+  hooksSkippedHint:
+    "Mientras esté desactivado, GitOdrile los omite en todos los proyectos, así que las comprobaciones que un proyecto haría normalmente no se ejecutan. En ningún caso se modifica la configuración de ningún proyecto.",
   settingsIdentityTitle: "Identidad",
   settingsIdentityDescription:
     "Tu nombre y correo se añaden a las versiones guardadas mediante la configuración global de Git.",
@@ -367,6 +469,16 @@ const es: SettingsTranslations = {
   remoteCheckHourShort: "1 h",
   remoteCheckEveryMinutes: (minutes) => `Cada ${minutes} minutos`,
   remoteCheckEveryHour: "Cada hora",
+  remoteCheckCustomShort: "Personalizada",
+  remoteCheckCustom: "Una frecuencia personalizada",
+  remoteCheckCustomValueLabel: "Cada cuánto comprobar",
+  remoteCheckCustomUnitLabel: "Unidad de tiempo",
+  remoteCheckUnitMinutes: "minutos",
+  remoteCheckUnitHours: "horas",
+  remoteCheckEveryHours: (hours) => (hours === 1 ? "Cada hora" : `Cada ${hours} horas`),
+  remoteCheckMinutesUnit: (minutes) => (minutes === 1 ? "1 minuto" : `${minutes} minutos`),
+  remoteCheckHoursUnit: (hours) => (hours === 1 ? "1 hora" : `${hours} horas`),
+  remoteCheckOutOfRange: (min, max) => `Elige un valor entre ${min} y ${max}.`,
   settingsSafetyTitle: "Seguridad",
   safetyConfirmLabel: "Confirmar antes de cerrar un proyecto",
   safetyConfirmDescription: "Pregunta antes de cerrar un proyecto abierto.",

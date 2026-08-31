@@ -49,6 +49,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof SaveVersionDial
         projectPath="/repo"
         sessionEpoch="epoch-1"
         selectedPaths={null}
+        runHooks={false}
         onClose={onClose}
         onSaved={onSaved}
         onPublishNow={onPublishNow}
@@ -73,6 +74,7 @@ describe("SaveVersionDialog", () => {
           projectPath="/repo"
           sessionEpoch="epoch-1"
           selectedPaths={null}
+          runHooks={false}
           onClose={vi.fn()}
           onSaved={vi.fn()}
           onPublishNow={vi.fn()}
@@ -213,6 +215,7 @@ describe("SaveVersionDialog", () => {
       description: null,
       stateToken: "token-1",
       selectedPaths: null,
+      runHooks: false,
     });
   });
 
@@ -242,6 +245,7 @@ describe("SaveVersionDialog", () => {
       description: "line one\n\nline two",
       stateToken: "token-1",
       selectedPaths: null,
+      runHooks: false,
     });
   });
 
@@ -283,6 +287,7 @@ describe("SaveVersionDialog", () => {
       description: longDetails,
       stateToken: "token-1",
       selectedPaths: null,
+      runHooks: false,
     });
   });
 
@@ -304,6 +309,7 @@ describe("SaveVersionDialog", () => {
       description: "details",
       stateToken: "token-1",
       selectedPaths: null,
+      runHooks: false,
     });
   });
 
@@ -337,6 +343,7 @@ describe("SaveVersionDialog", () => {
           projectPath="/repo"
           sessionEpoch="epoch-1"
           selectedPaths={["a.txt"]}
+          runHooks={false}
           onClose={vi.fn()}
           onSaved={vi.fn()}
           onPublishNow={vi.fn()}
@@ -357,6 +364,7 @@ describe("SaveVersionDialog", () => {
           projectPath="/repo"
           sessionEpoch="epoch-1"
           selectedPaths={["a.txt"]}
+          runHooks={false}
           onClose={vi.fn()}
           onSaved={vi.fn()}
           onPublishNow={vi.fn()}
@@ -391,6 +399,97 @@ describe("SaveVersionDialog", () => {
     expect(screen.queryByText("pre-commit exited 1")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Show technical details" }));
     expect(screen.getByText("pre-commit exited 1")).toBeInTheDocument();
+    // This save already skipped the hooks, so "save without the hooks" is not
+    // a way out of anything — offering it would be nonsense.
+    expect(
+      screen.queryByRole("button", { name: "Save without running the hooks" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers a one-time save without hooks when a hook rejected it, and shows what the hook said", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    const { onSaved } = renderDialog({ runHooks: true });
+    await screen.findByLabelText("Version name");
+    await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
+
+    mockedInvoke.mockRejectedValueOnce({
+      code: "hook_rejected",
+      message: "x",
+      remediation: null,
+      detail: "pre-commit: 2 files need formatting",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("A Git hook rejected this version.");
+    // Open without being asked for: the hook's message is the only thing that
+    // says what to fix, so it is not hidden behind a toggle here.
+    expect(screen.getByText("pre-commit: 2 files need formatting")).toBeInTheDocument();
+
+    mockedInvoke.mockResolvedValueOnce(saveResult());
+    await userEvent.click(screen.getByRole("button", { name: "Save without running the hooks" }));
+
+    await screen.findByText('Saved "fix the thing" as abc123a.');
+    expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
+      path: "/repo",
+      sessionEpoch: "epoch-1",
+      title: "fix the thing",
+      description: null,
+      stateToken: "token-1",
+      selectedPaths: null,
+      runHooks: false,
+    });
+    expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the hook's output even after a different failure collapsed the toggle", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    renderDialog({ runHooks: true });
+    await screen.findByLabelText("Version name");
+    await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
+
+    mockedInvoke.mockRejectedValueOnce({
+      code: "signing_failed",
+      message: "x",
+      remediation: null,
+      detail: "gpg failed to sign",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await screen.findByRole("alert");
+    expect(screen.queryByText("gpg failed to sign")).not.toBeInTheDocument();
+
+    // `startExpanded` only seeds the initial state, so the detail panel has to
+    // be a fresh instance when the kind of failure changes.
+    mockedInvoke.mockRejectedValueOnce({
+      code: "hook_rejected",
+      message: "x",
+      remediation: null,
+      detail: "pre-commit: 2 files need formatting",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+
+    expect(await screen.findByText("pre-commit: 2 files need formatting")).toBeInTheDocument();
+  });
+
+  it("keeps the escape to hook rejections, not to every failure", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    renderDialog({ runHooks: true });
+    await screen.findByLabelText("Version name");
+    await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
+
+    // Signing failed, the index was unavailable, Git fell over — none of those
+    // get any better by passing `--no-verify`.
+    mockedInvoke.mockRejectedValueOnce({
+      code: "signing_failed",
+      message: "x",
+      remediation: null,
+      detail: "gpg failed to sign",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+
+    await screen.findByRole("alert");
+    expect(
+      screen.queryByRole("button", { name: "Save without running the hooks" }),
+    ).not.toBeInTheDocument();
   });
 
   it("cannot be dismissed while saving is in progress", async () => {
@@ -436,6 +535,7 @@ describe("SaveVersionDialog", () => {
             projectPath="/repo"
             sessionEpoch="epoch-1"
             selectedPaths={null}
+            runHooks={false}
             onClose={() => setIsOpen(false)}
             onSaved={vi.fn()}
             onPublishNow={vi.fn()}

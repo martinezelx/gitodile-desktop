@@ -1,3 +1,5 @@
+import { formatDate, type LocaleFormats } from "../../shared/i18n";
+
 import type { HistoryTimestamp } from "./domain";
 
 function dateFromTimestamp(timestamp: HistoryTimestamp | null): Date | null {
@@ -11,14 +13,17 @@ function dateFromTimestamp(timestamp: HistoryTimestamp | null): Date | null {
  * exact same relative and absolute dates without pulling in the diff viewer. */
 export function formatHistoryDate(
   timestamp: HistoryTimestamp | null,
-  language: string,
+  formats: LocaleFormats,
   now = Date.now(),
 ): { relative: string; absolute: string } | null {
   const date = dateFromTimestamp(timestamp);
   if (!date) return null;
   const deltaSeconds = Math.round((date.getTime() - now) / 1_000);
-  const absolute = new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(date);
-  const relativeFormatter = new Intl.RelativeTimeFormat(language, { numeric: "auto" });
+  /* Only the absolute date follows the format preference. "3 days ago" has no
+     separators to choose between, and it is the language — not the date
+     format — that decides how it is worded. */
+  const absolute = formatDate(date, formats, "date-time");
+  const relativeFormatter = new Intl.RelativeTimeFormat(formats.language, { numeric: "auto" });
   const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
     ["year", 365 * 24 * 60 * 60],
     ["month", 30 * 24 * 60 * 60],

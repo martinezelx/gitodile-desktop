@@ -25,7 +25,7 @@ use crate::{
         GetTeamChangesResult, RemoteDiscovery, TeamSyncStatus,
     },
     tooling::{
-        self, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
+        self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
         GitUpdateLaunchResult, GitUpdateStatus,
     },
     version_lines::{
@@ -306,6 +306,19 @@ pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
     tooling::set_line_endings(mode)
 }
 
+/// The name Git will give the first version line of the next project it
+/// creates. Global like the identity, and absent when Git's own default
+/// applies.
+#[tauri::command(async)]
+pub(crate) fn get_default_branch() -> GitDefaultBranch {
+    tooling::get_default_branch()
+}
+
+#[tauri::command(async)]
+pub(crate) fn set_default_branch(name: String) -> Result<(), AppError> {
+    tooling::set_default_branch(name)
+}
+
 #[tauri::command(async)]
 pub(crate) fn plan_save_version(
     path: String,
@@ -323,10 +336,18 @@ pub(crate) fn save_version(
     description: Option<String>,
     state_token: String,
     selected_paths: Option<Vec<String>>,
+    run_hooks: bool,
     session_epoch: String,
 ) -> Result<SaveVersionResult, AppError> {
     validate_session(&path, &session_epoch)?;
-    save_version::save_version(path, title, description, state_token, selected_paths)
+    save_version::save_version(
+        path,
+        title,
+        description,
+        state_token,
+        selected_paths,
+        run_hooks,
+    )
 }
 
 #[tauri::command(async)]
@@ -495,10 +516,11 @@ pub(crate) fn publish(
     remote: String,
     state_token: String,
     up_to: Option<String>,
+    run_hooks: bool,
     session_epoch: String,
 ) -> Result<PublishResult, AppError> {
     validate_session(&path, &session_epoch)?;
-    publish_domain::publish(path, remote, state_token, up_to)
+    publish_domain::publish(path, remote, state_token, up_to, run_hooks)
 }
 
 #[tauri::command(async)]

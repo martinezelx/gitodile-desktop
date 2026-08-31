@@ -66,14 +66,14 @@ export function TeamChangesSection({
   onPublish: () => void;
   onReviewAndGet: () => void;
 }): React.JSX.Element {
-  const { t, language } = useLanguage();
+  const { t, formatDate } = useLanguage();
   const { status } = state;
   const [announcement, setAnnouncement] = useState("");
   const wasCheckingRef = useRef(false);
 
   const checkedAt = status?.checkedAt ?? state.lastSuccessfulCheckAt;
   const checkedLabel = checkedAt
-    ? new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(checkedAt)
+    ? formatDate(new Date(checkedAt), "date-time")
     : null;
   const presentation = status
     ? presentationFor(status.state, status.ahead, status.behind, t)

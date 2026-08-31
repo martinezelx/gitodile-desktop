@@ -128,6 +128,7 @@ function renderDialog(options: {
   savePort?: SaveVersionPort;
   initialMode?: "new-folder" | "existing-folder";
   initialExistingPath?: string;
+  defaultBranchName?: string;
 } = {}) {
   const port = options.port ?? makePort();
   const savePort = options.savePort ?? makeSavePort();
@@ -143,6 +144,8 @@ function renderDialog(options: {
         initialExistingPath={options.initialExistingPath}
         controller={createInitializeProjectController(port)}
         saveVersionController={createSaveVersionController(savePort)}
+        defaultBranchName={options.defaultBranchName ?? "main"}
+        runHooks={false}
         onClose={onClose}
         onInitialized={onInitialized}
         onProjectChanged={onProjectChanged}

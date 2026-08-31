@@ -735,6 +735,7 @@ export function ChangesPanel({
   sessionEpoch,
   watcherState,
   confirmBeforeDiscarding,
+  runGitHooks,
   onRefresh,
   onOpenSettings,
   onSaveCompleted,
@@ -767,6 +768,9 @@ export function ChangesPanel({
   /** Whether discarding opens the confirmation dialog. Off means the discard
    * runs immediately and reports its result — with an Undo — in the header. */
   confirmBeforeDiscarding: boolean;
+  /** Passed straight through to the save dialog: this panel owns neither the
+   * preference nor the save request, only the button that opens it. */
+  runGitHooks: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
   onSaveCompleted: () => void;
@@ -1183,6 +1187,7 @@ export function ChangesPanel({
         projectPath={projectPath}
         sessionEpoch={sessionEpoch}
         selectedPaths={selectedPathsForSave}
+        runHooks={runGitHooks}
         onClose={onCloseSaveVersion}
         onSaved={onSaveCompleted}
         onPublishNow={onPublishNow}

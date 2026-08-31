@@ -38,7 +38,7 @@ export function HistorySummarySection({
   isRefreshing?: boolean;
   onOpenHistory: () => void;
 }): React.JSX.Element {
-  const { language, t } = useLanguage();
+  const { formats, t } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
   const state = useActiveHistoryState(controller, query);
   const versions = state.versions.slice(0, HISTORY_PREVIEW_LIMIT);
@@ -108,7 +108,7 @@ export function HistorySummarySection({
           {versions.map((version, index) => {
             const title = versionTitle(version, t.overviewHistoryUntitled);
             const author = version.author?.name.trim() || t.overviewHistoryUnknownAuthor;
-            const date = formatHistoryDate(version.authoredAt, language);
+            const date = formatHistoryDate(version.authoredAt, formats);
             // The row's `aria-label` replaces its subtree, so the badge only
             // reaches assistive tech by being folded into the label.
             const decoration = primaryDecoration(version, currentBranch);

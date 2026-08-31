@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   DEFAULT_DIFF_PREFERENCES,
@@ -18,6 +18,7 @@ export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
 export const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
 export const WATCH_PROJECTS_STORAGE_KEY = "gitodrile-watch-projects";
 export const REMOTE_CHECK_INTERVAL_STORAGE_KEY = "gitodrile-remote-check-interval";
+export const RUN_GIT_HOOKS_STORAGE_KEY = "gitodrile-run-git-hooks";
 export const CONFIRM_DISCARD_STORAGE_KEY = "gitodrile-confirm-discard";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
@@ -33,8 +34,116 @@ export const CONFIRM_CLOSE_PROJECT_DEFAULT = true;
  * before a destructive change is the safe answer. Turning either off is a
  * deliberate choice, never something the app arrives at on its own. */
 export const WATCH_PROJECTS_DEFAULT = true;
+/** Named like the rest so the repair below can recognise it, rather than the
+ * call site passing a bare `false`. */
+export const SIDEBAR_HIDDEN_DEFAULT = false;
 export const REMOTE_CHECK_INTERVAL_DEFAULT: RemoteCheckIntervalMinutes = 0;
 export const CONFIRM_DISCARD_DEFAULT = true;
+/** On, because a hook is the project's own rule and skipping it by default
+ * would make GitOdrile produce commits the same repository would have rejected
+ * from a terminal — the same action giving a different result depending on
+ * which tool ran it. The people this app is for are the least equipped to work
+ * out why CI rejected their work three steps later.
+ *
+ * The "it runs code from someone else's repository" argument is weaker than it
+ * looks: `.git/hooks` is not cloned, so a hook only exists once the user has
+ * already run that project's own install step.
+ *
+ * Turning it off remains a real escape for a slow or broken hook, and then
+ * GitOdrile passes `--no-verify` to its own commit and push. Nothing is written
+ * to the project either way: this changes only what GitOdrile's own Git calls
+ * do, never what the `git` CLI does. */
+export const RUN_GIT_HOOKS_DEFAULT = true;
+
+/**
+ * Write a preference to storage when — and only when — it changes.
+ *
+ * Every hook below used to persist unconditionally from an effect, which meant
+ * the *default* was written to storage on the very first render, before the
+ * user had chosen anything. From then on that frozen copy outranked the code:
+ * changing a default in a later version reached nobody who had ever opened the
+ * app, because they all had the old default stored as though they had picked
+ * it. That is how the Git-hooks switch kept reporting "off" after its default
+ * became "on".
+ *
+ * So the rule is: storage holds a *choice*, not a state. Nothing is written
+ * until the value moves, and an untouched preference keeps following the code.
+ *
+ * The serialized string is passed in rather than a value plus a serializer:
+ * strings compare by value in the dependency list, so an inline serializer
+ * cannot cause a write on every render.
+ *
+ * The condition is a comparison, never a count of effect runs. "Skip the first
+ * run" looks equivalent and is not: `StrictMode` mounts, cleans up and remounts
+ * the same instance, so the second run sees a spent flag and writes the default
+ * anyway — which is exactly the bug this guards against, still happening in
+ * development. Comparing the value against storage is idempotent however many
+ * times the effect runs.
+ */
+function usePersistedChoice(key: string, serialized: string): void {
+  // What this preference read at mount: either the stored value, or the
+  // default when storage held nothing.
+  const initial = useRef(serialized);
+  useEffect(() => {
+    const stored = localStorage.getItem(key);
+    // Never chosen: no entry, and still sitting on the value it started with.
+    // Writing here is what used to freeze the default.
+    if (stored === null && serialized === initial.current) return;
+    if (stored === serialized) return;
+    localStorage.setItem(key, serialized);
+  }, [key, serialized]);
+}
+
+const EAGER_DEFAULTS_REPAIRED_KEY = "gitodrile-eagerly-stored-defaults-repaired";
+
+/** The scalar preferences the eager-write bug could have created, each with the
+ * serialization of the default it would have written. Object stores are left
+ * out: their readers already validate field by field, so a new default reaches
+ * them without help, and comparing them as strings would depend on key order.
+ * Favourites are user data — an empty set is a real answer, not an absent one. */
+const REPAIRABLE_DEFAULTS: ReadonlyArray<readonly [string, string]> = [
+  [THEME_STORAGE_KEY, "system"],
+  [REOPEN_LAST_PROJECT_STORAGE_KEY, String(REOPEN_LAST_PROJECT_DEFAULT)],
+  [CONFIRM_CLOSE_PROJECT_STORAGE_KEY, String(CONFIRM_CLOSE_PROJECT_DEFAULT)],
+  [WATCH_PROJECTS_STORAGE_KEY, String(WATCH_PROJECTS_DEFAULT)],
+  [CONFIRM_DISCARD_STORAGE_KEY, String(CONFIRM_DISCARD_DEFAULT)],
+  [SIDEBAR_HIDDEN_STORAGE_KEY, String(SIDEBAR_HIDDEN_DEFAULT)],
+  [REMOTE_CHECK_INTERVAL_STORAGE_KEY, String(REMOTE_CHECK_INTERVAL_DEFAULT)],
+];
+
+/**
+ * One-time repair for values the eager-write bug already put in storage.
+ *
+ * Two different cases, and only the first needs an exception:
+ *
+ * - The Git-hooks preference is the one whose default *changed* after being
+ *   persisted, so its stored `"false"` no longer matches anything and is
+ *   removed outright. It has never shipped — every stored copy came from a
+ *   development run of the task that added it — so there is no deliberate
+ *   choice to lose.
+ * - Every other entry is removed only when it is byte-identical to the default
+ *   it would have been written with. Such an entry carries no information:
+ *   deleting it changes nothing observable today and lets a future default
+ *   reach this machine. Anything the user actually chose differs from the
+ *   default and is left alone.
+ *
+ * It runs once, guarded by its own marker, because a deliberate choice that
+ * happens to equal the default is indistinguishable from an eagerly-written one
+ * and must survive every launch after this repair. Delete this, its marker and
+ * `SIDEBAR_HIDDEN_DEFAULT`'s only other reason to exist once 1.0 has shipped.
+ */
+export function repairEagerlyStoredDefaults(): void {
+  try {
+    if (localStorage.getItem(EAGER_DEFAULTS_REPAIRED_KEY) === "true") return;
+    localStorage.setItem(EAGER_DEFAULTS_REPAIRED_KEY, "true");
+    localStorage.removeItem(RUN_GIT_HOOKS_STORAGE_KEY);
+    for (const [key, serializedDefault] of REPAIRABLE_DEFAULTS) {
+      if (localStorage.getItem(key) === serializedDefault) localStorage.removeItem(key);
+    }
+  } catch {
+    /* A browser with storage blocked has nothing to repair. */
+  }
+}
 
 export function readStoredBoolean(key: string, defaultValue: boolean): boolean {
   const stored = localStorage.getItem(key);
@@ -57,10 +166,10 @@ export function applyTheme(theme: ThemePreference): void {
 export function useThemePreference(): [ThemePreference, Dispatch<SetStateAction<ThemePreference>>] {
   const [theme, setTheme] = useState<ThemePreference>(() => readStoredTheme());
 
-  useEffect(() => {
-    applyTheme(theme);
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme]);
+  // Applying is not persisting: the attribute has to be written on every
+  // render path, while the value is only stored once it has been chosen.
+  useEffect(() => applyTheme(theme), [theme]);
+  usePersistedChoice(THEME_STORAGE_KEY, theme);
 
   return [theme, setTheme];
 }
@@ -98,9 +207,7 @@ export function useStoredFavouriteProjects(): [
     }
   });
 
-  useEffect(() => {
-    localStorage.setItem(FAVOURITE_PROJECTS_STORAGE_KEY, JSON.stringify([...ids]));
-  }, [ids]);
+  usePersistedChoice(FAVOURITE_PROJECTS_STORAGE_KEY, JSON.stringify([...ids]));
 
   const toggle = (id: string): void => {
     setIds((current) => {
@@ -118,7 +225,7 @@ export function useStoredBoolean(
   defaultValue: boolean,
 ): [boolean, Dispatch<SetStateAction<boolean>>] {
   const [value, setValue] = useState(() => readStoredBoolean(key, defaultValue));
-  useEffect(() => localStorage.setItem(key, String(value)), [key, value]);
+  usePersistedChoice(key, String(value));
   return [value, setValue];
 }
 
@@ -130,9 +237,7 @@ export function useStoredRemoteCheckInterval(): [
     const stored = Number(localStorage.getItem(REMOTE_CHECK_INTERVAL_STORAGE_KEY));
     return isRemoteCheckIntervalMinutes(stored) ? stored : REMOTE_CHECK_INTERVAL_DEFAULT;
   });
-  useEffect(() => {
-    localStorage.setItem(REMOTE_CHECK_INTERVAL_STORAGE_KEY, String(value));
-  }, [value]);
+  usePersistedChoice(REMOTE_CHECK_INTERVAL_STORAGE_KEY, String(value));
   return [value, setValue];
 }
 
@@ -163,9 +268,7 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
     }
   });
 
-  useEffect(() => {
-    localStorage.setItem(DIFF_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
-  }, [preferences]);
+  usePersistedChoice(DIFF_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
 
   return [preferences, setPreferences];
 }
@@ -217,9 +320,7 @@ export function useStoredNavigationPreferences(
     }
   });
 
-  useEffect(() => {
-    localStorage.setItem(NAVIGATION_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
-  }, [preferences]);
+  usePersistedChoice(NAVIGATION_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
 
   return [preferences, setPreferences];
 }

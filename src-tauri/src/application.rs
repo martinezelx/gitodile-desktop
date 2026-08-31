@@ -99,6 +99,8 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     // is a repository read rather than a purely global one.
     read("get_line_endings"),
     global_process("set_line_endings", OperationClass::LocalMutation, 30),
+    global_process("get_default_branch", OperationClass::ReadOnly, 15),
+    global_process("set_default_branch", OperationClass::LocalMutation, 30),
     read("plan_save_version"),
     ExecutionPolicy::repository_write("save_version", OperationClass::HistoryMutation),
     read("discover_remotes"),
@@ -371,6 +373,8 @@ mod tests {
         "set_git_identity",
         "get_line_endings",
         "set_line_endings",
+        "get_default_branch",
+        "set_default_branch",
         "plan_save_version",
         "save_version",
         "discover_remotes",

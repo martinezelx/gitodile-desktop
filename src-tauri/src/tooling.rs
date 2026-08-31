@@ -772,6 +772,80 @@ pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
     set_line_endings_with_override(&mode, None)
 }
 
+/// The name Git gives the first version line of a project it creates, read
+/// from the global `init.defaultBranch`.
+///
+/// `None` is an answer rather than a failure: with the key unset, Git falls
+/// back to its own built-in default, and reporting a name GitOdrile made up
+/// would be a lie about what the next `git init` will do.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitDefaultBranch {
+    name: Option<String>,
+}
+
+/// Git canonicalizes config keys to lower case, and `--get-regexp` both matches
+/// and reports them that way, so the read spelling is the stored one while the
+/// write uses the documented camel case Git also accepts.
+const DEFAULT_BRANCH_READ_KEY: &str = "init.defaultbranch";
+const DEFAULT_BRANCH_WRITE_KEY: &str = "init.defaultBranch";
+
+/// Git decides what a branch name may be, so `check-ref-format` decides it
+/// here too rather than a hand-written character rule that would drift from it.
+/// The cheap checks come first because they need no process at all.
+fn validate_default_branch_name(name: &str) -> Result<String, AppError> {
+    let name = name.trim();
+    // A leading dash is rejected here rather than by Git: passed on, it would
+    // reach `check-ref-format` as an option rather than as the name to check,
+    // and Git's answer would then be about the wrong question.
+    if name.is_empty() || name.starts_with('-') || name.chars().any(char::is_control) {
+        return Err(AppError::new(
+            AppErrorCode::InvalidInitialBranch,
+            "Enter a valid default version-line name.",
+        )
+        .with_remediation("Use a Git branch name such as main."));
+    }
+    let output = run_global_git_with_env(
+        ["check-ref-format", "--branch", name],
+        &[("GIT_TERMINAL_PROMPT", "0")],
+    )?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidInitialBranch,
+            "That default version-line name isn't valid in Git.",
+        )
+        .with_remediation(
+            "Choose a name such as main without spaces or Git reference punctuation.",
+        ));
+    }
+    Ok(name.to_string())
+}
+
+fn read_default_branch(config_override: Option<&str>) -> GitDefaultBranch {
+    let values = read_global_git_config_many(&[DEFAULT_BRANCH_READ_KEY], config_override);
+    GitDefaultBranch {
+        name: values.get(DEFAULT_BRANCH_READ_KEY).cloned(),
+    }
+}
+
+fn set_default_branch_with_override(
+    name: &str,
+    config_override: Option<&str>,
+) -> Result<(), AppError> {
+    let name = validate_default_branch_name(name)?;
+    write_global_git_config(DEFAULT_BRANCH_WRITE_KEY, &name, config_override)
+}
+
+pub(crate) fn get_default_branch() -> GitDefaultBranch {
+    let _command = application::enter("get_default_branch");
+    read_default_branch(None)
+}
+
+pub(crate) fn set_default_branch(name: String) -> Result<(), AppError> {
+    let _command = application::enter("set_default_branch");
+    set_default_branch_with_override(&name, None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1008,6 +1082,57 @@ mod tests {
                 Some("Ada Lovelace".to_string()),
                 Some("ada@example.com".to_string())
             )
+        );
+        let _ = fs::remove_file(&config_path);
+    }
+
+    #[test]
+    fn default_branch_round_trips_through_a_temporary_global_config() {
+        let mut config_path = std::env::temp_dir();
+        config_path.push(format!(
+            "gitodrile-test-default-branch-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&config_path);
+        let config_override = config_path.to_string_lossy().to_string();
+
+        assert_eq!(
+            in_test_frame(|| read_default_branch(Some(&config_override))).name,
+            None
+        );
+        in_test_frame(|| set_default_branch_with_override("trunk", Some(&config_override)))
+            .expect("a valid branch name should be accepted");
+        // Written camel-cased and read back lower-cased: this asserts the two
+        // spellings agree, which is the whole reason they are separate consts.
+        assert_eq!(
+            in_test_frame(|| read_default_branch(Some(&config_override))).name,
+            Some("trunk".to_string())
+        );
+        let _ = fs::remove_file(&config_path);
+    }
+
+    #[test]
+    fn default_branch_rejects_names_git_would_reject() {
+        // Pointed at a scratch config even though every name here is rejected
+        // before anything is written: if one ever stopped being rejected, the
+        // test must not scribble on the developer's real global config.
+        let mut config_path = std::env::temp_dir();
+        config_path.push(format!(
+            "gitodrile-test-default-branch-invalid-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&config_path);
+        let config_override = config_path.to_string_lossy().to_string();
+
+        for name in [" ", "with space", "-leading-dash", "has..dots", "ends/"] {
+            let error =
+                in_test_frame(|| set_default_branch_with_override(name, Some(&config_override)))
+                    .expect_err("an invalid branch name should be rejected");
+            assert_eq!(error.code, AppErrorCode::InvalidInitialBranch, "{name}");
+        }
+        assert!(
+            !config_path.exists(),
+            "no rejected name may reach the config"
         );
         let _ = fs::remove_file(&config_path);
     }

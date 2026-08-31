@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { GitIdentity, GitLineEndings, LineEndingChoice } from "./domain";
 import type { SettingsPort } from "./port";
 
-/** The two Settings reads that hit the user's global Git config.
+/** The Settings reads that hit the user's global Git config.
  *
  * They live here, above the dialog, for the same reason `useGitTooling` does:
  * the shell unmounts `SettingsPanel` on every close, so a read owned by the
@@ -137,4 +137,59 @@ export function useLineEndings(
   );
 
   return { lineEndings, isSaving, choose };
+}
+
+export type DefaultBranchState = {
+  /** The stored name, or `null` for "Git's own default applies". Both are
+   * answers; `isLoaded` is what separates them from "not read yet". */
+  name: string | null;
+  isLoaded: boolean;
+  isSaving: boolean;
+  /** Rejects with whatever the port rejected with — an invalid name is Git's
+   * verdict, and only the caller can localize it. */
+  save: (name: string) => Promise<void>;
+};
+
+/** Read once beside the identity, for the same reason: the panel is unmounted
+ * on every close, and this is one more `git config` process the user would
+ * otherwise wait for each time they open it. */
+export function useDefaultBranch(port: SettingsPort): DefaultBranchState {
+  const [name, setName] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let isCurrent = true;
+    port
+      .getDefaultBranch()
+      .then((result) => {
+        if (isCurrent) {
+          setName(result.name);
+          setIsLoaded(true);
+        }
+      })
+      /* A failed read is reported as "unset", which is what the panel shows
+         when Git's own default applies — the same next step either way. */
+      .catch(() => {
+        if (isCurrent) setIsLoaded(true);
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [port]);
+
+  const save = useCallback(
+    async (next: string): Promise<void> => {
+      setIsSaving(true);
+      try {
+        await port.setDefaultBranch(next);
+        setName(next.trim());
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [port],
+  );
+
+  return { name, isLoaded, isSaving, save };
 }

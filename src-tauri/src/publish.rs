@@ -417,6 +417,7 @@ fn publish_selection(
     remote: String,
     state_token: String,
     up_to: Option<String>,
+    run_hooks: bool,
 ) -> Result<PublishResult, AppError> {
     // Revalidates everything (remote choice, local/remote state, ahead/behind,
     // and the `upTo` target if one was requested) against a *fresh* fetch,
@@ -439,12 +440,17 @@ fn publish_selection(
         "{}:refs/heads/{}",
         validated.target_sha, validated.target.destination_branch
     );
-    let args = vec![
-        "push".to_string(),
-        "--porcelain".to_string(),
-        validated.target.remote.clone(),
-        refspec,
-    ];
+    let mut args = vec!["push".to_string(), "--porcelain".to_string()];
+    // The same choice the commit path makes, for the same reason: `pre-push`
+    // is skipped for GitOdrile's own push while the user has hooks turned off,
+    // and nothing is written into the project's configuration to do it. It
+    // goes before the remote and the refspec so it is unambiguously an option
+    // rather than something Git has to decide is not a positional argument.
+    if !run_hooks {
+        args.push("--no-verify".to_string());
+    }
+    args.push(validated.target.remote.clone());
+    args.push(refspec);
 
     let result = run_git_networked(&path, &args, NETWORK_TIMEOUT)?;
     if result.timed_out {
@@ -507,7 +513,8 @@ pub(crate) fn publish(
     remote: String,
     state_token: String,
     up_to: Option<String>,
+    run_hooks: bool,
 ) -> Result<PublishResult, AppError> {
     let (_repository, _access) = application::authorize_repository(&path, "publish", None)?;
-    publish_selection(path, remote, state_token, up_to)
+    publish_selection(path, remote, state_token, up_to, run_hooks)
 }

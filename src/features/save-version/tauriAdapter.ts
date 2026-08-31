@@ -5,6 +5,14 @@ import type { SaveVersionPort } from "./port";
 export const saveVersionPort: SaveVersionPort = {
   plan: ({ projectId: path, sessionEpoch, selectedPaths }) =>
     invoke("plan_save_version", { path, sessionEpoch, selectedPaths }),
-  save: ({ projectId: path, sessionEpoch, title, description, stateToken, selectedPaths }) =>
-    invoke("save_version", { path, sessionEpoch, title, description, stateToken, selectedPaths }),
+  save: ({ projectId: path, sessionEpoch, title, description, stateToken, selectedPaths, runHooks }) =>
+    invoke("save_version", {
+      path,
+      sessionEpoch,
+      title,
+      description,
+      stateToken,
+      selectedPaths,
+      runHooks,
+    }),
 };

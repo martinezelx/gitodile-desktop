@@ -196,6 +196,7 @@ export function PublishDialog({
   projectPath,
   sessionEpoch,
   upTo,
+  runHooks,
   onClose,
   onPublished,
   onPhaseChange,
@@ -208,6 +209,9 @@ export function PublishDialog({
    * pending saved versions unpublished for now. `undefined` publishes
    * everything pending, same as before this existed. */
   upTo?: string;
+  /** The Settings switch, passed in rather than read here: this feature owns
+   * the publish request, not the app's preferences. */
+  runHooks: boolean;
   onClose: () => void;
   onPublished: (result: PublishResult) => Promise<void>;
   onPhaseChange?: (
@@ -322,6 +326,7 @@ export function PublishDialog({
       remote: plan.target.remote,
       stateToken: plan.stateToken,
       upTo,
+      runHooks,
     })
       .then(async (result) => {
         setState({ status: "verifying", plan, result });

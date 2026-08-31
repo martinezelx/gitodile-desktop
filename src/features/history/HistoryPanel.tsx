@@ -9,6 +9,7 @@ import {
 
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
+import { formatNumber, type LocaleFormats } from "../../shared/i18n";
 import { AutomaticUpdatesNotice, autoHideScrollbarProps, handlePopupMenuKeyDown, LoadingBar, useAnchoredPopup } from "../../shared/ui";
 import { ChangesContextMenu, DiffResultView, DiffViewSelector, type ChangesContextMenuState, type DiffViewMode, type FileDiff } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
@@ -67,12 +68,12 @@ function HistoryWatchingNotice({ watcherState, busy, onRefresh, onOpenSettings }
   return <AutomaticUpdatesNotice title={watcherState === "off" ? t.automaticUpdatesOffTitle : t.automaticUpdatesUnavailableTitle} description={t.automaticUpdatesOutdatedDescription} updateLabel={t.automaticUpdatesUpdateNow} updateAriaLabel={t.historyRefresh} updatingLabel={t.automaticUpdatesUpdating} updatingAriaLabel={t.historyRefreshing} busy={busy} settingsLabel={t.automaticUpdatesOpenSettings} onUpdate={onRefresh} onOpenSettings={onOpenSettings} />;
 }
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, selectionDirection, hoverDirection, focusable, language, currentBranch, onSelect, onMove, onHover, onOpenDetail }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; selectionDirection: "up" | "down"; hoverDirection: "up" | "down" | null; focusable: boolean; language: string; currentBranch: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onHover: (index: number) => void; onOpenDetail: () => void;
+const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, selectionDirection, hoverDirection, focusable, formats, currentBranch, onSelect, onMove, onHover, onOpenDetail }: {
+  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; selectionDirection: "up" | "down"; hoverDirection: "up" | "down" | null; focusable: boolean; formats: LocaleFormats; currentBranch: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onHover: (index: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
-  const date = formatHistoryDate(version.authoredAt, language);
+  const date = formatHistoryDate(version.authoredAt, formats);
   const author = version.author?.name.trim() || t.historyAuthorUnknown;
   // The row is a button with an explicit `aria-label`, which replaces its
   // subtree, so the reference has to be spoken here or not at all.
@@ -95,8 +96,8 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
   );
 });
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCount, selectedCommit, scrollOffset, hasMore, isLoadingMore, hasMoreError, clientTruncated, language, currentBranch, search, publicationFilter, sort, onSearch, onPublicationFilter, onSort, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; loadedCount: number; selectedCommit: string | null; scrollOffset: number; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; language: string; currentBranch: string | null; search: string; publicationFilter: PublicationFilter; sort: HistorySort;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCount, selectedCommit, scrollOffset, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, publicationFilter, sort, onSearch, onPublicationFilter, onSort, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; loadedCount: number; selectedCommit: string | null; scrollOffset: number; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; publicationFilter: PublicationFilter; sort: HistorySort;
   onSearch: (value: string) => void; onPublicationFilter: (value: PublicationFilter) => void; onSort: (value: HistorySort) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -170,7 +171,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCo
       </header>
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} selectionDirection={selectionDirection} hoverDirection={hoverTravel.index === virtualRow.index ? hoverTravel.direction : null} focusable={version.commit === focusCommit} language={language} currentBranch={currentBranch} onSelect={onSelect} onMove={moveSelection} onHover={markHoverDirection} onOpenDetail={onOpenDetail} /></div>; })}
+          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} selectionDirection={selectionDirection} hoverDirection={hoverTravel.index === virtualRow.index ? hoverTravel.direction : null} focusable={version.commit === focusCommit} formats={formats} currentBranch={currentBranch} onSelect={onSelect} onMove={moveSelection} onHover={markHoverDirection} onOpenDetail={onOpenDetail} /></div>; })}
         </div> : <p className="history-timeline__empty">{t.historyNoMatches}</p>}
         <div className="history-timeline__footer">
           {hasMoreError && <div className="history-inline-error" role="alert"><span>{t.historyMoreError}</span><button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyRetry}</button></div>}
@@ -242,14 +243,14 @@ function authorInitials(version: SavedVersionSummary, fallback: string): string 
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toLocaleUpperCase();
 }
 
-function HistoryDetailHeader({ detail, language, activeTab, onTab }: {
-  detail: SavedVersionDetail; language: string; activeTab: HistoryTab;
+function HistoryDetailHeader({ detail, formats, activeTab, onTab }: {
+  detail: SavedVersionDetail; formats: LocaleFormats; activeTab: HistoryTab;
   onTab: (tab: HistoryTab) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const version = detail.version;
   const title = versionTitle(version, t);
-  const date = formatHistoryDate(version.authoredAt, language);
+  const date = formatHistoryDate(version.authoredAt, formats);
   const tabs: Array<{ id: HistoryTab; label: string; icon: React.ReactNode; count?: number }> = [
     { id: "overview", label: t.historyOverviewTab, icon: <Info aria-hidden="true" /> },
     { id: "diff", label: t.historyDiffTab, icon: <GitCommitHorizontal aria-hidden="true" /> },
@@ -257,30 +258,30 @@ function HistoryDetailHeader({ detail, language, activeTab, onTab }: {
   return <header className="history-detail__summary"><div className="history-detail__summary-top"><div className="history-detail__identity"><h2 id="history-detail-title">{title}</h2><div className="history-detail__compact-info"><p className="history-detail__meta"><span className="history-author-avatar" aria-hidden="true">{authorInitials(version, t.historyAuthorUnknown)}</span><strong>{version.author?.name || t.historyAuthorUnknown}</strong>{date && <span title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}<code>{version.shortCommit}</code><span className={`history-publication history-publication--${version.publication}`}><PublicationIcon publication={version.publication} />{publicationCopy(version.publication, t)}</span></p>
     <div className="history-detail__badges">{version.isRoot && <span className="history-kind-chip">{t.historyRoot}</span>}{version.isMerge && <span className="history-kind-chip">{t.historyMerge}</span>}{version.decorations.slice(0, 3).map((decoration) => <span key={decoration.fullRef} className="history-ref-chip" title={decoration.fullRef}>{decoration.kind === "tag" && <Tag aria-hidden="true" />}{decoration.name}</span>)}</div></div>
     </div></div>
-    <div className="history-tabs" role="tablist" aria-label={t.historyTitle}>{tabs.map((tab) => <button key={tab.id} id={`history-tab-${tab.id}`} className={activeTab === tab.id ? "history-tab history-tab--active" : "history-tab"} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`history-panel-${tab.id}`} onClick={() => onTab(tab.id)}>{tab.icon}<span>{tab.label}</span>{tab.count !== undefined && <span className="history-tab__count">{tab.count}</span>}</button>)}</div></header>;
+    <div className="history-tabs" role="tablist" aria-label={t.historyTitle}>{tabs.map((tab) => <button key={tab.id} id={`history-tab-${tab.id}`} className={activeTab === tab.id ? "history-tab history-tab--active" : "history-tab"} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`history-panel-${tab.id}`} onClick={() => onTab(tab.id)}>{tab.icon}<span>{tab.label}</span>{tab.count !== undefined && <span className="history-tab__count">{formatNumber(tab.count, formats)}</span>}</button>)}</div></header>;
 }
 
-function OverviewMetric({ label, value, tone }: { label: string; value: number; tone?: "positive" | "negative" }): React.JSX.Element {
+function OverviewMetric({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }): React.JSX.Element {
   return <div className="history-overview-metric"><span>{label}</span><strong className={tone ? `history-overview-metric__value--${tone}` : undefined}>{tone === "positive" ? "+" : tone === "negative" ? "−" : ""}{value}</strong></div>;
 }
 
-function HistoryOverview({ detail, state, language, comparison, onSelectFile }: { detail: SavedVersionDetail; state: HistoryState; language: string; comparison: string; onSelectFile: (path: string) => void }): React.JSX.Element {
+function HistoryOverview({ detail, state, formats, comparison, onSelectFile }: { detail: SavedVersionDetail; state: HistoryState; formats: LocaleFormats; comparison: string; onSelectFile: (path: string) => void }): React.JSX.Element {
   const { t } = useLanguage();
   const version = detail.version;
-  const authored = formatHistoryDate(version.authoredAt, language);
-  const committed = formatHistoryDate(version.committedAt, language);
+  const authored = formatHistoryDate(version.authoredAt, formats);
+  const committed = formatHistoryDate(version.committedAt, formats);
   const areas = changedAreas(detail.files);
   const description = version.description.trim();
   return <div id="history-panel-overview" className="history-workspace history-workspace--overview" role="tabpanel" aria-labelledby="history-tab-overview">
     <div {...autoHideScrollbarProps<HTMLDivElement>()} className="history-overview-grid auto-hide-scrollbar">
       <div className="history-overview-column">
         <div className="history-overview-metrics">
-          <OverviewMetric label={t.historyFilesTab} value={detail.fileCounts.total} />
-          <OverviewMetric label={t.historyNewFiles} value={detail.fileCounts.new} tone="positive" />
-          <OverviewMetric label={t.historyDeletedFiles} value={detail.fileCounts.deleted} tone="negative" />
+          <OverviewMetric label={t.historyFilesTab} value={formatNumber(detail.fileCounts.total, formats)} />
+          <OverviewMetric label={t.historyNewFiles} value={formatNumber(detail.fileCounts.new, formats)} tone="positive" />
+          <OverviewMetric label={t.historyDeletedFiles} value={formatNumber(detail.fileCounts.deleted, formats)} tone="negative" />
         </div>
         {description && <section className="history-overview-section"><h3>{t.historyDescriptionTitle}</h3><p className="history-overview-description">{description}</p>{version.descriptionTruncated && <p className="history-detail__truncated" role="note">{t.historyDescriptionTruncated}</p>}</section>}
-        <section className="history-overview-section"><h3>{t.historyChangedAreas}</h3><ul className="history-area-list">{areas.map((area) => <li key={area.path}><Folder aria-hidden="true" /><span>{area.path}</span><strong>{area.count}</strong></li>)}</ul></section>
+        <section className="history-overview-section"><h3>{t.historyChangedAreas}</h3><ul className="history-area-list">{areas.map((area) => <li key={area.path}><Folder aria-hidden="true" /><span>{area.path}</span><strong>{formatNumber(area.count, formats)}</strong></li>)}</ul></section>
       </div>
       <section className="history-overview-section history-overview-changed-files"><h3>{t.historyFilesTab}</h3><OverviewChangedFiles files={detail.files} selectedPath={state.selectedFilePath} onSelect={onSelectFile} /></section>
       <div className="history-overview-column history-overview-column--technical">
@@ -341,8 +342,8 @@ function HistoryFilterMenu({ label, value, options, onChange }: {
   </div>;
 }
 
-function HistoryDetail({ state, language, onSelectFile, onRetryDetail, onRetryDiff, onBack }: {
-  state: HistoryState; language: string; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void;
+function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDiff, onBack }: {
+  state: HistoryState; formats: LocaleFormats; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<HistoryTab>("diff");
@@ -406,8 +407,8 @@ function HistoryDetail({ state, language, onSelectFile, onRetryDetail, onRetryDi
 
   return <section className="history-detail" aria-labelledby="history-detail-title">
     <button className="history-detail__back secondary-button" type="button" onClick={onBack}><ArrowLeft aria-hidden="true" />{t.historyBackToTimeline}</button>
-    <HistoryDetailHeader detail={detail} language={language} activeTab={activeTab} onTab={setActiveTab} />
-    {activeTab === "overview" && <HistoryOverview detail={detail} state={state} language={language} comparison={comparison} onSelectFile={openFileFromOverview} />}
+    <HistoryDetailHeader detail={detail} formats={formats} activeTab={activeTab} onTab={setActiveTab} />
+    {activeTab === "overview" && <HistoryOverview detail={detail} state={state} formats={formats} comparison={comparison} onSelectFile={openFileFromOverview} />}
     {activeTab === "diff" && <div id="history-panel-diff" className="history-workspace history-workspace--diff" role="tabpanel" aria-labelledby="history-tab-diff">
       <header className="history-workspace__toolbar"><div className="history-change-summary"><strong>{fileCount}</strong>{totals && <><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></>}</div><div className="history-diff-controls"><label className="history-search-box history-search-box--diff"><Search aria-hidden="true" /><input type="search" value={diffSearch} onChange={(event) => setDiffSearch(event.target.value)} placeholder={t.historySearchDiffPlaceholder} aria-label={t.historySearchDiffAriaLabel} /></label><DiffViewSelector value={viewMode} onChange={setViewMode} t={t} /></div></header>
       <div className="history-diff-grid"><aside className="history-files-pane">{fileSearchControl}{fileList}</aside><div className="history-diff-pane"><header className="history-diff-pane__header">{selectedFile ? <><span className="history-file__type" aria-hidden="true">{React.createElement(getFileTypeIcon(selectedFile.path))}</span><strong>{splitPath(selectedFile.path).name}</strong><span>{splitPath(selectedFile.path).dir}</span><button className="history-icon-button" type="button" aria-label={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} data-tooltip={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} onClick={copySelectedPath}>{copiedPath ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}</button></> : <span>{t.historySelectFilePrompt}</span>}</header>
@@ -421,7 +422,7 @@ function HistoryDetail({ state, language, onSelectFile, onRetryDetail, onRetryDi
 }
 
 export function HistoryPanel({ controller, query, state, watcherState, onOpenSettings, error }: { controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; onOpenSettings: () => void; error: string | null }): React.JSX.Element {
-  const { t, language } = useLanguage();
+  const { t, formats } = useLanguage();
   const [showNarrowDetail, setShowNarrowDetail] = useState(false);
   const [search, setSearch] = useState("");
   const [publicationFilter, setPublicationFilter] = useState<PublicationFilter>("all");
@@ -461,11 +462,11 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
       {!state.snapshot?.upstream && state.snapshot?.headState === "branch" && <HistoryBanner tone="neutral" title={t.historyUnknownUpstreamTitle}>{t.historyUnknownUpstreamDescription}</HistoryBanner>}
       {warnings.includes("unreadableMetadata") && <p className="history-meta-warning" role="status">{t.historyUnreadableMetadata}</p>}
       {(warnings.includes("messagesTruncated") || warnings.includes("decorationsTruncated")) && <p className="history-meta-warning" role="status">{t.historyTruncatedMetadata}</p>}
-      {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(MAX_HISTORY_ROWS)}</p>}
+      {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(formatNumber(MAX_HISTORY_ROWS, formats))}</p>}
     </div>
     <div className="history-layout">
-      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} loadedCount={state.versions.length} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} language={language} currentBranch={state.snapshot?.branch ?? null} search={search} publicationFilter={publicationFilter} sort={sort} onSearch={setSearch} onPublicationFilter={setPublicationFilter} onSort={setSort} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
-      <HistoryDetail state={state} language={language} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} />
+      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} loadedCount={state.versions.length} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} publicationFilter={publicationFilter} sort={sort} onSearch={setSearch} onPublicationFilter={setPublicationFilter} onSort={setSort} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
+      <HistoryDetail state={state} formats={formats} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} />
     </div>
   </div>;
 }

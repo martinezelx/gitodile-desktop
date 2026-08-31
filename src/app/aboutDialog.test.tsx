@@ -57,6 +57,8 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       setRemoteCheckInterval: vi.fn(),
       confirmDiscard: true,
       setConfirmDiscard: vi.fn(),
+      runGitHooks: false,
+      setRunGitHooks: vi.fn(),
       navigationItems: [],
       navigationPreferences: {
         visibleDestinationIds: [],
@@ -68,6 +70,12 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       setDiffPreferences: vi.fn(),
       identity: {
         identity: { name: "", email: "" },
+        isLoaded: true,
+        isSaving: false,
+        save: vi.fn(async () => undefined),
+      },
+      defaultBranch: {
+        name: null,
         isLoaded: true,
         isSaving: false,
         save: vi.fn(async () => undefined),

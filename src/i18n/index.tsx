@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "../app/translations";
 import { changesTranslations } from "../features/changes/translations";
@@ -12,12 +12,29 @@ import { settingsTranslations } from "../features/settings/translations";
 import { statusTranslations } from "../features/status/translations";
 import { syncTranslations } from "../features/sync/translations";
 import { versionLinesTranslations } from "../features/version-lines/translations";
-import { sharedTranslations } from "../shared/i18n";
+import {
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_NUMBER_FORMAT,
+  formatDate,
+  formatNumber,
+  isDateFormatPreference,
+  isNumberFormatPreference,
+  sharedTranslations,
+  type DateFormatPreference,
+  type DateStyle,
+  type LocaleFormats,
+  type NumberFormatPreference,
+} from "../shared/i18n";
 
 export type Language = "en" | "es";
 export type LanguagePreference = "system" | Language;
 
 const LANGUAGE_STORAGE_KEY = "gitodrile-language";
+/* Dates and numbers are stored beside the language and read by the same
+   provider: they answer the same question — how this interface reads — and a
+   surface that has one always wants the others. */
+const DATE_FORMAT_STORAGE_KEY = "gitodrile-date-format";
+const NUMBER_FORMAT_STORAGE_KEY = "gitodrile-number-format";
 
 // Names of the languages themselves are shown in their own language
 // regardless of the active UI language, so they stay outside the dictionaries.
@@ -95,11 +112,29 @@ function readNavigatorLanguage(): Language {
   return resolveLanguage(typeof navigator === "undefined" ? null : navigator.language);
 }
 
+function readStoredDateFormat(): DateFormatPreference {
+  const stored = localStorage.getItem(DATE_FORMAT_STORAGE_KEY);
+  return isDateFormatPreference(stored) ? stored : DEFAULT_DATE_FORMAT;
+}
+
+function readStoredNumberFormat(): NumberFormatPreference {
+  const stored = localStorage.getItem(NUMBER_FORMAT_STORAGE_KEY);
+  return isNumberFormatPreference(stored) ? stored : DEFAULT_NUMBER_FORMAT;
+}
+
 interface LanguageContextValue {
   languagePreference: LanguagePreference;
   setLanguagePreference: (preference: LanguagePreference) => void;
   language: Language;
   t: Translations;
+  /** The active language plus both display formats, as one value to pass
+   * down. Surfaces that formatted with `language` alone now pass this. */
+  formats: LocaleFormats;
+  setDateFormat: (format: DateFormatPreference) => void;
+  setNumberFormat: (format: NumberFormatPreference) => void;
+  /** Bound to `formats`, so a caller never has to remember to pass it. */
+  formatDate: (date: Date, style?: DateStyle) => string;
+  formatNumber: (value: number) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
@@ -109,6 +144,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
     readStoredLanguagePreference(),
   );
   const [systemLanguage, setSystemLanguage] = useState<Language>(() => readNavigatorLanguage());
+  const [dateFormat, setDateFormatState] = useState<DateFormatPreference>(() =>
+    readStoredDateFormat(),
+  );
+  const [numberFormat, setNumberFormatState] = useState<NumberFormatPreference>(() =>
+    readStoredNumberFormat(),
+  );
 
   useEffect(() => {
     getOsLocale()
@@ -118,21 +159,53 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
       .catch(() => undefined);
   }, []);
 
-  const setLanguagePreference = (preference: LanguagePreference): void => {
+  const setLanguagePreference = useCallback((preference: LanguagePreference): void => {
     setLanguagePreferenceState(preference);
     localStorage.setItem(LANGUAGE_STORAGE_KEY, preference);
-  };
+  }, []);
+
+  const setDateFormat = useCallback((format: DateFormatPreference): void => {
+    setDateFormatState(format);
+    localStorage.setItem(DATE_FORMAT_STORAGE_KEY, format);
+  }, []);
+
+  const setNumberFormat = useCallback((format: NumberFormatPreference): void => {
+    setNumberFormatState(format);
+    localStorage.setItem(NUMBER_FORMAT_STORAGE_KEY, format);
+  }, []);
 
   const language: Language = languagePreference === "system" ? systemLanguage : languagePreference;
+  /* Kept stable across renders because it is a prop, not just a context value:
+     History passes it down to memoized, virtualized rows, and a fresh object
+     every render would re-render all of them whenever this provider re-rendered
+     for an unrelated reason — the OS-locale read at startup resolving to the
+     language already in use, for one. */
+  const formats: LocaleFormats = useMemo(
+    () => ({ language, dateFormat, numberFormat }),
+    [language, dateFormat, numberFormat],
+  );
 
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
 
+  const value = useMemo(
+    () => ({
+      languagePreference,
+      setLanguagePreference,
+      language,
+      t: translations[language],
+      formats,
+      setDateFormat,
+      setNumberFormat,
+      formatDate: (date: Date, style?: DateStyle) => formatDate(date, formats, style),
+      formatNumber: (input: number) => formatNumber(input, formats),
+    }),
+    [formats, language, languagePreference, setDateFormat, setLanguagePreference, setNumberFormat],
+  );
+
   return (
-    <LanguageContext.Provider
-      value={{ languagePreference, setLanguagePreference, language, t: translations[language] }}
-    >
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

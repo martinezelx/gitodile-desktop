@@ -11,6 +11,9 @@ export type PublishQuery = {
 export type ExecutePublishRequest = PublishQuery & {
   remote: string;
   stateToken: string;
+  /** Whether Rust should let the project's own `pre-push` hook run; see the
+   * same field on the save-version request. */
+  runHooks: boolean;
 };
 
 export interface PublishPort {

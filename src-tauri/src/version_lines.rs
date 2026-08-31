@@ -1015,8 +1015,14 @@ mod tests {
         init_bare_remote(&remote);
         wire_remote(&repo, "origin", &remote);
         let plan = plan_publish(repo.clone(), None, None).expect("first plan should succeed");
-        publish(repo.clone(), plan.target.remote, plan.state_token, None)
-            .expect("first publish should succeed");
+        publish(
+            repo.clone(),
+            plan.target.remote,
+            plan.state_token,
+            None,
+            true,
+        )
+        .expect("first publish should succeed");
         (repo, remote, branch)
     }
 

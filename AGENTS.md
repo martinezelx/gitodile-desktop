@@ -206,6 +206,12 @@ Agents must follow these rules when implementing operations:
 - Do not silently resolve conflicts.
 - Do not silently discard untracked files.
 - Surface hooks and signing failures accurately; do not bypass them by default.
+  A project's hooks run unless the user has turned them off in Settings, and
+  only then does GitOdrile pass `--no-verify` on its own commit and push. When
+  it does, the failure classifier must not attribute a failure to a hook that
+  never ran, and no other operation may quietly widen the bypass. Never disable
+  hooks by writing to the user's Git configuration — that would change what
+  every other Git tool on the machine does.
 - Preserve user Git configuration unless a setting is explicitly scoped to GitOdrile.
 
 ## UI and visual direction

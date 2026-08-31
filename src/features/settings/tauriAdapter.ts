@@ -12,6 +12,8 @@ export const settingsPort: SettingsPort = {
   updateGit: () => invoke("update_git"),
   getIdentity: () => invoke("get_git_identity"),
   setIdentity: ({ name, email }) => invoke("set_git_identity", { name, email }),
+  getDefaultBranch: () => invoke("get_default_branch"),
+  setDefaultBranch: (name) => invoke("set_default_branch", { name }),
   readLineEndings: (project) =>
     invoke("get_line_endings", {
       path: project?.path ?? null,

@@ -53,9 +53,17 @@ Current application version: **0.1.0**.
 - Browse the active version line as a bounded, read-only saved-version
   timeline. Inspect author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
-- Configure light/dark/system themes, English/Spanish copy, Git identity,
-  installation diagnostics, supported Git update guidance, how diffs are read,
-  and whether projects are watched and discards confirmed.
+- Configure light/dark/system themes, English/Spanish copy, date and number
+  formats, Git identity, installation diagnostics, supported Git update
+  guidance, how diffs are read, and whether projects are watched and discards
+  confirmed.
+- Set the default version-line name for new projects (written to Git's own
+  `init.defaultBranch`), choose how often project changes are checked
+  automatically — from every minute to every day, or never — and decide whether
+  GitOdrile runs a project's Git hooks when it saves or publishes. Hooks run by
+  default; turning them off is app-wide, writes nothing to any project, and the
+  setting says plainly what stops running. When a hook rejects a save, its
+  output is shown with a one-time way to save without running it.
 - See and change what Git does to line endings in plain language, including
   when a project's own settings or `.gitattributes` override the global choice.
 - Navigate through a command palette, keyboard-accessible dialogs, and a

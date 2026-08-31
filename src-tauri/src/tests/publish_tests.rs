@@ -195,8 +195,14 @@ fn plan_publish_reports_the_first_publish_and_publish_creates_upstream() {
     assert_eq!(plan.target.destination_branch, branch);
     assert_eq!(plan.commit_count, 1);
 
-    let result = publish(repo.clone(), plan.target.remote, plan.state_token, None)
-        .expect("publish should succeed");
+    let result = publish(
+        repo.clone(),
+        plan.target.remote,
+        plan.state_token,
+        None,
+        true,
+    )
+    .expect("publish should succeed");
     assert!(result.created_upstream);
     assert_eq!(result.published_count, 1);
     assert!(result.previous_remote_commit.is_none());
@@ -224,8 +230,14 @@ fn ahead_only_publish_succeeds_after_the_first_publish() {
     assert!(!plan.will_create_upstream);
     assert_eq!(plan.commit_count, 1);
 
-    let result = publish(repo.clone(), plan.target.remote, plan.state_token, None)
-        .expect("second publish should succeed");
+    let result = publish(
+        repo.clone(),
+        plan.target.remote,
+        plan.state_token,
+        None,
+        true,
+    )
+    .expect("second publish should succeed");
     assert_eq!(result.published_count, 1);
     assert!(result.previous_remote_commit.is_some());
     assert_eq!(
@@ -256,8 +268,14 @@ fn publish_uses_the_configured_upstream_branch_when_its_name_differs_locally() {
     assert_eq!(plan.target.destination_branch, original_branch);
     assert!(!plan.will_create_upstream);
 
-    let result = publish(repo.clone(), plan.target.remote, plan.state_token, None)
-        .expect("publish should use the configured destination");
+    let result = publish(
+        repo.clone(),
+        plan.target.remote,
+        plan.state_token,
+        None,
+        true,
+    )
+    .expect("publish should use the configured destination");
     assert_eq!(result.target.destination_branch, original_branch);
     assert_eq!(
         remote_branch_sha(&remote, &original_branch),
@@ -376,8 +394,14 @@ fn publish_rejects_a_state_token_that_went_stale_after_planning() {
         "the other clone's push should succeed"
     );
 
-    let error = publish(repo.clone(), plan.target.remote, plan.state_token, None)
-        .expect_err("a plan invalidated by a remote change must be rejected");
+    let error = publish(
+        repo.clone(),
+        plan.target.remote,
+        plan.state_token,
+        None,
+        true,
+    )
+    .expect_err("a plan invalidated by a remote change must be rejected");
     assert!(matches!(
         error.code,
         AppErrorCode::StalePublishPlan
@@ -404,8 +428,14 @@ fn publish_reports_a_remote_hook_rejection() {
     wire_remote(&repo, "origin", &remote);
 
     let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
-    let error = publish(repo.clone(), plan.target.remote, plan.state_token, None)
-        .expect_err("a rejecting pre-receive hook should fail the publish");
+    let error = publish(
+        repo.clone(),
+        plan.target.remote,
+        plan.state_token,
+        None,
+        true,
+    )
+    .expect_err("a rejecting pre-receive hook should fail the publish");
     assert_eq!(error.code, AppErrorCode::RemoteRejected);
 
     let _ = fs::remove_dir_all(&repo);
@@ -427,8 +457,14 @@ fn publish_leaves_unsaved_files_local_and_the_working_tree_and_index_unchanged()
     let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
     assert!(plan.has_unsaved_files);
 
-    let result = publish(repo.clone(), plan.target.remote, plan.state_token, None)
-        .expect("publish should succeed");
+    let result = publish(
+        repo.clone(),
+        plan.target.remote,
+        plan.state_token,
+        None,
+        true,
+    )
+    .expect("publish should succeed");
     assert_eq!(
         remote_branch_sha(&remote, &branch),
         Some(result.published_commit)
@@ -466,8 +502,14 @@ fn publish_updates_exactly_one_branch_and_creates_no_tags() {
     wire_remote(&repo, "origin", &remote);
 
     let plan = plan_publish(repo.clone(), None, None).expect("plan should succeed");
-    publish(repo.clone(), plan.target.remote, plan.state_token, None)
-        .expect("publish should succeed");
+    publish(
+        repo.clone(),
+        plan.target.remote,
+        plan.state_token,
+        None,
+        true,
+    )
+    .expect("publish should succeed");
 
     let branches = checked_git_stdout(
         test_git(
@@ -551,6 +593,7 @@ fn publish_with_up_to_only_pushes_the_checkpoint_and_leaves_newer_commits_local(
         plan.target.remote,
         plan.state_token,
         Some(first_commit.clone()),
+        true,
     )
     .expect("publishing up to the checkpoint should succeed");
 

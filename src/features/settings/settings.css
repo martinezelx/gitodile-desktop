@@ -214,6 +214,15 @@
 .identity-block__confirm p { margin: 0; color: var(--text-secondary); font-size: 12.5px; }
 
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+/* A row whose control is wider than the label beside it would be: the custom
+   cadence, the typed branch name and the format pickers all need the full
+   width, so they stack instead of competing for one line. */
+.settings-row--stacked {
+  flex-direction: column; align-items: stretch; justify-content: flex-start; gap: var(--space-2);
+}
+/* Reserved so the line under a stacked control does not shift its neighbours
+   as it moves between the active value and a range complaint. */
+.settings-row__status { min-height: 18px; }
 .settings-row + .settings-row { margin-top: var(--space-4); }
 .settings-row strong { display: block; margin-bottom: 3px; font-size: 13.5px; line-height: 1.35; }
 .settings-row p { max-width: 64ch; color: var(--text-secondary); font-size: 13.5px; line-height: 1.45; margin-bottom: 0; }
@@ -226,10 +235,52 @@
    notice uses the `git-install__status--*` scale instead. */
 .settings-row__hint--success { color: var(--status-success); }
 .settings-row__hint--danger { color: var(--status-danger); }
+/* Not an error: the hooks switch uses this to say what "off" costs, which is a
+   consequence to weigh rather than something to fix. */
+.settings-row__hint--warning { color: var(--status-warning); }
+.settings-row__hint--warning p { color: inherit; }
 .settings-row__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .remote-check-cadence { flex-shrink: 0; }
 .settings-view .remote-check-cadence .segmented-control__option {
   min-width: 54px; justify-content: center; padding-inline: 11px; white-space: nowrap;
+}
+/* The number and its unit read as one control, so they sit on one line and
+   wrap together rather than the unit drifting under the field. */
+.remote-check-custom { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.remote-check-custom .text-field { flex: 0 1 9rem; }
+
+/* Compact because these fields hold a word or a small number, not a sentence:
+   at full width the input would advertise room the value never uses. */
+.text-field--compact { max-width: 18rem; }
+
+/* Same shape as the code-font picker, and for the same reason: each option is
+   judged by the sample under its name, so the sample needs a full line of its
+   own rather than a suffix in parentheses. Four short samples fit two across
+   at every panel width this dialog reaches. */
+.format-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.format-picker__option {
+  display: grid; gap: 3px; padding: 9px 12px; justify-items: start;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+  background: var(--surface-panel); color: var(--text-secondary); text-align: left;
+  transition:
+    border-color var(--duration-fast),
+    background var(--duration-fast),
+    color var(--duration-fast);
+}
+.format-picker__option:hover:not(.format-picker__option--active) {
+  border-color: var(--text-secondary); color: var(--text-primary);
+}
+.format-picker__option--active {
+  border-color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-primary) 7%, var(--surface-panel));
+  color: var(--text-primary);
+}
+.format-picker__name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+/* Tabular figures so the samples line up column-wise and the difference
+   between them is the separator rather than the glyph widths. */
+.format-picker__sample {
+  color: var(--text-secondary); font-size: 12.5px; font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .git-install { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .git-install__version { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin: 0; }
@@ -331,6 +382,7 @@
   .settings-view .segmented-control { flex-flow: row wrap; }
   .identity-fields { grid-template-columns: 1fr; }
   .font-picker { grid-template-columns: 1fr; }
+  .format-picker { grid-template-columns: 1fr; }
   .navigation-display { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .settings-row { align-items: flex-start; flex-direction: column; }

@@ -27,7 +27,9 @@ export interface HistoryTranslations {
   historyLoadingMore: string;
   historyMoreError: string;
   historyStaleNotice: string;
-  historyClientLimit: (count: number) => string;
+  /** Takes the already-formatted count, not the number: how a number is
+   * written is the user's setting, and a dictionary cannot know it. */
+  historyClientLimit: (count: string) => string;
   historyShallowTitle: string;
   historyShallowDescription: string;
   historyDetachedTitle: string;
@@ -127,7 +129,7 @@ const en: HistoryTranslations = {
   historyLoadingMore: "Loading older versions…",
   historyMoreError: "Older versions couldn’t be loaded. The versions already shown are still available.",
   historyStaleNotice: "History changed while an older page was loading. The timeline was refreshed from the current version.",
-  historyClientLimit: (count) => `The timeline is capped at ${count.toLocaleString()} loaded versions for this session. Refresh to start from the newest version again.`,
+  historyClientLimit: (count) => `The timeline is capped at ${count} loaded versions for this session. Refresh to start from the newest version again.`,
   historyShallowTitle: "This is a partial history",
   historyShallowDescription: "This project was downloaded with limited history, so older saved versions may not exist on this computer.",
   historyDetachedTitle: "Viewing a version outside a version line",
@@ -227,7 +229,7 @@ const es: HistoryTranslations = {
   historyLoadingMore: "Cargando versiones anteriores…",
   historyMoreError: "No se pudieron cargar las versiones anteriores. Las que ya se muestran siguen disponibles.",
   historyStaleNotice: "El historial cambió mientras se cargaba otra página. La cronología se actualizó desde la versión actual.",
-  historyClientLimit: (count) => `La cronología está limitada a ${count.toLocaleString()} versiones cargadas en esta sesión. Actualiza para volver a empezar por la más reciente.`,
+  historyClientLimit: (count) => `La cronología está limitada a ${count} versiones cargadas en esta sesión. Actualiza para volver a empezar por la más reciente.`,
   historyShallowTitle: "Este historial es parcial",
   historyShallowDescription: "Este proyecto se descargó con historial limitado, por lo que puede que las versiones anteriores no estén en este ordenador.",
   historyDetachedTitle: "Viendo una versión fuera de una línea de versión",

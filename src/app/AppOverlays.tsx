@@ -6,6 +6,7 @@ import type { DiffPreferences } from "../features/changes";
 import {
   SettingsPanel,
   isGitInstallationBroken,
+  type DefaultBranchState,
   type GitIdentityState,
   type GitToolingState,
   type LineEndingsState,
@@ -42,6 +43,8 @@ export type AppOverlaysProps = {
     setRemoteCheckInterval: Dispatch<SetStateAction<RemoteCheckIntervalMinutes>>;
     confirmDiscard: boolean;
     setConfirmDiscard: BooleanSetter;
+    runGitHooks: boolean;
+    setRunGitHooks: BooleanSetter;
     navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
     navigationPreferences: NavigationPreferences;
     setNavigationPreferences: Dispatch<SetStateAction<NavigationPreferences>>;
@@ -51,6 +54,7 @@ export type AppOverlaysProps = {
      * unmounted on every close. The line-endings state already knows about the
      * open project, so the overlay never has to pass one down. */
     identity: GitIdentityState;
+    defaultBranch: DefaultBranchState;
     lineEndings: LineEndingsState;
   };
   about: { isOpen: boolean; setOpen: BooleanSetter };
@@ -199,12 +203,15 @@ export function AppOverlays({
               setRemoteCheckInterval={settings.setRemoteCheckInterval}
               confirmDiscard={settings.confirmDiscard}
               setConfirmDiscard={settings.setConfirmDiscard}
+              runGitHooks={settings.runGitHooks}
+              setRunGitHooks={settings.setRunGitHooks}
               navigationItems={settings.navigationItems}
               navigationPreferences={settings.navigationPreferences}
               setNavigationPreferences={settings.setNavigationPreferences}
               diffPreferences={settings.diffPreferences}
               setDiffPreferences={settings.setDiffPreferences}
               identity={settings.identity}
+              defaultBranch={settings.defaultBranch}
               lineEndingsState={settings.lineEndings}
               onClose={closeSettings}
               onRegisterCloseGuard={registerSettingsCloseGuard}

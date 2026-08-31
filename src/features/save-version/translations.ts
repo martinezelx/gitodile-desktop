@@ -15,6 +15,8 @@ export interface SaveVersionTranslations {
   saveVersionConfirm: string;
   saveVersionSaving: string;
   saveVersionRetry: string;
+  saveVersionSkipHooks: string;
+  saveVersionSkipHooksNote: string;
   saveVersionShowDetail: string;
   saveVersionHideDetail: string;
   saveVersionDetailHeading: string;
@@ -44,6 +46,9 @@ const en: SaveVersionTranslations = {
   saveVersionConfirm: "Save version",
   saveVersionSaving: "Saving your version…",
   saveVersionRetry: "Try again",
+  saveVersionSkipHooks: "Save without running the hooks",
+  saveVersionSkipHooksNote:
+    "Just this once. Your Git hooks setting does not change, and nothing in the project is changed.",
   saveVersionShowDetail: "Show technical details",
   saveVersionHideDetail: "Hide technical details",
   saveVersionDetailHeading: "Technical details",
@@ -76,6 +81,9 @@ const es: SaveVersionTranslations = {
   saveVersionConfirm: "Guardar versión",
   saveVersionSaving: "Guardando tu versión…",
   saveVersionRetry: "Reintentar",
+  saveVersionSkipHooks: "Guardar sin ejecutar los hooks",
+  saveVersionSkipHooksNote:
+    "Solo esta vez. Tu ajuste de hooks de Git no cambia, y no se modifica nada del proyecto.",
   saveVersionShowDetail: "Mostrar detalles técnicos",
   saveVersionHideDetail: "Ocultar detalles técnicos",
   saveVersionDetailHeading: "Detalles técnicos",

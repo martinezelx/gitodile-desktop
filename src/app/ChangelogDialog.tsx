@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Sparkles, X } from "lucide-react";
 
 import { useLanguage } from "../i18n";
+import { formatDate, type LocaleFormats } from "../shared/i18n";
 import { useModalFocus } from "../shared/ui";
 import { APP_CHANGELOG, CURRENT_APP_RELEASE, type AppReleaseEntry } from "./appRelease";
 
@@ -10,12 +11,12 @@ import { APP_CHANGELOG, CURRENT_APP_RELEASE, type AppReleaseEntry } from "./appR
  * same entry reads correctly in every supported language. An unparseable date
  * yields no row rather than "Invalid Date" — a changelog is a factual
  * document and a broken one is worse than a quiet one. */
-function formatReleaseDate(date: string, language: string): string | null {
+function formatReleaseDate(date: string, formats: LocaleFormats): string | null {
   const parsed = new Date(`${date}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) {
     return null;
   }
-  return new Intl.DateTimeFormat(language, { dateStyle: "medium" }).format(parsed);
+  return formatDate(parsed, formats);
 }
 
 /**
@@ -33,7 +34,7 @@ export function ChangelogDialog({
   isOpen: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
 }): React.JSX.Element | null {
-  const { t, language } = useLanguage();
+  const { t, formats } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useModalFocus(isOpen, dialogRef, setOpen);
@@ -71,7 +72,7 @@ export function ChangelogDialog({
             release" is what a screen-reader user is owed. */}
         <ol className="changelog" role="list">
           {APP_CHANGELOG.map((release) => {
-            const releaseDate = formatReleaseDate(release.date, language);
+            const releaseDate = formatReleaseDate(release.date, formats);
             return (
               <li key={`${release.version}-${release.channel}`} className="changelog-release">
                 <div className="changelog-release__heading">

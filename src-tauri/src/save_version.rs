@@ -587,7 +587,7 @@ fn hook_exists(path: &str) -> bool {
 /// signing failure text before falling back to "a hook rejected this" (when a
 /// hook is actually present) and finally a generic failure. The raw stderr
 /// always rides along as `detail`, never as the primary `message`.
-fn classify_commit_failure(path: &str, stderr: &str) -> AppError {
+fn classify_commit_failure(path: &str, stderr: &str, run_hooks: bool) -> AppError {
     let lowered = stderr.to_lowercase();
     let looks_like_signing_failure = lowered.contains("gpg failed to sign")
         || lowered.contains("unable to sign")
@@ -602,7 +602,10 @@ fn classify_commit_failure(path: &str, stderr: &str) -> AppError {
         .with_detail(truncate_detail(stderr));
     }
 
-    if hook_exists(path) {
+    // With hooks turned off GitOdrile passed `--no-verify`, so no local hook
+    // ran and none of them can be what rejected this — saying otherwise would
+    // send the user to read the output of a hook that never fired.
+    if run_hooks && hook_exists(path) {
         return AppError::new(
             AppErrorCode::HookRejected,
             "A Git hook rejected this version.",
@@ -625,6 +628,7 @@ pub(crate) fn save_version_selection_with_identity_override(
     description: Option<String>,
     state_token: String,
     selected_paths: Option<Vec<String>>,
+    run_hooks: bool,
     identity_override: Option<&str>,
 ) -> Result<SaveVersionResult, AppError> {
     let trimmed_title = title.trim();
@@ -681,17 +685,22 @@ pub(crate) fn save_version_selection_with_identity_override(
     let commit_env = identity_override
         .map(|global| vec![("GIT_CONFIG_GLOBAL", global)])
         .unwrap_or_default();
-    let commit_output = match run_git_with_env(
-        &path,
-        ["commit", "-m", commit_message.as_str()],
-        &commit_env,
-    ) {
+    // `--no-verify` is added rather than the project's hooks being disabled:
+    // the choice is GitOdrile's to make for its own commits, and writing
+    // `core.hooksPath` would change what every other Git tool on the machine
+    // does with this repository.
+    let mut commit_args = vec!["commit"];
+    if !run_hooks {
+        commit_args.push("--no-verify");
+    }
+    commit_args.extend(["-m", commit_message.as_str()]);
+    let commit_output = match run_git_with_env(&path, commit_args, &commit_env) {
         Ok(output) => output,
         Err(error) => return Err(restore_or_report(&backup, error)),
     };
 
     if !commit_output.status.success() {
-        let primary = classify_commit_failure(&path, &stderr_text(&commit_output));
+        let primary = classify_commit_failure(&path, &stderr_text(&commit_output), run_hooks);
         return Err(restore_or_report(&backup, primary));
     }
 
@@ -737,6 +746,7 @@ pub(crate) fn save_version_with_identity_override(
         description,
         state_token,
         None,
+        true,
         identity_override,
     )
 }
@@ -747,6 +757,7 @@ pub(crate) fn save_version(
     description: Option<String>,
     state_token: String,
     selected_paths: Option<Vec<String>>,
+    run_hooks: bool,
 ) -> Result<SaveVersionResult, AppError> {
     let (_repository, _access) = application::authorize_repository(&path, "save_version", None)?;
     save_version_selection_with_identity_override(
@@ -755,6 +766,7 @@ pub(crate) fn save_version(
         description,
         state_token,
         selected_paths,
+        run_hooks,
         None,
     )
 }

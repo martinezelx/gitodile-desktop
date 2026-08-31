@@ -73,6 +73,13 @@ export type InitializeProjectDialogProps = {
   initialExistingPath?: string;
   controller: InitializeProjectController;
   saveVersionController: SaveVersionController;
+  /** The user's default version-line name, already resolved by the caller —
+   * the stored `init.defaultBranch`, or the app's fallback when there is none.
+   * It seeds the field below; the field, not this, is what the project is
+   * created with, so a one-off name is still one edit away. */
+  defaultBranchName: string;
+  /** The Settings hooks switch, for the optional first save. */
+  runHooks: boolean;
   onClose: () => void;
   onInitialized: (
     result: InitializeProjectResult,
@@ -88,6 +95,8 @@ export function InitializeProjectDialog({
   initialExistingPath = "",
   controller,
   saveVersionController,
+  defaultBranchName,
+  runHooks,
   onClose,
   onInitialized,
   onProjectChanged,
@@ -99,7 +108,7 @@ export function InitializeProjectDialog({
   const [destinationParent, setDestinationParent] = useState(readLastCreateParent);
   const [destinationName, setDestinationName] = useState("");
   const [existingPath, setExistingPath] = useState(initialExistingPath);
-  const [initialBranch, setInitialBranch] = useState("main");
+  const [initialBranch, setInitialBranch] = useState(defaultBranchName);
   const [createReadme, setCreateReadme] = useState(false);
   const [saveInitialVersion, setSaveInitialVersion] = useState(false);
   const [firstVersionTitle, setFirstVersionTitle] = useState("First version");
@@ -140,7 +149,7 @@ export function InitializeProjectDialog({
     setTargetKind(initialMode);
     setExistingPath(initialExistingPath);
     setDestinationName("");
-    setInitialBranch("main");
+    setInitialBranch(defaultBranchName);
     setCreateReadme(false);
     setSaveInitialVersion(false);
     setFirstVersionTitle(t.initializeFirstVersionTitlePlaceholder);
@@ -149,7 +158,13 @@ export function InitializeProjectDialog({
     setRemoteName("origin");
     setRemoteUrl("");
     resetTransientState();
-  }, [initialExistingPath, initialMode, isOpen, t.initializeFirstVersionTitlePlaceholder]);
+  }, [
+    defaultBranchName,
+    initialExistingPath,
+    initialMode,
+    isOpen,
+    t.initializeFirstVersionTitlePlaceholder,
+  ]);
 
   const finishClose = (): void => {
     controller.supersede();
@@ -280,6 +295,7 @@ export function InitializeProjectDialog({
             title: firstVersionTitle,
             description: firstVersionDescription.trim() || null,
             stateToken: savePlan.stateToken,
+            runHooks,
           });
           if (!controller.isCurrent(current)) return;
           await onProjectChanged(project.path);

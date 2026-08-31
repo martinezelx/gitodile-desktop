@@ -60,6 +60,8 @@ import {
   SETTINGS_SECTIONS,
   settingsPort,
   settingsSectionLabel,
+  DEFAULT_BRANCH_FALLBACK,
+  useDefaultBranch,
   useGitIdentity,
   useGitTooling,
   useLineEndings,
@@ -86,6 +88,9 @@ import {
   CONFIRM_DISCARD_STORAGE_KEY,
   REOPEN_LAST_PROJECT_DEFAULT,
   REOPEN_LAST_PROJECT_STORAGE_KEY,
+  RUN_GIT_HOOKS_DEFAULT,
+  RUN_GIT_HOOKS_STORAGE_KEY,
+  SIDEBAR_HIDDEN_DEFAULT,
   SIDEBAR_HIDDEN_STORAGE_KEY,
   WATCH_PROJECTS_DEFAULT,
   WATCH_PROJECTS_STORAGE_KEY,
@@ -441,6 +446,7 @@ export function App(): React.JSX.Element {
      panel on every close, which used to throw both answers away and pay for
      them again on the next opening. */
   const gitIdentity = useGitIdentity(settingsPort);
+  const defaultBranch = useDefaultBranch(settingsPort);
   const lineEndings = useLineEndings(
     settingsPort,
     activeSession?.id ?? null,
@@ -487,12 +493,20 @@ export function App(): React.JSX.Element {
     CONFIRM_DISCARD_STORAGE_KEY,
     CONFIRM_DISCARD_DEFAULT,
   );
+  /* Travels with every save and publish rather than being read by Rust: it is
+     a choice about what this app does with someone's project, not a fact about
+     the project, and the command that acts on it is the one that must carry
+     it. */
+  const [runGitHooks, setRunGitHooks] = useStoredBoolean(
+    RUN_GIT_HOOKS_STORAGE_KEY,
+    RUN_GIT_HOOKS_DEFAULT,
+  );
   // Stored, not per-session: someone who works with the rail collapsed wants
   // it collapsed the next time they open the app, the same as every other
   // chrome preference here.
   const [isSidebarHidden, setIsSidebarHidden] = useStoredBoolean(
     SIDEBAR_HIDDEN_STORAGE_KEY,
-    false,
+    SIDEBAR_HIDDEN_DEFAULT,
   );
   const [favouriteProjectIds, toggleFavouriteProject] = useStoredFavouriteProjects();
   // A short jump menu hanging off the collapse control, for reaching a
@@ -2006,6 +2020,7 @@ export function App(): React.JSX.Element {
                           sessionEpoch={activeSession?.epoch ?? ""}
                           watcherState={activeWatcherState}
                           confirmBeforeDiscarding={confirmDiscard}
+                          runGitHooks={runGitHooks}
                           onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
                           onOpenSettings={() => openSettings("general")}
                           onSaveCompleted={() => void handleMutationSucceeded(project.path)}
@@ -2154,6 +2169,8 @@ export function App(): React.JSX.Element {
           initialExistingPath={initializeDialogRequest.existingPath}
           controller={initializeProjectController}
           saveVersionController={initialSaveVersionController}
+          defaultBranchName={defaultBranch.name ?? DEFAULT_BRANCH_FALLBACK}
+          runHooks={runGitHooks}
           onClose={() => setInitializeDialogRequest(null)}
           onInitialized={handleInitializedProject}
           onProjectChanged={handleMutationSucceeded}
@@ -2168,6 +2185,7 @@ export function App(): React.JSX.Element {
             projectPath={publishDialogSession.project.path}
             sessionEpoch={publishDialogSession.epoch}
             upTo={publishUpTo ?? undefined}
+            runHooks={runGitHooks}
             onClose={() => {
               finishSessionOperation(publishDialogSession.id);
               setPublishDialogSessionId(null);
@@ -2307,6 +2325,8 @@ export function App(): React.JSX.Element {
           setRemoteCheckInterval,
           confirmDiscard,
           setConfirmDiscard,
+          runGitHooks,
+          setRunGitHooks,
           navigationItems: orderedProjectNavDestinations.map((destination) => ({
             id: destination.id,
             label: t[destination.labelKey],
@@ -2317,6 +2337,7 @@ export function App(): React.JSX.Element {
           diffPreferences,
           setDiffPreferences,
           identity: gitIdentity,
+          defaultBranch,
           lineEndings,
         }}
         about={{ isOpen: isAboutOpen, setOpen: setIsAboutOpen }}

@@ -132,7 +132,7 @@ export function PendingVersionsSection({
   canPublish: boolean;
   onPublish: () => void;
 }): React.JSX.Element {
-  const { t, language } = useLanguage();
+  const { t, formatDate } = useLanguage();
   const { filesByCommit, selectedFileByCommit, diffsByCommit, toggleCommit, toggleFile } =
     usePendingVersionDetails(projectPath, sessionEpoch);
 
@@ -206,11 +206,7 @@ export function PendingVersionsSection({
                       {version.title}
                     </span>
                     <span className="pending-versions__meta">
-                      {new Date(version.committedAt).toLocaleDateString(language, {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatDate(new Date(version.committedAt))}
                     </span>
                     {/* Absent, not an empty pill, when Git has no author name
                         to report (a malformed or very old commit) — a blank

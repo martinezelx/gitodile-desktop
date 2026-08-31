@@ -66,6 +66,7 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
             None,
             selected_plan.state_token,
             selected_paths,
+            true,
             Some(&identity),
         )
     })
@@ -97,6 +98,7 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
         first_publish_plan.target.remote,
         first_publish_plan.state_token,
         None,
+        true,
     )
     .expect("publish the initial saved versions");
     assert_eq!(
@@ -151,6 +153,7 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
         publish_plan.target.remote,
         publish_plan.state_token,
         None,
+        true,
     )
     .expect("publish after getting team changes");
     assert_eq!(publish_result.published_count, 1);

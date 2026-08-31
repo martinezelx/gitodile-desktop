@@ -7,7 +7,8 @@ import {
   RotateCw,
 } from "lucide-react";
 
-import { useLanguage, type Language, type Translations } from "../i18n";
+import { useLanguage, type Translations } from "../i18n";
+import { formatDate, type LocaleFormats } from "../shared/i18n";
 import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type { TeamSyncState, TeamSyncViewState } from "../features/sync";
@@ -47,7 +48,10 @@ function useStatusBarClock(): number {
 export function formatRelativeCheckTime(
   checkedAt: number,
   now: number,
-  language: Language,
+  /* A BCP-47 tag rather than the app's own `Language`: a relative time has no
+     separators for the date-format preference to choose between, so it follows
+     the locale directly, and `LocaleFormats` carries that as a plain tag. */
+  language: string,
   justNow: string,
 ): string {
   const elapsed = Math.max(0, now - checkedAt);
@@ -106,19 +110,19 @@ function teamStateLabel(
 function teamFreshnessLabel(
   state: TeamSyncViewState,
   now: number,
-  language: Language,
+  formats: LocaleFormats,
   t: Translations,
 ): { label: string; exactCheckedAt: string | undefined } | null {
   const checkedAt = state.status?.checkedAt ?? state.lastSuccessfulCheckAt;
   const exactCheckedAt = checkedAt === null
     ? undefined
-    : new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(checkedAt);
+    : formatDate(new Date(checkedAt), formats, "date-time");
 
   if (state.error) return { label: t.statusBarCheckFailed, exactCheckedAt };
   if (state.isStale) return { label: t.statusBarMayBeOutdated, exactCheckedAt };
   if (state.status?.knowledge === "cached") return { label: t.statusBarLocalSnapshot, exactCheckedAt };
   if (checkedAt !== null) {
-    const relative = formatRelativeCheckTime(checkedAt, now, language, t.statusBarJustNow);
+    const relative = formatRelativeCheckTime(checkedAt, now, formats.language, t.statusBarJustNow);
     return { label: t.statusBarLastChecked(relative), exactCheckedAt };
   }
   return null;
@@ -139,7 +143,7 @@ export function StatusBar({
   onCheckTeamChanges,
   onOpenChangelog,
 }: StatusBarProps): React.JSX.Element {
-  const { t, language } = useLanguage();
+  const { t, formats } = useLanguage();
   const now = useStatusBarClock();
   const isReadingTeamStatus = teamSync.isLoading && !teamSync.status;
   const teamLabel = teamSync.isCheckingRemote
@@ -151,7 +155,7 @@ export function StatusBar({
         : teamSync.status
           ? teamStateLabel(teamSync.status.state, teamSync.status.ahead, teamSync.status.behind, t)
           : t.statusBarTeamNotChecked;
-  const freshness = teamFreshnessLabel(teamSync, now, language, t);
+  const freshness = teamFreshnessLabel(teamSync, now, formats, t);
   const canCheckTeam = Boolean(
     project?.headState === "branch" &&
     project.branch &&

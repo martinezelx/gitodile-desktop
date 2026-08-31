@@ -464,6 +464,7 @@ fn save_version_commits_only_the_selected_files() {
             None,
             plan.state_token,
             selected,
+            true,
             Some(&identity),
         )
     })
@@ -755,4 +756,87 @@ fn save_version_reports_a_signing_failure() {
     let _ = fs::remove_dir_all(&path);
     let _ = fs::remove_file(&identity);
     let _ = fs::remove_file(&fake_gpg);
+}
+
+/// A hook that always fails, so "did GitOdrile run the project's hooks?" has a
+/// visible answer rather than one inferred from the command line.
+fn write_failing_pre_commit_hook(repo_path: &str) {
+    let hook = std::path::Path::new(repo_path)
+        .join(".git")
+        .join("hooks")
+        .join("pre-commit");
+    fs::write(
+        &hook,
+        "#!/bin/sh
+echo \"rejected by the test hook\" >&2
+exit 1
+",
+    )
+    .expect("write the pre-commit hook");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&hook, fs::Permissions::from_mode(0o755))
+            .expect("make the hook executable");
+    }
+}
+
+#[test]
+fn saving_runs_the_projects_hooks_only_when_they_are_turned_on() {
+    let path = unique_temp_dir("save-hooks");
+    git_init(&path);
+    let identity = write_test_identity_config("save-hooks");
+    write_failing_pre_commit_hook(&path);
+
+    write_file(
+        &path,
+        "first.txt",
+        "one
+",
+    );
+    let plan = in_test_frame(|| {
+        plan_save_version_selection_with_identity_override(path.clone(), None, Some(&identity))
+    })
+    .expect("plan the first save");
+    in_test_frame(|| {
+        save_version_selection_with_identity_override(
+            path.clone(),
+            "hooks off".to_string(),
+            None,
+            plan.state_token,
+            None,
+            false,
+            Some(&identity),
+        )
+    })
+    .expect("with hooks off the rejecting hook must not have run");
+
+    write_file(
+        &path,
+        "second.txt",
+        "two
+",
+    );
+    let plan = in_test_frame(|| {
+        plan_save_version_selection_with_identity_override(path.clone(), None, Some(&identity))
+    })
+    .expect("plan the second save");
+    let error = in_test_frame(|| {
+        save_version_selection_with_identity_override(
+            path.clone(),
+            "hooks on".to_string(),
+            None,
+            plan.state_token,
+            None,
+            true,
+            Some(&identity),
+        )
+    })
+    .expect_err("with hooks on the rejecting hook decides");
+    // Not just "it failed": the failure is reported as the hook's, which is
+    // the classification that sends the user to the hook's own output.
+    assert_eq!(error.code, AppErrorCode::HookRejected);
+
+    let _ = fs::remove_dir_all(&path);
+    let _ = fs::remove_file(&identity);
 }

@@ -21,7 +21,17 @@ import {
 } from "lucide-react";
 
 import { LANGUAGE_NAMES, useLanguage, type Language, type LanguagePreference } from "../../i18n";
-import { localizeAppError } from "../../shared/i18n";
+import {
+  DATE_FORMATS,
+  FORMAT_SAMPLE_DATE,
+  FORMAT_SAMPLE_NUMBER,
+  NUMBER_FORMATS,
+  formatDate,
+  formatNumber,
+  localizeAppError,
+  type DateFormatPreference,
+  type NumberFormatPreference,
+} from "../../shared/i18n";
 import { autoHideScrollbarProps } from "../../shared/ui";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
@@ -33,24 +43,32 @@ import {
   type DiffTabWidth,
 } from "../changes";
 import {
+  DEFAULT_BRANCH_FALLBACK,
+  DEFAULT_BRANCH_SUGGESTIONS,
   LINE_ENDING_CHOICES,
-  REMOTE_CHECK_INTERVALS,
-  isRemoteCheckIntervalMinutes,
+  REMOTE_CHECK_MAX_MINUTES,
+  REMOTE_CHECK_MIN_MINUTES,
+  REMOTE_CHECK_PRESETS,
+  REMOTE_CHECK_UNITS,
+  combineRemoteCheckInterval,
+  isRemoteCheckPreset,
   recommendedLineEndingChoice,
   SETTINGS_SECTIONS,
   settingsSectionLabel,
+  splitRemoteCheckInterval,
   type GitDiagnostics,
   type GitUpdateStatus,
   type LineEndingChoice,
   type NavigationDisplayMode,
   type NavigationPreferences,
   type RemoteCheckIntervalMinutes,
+  type RemoteCheckUnit,
   type SettingsSection,
   type ThemePreference,
 } from "./domain";
 import type { SettingsPort } from "./port";
 import { settingsPort } from "./tauriAdapter";
-import type { GitIdentityState, LineEndingsState } from "./useGitConfig";
+import type { DefaultBranchState, GitIdentityState, LineEndingsState } from "./useGitConfig";
 
 const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
   system: <Monitor />,
@@ -258,12 +276,15 @@ export function SettingsPanel({
   setRemoteCheckInterval,
   confirmDiscard,
   setConfirmDiscard,
+  runGitHooks,
+  setRunGitHooks,
   navigationItems,
   navigationPreferences,
   setNavigationPreferences,
   diffPreferences,
   setDiffPreferences,
   identity,
+  defaultBranch,
   lineEndingsState,
   onClose,
   onRegisterCloseGuard,
@@ -289,6 +310,8 @@ export function SettingsPanel({
   setRemoteCheckInterval: (value: RemoteCheckIntervalMinutes) => void;
   confirmDiscard: boolean;
   setConfirmDiscard: (value: boolean) => void;
+  runGitHooks: boolean;
+  setRunGitHooks: (value: boolean) => void;
   navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
   navigationPreferences: NavigationPreferences;
   setNavigationPreferences: (
@@ -301,6 +324,7 @@ export function SettingsPanel({
    * still owns the draft, the notices and the close guard: those are the parts
    * that genuinely belong to one opening. */
   identity: GitIdentityState;
+  defaultBranch: DefaultBranchState;
   lineEndingsState: LineEndingsState;
   onClose?: () => void;
   /** The panel holds the identity draft, so it is the only place that can know
@@ -309,7 +333,8 @@ export function SettingsPanel({
   onRegisterCloseGuard?: (guard: (() => boolean) | null) => void;
   port?: SettingsPort;
 }): React.JSX.Element {
-  const { t, languagePreference, setLanguagePreference } = useLanguage();
+  const { t, languagePreference, setLanguagePreference, formats, setDateFormat, setNumberFormat } =
+    useLanguage();
   const [gitActionNotice, setGitActionNotice] = useState<Notice | null>(null);
   const [nameInput, setNameInput] = useState(identity.identity.name);
   const [emailInput, setEmailInput] = useState(identity.identity.email);
@@ -319,6 +344,8 @@ export function SettingsPanel({
   const [isStartingGitInstallation, setIsStartingGitInstallation] = useState(false);
   const [isStartingGitUpdate, setIsStartingGitUpdate] = useState(false);
   const [lineEndingNotice, setLineEndingNotice] = useState<Notice | null>(null);
+  const [defaultBranchNotice, setDefaultBranchNotice] = useState<Notice | null>(null);
+  const [remoteCheckNotice, setRemoteCheckNotice] = useState<string | null>(null);
   const [draggedNavigationId, setDraggedNavigationId] = useState<string | null>(null);
   const [dragOverNavigationId, setDragOverNavigationId] = useState<string | null>(null);
   const [navigationOrderNotice, setNavigationOrderNotice] = useState("");
@@ -358,6 +385,101 @@ export function SettingsPanel({
       setLineEndingNotice({
         tone: "danger",
         message: localizeAppError(error, t, t.lineEndingsCouldntSave),
+      });
+    }
+  };
+
+  /* The custom cadence is a draft while it is being typed, exactly like the
+     identity fields: an interval is only stored once it is one this app will
+     actually run, so a half-typed "5" on the way to "50" never becomes the
+     live cadence and a rejected value keeps showing what was typed. */
+  const storedCadence = splitRemoteCheckInterval(
+    remoteCheckInterval === 0 ? REMOTE_CHECK_PRESETS[1] : remoteCheckInterval,
+  );
+  const [isCustomCadenceOpen, setIsCustomCadenceOpen] = useState(
+    remoteCheckInterval !== 0 && !isRemoteCheckPreset(remoteCheckInterval),
+  );
+  const [cadenceInput, setCadenceInput] = useState(String(storedCadence.value));
+  const [cadenceUnit, setCadenceUnit] = useState<RemoteCheckUnit>(storedCadence.unit);
+
+  const cadenceRangeMessage = t.remoteCheckOutOfRange(
+    t.remoteCheckMinutesUnit(REMOTE_CHECK_MIN_MINUTES),
+    t.remoteCheckHoursUnit(REMOTE_CHECK_MAX_MINUTES / 60),
+  );
+
+  const applyCustomCadence = (value: string, unit: RemoteCheckUnit): void => {
+    const parsed = Number(value.trim());
+    const minutes =
+      value.trim() === "" || !Number.isInteger(parsed)
+        ? null
+        : combineRemoteCheckInterval(parsed, unit);
+    if (minutes === null) {
+      setRemoteCheckNotice(cadenceRangeMessage);
+      return;
+    }
+    setRemoteCheckNotice(null);
+    setRemoteCheckInterval(minutes);
+  };
+
+  /* Always the stored cadence, never the draft: while a typed value is out of
+     range the previous one is still the one running, and this is the line that
+     has to say so. */
+  const activeCadenceSentence =
+    remoteCheckInterval === 0
+      ? t.remoteCheckNever
+      : remoteCheckInterval % 60 === 0
+        ? t.remoteCheckEveryHours(remoteCheckInterval / 60)
+        : t.remoteCheckEveryMinutes(remoteCheckInterval);
+
+  const chooseCadencePreset = (minutes: RemoteCheckIntervalMinutes): void => {
+    setIsCustomCadenceOpen(false);
+    setRemoteCheckNotice(null);
+    setRemoteCheckInterval(minutes);
+  };
+
+  const savedDefaultBranch = defaultBranch.name;
+  /* With nothing stored, the panel still shows the name new projects will get.
+     An empty group reads as "unfinished", and the honest answer is not "no
+     name" — it is "main, and not written to Git yet", which the hint says. */
+  const shownDefaultBranch = savedDefaultBranch ?? DEFAULT_BRANCH_FALLBACK;
+  const isSuggestedDefaultBranch = DEFAULT_BRANCH_SUGGESTIONS.some(
+    (suggestion) => suggestion === shownDefaultBranch,
+  );
+  const [isCustomBranchOpen, setIsCustomBranchOpen] = useState(false);
+  const [branchInput, setBranchInput] = useState(savedDefaultBranch ?? "");
+  /* Seeded during render for the same reason the identity draft is: on a cold
+     session the panel can be on screen before the config read answers, and an
+     effect would paint an empty field first and fill it in afterwards. */
+  const [hasSeededBranch, setHasSeededBranch] = useState(defaultBranch.isLoaded);
+  if (defaultBranch.isLoaded && !hasSeededBranch) {
+    setHasSeededBranch(true);
+    setBranchInput(savedDefaultBranch ?? "");
+  }
+  const showsCustomBranch = isCustomBranchOpen || !isSuggestedDefaultBranch;
+
+  /* Committing the typed draft is the group's job, not the field's.
+     Saving from the input's own `onBlur` raced the suggestion buttons: blur
+     fires before click, so typing "trunk" and then pressing "main" started two
+     writes to `init.defaultBranch` at once and whichever landed last won. This
+     is the same guard the identity block uses — focus moving to another control
+     inside the group means that control decides what is saved. */
+  const handleDefaultBranchBlur = (event: React.FocusEvent<HTMLDivElement>): void => {
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    if (!showsCustomBranch) return;
+    void saveDefaultBranch(branchInput);
+  };
+
+  const saveDefaultBranch = async (name: string): Promise<void> => {
+    const next = name.trim();
+    if (next === "" || next === savedDefaultBranch) return;
+    setDefaultBranchNotice(null);
+    try {
+      await defaultBranch.save(next);
+      setDefaultBranchNotice({ tone: "success", message: t.defaultBranchSaved });
+    } catch (error) {
+      setDefaultBranchNotice({
+        tone: "danger",
+        message: localizeAppError(error, t, t.defaultBranchCouldntSave),
       });
     }
   };
@@ -509,6 +631,28 @@ export function SettingsPanel({
                 : gitUpdateStatus.state === "timed_out"
                   ? { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.gitUpdateCheckTimedOut }
                   : null;
+
+  /* Each option is named by what it does rather than by its own output: the
+     sample beside it is the output, and a label that was only `30/08/2026`
+     would be unreadable to anyone using a screen reader. */
+  const dateFormatLabels: Record<DateFormatPreference, string> = useMemo(
+    () => ({
+      system: t.formatsSystem,
+      iso: t.formatsDateIso,
+      "day-first": t.formatsDateDayFirst,
+      "month-first": t.formatsDateMonthFirst,
+    }),
+    [t],
+  );
+  const numberFormatLabels: Record<NumberFormatPreference, string> = useMemo(
+    () => ({
+      system: t.formatsSystem,
+      "comma-dot": t.formatsNumberCommaDot,
+      "dot-comma": t.formatsNumberDotComma,
+      "space-comma": t.formatsNumberSpaceComma,
+    }),
+    [t],
+  );
 
   /* Read once per mount, like the About dialog does: the platform cannot
      change while the app is running. */
@@ -672,8 +816,8 @@ export function SettingsPanel({
                     aria-label={t.remoteCheckIntervalLabel}
                     onKeyDown={moveFocusWithinRadioGroup}
                   >
-                    {REMOTE_CHECK_INTERVALS.map((minutes, index) => {
-                      const isActive = remoteCheckInterval === minutes;
+                    {REMOTE_CHECK_PRESETS.map((minutes, index) => {
+                      const isActive = !isCustomCadenceOpen && remoteCheckInterval === minutes;
                       const fullLabel = minutes === 0
                         ? t.remoteCheckNever
                         : minutes === 60
@@ -688,9 +832,7 @@ export function SettingsPanel({
                           aria-checked={isActive}
                           aria-label={fullLabel}
                           tabIndex={isRadioTabStop(isActive, true, index) ? 0 : -1}
-                          onClick={() => {
-                            if (isRemoteCheckIntervalMinutes(minutes)) setRemoteCheckInterval(minutes);
-                          }}
+                          onClick={() => chooseCadencePreset(minutes)}
                         >
                           {minutes === 0
                             ? t.remoteCheckNever
@@ -700,8 +842,96 @@ export function SettingsPanel({
                         </button>
                       );
                     })}
+                    {/* The presets are the common answers, not the only ones.
+                        This option opens the field rather than carrying a value
+                        of its own, so choosing it changes nothing until a
+                        number the app will accept has been typed. */}
+                    <button
+                      className={`segmented-control__option${isCustomCadenceOpen ? " segmented-control__option--active" : ""}`}
+                      type="button"
+                      role="radio"
+                      aria-checked={isCustomCadenceOpen}
+                      aria-label={t.remoteCheckCustom}
+                      tabIndex={
+                        isRadioTabStop(isCustomCadenceOpen, true, REMOTE_CHECK_PRESETS.length) ? 0 : -1
+                      }
+                      onClick={() => {
+                        setIsCustomCadenceOpen(true);
+                        applyCustomCadence(cadenceInput, cadenceUnit);
+                      }}
+                    >
+                      {t.remoteCheckCustomShort}
+                    </button>
                   </div>
                 </div>
+                {isCustomCadenceOpen && (
+                  <div className="settings-row settings-row--stacked">
+                    <div className="remote-check-custom">
+                      <label className="text-field text-field--compact">
+                        <span>{t.remoteCheckCustomValueLabel}</span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={REMOTE_CHECK_MIN_MINUTES}
+                          max={
+                            cadenceUnit === "hours"
+                              ? REMOTE_CHECK_MAX_MINUTES / 60
+                              : REMOTE_CHECK_MAX_MINUTES
+                          }
+                          step={1}
+                          value={cadenceInput}
+                          aria-invalid={remoteCheckNotice !== null}
+                          aria-describedby={
+                            remoteCheckNotice === null ? undefined : "remote-check-range-error"
+                          }
+                          onChange={(event) => {
+                            setCadenceInput(event.target.value);
+                            applyCustomCadence(event.target.value, cadenceUnit);
+                          }}
+                        />
+                      </label>
+                      <div
+                        className="segmented-control"
+                        role="radiogroup"
+                        aria-label={t.remoteCheckCustomUnitLabel}
+                        onKeyDown={moveFocusWithinRadioGroup}
+                      >
+                        {REMOTE_CHECK_UNITS.map((unit, index) => (
+                          <button
+                            key={unit}
+                            type="button"
+                            role="radio"
+                            aria-checked={cadenceUnit === unit}
+                            tabIndex={isRadioTabStop(cadenceUnit === unit, true, index) ? 0 : -1}
+                            className={`segmented-control__option${cadenceUnit === unit ? " segmented-control__option--active" : ""}`}
+                            onClick={() => {
+                              setCadenceUnit(unit);
+                              applyCustomCadence(cadenceInput, unit);
+                            }}
+                          >
+                            {unit === "minutes" ? t.remoteCheckUnitMinutes : t.remoteCheckUnitHours}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* The cadence actually in force, restated in words: the
+                        number and its unit are two controls, and a rejected
+                        value leaves the previous cadence running. */}
+                    <div className="settings-row__status" role="status">
+                      {remoteCheckNotice === null ? (
+                        <p className="settings-row__hint">{activeCadenceSentence}</p>
+                      ) : (
+                        <p
+                          id="remote-check-range-error"
+                          className="settings-row__hint settings-row__hint--danger"
+                        >
+                          <TriangleAlert aria-hidden="true" />
+                          <span>{remoteCheckNotice}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
             <section className="settings-group">
@@ -788,6 +1018,89 @@ export function SettingsPanel({
                       {option === "system" ? t.commonSystem : LANGUAGE_NAMES[option as Language]}
                     </button>
                   ))}
+                </div>
+              </div>
+            </section>
+            {/* Beside Language rather than in a rail entry of its own: this is
+                the same question about how the interface reads, and a locale
+                is not one decision but three. Each option is labelled by what
+                it does and shows the result, because "Day first" is a
+                description and `30/08/2026` is the answer. */}
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsFormatsTitle}</h3>
+                <p>{t.settingsFormatsDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row settings-row--stacked">
+                  <strong>{t.formatsDateLabel}</strong>
+                  <div
+                    className="format-picker"
+                    role="radiogroup"
+                    aria-label={t.formatsDateLabel}
+                    onKeyDown={moveFocusWithinRadioGroup}
+                  >
+                    {DATE_FORMATS.map((option, index) => {
+                      const isActive = formats.dateFormat === option;
+                      const sample = formatDate(FORMAT_SAMPLE_DATE, {
+                        ...formats,
+                        dateFormat: option,
+                      });
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          role="radio"
+                          aria-checked={isActive}
+                          aria-label={`${dateFormatLabels[option]}: ${sample}`}
+                          tabIndex={isRadioTabStop(isActive, true, index) ? 0 : -1}
+                          className={`format-picker__option${isActive ? " format-picker__option--active" : ""}`}
+                          onClick={() => setDateFormat(option)}
+                        >
+                          <span className="format-picker__name">{dateFormatLabels[option]}</span>
+                          <span className="format-picker__sample" aria-hidden="true">
+                            {sample}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="settings-row settings-row--stacked">
+                  <strong>{t.formatsNumberLabel}</strong>
+                  <div
+                    className="format-picker"
+                    role="radiogroup"
+                    aria-label={t.formatsNumberLabel}
+                    onKeyDown={moveFocusWithinRadioGroup}
+                  >
+                    {NUMBER_FORMATS.map((option, index) => {
+                      const isActive = formats.numberFormat === option;
+                      const sample = formatNumber(FORMAT_SAMPLE_NUMBER, {
+                        ...formats,
+                        numberFormat: option,
+                      });
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          role="radio"
+                          aria-checked={isActive}
+                          aria-label={`${numberFormatLabels[option]}: ${sample}`}
+                          tabIndex={isRadioTabStop(isActive, true, index) ? 0 : -1}
+                          className={`format-picker__option${isActive ? " format-picker__option--active" : ""}`}
+                          onClick={() => setNumberFormat(option)}
+                        >
+                          <span className="format-picker__name">
+                            {numberFormatLabels[option]}
+                          </span>
+                          <span className="format-picker__sample" aria-hidden="true">
+                            {sample}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </section>
@@ -1163,6 +1476,120 @@ export function SettingsPanel({
                     )}
                   </div>
                 </div>
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsDefaultBranchTitle}</h3>
+                <p>{t.settingsDefaultBranchDescription}</p>
+              </header>
+              <div className="settings-group__body" onBlur={handleDefaultBranchBlur}>
+                <div className="settings-row">
+                  <div
+                    className="segmented-control"
+                    role="radiogroup"
+                    aria-label={t.settingsDefaultBranchTitle}
+                    onKeyDown={moveFocusWithinRadioGroup}
+                  >
+                    {DEFAULT_BRANCH_SUGGESTIONS.map((suggestion, index) => {
+                      const isActive = !showsCustomBranch && shownDefaultBranch === suggestion;
+                      return (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          role="radio"
+                          aria-checked={isActive}
+                          disabled={defaultBranch.isSaving}
+                          tabIndex={isRadioTabStop(isActive, true, index) ? 0 : -1}
+                          className={`segmented-control__option${isActive ? " segmented-control__option--active" : ""}`}
+                          onClick={() => {
+                            setIsCustomBranchOpen(false);
+                            setBranchInput(suggestion);
+                            void saveDefaultBranch(suggestion);
+                          }}
+                        >
+                          {suggestion}
+                        </button>
+                      );
+                    })}
+                    {/* "Other" opens the field instead of writing anything:
+                        the name is only saved once Git has accepted it. */}
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={showsCustomBranch}
+                      disabled={defaultBranch.isSaving}
+                      tabIndex={
+                        isRadioTabStop(showsCustomBranch, true, DEFAULT_BRANCH_SUGGESTIONS.length)
+                          ? 0
+                          : -1
+                      }
+                      className={`segmented-control__option${showsCustomBranch ? " segmented-control__option--active" : ""}`}
+                      onClick={() => setIsCustomBranchOpen(true)}
+                    >
+                      {t.defaultBranchOtherLabel}
+                    </button>
+                  </div>
+                </div>
+                {showsCustomBranch && (
+                  <div className="settings-row settings-row--stacked">
+                    <label className="text-field text-field--compact">
+                      <span>{t.defaultBranchCustomLabel}</span>
+                      <input
+                        type="text"
+                        value={branchInput}
+                        placeholder={t.defaultBranchPlaceholder}
+                        autoComplete="off"
+                        spellCheck={false}
+                        onChange={(event) => setBranchInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void saveDefaultBranch(branchInput);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+                <div className="settings-row__status" role="status">
+                  {defaultBranch.isSaving ? (
+                    <p className="settings-row__hint">
+                      <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                      <span>{t.settingsSaving}</span>
+                    </p>
+                  ) : defaultBranchNotice ? (
+                    <p className={`settings-row__hint settings-row__hint--${defaultBranchNotice.tone}`}>
+                      {NOTICE_ICONS[defaultBranchNotice.tone]}
+                      <span>{defaultBranchNotice.message}</span>
+                    </p>
+                  ) : defaultBranch.isLoaded && savedDefaultBranch === null ? (
+                    <p className="settings-row__hint">{t.defaultBranchUnset}</p>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsHooksTitle}</h3>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.hooksLabel}</strong>
+                    <p>{t.hooksDescription}</p>
+                  </div>
+                  <ToggleSwitch label={t.hooksLabel} checked={runGitHooks} onChange={setRunGitHooks} />
+                </div>
+                {/* Shown only while hooks are skipped, and stated plainly: the
+                    default is off, and a default that quietly drops a
+                    project's own checks has to say so where it is set. */}
+                {!runGitHooks && (
+                  <p className="settings-row__hint settings-row__hint--warning">
+                    <Info aria-hidden="true" />
+                    <span>{t.hooksSkippedHint}</span>
+                  </p>
+                )}
               </div>
             </section>
             <section className="settings-group">

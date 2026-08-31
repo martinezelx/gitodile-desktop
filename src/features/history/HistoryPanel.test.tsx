@@ -449,8 +449,8 @@ describe("HistoryPanel", () => {
   it("formats locale-aware absolute and relative dates in English and Spanish", () => {
     const timestamp = { unixSeconds: Date.UTC(2026, 7, 21, 10, 30) / 1_000, offsetMinutes: 120 };
     const now = Date.UTC(2026, 7, 22, 10, 30);
-    expect(formatHistoryDate(timestamp, "en", now)?.relative).toMatch(/yesterday|1 day ago/i);
-    expect(formatHistoryDate(timestamp, "es", now)?.relative).toMatch(/ayer|hace 1 día/i);
-    expect(formatHistoryDate(timestamp, "es", now)?.absolute).toMatch(/2026/);
+    expect(formatHistoryDate(timestamp, { language: "en", dateFormat: "system", numberFormat: "system" }, now)?.relative).toMatch(/yesterday|1 day ago/i);
+    expect(formatHistoryDate(timestamp, { language: "es", dateFormat: "system", numberFormat: "system" }, now)?.relative).toMatch(/ayer|hace 1 día/i);
+    expect(formatHistoryDate(timestamp, { language: "es", dateFormat: "system", numberFormat: "system" }, now)?.absolute).toMatch(/2026/);
   });
 });

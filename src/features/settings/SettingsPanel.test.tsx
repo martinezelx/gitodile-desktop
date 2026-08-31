@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n";
 import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
 import { SettingsPanel } from "./SettingsPanel";
-import { useGitIdentity, useLineEndings } from "./useGitConfig";
+import { useDefaultBranch, useGitIdentity, useLineEndings } from "./useGitConfig";
 import type { SettingsPort } from "./port";
 import type { GitDiagnostics, GitLineEndings, GitUpdateStatus, SettingsSection } from "./domain";
 import type { NavigationPreferences } from "./domain";
@@ -21,6 +21,8 @@ function createPort(overrides: Partial<SettingsPort> = {}): SettingsPort {
     updateGit: vi.fn(async () => ({ outcome: "started" as const })),
     getIdentity: vi.fn(async () => ({ name: null, email: null })),
     setIdentity: vi.fn(async () => undefined),
+    getDefaultBranch: vi.fn(async () => ({ name: null })),
+    setDefaultBranch: vi.fn(async () => undefined),
     readLineEndings: vi.fn(
       async () =>
         ({ mode: "not_set", source: "unset", eol: null, projectAttributes: false }) as GitLineEndings,
@@ -43,8 +45,8 @@ type PanelOverrides = Partial<{
   setConfirmCloseProject: (value: boolean) => void;
   watchProjects: boolean;
   setWatchProjects: (value: boolean) => void;
-  remoteCheckInterval: 0 | 15 | 30 | 60;
-  setRemoteCheckInterval: (value: 0 | 15 | 30 | 60) => void;
+  remoteCheckInterval: number;
+  setRemoteCheckInterval: (value: number) => void;
   confirmDiscard: boolean;
   setConfirmDiscard: (value: boolean) => void;
   navigationPreferences: NavigationPreferences;
@@ -53,6 +55,8 @@ type PanelOverrides = Partial<{
   ) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
+  runGitHooks: boolean;
+  setRunGitHooks: (value: boolean) => void;
   project: { path: string; sessionEpoch: string } | null;
 }>;
 
@@ -63,11 +67,16 @@ type PanelOverrides = Partial<{
 function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOverrides }): React.JSX.Element {
   const [section, setSection] = useState<SettingsSection>(overrides.initialSection ?? "general");
   const identity = useGitIdentity(port);
+  const defaultBranch = useDefaultBranch(port);
   const lineEndings = useLineEndings(
     port,
     overrides.project?.path ?? null,
     overrides.project?.sessionEpoch ?? null,
   );
+  /* Held by the harness rather than passed as a constant: the hooks switch is
+     the one control whose own state changes what the panel says underneath
+     it, so a test that flips it has to see the result. */
+  const [runGitHooks, setRunGitHooks] = useState(overrides.runGitHooks ?? false);
   return (
     <SettingsPanel
       theme="system"
@@ -90,6 +99,11 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       setRemoteCheckInterval={overrides.setRemoteCheckInterval ?? vi.fn()}
       confirmDiscard={overrides.confirmDiscard ?? true}
       setConfirmDiscard={overrides.setConfirmDiscard ?? vi.fn()}
+      runGitHooks={runGitHooks}
+      setRunGitHooks={(value) => {
+        overrides.setRunGitHooks?.(value);
+        setRunGitHooks(value);
+      }}
       navigationItems={[
         { id: "overview", label: "Overview", icon: <span /> },
         { id: "changes", label: "Changes", icon: <span /> },
@@ -104,6 +118,7 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       diffPreferences={overrides.diffPreferences ?? DEFAULT_DIFF_PREFERENCES}
       setDiffPreferences={overrides.setDiffPreferences ?? vi.fn()}
       identity={identity}
+      defaultBranch={defaultBranch}
       lineEndingsState={lineEndings}
       onClose={overrides.onClose}
       onRegisterCloseGuard={overrides.onRegisterCloseGuard}
@@ -149,6 +164,7 @@ describe("Settings panel native boundary", () => {
     function Shell(): React.JSX.Element {
       const [isOpen, setIsOpen] = useState(true);
       const identity = useGitIdentity(port);
+      const defaultBranch = useDefaultBranch(port);
       const lineEndings = useLineEndings(port, null, null);
       return (
         <>
@@ -177,6 +193,8 @@ describe("Settings panel native boundary", () => {
               setRemoteCheckInterval={vi.fn()}
               confirmDiscard
               setConfirmDiscard={vi.fn()}
+              runGitHooks={false}
+              setRunGitHooks={vi.fn()}
               navigationItems={[]}
               navigationPreferences={{
                 visibleDestinationIds: [],
@@ -187,6 +205,7 @@ describe("Settings panel native boundary", () => {
               diffPreferences={DEFAULT_DIFF_PREFERENCES}
               setDiffPreferences={vi.fn()}
               identity={identity}
+              defaultBranch={defaultBranch}
               lineEndingsState={lineEndings}
               port={port}
             />
@@ -449,6 +468,201 @@ describe("Settings panel option groups", () => {
     // without a fallback the whole group would be unreachable.
     const options = await screen.findAllByRole("radio");
     expect(options.map((option) => option.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]);
+  });
+});
+
+describe("Settings panel default version line", () => {
+  it("reads the stored name and selects the matching suggestion", async () => {
+    const port = createPort({ getDefaultBranch: vi.fn(async () => ({ name: "master" })) });
+    renderPanel(port, { initialSection: "git" });
+
+    await waitFor(() => expect(port.getDefaultBranch).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole("radio", { name: "master" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("radio", { name: "main" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("shows the name new projects get when nothing is stored, without writing it", async () => {
+    const port = createPort();
+    renderPanel(port, { initialSection: "git" });
+
+    // An empty group reads as unfinished. `main` is what GitOdrile will
+    // actually name the first version line, so that is what is shown.
+    expect(await screen.findByRole("radio", { name: "main" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("radio", { name: "master" })).toHaveAttribute("aria-checked", "false");
+    // Shown, not stored: nothing is written to the user's Git configuration
+    // until they pick an option, and the hint has to say which state this is.
+    expect(
+      screen.getByText(/Not saved to your Git configuration yet/),
+    ).toBeInTheDocument();
+    expect(port.setDefaultBranch).not.toHaveBeenCalled();
+  });
+
+  it("writes a suggestion straight through the port", async () => {
+    const port = createPort();
+    renderPanel(port, { initialSection: "git" });
+    await waitFor(() => expect(port.getDefaultBranch).toHaveBeenCalled());
+
+    await userEvent.click(screen.getByRole("radio", { name: "main" }));
+    await waitFor(() => expect(port.setDefaultBranch).toHaveBeenCalledWith("main"));
+    expect(await screen.findByText("Default version line saved.")).toBeInTheDocument();
+  });
+
+  it("writes once when a typed draft is abandoned for a suggestion", async () => {
+    const port = createPort();
+    renderPanel(port, { initialSection: "git" });
+    await waitFor(() => expect(port.getDefaultBranch).toHaveBeenCalled());
+
+    await userEvent.click(screen.getByRole("radio", { name: "Other" }));
+    await userEvent.type(screen.getByLabelText("Version-line name"), "trunk");
+
+    // Blur fires before click. Committing the draft from the field's own
+    // `onBlur` raced this button, and whichever write landed last won.
+    await userEvent.click(screen.getByRole("radio", { name: "master" }));
+
+    await waitFor(() => expect(port.setDefaultBranch).toHaveBeenCalledTimes(1));
+    expect(port.setDefaultBranch).toHaveBeenCalledWith("master");
+    expect(await screen.findByRole("radio", { name: "master" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  it("takes a typed name and reports Git's verdict on a bad one", async () => {
+    const port = createPort({
+      setDefaultBranch: vi.fn(async (name: string) => {
+        if (name === "not a branch") {
+          throw { code: "invalid_initial_branch", message: "no" };
+        }
+      }),
+    });
+    renderPanel(port, { initialSection: "git" });
+    await waitFor(() => expect(port.getDefaultBranch).toHaveBeenCalled());
+
+    await userEvent.click(screen.getByRole("radio", { name: "Other" }));
+    const field = screen.getByLabelText("Version-line name");
+    await userEvent.type(field, "trunk");
+    await userEvent.tab();
+    await waitFor(() => expect(port.setDefaultBranch).toHaveBeenCalledWith("trunk"));
+
+    await userEvent.clear(field);
+    await userEvent.type(field, "not a branch");
+    await userEvent.tab();
+    // Git's own message, localized here rather than invented by the panel.
+    expect(
+      await screen.findByText("Choose a valid initial version-line name such as main."),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("Settings panel Git hooks", () => {
+  it("says nothing about skipping while hooks are running", async () => {
+    renderPanel(createPort(), { initialSection: "git", runGitHooks: true });
+
+    const toggle = await screen.findByRole("switch", {
+      name: "Run Git hooks when saving and publishing",
+    });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByText(/GitOdrile skips them in every project/)).toBeNull();
+    // The row must not read as a property of the open project: the switch is
+    // app-wide, and the copy has to say so where it is set.
+    expect(screen.getByText(/applies to every project you open in GitOdrile/)).toBeInTheDocument();
+  });
+
+  it("states the cost as soon as hooks are turned off", async () => {
+    const setRunGitHooks = vi.fn();
+    renderPanel(createPort(), { initialSection: "git", runGitHooks: true, setRunGitHooks });
+
+    await userEvent.click(
+      await screen.findByRole("switch", { name: "Run Git hooks when saving and publishing" }),
+    );
+    expect(setRunGitHooks).toHaveBeenCalledWith(false);
+    // Turning them off is the choice that costs something, so that is the
+    // state that has to explain itself.
+    expect(
+      await screen.findByText(/GitOdrile skips them in every project/),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("Settings panel remote-check cadence", () => {
+  it("stores a preset directly", async () => {
+    const setRemoteCheckInterval = vi.fn();
+    renderPanel(createPort(), { setRemoteCheckInterval });
+
+    await userEvent.click(screen.getByRole("radio", { name: "Every 30 minutes" }));
+    expect(setRemoteCheckInterval).toHaveBeenCalledWith(30);
+  });
+
+  it("takes a custom number of minutes or hours", async () => {
+    const setRemoteCheckInterval = vi.fn();
+    renderPanel(createPort(), { setRemoteCheckInterval, remoteCheckInterval: 15 });
+
+    await userEvent.click(screen.getByRole("radio", { name: "A custom frequency" }));
+    const field = screen.getByLabelText("How often to check");
+    await userEvent.clear(field);
+    await userEvent.type(field, "5");
+    expect(setRemoteCheckInterval).toHaveBeenLastCalledWith(5);
+
+    await userEvent.click(screen.getByRole("radio", { name: "hours" }));
+    expect(setRemoteCheckInterval).toHaveBeenLastCalledWith(300);
+  });
+
+  it("refuses a value past the bounds instead of storing it", async () => {
+    const setRemoteCheckInterval = vi.fn();
+    renderPanel(createPort(), { setRemoteCheckInterval, remoteCheckInterval: 15 });
+
+    await userEvent.click(screen.getByRole("radio", { name: "A custom frequency" }));
+    const field = screen.getByLabelText("How often to check");
+    await userEvent.clear(field);
+    setRemoteCheckInterval.mockClear();
+    await userEvent.type(field, "2000");
+
+    expect(await screen.findByText("Choose between 1 minute and 24 hours.")).toBeInTheDocument();
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    // 2000 was never stored; the last accepted prefix ("200") was, and the
+    // panel keeps showing what was typed.
+    expect(setRemoteCheckInterval).not.toHaveBeenCalledWith(2000);
+    expect(field).toHaveValue(2000);
+  });
+
+  it("opens the custom field already showing a stored value the presets cannot express", async () => {
+    renderPanel(createPort(), { remoteCheckInterval: 300 });
+
+    expect(screen.getByRole("radio", { name: "A custom frequency" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByLabelText("How often to check")).toHaveValue(5);
+    expect(screen.getByRole("radio", { name: "hours" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("Every 5 hours")).toBeInTheDocument();
+  });
+});
+
+describe("Settings panel date and number formats", () => {
+  it("previews each choice with the value it would produce", async () => {
+    renderPanel(createPort(), { initialSection: "appearance" });
+
+    expect(screen.getByRole("radio", { name: "Year first: 2026-03-09" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Day first: 09/03/2026" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("radio", { name: "Dot groups: 1.234.567,89" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the choice and applies it to the previews", async () => {
+    renderPanel(createPort(), { initialSection: "appearance" });
+
+    const dayFirst = screen.getByRole("radio", { name: "Day first: 09/03/2026" });
+    expect(dayFirst).toHaveAttribute("aria-checked", "false");
+    await userEvent.click(dayFirst);
+    await waitFor(() => expect(dayFirst).toHaveAttribute("aria-checked", "true"));
+    expect(localStorage.getItem("gitodrile-date-format")).toBe("day-first");
   });
 });
 
