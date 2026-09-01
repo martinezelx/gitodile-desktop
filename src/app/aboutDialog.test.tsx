@@ -58,6 +58,8 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       setRemoteCheckInterval: vi.fn(),
       confirmDiscard: true,
       setConfirmDiscard: vi.fn(),
+      notificationsEnabled: true,
+      setNotificationsEnabled: vi.fn(),
       runGitHooks: false,
       setRunGitHooks: vi.fn(),
       navigationItems: [],

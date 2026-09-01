@@ -40,6 +40,11 @@ import {
   type InitializeProjectResult,
   type InitializeTargetKind,
 } from "../features/initialize-project";
+import {
+  NotificationCenter,
+  useNotificationCenter,
+  type AppNotification,
+} from "../features/notifications";
 import { createSaveVersionController, saveVersionPort } from "../features/save-version";
 import {
   createRepositoryController,
@@ -52,6 +57,7 @@ import {
   createSyncController,
   EMPTY_TEAM_SYNC_STATE,
   GetTeamChangesDialog,
+  selectTeamSyncState,
   syncPort,
   useAutomaticRemoteCheck,
   type SyncErrorMapper,
@@ -92,6 +98,8 @@ import {
   CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
   CONFIRM_DISCARD_DEFAULT,
   CONFIRM_DISCARD_STORAGE_KEY,
+  NOTIFICATIONS_DEFAULT,
+  NOTIFICATIONS_STORAGE_KEY,
   REOPEN_LAST_PROJECT_DEFAULT,
   REOPEN_LAST_PROJECT_STORAGE_KEY,
   RUN_GIT_HOOKS_DEFAULT,
@@ -425,11 +433,17 @@ export function App(): React.JSX.Element {
     setIsOpenErrorDialogOpen(true);
   };
 
+  /* `sessionId` names the session to operate on when it is not the active one
+     yet — the notification centre activates a project and opens its review flow
+     in the same gesture, and the activation has not reached this render's
+     `activeSession` at that point. Everything below already addresses the
+     session by id, so this only replaces where the id comes from. */
   const startSessionOperation = (
     kind: "save" | "publish" | "discard" | "sync",
     upTo?: string,
+    sessionId?: string,
   ): boolean => {
-    const session = activeSession;
+    const session = sessionId ? sessionsState.byId[sessionId] : activeSession;
     if (!session) {
       return false;
     }
@@ -451,6 +465,30 @@ export function App(): React.JSX.Element {
       setGetTeamDialogSessionId(session.id);
     }
     return true;
+  };
+
+  /* The notification centre's one action.
+
+     A notification names the project it happened to, and by the time anyone
+     opens the panel that project may no longer be the active one — so the
+     action activates it and opens the review flow for that same session in one
+     gesture, naming the session explicitly rather than waiting for the
+     activation to reach a later render.
+
+     An earlier version parked the id in state and let an effect fire once the
+     switch landed. That left an intent nothing was guaranteed to clear: when
+     `activateSession` declined — it refuses outright while a blocking dialog is
+     open — the parked id survived, and the review dialog appeared out of
+     nowhere the next time that project happened to become active.
+
+     A project that has since been closed does nothing at all. The notification
+     stays in the list as a record of what happened; it was never a promise that
+     the project is still open. */
+  const reviewTeamChangesFromNotification = (notification: AppNotification): void => {
+    const id = notification.projectId;
+    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return;
+    if (sessionsState.activeId !== id) activateSession(id);
+    startSessionOperation("sync", undefined, id);
   };
 
   const openPublishDialog = (upTo?: string): void => {
@@ -535,6 +573,15 @@ export function App(): React.JSX.Element {
     CONFIRM_DISCARD_STORAGE_KEY,
     CONFIRM_DISCARD_DEFAULT,
   );
+  const [notificationsEnabled, setNotificationsEnabled] = useStoredBoolean(
+    NOTIFICATIONS_STORAGE_KEY,
+    NOTIFICATIONS_DEFAULT,
+  );
+  /* The composition root owns the notification centre because it is the only
+     place that sees every outcome worth recording — the automatic remote check
+     it drives, and the publish dialog it hosts. The feature itself starts
+     nothing: it is a list and a panel. */
+  const notificationCenter = useNotificationCenter(notificationsEnabled);
   /* Travels with every save and publish rather than being read by Rust: it is
      a choice about what this app does with someone's project, not a fact about
      the project, and the command that acts on it is the one that must carry
@@ -582,11 +629,17 @@ export function App(): React.JSX.Element {
     }, 260);
   };
   useEffect(() => cancelJumpClose, []);
+  /* `"none"`: this is the one flyout in the app that opens on *hover*, and it
+     closes itself again when the pointer leaves. Taking the caret as the mouse
+     wanders across the collapse button — and then removing the element holding
+     it 260ms later — is not something a hover affordance may do. Every other
+     flyout opens from a click and does take focus. */
   const { popupRef: jumpMenuRef, style: jumpMenuStyle } = usePortalFlyout(
     isJumpMenuOpen,
     sidebarToggleRef,
     closeJumpMenu,
     "below",
+    "none",
   );
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -1081,13 +1134,56 @@ export function App(): React.JSX.Element {
     projectId: projectPath,
     sessionEpoch: activeSession?.epoch ?? null,
     eligible: automaticRemoteCheckEligible,
+    // The one place that records notifications from a check, because it is the
+    // one check nobody asked for. A manual check has the person who pressed it
+    // watching the status bar for its answer; telling them about it afterwards
+    // in an inbox would be reporting the news to its own author.
     onCheck: () => {
       if (!projectPath || !activeSession?.epoch) return;
-      void syncController.check(
-        projectRuntime,
-        { projectId: projectPath, sessionEpoch: activeSession.epoch },
-        mapSyncError,
-      );
+      const projectId = projectPath;
+      const projectName = activeSession.project.name;
+      // A check already in flight is one somebody pressed and is watching, and
+      // the controller would hand this tick that same promise — recording from
+      // it would report the news back to its own author. Skipping costs
+      // nothing: the deduplicated request was never going to reach the network
+      // twice, and the tick that started it records for both.
+      if (selectTeamSyncState(projectRuntime.getSnapshot(), projectId).isCheckingRemote) return;
+      void syncController
+        .check(projectRuntime, { projectId, sessionEpoch: activeSession.epoch }, mapSyncError)
+        .then((status) => {
+          if (status) {
+            // `behind` alone would also match a diverged upstream, and Rust
+            // deliberately offers no "review and get" for that: the update is
+            // fast-forward-only and would refuse. Telling someone about
+            // versions and handing them a button that declines is worse than
+            // the status bar saying "diverged" on its own, so this waits for
+            // the task that can actually integrate a diverged line.
+            if (status.state === "behind" && status.behind > 0) {
+              notificationCenter.notify({
+                projectId,
+                projectName,
+                details: {
+                  kind: "teamChangesAvailable",
+                  behind: status.behind,
+                  remoteCommit: status.remoteCommit,
+                },
+              });
+            }
+            return;
+          }
+          // `check` resolves `null` for a failure *and* for a superseded
+          // request, so the failure is read back from the state the controller
+          // committed rather than inferred from the null. A superseded request
+          // leaves no error, and therefore records nothing.
+          const { error } = selectTeamSyncState(projectRuntime.getSnapshot(), projectId);
+          if (error) {
+            notificationCenter.notify({
+              projectId,
+              projectName,
+              details: { kind: "remoteCheckFailed", reason: error },
+            });
+          }
+        });
     },
   });
 
@@ -1782,6 +1878,20 @@ export function App(): React.JSX.Element {
           onDoubleClick={() => performWindowAction(() => appWindow.toggleMaximize())}
         />
 
+        {/* Between the drag region and the window buttons: the inbox belongs
+            with the window furniture, not in the action row on the left, and
+            this is where the release badge used to sit before task 086 moved
+            it to the status bar. */}
+        <NotificationCenter
+          notifications={notificationCenter.notifications}
+          unreadCount={notificationCenter.unreadCount}
+          isEnabled={notificationsEnabled}
+          onOpened={notificationCenter.markAllRead}
+          onClear={notificationCenter.clear}
+          onReviewTeamChanges={reviewTeamChangesFromNotification}
+          onOpenSettings={() => openSettings("notifications")}
+        />
+
         <div className="window-controls" aria-label={t.windowControls}>
           <button
             className="window-control"
@@ -2253,6 +2363,18 @@ export function App(): React.JSX.Element {
               setPublishDialogSessionId(null);
             }}
             onPublished={(result) => {
+              // Recorded already-read by the kind table: this is a receipt for
+              // something the user just watched succeed, so it belongs in the
+              // list without lighting the badge.
+              notificationCenter.notify({
+                projectId: publishDialogSession.project.path,
+                projectName: publishDialogSession.project.name,
+                details: {
+                  kind: "changesPublished",
+                  versionCount: result.publishedCount,
+                  destination: `${result.target.remote}/${result.target.destinationBranch}`,
+                },
+              });
               syncController.supersede(projectRuntime, {
                 projectId: publishDialogSession.project.path,
                 sessionEpoch: publishDialogSession.epoch,
@@ -2398,6 +2520,8 @@ export function App(): React.JSX.Element {
           setRemoteCheckInterval,
           confirmDiscard,
           setConfirmDiscard,
+          notificationsEnabled,
+          setNotificationsEnabled,
           runGitHooks,
           setRunGitHooks,
           navigationItems: orderedProjectNavDestinations.map((destination) => ({

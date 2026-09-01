@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bell,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -66,6 +67,7 @@ import {
   type SettingsSection,
   type ThemePreference,
 } from "./domain";
+import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from "../notifications";
 import type { SettingsPort } from "./port";
 import { settingsPort } from "./tauriAdapter";
 import type { DefaultBranchState, GitIdentityState, LineEndingsState } from "./useGitConfig";
@@ -86,12 +88,45 @@ const CODE_FONT_SAMPLE = "0O 1lI {}[] != =>";
  * state, a preference or the language. */
 const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   general: <Settings />,
+  notifications: <Bell />,
   appearance: <Palette />,
   navigation: <PanelLeft />,
   reading: <WrapText />,
   git: <GitBranch />,
   "line-endings": <CornerDownLeft />,
 };
+
+/** The three kinds the centre records, in the order the panel shows them: the
+ * two background events first, the receipt last.
+ *
+ * Only the translation keys live here. The glyph and the tone are read from the
+ * notifications feature itself, because the copy beside these rows tells the
+ * reader in so many words that these are the icons the notification will wear —
+ * a second table here would let that go quietly false. */
+const NOTIFICATION_EVENT_ROWS = [
+  {
+    kind: "teamChangesAvailable",
+    label: "notificationsEventTeamChangesLabel",
+    description: "notificationsEventTeamChangesDescription",
+  },
+  {
+    kind: "remoteCheckFailed",
+    label: "notificationsEventCheckFailedLabel",
+    description: "notificationsEventCheckFailedDescription",
+  },
+  {
+    kind: "changesPublished",
+    label: "notificationsEventPublishedLabel",
+    description: "notificationsEventPublishedDescription",
+  },
+  /* `as const` keeps the translation keys as literal types, so `t[label]` is
+     checked against the dictionary rather than indexed with a bare string;
+     `satisfies` keeps `kind` honest against the union it names. */
+] as const satisfies ReadonlyArray<{
+  kind: NotificationKind;
+  label: string;
+  description: string;
+}>;
 
 const THEME_ORDER: ThemePreference[] = ["system", "light", "dark"];
 const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
@@ -241,6 +276,8 @@ export function SettingsPanel({
   setRemoteCheckInterval,
   confirmDiscard,
   setConfirmDiscard,
+  notificationsEnabled,
+  setNotificationsEnabled,
   runGitHooks,
   setRunGitHooks,
   navigationItems,
@@ -275,6 +312,8 @@ export function SettingsPanel({
   setRemoteCheckInterval: (value: RemoteCheckIntervalMinutes) => void;
   confirmDiscard: boolean;
   setConfirmDiscard: (value: boolean) => void;
+  notificationsEnabled: boolean;
+  setNotificationsEnabled: (value: boolean) => void;
   runGitHooks: boolean;
   setRunGitHooks: (value: boolean) => void;
   navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
@@ -922,6 +961,67 @@ export function SettingsPanel({
                     onChange={setConfirmDiscard}
                   />
                 </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeSection === "notifications" && (
+          <div className="settings-groups">
+            {/* The group is named for the situation it covers, not for the
+                section it lives in: repeating "Notifications" as a heading
+                inside the Notifications tab tells the reader nothing, and no
+                other section does it. */}
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsNotificationsWhileAwayTitle}</h3>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.notificationsEnableLabel}</strong>
+                    <p>{t.notificationsEnableDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.notificationsEnableLabel}
+                    checked={notificationsEnabled}
+                    onChange={setNotificationsEnabled}
+                  />
+                </div>
+              </div>
+            </section>
+            {/* Ordinary settings rows rather than a bullet list, because they
+                answer the same question a row does — what is this, and why
+                would I want it — and because each carries the icon the
+                notification itself will wear, so the vocabulary is learned
+                here rather than guessed at in the panel.
+
+                They have no controls on purpose. Per-event muting is a choice
+                nobody can make usefully before they have seen the events, and
+                three of them do not need a preferences matrix. */}
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.notificationsEventsTitle}</h3>
+                <p>{t.notificationsEventsDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                {NOTIFICATION_EVENT_ROWS.map(({ kind, label, description }) => {
+                  const Icon = NOTIFICATION_ICONS[kind];
+                  return (
+                  <div className="settings-row settings-notification-event" key={kind}>
+                    <span
+                      className={`settings-notification-event__icon settings-notification-event__icon--${NOTIFICATION_KINDS[kind].tone}`}
+                      aria-hidden="true"
+                    >
+                      <Icon aria-hidden="true" />
+                    </span>
+                    <div>
+                      <strong>{t[label]}</strong>
+                      <p>{t[description]}</p>
+                    </div>
+                  </div>
+                  );
+                })}
               </div>
             </section>
           </div>

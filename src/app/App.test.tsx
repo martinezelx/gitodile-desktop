@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -81,6 +81,21 @@ const freshBehindTeamSync: TeamSyncStatus = {
   checkedAt: 1,
   nextActions: ["reviewAndGet"],
   stateToken: "fresh-behind",
+};
+
+/** Ahead *and* behind. GitOdrile's update is fast-forward-only, and Rust offers
+ * no "review and get" next action for this state, so nothing should be
+ * recorded about it. */
+const divergedTeamSync: TeamSyncStatus = {
+  ...cachedTeamSync,
+  state: "diverged",
+  remoteCommit: "3333333333333333333333333333333333333333",
+  ahead: 2,
+  behind: 3,
+  knowledge: "fresh",
+  checkedAt: 2,
+  nextActions: [],
+  stateToken: "fresh-diverged",
 };
 
 const getTeamPlan: GetTeamChangesPlan = {
@@ -415,6 +430,195 @@ describe("App project restoration", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "About" }));
     expect(screen.getByRole("dialog", { name: "Git without the bite." })).toBeInTheDocument();
+  });
+
+  it("records both outcomes of an automatic check, and offers the review flow from the notification", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodrile-remote-check-interval", "1");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+      if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "plan_get_team_changes") return Promise.resolve(getTeamPlan);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    // Fake timers must be installed before the render: the cadence registers
+    // its interval from a mount effect, and an interval created against the
+    // real clock cannot be advanced afterwards.
+    //
+    // They also rule out Testing Library's async helpers for the rest of the
+    // test — `waitFor` only advances *jest* fake timers, so under vitest's it
+    // waits on a clock nobody is moving. Hence the explicit settle loop and
+    // `fireEvent` instead of `userEvent`.
+    vi.useFakeTimers();
+    try {
+      const settle = async (ms = 0): Promise<void> => {
+        await vi.advanceTimersByTimeAsync(ms);
+        await vi.advanceTimersByTimeAsync(0);
+      };
+      render(<LanguageProvider><App /></LanguageProvider>);
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if (screen.queryByRole("contentinfo", { name: "Project status" })) break;
+        await settle(25);
+      }
+      expect(screen.getByRole("contentinfo", { name: "Project status" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+
+      // The cadence, not a press: this is the only check nobody is watching,
+      // and therefore the only one worth putting in an inbox.
+      await settle(60_000);
+      const unreadBell = screen.getByRole("button", { name: "Notifications, 1 unread" });
+
+      fireEvent.click(unreadBell);
+      const panel = screen.getByRole("dialog", { name: "Notifications" });
+      expect(within(panel).getByText("1 newer project version is available")).toBeInTheDocument();
+      // Reading it is what clears the badge.
+      expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+
+      fireEvent.click(within(panel).getByRole("button", { name: "Review and get them" }));
+      expect(screen.queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument();
+      await settle(50);
+      expect(screen.getByRole("dialog", { name: "Review and get project changes" })).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: "Escape" });
+      await settle(50);
+
+      // The other half of the same cadence: a check that could not reach the
+      // remote is the outcome most likely to be erased by the next successful
+      // one, so it is exactly what an inbox is for.
+      mockedInvoke.mockImplementation((command) => {
+        if (command === "check_team_changes") return Promise.reject(new Error("host unreachable"));
+        if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+        if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+        if (command === "list_unpublished_versions") {
+          return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+        }
+        if (command === "get_version_lines") return Promise.resolve(versionLines);
+        if (command === "watch_repository") return Promise.resolve(true);
+        if (command === "unwatch_repository") return Promise.resolve();
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      });
+      await settle(60_000);
+
+      fireEvent.click(screen.getByRole("button", { name: "Notifications, 1 unread" }));
+      const afterFailure = screen.getByRole("dialog", { name: "Notifications" });
+      expect(
+        within(afterFailure).getByText("Couldn't check for project changes"),
+      ).toBeInTheDocument();
+      expect(within(afterFailure).getAllByRole("listitem")).toHaveLength(2);
+      fireEvent.keyDown(document, { key: "Escape" });
+      await settle(50);
+
+      // A diverged upstream is behind too, but the update is fast-forward-only
+      // and would refuse. Nothing is recorded rather than handing someone a
+      // button that declines.
+      mockedInvoke.mockImplementation((command) => {
+        if (command === "check_team_changes") return Promise.resolve(divergedTeamSync);
+        if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+        if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+        if (command === "list_unpublished_versions") {
+          return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+        }
+        if (command === "get_version_lines") return Promise.resolve(versionLines);
+        if (command === "watch_repository") return Promise.resolve(true);
+        if (command === "unwatch_repository") return Promise.resolve();
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      });
+      await settle(60_000);
+
+      expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+      const afterDiverged = screen.getByRole("dialog", { name: "Notifications" });
+      expect(within(afterDiverged).getAllByRole("listitem")).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the notification bell beside the window controls and records nothing for a manual check", async () => {
+    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodrile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+      if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(<LanguageProvider><App /></LanguageProvider>);
+
+    const statusBar = await screen.findByRole("contentinfo", { name: "Project status" });
+    const bell = screen.getByRole("button", { name: "Notifications" });
+    const windowControls = document.querySelector(".window-controls");
+    expect(windowControls).not.toBeNull();
+    // Placement is the requirement, not just presence: the bell is the last
+    // thing before the operating system's own buttons.
+    expect(
+      bell.compareDocumentPosition(windowControls as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // A check the user pressed is answered by the status bar they were looking
+    // at. Recording it as well would be reporting the news to its own author.
+    await userEvent.click(
+      within(statusBar).getByRole("button", { name: "Check remote project changes" }),
+    );
+    expect(await within(statusBar).findByText("1 project version available")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const panel = screen.getByRole("dialog", { name: "Notifications" });
+    expect(within(panel).getByText("Nothing to report")).toBeInTheDocument();
+  });
+
+  it("opens the collapsed-rail jump menu on hover without taking the caret", async () => {
+    localStorage.setItem("gitodrile-sidebar-hidden", "true");
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") return Promise.resolve({ name: null, email: null });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(<LanguageProvider><App /></LanguageProvider>);
+    const toggle = await screen.findByRole("button", { name: "Show sidebar" });
+    toggle.focus();
+
+    fireEvent.mouseEnter(toggle);
+
+    // The menu is a pointer affordance: it opens on hover and closes itself
+    // again on mouse-leave. Focusing it would move the caret because someone
+    // moved the mouse, and then destroy the element holding it. Every other
+    // flyout in the app opens from a click and does take focus.
+    expect(await screen.findByRole("menu", { name: "Project navigation" })).toBeInTheDocument();
+    expect(toggle).toHaveFocus();
   });
 
   it("opens the eager clone flow from the empty state and command palette", async () => {

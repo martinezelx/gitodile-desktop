@@ -8,7 +8,22 @@ import {
   type RefObject,
 } from "react";
 
-type PopupFocusTarget = "selected-menu-item" | "first-control";
+/** Where a popup puts focus when it opens.
+ *
+ * `container` is for a popup that is read rather than operated — the
+ * notification centre — where landing on whichever control happens to be first
+ * in the DOM would put focus on something destructive. The popup must carry
+ * `tabIndex={-1}` for it to be focusable at all.
+ *
+ * `none` is for a popup opened by *hovering*, which must not move the caret:
+ * the pointer wandering across a trigger is not a request to type somewhere
+ * else, and a hover menu that also closes itself on mouse-leave would take
+ * focus and then destroy the element holding it. */
+type PopupFocusTarget =
+  | "selected-menu-item"
+  | "first-control"
+  | "container"
+  | "none";
 
 type PopupController = {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -34,13 +49,25 @@ export function useAnchoredPopup(
     if (!isOpen) {
       return;
     }
-    const target =
-      focusTarget === "selected-menu-item"
-        ? popupRef.current?.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]') ??
-          popupRef.current?.querySelector<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')
-        : popupRef.current?.querySelector<HTMLElement>(
+    const popup = popupRef.current;
+    const target = ((): HTMLElement | null | undefined => {
+      if (!popup) return null;
+      switch (focusTarget) {
+        case "none":
+          return null;
+        case "container":
+          return popup;
+        case "selected-menu-item":
+          return (
+            popup.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]') ??
+            popup.querySelector<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')
+          );
+        case "first-control":
+          return popup.querySelector<HTMLElement>(
             "input:not(:disabled), button:not(:disabled), [tabindex]:not([tabindex='-1'])",
           );
+      }
+    })();
     target?.focus();
   }, [focusTarget, isOpen]);
 
@@ -133,14 +160,59 @@ export function usePortalFlyout(
             ? below
             : Math.max(margin, trigger.top - popup.height - 6),
     });
-    const target =
-      focusTarget === "selected-menu-item"
-        ? popupRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')
-        : popupRef.current?.querySelector<HTMLElement>(
+  }, [alignment, isOpen, triggerRef]);
+
+  /**
+   * Focus, in a second pass, once the measurement above has landed.
+   *
+   * This used to be the last statement of that effect, which meant it ran while
+   * `position` was still `null` — and the popup renders `visibility: hidden`
+   * until it is not. A `visibility: hidden` element cannot take focus, so the
+   * call was a no-op and focus stayed on `<body>`. Measured in the running app
+   * on the sidebar jump menu, the rail's More menu and the add-project menu:
+   * all three opened visible with focus still on `<body>`.
+   *
+   * jsdom has no such rule, which is why every focus-on-open test passed
+   * throughout. `popupMenu.test.tsx` therefore asserts the popup's visibility
+   * *at the moment focus is called*, which is the part jsdom can answer.
+   *
+   * Still a layout effect: React has committed the visible style by the time it
+   * runs, so focus lands before the frame is painted rather than a tick later.
+   *
+   * `hasFocused` keeps it to once per opening. `position` is a fresh object
+   * whenever the anchor is re-measured, and refocusing on a reposition would
+   * yank focus back from wherever the user had since moved it.
+   */
+  const hasFocused = useRef(false);
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      hasFocused.current = false;
+      return;
+    }
+    if (!position || hasFocused.current) return;
+    hasFocused.current = true;
+    const popup = popupRef.current;
+    // Deliberately not shared with `useAnchoredPopup` above: the two resolve
+    // `selected-menu-item` differently — that one prefers a checked
+    // `menuitemradio`, this one skips disabled items — and unifying them would
+    // change behaviour for existing consumers of both.
+    const target = ((): HTMLElement | null | undefined => {
+      if (!popup) return null;
+      switch (focusTarget) {
+        case "none":
+          return null;
+        case "container":
+          return popup;
+        case "selected-menu-item":
+          return popup.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)');
+        case "first-control":
+          return popup.querySelector<HTMLElement>(
             "input:not(:disabled), button:not(:disabled), [tabindex]:not([tabindex='-1'])",
           );
+      }
+    })();
     target?.focus();
-  }, [alignment, focusTarget, isOpen, triggerRef]);
+  }, [focusTarget, isOpen, position]);
 
   useEffect(() => {
     if (!isOpen) {

@@ -49,6 +49,8 @@ type PanelOverrides = Partial<{
   setRemoteCheckInterval: (value: number) => void;
   confirmDiscard: boolean;
   setConfirmDiscard: (value: boolean) => void;
+  notificationsEnabled: boolean;
+  setNotificationsEnabled: (value: boolean) => void;
   navigationPreferences: NavigationPreferences;
   setNavigationPreferences: (
     update: (previous: NavigationPreferences) => NavigationPreferences,
@@ -99,6 +101,8 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       setRemoteCheckInterval={overrides.setRemoteCheckInterval ?? vi.fn()}
       confirmDiscard={overrides.confirmDiscard ?? true}
       setConfirmDiscard={overrides.setConfirmDiscard ?? vi.fn()}
+      notificationsEnabled={overrides.notificationsEnabled ?? true}
+      setNotificationsEnabled={overrides.setNotificationsEnabled ?? vi.fn()}
       runGitHooks={runGitHooks}
       setRunGitHooks={(value) => {
         overrides.setRunGitHooks?.(value);
@@ -193,6 +197,8 @@ describe("Settings panel native boundary", () => {
               setRemoteCheckInterval={vi.fn()}
               confirmDiscard
               setConfirmDiscard={vi.fn()}
+              notificationsEnabled
+              setNotificationsEnabled={vi.fn()}
               runGitHooks={false}
               setRunGitHooks={vi.fn()}
               navigationItems={[]}
@@ -816,11 +822,38 @@ describe("Settings panel section rail", () => {
 
     general.focus();
     await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("tab", { name: "Notifications" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "While you're doing something else" })).toBeInTheDocument();
+
+    await userEvent.keyboard("{ArrowDown}");
     expect(screen.getByRole("tab", { name: "Interface" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
 
     await userEvent.keyboard("{End}");
     expect(screen.getByRole("tab", { name: "Line endings" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("turns notifications off from their own section and names what they cover", async () => {
+    const setNotificationsEnabled = vi.fn();
+    renderPanel(createPort(), { initialSection: "notifications", setNotificationsEnabled });
+
+    const toggle = screen.getByRole("switch", { name: "Enable notifications" });
+    expect(toggle).toBeChecked();
+    // The section heading is the rail's job; the groups name the situation and
+    // the contents, and never repeat "Notifications" back at the reader.
+    expect(screen.getByRole("heading", { name: "While you're doing something else" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What you'll be told about" })).toBeInTheDocument();
+    for (const event of [
+      "Newer project versions",
+      "A check that couldn't connect",
+      "Changes you published",
+    ]) {
+      expect(screen.getByText(event)).toBeInTheDocument();
+    }
+
+    await userEvent.click(toggle);
+
+    expect(setNotificationsEnabled).toHaveBeenCalledWith(false);
   });
 
   it("offers watching and discard confirmation as General toggles, both on by default", async () => {

@@ -20,6 +20,7 @@ export const WATCH_PROJECTS_STORAGE_KEY = "gitodrile-watch-projects";
 export const REMOTE_CHECK_INTERVAL_STORAGE_KEY = "gitodrile-remote-check-interval";
 export const RUN_GIT_HOOKS_STORAGE_KEY = "gitodrile-run-git-hooks";
 export const CONFIRM_DISCARD_STORAGE_KEY = "gitodrile-confirm-discard";
+export const NOTIFICATIONS_STORAGE_KEY = "gitodrile-notifications";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
 export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodrile-navigation-preferences";
@@ -39,6 +40,16 @@ export const WATCH_PROJECTS_DEFAULT = true;
 export const SIDEBAR_HIDDEN_DEFAULT = false;
 export const REMOTE_CHECK_INTERVAL_DEFAULT: RemoteCheckIntervalMinutes = 0;
 export const CONFIRM_DISCARD_DEFAULT = true;
+/** On, like GitHub Desktop's own default. The centre only records what the app
+ * already did — it starts no timer, opens no connection and shows nothing until
+ * the bell is opened — so the cost of leaving it on is a badge, and the cost of
+ * defaulting it off is that the one surface reporting background outcomes is
+ * invisible to everyone who never went looking for a setting.
+ *
+ * Deliberately absent from `REPAIRABLE_DEFAULTS`: that list exists for keys the
+ * eager-write bug had already frozen in storage, and this one is newer than the
+ * fix. */
+export const NOTIFICATIONS_DEFAULT = true;
 /** On, because a hook is the project's own rule and skipping it by default
  * would make GitOdrile produce commits the same repository would have rejected
  * from a terminal — the same action giving a different result depending on

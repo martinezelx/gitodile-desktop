@@ -4,6 +4,7 @@ import { appTranslations } from "../app/translations";
 import { changesTranslations } from "../features/changes/translations";
 import { cloneTranslations } from "../features/clone/translations";
 import { initializeProjectTranslations } from "../features/initialize-project/translations";
+import { notificationsTranslations } from "../features/notifications/translations";
 import { historyTranslations } from "../features/history/translations";
 import { overviewTranslations } from "../features/overview/translations";
 import { projectSettingsTranslations } from "../features/project-settings/translations";
@@ -49,6 +50,7 @@ export const translationNamespaces = {
   shared: sharedTranslations,
   clone: cloneTranslations,
   initializeProject: initializeProjectTranslations,
+  notifications: notificationsTranslations,
   history: historyTranslations,
   overview: overviewTranslations,
   status: statusTranslations,
@@ -66,6 +68,7 @@ const en = {
   ...sharedTranslations.en,
   ...cloneTranslations.en,
   ...initializeProjectTranslations.en,
+  ...notificationsTranslations.en,
   ...historyTranslations.en,
   ...overviewTranslations.en,
   ...statusTranslations.en,
@@ -85,6 +88,7 @@ const es: Translations = {
   ...sharedTranslations.es,
   ...cloneTranslations.es,
   ...initializeProjectTranslations.es,
+  ...notificationsTranslations.es,
   ...historyTranslations.es,
   ...overviewTranslations.es,
   ...statusTranslations.es,

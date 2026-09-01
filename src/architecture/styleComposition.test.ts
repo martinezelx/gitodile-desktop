@@ -22,6 +22,7 @@ const EXPECTED_IMPORTS = [
   "./features/history/history.css",
   "./features/settings/settings.css",
   "./features/project-settings/project-settings.css",
+  "./features/notifications/notifications.css",
 ] as const;
 
 function readSource(relativePath: string): string {

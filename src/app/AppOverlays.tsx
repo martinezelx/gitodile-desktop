@@ -49,6 +49,8 @@ export type AppOverlaysProps = {
     setRemoteCheckInterval: Dispatch<SetStateAction<RemoteCheckIntervalMinutes>>;
     confirmDiscard: boolean;
     setConfirmDiscard: BooleanSetter;
+    notificationsEnabled: boolean;
+    setNotificationsEnabled: BooleanSetter;
     runGitHooks: boolean;
     setRunGitHooks: BooleanSetter;
     navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
@@ -247,6 +249,8 @@ export function AppOverlays({
               setRemoteCheckInterval={settings.setRemoteCheckInterval}
               confirmDiscard={settings.confirmDiscard}
               setConfirmDiscard={settings.setConfirmDiscard}
+              notificationsEnabled={settings.notificationsEnabled}
+              setNotificationsEnabled={settings.setNotificationsEnabled}
               runGitHooks={settings.runGitHooks}
               setRunGitHooks={settings.setRunGitHooks}
               navigationItems={settings.navigationItems}

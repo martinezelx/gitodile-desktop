@@ -89,6 +89,7 @@ export type NavigationPreferences = {
  * prop. */
 export const SETTINGS_SECTIONS = [
   "general",
+  "notifications",
   "appearance",
   "navigation",
   "reading",
@@ -99,11 +100,16 @@ export const SETTINGS_SECTIONS = [
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /** The rail label for a section. Exported because the command palette offers
- * one entry per section and must name them exactly as the rail does. */
+ * one entry per section and must name them exactly as the rail does.
+ *
+ * A record rather than the chain of ternaries this used to be: adding a section
+ * to the list above now fails to compile until it has a label, which is the
+ * whole point of keeping the two together. */
 export function settingsSectionLabel(
   section: SettingsSection,
   t: {
     settingsGeneralTitle: string;
+    settingsNotificationsTitle: string;
     settingsInterfaceTitle: string;
     settingsNavigationTitle: string;
     settingsReadingTitle: string;
@@ -111,17 +117,16 @@ export function settingsSectionLabel(
     settingsLineEndingsTitle: string;
   },
 ): string {
-  return section === "general"
-    ? t.settingsGeneralTitle
-    : section === "appearance"
-      ? t.settingsInterfaceTitle
-      : section === "navigation"
-        ? t.settingsNavigationTitle
-        : section === "reading"
-          ? t.settingsReadingTitle
-          : section === "git"
-            ? t.settingsGitTitle
-            : t.settingsLineEndingsTitle;
+  const labels: Record<SettingsSection, string> = {
+    general: t.settingsGeneralTitle,
+    notifications: t.settingsNotificationsTitle,
+    appearance: t.settingsInterfaceTitle,
+    navigation: t.settingsNavigationTitle,
+    reading: t.settingsReadingTitle,
+    git: t.settingsGitTitle,
+    "line-endings": t.settingsLineEndingsTitle,
+  };
+  return labels[section];
 }
 
 export type GitDiagnostics = {

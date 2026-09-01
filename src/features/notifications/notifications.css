@@ -1,0 +1,169 @@
+/* The titlebar bell and its panel.
+ *
+ * The trigger borrows `.titlebar-icon-button` outright rather than restyling a
+ * second 36px circle: it stands in the same action row as the palette, the
+ * history arrows and the theme toggle, and a bell that painted its own hover
+ * plate would be the one control in that row that looked different for no
+ * reason. Only the badge is new. */
+
+.notification-center { flex-shrink: 0; display: flex; }
+
+/* Anchored to the glyph's top-right corner, not the button's: the button is a
+   36px target around a 16px icon, so a badge on its corner would float in the
+   padding with nothing to attach to. `pointer-events: none` keeps it out of the
+   click it sits on top of. */
+.notification-center__trigger { position: relative; }
+.notification-center__badge {
+  position: absolute; top: 6px; right: 5px;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  display: grid; place-items: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  /* A ring in the titlebar's own colour so the badge reads as a separate chip
+     when it overlaps the glyph, in both themes and at any hover state. */
+  border: 2px solid var(--surface-app);
+  background: var(--status-danger); color: var(--status-danger-contrast);
+  font-size: 9px; font-weight: 700; line-height: 1; letter-spacing: -0.01em;
+  pointer-events: none;
+}
+
+.notification-center__panel {
+  width: min(380px, calc(100vw - 2 * var(--space-5)));
+  max-width: none;
+  padding: var(--space-2);
+  gap: var(--space-2);
+}
+
+.notification-center__header {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 2px 4px 0 var(--space-2);
+}
+.notification-center__header h2 {
+  flex: 1; min-width: 0; margin: 0;
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+.notification-center__header-action {
+  width: 28px; height: 28px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.notification-center__header-action svg { width: 14px; height: 14px; }
+.notification-center__header-action:hover:not(:disabled) {
+  background: var(--surface-hover); color: var(--text-primary);
+}
+.notification-center__header-action:disabled { opacity: 0.35; }
+
+.notification-center__empty {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3) var(--space-2) var(--space-4);
+  text-align: left;
+}
+.notification-center__empty-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.notification-center__empty-description { margin: 0; font-size: 12px; line-height: 1.45; color: var(--text-secondary); }
+
+.notification-center__settings {
+  align-self: flex-start; margin-top: var(--space-1);
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 6px 12px;
+  border: 1px solid var(--border-control); border-radius: var(--radius-pill);
+  background: var(--surface-control); color: var(--text-primary); font-size: 12px;
+}
+.notification-center__settings svg { width: 14px; height: 14px; color: var(--text-secondary); }
+.notification-center__settings:hover { background: var(--surface-hover); }
+
+/* Said once above a list that still has content, because an inbox that has
+   stopped accepting post looks identical to a quiet one otherwise. */
+.notification-center__disabled-note {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: 6px 6px 6px var(--space-2);
+  border-radius: var(--radius-item);
+  background: var(--surface-control);
+}
+.notification-center__disabled-note p { margin: 0; font-size: 11px; color: var(--text-secondary); }
+.notification-center__disabled-note .notification-center__settings {
+  align-self: center; margin-top: 0; flex-shrink: 0; padding: 4px 10px; font-size: 11px;
+}
+
+.notification-center__list {
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 0; padding: 0; list-style: none;
+  /* Ten-ish rows before it scrolls. Past that the panel would be taller than
+     the shorter windows this app supports. */
+  max-height: min(420px, calc(100vh - 120px));
+  overflow-y: auto;
+}
+
+.notification {
+  display: flex; gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-item);
+}
+.notification + .notification { border-top: 1px solid var(--border-divider); }
+/* Deliberately not `--surface-active`. That token is a 12–14% accent wash, and
+   measured on the dark panel it takes `--text-secondary` down to 4.42:1 — under
+   AA, and these rows are mostly 11px and 12px secondary text. Ten percent of the
+   accent, mixed opaquely against the panel's own surface, clears it in both
+   themes and still reads as a tint: measured 4.87:1 on dark and 4.69:1 on light
+   for the description and meta lines, 11.96:1 and 15.32:1 for the title.
+
+   The bar is not decoration. Colour alone cannot be the only thing separating an
+   unread row from a read one, so the row carries a shape too, and a screen
+   reader gets the word. `box-shadow` rather than a border, so marking a row read
+   does not shift its text sideways. */
+.notification--unread {
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-raised));
+  box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+
+.notification__icon {
+  width: 26px; height: 26px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-control);
+}
+.notification__icon svg { width: 14px; height: 14px; }
+.notification__icon--info svg { color: var(--accent-primary); }
+.notification__icon--success svg { color: var(--status-success); }
+.notification__icon--warning svg { color: var(--status-warning); }
+
+.notification__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.notification__title {
+  margin: 0; font-size: 12.5px; font-weight: 600; line-height: 1.35;
+  color: var(--text-primary); overflow-wrap: anywhere;
+}
+.notification__description {
+  margin: 0; font-size: 12px; line-height: 1.45; color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.notification__meta {
+  margin: 0; display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-secondary);
+}
+.notification__project {
+  max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600;
+}
+/* A middot between project and time, drawn only when both are there. */
+.notification__project::after { content: "·"; margin-left: 6px; font-weight: 400; }
+
+.notification__action {
+  align-self: flex-start; margin-top: var(--space-1);
+  padding: 5px 12px;
+  border: 1px solid var(--border-control); border-radius: var(--radius-pill);
+  background: var(--surface-panel); color: var(--text-primary);
+  font-size: 12px; font-weight: 500;
+  transition: background var(--duration-fast);
+}
+.notification__action:hover { background: var(--surface-hover); }
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-center__header-action,
+  .notification__action { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .notification-center__badge { border-color: CanvasText; background: Highlight; color: HighlightText; }
+  .notification--unread { border: 1px solid CanvasText; box-shadow: none; }
+}

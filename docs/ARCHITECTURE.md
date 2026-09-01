@@ -86,6 +86,14 @@ Cross-feature orchestration belongs at the composition root. A reusable
 primitive moves into `shared/` only after it has multiple real consumers and a
 stable, domain-neutral contract.
 
+"As applicable" is load-bearing: a feature that has no transport owns no port
+and no `tauriAdapter.ts`. `features/notifications` is the first of those. It is
+a domain, a store and a panel; the composition root records into it from the
+outcomes it already sees, so there is nothing for it to fetch and no command for
+it to name. A feature like that must not grow a read of its own to fill the
+gap — the moment a surface fetches to populate itself, it has become one more
+thing that runs when the user was doing something else.
+
 ### Screens and lifecycle
 
 Every screen is registered once in `src/app/screens.tsx`. The descriptor drives

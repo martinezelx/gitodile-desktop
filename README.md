@@ -66,6 +66,11 @@ Current application version: **0.1.0**.
   output is shown with a one-time way to save without running it.
 - See and change what Git does to line endings in plain language, including
   when a project's own settings or `.gitattributes` override the global choice.
+- Read what happened while you were elsewhere from a notification centre in the
+  titlebar: project changes an automatic check found, checks that could not
+  reach the remote, and versions you published. Everything stays inside the app
+  — no operating-system notifications — and one switch in Settings turns the
+  recording off.
 - Navigate through a command palette, keyboard-accessible dialogs, and a
   keep-alive screen shell that retains screen state while suspending hidden
   work.

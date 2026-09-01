@@ -239,7 +239,34 @@
 .line-endings__caveat p { margin: 0; }
 .line-endings__caveat p + p { margin-top: 6px; }
 
+/* A settings row with no control. It keeps the row's shape so the section reads
+   as one surface, but leads with the icon instead of trailing a switch: these
+   rows explain what the switch above covers, and the icon is the same one the
+   notification will wear, so the vocabulary is taught here.
+
+   `align-items: flex-start` because these descriptions run to two or three
+   lines and a centred icon would drift away from the label it belongs to. */
+.settings-notification-event {
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--space-3);
+}
+.settings-notification-event__icon {
+  width: 26px; height: 26px; flex-shrink: 0; margin-top: 1px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-control);
+}
+.settings-notification-event__icon svg { width: 14px; height: 14px; }
+.settings-notification-event__icon--info svg { color: var(--accent-primary); }
+.settings-notification-event__icon--success svg { color: var(--status-success); }
+.settings-notification-event__icon--warning svg { color: var(--status-warning); }
+
 @media (max-width: 800px) {
+  /* Every other row stacks here to give its control the full width. These have
+     no control, so stacking would only push the icon onto a line of its own,
+     away from the label it labels. */
+  .settings-notification-event { flex-direction: row; align-items: flex-start; }
   .settings-nav__alert { margin-left: 2px; }
   .identity-fields { grid-template-columns: 1fr; }
   .font-picker { grid-template-columns: 1fr; }

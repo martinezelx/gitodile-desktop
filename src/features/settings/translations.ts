@@ -35,6 +35,18 @@ export interface SettingsTranslations {
   themeLight: string;
   themeDark: string;
   settingsGeneralTitle: string;
+  settingsNotificationsTitle: string;
+  settingsNotificationsWhileAwayTitle: string;
+  notificationsEnableLabel: string;
+  notificationsEnableDescription: string;
+  notificationsEventsTitle: string;
+  notificationsEventsDescription: string;
+  notificationsEventTeamChangesLabel: string;
+  notificationsEventTeamChangesDescription: string;
+  notificationsEventCheckFailedLabel: string;
+  notificationsEventCheckFailedDescription: string;
+  notificationsEventPublishedLabel: string;
+  notificationsEventPublishedDescription: string;
   settingsGitInstallationTitle: string;
   settingsGitInstalledVersionLabel: string;
   settingsGeneralChecking: string;
@@ -197,6 +209,23 @@ const en: SettingsTranslations = {
   themeLight: "Light",
   themeDark: "Dark",
   settingsGeneralTitle: "General",
+  settingsNotificationsTitle: "Notifications",
+  settingsNotificationsWhileAwayTitle: "While you're doing something else",
+  notificationsEnableLabel: "Enable notifications",
+  notificationsEnableDescription:
+    "Keeps a short record of what happened to your open projects, under the bell beside the window buttons. Nothing leaves the app and no operating-system notifications are shown.",
+  notificationsEventsTitle: "What you'll be told about",
+  notificationsEventsDescription:
+    "Only what happens on its own, plus a receipt for what you publish. GitOdrile never interrupts you about something you are already watching happen.",
+  notificationsEventTeamChangesLabel: "Newer project versions",
+  notificationsEventTeamChangesDescription:
+    "An automatic check found versions someone else has published. Nothing on your computer has changed yet, and the notification takes you straight to the review flow.",
+  notificationsEventCheckFailedLabel: "A check that couldn't connect",
+  notificationsEventCheckFailedDescription:
+    "An automatic check could not reach the remote project — usually no network, a VPN, or credentials. Without this you would never learn it happened: the next successful check quietly replaces the failure in the status bar.",
+  notificationsEventPublishedLabel: "Changes you published",
+  notificationsEventPublishedDescription:
+    "A receipt, so “did that go through?” still has an answer an hour later. It is recorded already read and never marks the bell.",
   settingsGitInstallationTitle: "Installation",
   settingsGitInstalledVersionLabel: "Installed version",
   settingsGeneralChecking: "Checking…",
@@ -367,6 +396,23 @@ const es: SettingsTranslations = {
   themeLight: "Claro",
   themeDark: "Oscuro",
   settingsGeneralTitle: "General",
+  settingsNotificationsTitle: "Notificaciones",
+  settingsNotificationsWhileAwayTitle: "Mientras estás en otra cosa",
+  notificationsEnableLabel: "Activar notificaciones",
+  notificationsEnableDescription:
+    "Guarda un breve registro de lo que les ha pasado a tus proyectos abiertos, en la campana que hay junto a los botones de la ventana. Nada sale de la aplicación y no se muestran notificaciones del sistema.",
+  notificationsEventsTitle: "De qué te avisa",
+  notificationsEventsDescription:
+    "Solo de lo que ocurre por su cuenta, más un recibo de lo que publicas. GitOdrile nunca te avisa de algo que ya estás viendo suceder.",
+  notificationsEventTeamChangesLabel: "Versiones nuevas del proyecto",
+  notificationsEventTeamChangesDescription:
+    "Una comprobación automática encontró versiones que ha publicado otra persona. En tu equipo no ha cambiado nada todavía, y la notificación te lleva directamente al flujo de revisión.",
+  notificationsEventCheckFailedLabel: "Una comprobación que no pudo conectar",
+  notificationsEventCheckFailedDescription:
+    "Una comprobación automática no pudo llegar al proyecto remoto: normalmente falta de red, una VPN o las credenciales. Sin esto no llegarías a enterarte, porque la siguiente comprobación correcta sustituye el fallo en la barra de estado sin decir nada.",
+  notificationsEventPublishedLabel: "Los cambios que publicas",
+  notificationsEventPublishedDescription:
+    "Un recibo, para que «¿aquello se envió?» siga teniendo respuesta una hora después. Se registra ya leído y nunca marca la campana.",
   settingsGitInstallationTitle: "Instalación",
   settingsGitInstalledVersionLabel: "Versión instalada",
   settingsGeneralChecking: "Comprobando…",
