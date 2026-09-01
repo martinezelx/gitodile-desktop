@@ -462,7 +462,7 @@ pub(crate) struct GitIdentity {
 /// separately spawned two Git processes to read one file, and line endings
 /// spawned two more — at roughly 55 ms per spawn on Windows, that was the
 /// whole of the delay before Settings could show what it had found.
-fn config_pattern(keys: &[&str]) -> String {
+pub(crate) fn config_pattern(keys: &[&str]) -> String {
     format!(
         "^({})$",
         keys.iter()
@@ -484,7 +484,7 @@ fn config_pattern(keys: &[&str]) -> String {
 /// Later entries overwrite earlier ones because that is Git's own precedence:
 /// with a key set more than once, the last one wins, which is what `--get`
 /// returns.
-fn parse_config_entries(stdout: &str) -> HashMap<String, String> {
+pub(crate) fn parse_config_entries(stdout: &str) -> HashMap<String, String> {
     let mut values = HashMap::new();
     for entry in stdout.split('\0').filter(|entry| !entry.is_empty()) {
         if let Some((key, value)) = entry.split_once('\n') {

@@ -98,6 +98,10 @@ export interface SharedTranslations {
   errorRecoveryUnavailable: string;
   errorRecoveryConflict: string;
   errorRecoveryFailed: string;
+  errorIgnoreFileTooLarge: string;
+  errorIgnoreFileNotText: string;
+  errorStaleIgnoreFile: string;
+  errorIgnoreFileWriteFailed: string;
   commonSystem: string;
   commonVersion: string;
   commonClose: string;
@@ -220,6 +224,10 @@ const en: SharedTranslations = {
   errorRecoveryUnavailable: "That discard recovery is no longer available.",
   errorRecoveryConflict: "The project changed after this discard, so GitOdrile won't overwrite the newer work.",
   errorRecoveryFailed: "GitOdrile couldn't create or apply the local recovery safely. Check disk space and permissions.",
+  errorIgnoreFileTooLarge: "This ignore file is too large to edit here. Open it in a text editor instead.",
+  errorIgnoreFileNotText: "This ignore file isn't plain text, so GitOdrile won't rewrite it.",
+  errorStaleIgnoreFile: "This ignore file changed outside GitOdrile. Reopen it to see the current rules before saving.",
+  errorIgnoreFileWriteFailed: "GitOdrile couldn't save this ignore file. Check that it and its folder are writable.",
   commonSystem: "System",
   commonVersion: "Version",
   commonClose: "Close",
@@ -347,6 +355,10 @@ const es: SharedTranslations = {
   errorRecoveryUnavailable: "Esa recuperación de descarte ya no está disponible.",
   errorRecoveryConflict: "El proyecto cambió después del descarte, así que GitOdrile no sobrescribirá el trabajo nuevo.",
   errorRecoveryFailed: "GitOdrile no pudo crear o aplicar la recuperación local de forma segura. Comprueba el espacio y los permisos.",
+  errorIgnoreFileTooLarge: "Este archivo de exclusiones es demasiado grande para editarlo aquí. Ábrelo en un editor de texto.",
+  errorIgnoreFileNotText: "Este archivo de exclusiones no es texto plano, así que GitOdrile no lo reescribirá.",
+  errorStaleIgnoreFile: "Este archivo de exclusiones cambió fuera de GitOdrile. Vuelve a abrirlo para ver las reglas actuales antes de guardar.",
+  errorIgnoreFileWriteFailed: "GitOdrile no pudo guardar este archivo de exclusiones. Comprueba que el archivo y su carpeta se pueden escribir.",
   commonSystem: "Sistema",
   commonVersion: "Versión",
   commonClose: "Cerrar",

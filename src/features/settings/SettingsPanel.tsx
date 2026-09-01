@@ -32,7 +32,7 @@ import {
   type DateFormatPreference,
   type NumberFormatPreference,
 } from "../../shared/i18n";
-import { autoHideScrollbarProps } from "../../shared/ui";
+import { autoHideScrollbarProps, moveFocusWithinRadioGroup } from "../../shared/ui";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
   DIFF_CODE_FONTS,
@@ -113,41 +113,6 @@ const NOTICE_ICONS: Record<Notice["tone"], React.JSX.Element> = {
   warning: <TriangleAlert aria-hidden="true" />,
   danger: <CircleAlert aria-hidden="true" />,
 };
-
-/** Arrow keys move focus between the options of a radio group, with Home and
- * End reaching the ends, so a group is one Tab stop rather than one per option.
- *
- * Focus deliberately does not carry the selection with it. The ARIA radio
- * pattern usually selects as focus moves, which is fine when the choice is free
- * — but one of these groups writes to the user's global Git config on every
- * change, and arrowing past an option is not a decision to change it. Space and
- * Enter activate, which buttons already do.
- *
- * Reads the DOM rather than holding refs: the group is the event target's own
- * container, so this works for any number of options without per-group state. */
-function moveFocusWithinRadioGroup(event: React.KeyboardEvent<HTMLDivElement>): void {
-  const step =
-    event.key === "ArrowDown" || event.key === "ArrowRight"
-      ? 1
-      : event.key === "ArrowUp" || event.key === "ArrowLeft"
-        ? -1
-        : 0;
-  const isEnd = event.key === "End";
-  if (step === 0 && !isEnd && event.key !== "Home") {
-    return;
-  }
-  const options = Array.from(
-    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]:not(:disabled)'),
-  );
-  const current = options.indexOf(document.activeElement as HTMLButtonElement);
-  if (options.length === 0 || current < 0) {
-    return;
-  }
-  event.preventDefault();
-  const next =
-    step !== 0 ? (current + step + options.length) % options.length : isEnd ? options.length - 1 : 0;
-  options[next].focus();
-}
 
 /** Which option in a group carries the single Tab stop: the selected one, or
  * the first when nothing is selected yet — otherwise a group with no selection
@@ -1695,7 +1660,7 @@ export function SettingsPanel({
                         files, so they stack rather than sharing a segmented
                         control: the wording is the point of this group. */}
                     <div
-                      className="line-endings"
+                      className="choice-list"
                       role="radiogroup"
                       aria-label={t.settingsLineEndingsTitle}
                       onKeyDown={moveFocusWithinRadioGroup}
@@ -1712,16 +1677,16 @@ export function SettingsPanel({
                               isRadioTabStop(isActive, lineEndings.mode !== "not_set", index) ? 0 : -1
                             }
                             disabled={isSavingLineEndings}
-                            className={`line-endings__option${isActive ? " line-endings__option--active" : ""}`}
+                            className={`choice-list__option${isActive ? " choice-list__option--active" : ""}`}
                             onClick={() => void chooseLineEnding(choice)}
                           >
-                            <span className="line-endings__option-label">
+                            <span className="choice-list__label">
                               {lineEndingText[choice].label}
                               {choice === recommendedChoice && (
-                                <span className="line-endings__recommended">{t.lineEndingsRecommended}</span>
+                                <span className="choice-list__badge">{t.lineEndingsRecommended}</span>
                               )}
                             </span>
-                            <span className="line-endings__option-description">
+                            <span className="choice-list__description">
                               {lineEndingText[choice].description}
                             </span>
                           </button>
@@ -1772,6 +1737,9 @@ export function SettingsPanel({
   );
 }
 
+/** A labelled on/off switch. Private to this panel: it is the only surface with
+ * true/false preferences, and `.toggle-switch` in `primitives.css` is the part
+ * that was ever worth sharing. */
 function ToggleSwitch({
   label,
   checked,

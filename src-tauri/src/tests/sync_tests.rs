@@ -1223,3 +1223,86 @@ fn get_plan_caps_many_incoming_files_without_losing_categories_or_total() {
         let _ = fs::remove_dir_all(path);
     }
 }
+
+#[test]
+fn project_remotes_report_push_urls_and_hidden_credentials() {
+    // Parsed rather than configured, because `git remote -v` is the only place
+    // the two directions arrive paired and a stored password is still visible.
+    let output = "origin\thttps://user:pw@example.com/repo.git (fetch)\n\
+                  origin\thttps://user:pw@example.com/repo.git (push)\n\
+                  upstream\tgit@example.com:org/repo.git (fetch)\n\
+                  upstream\tssh://example.com/mirror.git (push)\n";
+    let remotes = parse_project_remotes(output);
+    assert_eq!(remotes.len(), 2);
+    assert_eq!(remotes[0].url, "https://example.com/repo.git");
+    assert_eq!(remotes[0].push_url, None, "one address is not two");
+    assert!(
+        remotes[0].has_hidden_credentials,
+        "the stored URL carries a password the display drops"
+    );
+    assert_eq!(remotes[1].url, "git@example.com:org/repo.git");
+    assert_eq!(
+        remotes[1].push_url.as_deref(),
+        Some("ssh://example.com/mirror.git")
+    );
+    assert!(
+        !remotes[1].has_hidden_credentials,
+        "an SCP-style username is kept, not hidden"
+    );
+}
+
+#[test]
+fn changing_a_remote_url_validates_names_and_addresses_before_writing() {
+    let _guard = sync_test_guard();
+    let (repo, remote, _branch) = published_repo_and_remote("set-remote-url");
+
+    let before = read_project_remotes(repo.clone()).unwrap();
+    assert_eq!(before.remotes.len(), 1);
+    assert_eq!(before.remotes[0].name, "origin");
+    assert_eq!(
+        before.upstream_remote.as_deref(),
+        Some("origin"),
+        "the published line's own remote, read from its configuration"
+    );
+
+    assert_eq!(
+        set_remote_url(
+            repo.clone(),
+            "elsewhere".into(),
+            "https://example.test/repo.git".into(),
+        )
+        .unwrap_err()
+        .code,
+        AppErrorCode::RemoteNotFound
+    );
+    assert_eq!(
+        set_remote_url(repo.clone(), "origin".into(), "not a url".into(),)
+            .unwrap_err()
+            .code,
+        AppErrorCode::InvalidRemoteUrl
+    );
+
+    let after = set_remote_url(
+        repo.clone(),
+        "origin".into(),
+        "https://alice:secret@example.test/moved.git".into(),
+    )
+    .unwrap();
+    assert_eq!(after.remotes[0].url, "https://example.test/moved.git");
+    assert!(
+        !after.remotes[0].has_hidden_credentials,
+        "GitOdrile stores the address without the password, exactly as connecting one does"
+    );
+    let configured = git_command(&repo)
+        .args(["config", "--local", "--get", "remote.origin.url"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&configured.stdout).trim(),
+        "https://example.test/moved.git"
+    );
+
+    for path in [repo, remote] {
+        let _ = fs::remove_dir_all(path);
+    }
+}

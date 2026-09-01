@@ -15,6 +15,7 @@ mod initialize;
 mod ipc;
 mod operation;
 mod platform;
+mod project_settings;
 #[path = "publish.rs"]
 mod publish_domain;
 mod recovery;
@@ -101,6 +102,13 @@ pub fn run() {
             ipc::discover_remotes,
             ipc::plan_connect_remote,
             ipc::connect_remote,
+            ipc::read_project_remotes,
+            ipc::set_remote_url,
+            ipc::read_project_identity,
+            ipc::set_project_identity,
+            ipc::clear_project_identity,
+            ipc::read_ignore_file,
+            ipc::write_ignore_file,
             ipc::read_team_sync_status,
             ipc::check_team_changes,
             ipc::plan_get_team_changes,

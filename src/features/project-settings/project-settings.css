@@ -1,0 +1,123 @@
+/* The panel chrome (`.settings-layout`, `.settings-nav`, `.settings-view`,
+   groups and rows) is a shared primitive; only what is particular to a
+   project's own settings lives here. */
+
+.project-settings-scope {
+  width: 100%; max-width: 720px; margin: 0 auto var(--space-4);
+  color: var(--text-secondary); font-size: 12.5px; line-height: 1.45;
+}
+
+/* One rhythm for every section body in this panel. The shared group body sets
+   no spacing of its own — the app-wide Settings panel gets it from
+   `.settings-row + .settings-row`, which only helps a body made of rows. This
+   one mixes rows, editors, cards and action bars, and without a gap they sat
+   flush against each other. */
+.project-settings-body { display: grid; gap: var(--space-4); }
+
+/* A hint here wraps: emails and file paths are long. The shared rule centres
+   its glyph, which against two lines reads as floating beside them. */
+.project-settings-body .settings-row__hint { align-items: flex-start; }
+.project-settings-body .settings-row__hint svg { margin-top: 2px; }
+
+.project-settings-failure { display: grid; justify-items: start; gap: var(--space-2); }
+
+/* Actions sit at the trailing edge, like every other dialog's action row. */
+.project-settings-actions {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center;
+  gap: var(--space-3);
+}
+/* The complaint takes the free space so it reads from the left while the button
+   stays pinned to the trailing edge. */
+.project-settings-actions .settings-row__hint { margin-right: auto; }
+
+/* One remote, with its address and everything true about it that the address
+   alone does not say. */
+.project-settings-remote { display: grid; gap: var(--space-2); }
+/* The body's gap already separates them; this only draws the line. */
+.project-settings-remote + .project-settings-remote {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-divider);
+}
+.project-settings-remote__head { display: flex; align-items: center; gap: var(--space-2); }
+.project-settings-remote__head strong { font-size: 13.5px; }
+.project-settings-remote__badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--accent-primary); font-size: 11.5px; font-weight: 600;
+}
+/* The field takes the room and the action keeps its own width, so a long URL
+   never squeezes the button into two lines. */
+.project-settings-remote__row { display: flex; align-items: flex-end; gap: var(--space-3); }
+.project-settings-remote__row .text-field { flex: 1 1 16rem; min-width: 0; }
+.project-settings-remote__name { flex: 0 1 10rem; }
+
+.project-settings-confirm {
+  display: grid; gap: 6px; padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
+  border-radius: var(--radius-surface);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+}
+.project-settings-confirm strong { font-size: 13.5px; }
+.project-settings-confirm p { margin: 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.45; }
+.project-settings-confirm__actions {
+  display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: 4px;
+}
+.project-settings-confirm--discard {
+  width: 100%; max-width: 720px; margin: 0 auto var(--space-4);
+}
+
+.project-settings-ignore { display: grid; gap: var(--space-2); }
+.project-settings-ignore__label { font-size: 13.5px; font-weight: 600; }
+/* Monospaced because every rule is a path pattern, and the reader has to be
+   able to tell a space from an absent one. */
+.project-settings-ignore__editor {
+  width: 100%; min-height: 220px; padding: var(--space-3); resize: vertical;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-control); color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 12.5px; line-height: 1.6;
+  tab-size: 2;
+}
+.project-settings-ignore__editor:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+
+/* The fields belong to the option card above them, so they are indented under
+   it rather than floating at the body's own left edge. */
+.project-settings-identity__override {
+  display: grid; gap: var(--space-3);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-subtle);
+}
+/* Two equal columns that may actually shrink: an email like
+   `36764797+name@users.noreply.github.com` is wider than half the panel, and
+   without `minmax(0, 1fr)` the grid would let the field push the row instead of
+   scrolling inside it. */
+.project-settings-identity__fields {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3);
+}
+.project-settings-identity__fields .text-field { min-width: 0; }
+
+/* Provenance is context, not an alert: a caption under the list, not a fourth
+   box competing with the cards. Same shape the line-endings group uses. */
+.project-settings-status { display: grid; gap: var(--space-3); }
+.project-settings-status__source {
+  margin: 0; padding: 0 2px;
+  color: var(--text-secondary); font-size: 12.5px; line-height: 1.45;
+}
+/* Full width rather than shrink-to-fit: a chip under a stack of full-width
+   cards reads as debris. */
+.project-settings-caveat {
+  display: flex; gap: var(--space-2); margin: 0; padding: 10px var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
+  border-radius: var(--radius-surface);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  color: var(--status-warning); font-size: 12.5px; line-height: 1.45;
+}
+.project-settings-caveat svg { flex-shrink: 0; width: 14px; height: 14px; margin-top: 2px; }
+
+@media (max-width: 800px) {
+  .project-settings-remote__row { flex-direction: column; align-items: stretch; }
+  .project-settings-identity__fields { grid-template-columns: 1fr; }
+}
+

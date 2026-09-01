@@ -834,6 +834,21 @@
 }
 .project-switcher__favourite--on svg { fill: currentColor; }
 
+/* Same size and same resting weight as the star beside it: they are two marks
+   on the same row, and one of them looking heavier would read as the more
+   important one. */
+.project-switcher__settings {
+  flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
+  opacity: 0.55;
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.project-switcher__settings svg { width: 14px; height: 14px; }
+.project-switcher__item:hover .project-switcher__settings,
+.project-switcher__settings:focus-visible { opacity: 1; }
+.project-switcher__settings:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
+.project-switcher__settings:disabled { opacity: 0.3; }
+
 .project-switcher__item--add { margin-top: 2px; }
 .project-switcher__add {
   display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px;
@@ -927,6 +942,11 @@
 .settings-dialog__alert svg { width: 14px; height: 14px; }
 .settings-dialog__header h2 { margin: 0 0 3px; font-size: 21px; letter-spacing: -0.018em; }
 .settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
+/* Names the project the panel is scoped to. It wears the same shell as
+   Settings, so the one thing it must never be mistaken for is Settings. */
+.project-settings-dialog__project {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 /* Every modal in the app shell sits on this one backdrop — About, the
    changelog, the shortcut sheet, the close confirmation and the open-failure
    alert. It was called `.about-backdrop` while About happened to be the first

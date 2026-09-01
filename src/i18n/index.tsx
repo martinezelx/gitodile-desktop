@@ -6,6 +6,7 @@ import { cloneTranslations } from "../features/clone/translations";
 import { initializeProjectTranslations } from "../features/initialize-project/translations";
 import { historyTranslations } from "../features/history/translations";
 import { overviewTranslations } from "../features/overview/translations";
+import { projectSettingsTranslations } from "../features/project-settings/translations";
 import { publishTranslations } from "../features/publish/translations";
 import { saveVersionTranslations } from "../features/save-version/translations";
 import { settingsTranslations } from "../features/settings/translations";
@@ -55,6 +56,7 @@ export const translationNamespaces = {
   changes: changesTranslations,
   saveVersion: saveVersionTranslations,
   settings: settingsTranslations,
+  projectSettings: projectSettingsTranslations,
   publish: publishTranslations,
   versionLines: versionLinesTranslations,
 } as const;
@@ -71,6 +73,7 @@ const en = {
   ...changesTranslations.en,
   ...saveVersionTranslations.en,
   ...settingsTranslations.en,
+  ...projectSettingsTranslations.en,
   ...publishTranslations.en,
   ...versionLinesTranslations.en,
 };
@@ -89,6 +92,7 @@ const es: Translations = {
   ...changesTranslations.es,
   ...saveVersionTranslations.es,
   ...settingsTranslations.es,
+  ...projectSettingsTranslations.es,
   ...publishTranslations.es,
   ...versionLinesTranslations.es,
 };

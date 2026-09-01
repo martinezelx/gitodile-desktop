@@ -356,6 +356,185 @@ pub(crate) fn list_remotes(path: &str) -> Result<Vec<RemoteInfo>, AppError> {
         .collect())
 }
 
+/// A configured remote as the project's own settings need to see it.
+///
+/// `RemoteInfo` stays the minimal presentation value Publish and project
+/// creation share. This carries the two extra facts that only matter when the
+/// URL is being *edited*: whether the stored value hides parts the display
+/// cannot show, and whether pushing goes somewhere else entirely.
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProjectRemote {
+    pub(crate) name: String,
+    /// Redacted fetch URL. The raw configured value never crosses IPC.
+    pub(crate) url: String,
+    /// Redacted push URL, and only when it differs from the fetch one — so the
+    /// panel never implies one field governs both.
+    pub(crate) push_url: Option<String>,
+    /// True when the stored URL carries userinfo or a query the display drops.
+    /// Saving the displayed text would silently delete a password or token, so
+    /// the panel has to say so before the user replaces it.
+    pub(crate) has_hidden_credentials: bool,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProjectRemotes {
+    pub(crate) remotes: Vec<ProjectRemote>,
+    /// The remote the current version line publishes to, when it has one.
+    pub(crate) upstream_remote: Option<String>,
+}
+
+fn hides_stored_parts(raw: &str) -> bool {
+    redact_remote_url(raw) != raw
+}
+
+/// `git remote -v` prints one line per direction. Pairing them is what lets a
+/// separate push URL be reported instead of quietly ignored.
+pub(crate) fn parse_project_remotes(output: &str) -> Vec<ProjectRemote> {
+    let mut remotes: Vec<ProjectRemote> = Vec::new();
+    let mut fetch_urls: Vec<String> = Vec::new();
+    for line in output.lines() {
+        let Some((name, rest)) = line.split_once('\t') else {
+            continue;
+        };
+        let (raw_url, is_fetch) = match rest.rsplit_once(' ') {
+            Some((url, "(fetch)")) => (url, true),
+            Some((url, "(push)")) => (url, false),
+            _ => continue,
+        };
+        if is_fetch {
+            remotes.push(ProjectRemote {
+                name: name.to_string(),
+                url: redact_remote_url(raw_url),
+                push_url: None,
+                has_hidden_credentials: hides_stored_parts(raw_url),
+            });
+            fetch_urls.push(raw_url.to_string());
+            continue;
+        }
+        let Some(index) = remotes.iter().position(|remote| remote.name == name) else {
+            continue;
+        };
+        if fetch_urls[index] != raw_url {
+            remotes[index].push_url = Some(redact_remote_url(raw_url));
+            remotes[index].has_hidden_credentials |= hides_stored_parts(raw_url);
+        }
+    }
+    remotes
+}
+
+/// The remote the checked-out version line publishes to, or `None` when it has
+/// no upstream or HEAD is detached. Read from the branch's own configuration
+/// rather than guessed from the remote list, which would be wrong the moment a
+/// project has two.
+fn current_upstream_remote(path: &str) -> Option<String> {
+    let head = run_git(path, &["symbolic-ref", "--quiet", "--short", "HEAD"]).ok()?;
+    if !head.status.success() {
+        return None;
+    }
+    let branch = git_stdout(&head);
+    if branch.is_empty() {
+        return None;
+    }
+    let configured = run_git(
+        path,
+        &["config", "--get", &format!("branch.{branch}.remote")],
+    )
+    .ok()?;
+    if !configured.status.success() {
+        return None;
+    }
+    let remote = git_stdout(&configured);
+    (!remote.is_empty()).then_some(remote)
+}
+
+fn project_remotes(path: &str) -> Result<ProjectRemotes, AppError> {
+    let output = checked_git_stdout(run_git(path, &["remote", "-v"])?)?;
+    let remotes = parse_project_remotes(&output);
+    // With no remotes there is nothing for an upstream to point at, so the two
+    // processes that would answer the question are not spawned at all — the
+    // panel opens on this section, and a local-only project is exactly the one
+    // that would have waited for an answer it could not use.
+    let upstream_remote = if remotes.is_empty() {
+        None
+    } else {
+        current_upstream_remote(path)
+    };
+    Ok(ProjectRemotes {
+        remotes,
+        upstream_remote,
+    })
+}
+
+pub(crate) fn read_project_remotes(path: String) -> Result<ProjectRemotes, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_project_remotes", None)?;
+    project_remotes(&path)
+}
+
+/// Points an existing remote somewhere else.
+///
+/// Adding, renaming and removing remotes stay out of this: the first has its
+/// own planned flow, and the other two rewrite tracking refs. Changing where an
+/// existing one points is the repair a mistyped or moved URL actually needs,
+/// and it is verified after the write exactly as connecting one is — Git
+/// reporting success is not the same as the configuration saying what GitOdrile
+/// intended.
+pub(crate) fn set_remote_url(
+    path: String,
+    remote_name: String,
+    remote_url: String,
+) -> Result<ProjectRemotes, AppError> {
+    let (_repository, _access) = application::authorize_repository(&path, "set_remote_url", None)?;
+    let remote_name = remote_name.trim().to_string();
+    // Membership is the check that belongs here, not the rule for a name the
+    // user is inventing: these names come from Git's own listing, and applying
+    // `validate_new_remote_name` refused to edit remotes GitOdrile had just
+    // shown — a name with a slash in it, or one over eighty characters, is
+    // unusual but real, and Git made it, not the user.
+    if !configured_remote_names(&path)?
+        .iter()
+        .any(|name| name == &remote_name)
+    {
+        return Err(connect_remote_error(
+            AppErrorCode::RemoteNotFound,
+            "This project has no remote with that name.",
+            "Reopen the project's settings to see the remotes it has now.",
+        ));
+    }
+    // The one rule membership cannot replace: a leading dash would reach Git as
+    // an option rather than as the remote to change.
+    if remote_name.starts_with('-') {
+        return Err(connect_remote_error(
+            AppErrorCode::InvalidRemoteConfiguration,
+            "That remote name isn't safe to pass to Git.",
+            "Rename the remote in Git before changing its address here.",
+        ));
+    }
+    let url = normalize_connection_url(&remote_url)?;
+    let updated = run_git(&path, &["remote", "set-url", &remote_name, &url.persisted])?;
+    if !updated.status.success() {
+        return Err(connect_remote_error(
+            AppErrorCode::RemoteConnectFailed,
+            "Git could not change this remote's address.",
+            "No network request was made. Check .git/config and try again.",
+        ));
+    }
+    let key = format!("remote.{remote_name}.url");
+    let observed = run_git(&path, &["config", "--local", "--get-all", &key])?;
+    let observed_text = git_stdout(&observed);
+    let observed_urls: Vec<_> = observed_text.lines().collect();
+    if !observed.status.success() || observed_urls != [url.persisted.as_str()] {
+        return Err(connect_remote_error(
+            AppErrorCode::RemoteConnectUncertain,
+            "Git changed remote configuration, but GitOdrile could not verify its exact URL.",
+            "Inspect .git/config before publishing again. GitOdrile did not contact the network.",
+        ));
+    }
+    project_remotes(&path)
+}
+
 fn validate_new_remote_name(name: &str) -> Result<String, AppError> {
     let name = name.trim();
     if name.is_empty()

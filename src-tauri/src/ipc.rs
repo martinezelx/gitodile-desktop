@@ -14,6 +14,7 @@ use crate::{
         self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
         InitializeTargetKind,
     },
+    project_settings::{self, IgnoreFile, ProjectIdentity},
     publish_domain::{self, PublishPlan, PublishResult},
     recovery::{self, DiscardPlan, DiscardRecovery, DiscardResult},
     repository::{self, RepositoryInfo},
@@ -22,7 +23,7 @@ use crate::{
     status::{self, PendingVersionsResult, WorkingTreeStatus},
     sync::{
         self, ConnectRemotePlan, ConnectRemoteResult, GetTeamChangesPhase, GetTeamChangesPlan,
-        GetTeamChangesResult, RemoteDiscovery, TeamSyncStatus,
+        GetTeamChangesResult, ProjectRemotes, RemoteDiscovery, TeamSyncStatus,
     },
     tooling::{
         self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
@@ -380,6 +381,82 @@ pub(crate) fn connect_remote(
 ) -> Result<ConnectRemoteResult, AppError> {
     validate_session(&path, &session_epoch)?;
     sync::connect_remote(path, session_epoch, remote_name, remote_url, state_token)
+}
+
+/// The project's own settings read the remotes with their editable detail,
+/// which `discover_remotes` deliberately does not carry: Publish only needs a
+/// name and a safe label.
+#[tauri::command(async)]
+pub(crate) fn read_project_remotes(
+    path: String,
+    session_epoch: String,
+) -> Result<ProjectRemotes, AppError> {
+    validate_session(&path, &session_epoch)?;
+    sync::read_project_remotes(path)
+}
+
+#[tauri::command(async)]
+pub(crate) fn set_remote_url(
+    path: String,
+    session_epoch: String,
+    remote_name: String,
+    remote_url: String,
+) -> Result<ProjectRemotes, AppError> {
+    validate_session(&path, &session_epoch)?;
+    sync::set_remote_url(path, remote_name, remote_url)
+}
+
+/// The identity *this project* saves as, alongside the one it would inherit.
+/// Global identity stays with `get_git_identity`; these three never touch it.
+#[tauri::command(async)]
+pub(crate) fn read_project_identity(
+    path: String,
+    session_epoch: String,
+) -> Result<ProjectIdentity, AppError> {
+    validate_session(&path, &session_epoch)?;
+    project_settings::read_project_identity(path)
+}
+
+#[tauri::command(async)]
+pub(crate) fn set_project_identity(
+    path: String,
+    session_epoch: String,
+    name: String,
+    email: String,
+) -> Result<ProjectIdentity, AppError> {
+    validate_session(&path, &session_epoch)?;
+    project_settings::set_project_identity(path, name, email)
+}
+
+#[tauri::command(async)]
+pub(crate) fn clear_project_identity(
+    path: String,
+    session_epoch: String,
+) -> Result<ProjectIdentity, AppError> {
+    validate_session(&path, &session_epoch)?;
+    project_settings::clear_project_identity(path)
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_ignore_file(
+    path: String,
+    session_epoch: String,
+    scope: String,
+) -> Result<IgnoreFile, AppError> {
+    validate_session(&path, &session_epoch)?;
+    project_settings::read_ignore_file(path, scope)
+}
+
+#[tauri::command(async)]
+pub(crate) fn write_ignore_file(
+    path: String,
+    session_epoch: String,
+    scope: String,
+    contents: String,
+    state_token: String,
+) -> Result<IgnoreFile, AppError> {
+    validate_session(&path, &session_epoch)?;
+    project_settings::write_ignore_file(path, scope, contents, state_token)
 }
 
 #[tauri::command(async)]
@@ -950,6 +1027,10 @@ mod contract_tests {
             AppErrorCode::RecoveryUnavailable,
             AppErrorCode::RecoveryConflict,
             AppErrorCode::RecoveryFailed,
+            AppErrorCode::IgnoreFileTooLarge,
+            AppErrorCode::IgnoreFileNotText,
+            AppErrorCode::StaleIgnoreFile,
+            AppErrorCode::IgnoreFileWriteFailed,
         ];
         let serialized = codes
             .iter()

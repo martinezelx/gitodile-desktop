@@ -17,6 +17,7 @@ import {
   LoaderCircle,
   Pencil,
   Save,
+  Settings,
   Star,
   TriangleAlert,
   X,
@@ -466,6 +467,8 @@ function ProjectSummaryCard({
   onQuickCreateVersionLine,
   onGoToVersionLines,
   onCopyPathError,
+  onOpenProjectSettings,
+  onPrefetchProjectSettings,
 }: {
   project: RepositoryInfo;
   overview: ReturnType<typeof getRepositoryOverviewState>;
@@ -479,6 +482,11 @@ function ProjectSummaryCard({
   onQuickCreateVersionLine: (forceSwitch: boolean) => void;
   onGoToVersionLines: () => void;
   onCopyPathError: () => void;
+  /** The same panel the project switcher's gear opens, for the project this
+   * card is already about. */
+  onOpenProjectSettings: () => void;
+  /** Warms that panel's first read on hover; see the switcher's own gear. */
+  onPrefetchProjectSettings?: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
 
@@ -523,6 +531,20 @@ function ProjectSummaryCard({
             </span>
           )}
         </div>
+        {/* Beside the version-line controls rather than in the heading: it is
+            an action on this project, like they are, and it is the same gear
+            the project switcher shows for the same panel. */}
+        <button
+          className="project-summary-card__settings"
+          type="button"
+          aria-label={t.projectSettingsOpenFor(project.name)}
+          data-tooltip={t.projectSettingsOpen}
+          onPointerEnter={() => onPrefetchProjectSettings?.()}
+          onFocus={() => onPrefetchProjectSettings?.()}
+          onClick={onOpenProjectSettings}
+        >
+          <Settings aria-hidden="true" />
+        </button>
       </div>
     </section>
   );
@@ -562,6 +584,8 @@ export function OverviewPanel({
   onReviewAndGetTeamChanges,
   historyController,
   onOpenHistory,
+  onOpenProjectSettings,
+  onPrefetchProjectSettings,
 }: {
   project: RepositoryInfo | null;
   /** Only ever drives the *empty*-state's own loading affordance below —
@@ -608,6 +632,11 @@ export function OverviewPanel({
   onQuickCreateVersionLine: (forceSwitch: boolean) => void;
   onGoToVersionLines: () => void;
   onCopyPathError: () => void;
+  /** Opens this project's own settings — the remote it publishes to, the files
+   * it ignores, and the identity it saves as. */
+  onOpenProjectSettings: () => void;
+  /** Warms that panel's first read on hover, so opening it is not a wait. */
+  onPrefetchProjectSettings?: () => void;
   /** Opens the save-version flow. Overview has no file-selection UI of its
    * own to drive `SaveVersionDialog`'s exclusion checkboxes, so — like
    * `VersionLinesPanel` and `SwitchVersionLineDialog`'s own `onSaveVersion`
@@ -687,6 +716,8 @@ export function OverviewPanel({
           onQuickCreateVersionLine={onQuickCreateVersionLine}
           onGoToVersionLines={onGoToVersionLines}
           onCopyPathError={onCopyPathError}
+          onOpenProjectSettings={onOpenProjectSettings}
+          onPrefetchProjectSettings={onPrefetchProjectSettings}
         />
 
         <section

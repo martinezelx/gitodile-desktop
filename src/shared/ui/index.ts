@@ -19,6 +19,7 @@ export { useModalFocus } from "./modalFocus";
 export { LoadingBar } from "./loadingBar";
 export { RefreshIconButton } from "./refreshIconButton";
 export { DialogCloseButton } from "./dialogCloseButton";
+export { moveFocusWithinRadioGroup } from "./radioGroup";
 export { AutomaticUpdatesNotice } from "./automaticUpdatesNotice";
 export { useFieldErrors, FieldError } from "./fieldErrors";
 export type { FieldCheck, FieldErrorMap, FieldErrorState } from "./fieldErrors";

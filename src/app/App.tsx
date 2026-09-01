@@ -70,6 +70,12 @@ import {
   type ThemePreference,
 } from "../features/settings";
 import {
+  createProjectSettingsCache,
+  projectSettingsPort,
+  warmProjectSettings,
+  type ProjectSettingsSection,
+} from "../features/project-settings";
+import {
   createVersionLinesController,
   useStoredFavouriteVersionLines,
   useVersionLinesState,
@@ -194,6 +200,15 @@ export function App(): React.JSX.Element {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  /* Declared beside the Settings flag because `hasBlockingDialog` below reads
+     both, and a `const` cannot be read before it exists. */
+  const [isProjectSettingsOpen, setIsProjectSettingsOpen] = useState(false);
+  const [projectSettingsSection, setProjectSettingsSection] =
+    useState<ProjectSettingsSection>("remote");
+  /* Owned here because the dialog is unmounted on every close: without it each
+     opening pays again for the same Git processes. Keyed by project and session
+     epoch, so a reopened project never sees the previous session's answers. */
+  const projectSettingsCache = useRef(createProjectSettingsCache()).current;
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isCloneOpen, setIsCloneOpen] = useState(false);
   const [watcherRegistrations, setWatcherRegistrations] = useState<Record<string, WatcherRegistration>>({});
@@ -393,6 +408,9 @@ export function App(): React.JSX.Element {
   // the active project are both disabled while either dialog is open.
   const hasBlockingDialog =
     isSettingsOpen ||
+    // Scoped to one project: switching underneath it would leave the panel
+    // reading and writing a repository the app is no longer showing.
+    isProjectSettingsOpen ||
     isCloneOpen ||
     initializeDialogRequest !== null ||
     publishDialogSessionId !== null ||
@@ -463,6 +481,30 @@ export function App(): React.JSX.Element {
   const openSettings = (section: SettingsSection = "general"): void => {
     setSettingsSection(section);
     setIsSettingsOpen(true);
+  };
+  /* The per-project panel. Opening it for a project that is not the active one
+     activates that project first: everything it reads is scoped to an open
+     repository, so the panel and the app must agree on which one that is. */
+  const openProjectSettings = (
+    id?: string,
+    section: ProjectSettingsSection = "remote",
+  ): void => {
+    if (id && id !== sessionsState.activeId) {
+      if (hasBlockingDialog) return;
+      activateSession(id);
+    }
+    setProjectSettingsSection(section);
+    setIsProjectSettingsOpen(true);
+  };
+  /** Starts the read the panel opens with while the pointer is still on its way
+   * to the gear. A user who never opens it pays nothing. */
+  const prefetchProjectSettings = (id?: string): void => {
+    const session = id ? sessionsState.byId[id] : activeSession;
+    if (!session) return;
+    warmProjectSettings(projectSettingsCache, projectSettingsPort, {
+      path: session.project.path,
+      sessionEpoch: session.epoch,
+    });
   };
   const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
   const [navigationPreferences, setNavigationPreferences] =
@@ -1344,6 +1386,15 @@ export function App(): React.JSX.Element {
     { id: "theme-system", label: t.commandUseSystemTheme, action: () => changeTheme("system") },
     { id: "theme-light", label: t.commandUseLightTheme, action: () => changeTheme("light") },
     { id: "theme-dark", label: t.commandUseDarkTheme, action: () => changeTheme("dark") },
+    ...(project
+      ? [
+          {
+            id: "project-settings",
+            label: t.projectSettingsTitle,
+            action: () => openProjectSettings(),
+          },
+        ]
+      : []),
     { id: "changelog", label: t.changelogTitle, action: () => setIsChangelogOpen(true) },
     { id: "about", label: t.aboutGitOdrile, action: () => setIsAboutOpen(true) },
   ];
@@ -1797,6 +1848,8 @@ export function App(): React.JSX.Element {
               onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
               onClone={() => setIsCloneOpen(true)}
               onToggleFavourite={toggleFavouriteProject}
+              onOpenProjectSettings={openProjectSettings}
+              onPrefetchProjectSettings={prefetchProjectSettings}
             />
           </div>
 
@@ -1857,6 +1910,8 @@ export function App(): React.JSX.Element {
               onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
               onClone={() => setIsCloneOpen(true)}
               onToggleFavourite={toggleFavouriteProject}
+              onOpenProjectSettings={openProjectSettings}
+              onPrefetchProjectSettings={prefetchProjectSettings}
             />
             <div className="compact-history-controls" aria-label={t.titlebarHistoryControls}>
               <button
@@ -1983,6 +2038,8 @@ export function App(): React.JSX.Element {
                       setOverviewCreateRequest({ forceSwitch });
                     }
                   }}
+                  onOpenProjectSettings={() => openProjectSettings()}
+                  onPrefetchProjectSettings={() => prefetchProjectSettings()}
                   onGoToVersionLines={() => navigateToView("version-lines")}
                   onCopyPathError={() =>
                     showErrorDialog(t.overviewCopyPathFailedTitle, t.overviewCopyPathFailedMessage)
@@ -2307,6 +2364,17 @@ export function App(): React.JSX.Element {
       )}
 
       <AppOverlays
+        projectSettings={{
+          isOpen: isProjectSettingsOpen,
+          setOpen: setIsProjectSettingsOpen,
+          project:
+            project && activeSession
+              ? { path: project.path, sessionEpoch: activeSession.epoch, name: project.name }
+              : null,
+          section: projectSettingsSection,
+          setSection: setProjectSettingsSection,
+          cache: projectSettingsCache,
+        }}
         settings={{
           isOpen: isSettingsOpen,
           setOpen: setIsSettingsOpen,

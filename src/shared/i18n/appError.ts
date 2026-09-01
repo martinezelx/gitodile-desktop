@@ -38,6 +38,7 @@ export const APP_ERROR_CODES = [
   "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
   "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
   "recovery_unavailable", "recovery_conflict", "recovery_failed",
+  "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed",
 ] as const;
 
 export type AppError = {
@@ -160,6 +161,10 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     recovery_unavailable: t.errorRecoveryUnavailable,
     recovery_conflict: t.errorRecoveryConflict,
     recovery_failed: t.errorRecoveryFailed,
+    ignore_file_too_large: t.errorIgnoreFileTooLarge,
+    ignore_file_not_text: t.errorIgnoreFileNotText,
+    stale_ignore_file: t.errorStaleIgnoreFile,
+    ignore_file_write_failed: t.errorIgnoreFileWriteFailed,
   };
   return messages[error.code] ?? fallback;
 }

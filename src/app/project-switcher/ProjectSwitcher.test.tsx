@@ -42,6 +42,7 @@ function commonProps() {
     onCreate: vi.fn(),
     onClone: vi.fn(),
     onToggleFavourite: vi.fn(),
+    onOpenProjectSettings: vi.fn(),
   };
 }
 
@@ -105,6 +106,38 @@ describe("ProjectSwitcherRail", () => {
     expect(within(popover).getByText("client-a")).toBeInTheDocument();
     expect(within(popover).getByLabelText("Needs attention")).toBeInTheDocument();
     expect(within(popover).getByLabelText("Has unsaved changes")).toBeInTheDocument();
+  });
+
+  it("opens a project's own settings from its row, and closes the popover", async () => {
+    const props = commonProps();
+    render(
+      <LanguageProvider>
+        <ProjectSwitcherRail {...props} />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
+    const popover = screen.getByRole("dialog", { name: "Open projects" });
+    await userEvent.click(within(popover).getByRole("button", { name: "Settings for beta" }));
+
+    expect(props.onOpenProjectSettings).toHaveBeenCalledWith("/projects/beta");
+    // Same rule as switching: the popover gets out of the dialog's way.
+    expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
+  });
+
+  it("disables the gear for a project it cannot switch to", async () => {
+    const props = { ...commonProps(), canSwitch: false };
+    render(
+      <LanguageProvider>
+        <ProjectSwitcherCompact {...props} />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Switch project" }));
+    // Reading a project's settings means switching to it first, which a
+    // blocking dialog forbids — the active project is still reachable.
+    expect(screen.getByRole("button", { name: "Settings for beta" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Settings for alpha" })).toBeEnabled();
   });
 
   it("filters the popover by name and says so when nothing matches", async () => {

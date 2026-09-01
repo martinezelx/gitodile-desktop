@@ -21,6 +21,7 @@ const EXPECTED_IMPORTS = [
   "./features/version-lines/version-lines.css",
   "./features/history/history.css",
   "./features/settings/settings.css",
+  "./features/project-settings/project-settings.css",
 ] as const;
 
 function readSource(relativePath: string): string {
@@ -52,9 +53,20 @@ describe("production style composition", () => {
     expect(versionLines).toContain("max-height: min(420px, calc(100vh - 300px))");
 
     const settings = readSource("features/settings/settings.css");
-    expect(settings).toContain(".settings-layout");
     expect(settings).toContain(".git-install__status");
     expect(settings).toContain("@media (max-width: 800px)");
+    // The panel chrome is shared by both settings panels (task 098), so it
+    // belongs to the primitives sheet; only one of them may define it.
+    expect(settings).not.toContain(".settings-layout {");
+    const primitiveChrome = readSource("shared/ui/primitives.css");
+    expect(primitiveChrome).toContain(".settings-layout {");
+    // Stacked option cards are shared by line endings and the per-project
+    // identity, so exactly one sheet may define them.
+    expect(primitiveChrome).toContain(".choice-list__option {");
+    expect(settings).not.toContain(".choice-list");
+    expect(settings).toContain(".line-endings__caveat");
+    expect(readSource("features/project-settings/project-settings.css"))
+      .toContain(".project-settings-remote");
 
     // The reference badge is History's vocabulary and Overview renders it
     // inside its own rows, so exactly one sheet may define it — the later one,
@@ -69,6 +81,7 @@ describe("production style composition", () => {
     const appShell = readSource("app/app-shell.css");
     expect(appShell).toContain(".settings-dialog");
     expect(appShell).not.toContain(".settings-layout");
+    expect(appShell).toContain(".project-settings-dialog__project");
     expect(settings).not.toContain(".settings-dialog");
     // The mark is the whole identity in the window furniture: no wordmark
     // beside it, at any width.

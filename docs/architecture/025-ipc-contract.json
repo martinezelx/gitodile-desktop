@@ -34,6 +34,13 @@
     { "name": "discover_remotes", "arguments": ["path", "sessionEpoch"], "response": "RemoteDiscovery" },
     { "name": "plan_connect_remote", "arguments": ["path", "sessionEpoch", "remoteName", "remoteUrl"], "response": "ConnectRemotePlan" },
     { "name": "connect_remote", "arguments": ["path", "sessionEpoch", "remoteName", "remoteUrl", "stateToken"], "response": "ConnectRemoteResult" },
+    { "name": "read_project_remotes", "arguments": ["path", "sessionEpoch"], "response": "ProjectRemotes" },
+    { "name": "set_remote_url", "arguments": ["path", "sessionEpoch", "remoteName", "remoteUrl"], "response": "ProjectRemotes" },
+    { "name": "read_project_identity", "arguments": ["path", "sessionEpoch"], "response": "ProjectIdentity" },
+    { "name": "set_project_identity", "arguments": ["path", "sessionEpoch", "name", "email"], "response": "ProjectIdentity" },
+    { "name": "clear_project_identity", "arguments": ["path", "sessionEpoch"], "response": "ProjectIdentity" },
+    { "name": "read_ignore_file", "arguments": ["path", "sessionEpoch", "scope"], "response": "IgnoreFile" },
+    { "name": "write_ignore_file", "arguments": ["path", "sessionEpoch", "scope", "contents", "stateToken"], "response": "IgnoreFile" },
     { "name": "read_team_sync_status", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
     { "name": "check_team_changes", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
     { "name": "plan_get_team_changes", "arguments": ["path", "sessionEpoch", "onProgress"], "response": "GetTeamChangesPlan" },
@@ -86,7 +93,8 @@
     "version_line_name_collides", "version_line_checked_out_elsewhere", "version_line_is_active",
     "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
     "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
-    "recovery_unavailable", "recovery_conflict", "recovery_failed"
+    "recovery_unavailable", "recovery_conflict", "recovery_failed",
+    "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed"
   ],
   "watchEvent": {
     "name": "repository-changed",

@@ -5,7 +5,7 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(55);
+    expect(contract.commands).toHaveLength(62);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "open_repository", "plan_clone", "clone_repository",
       "cancel_clone", "cleanup_clone", "plan_initialize_project", "initialize_project",
@@ -15,7 +15,9 @@ describe("IPC contract snapshot", () => {
       "install_git", "update_git", "check_git_update", "get_git_identity", "set_git_identity",
       "get_line_endings", "set_line_endings", "get_default_branch", "set_default_branch",
       "plan_save_version", "save_version", "discover_remotes", "plan_connect_remote",
-      "connect_remote", "read_team_sync_status",
+      "connect_remote", "read_project_remotes", "set_remote_url", "read_project_identity",
+      "set_project_identity", "clear_project_identity", "read_ignore_file", "write_ignore_file",
+      "read_team_sync_status",
       "check_team_changes", "plan_get_team_changes", "get_team_changes", "list_unpublished_versions",
       "read_commit_file_changes", "read_commit_file_diff", "read_history_page",
       "read_saved_version_detail", "read_saved_version_file_diff", "plan_publish", "publish",
@@ -35,6 +37,8 @@ describe("IPC contract snapshot", () => {
       "close_project_session",
       "plan_save_version", "save_version", "read_team_sync_status", "check_team_changes",
       "plan_connect_remote", "connect_remote",
+      "read_project_remotes", "set_remote_url", "read_project_identity", "set_project_identity",
+      "clear_project_identity", "read_ignore_file", "write_ignore_file",
       "plan_get_team_changes", "get_team_changes",
       "plan_publish", "publish",
       "plan_create_version_line", "create_version_line", "plan_switch_version_line",

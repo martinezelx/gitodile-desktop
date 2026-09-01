@@ -41,7 +41,7 @@ and 038 predate that convention, so their already-permanent child IDs remain
 
 Reserved IDs without their own task file are still burned: `062` was folded
 into task 057 by explicit request. The next unused top-level ID after the
-current plan is `098`.
+current plan is `099`.
 
 A multi-task epic may group its child task files in a subfolder under
 `active/` (e.g. `active/architecture/`) to signal priority and keep the

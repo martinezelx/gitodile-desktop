@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../i18n";
 import { DEFAULT_DIFF_PREFERENCES } from "../features/changes";
+import { createProjectSettingsCache } from "../features/project-settings";
 import { AppOverlays, type AppOverlaysProps } from "./AppOverlays";
 import { describePlatform, formatDiagnostics, readSystemInfo } from "./systemInfo";
 
@@ -81,6 +82,13 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
         save: vi.fn(async () => undefined),
       },
       lineEndings: { lineEndings: null, isSaving: false, choose: vi.fn(async () => undefined) },
+    },
+    projectSettings: {
+      ...closedOverlay,
+      project: null,
+      section: "remote",
+      setSection: vi.fn(),
+      cache: createProjectSettingsCache(),
     },
     about: { isOpen: true, setOpen: vi.fn() },
     changelog: closedOverlay,

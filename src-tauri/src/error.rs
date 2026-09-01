@@ -112,6 +112,10 @@ pub(crate) enum AppErrorCode {
     RecoveryUnavailable,
     RecoveryConflict,
     RecoveryFailed,
+    IgnoreFileTooLarge,
+    IgnoreFileNotText,
+    StaleIgnoreFile,
+    IgnoreFileWriteFailed,
 }
 
 impl AppError {

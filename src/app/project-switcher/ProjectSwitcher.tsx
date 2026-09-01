@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Plus,
   Search,
+  Settings,
   Star,
   X,
 } from "lucide-react";
@@ -44,6 +45,15 @@ type ProjectSwitcherProps = {
   onCreate: () => void;
   onClone: () => void;
   onToggleFavourite: (id: string) => void;
+  /** Opens the settings that belong to one project — its remote, its ignored
+   * files and its identity. Activating first is the caller's job: those
+   * settings are read from an open project, so the panel is scoped to the
+   * project the app is actually looking at. */
+  onOpenProjectSettings: (id: string) => void;
+  /** Starts that project's settings read while the pointer is still on its way
+   * to the gear, so the panel opens with answers rather than a spinner.
+   * Optional: a surface that does not have it simply opens a little later. */
+  onPrefetchProjectSettings?: (id: string) => void;
 };
 
 /**
@@ -257,6 +267,8 @@ function ProjectSwitcherRows({
   onCreate,
   onClone,
   onToggleFavourite,
+  onOpenProjectSettings,
+  onPrefetchProjectSettings,
   // The rail's own popover leaves it out: its "+" sits right under the
   // trigger that opened the popover, so repeating it inside would be the same
   // control twice within 40px.
@@ -295,10 +307,30 @@ function ProjectSwitcherRows({
               </span>
               <RowIndicators entry={entry} />
             </button>
-            {/* Before Close, so the destructive control stays last in reading
-                and tab order. Always rendered rather than revealed on hover: a
-                marked favourite has to be readable without pointing at it, and
-                a hover-only control cannot be reached by keyboard at all. */}
+            {/* Settings, then favourite, then close: open it, configure it,
+                mark it, close it — with the destructive control last in
+                reading and tab order. The gear is disabled for exactly the
+                same reason the row is: reading a project's own settings means
+                switching to it first, which a blocking dialog forbids. */}
+            <button
+              type="button"
+              className="project-switcher__settings"
+              aria-label={t.projectSettingsOpenFor(accessibleName)}
+              data-tooltip={
+                !canSwitch && !isActive
+                  ? t.projectSwitcherSwitchBlockedHint
+                  : t.projectSettingsOpen
+              }
+              disabled={!canSwitch && !isActive}
+              onPointerEnter={() => onPrefetchProjectSettings?.(entry.id)}
+              onFocus={() => onPrefetchProjectSettings?.(entry.id)}
+              onClick={() => onOpenProjectSettings(entry.id)}
+            >
+              <Settings aria-hidden="true" />
+            </button>
+            {/* Always rendered rather than revealed on hover: a marked
+                favourite has to be readable without pointing at it, and a
+                hover-only control cannot be reached by keyboard at all. */}
             <button
               type="button"
               className={`project-switcher__favourite${entry.isFavourite ? " project-switcher__favourite--on" : ""}`}
@@ -481,6 +513,10 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
                     close(true);
                     props.onClose(id);
                   }}
+                  onOpenProjectSettings={(id) => {
+                    close(true);
+                    props.onOpenProjectSettings(id);
+                  }}
                 />
               ) : (
                 <p className="sidebar-project__empty">
@@ -615,6 +651,10 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
             onClose={(id) => {
               closeAndRestoreFocus();
               props.onClose(id);
+            }}
+            onOpenProjectSettings={(id) => {
+              closeAndRestoreFocus();
+              props.onOpenProjectSettings(id);
             }}
             onOpenAnother={() => {
               setIsOpen(false);

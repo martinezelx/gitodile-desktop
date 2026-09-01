@@ -15,6 +15,12 @@ import {
   type SettingsSection,
   type ThemePreference,
 } from "../features/settings";
+import {
+  ProjectSettingsPanel,
+  type ProjectSettingsCache,
+  type ProjectSettingsSection,
+  type ProjectSettingsTarget,
+} from "../features/project-settings";
 import { DialogCloseButton } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
@@ -57,6 +63,20 @@ export type AppOverlaysProps = {
     defaultBranch: DefaultBranchState;
     lineEndings: LineEndingsState;
   };
+  /** The per-project panel. `project` is null exactly when no project is open,
+   * which is also when nothing can open this dialog: every read behind it is
+   * repository-scoped and needs a live session epoch. */
+  projectSettings: {
+    isOpen: boolean;
+    setOpen: BooleanSetter;
+    project: (ProjectSettingsTarget & { name: string }) | null;
+    section: ProjectSettingsSection;
+    setSection: (section: ProjectSettingsSection) => void;
+    /** Kept by the shell because this dialog is unmounted on every close: it is
+     * what makes reopening it show the project's settings on the first frame
+     * instead of a spinner. */
+    cache: ProjectSettingsCache;
+  };
   about: { isOpen: boolean; setOpen: BooleanSetter };
   changelog: { isOpen: boolean; setOpen: BooleanSetter };
   shortcuts: { isOpen: boolean; setOpen: BooleanSetter };
@@ -81,6 +101,7 @@ export type AppOverlaysProps = {
 
 export function AppOverlays({
   settings,
+  projectSettings,
   about,
   changelog,
   shortcuts,
@@ -91,6 +112,7 @@ export function AppOverlays({
   const systemInfo = useSystemInfo();
   const [didCopyDiagnostics, setDidCopyDiagnostics] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const projectSettingsRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
   const shortcutsRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLDivElement>(null);
@@ -121,6 +143,27 @@ export function AppOverlays({
     setSettingsOpenRef.current(false);
   }, []);
 
+  /* The project panel guards its close the same way Settings does, and for the
+     same reason: an ignore file being edited is work the user would lose
+     without being asked. The guard returns true when it has taken the close
+     over, so the shell must not close behind it. */
+  const projectSettingsCloseGuardRef = useRef<(() => boolean) | null>(null);
+  const registerProjectSettingsCloseGuard = useCallback((guard: (() => boolean) | null) => {
+    projectSettingsCloseGuardRef.current = guard;
+  }, []);
+  const setProjectSettingsOpenRef = useRef(projectSettings.setOpen);
+  setProjectSettingsOpenRef.current = projectSettings.setOpen;
+  const closeProjectSettings = useCallback(() => {
+    projectSettingsCloseGuardRef.current = null;
+    setProjectSettingsOpenRef.current(false);
+  }, []);
+  const requestProjectSettingsClose = useCallback<BooleanSetter>(() => {
+    if (projectSettingsCloseGuardRef.current?.()) {
+      return;
+    }
+    setProjectSettingsOpenRef.current(false);
+  }, []);
+
   // Read off the settings props because that is where Git tooling already
   // lives; About reports it, it does not own it.
   const gitVersion =
@@ -144,6 +187,7 @@ export function AppOverlays({
   }, [didCopyDiagnostics]);
 
   useModalFocus(settings.isOpen, settingsRef, requestSettingsClose);
+  useModalFocus(projectSettings.isOpen, projectSettingsRef, requestProjectSettingsClose);
   useModalFocus(about.isOpen, aboutRef, about.setOpen);
   useModalFocus(shortcuts.isOpen, shortcutsRef, shortcuts.setOpen);
   useModalFocus(closeConfirmation.isOpen, closeRef, closeConfirmation.setOpen);
@@ -215,6 +259,50 @@ export function AppOverlays({
               lineEndingsState={settings.lineEndings}
               onClose={closeSettings}
               onRegisterCloseGuard={registerSettingsCloseGuard}
+            />
+          </div>
+        </div>
+      )}
+
+      {projectSettings.isOpen && projectSettings.project && (
+        <div
+          className="settings-backdrop"
+          role="presentation"
+          onMouseDown={() => requestProjectSettingsClose(false)}
+        >
+          <div
+            ref={projectSettingsRef}
+            className="settings-dialog project-settings-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-settings-dialog-title"
+            tabIndex={-1}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="settings-dialog__header">
+              <div className="settings-dialog__heading">
+                <h2 id="project-settings-dialog-title">{t.projectSettingsTitle}</h2>
+                {/* The project is named in the header rather than only in the
+                    body: this dialog looks like Settings, and the one thing it
+                    must never be mistaken for is Settings. */}
+                <p className="project-settings-dialog__project">{projectSettings.project.name}</p>
+              </div>
+              <DialogCloseButton
+                label={t.commonClose}
+                onClick={() => requestProjectSettingsClose(false)}
+              />
+            </header>
+            <ProjectSettingsPanel
+              project={{
+                path: projectSettings.project.path,
+                sessionEpoch: projectSettings.project.sessionEpoch,
+              }}
+              projectName={projectSettings.project.name}
+              cache={projectSettings.cache}
+              activeSection={projectSettings.section}
+              onSectionChange={projectSettings.setSection}
+              onClose={closeProjectSettings}
+              onRegisterCloseGuard={registerProjectSettingsCloseGuard}
             />
           </div>
         </div>

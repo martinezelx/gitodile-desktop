@@ -189,6 +189,7 @@ src-tauri/src/
   watch.rs                # filtered/debounced typed invalidation
   desktop.rs              # desktop-shell services
   tooling.rs              # Git diagnostics, install/update, identity, line endings
+  project_settings.rs     # one project's own identity and ignore files
   repository.rs
   clone.rs                # staged provider-neutral acquisition and verification
   initialize.rs           # local-project planning, ownership, and initialization
