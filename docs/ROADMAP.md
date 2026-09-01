@@ -159,6 +159,10 @@ restored safely.
     helper behavior for clone/fetch/publish, classify common provider-neutral
     failures, and give actionable remediation. Native provider login remains
     post-`1.0.0`.
+- **099 (completed 2026-09-01): Visual-system closure.** Audited every shipped screen, shell
+    region, menu, popover, dialog, control family, and representative state
+    against the settled radius and control-geometry system. Fix and guard all
+    drift before the final platform matrix.
 - **Q17 / 065-8: Release hardening and distribution.** Run the complete workflow
     matrix, accessibility and large-repository audits; validate real WebView
     behavior on all supported platforms; produce signed/notarized packages;
@@ -183,7 +187,8 @@ artifact being shipped.
 existing recovery records + 037 recovery contract
           └──────────────> 065-5 recovery center ──> 065-6
 
-all functional gates ──> 065-7 diagnostics ──> 065-8 release candidate
+all functional gates ──> 065-7 diagnostics ──> 099 visual closure
+          ──> 065-8 release candidate
 ```
 
 Task 064 discovery and create slices may be developed before task 037, but its

@@ -28,6 +28,21 @@ function readSource(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), "src", relativePath), "utf8");
 }
 
+type CssRule = { selector: string; body: string };
+
+function readRules(relativePath: string): CssRule[] {
+  return [...readSource(relativePath).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((match) => ({
+    selector: match[1].replace(/\/\*[\s\S]*?\*\//g, "").trim().replace(/\s+/g, " "),
+    body: match[2],
+  }));
+}
+
+function ruleBody(relativePath: string, selector: string): string {
+  const rule = readRules(relativePath).find((candidate) => candidate.selector === selector);
+  if (!rule) throw new Error(`${relativePath} does not define ${selector}`);
+  return rule.body;
+}
+
 describe("production style composition", () => {
   it("keeps the eager cascade order explicit and deterministic", () => {
     const styleEntry = readSource("styles.css");
@@ -198,5 +213,84 @@ describe("production style composition", () => {
     expect(control).toBe(item + 4);
     expect(surface).toBe(item + 8);
     expect(surface).toBe(control + 4);
+  });
+
+  it("keeps audited shape roles and concentric menu insets explicit", () => {
+    const expectedDeclarations = [
+      ["app/app-shell.css", ".titlebar-menu__list", "padding: var(--space-2)"],
+      ["app/app-shell.css", ".palette-list", "padding: var(--space-2)"],
+      ["app/app-shell.css", ".project-switcher-compact__popover", "padding: var(--space-2)"],
+      ["app/app-shell.css", ".sidebar-project__badge", "border-radius: var(--radius-pill)"],
+      ["features/clone/clone.css", ".clone-dialog__progress li > span", "border-radius: var(--radius-round)"],
+      ["features/initialize-project/initialize-project.css", ".initialize-dialog__progress li > svg, .initialize-dialog__progress li > span", "border-radius: var(--radius-round)"],
+      ["features/overview/overview.css", ".pending-versions__node", "border-radius: var(--radius-round)"],
+      ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
+      ["features/sync/sync.css", ".team-changes__endpoint > svg", "border-radius: var(--radius-round)"],
+      ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
+      ["features/version-lines/version-lines.css", ".version-line-row__details-toggle", "border-radius: var(--radius-pill)"],
+      ["features/version-lines/version-lines.css", ".version-lines-filter__clear", "border-radius: var(--radius-item)"],
+      ["features/version-lines/version-lines.css", ".version-lines-quick-switch__see-all", "border-radius: var(--radius-item)"],
+    ] as const;
+
+    for (const [file, selector, declaration] of expectedDeclarations) {
+      expect(ruleBody(file, selector), `${file}: ${selector}`).toContain(declaration);
+    }
+    expect(ruleBody("features/version-lines/version-lines.css", ".version-lines-filter__clear"))
+      .not.toContain("border-top");
+  });
+
+  it("keeps badges and chips capsule-shaped", () => {
+    const offenders: string[] = [];
+
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        if (!/(?:badge|chip)/.test(rule.selector) || !/border-radius:/.test(rule.body)) continue;
+        if (!rule.body.includes("border-radius: var(--radius-pill)")) {
+          offenders.push(`${relativePath}: ${rule.selector}`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("does not give button-like controls a link cursor", () => {
+    const pointerRules: string[] = [];
+
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        if (/cursor:\s*pointer/.test(rule.body)) {
+          pointerRules.push(`${relativePath}: ${rule.selector}`);
+        }
+      }
+    }
+
+    // This is deliberately styled as an underlined inline disclosure link;
+    // every ordinary button keeps the platform arrow cursor.
+    expect(pointerRules).toEqual([
+      "features/save-version/save-version.css: .save-version-detail__toggle",
+    ]);
+  });
+
+  it("keeps element defaults and layout-property motion out of the cascade", () => {
+    const primitives = readSource("shared/ui/primitives.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(primitives).not.toMatch(/(?:^|})\s*nav\s*\{/m);
+
+    const offenders: string[] = [];
+    const layoutProperty = /\b(?:width|height|top|right|bottom|left|margin|padding|gap|grid-template|flex-basis)\b/;
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        for (const transition of rule.body.matchAll(/transition(?:-property)?:\s*([^;}]+)/g)) {
+          if (layoutProperty.test(transition[1])) {
+            offenders.push(`${relativePath}: ${rule.selector} — ${transition[1].trim()}`);
+          }
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
   });
 });

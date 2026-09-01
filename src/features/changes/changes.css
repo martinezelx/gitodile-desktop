@@ -130,7 +130,7 @@
 .changes-notice__dismiss {
   flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 26px;
   border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--text-secondary); cursor: pointer;
+  color: var(--text-secondary);
 }
 .changes-notice__dismiss:hover { background: var(--surface-active); color: var(--text-primary); }
 .changes-notice__dismiss svg { width: 15px; height: 15px; }
@@ -269,11 +269,8 @@
 .changes-file-list {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface); background: var(--surface-panel);
-  /* This panel is a <nav>, and the global `nav { display: grid; gap: 6px }`
-     rule's gap survives the switch to flex — it was silently adding 6px
-     between every strip here, which is exactly what stopped this column from
-     lining up with the diff panel's (a plain <div>, so no such gap). The
-     strips own their spacing through padding. */
+  /* The strips own their spacing through padding; the panel itself must not
+     insert gutters between the paired list and diff headers. */
   gap: 0;
 }
 .changes-file-list__selection {
@@ -628,4 +625,5 @@
     width: 44px;
     min-width: 44px;
   }
+  .changes-notice__dismiss { width: 44px; height: 44px; }
 }

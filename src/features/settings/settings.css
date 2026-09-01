@@ -134,7 +134,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
   margin-top: var(--space-3); padding: var(--space-3) var(--space-4);
   border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-surface);
   background: color-mix(in srgb, var(--status-warning) 10%, transparent);
 }
 .identity-block__confirm strong { display: block; margin-bottom: 2px; font-size: 13.5px; }
@@ -252,5 +252,6 @@
 
 @media (pointer: coarse) {
   .navigation-destination__move-buttons { opacity: 1; }
-  .navigation-destination__handle { width: 44px; height: 44px; }
+  .navigation-destination__handle,
+  .navigation-destination__move-button { width: 44px; height: 44px; }
 }

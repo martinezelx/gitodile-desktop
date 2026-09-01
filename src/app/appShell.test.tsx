@@ -94,4 +94,37 @@ describe("CommandPalette", () => {
     expect(openSettings).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("closes before running an action and dismisses when the project context changes", async () => {
+    const user = userEvent.setup();
+    const events: string[] = [];
+    const onClose = vi.fn(() => events.push("close"));
+    const { rerender } = render(
+      <LanguageProvider>
+        <CommandPalette
+          isOpen
+          onClose={onClose}
+          contextKey="project-a"
+          commands={[{ id: "switch", label: "Switch project", action: () => events.push("action") }]}
+        />
+      </LanguageProvider>,
+    );
+
+    await user.keyboard("{Enter}");
+    expect(events).toEqual(["close", "action"]);
+
+    onClose.mockClear();
+    rerender(
+      <LanguageProvider>
+        <CommandPalette
+          isOpen
+          onClose={onClose}
+          contextKey="project-b"
+          commands={[]}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });

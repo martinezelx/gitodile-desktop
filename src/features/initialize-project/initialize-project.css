@@ -172,7 +172,7 @@
 .initialize-dialog__progress ol { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .initialize-dialog__progress li { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; color: var(--text-secondary); font-size: 13px; }
 .initialize-dialog__progress li > svg,
-.initialize-dialog__progress li > span { width: 24px; height: 24px; padding: 5px; border-radius: var(--radius-pill); background: var(--surface-hover); }
+.initialize-dialog__progress li > span { width: 24px; height: 24px; padding: 5px; border-radius: var(--radius-round); background: var(--surface-hover); }
 .initialize-dialog__progress li.is-current { color: var(--text-primary); font-weight: 700; }
 .initialize-dialog__progress li.is-current > svg { background: var(--surface-active); color: var(--accent-primary); animation: initialize-spin 900ms linear infinite; }
 .initialize-dialog__progress li.is-complete > svg { color: var(--status-success); }

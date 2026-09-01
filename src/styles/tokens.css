@@ -13,7 +13,7 @@
        item 10 + 8 padding = surface 18   (a menu and its rows)
        control 14 + 4 padding = surface 18 (a toolbar hugging its buttons)  */
   --radius-item: 10px;    /* a row or option living inside a container */
-  --radius-control: 14px; /* anything pressed or typed into, and icon tiles ≥40px */
+  --radius-control: 14px; /* multiline controls and attached icon tiles ≥40px */
   --radius-surface: 18px; /* a container with its own background: card, dialog, popover, notice */
   --radius-pill: 999px;   /* a capsule: badge, count, short-text chip */
   --radius-round: 50%;    /* a circle: avatar, single-glyph control */

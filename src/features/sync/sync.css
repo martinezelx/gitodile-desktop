@@ -83,7 +83,7 @@
   width: 28px;
   height: 28px;
   padding: 6px;
-  border-radius: var(--radius-item);
+  border-radius: var(--radius-round);
   background: var(--surface-hover);
   color: var(--text-secondary);
 }

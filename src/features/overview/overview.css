@@ -312,7 +312,7 @@
   margin-top: 7px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-round);
   background: var(--surface-raised);
   color: var(--text-secondary);
 }
@@ -627,7 +627,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   height: 12px;
   place-self: center;
   border: 2px solid var(--accent-primary);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-round);
   background: var(--surface-raised);
   box-shadow: 0 0 0 3px var(--surface-raised);
   transition: background-color var(--duration-fast) ease-out, transform var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
@@ -1021,7 +1021,6 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 }
 
 @media (pointer: coarse) {
-  .project-switcher__close,
   .project-switcher-compact__trigger,
   .compact-history-controls .titlebar-icon-button,
   .project-summary-card__identity .project-path__copy {
@@ -1037,6 +1036,11 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   .project-summary-card .version-lines-quick-switch__create {
     width: 44px;
     min-width: 44px;
+  }
+  .welcome-recents__favourite,
+  .welcome-recents__forget {
+    width: 44px;
+    height: 44px;
   }
 }
 

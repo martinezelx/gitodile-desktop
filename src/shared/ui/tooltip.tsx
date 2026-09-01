@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /** Default tooltip for the whole app: put the text in `data-tooltip` on any
@@ -16,6 +16,12 @@ interface TooltipState {
   rect: DOMRect;
 }
 
+interface TooltipPlacement {
+  above: boolean;
+  left: number;
+  top: number;
+}
+
 /** A tooltip that only repeats text the element already shows in full is
  * noise — it fires on every hover and tells the reader nothing new. The
  * common case is truncated text (a long path with an ellipsis), where the
@@ -30,15 +36,24 @@ function isRedundant(target: HTMLElement, text: string): boolean {
 
 export function TooltipHost(): React.JSX.Element | null {
   const [state, setState] = useState<TooltipState | null>(null);
+  const [placement, setPlacement] = useState<TooltipPlacement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let showTimer: number | undefined;
+    let activeTarget: HTMLElement | null = null;
 
     const clearShowTimer = () => {
       if (showTimer !== undefined) {
         window.clearTimeout(showTimer);
         showTimer = undefined;
       }
+    };
+
+    const clearTooltip = () => {
+      clearShowTimer();
+      activeTarget = null;
+      setState(null);
     };
 
     const onOver = (event: Event) => {
@@ -49,6 +64,8 @@ export function TooltipHost(): React.JSX.Element | null {
       if (isRedundant(target, text)) return;
       clearShowTimer();
       showTimer = window.setTimeout(() => {
+        if (!target.isConnected) return;
+        activeTarget = target;
         setState({ text, rect: target.getBoundingClientRect() });
       }, SHOW_DELAY_MS);
     };
@@ -56,47 +73,84 @@ export function TooltipHost(): React.JSX.Element | null {
     const onOut = (event: Event) => {
       const target = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-tooltip]");
       if (!target) return;
-      clearShowTimer();
-      setState(null);
+      clearTooltip();
     };
 
-    const onScrollOrResize = () => {
-      clearShowTimer();
-      setState(null);
+    const onDocumentChange = () => {
+      if (activeTarget && (!activeTarget.isConnected || !activeTarget.hasAttribute("data-tooltip"))) {
+        clearTooltip();
+      }
     };
+
+    const observer = new MutationObserver(onDocumentChange);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-tooltip"],
+    });
 
     document.addEventListener("mouseover", onOver);
     document.addEventListener("mouseout", onOut);
     document.addEventListener("focusin", onOver);
     document.addEventListener("focusout", onOut);
-    window.addEventListener("scroll", onScrollOrResize, true);
-    window.addEventListener("resize", onScrollOrResize);
+    document.addEventListener("pointerdown", clearTooltip, true);
+    document.addEventListener("keydown", clearTooltip, true);
+    document.addEventListener("visibilitychange", clearTooltip);
+    window.addEventListener("scroll", clearTooltip, true);
+    window.addEventListener("resize", clearTooltip);
+    window.addEventListener("blur", clearTooltip);
     return () => {
       clearShowTimer();
+      observer.disconnect();
       document.removeEventListener("mouseover", onOver);
       document.removeEventListener("mouseout", onOut);
       document.removeEventListener("focusin", onOver);
       document.removeEventListener("focusout", onOut);
-      window.removeEventListener("scroll", onScrollOrResize, true);
-      window.removeEventListener("resize", onScrollOrResize);
+      document.removeEventListener("pointerdown", clearTooltip, true);
+      document.removeEventListener("keydown", clearTooltip, true);
+      document.removeEventListener("visibilitychange", clearTooltip);
+      window.removeEventListener("scroll", clearTooltip, true);
+      window.removeEventListener("resize", clearTooltip);
+      window.removeEventListener("blur", clearTooltip);
     };
   }, []);
 
+  useLayoutEffect(() => {
+    const tooltip = tooltipRef.current;
+    if (!state || !tooltip) return;
+
+    const width = tooltip.offsetWidth;
+    const height = tooltip.offsetHeight;
+    const centerX = state.rect.left + state.rect.width / 2;
+    const halfWidth = width / 2;
+    const left = Math.min(
+      Math.max(centerX, VIEWPORT_MARGIN + halfWidth),
+      window.innerWidth - VIEWPORT_MARGIN - halfWidth,
+    );
+    const spaceAbove = state.rect.top - VIEWPORT_MARGIN;
+    const spaceBelow = window.innerHeight - state.rect.bottom - VIEWPORT_MARGIN;
+    const above = spaceAbove >= height || spaceAbove >= spaceBelow;
+    const top = above
+      ? state.rect.top - VIEWPORT_MARGIN
+      : state.rect.bottom + VIEWPORT_MARGIN;
+
+    setPlacement({ above, left, top });
+  }, [state]);
+
   if (!state) return null;
 
-  const above = state.rect.top >= 48;
-  const top = above ? state.rect.top - VIEWPORT_MARGIN : state.rect.bottom + VIEWPORT_MARGIN;
-  const centerX = state.rect.left + state.rect.width / 2;
-  const halfWidth = 160;
-  const left = Math.min(
-    Math.max(centerX, VIEWPORT_MARGIN + halfWidth),
-    window.innerWidth - VIEWPORT_MARGIN - halfWidth,
-  );
+  const above = placement?.above ?? false;
 
   return createPortal(
     <div
+      ref={tooltipRef}
       className={`app-tooltip${above ? " app-tooltip--above" : " app-tooltip--below"}`}
-      style={{ top, left }}
+      style={{
+        left: placement?.left ?? 0,
+        top: placement?.top ?? 0,
+        visibility: placement ? "visible" : "hidden",
+      }}
       role="presentation"
     >
       {state.text}

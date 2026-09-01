@@ -36,6 +36,8 @@ is the authoritative release sequence and capability cut.
 
 - Deliver child tasks 065-1 through 065-8 in roadmap order.
 - Complete existing tasks 015, 037, and 064 at their defined dependency points.
+- Close the settled visual system across the release-candidate surface in task
+  099 before final platform and distribution hardening.
 - Keep the `1.0.0` contract provider-neutral and local-first.
 - Maintain a release checklist mapping every advertised capability to automated
   tests and actual desktop evidence.
@@ -53,7 +55,7 @@ is the authoritative release sequence and capability cut.
 # Acceptance criteria
 
 - [ ] Gates 0–4 in `docs/ROADMAP.md` are complete in dependency order.
-- [ ] Tasks 015, 037, 064, and 065-1 through 065-8 are done with their own
+- [ ] Tasks 015, 037, 064, 099, and 065-1 through 065-8 are done with their own
       validation recorded.
 - [ ] The release capability matrix has no unsupported path presented as
       working and no required path dependent on the terminal.
@@ -74,6 +76,7 @@ is the authoritative release sequence and capability cut.
 - `work/done/015-history-timeline.md`
 - `work/active/037-guided-conflict-resolution.md`
 - `work/active/064-set-changes-aside-safely.md`
+- `work/done/099-close-the-visual-system-refactor.md`
 
 # Dependencies
 

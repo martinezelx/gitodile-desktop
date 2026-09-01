@@ -2210,7 +2210,12 @@ export function App(): React.JSX.Element {
         </div>
       )}
 
-      <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} commands={commands} />
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={closePalette}
+        commands={commands}
+        contextKey={sessionsState.activeId}
+      />
 
       <CloneDialog
         isOpen={isCloneOpen}

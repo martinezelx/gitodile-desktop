@@ -24,7 +24,6 @@
   mask: url("../../assets/gitodrile-mark.svg") center / contain no-repeat;
 }
 
-nav { display: grid; gap: 6px; }
 .auto-hide-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
 .auto-hide-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .auto-hide-scrollbar::-webkit-scrollbar-thumb {
@@ -353,6 +352,16 @@ nav { display: grid; gap: 6px; }
 }
 
 @media (pointer: coarse) {
+  .primary-button,
+  .secondary-button,
+  .ghost-button,
+  .app-menu__item,
+  .segmented-control__option,
+  .choice-list__option,
+  .text-field input {
+    min-height: 44px;
+  }
+  .dialog-close-button { width: 44px; height: 44px; }
   .toggle-switch { width: 52px; height: 44px; padding: 6px; }
   .toggle-switch__knob { width: 30px; height: 30px; }
   .toggle-switch--on .toggle-switch__knob { transform: translateX(10px); }
@@ -385,8 +394,6 @@ nav { display: grid; gap: 6px; }
   background: var(--surface-raised);
 }
 .settings-nav {
-  /* `display: grid` used to be inherited from the `nav` element rule in
-     shared primitives; the rail is a tablist now, so it declares its own. */
   display: grid; align-content: start; gap: 4px; padding: 20px 14px;
   background: var(--surface-raised);
 }
@@ -493,7 +500,7 @@ nav { display: grid; gap: 6px; }
 .choice-list__option {
   display: grid; gap: 3px; padding: 10px var(--space-3); text-align: left;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
-  background: var(--surface-raised); color: var(--text-primary); cursor: pointer;
+  background: var(--surface-raised); color: var(--text-primary);
 }
 .choice-list__option:hover:not(:disabled) { background: var(--surface-hover); }
 .choice-list__option:disabled { cursor: default; opacity: 0.6; }

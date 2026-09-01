@@ -14,15 +14,20 @@ export function CommandPalette({
   isOpen,
   onClose,
   commands,
+  contextKey,
 }: {
   isOpen: boolean;
   onClose: () => void;
   commands: AppCommand[];
+  /** Changing projects invalidates the action list and dismisses the transient
+   * palette even when the switch came from somewhere other than the palette. */
+  contextKey?: string | null;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const previousContextKeyRef = useRef(contextKey);
   const filtered = commands.filter((command) =>
     command.label.toLowerCase().includes(query.toLowerCase()),
   );
@@ -35,12 +40,19 @@ export function CommandPalette({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (previousContextKeyRef.current !== contextKey && isOpen) {
+      onClose();
+    }
+    previousContextKeyRef.current = contextKey;
+  }, [contextKey, isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const runCommand = (command: AppCommand | undefined): void => {
     if (!command) return;
-    command.action();
     onClose();
+    command.action();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
