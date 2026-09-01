@@ -21,7 +21,7 @@ an actions row — instead of a bare 24px icon floating above the headline.
 # User outcome
 
 The two states someone actually meets on a new or unreadable project look like
-the rest of GitOdrile rather than like an unfinished panel, and an error is
+the rest of GitOdile rather than like an unfinished panel, and an error is
 marked as one by colour instead of only by its wording.
 
 # Context

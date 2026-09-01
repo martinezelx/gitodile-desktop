@@ -83,7 +83,7 @@ const freshBehindTeamSync: TeamSyncStatus = {
   stateToken: "fresh-behind",
 };
 
-/** Ahead *and* behind. GitOdrile's update is fast-forward-only, and Rust offers
+/** Ahead *and* behind. GitOdile's update is fast-forward-only, and Rust offers
  * no "review and get" next action for this state, so nothing should be
  * recorded about it. */
 const divergedTeamSync: TeamSyncStatus = {
@@ -376,9 +376,9 @@ describe("ProjectPath", () => {
 
 describe("App project restoration", () => {
   it("wires the status bar to the active project and its remote check", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
     mockedInvoke.mockImplementation((command) => {
@@ -421,7 +421,7 @@ describe("App project restoration", () => {
 
     // The version tag is the changelog's entry point; About moved to the mark.
     await userEvent.click(
-      within(statusBar).getByRole("button", { name: "What's new in GitOdrile v0.1.0 alpha" }),
+      within(statusBar).getByRole("button", { name: "What's new in GitOdile v0.1.0 alpha" }),
     );
     const changelog = screen.getByRole("dialog", { name: "What's new" });
     expect(within(changelog).getByRole("heading", { name: "v0.1.0" })).toBeInTheDocument();
@@ -433,10 +433,10 @@ describe("App project restoration", () => {
   });
 
   it("records both outcomes of an automatic check, and offers the review flow from the notification", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
-    localStorage.setItem("gitodrile-remote-check-interval", "1");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-remote-check-interval", "1");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
     mockedInvoke.mockImplementation((command) => {
@@ -550,9 +550,9 @@ describe("App project restoration", () => {
   });
 
   it("keeps the notification bell beside the window controls and records nothing for a manual check", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
     mockedInvoke.mockImplementation((command) => {
@@ -598,7 +598,7 @@ describe("App project restoration", () => {
   });
 
   it("opens the collapsed-rail jump menu on hover without taking the caret", async () => {
-    localStorage.setItem("gitodrile-sidebar-hidden", "true");
+    localStorage.setItem("gitodile-sidebar-hidden", "true");
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") {
         return Promise.resolve({ state: "available", version: "2.50.0" });
@@ -682,7 +682,7 @@ describe("App project restoration", () => {
 
   it("offers recent projects on the welcome screen, opens one, and forgets one", async () => {
     localStorage.setItem(
-      "gitodrile-recent-projects",
+      "gitodile-recent-projects",
       JSON.stringify({
         version: 1,
         entries: [
@@ -724,7 +724,7 @@ describe("App project restoration", () => {
 
     await user.click(screen.getByRole("button", { name: `Remove ${secondProject.name} from recent projects` }));
     expect(screen.queryByRole("button", { name: secondProject.name })).not.toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem("gitodrile-recent-projects") ?? "{}")).toEqual({
+    expect(JSON.parse(localStorage.getItem("gitodile-recent-projects") ?? "{}")).toEqual({
       version: 1,
       entries: [{ path: restoredProject.path, name: restoredProject.name }],
     });
@@ -746,7 +746,7 @@ describe("App project restoration", () => {
 
   it("keeps a favourite recent above newer ones, sharing the switcher's own store", async () => {
     localStorage.setItem(
-      "gitodrile-recent-projects",
+      "gitodile-recent-projects",
       JSON.stringify({
         version: 1,
         entries: [
@@ -781,7 +781,7 @@ describe("App project restoration", () => {
     );
 
     // The mark is the app's own project favourite, not a row-local flag.
-    expect(JSON.parse(localStorage.getItem("gitodrile-favourite-projects") ?? "[]")).toEqual([
+    expect(JSON.parse(localStorage.getItem("gitodile-favourite-projects") ?? "[]")).toEqual([
       restoredProject.path,
     ]);
     const star = screen.getByRole("button", {
@@ -815,7 +815,7 @@ describe("App project restoration", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     localStorage.setItem(
-      "gitodrile-recent-projects",
+      "gitodile-recent-projects",
       JSON.stringify({ version: 1, entries: [{ path: restoredProject.path, name: restoredProject.name }] }),
     );
     render(
@@ -827,7 +827,7 @@ describe("App project restoration", () => {
     await userEvent.click(screen.getAllByRole("button", { name: "Open a project" }).at(-1)!);
 
     await waitFor(() =>
-      expect(JSON.parse(localStorage.getItem("gitodrile-recent-projects") ?? "{}")).toEqual({
+      expect(JSON.parse(localStorage.getItem("gitodile-recent-projects") ?? "{}")).toEqual({
         version: 1,
         entries: [
           { path: secondProject.path, name: secondProject.name },
@@ -1007,12 +1007,12 @@ describe("App project restoration", () => {
   });
 
   it("re-reads the open project once when watching is turned back on", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     // Launched with watching off, so the restored project is as stale as
     // whatever happened on disk while the app was closed.
-    localStorage.setItem("gitodrile-watch-projects", "false");
+    localStorage.setItem("gitodile-watch-projects", "false");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
 
@@ -1059,7 +1059,7 @@ describe("App project restoration", () => {
     // Re-registering only catches what changes next, so turning it back on
     // has to close the gap itself — without the project being reopened.
     await waitFor(() => expect(statusReads).toBe(readsBeforeToggle + 1));
-    expect(localStorage.getItem("gitodrile-watch-projects")).toBe("true");
+    expect(localStorage.getItem("gitodile-watch-projects")).toBe("true");
   });
 
   it("animates a theme change by where it was asked for", async () => {
@@ -1112,9 +1112,9 @@ describe("App project restoration", () => {
   });
 
   it("does not overwrite stored projects before startup revalidation completes", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({
         version: 1,
         order: [restoredProject.path],
@@ -1166,7 +1166,7 @@ describe("App project restoration", () => {
         path: restoredProject.path,
       }),
     );
-    expect(JSON.parse(localStorage.getItem("gitodrile-projects") ?? "{}")).toEqual({
+    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}")).toEqual({
       version: 1,
       order: [restoredProject.path],
       activeId: restoredProject.path,
@@ -1177,7 +1177,7 @@ describe("App project restoration", () => {
       await screen.findByRole("heading", { name: restoredProject.name }),
     ).toBeInTheDocument();
     await waitFor(() =>
-      expect(JSON.parse(localStorage.getItem("gitodrile-projects") ?? "{}")).toEqual({
+      expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}")).toEqual({
         version: 1,
         order: [restoredProject.path],
         activeId: restoredProject.path,
@@ -1186,9 +1186,9 @@ describe("App project restoration", () => {
   });
 
   it("refreshes a project's local status whenever it becomes active", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({
         version: 1,
         order: [restoredProject.path, secondProject.path],
@@ -1262,9 +1262,9 @@ describe("App project restoration", () => {
   });
 
   it("keeps the global remote check narrow and refreshes local facts after a completed team update", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
 
@@ -1377,9 +1377,9 @@ describe("App project restoration", () => {
   });
 
   it("keeps a screen mounted when you navigate away from it and back", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
 
@@ -1456,10 +1456,10 @@ describe("App project restoration", () => {
   });
 
   it("rejects an old branch response after the same project is closed and reopened", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
-    localStorage.setItem("gitodrile-confirm-close-project", "false");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-confirm-close-project", "false");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
     mockedOpenFolderDialog.mockResolvedValue(restoredProject.path);
@@ -1599,9 +1599,9 @@ describe("App project restoration", () => {
   });
 
   it("reopens Overview's version-line menu from cache, with no spinner", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
 
@@ -1656,9 +1656,9 @@ describe("App project restoration", () => {
   });
 
   it("replaces Overview's switch dialog instead of stacking a second one on top", async () => {
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
-      "gitodrile-projects",
+      "gitodile-projects",
       JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
     );
 

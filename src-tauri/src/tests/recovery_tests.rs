@@ -200,9 +200,9 @@ fn conflicted_index_is_recovered_byte_for_byte() {
     assert!(!git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "merge",
             "other",
         ])

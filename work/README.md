@@ -1,6 +1,6 @@
 # Local work management
 
-GitOdrile tracks product and engineering work inside this directory. The repository is the source of truth; external issue trackers are optional mirrors, never required context.
+GitOdile tracks product and engineering work inside this directory. The repository is the source of truth; external issue trackers are optional mirrors, never required context.
 
 ## Structure
 

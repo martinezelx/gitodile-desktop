@@ -8,7 +8,7 @@
 Discarding unsaved work can replace tracked files, remove new files, resolve an
 index conflict, and overwrite staged state. A Git ref cannot represent
 untracked files or the index's conflict stages, while a stash mutates the real
-working tree and index as part of creating the recovery point. GitOdrile needs
+working tree and index as part of creating the recovery point. GitOdile needs
 to create recovery before mutation, preserve the user's branch history and Git
 configuration, work without an identity, and survive an application restart.
 
@@ -47,7 +47,7 @@ records involved in the current operation are excluded from cleanup.
 
 Restore is deliberately conservative. It runs under the repository mutation
 lock and requires the current working-tree/index fingerprint to match the
-discard's verified after-state. If anything changed, GitOdrile preserves the
+discard's verified after-state. If anything changed, GitOdile preserves the
 record and refuses automatic restore rather than overwrite newer work. A
 successful restore copies the saved index and path states back, verifies the
 before-state, and keeps the record available for the future Recovery screen.
@@ -74,7 +74,7 @@ names.
 - Automatic restore refuses after any repository-state change. This is more
   conservative than merging a recovery into newer work, but it never silently
   overwrites that work.
-- Restoring filesystem metadata is limited to portable metadata GitOdrile can
+- Restoring filesystem metadata is limited to portable metadata GitOdile can
   reproduce. Unsupported special files fail safely.
 
 ## Alternatives considered
@@ -91,4 +91,4 @@ names.
   Rejected because none preserves all required states consistently across
   Windows, macOS and Linux.
 - **Require confirmation but provide no recovery.** Rejected because it does
-  not meet GitOdrile's safety promise for a destructive operation.
+  not meet GitOdile's safety promise for a destructive operation.

@@ -17,7 +17,7 @@ queue: "17"
 
 # Goal
 
-Audit every shipped GitOdrile surface against the settled Friendly Card visual
+Audit every shipped GitOdile surface against the settled Friendly Card visual
 system, fix all drift left by or introduced after the radius/control-geometry
 refactor, and leave one coherent, enforceable component language before release
 hardening begins.

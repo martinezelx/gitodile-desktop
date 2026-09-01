@@ -100,7 +100,7 @@
 }
 .window-titlebar__mark:hover { color: color-mix(in srgb, var(--accent-primary) 76%, var(--text-primary)); }
 .window-titlebar__mark:active { transform: scale(0.94); }
-.window-titlebar__mark .gitodrile-mark { width: 24px; height: 13px; }
+.window-titlebar__mark .gitodile-mark { width: 24px; height: 13px; }
 /* No wordmark beside it. The mark is the identity at every width, and the
    width where a second name used to appear — under 800px, with the rail gone
    and the compact nav in its place — is the one with the least room to spare
@@ -1024,7 +1024,7 @@
    `--accent-primary` measures 5.39:1 on the light dialog surface and 8.99:1 on
    the dark one, so the silhouette carries without the tile it used to sit in. */
 .about-dialog__mark { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px; color: var(--accent-primary); }
-.about-dialog__mark .gitodrile-mark { width: 44px; height: 23px; }
+.about-dialog__mark .gitodile-mark { width: 44px; height: 23px; }
 .about-dialog__copy {
   width: 100%; margin-top: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   font-size: 13px;

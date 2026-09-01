@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "gitodrile-dev",
+      "name": "gitodile-dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "dev"],
       "port": 1420

@@ -6,7 +6,7 @@
 ## Context
 
 Task 023 set a release memory budget of "> 300 MiB working set" as a warning and
-"> 400 MiB working set" as a failure for the GitOdrile process tree, and recorded
+"> 400 MiB working set" as a failure for the GitOdile process tree, and recorded
 that it had no release baseline yet. Task 031 could not close epic 022 without
 either satisfying that budget or explicitly revising it.
 
@@ -24,13 +24,13 @@ every visited screen mounted — the keep-alive behavior this budget existed to
 police — costs 10.5 MiB working set and 9.6 MiB private, roughly 2.5% of the
 total.
 
-The reason is how Windows reports working set. GitOdrile runs as seven processes
+The reason is how Windows reports working set. GitOdile runs as seven processes
 (the Tauri host plus a WebView2 browser, GPU, network, renderer and utility
 tree). `WorkingSet64` counts every page currently resident for each process,
 including pages shared between them and the mapped code of the WebView2 runtime
 itself. Summing it across a seven-process tree counts those shared pages up to
 seven times. The number therefore measures how Microsoft ships WebView2, not
-what GitOdrile allocates, and no amount of screen-retention work moves it.
+what GitOdile allocates, and no amount of screen-retention work moves it.
 
 `PrivateMemorySize64` counts only pages that cannot be shared. It is not
 inflated by process count, it responds to the application's own allocations, and
@@ -52,7 +52,7 @@ Two measurement rules are now normative, because getting either wrong produced a
 wrong answer during this audit:
 
 1. **Scope the sample to the application's own process tree** by walking
-   `Win32_Process` parent links from `gitodrile.exe`. A machine-wide query for
+   `Win32_Process` parent links from `gitodile.exe`. A machine-wide query for
    `msedgewebview2` also captures every unrelated WebView2 host — during this
    audit that inflated the reading from 405 MiB to 720 MiB.
 2. **Confirm exactly one instance is running.** Two live instances silently sum
@@ -66,7 +66,7 @@ either number here.
 
 ## Consequences
 
-- Epic 022 closes on a measured number that reflects GitOdrile's own memory
+- Epic 022 closes on a measured number that reflects GitOdile's own memory
   rather than WebView2's baseline residency.
 - A future screen that leaks retained state fails the private-bytes budget,
   which is the regression the original budget was written to catch.
@@ -94,6 +94,6 @@ retention regression.
 
 ### Measure a single process instead of the tree
 
-Rejected. The renderer holding GitOdrile's retained screens is a child process;
+Rejected. The renderer holding GitOdile's retained screens is a child process;
 measuring only the Tauri host would miss exactly what the budget exists to
 watch.

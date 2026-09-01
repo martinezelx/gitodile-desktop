@@ -4,11 +4,14 @@ import { invoke } from "@tauri-apps/api/core";
 
 import { LanguageProvider } from "./i18n";
 import { App } from "./app/App";
+import { migrateLegacyBrandStorage } from "./app/brandMigration";
 import { repairEagerlyStoredDefaults } from "./app/preferences";
 import { SwitchMeasurementRoot } from "./app/screens";
 import "./styles/fonts.css";
 
-// Before the first render reads any preference, and exactly once per machine.
+// Before the first render reads any preference. The brand migration retains
+// the old values for rollback; default repair then operates on the new keys.
+migrateLegacyBrandStorage();
 repairEagerlyStoredDefaults();
 
 document.addEventListener("contextmenu", (event) => {

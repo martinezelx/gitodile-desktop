@@ -1,6 +1,6 @@
 ---
 id: 065
-title: Reach a trustworthy GitOdrile 1.0.0
+title: Reach a trustworthy GitOdile 1.0.0
 status: active
 priority: high
 type: epic
@@ -17,7 +17,7 @@ completed:
 # Goal
 
 Close the ordinary provider-neutral desktop Git workflow, prove it end to end,
-and ship verified installable artifacts as GitOdrile `1.0.0`.
+and ship verified installable artifacts as GitOdile `1.0.0`.
 
 # User outcome
 
@@ -27,7 +27,7 @@ mistakes, and keep unfinished work for later without using a terminal.
 
 # Context
 
-GitOdrile already contains most of the safe local commit and fast-forward sync
+GitOdile already contains most of the safe local commit and fast-forward sync
 loop. The remaining work must be sequenced around dependencies rather than
 implemented as unrelated screens. [`docs/ROADMAP.md`](../../../docs/ROADMAP.md)
 is the authoritative release sequence and capability cut.

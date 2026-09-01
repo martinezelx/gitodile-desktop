@@ -15,13 +15,13 @@ queue:
 
 # Goal
 
-Dragging a folder onto the GitOdrile window opens it as a project, with an
+Dragging a folder onto the GitOdile window opens it as a project, with an
 overlay that says so while the drag is still in the air.
 
 # User outcome
 
 The gesture people already try first works. Someone with a file manager open
-beside GitOdrile drops the folder instead of navigating to it again through a
+beside GitOdile drops the folder instead of navigating to it again through a
 picker, and sees before letting go what the drop will do.
 
 # Context

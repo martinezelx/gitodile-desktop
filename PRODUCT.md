@@ -8,7 +8,7 @@ adaptive
 
 ## Users
 
-GitOdrile is primarily for people who work in software repositories without
+GitOdile is primarily for people who work in software repositories without
 deep Git knowledge: learners, junior developers, students, AI-assisted
 builders, designers, writers, game developers, freelancers, and other
 collaborators who need version control but do not want Git terminology to be
@@ -17,14 +17,14 @@ a secondary audience.
 
 ## Product Purpose
 
-GitOdrile is a cross-platform desktop Git client that translates user intent
+GitOdile is a cross-platform desktop Git client that translates user intent
 into understandable, safe Git operations. Success means users can save,
 publish, integrate, experiment, and recover without fear of losing work or
 needing to understand Git internals first.
 
 ## Positioning
 
-GitOdrile provides modern version control without the Git learning curve. It
+GitOdile provides modern version control without the Git learning curve. It
 does not merely map Git commands to buttons: it explains consequences,
 preserves recovery paths, and exposes exact Git terminology progressively.
 
@@ -55,7 +55,7 @@ must not depend on any one editor, provider, cloud account, or subscription.
 
 ## Brand Commitments
 
-The working name is **GitOdrile** and the working promise is **Git without the
+The working name is **GitOdile** and the working promise is **Git without the
 bite**. The product voice is calm, direct, professional, and friendly without
 being patronizing. The crocodile mark and mascot may add restrained personality
 but must not trivialize errors or destructive operations.
@@ -65,7 +65,7 @@ but must not trivialize errors or destructive operations.
 - Durable product strategy: `docs/PRODUCT_STRATEGY.md`.
 - Interaction and visual direction: `DESIGN.md`.
 - Architecture and safety rules: `docs/ARCHITECTURE.md` and `AGENTS.md`.
-- Existing product mark: `src/assets/gitodrile-mark.svg`.
+- Existing product mark: `src/assets/gitodile-mark.svg`.
 - Existing Overview, Changes, save-version, publish, project-session, watcher,
   and version-line implementations and tests under `src/` and
   `src-tauri/src/`.

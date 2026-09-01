@@ -31,12 +31,12 @@ import {
 export type Language = "en" | "es";
 export type LanguagePreference = "system" | Language;
 
-const LANGUAGE_STORAGE_KEY = "gitodrile-language";
+const LANGUAGE_STORAGE_KEY = "gitodile-language";
 /* Dates and numbers are stored beside the language and read by the same
    provider: they answer the same question — how this interface reads — and a
    surface that has one always wants the others. */
-const DATE_FORMAT_STORAGE_KEY = "gitodrile-date-format";
-const NUMBER_FORMAT_STORAGE_KEY = "gitodrile-number-format";
+const DATE_FORMAT_STORAGE_KEY = "gitodile-date-format";
+const NUMBER_FORMAT_STORAGE_KEY = "gitodile-number-format";
 
 // Names of the languages themselves are shown in their own language
 // regardless of the active UI language, so they stay outside the dictionaries.

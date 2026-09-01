@@ -1,6 +1,6 @@
 # Desktop measurement probes
 
-These drive a packaged GitOdrile build over the Chrome DevTools Protocol to
+These drive a packaged GitOdile build over the Chrome DevTools Protocol to
 collect the numbers in
 [`docs/architecture/023-performance-baseline.md`](../docs/architecture/023-performance-baseline.md).
 They are development tooling and are deliberately **not** wired into
@@ -14,7 +14,7 @@ app or the normal test suite needs it. Install it ad hoc outside the repository
 and run the probes with it on `NODE_PATH`:
 
 ```bash
-mkdir -p /tmp/gitodrile-probe && cd /tmp/gitodrile-probe && npm init -y && npm install playwright-core
+mkdir -p /tmp/gitodile-probe && cd /tmp/gitodile-probe && npm init -y && npm install playwright-core
 ```
 
 No browser download is required: the probes attach to the app's own WebView2
@@ -28,7 +28,7 @@ Build and launch with remote debugging and Git process tracing enabled:
 pnpm tauri build --no-bundle
 ```
 
-Then launch `src-tauri/target/release/gitodrile.exe` with
+Then launch `src-tauri/target/release/gitodile.exe` with
 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` and
 `GIT_TRACE2_EVENT=<absolute path to a .jsonl file>`. Git writes one
 `"event":"version"` line per process it starts, which is how the probes count
@@ -41,7 +41,7 @@ native process cost without instrumenting the app.
 | `031-memory-probe.cjs <endpoint> <projectPath> <mode> <treeScript>` | settled process-tree memory; `mode` is `overview-only` or `all-screens` |
 
 `031-process-tree.ps1` is the scoped sampler the memory probe shells out to. It
-walks `Win32_Process` parent links from `gitodrile.exe`, because a machine-wide
+walks `Win32_Process` parent links from `gitodile.exe`, because a machine-wide
 `msedgewebview2` query also captures unrelated WebView2 hosts — during the task
 031 audit that inflated a reading from 405 MiB to 720 MiB.
 

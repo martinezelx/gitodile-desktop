@@ -122,7 +122,7 @@ describe("StatusBar", () => {
     });
 
     expect(screen.getByText("No project open")).toBeInTheDocument();
-    const release = screen.getByRole("button", { name: "What's new in GitOdrile v0.1.0 alpha" });
+    const release = screen.getByRole("button", { name: "What's new in GitOdile v0.1.0 alpha" });
     expect(release).toHaveTextContent("v0.1.0alpha");
     await userEvent.click(release);
     expect(onOpenChangelog).toHaveBeenCalledOnce();
@@ -215,7 +215,7 @@ describe("StatusBar", () => {
   });
 
   it("uses Spanish copy and locale-aware relative time", () => {
-    localStorage.setItem("gitodrile-language", "es");
+    localStorage.setItem("gitodile-language", "es");
     renderBar();
 
     expect(screen.getByText("4 cambios sin guardar")).toBeInTheDocument();

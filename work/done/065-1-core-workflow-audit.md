@@ -16,7 +16,7 @@ parent: "065"
 
 # Goal
 
-Establish a repeatable, evidence-backed baseline for everything GitOdrile
+Establish a repeatable, evidence-backed baseline for everything GitOdile
 already claims before new `1.0.0` features are developed.
 
 # User outcome

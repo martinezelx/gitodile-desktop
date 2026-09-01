@@ -21,7 +21,7 @@ queue:
 
 Add four user-controllable preferences to the Settings overlay:
 
-1. The **default version-line name** used when GitOdrile creates a project,
+1. The **default version-line name** used when GitOdile creates a project,
    stored where Git itself reads it (`init.defaultBranch`).
 2. An explicit **"run Git hooks when saving and publishing"** switch.
 3. A **custom cadence** for automatic project-change checks, so the four fixed
@@ -33,7 +33,7 @@ Add four user-controllable preferences to the Settings overlay:
 
 - A user who names their first version line `trunk` (or `master`, or anything
   else) sets it once instead of retyping it in every new project, and other
-  Git tools agree with GitOdrile about it.
+  Git tools agree with GitOdile about it.
 - A user whose repository carries slow or noisy hooks can keep them out of the
   way, and a user who depends on them can switch them on knowingly instead of
   discovering that a client silently ran — or silently skipped — them.
@@ -53,17 +53,17 @@ their shape here:
 - **App-local preference**, stored in `localStorage` by `src/app/preferences.ts`
   (watching, confirmations, diff reading, navigation). The fetch cadence and
   the display formats are app-local.
-- **Behaviour GitOdrile applies to its own Git calls.** Hooks are this one. The
+- **Behaviour GitOdile applies to its own Git calls.** Hooks are this one. The
   setting must not be written into the user's config: `core.hooksPath` would
   change what the `git` CLI and every other client do on that machine, which
   AGENTS.md forbids ("Preserve user Git configuration unless a setting is
-  explicitly scoped to GitOdrile"). GitOdrile therefore passes `--no-verify` on
+  explicitly scoped to GitOdile"). GitOdile therefore passes `--no-verify` on
   its own `commit`/`push` while the switch is off.
 
 Note the deliberate tension with the AGENTS.md safety rule "Surface hooks and
 signing failures accurately; do not bypass them by default." This task ships
 hooks off by default as requested, and pays for it with disclosure: the switch
-states plainly that GitOdrile skips the project's hooks while it is off, and
+states plainly that GitOdile skips the project's hooks while it is off, and
 the save/publish surfaces are not changed to hide that. The rule is amended in
 AGENTS.md rather than quietly broken.
 
@@ -80,7 +80,7 @@ AGENTS.md rather than quietly broken.
   and a `main` / `master` / other control in the Git section.
 - `InitializeProjectDialog` seeds its initial-branch field from the preference
   instead of the hardcoded `"main"`.
-- With nothing stored, the control shows `main` selected — the name GitOdrile
+- With nothing stored, the control shows `main` selected — the name GitOdile
   will actually give the first version line — and says it is not written to Git
   yet.
 
@@ -125,7 +125,7 @@ AGENTS.md rather than quietly broken.
 - [x] The Git section reads and writes `init.defaultBranch` in the global Git
       config, rejects an invalid branch name with a localized message, and new
       projects start from the stored name.
-- [x] The hooks switch is on by default; with it off GitOdrile passes
+- [x] The hooks switch is on by default; with it off GitOdile passes
       `--no-verify` to its own commit and push, and with it on it does not.
 - [x] The automatic-check cadence accepts any whole number of minutes from 1
       minute to 24 hours, keyboard-reachable, and rejects out-of-range input
@@ -162,14 +162,14 @@ None.
 
 - **Default branch goes into Git's own config, not `localStorage`.** It is a
   fact about how this machine creates repositories, and duplicating it in app
-  storage would make GitOdrile and the `git` CLI disagree.
-- **Hooks are a GitOdrile-scoped behaviour, not a config write.** See Context.
+  storage would make GitOdile and the `git` CLI disagree.
+- **Hooks are a GitOdile-scoped behaviour, not a config write.** See Context.
 - **Hooks default on.** Shipped off first, at the requester's explicit ask and
   on the stated premise that GitHub Desktop disables them. The premise turned
   out to be wrong — GitHub Desktop runs hooks and offers a per-commit "Bypass
   Commit Hooks" plus a "Commit anyway" when one fails — and with that corrected
   the default was reverted to on. Skipping a project's own rules by default
-  would make GitOdrile produce commits the same repository rejects from a
+  would make GitOdile produce commits the same repository rejects from a
   terminal, and this app's audience is the least equipped to diagnose that. The
   "runs code from an untrusted repository" argument is weak here: `.git/hooks`
   is not cloned, so a hook exists only after the user ran that project's own
@@ -198,7 +198,7 @@ and adapted in `ipc.rs`. Two details are worth keeping in mind:
 - `validate_default_branch_name` rejects a leading `-` before shelling out.
   Passed on, such a name would reach `git check-ref-format` as an *option*, and
   Git's answer would be about the wrong question. The rest of the rule is
-  `check-ref-format --branch`, so GitOdrile never keeps a second opinion about
+  `check-ref-format --branch`, so GitOdile never keeps a second opinion about
   what a branch name is. The error reuses `invalid_initial_branch`, whose
   existing copy already reads correctly here.
 
@@ -217,7 +217,7 @@ user to read output that was never produced.
 
 The preference is `localStorage`-backed in `app/preferences.ts` and threaded
 through `ChangesPanel` → `SaveVersionDialog`, `PublishDialog` and
-`InitializeProjectDialog`. The panel shows the consequence — "GitOdrile skips
+`InitializeProjectDialog`. The panel shows the consequence — "GitOdile skips
 them when it saves or publishes" — whenever the switch is off.
 
 ## Cadence
@@ -437,7 +437,7 @@ than a clean one — the earlier check had cleared the key by hand first, which 
 precisely why the bug survived it. With `gitodrile-run-git-hooks` set to
 `"false"` and the repair marker absent, a reload leaves the key unset and the
 switch on; turning it off then stores `"false"` and keeps it. On a profile with
-no GitOdrile keys at all, opening the app writes no preference defaults, and
+no GitOdile keys at all, opening the app writes no preference defaults, and
 choosing a theme both applies `data-theme` and stores the choice (tokens
 measured flipping between `#ffffff`/`#1c1917` and `#1a1a1a`/`#fafafa`).
 

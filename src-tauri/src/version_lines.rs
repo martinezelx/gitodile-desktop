@@ -56,7 +56,7 @@ pub(crate) fn require_git_switch_support(path: &str) -> Result<(), AppError> {
     } else {
         Err(AppError::new(
             AppErrorCode::GitVersionTooOld,
-            "This version of Git is too old for GitOdrile to change version lines safely.",
+            "This version of Git is too old for GitOdile to change version lines safely.",
         )
         .with_remediation("Update Git to version 2.23 or newer, then try again."))
     }
@@ -929,7 +929,7 @@ mod tests {
 
     fn unique_temp_dir(label: &str) -> String {
         let mut dir = std::env::temp_dir();
-        dir.push(format!("gitodrile-test-{label}-{}", std::process::id()));
+        dir.push(format!("gitodile-test-{label}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("create temp dir for test");
         dir.to_string_lossy().to_string()
@@ -967,9 +967,9 @@ mod tests {
         let status = git_command(path)
             .args([
                 "-c",
-                "user.name=GitOdrile Test",
+                "user.name=GitOdile Test",
                 "-c",
-                "user.email=test@gitodrile.local",
+                "user.email=test@gitodile.local",
                 "commit",
                 "-q",
                 "-m",
@@ -1651,7 +1651,7 @@ mod tests {
         // directory in the main worktree's own status.
         let mut worktree = std::env::temp_dir();
         worktree.push(format!(
-            "gitodrile-test-vl-switch-worktree-linked-{}",
+            "gitodile-test-vl-switch-worktree-linked-{}",
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&worktree);
@@ -1860,7 +1860,7 @@ pub(crate) fn validate_and_prepare_switch(
     if !status.is_clean {
         return Err(AppError::new(
             AppErrorCode::DirtyWorkingTree,
-            "This project has unsaved changes, so GitOdrile can't switch version lines yet.",
+            "This project has unsaved changes, so GitOdile can't switch version lines yet.",
         )
         .with_remediation(
             "Save a version, or start a new version line with this work, then try again.",
@@ -2182,7 +2182,7 @@ pub(crate) fn plan_delete_version_line(
             validated.retained_by.join(", ")
         )],
         risks: vec![
-            "This can't be undone from GitOdrile; the retained reference(s) above are the only guaranteed way back to this work."
+            "This can't be undone from GitOdile; the retained reference(s) above are the only guaranteed way back to this work."
                 .to_string(),
         ],
         recovery: format!("Reachable from: {}", validated.retained_by.join(", ")),

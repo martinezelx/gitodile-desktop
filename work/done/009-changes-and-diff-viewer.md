@@ -19,7 +19,7 @@ version, without modifying the repository.
 
 # User outcome
 
-After GitOdrile reports unsaved work, a user can open “Changes”, choose a file,
+After GitOdile reports unsaved work, a user can open “Changes”, choose a file,
 and review what was added, removed, renamed, deleted, or left in conflict before
 deciding whether to save a version.
 

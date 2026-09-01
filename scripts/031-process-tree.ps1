@@ -2,7 +2,7 @@ $all = Get-CimInstance Win32_Process | ForEach-Object {
   [pscustomobject]@{ Pid = [int]$_.ProcessId; Parent = [int]$_.ParentProcessId; Name = [string]$_.Name }
 }
 $tree = New-Object 'System.Collections.Generic.HashSet[int]'
-foreach ($p in $all) { if ($p.Name -eq 'gitodrile.exe') { [void]$tree.Add($p.Pid) } }
+foreach ($p in $all) { if ($p.Name -eq 'gitodile.exe') { [void]$tree.Add($p.Pid) } }
 for ($i = 0; $i -lt 8; $i++) {
   foreach ($p in $all) { if ($tree.Contains($p.Parent)) { [void]$tree.Add($p.Pid) } }
 }

@@ -539,8 +539,8 @@ export type StoredProjectsV1 = {
   activeId: string | null;
 };
 
-const PROJECTS_STORAGE_KEY = "gitodrile-projects";
-const LEGACY_LAST_PROJECT_PATH_KEY = "gitodrile-last-project-path";
+const PROJECTS_STORAGE_KEY = "gitodile-projects";
+const LEGACY_LAST_PROJECT_PATH_KEY = "gitodile-last-project-path";
 
 function isStoredProjectsV1(value: unknown): value is StoredProjectsV1 {
   if (!value || typeof value !== "object") {
@@ -560,7 +560,7 @@ export function writeStoredProjects(stored: StoredProjectsV1): void {
 }
 
 /** Reads the persisted project list, migrating the old single-path key
- * (`gitodrile-last-project-path`) exactly once if the new key hasn't been
+ * (`gitodile-last-project-path`) exactly once if the new key hasn't been
  * written yet. Corrupt JSON under the new key is treated the same as it
  * being absent, rather than throwing and blocking startup. */
 export function readStoredProjects(): StoredProjectsV1 {

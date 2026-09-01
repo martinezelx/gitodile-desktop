@@ -1,7 +1,7 @@
 /**
  * Projects this machine has opened before, newest first.
  *
- * Deliberately a *separate* store from `gitodrile-projects` (see
+ * Deliberately a *separate* store from `gitodile-projects` (see
  * `sessions.ts`): that one is the set of projects currently open, and it
  * forgets a project the moment it is closed — which is exactly when a recents
  * list becomes useful. Same privacy envelope as the session store, and no
@@ -27,7 +27,7 @@ export type StoredRecentProjectsV1 = {
   entries: RecentProject[];
 };
 
-const RECENT_PROJECTS_STORAGE_KEY = "gitodrile-recent-projects";
+const RECENT_PROJECTS_STORAGE_KEY = "gitodile-recent-projects";
 
 /** Enough to cover the projects someone actually rotates between, short
  * enough that the welcome screen stays a launcher rather than a file manager.

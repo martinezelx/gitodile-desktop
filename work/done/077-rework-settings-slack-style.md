@@ -19,7 +19,7 @@ queue:
 
 Rework the Settings dialog into a calmer, roomier preference workspace that
 uses Slack's clear category rail and content hierarchy as a structural
-reference while retaining GitOdrile's Friendly Card surfaces, lime accent,
+reference while retaining GitOdile's Friendly Card surfaces, lime accent,
 plain-language copy, and safety cues.
 
 # User outcome
@@ -27,7 +27,7 @@ plain-language copy, and safety cues.
 People can understand where a preference belongs and change settings without
 the dialog feeling like a stack of unrelated cards. The selected category is
 the single orientation cue, each category keeps the control that best fits its
-choices, and the experience still feels like GitOdrile rather than a Slack copy.
+choices, and the experience still feels like GitOdile rather than a Slack copy.
 
 # Context
 
@@ -46,7 +46,7 @@ The references contribute four useful principles:
   content pane;
 - compact, legible controls with the content—not decoration—carrying focus.
 
-GitOdrile keeps opaque surfaces, moderate radii, semantic tokens, accessible
+GitOdile keeps opaque surfaces, moderate radii, semantic tokens, accessible
 lime emphasis, descriptive control copy, and its existing safety behavior.
 
 # Scope
@@ -56,7 +56,7 @@ lime emphasis, descriptive control copy, and its existing safety behavior.
 - Let the selected category label orient the content pane without a repeated
   heading or summary.
 - Refine the rail, group hierarchy, cards, controls, spacing, and scrollbar
-  treatment into one Slack-inspired but GitOdrile-owned composition.
+  treatment into one Slack-inspired but GitOdile-owned composition.
 - Keep the existing tablist/tabpanel model, arrow-key navigation, focus entry,
   section persistence and Git-attention affordance.
 - Remove the repeated per-category reset action; do not add a global reset
@@ -135,7 +135,7 @@ valid while it is active.
 # Decisions
 
 - **Borrow structure, not skin.** Slack's wide rail/content relationship and
-  category hierarchy solve the information-hierarchy problem. GitOdrile's opaque
+  category hierarchy solve the information-hierarchy problem. GitOdile's opaque
   Friendly Card materials, warm neutral palette, lime focus, and moderate
   radii remain the visual authority.
 - **Keep the dialog, not a full-screen route.** Settings is an app-level
@@ -187,14 +187,14 @@ valid while it is active.
   endings, while repeated explanations and implementation detail are removed.
 - **Remove section resets.** Slack exposes reset mainly as troubleshooting,
   VS Code attaches it to an individual changed setting, and Chrome isolates a
-  global reset with consequence disclosure. GitOdrile's small preference set
+  global reset with consequence disclosure. GitOdile's small preference set
   does not justify a repeated footer action; a future global recovery action
   belongs in diagnostics if a concrete need appears.
 
 # Implementation notes
 
 Follow-up requested after the first rendered review: the initial pass retained
-too much of GitOdrile's card grammar, which left a nested-card composition and
+too much of GitOdile's card grammar, which left a nested-card composition and
 made the rail/content split feel assembled rather than integrated. The final
 implementation and measurements below supersede the first-pass surface notes.
 

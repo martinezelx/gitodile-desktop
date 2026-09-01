@@ -27,7 +27,7 @@ Cycle result:
 | Production runtime plus dynamic imports | none |
 | Production including type-only imports | `changes -> diffCache -> changes`; the reverse edge is `import type { FileDiff }`, so it is erased and is not a runtime/bundle cycle |
 | Tests plus production | none; production has no edge to a test file |
-| Rust production modules | none: binary `main -> gitodrile_lib`; library `lib -> watch` |
+| Rust production modules | none: binary `main -> gitodile_lib`; library `lib -> watch` |
 | Transport | no module cycle; renderer requests travel to Rust and the watcher emits a typed event back |
 
 The mixed type/value cycle is still architectural debt: `FileDiff` is owned by
@@ -117,7 +117,7 @@ but may not make a production internal module public merely for testing.
 
 | Module | Current responsibility | Boundary issue |
 | --- | --- | --- |
-| `main.rs` | release console setting and call to `gitodrile_lib::run()` | already thin |
+| `main.rs` | release console setting and call to `gitodile_lib::run()` | already thin |
 | `lib.rs` | all 30 commands; Git runner; output caps; repository, status, diff, identity, save, publish and branch models; parsing; errors; Tauri builder; 169 of the 180 Rust tests | primary migration target |
 | `watch.rs` | filesystem filtering, burst debounce, watcher registry and 11 tests | already a distinct adapter, but payload/session/concurrency contracts are not yet the task-025 form |
 

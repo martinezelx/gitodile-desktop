@@ -33,9 +33,9 @@ const en: StatusTranslations = {
       ? "1 file has overlapping changes that have to be resolved before you can save."
       : `${conflicted} files have overlapping changes that have to be resolved before you can save.`,
   statusCheckingTitle: "Checking for changes…",
-  statusCheckingMessage: "GitOdrile is looking at your project files.",
+  statusCheckingMessage: "GitOdile is looking at your project files.",
   statusCheckFailedTitle: "We couldn’t check for changes",
-  statusCouldntCheck: "GitOdrile couldn’t check what changed in this project.",
+  statusCouldntCheck: "GitOdile couldn’t check what changed in this project.",
   statusRefresh: "Check for changes",
   statusRefreshing: "Checking…",
   statusBreakdownLabel: "What changed",
@@ -62,9 +62,9 @@ const es: StatusTranslations = {
       ? "1 archivo tiene cambios superpuestos que hay que resolver antes de poder guardar."
       : `${conflicted} archivos tienen cambios superpuestos que hay que resolver antes de poder guardar.`,
   statusCheckingTitle: "Buscando cambios…",
-  statusCheckingMessage: "GitOdrile está revisando los archivos de tu proyecto.",
+  statusCheckingMessage: "GitOdile está revisando los archivos de tu proyecto.",
   statusCheckFailedTitle: "No hemos podido buscar cambios",
-  statusCouldntCheck: "GitOdrile no ha podido comprobar qué ha cambiado en este proyecto.",
+  statusCouldntCheck: "GitOdile no ha podido comprobar qué ha cambiado en este proyecto.",
   statusRefresh: "Buscar cambios",
   statusRefreshing: "Buscando…",
   statusBreakdownLabel: "Qué ha cambiado",

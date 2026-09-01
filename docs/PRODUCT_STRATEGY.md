@@ -1,12 +1,12 @@
-# GitOdrile Product Strategy
+# GitOdile Product Strategy
 
 ## Purpose
 
-This document records the product thesis, target audience, competitive landscape, and design direction for GitOdrile. It should be read before making major product, UX, or positioning decisions.
+This document records the product thesis, target audience, competitive landscape, and design direction for GitOdile. It should be read before making major product, UX, or positioning decisions.
 
 ## Product thesis
 
-GitOdrile is a modern, cross-platform desktop Git client for people who do not understand Git deeply yet, or who want a calmer and safer workflow.
+GitOdile is a modern, cross-platform desktop Git client for people who do not understand Git deeply yet, or who want a calmer and safer workflow.
 
 The product should combine:
 
@@ -22,7 +22,7 @@ This is an internal comparison, not public marketing copy.
 
 ## Core positioning
 
-GitOdrile should not compete as another general-purpose Git GUI with a prettier interface.
+GitOdile should not compete as another general-purpose Git GUI with a prettier interface.
 
 Its differentiated promise is:
 
@@ -34,7 +34,17 @@ Alternative working statements:
 - A friendly Git desktop client.
 - Save, publish, experiment, and recover without fear.
 
-Most Git clients make Git commands easier to execute. GitOdrile should make user outcomes easier to achieve without requiring the user to think in Git terminology first.
+Most Git clients make Git commands easier to execute. GitOdile should make user outcomes easier to achieve without requiring the user to think in Git terminology first.
+
+### Working-name clearance
+
+**GitOdile** is the selected working name: it replaces the opening of
+`Crocodile` with `Git` and keeps the crocodile concept legible across markets.
+The Git trademark policy does not grant automatic permission for portmanteau
+product names, so a public/commercial release under this name remains
+conditional on written clearance from Software Freedom Conservancy. Product
+implementation may use the working name, but documentation and release work
+must not claim that clearance has already been obtained.
 
 ## Primary audience
 
@@ -64,7 +74,7 @@ Exact Git terminology should remain available in advanced views and educational 
 
 ### Safety before cleverness
 
-GitOdrile should create or offer recovery points before destructive or history-changing operations. It should clearly explain whether an action affects local files, history, a remote repository, or teammates.
+GitOdile should create or offer recovery points before destructive or history-changing operations. It should clearly explain whether an action affects local files, history, a remote repository, or teammates.
 
 ### Progressive disclosure
 
@@ -107,7 +117,7 @@ able to understand:
 - what can be recovered if the result is not what they expected.
 
 History-changing, remote-changing, and destructive actions require a clear
-plan. GitOdrile should prefer reversible operations, create a recovery reference
+plan. GitOdile should prefer reversible operations, create a recovery reference
 when feasible, and require explicit confirmation before data can be discarded.
 It must never silently resolve conflicts, remove untracked files, bypass hooks
 or signing, or force-push.
@@ -128,7 +138,7 @@ GitButler is the most important strategic and design reference because it demons
 - remove dependence on the terminal for common workflows;
 - feel like a modern productivity tool rather than a traditional developer utility.
 
-GitOdrile should study GitButler's:
+GitOdile should study GitButler's:
 
 - application shell and information hierarchy;
 - desktop interaction quality;
@@ -139,17 +149,17 @@ GitOdrile should study GitButler's:
 - Tauri and Rust architecture choices;
 - ability to innovate above Git while remaining compatible with repositories.
 
-However, GitOdrile must not become a visual or functional copy. The fundamental audience and product problem are different:
+However, GitOdile must not become a visual or functional copy. The fundamental audience and product problem are different:
 
 - GitButler primarily improves Git workflows for developers who already understand version control.
-- GitOdrile primarily helps users work safely before they understand Git deeply.
+- GitOdile primarily helps users work safely before they understand Git deeply.
 
 GitButler is a benchmark for ambition and execution quality, not a specification.
 
 ### How to learn from GitButler
 
 GitButler's public repository is a valuable engineering reference when
-GitOdrile faces a concrete problem involving:
+GitOdile faces a concrete problem involving:
 
 - Tauri boundaries and Rust application services;
 - repository modeling and filesystem watching;
@@ -162,14 +172,14 @@ GitOdrile faces a concrete problem involving:
 
 Research should follow a bounded process:
 
-1. Define the concrete GitOdrile problem.
+1. Define the concrete GitOdile problem.
 2. Locate the smallest relevant GitButler behavior or subsystem.
 3. Understand why its architecture exists, including the complexity it has
    accumulated.
 4. Extract the useful principle.
-5. Reimplement the smallest independent version appropriate for GitOdrile.
+5. Reimplement the smallest independent version appropriate for GitOdile.
 
-GitOdrile should not copy GitButler's monorepo shape, cloud infrastructure,
+GitOdile should not copy GitButler's monorepo shape, cloud infrastructure,
 advanced branch abstractions, source code, visual assets, branding, or product
 language. Any reuse beyond high-level ideas requires an explicit license check.
 The MVP should remain substantially smaller and should not introduce
@@ -189,7 +199,7 @@ Strengths:
 - simple basic commit, branch, pull, and push flows;
 - large installed user base.
 
-Opportunities for GitOdrile:
+Opportunities for GitOdile:
 
 - less Git terminology by default;
 - stronger recovery and safety model;
@@ -211,7 +221,7 @@ Strengths:
 - strong focus on parallel and stacked work;
 - active experimentation around AI-assisted development.
 
-Opportunities for GitOdrile:
+Opportunities for GitOdile:
 
 - a much lower conceptual entry barrier;
 - onboarding for users unfamiliar with branches and commits;
@@ -231,14 +241,14 @@ Strengths:
 - established brand;
 - AI and collaboration features.
 
-Opportunities for GitOdrile:
+Opportunities for GitOdile:
 
 - calmer and less crowded interface;
 - lower learning curve;
 - fewer account and subscription dependencies;
 - stronger beginner-oriented explanations.
 
-GitOdrile should not compete with GitKraken on feature count.
+GitOdile should not compete with GitKraken on feature count.
 
 ### Fork
 
@@ -252,7 +262,7 @@ Strengths:
 - advanced Git operations;
 - one-time purchase model.
 
-Opportunities for GitOdrile:
+Opportunities for GitOdile:
 
 - Linux support;
 - beginner-first language;
@@ -272,7 +282,7 @@ Strengths:
 - Bitbucket integration;
 - familiar presence in teams.
 
-Opportunities for GitOdrile:
+Opportunities for GitOdile:
 
 - more contemporary design;
 - substantially lower cognitive load;
@@ -290,7 +300,7 @@ Strengths:
 - broad integrations;
 - strong advanced Git capabilities.
 
-Opportunities for GitOdrile:
+Opportunities for GitOdile:
 
 - accessible free or lower-cost entry point;
 - Linux support;
@@ -313,7 +323,7 @@ A fast, keyboard-oriented client aimed at experienced developers. It is a refere
 
 VS Code, JetBrains IDEs, Cursor, Zed, GitLens, and similar tools compete by making a separate Git client unnecessary for developers who already live inside an editor.
 
-GitOdrile must therefore provide value beyond editor source-control panels:
+GitOdile must therefore provide value beyond editor source-control panels:
 
 - repository-wide understanding;
 - recovery and safety;
@@ -333,7 +343,7 @@ editors remain useful secondary references. AI coding agents also increasingly
 create branches, commits, and worktrees on behalf of users. They compete for the
 same workflow even when they are not standalone Git clients.
 
-GitOdrile should complement these tools by making repository state,
+GitOdile should complement these tools by making repository state,
 consequences, and recovery understandable. It must not perform autonomous
 repository changes merely to match agent-driven workflows.
 
@@ -347,7 +357,7 @@ The products to study most closely are:
 4. **GitKraken** for visual history, integrations, and complete product coverage.
 5. **Tower** for premium polish and interaction quality.
 
-## What GitOdrile should not become
+## What GitOdile should not become
 
 - A clone of GitButler.
 - A reskinned GitHub Desktop.
@@ -375,7 +385,7 @@ If the feature fails these questions, it should be redesigned, deferred, or excl
 ## Business model and monetization context
 
 The MVP must work locally without an account, subscription, or cloud service.
-GitOdrile should not assume that GitButler's funding or future collaboration
+GitOdile should not assume that GitButler's funding or future collaboration
 model is appropriate for this product.
 
 Possible paid value may later include:
@@ -394,7 +404,7 @@ repository data it transmits.
 
 ## Strategic summary
 
-GitOdrile occupies the space between GitHub Desktop and GitButler:
+GitOdile occupies the space between GitHub Desktop and GitButler:
 
 - more ambitious, modern, and workflow-oriented than GitHub Desktop;
 - more accessible and beginner-focused than GitButler;

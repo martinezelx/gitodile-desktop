@@ -22,9 +22,9 @@ let browser;
   page.on("pageerror", (error) => consoleErrors.push(error.message));
 
   await page.evaluate((path) => {
-    localStorage.setItem("gitodrile-projects", JSON.stringify({ version: 1, order: [path], activeId: path }));
-    localStorage.setItem("gitodrile-reopen-last-project", "true");
-    localStorage.setItem("gitodrile-language", "en");
+    localStorage.setItem("gitodile-projects", JSON.stringify({ version: 1, order: [path], activeId: path }));
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-language", "en");
   }, projectPath);
   await page.reload();
   await page.waitForFunction((path) => document.body.textContent?.includes(path), projectPath, { timeout: 30000 });

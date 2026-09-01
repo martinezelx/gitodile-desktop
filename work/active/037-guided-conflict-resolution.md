@@ -19,10 +19,10 @@ completed:
 
 Add a complete, resumable conflict-resolution experience that lets a user
 understand, edit, verify, finish, or safely abandon a conflicted merge without
-leaving GitOdrile or needing to interpret conflict markers and Git index stages.
+leaving GitOdile or needing to interpret conflict markers and Git index stages.
 
 The interaction quality should be comparable to the three-way merge tools in
-IntelliJ IDEA and VS Code while remaining native to GitOdrile's language,
+IntelliJ IDEA and VS Code while remaining native to GitOdile's language,
 visual system, safety model, project sessions, and modular architecture.
 
 The first implementation resolves ordinary Git merge conflicts. Its domain
@@ -50,7 +50,7 @@ When Git pauses because two sets of work overlap, the user can:
 
 # Context
 
-Conflict resolution is one of GitOdrile's core differentiators: it is where a
+Conflict resolution is one of GitOdile's core differentiators: it is where a
 beginner most needs technical truth translated into a safe, guided workflow.
 The current implementation already detects conflicted status entries, orders
 them first in Overview and Changes, displays a conflict-specific diff state,
@@ -78,9 +78,9 @@ Use a hybrid integration instead:
    paused, with progress and **Resolve overlapping changes**.
 2. Changes groups conflicted files first and replaces the passive conflict note
    with the same contextual action.
-3. An operation started inside GitOdrile may open the resolver immediately
+3. An operation started inside GitOdile may open the resolver immediately
    after Git reports conflicts, after first explaining that the merge paused.
-4. A merge started outside GitOdrile is detected through repository
+4. A merge started outside GitOdile is detected through repository
    invalidation; the app surfaces a non-destructive attention state and lets the
    user choose when to open the resolver.
 5. The command palette exposes **Continue resolving overlapping changes** only
@@ -101,7 +101,7 @@ commit model.
 ## Selected interaction structure
 
 The dedicated workspace is a focused “resolution desk,” not a modal and not a
-replacement visual world. It inherits GitOdrile's opaque Friendly Card
+replacement visual world. It inherits GitOdile's opaque Friendly Card
 surfaces, semantic tokens, typography, icons, controls, focus treatment, and
 compact density for code. Warning color identifies unresolved state; it must
 not tint the whole workspace or turn a demanding task into an alarm screen.
@@ -139,7 +139,7 @@ not tint the whole workspace or turn a demanding task into an alarm screen.
   - `merge` in the first implementation;
   - future `rebase`, `cherryPick`, `revert`, `stashApply`, and `applyPatch`
     variants without changing file-side semantics;
-  - externally initiated conflicts where GitOdrile does not possess a trusted
+  - externally initiated conflicts where GitOdile does not possess a trusted
     pre-operation snapshot.
 - Model the operation, current step, source refs/commits, common base when one
   exists, merge head(s), start origin, repository/session epoch, state token,
@@ -277,7 +277,7 @@ not mean pretending every byte sequence can be merged as text.
   snapshot that captures enough index and working-tree evidence to:
   - reset an individual file's resolution;
   - recover from a failed/partial write or staging operation;
-  - distinguish a GitOdrile-started clean merge from an externally started
+  - distinguish a GitOdile-started clean merge from an externally started
     merge whose original dirty state is unknown.
 - Define the snapshot storage, lifetime, cleanup, privacy, collision behavior,
   linked-worktree behavior, and reconstruction algorithm in an ADR. A branch or
@@ -347,7 +347,7 @@ not mean pretending every byte sequence can be merged as text.
 - Watch worktree, index, operation-marker, HEAD/ref, and shared-worktree changes
   through bounded typed invalidations. Coalesce bursts caused by saves/staging
   and suppress stale self-responses without hiding external changes.
-- Disable incompatible GitOdrile mutations while a merge is paused, with a
+- Disable incompatible GitOdile mutations while a merge is paused, with a
   direct explanation and resolver action. Rust remains authoritative if a
   caller bypasses the UI.
 - Overview and Changes render the same cached conflict-session summary; they do
@@ -437,7 +437,7 @@ but cannot safely resume, reset, finish, or abort the operation.
 - Publishing the completed merge.
 - Turning Recovery into a full primary screen if it has not already been built;
   this epic defines only the minimum conflict-session recovery integration.
-- Redesigning Overview, Changes, the application shell, or GitOdrile's visual
+- Redesigning Overview, Changes, the application shell, or GitOdile's visual
   system beyond the contextual states and dedicated resolver workspace.
 
 # Acceptance criteria
@@ -450,7 +450,7 @@ but cannot safely resume, reset, finish, or abort the operation.
       aborts, stages, discards, or completes anything.
 - [ ] Simple mode uses plain language and real version-line names; advanced
       details expose exact Git operation, refs, commits, stages, and commands.
-- [ ] The workspace matches GitOdrile's established visual system in light and
+- [ ] The workspace matches GitOdile's established visual system in light and
       dark themes and supports wide, medium, and narrow desktop layouts.
 
 ## Domain correctness
@@ -538,7 +538,7 @@ Use temporary repositories and real system Git for:
 
 - content, add/add, modify/delete, rename, directory/file, mode, symlink,
   binary, submodule, and multiple-file conflicts;
-- conflicts initiated inside and outside GitOdrile, with clean and dirty
+- conflicts initiated inside and outside GitOdile, with clean and dirty
   pre-merge states;
 - save, stage, unstage/reset resolution, restart/resume, final merge commit,
   abort, failed abort, and snapshot recovery;
@@ -645,7 +645,7 @@ conclusion in the required ADRs.
   signing bypass, automatic publish, or AI transmission.
 - Editor and diff dependencies require a measured ADR/spike after refactoring.
 - Dense editor surfaces remain opaque and use the established design tokens;
-  the resolver extends GitOdrile rather than creating a separate IDE aesthetic.
+  the resolver extends GitOdile rather than creating a separate IDE aesthetic.
 
 # Implementation notes
 

@@ -22,7 +22,7 @@ inside Changes before any stash mutation is enabled.
 
 # User outcome
 
-The user can see every set of changes saved for later by GitOdrile, Git, or
+The user can see every set of changes saved for later by GitOdile, Git, or
 another compatible client and inspect its files and diffs.
 
 # Context
@@ -45,7 +45,7 @@ evidence must be proved before create, restore, or removal actions exist.
 
 # Acceptance criteria
 
-- [ ] Standard external and GitOdrile stashes parse safely with stable entry
+- [ ] Standard external and GitOdile stashes parse safely with stable entry
       identity, names, dates, origin confidence, counts, and technical evidence.
 - [ ] Pagination/details are bounded, stale-safe, lazy, and virtualized at the
       epic's 1,000-entry/file cases.

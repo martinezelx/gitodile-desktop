@@ -89,7 +89,7 @@ access, and a clear next action take priority over decorative density.
   paths must expose the complete value through an accessible title/description
   and should be copyable when that interaction exists.
 - If the selected folder differs from the resolved worktree root, explain that
-  GitOdrile opened the containing project and retain both paths in technical
+  GitOdile opened the containing project and retain both paths in technical
   details.
 - Provide one compact project menu for infrequent project-level actions. In
   this task it may contain only actions that already work, such as opening

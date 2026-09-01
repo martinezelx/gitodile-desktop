@@ -239,7 +239,7 @@ pub(crate) fn run_untracked_diff(path: &str, file_path: &str) -> Result<CappedOu
         .map(|duration| duration.as_nanos())
         .unwrap_or_default();
     temp_path.push(format!(
-        "gitodrile-empty-{}-{unique}.tmp",
+        "gitodile-empty-{}-{unique}.tmp",
         std::process::id()
     ));
     std::fs::write(&temp_path, b"").map_err(|_| {
@@ -1128,7 +1128,7 @@ pub(crate) struct CommitFileChange {
 /// `ChangeCategory` vocabulary (and, on the frontend, the same icons) as the
 /// working-tree Changes list, so a saved version's file summary and the
 /// Changes screen can never disagree about what a category means. A type
-/// change (`T`) is presented as `Changed` — GitOdrile doesn't have a distinct
+/// change (`T`) is presented as `Changed` — GitOdile doesn't have a distinct
 /// category for that rare case, and it *is* still a modification to the file.
 pub(crate) fn parse_name_status_line(line: &str) -> Option<CommitFileChange> {
     let mut parts = line.split('\t');
@@ -1161,7 +1161,7 @@ pub(crate) fn parse_name_status_line(line: &str) -> Option<CommitFileChange> {
     }
 }
 
-/// A commit hash reaching any of these commands always comes from GitOdrile's
+/// A commit hash reaching any of these commands always comes from GitOdile's
 /// own previously displayed list (`SavedVersionSummary`/`CommitFileChange`),
 /// never free-typed by the user — but since it still becomes a `git` process
 /// argument, this rejects the one shape that could be misread as a flag
@@ -1202,7 +1202,7 @@ pub(crate) fn read_commit_file_changes(
     if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
-            "GitOdrile couldn't read that saved version's changed files.",
+            "GitOdile couldn't read that saved version's changed files.",
         )
         .with_remediation("Refresh and try again."));
     }
@@ -1246,7 +1246,7 @@ pub(crate) fn read_commit_file_diff(
     if !status_output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
-            "GitOdrile couldn't check that saved version's changes.",
+            "GitOdile couldn't check that saved version's changes.",
         )
         .with_remediation("Refresh and try again."));
     }

@@ -30,7 +30,7 @@ or an uncertain outcome and knows a safe next step.
 
 # Context
 
-GitOdrile intentionally uses system Git and preserves user configuration. A
+GitOdile intentionally uses system Git and preserves user configuration. A
 native provider account is not required for `1.0.0`, but private-repository
 workflows cannot be considered functional without tested credential-helper and
 prompt behavior on each platform.
@@ -42,7 +42,7 @@ prompt behavior on each platform.
   missing remote/ref, protected branch/rules, hooks, size limits, and uncertain
   post-send outcomes.
 - Verify Git Credential Manager and representative native/helper configurations
-  on Windows, macOS, and Linux without reading or storing secrets in GitOdrile.
+  on Windows, macOS, and Linux without reading or storing secrets in GitOdile.
 - Define when an interactive helper may appear, how cancellation is surfaced,
   and how headless/non-interactive failures avoid hanging.
 - Redact URL userinfo, query/fragment, helper output, tokens, private keys, and

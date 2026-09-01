@@ -125,9 +125,9 @@ fn list_unpublished_versions_separates_an_existing_title_and_multiline_descripti
             &repo,
             &[
                 "-c",
-                "user.name=GitOdrile Test",
+                "user.name=GitOdile Test",
                 "-c",
-                "user.email=test@gitodrile.local",
+                "user.email=test@gitodile.local",
                 "commit",
                 "-m",
                 "Añadir búsqueda 🔎",

@@ -17,7 +17,7 @@ queue:
 # Goal
 
 Separate the two things task 086 merged into one dialog. About goes back to
-being the product-identity surface and is reached from the GitOdrile mark in
+being the product-identity surface and is reached from the GitOdile mark in
 the titlebar. A new Changelog dialog owns release notes, opens from the status
 bar version tag, and is listed beside About in the titlebar menu.
 
@@ -44,7 +44,7 @@ must keep its remote state separate from these local notes.
 
 - Remove the release-notes section from the About dialog; keep its mark,
   heading, description, technical details, diagnostics copy, and footer.
-- Make the titlebar GitOdrile mark an accessible button that opens About,
+- Make the titlebar GitOdile mark an accessible button that opens About,
   without breaking the window drag region around it.
 - Add a Changelog dialog styled from the same shell as About and adapted to
   list releases: version, lifecycle channel, date, the running-version marker,

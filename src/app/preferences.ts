@@ -13,19 +13,19 @@ import {
   type ThemePreference,
 } from "../features/settings";
 
-const THEME_STORAGE_KEY = "gitodrile-theme";
-export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodrile-reopen-last-project";
-export const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodrile-confirm-close-project";
-export const WATCH_PROJECTS_STORAGE_KEY = "gitodrile-watch-projects";
-export const REMOTE_CHECK_INTERVAL_STORAGE_KEY = "gitodrile-remote-check-interval";
-export const RUN_GIT_HOOKS_STORAGE_KEY = "gitodrile-run-git-hooks";
-export const CONFIRM_DISCARD_STORAGE_KEY = "gitodrile-confirm-discard";
-export const NOTIFICATIONS_STORAGE_KEY = "gitodrile-notifications";
+const THEME_STORAGE_KEY = "gitodile-theme";
+export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodile-reopen-last-project";
+export const CONFIRM_CLOSE_PROJECT_STORAGE_KEY = "gitodile-confirm-close-project";
+export const WATCH_PROJECTS_STORAGE_KEY = "gitodile-watch-projects";
+export const REMOTE_CHECK_INTERVAL_STORAGE_KEY = "gitodile-remote-check-interval";
+export const RUN_GIT_HOOKS_STORAGE_KEY = "gitodile-run-git-hooks";
+export const CONFIRM_DISCARD_STORAGE_KEY = "gitodile-confirm-discard";
+export const NOTIFICATIONS_STORAGE_KEY = "gitodile-notifications";
 
-export const DIFF_PREFERENCES_STORAGE_KEY = "gitodrile-diff-preferences";
-export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodrile-navigation-preferences";
-export const SIDEBAR_HIDDEN_STORAGE_KEY = "gitodrile-sidebar-hidden";
-export const FAVOURITE_PROJECTS_STORAGE_KEY = "gitodrile-favourite-projects";
+export const DIFF_PREFERENCES_STORAGE_KEY = "gitodile-diff-preferences";
+export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodile-navigation-preferences";
+export const SIDEBAR_HIDDEN_STORAGE_KEY = "gitodile-sidebar-hidden";
+export const FAVOURITE_PROJECTS_STORAGE_KEY = "gitodile-favourite-projects";
 
 /** Named because two places need to agree on them: the hook that seeds the
  * preference and the Settings panel's "reset this section". */
@@ -51,7 +51,7 @@ export const CONFIRM_DISCARD_DEFAULT = true;
  * fix. */
 export const NOTIFICATIONS_DEFAULT = true;
 /** On, because a hook is the project's own rule and skipping it by default
- * would make GitOdrile produce commits the same repository would have rejected
+ * would make GitOdile produce commits the same repository would have rejected
  * from a terminal — the same action giving a different result depending on
  * which tool ran it. The people this app is for are the least equipped to work
  * out why CI rejected their work three steps later.
@@ -61,8 +61,8 @@ export const NOTIFICATIONS_DEFAULT = true;
  * already run that project's own install step.
  *
  * Turning it off remains a real escape for a slow or broken hook, and then
- * GitOdrile passes `--no-verify` to its own commit and push. Nothing is written
- * to the project either way: this changes only what GitOdrile's own Git calls
+ * GitOdile passes `--no-verify` to its own commit and push. Nothing is written
+ * to the project either way: this changes only what GitOdile's own Git calls
  * do, never what the `git` CLI does. */
 export const RUN_GIT_HOOKS_DEFAULT = true;
 
@@ -105,7 +105,7 @@ function usePersistedChoice(key: string, serialized: string): void {
   }, [key, serialized]);
 }
 
-const EAGER_DEFAULTS_REPAIRED_KEY = "gitodrile-eagerly-stored-defaults-repaired";
+const EAGER_DEFAULTS_REPAIRED_KEY = "gitodile-eagerly-stored-defaults-repaired";
 
 /** The scalar preferences the eager-write bug could have created, each with the
  * serialization of the default it would have written. Object stores are left

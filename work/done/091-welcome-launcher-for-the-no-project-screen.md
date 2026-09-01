@@ -16,7 +16,7 @@ queue:
 
 # Goal
 
-Rebuild the screen GitOdrile paints with no project open. Its three entry
+Rebuild the screen GitOdile paints with no project open. Its three entry
 points stop being a row of capsules with wrapped labels and become a launcher:
 one card per action, a circular glyph tile on top, the label and a one-line
 hint underneath.

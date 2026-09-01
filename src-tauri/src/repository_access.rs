@@ -192,7 +192,7 @@ impl FairLock {
         if reentered {
             return Err(AppError::new(
                 AppErrorCode::GitCommandFailed,
-                "GitOdrile detected a nested repository access request.",
+                "GitOdile detected a nested repository access request.",
             ));
         }
         let mut state = self
@@ -356,7 +356,7 @@ mod tests {
 
     fn repository(label: &str) -> (PathBuf, RepositoryContext) {
         let path = std::env::temp_dir().join(format!(
-            "gitodrile-access-{label}-{}-{:?}",
+            "gitodile-access-{label}-{}-{:?}",
             std::process::id(),
             thread::current().id()
         ));

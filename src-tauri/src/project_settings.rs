@@ -178,7 +178,7 @@ fn identity_from_scoped_values(values: &[ScopedValue]) -> ProjectIdentity {
 /// Every scope in one process.
 ///
 /// `None` means this Git cannot answer that way — `--show-scope` arrived in
-/// 2.26 and GitOdrile supports 2.23 — not that nothing is set. A usage error
+/// 2.26 and GitOdile supports 2.23 — not that nothing is set. A usage error
 /// exits 129; exit 1 is Git's ordinary "no key matched", which is a real and
 /// empty answer.
 fn read_identity_with_scopes(path: &str, config_override: Option<&str>) -> Option<ProjectIdentity> {
@@ -402,7 +402,7 @@ pub(crate) struct IgnoreFile {
     /// restored on write.
     contents: Option<String>,
     /// What the file was when it was read. A write carrying a stale token is
-    /// refused rather than overwriting an edit made outside GitOdrile.
+    /// refused rather than overwriting an edit made outside GitOdile.
     state_token: Option<String>,
     byte_length: u64,
     unavailable: Option<IgnoreFileUnavailable>,
@@ -533,7 +533,7 @@ pub(crate) fn write_ignore_file(
     if contents.len() as u64 > IGNORE_FILE_MAX_BYTES {
         return Err(AppError::new(
             AppErrorCode::IgnoreFileTooLarge,
-            "This ignore file is too large for GitOdrile to save.",
+            "This ignore file is too large for GitOdile to save.",
         )
         .with_remediation("Edit it in a text editor instead."));
     }
@@ -545,7 +545,7 @@ pub(crate) fn write_ignore_file(
         if metadata.len() > IGNORE_FILE_MAX_BYTES {
             return Err(AppError::new(
                 AppErrorCode::IgnoreFileTooLarge,
-                "This ignore file is too large for GitOdrile to save.",
+                "This ignore file is too large for GitOdile to save.",
             )
             .with_remediation("Edit it in a text editor instead."));
         }
@@ -558,7 +558,7 @@ pub(crate) fn write_ignore_file(
     if current_token != state_token_from_read {
         return Err(AppError::new(
             AppErrorCode::StaleIgnoreFile,
-            "This ignore file changed outside GitOdrile since it was opened.",
+            "This ignore file changed outside GitOdile since it was opened.",
         )
         .with_remediation("Reopen it to see the current rules before saving again."));
     }
@@ -569,7 +569,7 @@ pub(crate) fn write_ignore_file(
     let write_failed = |detail: &str| {
         AppError::new(
             AppErrorCode::IgnoreFileWriteFailed,
-            "GitOdrile couldn't save this ignore file.",
+            "GitOdile couldn't save this ignore file.",
         )
         .with_remediation("Check that the file and its folder are writable, then try again.")
         .with_detail(detail.to_string())
@@ -579,7 +579,7 @@ pub(crate) fn write_ignore_file(
     }
     // Written beside the file and renamed over it, so an interrupted save
     // cannot leave the user with a half-written ignore file.
-    let temporary = file.with_extension("gitodrile-temp");
+    let temporary = file.with_extension("gitodile-temp");
     fs::write(&temporary, &bytes).map_err(|error| write_failed(&error.to_string()))?;
     if let Err(error) = fs::rename(&temporary, &file) {
         let _ = fs::remove_file(&temporary);
@@ -683,7 +683,7 @@ mod tests {
         let fallback = in_test_frame(|| read_identity_by_scope_queries(&repo, Some(&global)));
         assert_eq!(fast, fallback);
         assert_eq!(fast.local_name.as_deref(), Some("Project Person"));
-        assert_eq!(fast.inherited_name.as_deref(), Some("GitOdrile Test"));
+        assert_eq!(fast.inherited_name.as_deref(), Some("GitOdile Test"));
     }
 
     #[test]
@@ -696,7 +696,7 @@ mod tests {
         let inherited = read();
         assert_eq!(inherited.source, ProjectIdentitySource::Inherited);
         assert_eq!(inherited.local_name, None);
-        assert_eq!(inherited.effective_name.as_deref(), Some("GitOdrile Test"));
+        assert_eq!(inherited.effective_name.as_deref(), Some("GitOdile Test"));
 
         let overridden = in_test_frame(|| {
             set_identity_with_override(
@@ -713,12 +713,12 @@ mod tests {
             overridden.effective_email.as_deref(),
             Some("person@example.test")
         );
-        assert_eq!(overridden.inherited_name.as_deref(), Some("GitOdrile Test"));
+        assert_eq!(overridden.inherited_name.as_deref(), Some("GitOdile Test"));
 
         let cleared = in_test_frame(|| clear_identity_with_override(&repo, Some(&global))).unwrap();
         assert_eq!(cleared.source, ProjectIdentitySource::Inherited);
         assert_eq!(cleared.local_name, None);
-        assert_eq!(cleared.effective_name.as_deref(), Some("GitOdrile Test"));
+        assert_eq!(cleared.effective_name.as_deref(), Some("GitOdile Test"));
 
         // Clearing twice is the same outcome, not a failure.
         assert!(in_test_frame(|| clear_identity_with_override(&repo, Some(&global))).is_ok());

@@ -42,7 +42,7 @@ export type CloneResult = {
   cleanupPath: string | null;
 };
 
-const LAST_CLONE_PARENT_KEY = "gitodrile-clone-parent";
+const LAST_CLONE_PARENT_KEY = "gitodile-clone-parent";
 
 export function readLastCloneParent(): string {
   return localStorage.getItem(LAST_CLONE_PARENT_KEY) ?? "";

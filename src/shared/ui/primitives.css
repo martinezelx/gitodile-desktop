@@ -15,13 +15,13 @@
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.gitodrile-mark {
+.gitodile-mark {
   display: block;
   width: 100%;
   aspect-ratio: 110 / 58;
   background: currentColor;
-  -webkit-mask: url("../../assets/gitodrile-mark.svg") center / contain no-repeat;
-  mask: url("../../assets/gitodrile-mark.svg") center / contain no-repeat;
+  -webkit-mask: url("../../assets/gitodile-mark.svg") center / contain no-repeat;
+  mask: url("../../assets/gitodile-mark.svg") center / contain no-repeat;
 }
 
 .auto-hide-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }

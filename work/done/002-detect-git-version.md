@@ -17,7 +17,7 @@ Detect whether the system Git executable is available and, if so, which version 
 
 # User outcome
 
-A user or support person can see whether GitOdrile found a working Git installation instead of guessing why repository operations fail.
+A user or support person can see whether GitOdile found a working Git installation instead of guessing why repository operations fail.
 
 # Context
 
@@ -67,7 +67,7 @@ Split from task 001 so repository opening and dependency diagnostics remain inde
 - `base_git_command()` centralizes process creation and the Windows `CREATE_NO_WINDOW` behavior.
 - `git_diagnostics()` returns `{ installed, version }`.
 - `parse_git_version()` removes Git's leading label from `git --version`.
-- Settings displays the result alongside the GitOdrile version.
+- Settings displays the result alongside the GitOdile version.
 - A Windows `winget` install/update prototype was subsequently added and verified for updating an outdated Git installation. It is preserved for tasks 004 and 005 to harden.
 
 # Validation

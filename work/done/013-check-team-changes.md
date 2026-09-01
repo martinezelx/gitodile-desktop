@@ -23,7 +23,7 @@ but it must not change the current branch, `HEAD`, index, or working files.
 
 The user can tell whether their current version line is up to date, has saved
 versions to publish, has newer team versions available, or has moved apart
-from the team version. They can see when GitOdrile last contacted the remote
+from the team version. They can see when GitOdile last contacted the remote
 and choose an implemented next action without interpreting `fetch`, upstreams,
 or ahead/behind notation.
 
@@ -104,7 +104,7 @@ Return a typed `TeamSyncStatus` with at least:
   commit, upstream target, and locally observed remote commit.
 
 No remote snapshot is persisted as live truth in the project-session
-`localStorage` record. After relaunch, GitOdrile may reconstruct a cached
+`localStorage` record. After relaunch, GitOdile may reconstruct a cached
 relation from local remote-tracking refs, but it must say **Not checked in this
 session** until an explicit network check succeeds.
 

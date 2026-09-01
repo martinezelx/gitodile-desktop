@@ -17,7 +17,7 @@ Grow Settings beyond Appearance/General with four concrete, independently useful
 
 # User outcome
 
-A user can tell GitOdrile who they are for the commits it will eventually create, does not have to re-open their project by hand every time they launch the app, gets a chance to back out if they click "Close project" by mistake, and sees GitOdrile in their own language automatically — with the ability to override that choice — instead of being stuck with English regardless of their system locale.
+A user can tell GitOdile who they are for the commits it will eventually create, does not have to re-open their project by hand every time they launch the app, gets a chance to back out if they click "Close project" by mistake, and sees GitOdile in their own language automatically — with the ability to override that choice — instead of being stuck with English regardless of their system locale.
 
 # Context
 
@@ -32,7 +32,7 @@ Two of the three chosen areas needed narrowing to stay concrete instead of specu
 
 ## Added scope: Language (English/Spanish)
 
-The user asked to add a Language setting to this same task: GitOdrile should support English and Spanish, auto-detect the system language on first run, and let the user override it in Settings — mirroring how `theme` already works (`ThemePreference = "system" | "light" | "dark"`, persisted in `localStorage`, with a segmented control in Settings → Appearance).
+The user asked to add a Language setting to this same task: GitOdile should support English and Spanish, auto-detect the system language on first run, and let the user override it in Settings — mirroring how `theme` already works (`ThemePreference = "system" | "light" | "dark"`, persisted in `localStorage`, with a segmented control in Settings → Appearance).
 
 **Audit made before scoping this in** (`src/main.tsx`, `src-tauri/src/lib.rs`):
 
@@ -43,7 +43,7 @@ The user asked to add a Language setting to this same task: GitOdrile should sup
 # Scope
 
 - Rust: `get_git_identity` (reads global `user.name`/`user.email` via `git config --global --get`, each independently optional/unset) and `set_git_identity(name, email)` (writes both via `git config --global`).
-- Settings → new "Git identity" section: two text inputs (name, email) pre-filled from `get_git_identity`, a Save button, and a short explanation that this is used to sign saved versions and is a normal global Git setting, not a GitOdrile-only preference.
+- Settings → new "Git identity" section: two text inputs (name, email) pre-filled from `get_git_identity`, a Save button, and a short explanation that this is used to sign saved versions and is a normal global Git setting, not a GitOdile-only preference.
 - Frontend: persist the path of the most recently opened project in `localStorage` whenever `open_repository` succeeds.
 - Settings → new "Startup" section: a toggle "Reopen last project on launch". When enabled and a stored path exists, the app calls `open_repository` with it once on launch; a failure (folder moved/deleted/no longer a repo) is handled the same as any other open failure — silently cleared, no error toast on launch.
 - Settings → new "Safety" section: a toggle "Confirm before closing a project" (default on). When enabled, clicking "Close project" (from Overview or the command palette) shows a confirmation dialog before actually clearing the open project; when disabled, it closes immediately as it does today.
@@ -120,7 +120,7 @@ The user asked to add a Language setting to this same task: GitOdrile should sup
 - `src/i18n.test.ts` (new file, first real `vitest` test in this repo): covers `resolveLanguage` for Spanish/English regions, an unsupported locale (`fr-FR`, `de`) falling back to English, and null/undefined/empty input.
 - `LanguageProvider` updates `document.documentElement.lang` whenever the resolved language changes.
 - Identity descriptions now say name/email identify the author of saved versions; commit signing is a separate Git concept.
-- Deliberately **not** routed through the dictionary: the `GitOdrile` brand name and `APP_VERSION`. Identity placeholders use the same example person in both dictionaries.
+- Deliberately **not** routed through the dictionary: the `GitOdile` brand name and `APP_VERSION`. Identity placeholders use the same example person in both dictionaries.
 
 - `src-tauri/src/lib.rs`: added `get_git_identity`/`set_git_identity` Tauri commands, backed by `read_global_git_config`/`write_global_git_config` helpers that shell out to `git config --global [--get] <key>`. Both accept an optional `config_override` (sets `GIT_CONFIG_GLOBAL` on the child process) so tests can round-trip through a temporary config file instead of touching the real machine's `~/.gitconfig`; production commands always pass `None`. `set_git_identity` rejects blank name/email with a plain-language error before touching git.
 - `src/main.tsx`: `SettingsPanel` gained three sections — "Git identity" (two text inputs pre-filled from `get_git_identity`, Save button, inline save/error message), "Startup" (`ToggleSwitch` for "Reopen last project on launch"), and "Safety" (`ToggleSwitch` for "Confirm before closing a project"). Added a small reusable `ToggleSwitch` component (`role="switch"`, click toggles a boolean) styled in `src/styles.css` (`.toggle-switch`).

@@ -173,7 +173,7 @@ describe("the remote section", () => {
 
     expect(
       await screen.findByText(
-        "The saved address includes sign-in details GitOdrile doesn't show. Saving a new address replaces them.",
+        "The saved address includes sign-in details GitOdile doesn't show. Saving a new address replaces them.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -333,7 +333,7 @@ describe("the ignored-files section", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("reports an edit made outside GitOdrile rather than overwriting it", async () => {
+  it("reports an edit made outside GitOdile rather than overwriting it", async () => {
     const user = userEvent.setup();
     const port = createPort({
       writeIgnoreFile: vi.fn(async () => {
@@ -347,7 +347,7 @@ describe("the ignored-files section", () => {
 
     expect(
       await screen.findByText(
-        "This ignore file changed outside GitOdrile. Reopen it to see the current rules before saving.",
+        "This ignore file changed outside GitOdile. Reopen it to see the current rules before saving.",
       ),
     ).toBeInTheDocument();
   });

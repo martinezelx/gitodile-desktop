@@ -272,8 +272,8 @@ type WelcomeRecentEntry = RecentProject & { isFavourite: boolean };
 const WELCOME_RECENTS_VISIBLE = 5;
 
 /** A project this machine has opened before. The name is the accessible name
- * and the path is its description, so a screen reader announces "gitodrile,
- * C:\workspace\gitodrile" rather than reading the path as part of the
+ * and the path is its description, so a screen reader announces "gitodile,
+ * C:\workspace\gitodile" rather than reading the path as part of the
  * label — and two projects that share a folder name are still told apart. */
 function WelcomeRecentRow({
   entry,

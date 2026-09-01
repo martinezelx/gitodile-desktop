@@ -74,7 +74,7 @@ export type ConnectRemoteResult = {
   remoteName: string;
 };
 
-const LAST_CREATE_PARENT_KEY = "gitodrile-create-parent";
+const LAST_CREATE_PARENT_KEY = "gitodile-create-parent";
 
 export function readLastCreateParent(): string {
   return localStorage.getItem(LAST_CREATE_PARENT_KEY) ?? "";

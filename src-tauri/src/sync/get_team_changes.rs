@@ -199,7 +199,7 @@ fn tracked_worktree_fingerprint(root: &Path, tracked: &[String]) -> Result<u64, 
                     .map_err(|_| {
                         AppError::new(
                             AppErrorCode::GitCommandFailed,
-                            "GitOdrile couldn't read a changed symbolic link safely.",
+                            "GitOdile couldn't read a changed symbolic link safely.",
                         )
                     })?
                     .hash(&mut hasher);
@@ -210,7 +210,7 @@ fn tracked_worktree_fingerprint(root: &Path, tracked: &[String]) -> Result<u64, 
                 let mut file = std::fs::File::open(&full_path).map_err(|_| {
                     AppError::new(
                         AppErrorCode::GitCommandFailed,
-                        "GitOdrile couldn't read a changed file safely.",
+                        "GitOdile couldn't read a changed file safely.",
                     )
                 })?;
                 let mut buffer = [0_u8; 64 * 1024];
@@ -218,7 +218,7 @@ fn tracked_worktree_fingerprint(root: &Path, tracked: &[String]) -> Result<u64, 
                     let read = file.read(&mut buffer).map_err(|_| {
                         AppError::new(
                             AppErrorCode::GitCommandFailed,
-                            "GitOdrile couldn't finish reading a changed file safely.",
+                            "GitOdile couldn't finish reading a changed file safely.",
                         )
                     })?;
                     if read == 0 {
@@ -233,7 +233,7 @@ fn tracked_worktree_fingerprint(root: &Path, tracked: &[String]) -> Result<u64, 
                     "A changed tracked path is not a regular file or symbolic link.",
                 )
                 .with_remediation(
-                    "Save or move that path outside GitOdrile, then review the team update again.",
+                    "Save or move that path outside GitOdile, then review the team update again.",
                 ));
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -242,7 +242,7 @@ fn tracked_worktree_fingerprint(root: &Path, tracked: &[String]) -> Result<u64, 
             Err(_) => {
                 return Err(AppError::new(
                     AppErrorCode::GitCommandFailed,
-                    "GitOdrile couldn't inspect a changed path safely.",
+                    "GitOdile couldn't inspect a changed path safely.",
                 ));
             }
         }
@@ -273,7 +273,7 @@ fn read_local_safety(path: &str) -> Result<LocalSafetyState, AppError> {
         let field = std::str::from_utf8(fields[index]).map_err(|_| {
             AppError::new(
                 AppErrorCode::PathEncodingUnsupported,
-                "This project contains a path GitOdrile can't compare safely.",
+                "This project contains a path GitOdile can't compare safely.",
             )
         })?;
         if let Some(path) = field.strip_prefix("? ") {
@@ -305,7 +305,7 @@ fn read_local_safety(path: &str) -> Result<LocalSafetyState, AppError> {
             let original_path = std::str::from_utf8(original).map_err(|_| {
                 AppError::new(
                     AppErrorCode::PathEncodingUnsupported,
-                    "This project contains a path GitOdrile can't compare safely.",
+                    "This project contains a path GitOdile can't compare safely.",
                 )
             })?;
             tracked.push(path.to_string());
@@ -546,7 +546,7 @@ fn ensure_no_local_collisions(
     if impact.is_truncated && !safety.tracked.is_empty() {
         return Err(AppError::new(
             AppErrorCode::IncomingTrackedChangeCollision,
-            "GitOdrile couldn't prove that every prepared or unsaved change is outside the bounded incoming file list.",
+            "GitOdile couldn't prove that every prepared or unsaved change is outside the bounded incoming file list.",
         )
         .with_remediation(
             "Save or move tracked changes outside the project, then review the team update again.",
@@ -555,7 +555,7 @@ fn ensure_no_local_collisions(
     if impact.is_truncated && (!safety.untracked.is_empty() || !safety.ignored.is_empty()) {
         return Err(AppError::new(
             AppErrorCode::IncomingPathCollision,
-            "GitOdrile couldn't prove that every local untracked or ignored path is outside the bounded incoming file list.",
+            "GitOdile couldn't prove that every local untracked or ignored path is outside the bounded incoming file list.",
         )
         .with_remediation(
             "Move untracked or ignored content outside the project, then review the team update again.",

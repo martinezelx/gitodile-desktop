@@ -29,7 +29,7 @@ without deciding between reset and revert or risking already-published history.
 # Context
 
 Task 015 is deliberately read-only. GitHub Desktop exposes several overlapping
-history-editing commands; GitOdrile `1.0.0` needs only two intent-based outcomes
+history-editing commands; GitOdile `1.0.0` needs only two intent-based outcomes
 with different consequences and recovery.
 
 # Scope

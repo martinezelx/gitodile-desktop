@@ -6,7 +6,7 @@
 ## Context
 
 Getting team changes advances the active branch and replaces index/worktree
-content. The first implementation is strictly fast-forward-only, but GitOdrile
+content. The first implementation is strictly fast-forward-only, but GitOdile
 still needs durable evidence of the previous `HEAD` before either history or
 files change. Unlike discard recovery from ADR 0007, the protected state is a
 commit already in Git's object database, so copying worktree bytes would be
@@ -65,7 +65,7 @@ on a branch that may have moved or been deleted.
 
 ### Creation, atomicity, and verification
 
-Before any history/index/worktree mutation, GitOdrile performs these steps
+Before any history/index/worktree mutation, GitOdile performs these steps
 under the exclusive `commonGitDir` permit:
 
 1. Reconcile version-1 artifacts and enforce retention, reserving one slot.
@@ -79,7 +79,7 @@ under the exclusive `commonGitDir` permit:
 
 Only after step 5 is recovery considered complete and local mutation may
 start. A failure before that point never authorizes a history/file change. If
-the ref exists but final manifest publication fails, GitOdrile deletes exactly
+the ref exists but final manifest publication fails, GitOdile deletes exactly
 that ref with a compare-and-swap old value. If cleanup cannot be proven, it
 leaves the pending evidence for version-1 reconciliation and reports recovery
 creation failure; it still does not start the update.
@@ -99,7 +99,7 @@ it a local recovery point and puts the exact ref in technical details.
 
 Version 1 retains at most **20 complete get-team-changes records per common
 repository**, across all linked worktrees. Before a new record is created,
-GitOdrile removes the oldest eligible complete records until at most 19 remain,
+GitOdile removes the oldest eligible complete records until at most 19 remain,
 then verifies that a slot exists. Cleanup deletes the exact ref with its
 recorded commit as the expected old value and removes the matching manifest
 only after ref deletion is verified. The current record is protected.
@@ -109,7 +109,7 @@ incomplete pre-mutation creation and is eligible for reconciliation. A final
 manifest whose ref is missing is also incomplete. Unknown schema versions,
 unreadable complete records, refs outside the exact version-1 namespace, and
 the current record are never guessed at or deleted. If those artifacts prevent
-the version-1 limit from being guaranteed, GitOdrile refuses to create another
+the version-1 limit from being guaranteed, GitOdile refuses to create another
 recovery point instead of accumulating more hidden refs.
 
 Retention runs on every get-team-changes creation, including after an app

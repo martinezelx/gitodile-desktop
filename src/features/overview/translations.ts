@@ -129,7 +129,7 @@ const en: OverviewTranslations = {
   overviewCopyPathFailedTitle: "Couldn't copy the path",
   overviewCopyPathFailedMessage: "Select the project path and copy it manually.",
   overviewOpeningTitle: "Opening project…",
-  overviewOpeningDescription: "GitOdrile is checking the selected folder.",
+  overviewOpeningDescription: "GitOdile is checking the selected folder.",
   overviewOpenFailedTitle: "We couldn’t open that project",
   overviewReviewChanges: "Review changes",
   overviewSaveVersion: "Save version",
@@ -150,7 +150,7 @@ const en: OverviewTranslations = {
   overviewHistoryViewAll: "View all",
   overviewHistoryLoading: "Loading recent history…",
   overviewHistoryErrorTitle: "Recent history is unavailable",
-  overviewHistoryError: "GitOdrile couldn't load the recent saved versions.",
+  overviewHistoryError: "GitOdile couldn't load the recent saved versions.",
   overviewHistoryRetry: "Try again",
   overviewHistoryEmptyTitle: "No saved versions yet",
   overviewHistoryEmptyDescription: "Your first saved version will appear here.",
@@ -167,7 +167,7 @@ const en: OverviewTranslations = {
   overviewPendingVersionsGuidance:
     "Newest first. Publishing through a version also publishes every older version below it.",
   overviewPendingVersionsTruncated: (visible, total) => `Showing the ${visible} newest of ${total}.`,
-  overviewPendingVersionsError: "GitOdrile couldn't load the saved versions waiting to be published.",
+  overviewPendingVersionsError: "GitOdile couldn't load the saved versions waiting to be published.",
   overviewSavedAndReadyTitle: "Your files are saved",
   overviewSavedAndReadyMessage: (count) =>
     count === 1 ? "1 saved version is ready to publish." : `${count} saved versions are ready to publish.`,
@@ -226,7 +226,7 @@ const es: OverviewTranslations = {
   overviewCopyPathFailedTitle: "No se pudo copiar la ruta",
   overviewCopyPathFailedMessage: "Selecciona la ruta del proyecto y cópiala manualmente.",
   overviewOpeningTitle: "Abriendo el proyecto…",
-  overviewOpeningDescription: "GitOdrile está comprobando la carpeta seleccionada.",
+  overviewOpeningDescription: "GitOdile está comprobando la carpeta seleccionada.",
   overviewOpenFailedTitle: "No hemos podido abrir ese proyecto",
   overviewReviewChanges: "Revisar cambios",
   overviewSaveVersion: "Guardar versión",
@@ -247,7 +247,7 @@ const es: OverviewTranslations = {
   overviewHistoryViewAll: "Ver todo",
   overviewHistoryLoading: "Cargando el historial reciente…",
   overviewHistoryErrorTitle: "El historial reciente no está disponible",
-  overviewHistoryError: "GitOdrile no pudo cargar las versiones guardadas recientes.",
+  overviewHistoryError: "GitOdile no pudo cargar las versiones guardadas recientes.",
   overviewHistoryRetry: "Reintentar",
   overviewHistoryEmptyTitle: "Todavía no hay versiones guardadas",
   overviewHistoryEmptyDescription: "Tu primera versión guardada aparecerá aquí.",
@@ -264,7 +264,7 @@ const es: OverviewTranslations = {
   overviewPendingVersionsGuidance:
     "Las más recientes aparecen primero. Publicar hasta una versión también publica todas las anteriores que aparecen debajo.",
   overviewPendingVersionsTruncated: (visible, total) => `Se muestran las ${visible} más recientes de ${total}.`,
-  overviewPendingVersionsError: "GitOdrile no pudo cargar las versiones guardadas pendientes de publicar.",
+  overviewPendingVersionsError: "GitOdile no pudo cargar las versiones guardadas pendientes de publicar.",
   overviewSavedAndReadyTitle: "Tus archivos están guardados",
   overviewSavedAndReadyMessage: (count) =>
     count === 1

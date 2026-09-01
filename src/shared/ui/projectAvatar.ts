@@ -24,8 +24,8 @@ export function avatarColorVar(id: string): string {
 
 /**
  * Two letters when the name has multiple words/segments ("my-app" → "MA",
- * "gitodrile app" → "GA"), otherwise the first two characters of a single
- * word ("gitodrile" → "GI") — a single shared initial is exactly the
+ * "gitodile app" → "GA"), otherwise the first two characters of a single
+ * word ("gitodile" → "GI") — a single shared initial is exactly the
  * ambiguity color-coding alone can't fully resolve, so this gives a second,
  * independent signal.
  */

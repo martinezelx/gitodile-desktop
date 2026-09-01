@@ -123,10 +123,10 @@ describe("SaveVersionDialog", () => {
   });
 
   it("renders the form copy in Spanish", async () => {
-    localStorage.setItem("gitodrile-language", "es");
+    localStorage.setItem("gitodile-language", "es");
     mockedInvoke.mockResolvedValueOnce(plan());
     renderDialog();
-    localStorage.removeItem("gitodrile-language");
+    localStorage.removeItem("gitodile-language");
 
     expect(await screen.findByLabelText("Nombre de la versión")).toBeRequired();
     expect(screen.getByLabelText("Más detalles (opcional)")).toBeInTheDocument();

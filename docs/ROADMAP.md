@@ -1,6 +1,6 @@
 # Roadmap
 
-This roadmap defines the capability sequence and release gates for GitOdrile.
+This roadmap defines the capability sequence and release gates for GitOdile.
 It is not a calendar promise. Approved implementation scope and acceptance
 criteria live under [`work/active/`](../work/active/).
 
@@ -17,7 +17,7 @@ ordinary lifecycle of a project without falling back to the terminal:
 5. check for, get, and publish project changes, including a diverged history;
 6. resolve overlaps without silent data loss;
 7. set unfinished work aside and restore it later;
-8. recover from the destructive/history-changing operations GitOdrile performs;
+8. recover from the destructive/history-changing operations GitOdile performs;
 9. install, update, and run a verified build on Windows, macOS, and Linux.
 
 The local workflow remains provider-neutral and usable without an account.
@@ -50,7 +50,7 @@ hermetic journeys, Windows desktop evidence, and remaining platform limits.
 
 ## GitHub Desktop reference cut
 
-GitHub Desktop is a coverage reference for the basic workflow, not GitOdrile's
+GitHub Desktop is a coverage reference for the basic workflow, not GitOdile's
 product specification.
 
 | User capability | Current state | `1.0.0` decision |

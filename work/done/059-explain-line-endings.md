@@ -26,7 +26,7 @@ claims every line changed.
 
 # Context
 
-This is the clearest case in the app for GitOdrile's whole thesis: a real Git
+This is the clearest case in the app for GitOdile's whole thesis: a real Git
 concept that is genuinely confusing, where the fix is one setting and the cost
 of not knowing is a diff that looks catastrophic and is not.
 
@@ -91,7 +91,7 @@ takes the open project (path + session epoch, validated in `ipc.rs` like any
 repository read) and is documented in `port.ts` as the deliberate exception.
 Writing stays global — there is no per-project write in scope.
 
-**The effective value is resolved by Git, not by GitOdrile.** `git config --get`
+**The effective value is resolved by Git, not by GitOdile.** `git config --get`
 run inside the project already resolves local over global, so the code does not
 reimplement precedence. `source` is derived by comparing that answer with the
 global one: equal means global, different means the project decides.

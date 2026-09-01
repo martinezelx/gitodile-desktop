@@ -21,7 +21,7 @@ and the welcome screen finally says that a folder can be dropped on the window.
 
 # User outcome
 
-The dialog someone meets when they open the wrong folder looks like GitOdrile
+The dialog someone meets when they open the wrong folder looks like GitOdile
 instead of like a product splash: a heading sized for a sentence, an error mark
 they can recognize before reading, and the green button on the way *out* of the
 problem rather than on dismissing it. And the drag-and-drop shortcut stops

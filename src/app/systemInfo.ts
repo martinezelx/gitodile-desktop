@@ -80,7 +80,7 @@ export function formatDiagnostics(parts: {
   system: SystemInfo | null;
   gitVersion: string | null;
 }): string {
-  const lines = [`GitOdrile ${parts.appVersion}`];
+  const lines = [`GitOdile ${parts.appVersion}`];
   if (parts.system) {
     lines.push(`System: ${describePlatform(parts.system)} (${parts.system.arch})`);
     lines.push(`System version: ${parts.system.version}`);

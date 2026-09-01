@@ -47,7 +47,7 @@ export type VersionLinesSnapshot = {
   lines: VersionLine[];
   totalCount: number;
   isTruncated: boolean;
-  /** Local branches whose exact bytes GitOdrile can't represent, and which
+  /** Local branches whose exact bytes GitOdile can't represent, and which
    * are therefore missing from `lines`. Reported rather than lossily
    * converted, so the screen can say the list is incomplete instead of
    * offering a name that doesn't exist. */

@@ -402,19 +402,19 @@ describe("project storage persistence", () => {
   });
 
   it("migrates the legacy single-project key exactly once", () => {
-    localStorage.setItem("gitodrile-last-project-path", "/old/project");
+    localStorage.setItem("gitodile-last-project-path", "/old/project");
     expect(readStoredProjects()).toEqual({ version: 1, order: ["/old/project"], activeId: "/old/project" });
-    expect(localStorage.getItem("gitodrile-last-project-path")).toBeNull();
-    expect(localStorage.getItem("gitodrile-projects")).not.toBeNull();
+    expect(localStorage.getItem("gitodile-last-project-path")).toBeNull();
+    expect(localStorage.getItem("gitodile-projects")).not.toBeNull();
   });
 
   it("treats corrupt JSON under the new key as nothing stored", () => {
-    localStorage.setItem("gitodrile-projects", "{not json");
+    localStorage.setItem("gitodile-projects", "{not json");
     expect(readStoredProjects()).toEqual({ version: 1, order: [], activeId: null });
   });
 
   it("treats an unrecognized schema version as nothing stored", () => {
-    localStorage.setItem("gitodrile-projects", JSON.stringify({ version: 2, order: ["/a"], activeId: "/a" }));
+    localStorage.setItem("gitodile-projects", JSON.stringify({ version: 2, order: ["/a"], activeId: "/a" }));
     expect(readStoredProjects()).toEqual({ version: 1, order: [], activeId: null });
   });
 });

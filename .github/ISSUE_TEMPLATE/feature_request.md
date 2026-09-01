@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Propose an improvement to GitOdrile
+about: Propose an improvement to GitOdile
 title: "[Feature]: "
 labels: enhancement
 ---

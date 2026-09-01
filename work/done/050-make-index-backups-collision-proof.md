@@ -41,7 +41,7 @@ gitodrile-index-backup-<pid>-<system-time-nanos>.bak
 The common-Git-dir coordinator serializes one repository family, not every
 project in the process. Two unrelated projects may therefore save concurrently,
 select the same backup path and overwrite or remove each other's original index.
-If either operation then fails, GitOdrile can restore the other project's index
+If either operation then fails, GitOdile can restore the other project's index
 or report a recovery path whose file no longer contains the right data. This is
 a data-safety defect, not only a test-runner race.
 

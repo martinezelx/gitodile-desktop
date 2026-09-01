@@ -1,12 +1,12 @@
 [package]
-name = "gitodrile"
+name = "gitodile"
 version = "0.1.0"
 description = "A friendly Git desktop client"
 authors = ["Luis M. Martínez"]
 edition = "2021"
 
 [lib]
-name = "gitodrile_lib"
+name = "gitodile_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

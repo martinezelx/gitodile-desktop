@@ -513,7 +513,7 @@ mod tests {
     fn unavailable_watcher_keeps_manual_refresh_available() {
         let registry = WatcherRegistry::default();
         let missing =
-            std::env::temp_dir().join(format!("gitodrile-missing-watch-{}", std::process::id()));
+            std::env::temp_dir().join(format!("gitodile-missing-watch-{}", std::process::id()));
         let _ = fs::remove_dir_all(&missing);
         assert!(!registry.watch_with("missing", "epoch", "common", paths(&missing), |_| {}));
     }
@@ -538,8 +538,7 @@ mod tests {
     #[test]
     fn real_watcher_coalesces_file_writes_and_filters_git_churn() {
         let registry = WatcherRegistry::default();
-        let root =
-            std::env::temp_dir().join(format!("gitodrile-watch-real-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("gitodile-watch-real-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join(".git/objects")).unwrap();
         let count = Arc::new(AtomicUsize::new(0));
@@ -573,7 +572,7 @@ mod tests {
     fn replacement_and_late_callbacks_cannot_reach_the_new_session() {
         let registry = WatcherRegistry::default();
         let root =
-            std::env::temp_dir().join(format!("gitodrile-watch-replace-{}", std::process::id()));
+            std::env::temp_dir().join(format!("gitodile-watch-replace-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join(".git")).unwrap();
         let old_count = Arc::new(AtomicUsize::new(0));
@@ -618,8 +617,8 @@ mod tests {
     #[test]
     fn shared_changes_fan_out_once_and_sequences_are_monotonic() {
         let registry = WatcherRegistry::default();
-        let first = std::env::temp_dir().join(format!("gitodrile-watch-a-{}", std::process::id()));
-        let second = std::env::temp_dir().join(format!("gitodrile-watch-b-{}", std::process::id()));
+        let first = std::env::temp_dir().join(format!("gitodile-watch-a-{}", std::process::id()));
+        let second = std::env::temp_dir().join(format!("gitodile-watch-b-{}", std::process::id()));
         for root in [&first, &second] {
             let _ = fs::remove_dir_all(root);
             fs::create_dir_all(root.join(".git")).unwrap();

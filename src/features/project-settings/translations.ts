@@ -95,7 +95,7 @@ export const projectSettingsTranslations: {
     projectSettingsIgnored: "Ignored files",
     projectSettingsIdentity: "Identity",
     projectSettingsLoading: "Reading this project…",
-    projectSettingsReadFailed: "GitOdrile couldn't read this project's settings.",
+    projectSettingsReadFailed: "GitOdile couldn't read this project's settings.",
     projectSettingsRetry: "Try again",
     projectSettingsSave: "Save",
     projectSettingsSaving: "Saving…",
@@ -115,7 +115,7 @@ export const projectSettingsTranslations: {
     projectSettingsRemotePushUrl: (url) =>
       `Publishing uses a separate address (${url}), which this field does not change.`,
     projectSettingsRemoteHiddenCredentials:
-      "The saved address includes sign-in details GitOdrile doesn't show. Saving a new address replaces them.",
+      "The saved address includes sign-in details GitOdile doesn't show. Saving a new address replaces them.",
     projectSettingsRemoteChange: "Change address",
     projectSettingsRemoteConfirmTitle: "Change where this project points?",
     projectSettingsRemoteConfirmFrom: (url) => `Now: ${url}`,
@@ -144,7 +144,7 @@ export const projectSettingsTranslations: {
 
     projectSettingsIgnoredTitle: "Files this project ignores",
     projectSettingsIgnoredDescription:
-      "One rule per line. GitOdrile leaves matching files out of your changes instead of offering to save them.",
+      "One rule per line. GitOdile leaves matching files out of your changes instead of offering to save them.",
     projectSettingsIgnoredScopeLabel: "Which list",
     projectSettingsIgnoredShared: "Everyone",
     projectSettingsIgnoredPersonal: "Only me",
@@ -159,8 +159,8 @@ export const projectSettingsTranslations: {
     projectSettingsIgnoredTooLarge:
       "This file is too large to edit here. Open it in a text editor instead.",
     projectSettingsIgnoredNotText:
-      "This file isn't plain text, so GitOdrile won't rewrite it.",
-    projectSettingsIgnoredUnreadable: "GitOdrile couldn't read this file.",
+      "This file isn't plain text, so GitOdile won't rewrite it.",
+    projectSettingsIgnoredUnreadable: "GitOdile couldn't read this file.",
 
     projectSettingsIdentityTitle: "Who this project saves as",
     projectSettingsIdentityDescription:
@@ -195,7 +195,7 @@ export const projectSettingsTranslations: {
     projectSettingsIgnored: "Archivos ignorados",
     projectSettingsIdentity: "Identidad",
     projectSettingsLoading: "Leyendo este proyecto…",
-    projectSettingsReadFailed: "GitOdrile no pudo leer los ajustes de este proyecto.",
+    projectSettingsReadFailed: "GitOdile no pudo leer los ajustes de este proyecto.",
     projectSettingsRetry: "Reintentar",
     projectSettingsSave: "Guardar",
     projectSettingsSaving: "Guardando…",
@@ -215,7 +215,7 @@ export const projectSettingsTranslations: {
     projectSettingsRemotePushUrl: (url) =>
       `Publicar usa una dirección aparte (${url}), que este campo no cambia.`,
     projectSettingsRemoteHiddenCredentials:
-      "La dirección guardada incluye datos de acceso que GitOdrile no muestra. Guardar una dirección nueva los sustituye.",
+      "La dirección guardada incluye datos de acceso que GitOdile no muestra. Guardar una dirección nueva los sustituye.",
     projectSettingsRemoteChange: "Cambiar dirección",
     projectSettingsRemoteConfirmTitle: "¿Cambiar a dónde apunta este proyecto?",
     projectSettingsRemoteConfirmFrom: (url) => `Ahora: ${url}`,
@@ -244,7 +244,7 @@ export const projectSettingsTranslations: {
 
     projectSettingsIgnoredTitle: "Archivos que ignora este proyecto",
     projectSettingsIgnoredDescription:
-      "Una regla por línea. GitOdrile deja fuera de tus cambios los archivos que coincidan en lugar de ofrecerte guardarlos.",
+      "Una regla por línea. GitOdile deja fuera de tus cambios los archivos que coincidan en lugar de ofrecerte guardarlos.",
     projectSettingsIgnoredScopeLabel: "Qué lista",
     projectSettingsIgnoredShared: "Todo el mundo",
     projectSettingsIgnoredPersonal: "Solo yo",
@@ -259,8 +259,8 @@ export const projectSettingsTranslations: {
     projectSettingsIgnoredTooLarge:
       "Este archivo es demasiado grande para editarlo aquí. Ábrelo en un editor de texto.",
     projectSettingsIgnoredNotText:
-      "Este archivo no es texto plano, así que GitOdrile no lo reescribirá.",
-    projectSettingsIgnoredUnreadable: "GitOdrile no pudo leer este archivo.",
+      "Este archivo no es texto plano, así que GitOdile no lo reescribirá.",
+    projectSettingsIgnoredUnreadable: "GitOdile no pudo leer este archivo.",
 
     projectSettingsIdentityTitle: "Con qué identidad guarda este proyecto",
     projectSettingsIdentityDescription:

@@ -21,7 +21,7 @@ can mutate conflicted files or the index.
 
 # User outcome
 
-GitOdrile can recognize an interrupted merge accurately, preserve its original
+GitOdile can recognize an interrupted merge accurately, preserve its original
 state, and expose bounded current/incoming/base evidence without changing it.
 
 # Context

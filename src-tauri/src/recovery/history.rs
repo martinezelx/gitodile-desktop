@@ -122,7 +122,7 @@ pub(crate) fn plan_history_recovery(repository: &RepositoryContext) -> HistoryRe
             "{HISTORY_RECOVERY_NAMESPACE}/{owner_id}/{recovery_id}"
         ),
         explanation:
-            "GitOdrile will protect the current saved version with a verified local reference before changing history or files."
+            "GitOdile will protect the current saved version with a verified local reference before changing history or files."
                 .to_string(),
         retention: format!(
             "The recovery point stays local and is kept among the newest {MAX_HISTORY_RECOVERY_RECORDS} team-update recovery points for this project repository."
@@ -158,21 +158,21 @@ fn read_history_records(
             continue;
         }
         let entries = fs::read_dir(owner.path()).map_err(|_| {
-            history_error("GitOdrile couldn't inspect existing history recovery records.")
+            history_error("GitOdile couldn't inspect existing history recovery records.")
         })?;
         for entry in entries.filter_map(Result::ok) {
             if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
                 continue;
             }
             let bytes = fs::read(entry.path()).map_err(|_| {
-                history_error("GitOdrile couldn't read an existing history recovery record.")
+                history_error("GitOdile couldn't read an existing history recovery record.")
             })?;
             let record: HistoryRecoveryRecord = serde_json::from_slice(&bytes).map_err(|_| {
-                history_error("An existing history recovery record is unreadable; GitOdrile kept it for inspection.")
+                history_error("An existing history recovery record is unreadable; GitOdile kept it for inspection.")
             })?;
             if record.schema_version != HISTORY_RECOVERY_SCHEMA_VERSION {
                 return Err(history_error(
-                    "A history recovery record uses an unsupported format; GitOdrile kept it for inspection.",
+                    "A history recovery record uses an unsupported format; GitOdile kept it for inspection.",
                 ));
             }
             records.push((entry.path(), record));
@@ -192,7 +192,7 @@ fn list_history_refs(path: &str) -> Result<HashMap<String, String>, AppError> {
     )?;
     if !output.status.success() {
         return Err(history_error(
-            "GitOdrile couldn't inspect existing history recovery references.",
+            "GitOdile couldn't inspect existing history recovery references.",
         ));
     }
     Ok(String::from_utf8_lossy(&output.stdout)
@@ -220,7 +220,7 @@ fn delete_history_record(
     )?;
     if !output.status.success() {
         return Err(history_error(
-            "GitOdrile couldn't remove an expired history recovery reference safely.",
+            "GitOdile couldn't remove an expired history recovery reference safely.",
         ));
     }
     let verification = run_git(path, &["rev-parse", "--verify", &record.reference])?;
@@ -230,7 +230,7 @@ fn delete_history_record(
         ));
     }
     fs::remove_file(manifest_path).map_err(|_| {
-        history_error("GitOdrile couldn't finish cleaning an expired history recovery record.")
+        history_error("GitOdile couldn't finish cleaning an expired history recovery record.")
     })
 }
 
@@ -249,29 +249,29 @@ fn reconcile_pending_history_records(
             continue;
         }
         let bytes = fs::read(entry.path()).map_err(|_| {
-            history_error("GitOdrile couldn't read pending history recovery evidence.")
+            history_error("GitOdile couldn't read pending history recovery evidence.")
         })?;
         let record: HistoryRecoveryRecord = serde_json::from_slice(&bytes).map_err(|_| {
             history_error(
-                "Pending history recovery evidence is unreadable; GitOdrile kept it for inspection.",
+                "Pending history recovery evidence is unreadable; GitOdile kept it for inspection.",
             )
         })?;
         if record.schema_version != HISTORY_RECOVERY_SCHEMA_VERSION {
             return Err(history_error(
-                "Pending history recovery evidence uses an unsupported format; GitOdrile kept it for inspection.",
+                "Pending history recovery evidence uses an unsupported format; GitOdile kept it for inspection.",
             ));
         }
         let final_path = history_record_path(common, &record.owner_id, &record.recovery_id);
         if final_path.is_file() {
             fs::remove_file(entry.path()).map_err(|_| {
-                history_error("GitOdrile couldn't remove duplicate pending recovery evidence.")
+                history_error("GitOdile couldn't remove duplicate pending recovery evidence.")
             })?;
             continue;
         }
         match refs.get(&record.reference) {
             None => {
                 fs::remove_file(entry.path()).map_err(|_| {
-                    history_error("GitOdrile couldn't clean incomplete recovery metadata.")
+                    history_error("GitOdile couldn't clean incomplete recovery metadata.")
                 })?;
             }
             Some(commit) if commit == &record.previous_commit => {
@@ -290,19 +290,17 @@ fn reconcile_pending_history_records(
                         .success()
                 {
                     return Err(history_error(
-                        "GitOdrile couldn't reconcile an incomplete history recovery reference safely.",
+                        "GitOdile couldn't reconcile an incomplete history recovery reference safely.",
                     ));
                 }
                 refs.remove(&record.reference);
                 fs::remove_file(entry.path()).map_err(|_| {
-                    history_error(
-                        "GitOdrile couldn't finish reconciling pending recovery evidence.",
-                    )
+                    history_error("GitOdile couldn't finish reconciling pending recovery evidence.")
                 })?;
             }
             Some(_) => {
                 return Err(history_error(
-                    "A pending history recovery reference moved unexpectedly; GitOdrile kept it for inspection.",
+                    "A pending history recovery reference moved unexpectedly; GitOdile kept it for inspection.",
                 ));
             }
         }
@@ -332,7 +330,7 @@ fn reserve_history_recovery_slot(repository: &RepositoryContext) -> Result<(), A
     while refs.len() >= MAX_HISTORY_RECOVERY_RECORDS {
         let Some((manifest_path, record)) = records.first().cloned() else {
             return Err(history_error(
-                "History recovery contains incomplete records, so GitOdrile couldn't guarantee its retention limit.",
+                "History recovery contains incomplete records, so GitOdile couldn't guarantee its retention limit.",
             ));
         };
         delete_history_record(&path, &manifest_path, &record)?;
@@ -381,12 +379,12 @@ pub(crate) fn create_history_recovery(
     let final_path = history_record_path(common, &owner_id, &recovery_id);
     if let Some(parent) = pending.parent() {
         fs::create_dir_all(parent).map_err(|_| {
-            history_error("GitOdrile couldn't create its pending history recovery folder.")
+            history_error("GitOdile couldn't create its pending history recovery folder.")
         })?;
     }
     if let Some(parent) = final_path.parent() {
         fs::create_dir_all(parent)
-            .map_err(|_| history_error("GitOdrile couldn't create its history recovery folder."))?;
+            .map_err(|_| history_error("GitOdile couldn't create its history recovery folder."))?;
     }
 
     let record = HistoryRecoveryRecord {
@@ -406,16 +404,16 @@ pub(crate) fn create_history_recovery(
         retention_limit: MAX_HISTORY_RECOVERY_RECORDS,
     };
     let bytes = serde_json::to_vec_pretty(&record)
-        .map_err(|_| history_error("GitOdrile couldn't encode history recovery metadata."))?;
+        .map_err(|_| history_error("GitOdile couldn't encode history recovery metadata."))?;
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&pending)
-        .map_err(|_| history_error("GitOdrile couldn't reserve history recovery metadata."))?;
+        .map_err(|_| history_error("GitOdile couldn't reserve history recovery metadata."))?;
     file.write_all(&bytes)
         .and_then(|_| file.sync_all())
         .map_err(|_| {
-            history_error("GitOdrile couldn't finish writing history recovery metadata.")
+            history_error("GitOdile couldn't finish writing history recovery metadata.")
         })?;
     drop(file);
 
@@ -458,7 +456,7 @@ pub(crate) fn create_history_recovery(
     if fs::rename(&pending, &final_path).is_err() {
         cleanup_partial_history_ref(&path, &record.reference, &record.previous_commit);
         return Err(history_error(
-            "GitOdrile couldn't publish the completed history recovery metadata atomically.",
+            "GitOdile couldn't publish the completed history recovery metadata atomically.",
         ));
     }
     let verified: HistoryRecoveryRecord = fs::read(&final_path)

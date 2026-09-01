@@ -244,7 +244,7 @@ Windows, and ADR 0006 requires it when macOS/Linux release validation begins.
 ## Memory observation and release protocol
 
 After visiting all screens in `tauri dev` with the profiler and remote-debug
-port enabled, the GitOdrile + WebView2 process tree used 487.4 MiB working set
+port enabled, the GitOdile + WebView2 process tree used 487.4 MiB working set
 and 299.9 MiB private bytes. This is an intentionally instrumented debug
 observation, not the release baseline used for pass/fail.
 
@@ -300,7 +300,7 @@ Memory had no comparable release baseline when this table was written. Task 031
 measured it and revised the metric: summed working set double-counts pages
 shared across a seven-process WebView2 tree, so an Overview-only session already
 read 405.1 MiB while keep-alive for all three screens added only 10.5 MiB. The
-budget is now stated in private bytes, which responds to GitOdrile's own
+budget is now stated in private bytes, which responds to GitOdile's own
 allocations. See [ADR 0004](../adr/0004-measure-desktop-memory-as-private-bytes.md)
 for the measurement rules; scope every sample to the app's own process tree and
 confirm a single running instance.

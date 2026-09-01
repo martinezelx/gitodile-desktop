@@ -5,7 +5,7 @@
 
 ## Context
 
-GitOdrile targets Windows, macOS and Linux, but development hardware currently
+GitOdile targets Windows, macOS and Linux, but development hardware currently
 provides only Windows 11 with WebView2. Task 031 measured startup ordering,
 screen switching, virtualization, DOM bounds and memory on that machine. The
 same protocol has never run inside WKWebView or WebKitGTK, and no assistive-
@@ -39,7 +39,7 @@ decisions. Until then:
 3. Product and architecture documents must label macOS/Linux WebView behavior,
    accessibility, memory, credentials and packaging as unmeasured. Windows
    budgets may not be extrapolated to either platform.
-4. Before GitOdrile makes a release-readiness claim for macOS or Linux, create
+4. Before GitOdile makes a release-readiness claim for macOS or Linux, create
    a new validation task and run the complete task-023 protocol on representative
    hardware or VMs. Record the commit, hardware, OS/desktop build, WebView
    version, Git version and assistive technology used.
@@ -63,7 +63,7 @@ actual packaging/signing path intended for release.
 
 ### Negative
 
-- GitOdrile cannot yet claim observed runtime correctness, accessibility,
+- GitOdile cannot yet claim observed runtime correctness, accessibility,
   performance or memory behavior on macOS or Linux.
 - Hosted CI runners do not represent end-user hardware and a successful
   headless compile can coexist with WKWebView/WebKitGTK defects.

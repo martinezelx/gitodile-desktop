@@ -18,7 +18,7 @@ queue:
 
 # Goal
 
-Make the physical source tree reflect GitOdrile's already-delivered modular
+Make the physical source tree reflect GitOdile's already-delivered modular
 architecture: keep only true entrypoints at the frontend root, give app shell,
 project/screen runtime, shared primitives and architecture tests explicit
 owners, colocate feature tests with the code they verify, and audit the Rust

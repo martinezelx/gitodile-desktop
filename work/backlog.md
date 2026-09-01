@@ -1,4 +1,4 @@
-# GitOdrile backlog
+# GitOdile backlog
 
 This file is an inbox for ideas that are not approved for implementation. The
 dependency-ordered `1.0.0` scope lives in [`docs/ROADMAP.md`](../docs/ROADMAP.md)

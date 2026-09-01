@@ -1303,7 +1303,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gitodrile"
+name = "gitodile"
 version = "0.1.0"
 dependencies = [
  "notify",

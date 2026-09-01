@@ -22,7 +22,7 @@ folder into one, then optionally connect it to a remote URL.
 # User outcome
 
 A user starting from an idea or an existing non-Git folder can enter the
-GitOdrile workflow without opening a terminal.
+GitOdile workflow without opening a terminal.
 
 # Context
 

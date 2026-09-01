@@ -58,7 +58,7 @@ The full review is archived at
   navigation display modes.
 - Add concise English and Spanish tooltips to those controls:
   - active project: identify the action and current project, for example
-    **Switch project — GitOdrile** / **Cambiar proyecto — GitOdrile**;
+    **Switch project — GitOdile** / **Cambiar proyecto — GitOdile**;
   - no active project: explain the available project-switching/opening action
     truthfully rather than showing an empty identity;
   - add project: **Add project** / **Añadir proyecto**;
@@ -169,7 +169,7 @@ turning the rail back into a wall of captions.
 **Reserve Login without implying a requirement.** Keeping the control prevents
 future account functionality from moving the rail furniture. Its disabled
 state must explicitly say **Coming soon**, and the copy must preserve
-GitOdrile's local-first commitment rather than suggesting that an account is
+GitOdile's local-first commitment rather than suggesting that an account is
 required.
 
 **Hover confirms interactivity; selection communicates location.** Hover uses

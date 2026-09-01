@@ -365,7 +365,7 @@ describe("PublishDialog", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
 
-    expect(await screen.findByText("Keep this window open while GitOdrile confirms the remote result.")).toBeInTheDocument();
+    expect(await screen.findByText("Keep this window open while GitOdile confirms the remote result.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     await userEvent.keyboard("{Escape}");
     await userEvent.click(container.querySelector(".save-version-backdrop") as HTMLElement);

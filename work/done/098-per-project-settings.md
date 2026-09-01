@@ -54,7 +54,7 @@ panel that showed them beside global ones would be lying about scope.
 
 GitHub Desktop solves the same problem with a per-repository dialog holding
 Remote, Ignored files and Git config. This task follows that shape, with the
-existing GitOdrile machinery rather than a parallel one:
+existing GitOdile machinery rather than a parallel one:
 
 - The panel is a **modal overlay scoped to one open project**, mounted like the
   Settings dialog and sharing its chrome. It is not a screen: it never becomes
@@ -292,7 +292,7 @@ which covers userinfo and query tokens alike and correctly leaves an SCP-style
 `git@host:path` username alone. `set_remote_url` validates the name against the
 configured remotes, normalizes the URL through the rules `connect_remote`
 already uses, writes, and then re-reads `remote.<name>.url` to verify — Git
-reporting success is not the same as the configuration saying what GitOdrile
+reporting success is not the same as the configuration saying what GitOdile
 intended.
 
 Seven commands, each with an execution policy and a contract entry:
@@ -307,7 +307,7 @@ Checked against `desktop/desktop` on the `development` branch rather than from
 memory (`app/src/ui/repository-settings/`): `repository-settings.tsx`,
 `remote.tsx`, `git-ignore.tsx`, `git-config.tsx`.
 
-| | GitHub Desktop | GitOdrile |
+| | GitHub Desktop | GitOdile |
 | --- | --- | --- |
 | Sections | "Remote", "Ignored Files", "Git Config" (plus "Fork Behavior" on forks) | the same three |
 | Remote | one remote only, labelled "Primary remote repository (origin) URL"; no add or remove | every configured remote, the publishing one marked, per-remote edit; connecting the first one; still no rename or remove |
@@ -330,7 +330,7 @@ deliberate:
   GitHub Desktop shows exactly one and edits its URL blind.
 
 Not adopted: their account-email dropdown (it needs a signed-in GitHub account,
-which GitOdrile does not have yet) and the "Learn more about gitignore files"
+which GitOdile does not have yet) and the "Learn more about gitignore files"
 link.
 
 ## Frontend
@@ -522,7 +522,7 @@ Behind them, the reads themselves got cheaper:
   --get-regexp` reports every scope in one call, which is both faster and more
   accurate: a system-level identity is now correctly reported as inherited,
   where the previous global-only read saw nothing. `--show-scope` needs Git
-  2.26 and GitOdrile supports 2.23, so a usage error (exit 129, distinct from
+  2.26 and GitOdile supports 2.23, so a usage error (exit 129, distinct from
   exit 1 for "no key matched") falls back to the three scoped reads. A test
   asserts the two paths describe the same repository identically.
 - **A project with no remotes no longer pays for an upstream lookup** it cannot

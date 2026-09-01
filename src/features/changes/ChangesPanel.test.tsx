@@ -840,7 +840,7 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Check local changes" })).toHaveTextContent("Update now");
     view.rerender(panel(true));
     expect(screen.getByText("Automatic updates are off")).toBeInTheDocument();
-    const busyUpdate = screen.getByRole("button", { name: "GitOdrile is looking at your project files." });
+    const busyUpdate = screen.getByRole("button", { name: "GitOdile is looking at your project files." });
     expect(busyUpdate).toHaveTextContent("Updating…");
     expect(busyUpdate.querySelector(".icon--spinning")).not.toBeNull();
     view.rerender(panel(false));

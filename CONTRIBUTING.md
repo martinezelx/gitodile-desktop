@@ -1,6 +1,6 @@
 # Contributing
 
-GitOdrile is pre-release software. Contributions must preserve its central
+GitOdile is pre-release software. Contributions must preserve its central
 promise: make Git understandable and safe without hiding consequences.
 
 ## Before changing code
@@ -59,7 +59,7 @@ Conventional prefixes are encouraged: `feat:`, `fix:`, `docs:`, `refactor:`,
 
 ## Versioning and tags
 
-GitOdrile follows [Semantic Versioning 2.0.0](https://semver.org). While the
+GitOdile follows [Semantic Versioning 2.0.0](https://semver.org). While the
 major is `0` the public surface is the shipped desktop application, not a
 library API:
 
@@ -79,7 +79,7 @@ installer, and the crash metadata disagree about what is running:
 Every released version gets an annotated tag, `v` plus the exact number:
 
 ```bash
-git tag -a v0.1.0 -m "GitOdrile 0.1.0"
+git tag -a v0.1.0 -m "GitOdile 0.1.0"
 ```
 
 **Do not put a date in the version number.** A `DDMMYY` patch is not monotonic

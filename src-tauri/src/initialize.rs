@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub(crate) const OWNER_MARKER: &str = ".gitodrile-init-owner";
-const OWNER_VERSION: &str = "gitodrile-init-v1";
+pub(crate) const OWNER_MARKER: &str = ".gitodile-init-owner";
+const OWNER_VERSION: &str = "gitodile-init-v1";
 const MAX_PROJECT_NAME_CHARS: usize = 120;
 const MAX_INSPECTED_ENTRIES: usize = 20_000;
 
@@ -137,6 +137,7 @@ fn validate_project_name(name: &str) -> Result<(), AppError> {
         || name.chars().any(char::is_control)
         || name.contains(['/', '\\', ':'])
         || name.ends_with(['.', ' '])
+        || name.starts_with(".gitodile-")
         || name.starts_with(".gitodrile-")
         || is_reserved_windows_name(name)
     {
@@ -188,12 +189,12 @@ fn checked_entries(path: &Path) -> Result<Vec<fs::DirEntry>, AppError> {
     let entries = fs::read_dir(path).map_err(|error| match error.kind() {
         ErrorKind::PermissionDenied => initialize_error(
             AppErrorCode::PermissionDenied,
-            "GitOdrile can't inspect this folder.",
+            "GitOdile can't inspect this folder.",
             "Check its permissions or choose another folder.",
         ),
         _ => initialize_error(
             AppErrorCode::InitializationInspectionIncomplete,
-            "GitOdrile couldn't finish inspecting this folder.",
+            "GitOdile couldn't finish inspecting this folder.",
             "Close programs using the folder and try again.",
         ),
     })?;
@@ -202,7 +203,7 @@ fn checked_entries(path: &Path) -> Result<Vec<fs::DirEntry>, AppError> {
             entry.map_err(|_| {
                 initialize_error(
                     AppErrorCode::InitializationInspectionIncomplete,
-                    "GitOdrile couldn't finish inspecting this folder.",
+                    "GitOdile couldn't finish inspecting this folder.",
                     "Check the folder permissions and try again.",
                 )
             })
@@ -226,7 +227,7 @@ fn reject_existing_git_metadata(path: &Path) -> Result<(), AppError> {
     let file_type = entry.file_type().map_err(|_| {
         initialize_error(
             AppErrorCode::InitializationInspectionIncomplete,
-            "GitOdrile couldn't inspect the existing Git metadata.",
+            "GitOdile couldn't inspect the existing Git metadata.",
             "Check the folder permissions and try again.",
         )
     })?;
@@ -234,13 +235,13 @@ fn reject_existing_git_metadata(path: &Path) -> Result<(), AppError> {
         return Err(initialize_error(
             AppErrorCode::LinkedWorktree,
             "This folder already contains linked-worktree Git metadata.",
-            "Open the existing project instead. GitOdrile will not replace its .git file.",
+            "Open the existing project instead. GitOdile will not replace its .git file.",
         ));
     }
     Err(initialize_error(
         AppErrorCode::ExistingGitMetadata,
         "This folder already contains Git metadata.",
-        "Open the existing project instead. GitOdrile will not replace its .git directory.",
+        "Open the existing project instead. GitOdile will not replace its .git directory.",
     ))
 }
 
@@ -281,7 +282,7 @@ fn reject_nested_git_metadata(root: &Path) -> Result<(), AppError> {
             let file_type = entry.file_type().map_err(|_| {
                 initialize_error(
                     AppErrorCode::InitializationInspectionIncomplete,
-                    "GitOdrile couldn't inspect every item in this folder.",
+                    "GitOdile couldn't inspect every item in this folder.",
                     "Check permissions and try again.",
                 )
             })?;
@@ -296,7 +297,7 @@ fn reject_nested_git_metadata(root: &Path) -> Result<(), AppError> {
                 return Err(initialize_error(
                     AppErrorCode::NestedRepository,
                     "This folder contains another Git project or linked worktree.",
-                    "Choose a folder without nested Git metadata. GitOdrile will not combine histories implicitly.",
+                    "Choose a folder without nested Git metadata. GitOdile will not combine histories implicitly.",
                 ));
             }
             if file_type.is_dir() {
@@ -313,7 +314,7 @@ fn check_new_destination(parent: &Path, name: &str) -> Result<PathBuf, AppError>
         return Err(initialize_error(
             AppErrorCode::ProjectDestinationExists,
             "A file or folder already exists at that destination.",
-            "Choose another name. GitOdrile will not initialize, empty, or replace an existing destination in this flow.",
+            "Choose another name. GitOdile will not initialize, empty, or replace an existing destination in this flow.",
         ));
     }
     let folded = name.to_lowercase();
@@ -489,7 +490,7 @@ fn create_owner_marker(path: &Path, operation_id: &str) -> Result<(), AppError> 
         .create_new(true)
         .open(path)
         .map_err(|error| {
-            classify_filesystem_error(&error, "GitOdrile couldn't mark the path it created.")
+            classify_filesystem_error(&error, "GitOdile couldn't mark the path it created.")
         })?;
     marker
         .write_all(marker_contents(operation_id).as_bytes())
@@ -497,7 +498,7 @@ fn create_owner_marker(path: &Path, operation_id: &str) -> Result<(), AppError> 
         .map_err(|error| {
             classify_filesystem_error(
                 &error,
-                "GitOdrile couldn't finish marking the path it created.",
+                "GitOdile couldn't finish marking the path it created.",
             )
         })
 }
@@ -507,7 +508,7 @@ fn verify_owner_marker(path: &Path, operation_id: &str) -> Result<(), AppError> 
         initialize_error(
             AppErrorCode::InitializeCleanupUnavailable,
             "The initialization ownership marker is unavailable.",
-            "Inspect the project manually. GitOdrile will not remove an unowned path.",
+            "Inspect the project manually. GitOdile will not remove an unowned path.",
         )
     })?;
     if !metadata.file_type().is_file()
@@ -515,8 +516,8 @@ fn verify_owner_marker(path: &Path, operation_id: &str) -> Result<(), AppError> 
     {
         return Err(initialize_error(
             AppErrorCode::InitializeCleanupUnavailable,
-            "GitOdrile can't prove that it owns this initialization artifact.",
-            "Inspect it manually. GitOdrile will not remove it.",
+            "GitOdile can't prove that it owns this initialization artifact.",
+            "Inspect it manually. GitOdile will not remove it.",
         ));
     }
     Ok(())
@@ -528,7 +529,7 @@ fn remove_owned_marker(path: &Path, operation_id: &str) -> Result<(), AppError> 
     }
     verify_owner_marker(path, operation_id)?;
     fs::remove_file(path).map_err(|error| {
-        classify_filesystem_error(&error, "GitOdrile couldn't remove its ownership marker.")
+        classify_filesystem_error(&error, "GitOdile couldn't remove its ownership marker.")
     })
 }
 
@@ -549,14 +550,14 @@ fn cleanup_owned_empty_artifacts(
             initialize_error(
                 AppErrorCode::InitializeCleanupUnavailable,
                 "The created Git metadata path can't be inspected.",
-                "GitOdrile will not remove it.",
+                "GitOdile will not remove it.",
             )
         })?;
         if !metadata.file_type().is_dir() {
             return Err(initialize_error(
                 AppErrorCode::InitializeCleanupUnavailable,
                 "The created Git metadata path changed type.",
-                "GitOdrile will not remove it.",
+                "GitOdile will not remove it.",
             ));
         }
         remove_owned_marker(&git_marker, operation_id)?;
@@ -564,7 +565,7 @@ fn cleanup_owned_empty_artifacts(
             fs::remove_dir(&git_dir).map_err(|error| {
                 classify_filesystem_error(
                     &error,
-                    "GitOdrile couldn't remove the empty Git metadata directory it created.",
+                    "GitOdile couldn't remove the empty Git metadata directory it created.",
                 )
             })?;
         }
@@ -578,14 +579,14 @@ fn cleanup_owned_empty_artifacts(
             initialize_error(
                 AppErrorCode::InitializeCleanupUnavailable,
                 "The created project path can't be inspected.",
-                "GitOdrile will not remove it.",
+                "GitOdile will not remove it.",
             )
         })?;
         if !metadata.file_type().is_dir() {
             return Err(initialize_error(
                 AppErrorCode::InitializeCleanupUnavailable,
                 "The created project path changed type.",
-                "GitOdrile will not remove it.",
+                "GitOdile will not remove it.",
             ));
         }
         remove_owned_marker(&target_marker, operation_id)?;
@@ -593,7 +594,7 @@ fn cleanup_owned_empty_artifacts(
             fs::remove_dir(destination).map_err(|error| {
                 classify_filesystem_error(
                     &error,
-                    "GitOdrile couldn't remove the empty project folder it created.",
+                    "GitOdile couldn't remove the empty project folder it created.",
                 )
             })?;
         }
@@ -614,7 +615,7 @@ fn classify_filesystem_error(error: &std::io::Error, context: &str) -> AppError 
         return initialize_error(
             AppErrorCode::DiskFull,
             "There isn't enough disk space to initialize this project.",
-            "Free some space and try again. GitOdrile will not remove existing files.",
+            "Free some space and try again. GitOdile will not remove existing files.",
         );
     }
     if lower.contains("filename too long") || lower.contains("path too long") {
@@ -637,9 +638,9 @@ fn create_target(validated: &ValidatedInitialize, operation_id: &str) -> Result<
             ErrorKind::AlreadyExists => initialize_error(
                 AppErrorCode::ProjectDestinationExists,
                 "The destination appeared after the preview.",
-                "GitOdrile did not replace it. Review the destination again.",
+                "GitOdile did not replace it. Review the destination again.",
             ),
-            _ => classify_filesystem_error(&error, "GitOdrile couldn't create the project folder."),
+            _ => classify_filesystem_error(&error, "GitOdile couldn't create the project folder."),
         })?;
         if let Err(error) =
             create_owner_marker(&validated.destination.join(OWNER_MARKER), operation_id)
@@ -653,11 +654,11 @@ fn create_target(validated: &ValidatedInitialize, operation_id: &str) -> Result<
         ErrorKind::AlreadyExists => initialize_error(
             AppErrorCode::ExistingGitMetadata,
             "Git metadata appeared after the preview.",
-            "Open the existing project or review this folder again. GitOdrile did not replace it.",
+            "Open the existing project or review this folder again. GitOdile did not replace it.",
         ),
         _ => classify_filesystem_error(
             &error,
-            "GitOdrile couldn't create the Git metadata directory.",
+            "GitOdile couldn't create the Git metadata directory.",
         ),
     })?;
     if let Err(error) = create_owner_marker(&git_dir.join(OWNER_MARKER), operation_id) {
@@ -677,12 +678,12 @@ fn create_readme(path: &Path) -> Result<(), AppError> {
             ErrorKind::AlreadyExists => initialize_error(
                 AppErrorCode::ReadmeAlreadyExists,
                 "A README appeared after the preview.",
-                "GitOdrile did not replace it. Keep it and retry without Add a README.",
+                "GitOdile did not replace it. Keep it and retry without Add a README.",
             ),
-            _ => classify_filesystem_error(&error, "GitOdrile couldn't create README.md."),
+            _ => classify_filesystem_error(&error, "GitOdile couldn't create README.md."),
         })?;
     file.write_all(b"# Project\n").map_err(|error| {
-        classify_filesystem_error(&error, "GitOdrile couldn't finish writing README.md.")
+        classify_filesystem_error(&error, "GitOdile couldn't finish writing README.md.")
     })
 }
 
@@ -741,7 +742,7 @@ fn cleanup_failure(
         Err(cleanup_error) => initialize_error(
             AppErrorCode::InitializeCleanupRequired,
             "Initialization stopped, but an exact owned marker or empty artifact still needs cleanup.",
-            "Retry cleanup from this dialog. GitOdrile will not remove existing files or non-empty folders.",
+            "Retry cleanup from this dialog. GitOdile will not remove existing files or non-empty folders.",
         )
         .with_detail(format!(
             "Cleanup path: {}. {}",
@@ -884,7 +885,17 @@ mod tests {
     #[test]
     fn project_names_cover_unicode_and_cross_platform_rejections() {
         assert!(validate_project_name("mi proyecto 🐊").is_ok());
-        for name in ["", ".", "..", "a/b", "a\\b", "CON", "name.", ".gitodrile-x"] {
+        for name in [
+            "",
+            ".",
+            "..",
+            "a/b",
+            "a\\b",
+            "CON",
+            "name.",
+            ".gitodile-x",
+            ".gitodrile-x",
+        ] {
             assert_eq!(
                 validate_project_name(name).unwrap_err().code,
                 AppErrorCode::InvalidProjectName
@@ -895,7 +906,7 @@ mod tests {
     #[test]
     fn ownership_markers_must_match_exactly() {
         let root =
-            std::env::temp_dir().join(format!("gitodrile-init-marker-{}", new_operation_id()));
+            std::env::temp_dir().join(format!("gitodile-init-marker-{}", new_operation_id()));
         fs::create_dir(&root).unwrap();
         let marker = root.join(OWNER_MARKER);
         create_owner_marker(&marker, "a1-b2").unwrap();
@@ -911,7 +922,7 @@ mod tests {
     #[test]
     fn cleanup_never_removes_non_empty_or_mismatched_owned_paths() {
         let root =
-            std::env::temp_dir().join(format!("gitodrile-init-cleanup-{}", new_operation_id()));
+            std::env::temp_dir().join(format!("gitodile-init-cleanup-{}", new_operation_id()));
         fs::create_dir(&root).unwrap();
         let operation_id = "a1-b2";
         create_owner_marker(&root.join(OWNER_MARKER), operation_id).unwrap();

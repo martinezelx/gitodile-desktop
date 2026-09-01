@@ -185,7 +185,7 @@ export function TitlebarMenu({
           </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenAbout)}>
             <Info aria-hidden="true" />
-            <span>{t.aboutGitOdrile}</span>
+            <span>{t.aboutGitOdile}</span>
           </button>
         </div>
       )}

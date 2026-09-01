@@ -382,9 +382,9 @@ fn read_file_diff_reports_a_conflict_with_visible_content() {
     let _ = git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "merge",
             "-q",
             "--no-edit",
@@ -623,9 +623,9 @@ fn read_working_tree_diffs_excludes_conflicted_entries() {
     let _ = git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "merge",
             "-q",
             "--no-edit",

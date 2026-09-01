@@ -54,7 +54,7 @@ Reaching the single toggle in General passes four heading layers: the dialog
 header ("Settings" + `settingsDialogDescription`), the rail item, the section
 `h2` "General" + `settingsGeneralDescription`, and the group `h3` "Startup" +
 `settingsStartupDescription`. The section and group descriptions restate each
-other ("what GitOdrile does when it starts" / "what happens when GitOdrile
+other ("what GitOdile does when it starts" / "what happens when GitOdile
 launches"), and the `h2` repeats the rail item the user just clicked.
 
 Three behavioral defects were reproduced in the browser rather than inferred:
@@ -162,7 +162,7 @@ rebuilding it later.
   recognize separated from the exact build.
 - Report the Git version the app already knows, so it is not Settings-only.
 - Copy the whole thing to the clipboard as a diagnostics block.
-- Keep GitOdrile's own version above the rule, with the app; everything below
+- Keep GitOdile's own version above the rule, with the app; everything below
   the rule describes the machine — sharing one row grammar so the version does
   not read as a caption bolted onto the description.
 
@@ -183,7 +183,7 @@ rebuilding it later.
   project — not `package.json`, not `tauri.conf.json`, not the README — and
   inventing one is worse than omitting it. The license files are also not
   reachable from a packaged build today.
-- A GitOdrile self-update check in About. Blocked on the backlog's "Design the
+- A GitOdile self-update check in About. Blocked on the backlog's "Design the
   update strategy".
 
 # Acceptance criteria
@@ -220,7 +220,7 @@ rebuilding it later.
       sentence to a screen reader.
 - [x] The OS is named the way a user would recognize it, with the precise
       build on its own row.
-- [x] GitOdrile's version sits above the rule and reads as part of the same
+- [x] GitOdile's version sits above the rule and reads as part of the same
       list as the rows below it; nothing below the rule is about the app.
 - [x] With nothing known about the machine, the rule is absent rather than
       rendering as a stray line.
@@ -400,7 +400,7 @@ that. Recorded here rather than left as an undocumented drift.
   looked informational. Both now carry a `Notice` tone that picks the icon and
   the color, and `SettingsPanel.test.tsx` pins the failure case.
 - **The About rule could render with nothing under it.** The divider started
-  as `.about-details`'s `border-top`, so once GitOdrile's version moved above
+  as `.about-details`'s `border-top`, so once GitOdile's version moved above
   it, an environment the app knows nothing about left a bare line under the
   description.
 - **And the version, once moved out, stopped looking like it belonged.** The

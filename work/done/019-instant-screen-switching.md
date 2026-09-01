@@ -134,7 +134,7 @@ Builds on task 012 (per-project sessions), task 016 (version lines), and task
 # Decisions
 
 - **Stale-while-revalidate, not a cache with a lifetime.** Branches and files
-  change from outside GitOdrile (an agent, another terminal), so a cache that
+  change from outside GitOdile (an agent, another terminal), so a cache that
   suppresses reads would eventually lie. Every entry to a screen still
   revalidates; what changed is that the cached answer is what the user looks
   at while it happens. The freshness guarantee is unchanged — only the

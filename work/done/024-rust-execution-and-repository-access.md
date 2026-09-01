@@ -59,7 +59,7 @@ operations, hang indefinitely, consume unbounded output, or expose secrets.
 
 - Changing command names or serialized payloads.
 - Inter-process locking against unrelated Git clients unless separately
-  justified; GitOdrile's own in-process safety is required here.
+  justified; GitOdile's own in-process safety is required here.
 - Migrating every domain out of `lib.rs`; later tasks consume this foundation.
 - Moving away from system Git.
 
@@ -67,7 +67,7 @@ operations, hang indefinitely, consume unbounded output, or expose secrets.
 
 - [x] Tauri adapters do not contain Git workflows or acquire nested locks.
 - [x] Two worktrees sharing a common Git directory cannot run conflicting
-      GitOdrile mutations concurrently even if the frontend calls them directly.
+      GitOdile mutations concurrently even if the frontend calls them directly.
 - [x] Unrelated repositories are not serialized behind one global lock.
 - [x] Read/write coordination, fairness assumptions, cancellation and
       re-entry behavior have focused tests.
@@ -98,7 +98,7 @@ Task 023.
 # Decisions
 
 - Rust enforcement is authoritative; frontend mutation blockers remain UX.
-- Start with the smallest in-process coordinator appropriate to GitOdrile.
+- Start with the smallest in-process coordinator appropriate to GitOdile.
 - Domain errors convert into one stable public error envelope.
 
 # Implementation notes

@@ -262,7 +262,7 @@ fn validate_and_prepare_save(
     if !identity_configured(path, identity_override)? {
         return Err(AppError::new(
             AppErrorCode::MissingIdentity,
-            "GitOdrile doesn't know who is saving this version yet.",
+            "GitOdile doesn't know who is saving this version yet.",
         )
         .with_remediation("Add a name and email for Git, then try again."));
     }
@@ -443,7 +443,7 @@ fn backup_path_candidate() -> PathBuf {
     let sequence = BACKUP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let mut backup_path = std::env::temp_dir();
     backup_path.push(format!(
-        "gitodrile-index-backup-{}-{nanos}-{sequence}.bak",
+        "gitodile-index-backup-{}-{nanos}-{sequence}.bak",
         std::process::id(),
     ));
     backup_path
@@ -480,7 +480,7 @@ fn copy_to_exclusive_backup(
     }
 
     Err(index_unavailable_error().with_detail(
-        "GitOdrile couldn't reserve a unique temporary index backup after repeated attempts.",
+        "GitOdile couldn't reserve a unique temporary index backup after repeated attempts.",
     ))
 }
 
@@ -539,7 +539,7 @@ pub(crate) fn restore_or_report(backup: &IndexBackup, primary: AppError) -> AppE
         Ok(()) => primary,
         Err(_) => AppError::new(
             AppErrorCode::IndexRestoreFailed,
-            "GitOdrile couldn't restore the project's prepared changes after the save failed.",
+            "GitOdile couldn't restore the project's prepared changes after the save failed.",
         )
         .with_remediation(
             "Your working files are still there. Keep the project open and review Git's prepared changes before trying again.",
@@ -602,7 +602,7 @@ fn classify_commit_failure(path: &str, stderr: &str, run_hooks: bool) -> AppErro
         .with_detail(truncate_detail(stderr));
     }
 
-    // With hooks turned off GitOdrile passed `--no-verify`, so no local hook
+    // With hooks turned off GitOdile passed `--no-verify`, so no local hook
     // ran and none of them can be what rejected this — saying otherwise would
     // send the user to read the output of a hook that never fired.
     if run_hooks && hook_exists(path) {
@@ -686,7 +686,7 @@ pub(crate) fn save_version_selection_with_identity_override(
         .map(|global| vec![("GIT_CONFIG_GLOBAL", global)])
         .unwrap_or_default();
     // `--no-verify` is added rather than the project's hooks being disabled:
-    // the choice is GitOdrile's to make for its own commits, and writing
+    // the choice is GitOdile's to make for its own commits, and writing
     // `core.hooksPath` would change what every other Git tool on the machine
     // does with this repository.
     let mut commit_args = vec!["commit"];
@@ -711,7 +711,7 @@ pub(crate) fn save_version_selection_with_identity_override(
         _ => {
             return Err(AppError::new(
                 AppErrorCode::GitCommandFailed,
-                "The version was saved, but GitOdrile couldn't read its identifier.",
+                "The version was saved, but GitOdile couldn't read its identifier.",
             )
             .with_remediation("Refresh the project to see the saved version."));
         }
@@ -782,7 +782,7 @@ mod tests {
     fn test_path(label: &str) -> PathBuf {
         static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
         std::env::temp_dir().join(format!(
-            "gitodrile-test-{label}-{}-{}",
+            "gitodile-test-{label}-{}-{}",
             std::process::id(),
             TEST_SEQUENCE.fetch_add(1, Ordering::Relaxed),
         ))

@@ -126,9 +126,9 @@ fn plan_save_version_rejects_unresolved_conflicts() {
     let _ = git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "merge",
             "-q",
             "--no-edit",
@@ -758,7 +758,7 @@ fn save_version_reports_a_signing_failure() {
     let _ = fs::remove_file(&fake_gpg);
 }
 
-/// A hook that always fails, so "did GitOdrile run the project's hooks?" has a
+/// A hook that always fails, so "did GitOdile run the project's hooks?" has a
 /// visible answer rather than one inferred from the command line.
 fn write_failing_pre_commit_hook(repo_path: &str) {
     let hook = std::path::Path::new(repo_path)

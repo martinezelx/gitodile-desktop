@@ -13,12 +13,12 @@ completed: 2026-07-25
 
 # Goal
 
-Replace the temporary OpenMoji crocodile with the supplied GitOdrile app mark
+Replace the temporary OpenMoji crocodile with the supplied GitOdile app mark
 as a polished, scalable vector and regenerate every native application icon.
 
 # User outcome
 
-GitOdrile has a distinctive, professional icon that remains crisp at every
+GitOdile has a distinctive, professional icon that remains crisp at every
 size and whose monochrome mark can be placed on any background color.
 
 # Context

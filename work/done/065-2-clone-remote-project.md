@@ -18,7 +18,7 @@ parent: "065"
 # Goal
 
 Add a provider-neutral clone flow that turns a remote URL or Git path into a
-verified open GitOdrile project without overwriting local content or leaving an
+verified open GitOdile project without overwriting local content or leaving an
 ambiguous partial project.
 
 # User outcome
@@ -31,7 +31,7 @@ working in the opened project.
 
 Opening existing local projects works; cloning is the largest missing entry
 path. The system Git executable remains the backend. Authentication uses the
-user's configured Git credential helpers for `1.0.0`; GitOdrile must classify
+user's configured Git credential helpers for `1.0.0`; GitOdile must classify
 failures and never log secrets.
 
 # Scope
@@ -69,7 +69,7 @@ failures and never log secrets.
 - [x] Existing/non-empty destinations, alias/case collisions, nested invalid
       destinations, and path races block without modifying user content.
 - [x] Success exposes no staging directory and partial/cancelled/failed outcomes
-      can clean only GitOdrile-owned paths after exact-path verification.
+      can clean only GitOdile-owned paths after exact-path verification.
 - [x] Credentials and authenticated remote details never appear in UI-safe
       diagnostics, logs, state, recent projects, or IPC fixtures.
 - [x] Progress and cancellation remain responsive; late responses cannot open a
@@ -129,7 +129,7 @@ failures and never log secrets.
   suffixes are removed before Git invocation, `origin` persistence, IPC-safe
   display, and diagnostics. Private HTTPS uses the configured Git credential
   helper; SSH uses the system agent/keys and existing host trust. No credential
-  prompt is hosted or persisted by GitOdrile.
+  prompt is hosted or persisted by GitOdile.
 - Project names reject separators, controls, `.`/`..`, the staging prefix,
   Windows device names, trailing dot/space, and names over 120 characters.
   Destination planning canonicalizes an existing parent, conservatively checks

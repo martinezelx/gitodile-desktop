@@ -3,7 +3,7 @@
 use tauri::Manager;
 
 pub(crate) fn app_status() -> &'static str {
-    "GitOdrile is ready"
+    "GitOdile is ready"
 }
 
 /// The main window starts hidden so the OS-level window never appears blank

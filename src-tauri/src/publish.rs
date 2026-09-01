@@ -84,7 +84,7 @@ struct ValidatedPublish {
 }
 
 /// Validates and resolves an explicit `upTo` request: it must name a real
-/// commit, that commit must be an ancestor of (or equal to) `HEAD` — GitOdrile
+/// commit, that commit must be an ancestor of (or equal to) `HEAD` — GitOdile
 /// never publishes something outside this version line's own history — and it
 /// must not already be reachable from the remote's last known position, or
 /// there would be nothing new to send.
@@ -378,7 +378,7 @@ pub(crate) fn classify_push_failure(porcelain_stdout: &str, stderr: &str) -> App
     if looks_like_authentication_failure(&stderr_lower) {
         return AppError::new(
             AppErrorCode::AuthenticationFailed,
-            "GitOdrile couldn't sign in to the remote project.",
+            "GitOdile couldn't sign in to the remote project.",
         )
         .with_remediation("Check your Git credentials for this remote, then try again.")
         .with_detail(truncate_detail(stderr));
@@ -400,13 +400,13 @@ pub(crate) fn classify_push_failure(porcelain_stdout: &str, stderr: &str) -> App
     {
         return AppError::new(
             AppErrorCode::DivergedHistories,
-            "The remote project moved since this was checked. GitOdrile never force-publishes.",
+            "The remote project moved since this was checked. GitOdile never force-publishes.",
         )
         .with_remediation("Get the team's changes first, then publish again.");
     }
     AppError::new(
         AppErrorCode::GitCommandFailed,
-        "GitOdrile couldn't publish this version line.",
+        "GitOdile couldn't publish this version line.",
     )
     .with_remediation("Check your connection and the remote project, then try again.")
     .with_detail(truncate_detail(stderr))
@@ -442,7 +442,7 @@ fn publish_selection(
     );
     let mut args = vec!["push".to_string(), "--porcelain".to_string()];
     // The same choice the commit path makes, for the same reason: `pre-push`
-    // is skipped for GitOdrile's own push while the user has hooks turned off,
+    // is skipped for GitOdile's own push while the user has hooks turned off,
     // and nothing is written into the project's configuration to do it. It
     // goes before the remote and the refspec so it is unambiguously an option
     // rather than something Git has to decide is not a positional argument.
@@ -456,14 +456,14 @@ fn publish_selection(
     if result.timed_out {
         return Err(AppError::new(
             AppErrorCode::PublishUncertain,
-            "GitOdrile lost the connection while publishing. It's unknown whether the remote project received it.",
+            "GitOdile lost the connection while publishing. It's unknown whether the remote project received it.",
         )
         .with_remediation("Refresh and check whether this version was published before trying again."));
     }
     let status = result.status.ok_or_else(|| {
         AppError::new(
             AppErrorCode::PublishUncertain,
-            "GitOdrile couldn't confirm whether this publish finished.",
+            "GitOdile couldn't confirm whether this publish finished.",
         )
         .with_remediation(
             "Refresh and check whether this version was published before trying again.",

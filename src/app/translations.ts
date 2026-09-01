@@ -133,7 +133,7 @@ export interface AppTranslations {
   titlebarSwitchToLightTheme: string;
   titlebarSwitchToDarkTheme: string;
   startupRestoreSkippedNotice: (count: number) => string;
-  aboutGitOdrile: string;
+  aboutGitOdile: string;
   aboutHeading: string;
   aboutDescription: string;
   aboutTechnicalDetails: string;
@@ -201,7 +201,7 @@ const en: AppTranslations = {
   navAccount: "Sign in",
   navAccountTitle: "Sign in — Coming soon",
   dropFolderTitle: "Drop a folder to open it",
-  dropFolderHint: "One folder at a time. If it isn't a project yet, GitOdrile offers to make it one.",
+  dropFolderHint: "One folder at a time. If it isn't a project yet, GitOdile offers to make it one.",
   paletteAriaLabel: "Command palette",
   palettePlaceholder: "Jump to a view or action…",
   paletteNoMatches: "No matching commands",
@@ -286,7 +286,7 @@ const en: AppTranslations = {
   statusBarLastChecked: (relative) => `Checked ${relative}`,
   statusBarCheckNow: "Check remote project changes",
   statusBarVersion: (version) => `v${version}`,
-  statusBarOpenChangelog: (version, channel) => `What's new in GitOdrile v${version} ${channel}`,
+  statusBarOpenChangelog: (version, channel) => `What's new in GitOdile v${version} ${channel}`,
   titlebarHideSidebar: "Hide sidebar",
   titlebarShowSidebar: "Show sidebar",
   titlebarSwitchToLightTheme: "Switch to light theme",
@@ -295,7 +295,7 @@ const en: AppTranslations = {
     count === 1
       ? "1 project from your last session couldn't be reopened."
       : `${count} projects from your last session couldn't be reopened.`,
-  aboutGitOdrile: "About",
+  aboutGitOdile: "About",
   aboutHeading: "Git without the bite.",
   aboutDescription: "Turns version control into clear, worry-free steps.",
   aboutTechnicalDetails: "Technical details",
@@ -368,7 +368,7 @@ const es: AppTranslations = {
   navAccount: "Iniciar sesión",
   navAccountTitle: "Iniciar sesión — Próximamente",
   dropFolderTitle: "Suelta una carpeta para abrirla",
-  dropFolderHint: "Una carpeta cada vez. Si todavía no es un proyecto, GitOdrile te ofrece convertirla en uno.",
+  dropFolderHint: "Una carpeta cada vez. Si todavía no es un proyecto, GitOdile te ofrece convertirla en uno.",
   paletteAriaLabel: "Paleta de comandos",
   palettePlaceholder: "Ir a una vista o acción…",
   paletteNoMatches: "No hay coincidencias",
@@ -453,7 +453,7 @@ const es: AppTranslations = {
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
   statusBarCheckNow: "Comprobar cambios del proyecto remoto",
   statusBarVersion: (version) => `v${version}`,
-  statusBarOpenChangelog: (version, channel) => `Novedades de GitOdrile v${version} ${channel}`,
+  statusBarOpenChangelog: (version, channel) => `Novedades de GitOdile v${version} ${channel}`,
   titlebarHideSidebar: "Ocultar la barra lateral",
   titlebarShowSidebar: "Mostrar la barra lateral",
   titlebarSwitchToLightTheme: "Cambiar a tema claro",
@@ -462,7 +462,7 @@ const es: AppTranslations = {
     count === 1
       ? "1 proyecto de tu última sesión no se pudo volver a abrir."
       : `${count} proyectos de tu última sesión no se pudieron volver a abrir.`,
-  aboutGitOdrile: "Acerca de",
+  aboutGitOdile: "Acerca de",
   aboutHeading: "Git sin mordiscos.",
   aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
   aboutTechnicalDetails: "Detalles técnicos",

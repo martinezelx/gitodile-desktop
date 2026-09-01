@@ -15,7 +15,7 @@ completed: 2026-08-17
 # Resolution
 
 Closed without implementing. The identity stays global for every project, which
-is what GitOdrile does today and what we want for now.
+is what GitOdile does today and what we want for now.
 
 None of the acceptance criteria below were met; nothing was built. They are kept
 unticked as the record of what the feature would have had to do if it is ever
@@ -34,13 +34,13 @@ discovered in the history afterwards.
 
 # Context
 
-GitOdrile only writes the global identity today. `SettingsPort.setIdentity`
+GitOdile only writes the global identity today. `SettingsPort.setIdentity`
 takes a name and email and nothing else, and the panel's own copy says as much:
-"a normal, global Git setting — not stored only inside GitOdrile".
+"a normal, global Git setting — not stored only inside GitOdile".
 
 The failure this prevents is silent and slow. Nothing warns you; the wrong
 address just accumulates in the history until someone notices, and rewriting
-authorship after the fact is exactly the kind of history surgery GitOdrile
+authorship after the fact is exactly the kind of history surgery GitOdile
 exists to keep people away from.
 
 This one carries an architectural cost worth stating up front. The settings
@@ -102,7 +102,7 @@ Touches the identity group reshaped by task
 
 **2026-08-17 — Do not build a per-project identity; keep the identity global.**
 
-One identity for every project is the right default for how GitOdrile is used
+One identity for every project is the right default for how GitOdile is used
 right now, and the cost of the alternative is concentrated in exactly the place
 the task warned about: `src/features/settings/port.ts` is deliberately the only
 app-level port whose calls are global, precisely because they act on the Git

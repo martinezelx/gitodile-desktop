@@ -262,7 +262,7 @@ metric, both explained there and below. The memory metric was revised by
 summed working set double-counts pages shared across a seven-process WebView2
 tree, so an Overview-only session already read 405.1 MiB while keep-alive for
 all three screens added 10.5 MiB. Private bytes — 221.8 MiB against a 400 MiB
-failure threshold — measures GitOdrile's own allocations and still reacts to the
+failure threshold — measures GitOdile's own allocations and still reacts to the
 retention regression the budget was written to catch.
 
 ## Follow-ups this audit deliberately did not do

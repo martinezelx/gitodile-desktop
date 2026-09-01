@@ -46,7 +46,7 @@ export type AppError = {
   message: string;
   remediation: string | null;
   /** A bounded, secondary excerpt (e.g. raw hook or signing output) for
-   * failures GitOdrile can only classify heuristically. Never the primary
+   * failures GitOdile can only classify heuristically. Never the primary
    * message — see Save version's optional "technical details". */
   detail?: string | null;
 };

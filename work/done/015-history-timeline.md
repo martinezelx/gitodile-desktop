@@ -301,7 +301,7 @@ Use temporary repositories for:
   blocks at the Rust maximum of 100. Fixed-height contained rows, memoized
   timeline rendering, and earlier prefetch remove row measurement and diff-side
   rerenders from the commit scroll path.
-- Overview now distinguishes authored commit content from GitOdrile context:
+- Overview now distinguishes authored commit content from GitOdile context:
   **Description** contains only the commit message body and is omitted when it
   is empty, while **Comparison** always explains which saved version supplies
   the diff baseline. Multiline descriptions preserve their authored breaks.
@@ -334,7 +334,7 @@ Use temporary repositories for:
   real-layout defect where the virtual list remained empty after Back was found,
   fixed by remounting its measurement boundary, and reverified at 900 px.
 - Follow-up Windows QA compared the open repository with GitHub Desktop, then
-  measured a fresh GitOdrile selection through the same screen-capture method.
+  measured a fresh GitOdile selection through the same screen-capture method.
   The observed files-ready window improved from roughly 421–519 ms to
   198–285 ms (about 45% faster, including automation/capture overhead), while
   the selected title and metadata now paint before the file list is ready.

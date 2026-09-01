@@ -130,7 +130,7 @@ describe("production style composition", () => {
     const primitives = readSource("shared/ui/primitives.css");
     expect(primitives).toContain(":focus-visible");
     expect(primitives).toContain("@media (forced-colors: active)");
-    expect(primitives).toContain('url("../../assets/gitodrile-mark.svg")');
+    expect(primitives).toContain('url("../../assets/gitodile-mark.svg")');
   });
 
   // DESIGN.md § Shape: radius states a role, never a size. A raw length here is

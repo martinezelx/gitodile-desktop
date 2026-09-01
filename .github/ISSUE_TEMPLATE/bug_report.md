@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report unexpected GitOdrile behavior
+about: Report unexpected GitOdile behavior
 title: "[Bug]: "
 labels: bug
 ---
@@ -16,7 +16,7 @@ Please avoid sharing private source code, tokens, or authenticated remote URLs.
 ## Environment
 
 - OS:
-- GitOdrile version/commit:
+- GitOdile version/commit:
 - Git version:
 
 ## Reproduction steps

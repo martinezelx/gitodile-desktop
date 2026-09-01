@@ -36,10 +36,10 @@ const en: NotificationsTranslations = {
   notificationsClear: "Clear all",
   notificationsEmptyTitle: "Nothing to report",
   notificationsEmptyDescription:
-    "GitOdrile tells you here when newer project versions turn up, or when an automatic check cannot reach the remote project.",
+    "GitOdile tells you here when newer project versions turn up, or when an automatic check cannot reach the remote project.",
   notificationsDisabledTitle: "Notifications are turned off",
   notificationsDisabledDescription:
-    "GitOdrile is not recording anything new. Turn notifications back on to hear about project changes and failed checks.",
+    "GitOdile is not recording anything new. Turn notifications back on to hear about project changes and failed checks.",
   notificationsOpenSettings: "Open notification settings",
   notificationsUnreadLabel: "Unread",
   notificationsJustNow: "just now",
@@ -68,10 +68,10 @@ const es: NotificationsTranslations = {
   notificationsClear: "Borrar todo",
   notificationsEmptyTitle: "Nada que contar",
   notificationsEmptyDescription:
-    "GitOdrile te avisa aquí cuando aparecen versiones nuevas del proyecto o cuando una comprobación automática no puede conectar con el proyecto remoto.",
+    "GitOdile te avisa aquí cuando aparecen versiones nuevas del proyecto o cuando una comprobación automática no puede conectar con el proyecto remoto.",
   notificationsDisabledTitle: "Las notificaciones están desactivadas",
   notificationsDisabledDescription:
-    "GitOdrile no está registrando nada nuevo. Vuelve a activarlas para enterarte de los cambios del proyecto y de las comprobaciones fallidas.",
+    "GitOdile no está registrando nada nuevo. Vuelve a activarlas para enterarte de los cambios del proyecto y de las comprobaciones fallidas.",
   notificationsOpenSettings: "Abrir ajustes de notificaciones",
   notificationsUnreadLabel: "Sin leer",
   notificationsJustNow: "ahora mismo",

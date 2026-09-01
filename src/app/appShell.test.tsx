@@ -31,12 +31,12 @@ describe("application-shell preferences", () => {
     act(() => result.current[1]("dark"));
 
     expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(localStorage.getItem("gitodrile-theme")).toBe("dark");
+    expect(localStorage.getItem("gitodile-theme")).toBe("dark");
   });
 
   it("validates and persists navigation membership, order and display mode together", () => {
     localStorage.setItem(
-      "gitodrile-navigation-preferences",
+      "gitodile-navigation-preferences",
       JSON.stringify({
         visibleDestinationIds: ["overview", "unknown", "overview"],
         destinationOrderIds: ["changes", "unknown", "changes"],
@@ -59,7 +59,7 @@ describe("application-shell preferences", () => {
         displayMode: "icons-and-text",
       }),
     );
-    expect(JSON.parse(localStorage.getItem("gitodrile-navigation-preferences") ?? "null"))
+    expect(JSON.parse(localStorage.getItem("gitodile-navigation-preferences") ?? "null"))
       .toEqual({
         visibleDestinationIds: ["changes"],
         destinationOrderIds: ["changes", "overview"],

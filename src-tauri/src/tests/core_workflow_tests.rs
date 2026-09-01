@@ -345,9 +345,9 @@ fn repository_state_journey_covers_unborn_dirty_clean_detached_conflicted_and_sy
     let merge = git_command(&conflicted)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "merge",
             "--no-edit",
             "other",

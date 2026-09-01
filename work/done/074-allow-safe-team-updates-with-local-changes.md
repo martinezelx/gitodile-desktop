@@ -55,7 +55,7 @@ remediation was written specifically for version-line switching.
 # Safety contract
 
 - The operation remains strict fast-forward only.
-- GitOdrile never stashes, discards, merges, rebases, resets, or force-updates
+- GitOdile never stashes, discards, merges, rebases, resets, or force-updates
   local work.
 - Planning is non-mutating apart from the existing explicit fetch; the
   `read-tree` preflight uses `--dry-run`.

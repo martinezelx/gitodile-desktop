@@ -79,32 +79,32 @@ describe("preferences persist a choice, not a default", () => {
      storage on first render and outranked the code from then on. */
   it("writes nothing until the value actually moves", () => {
     const { result, unmount } = renderHook(
-      () => useStoredBoolean("gitodrile-probe", true),
+      () => useStoredBoolean("gitodile-probe", true),
       strict,
     );
 
     expect(result.current[0]).toBe(true);
-    expect(localStorage.getItem("gitodrile-probe")).toBeNull();
+    expect(localStorage.getItem("gitodile-probe")).toBeNull();
 
     unmount();
     // Still nothing after a full mount/unmount cycle, so a default stays live
     // and follows the code across restarts.
-    expect(localStorage.getItem("gitodrile-probe")).toBeNull();
+    expect(localStorage.getItem("gitodile-probe")).toBeNull();
   });
 
   it("writes the value once the user changes it", () => {
     const { result } = renderHook(
-      () => useStoredBoolean("gitodrile-probe", true),
+      () => useStoredBoolean("gitodile-probe", true),
       strict,
     );
 
     act(() => result.current[1](false));
-    expect(localStorage.getItem("gitodrile-probe")).toBe("false");
+    expect(localStorage.getItem("gitodile-probe")).toBe("false");
 
     // Back to the default is still a choice once something is stored, or the
     // entry would keep saying "false" while the app shows true.
     act(() => result.current[1](true));
-    expect(localStorage.getItem("gitodrile-probe")).toBe("true");
+    expect(localStorage.getItem("gitodile-probe")).toBe("true");
   });
 
   it("leaves a cadence default unstored too", () => {
@@ -117,11 +117,11 @@ describe("preferences persist a choice, not a default", () => {
   it("keeps following the code when a default changes under an untouched preference", () => {
     // The whole point, stated directly: nothing stored, so the next version's
     // default is the one that applies.
-    const first = renderHook(() => useStoredBoolean("gitodrile-probe", false), strict);
+    const first = renderHook(() => useStoredBoolean("gitodile-probe", false), strict);
     expect(first.result.current[0]).toBe(false);
     first.unmount();
 
-    const second = renderHook(() => useStoredBoolean("gitodrile-probe", true), strict);
+    const second = renderHook(() => useStoredBoolean("gitodile-probe", true), strict);
     expect(second.result.current[0]).toBe(true);
   });
 });

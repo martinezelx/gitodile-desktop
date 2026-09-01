@@ -68,7 +68,7 @@ describe("Changelog dialog", () => {
   });
 
   it("localizes the heading, the running-version marker, and the notes", () => {
-    localStorage.setItem("gitodrile-language", "es");
+    localStorage.setItem("gitodile-language", "es");
     renderDialog();
 
     const dialog = screen.getByRole("dialog", { name: "Novedades" });

@@ -13,7 +13,7 @@ completed: 2026-08-01
 
 # Goal
 
-When files change on disk, GitOdrile notices by itself. The Changes screen
+When files change on disk, GitOdile notices by itself. The Changes screen
 and Overview's counts reflect the working tree without the user pressing
 "Check changes".
 
@@ -24,7 +24,7 @@ haga falta darle al check changes? que se actualice en tiempo real tipo
 vscode? esto aplicaria creo unicamente al panel de changes."
 
 Editing a file in another editor, or an AI agent writing to the repository,
-updates the file list while GitOdrile is open. "Check changes" stays as a
+updates the file list while GitOdile is open. "Check changes" stays as a
 manual fallback for the cases a watch cannot cover.
 
 # Context
@@ -52,7 +52,7 @@ shared with Overview, its counts go live for free.
   lifecycle (open, restore, close) for the active project.
 - Event coalescing in the watcher thread: a trailing debounce so a build or an
   install produces one refresh, not thousands.
-- Path filtering so GitOdrile's own Git reads cannot retrigger the watcher,
+- Path filtering so GitOdile's own Git reads cannot retrigger the watcher,
   including `GIT_OPTIONAL_LOCKS=0` so a status read stops rewriting
   `.git/index`.
 - A `repository-changed` event, and a frontend listener that refreshes the
@@ -79,7 +79,7 @@ shared with Overview, its counts go live for free.
 
 - [x] Editing, creating, or deleting a file in a watched project updates the
       Changes list and Overview's counts with no user action.
-- [x] GitOdrile's own reads do not retrigger the watcher — no refresh loop when
+- [x] GitOdile's own reads do not retrigger the watcher — no refresh loop when
       the app is left idle on the Changes screen.
 - [x] A burst of filesystem activity produces a bounded number of refreshes.
 - [x] Refreshes are suppressed while a save, publish, or version-line
@@ -112,7 +112,7 @@ Task 019 for the session-level caching this refreshes into.
   cache, which rewrites the file, which the watcher sees, which triggers
   another status read — a loop that never settles. Filtering `index` out would
   break the loop, but would also mean a `git add` run in a terminal never
-  showed up. The environment variable stops GitOdrile's *reads* from writing
+  showed up. The environment variable stops GitOdile's *reads* from writing
   at all, which fixes it at the source and leaves the signal intact. Required
   locks (commit, checkout) are unaffected; only optional ones are disabled.
 - **`notify` alone, no `notify-debouncer-full`.** The debounce needed here is

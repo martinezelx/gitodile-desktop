@@ -19,7 +19,7 @@ Give every saved-version row in History and in the Overview history summary a
 third piece of metadata next to the author and the time: the version line or
 tag that points at it, rendered so it cannot be misread as more prose.
 
-Remove the `GitOdrile` wordmark from the titlebar in the same pass. It is dead
+Remove the `GitOdile` wordmark from the titlebar in the same pass. It is dead
 weight at desktop width and leaks into the narrow layout.
 
 # User outcome
@@ -96,7 +96,7 @@ room for it, right where the compact nav needs the space.
 - [x] The badge is a `--radius-pill` capsule and adds no raw radius, keeping
       `styleComposition.test.ts` green.
 - [x] The badge keeps a visible outline under `forced-colors: active`.
-- [x] `GitOdrile` no longer renders in the titlebar at any width, and no CSS
+- [x] `GitOdile` no longer renders in the titlebar at any width, and no CSS
       rule for it remains.
 - [x] `pnpm run check` passes.
 

@@ -173,7 +173,7 @@ fn start_error(error: std::io::Error) -> AppError {
             AppErrorCode::GitMissing,
             "Git isn't installed, or isn't available on PATH.",
         )
-        .with_remediation("Install Git, then reopen GitOdrile and try again.")
+        .with_remediation("Install Git, then reopen GitOdile and try again.")
     } else {
         AppError::new(AppErrorCode::GitUnusable, "Git couldn't be started.")
             .with_remediation("Check the Git installation and try again.")

@@ -59,7 +59,7 @@ risk of a long rewrite whose regressions are discovered only at the end.
 
 - Moving production modules.
 - Adding a state library or dependency guard before its ADR decision.
-- Treating GitButler's current folder/crate structure as GitOdrile's target.
+- Treating GitButler's current folder/crate structure as GitOdile's target.
 
 # Acceptance criteria
 

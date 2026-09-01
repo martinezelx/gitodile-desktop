@@ -776,7 +776,7 @@ pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
 /// from the global `init.defaultBranch`.
 ///
 /// `None` is an answer rather than a failure: with the key unset, Git falls
-/// back to its own built-in default, and reporting a name GitOdrile made up
+/// back to its own built-in default, and reporting a name GitOdile made up
 /// would be a lie about what the next `git init` will do.
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -1053,7 +1053,7 @@ mod tests {
     #[test]
     fn git_identity_round_trips_through_a_temporary_global_config() {
         let mut config_path = std::env::temp_dir();
-        config_path.push(format!("gitodrile-test-gitconfig-{}", std::process::id()));
+        config_path.push(format!("gitodile-test-gitconfig-{}", std::process::id()));
         let _ = fs::remove_file(&config_path);
         let config_override = config_path.to_string_lossy().to_string();
 
@@ -1090,7 +1090,7 @@ mod tests {
     fn default_branch_round_trips_through_a_temporary_global_config() {
         let mut config_path = std::env::temp_dir();
         config_path.push(format!(
-            "gitodrile-test-default-branch-{}",
+            "gitodile-test-default-branch-{}",
             std::process::id()
         ));
         let _ = fs::remove_file(&config_path);
@@ -1118,7 +1118,7 @@ mod tests {
         // test must not scribble on the developer's real global config.
         let mut config_path = std::env::temp_dir();
         config_path.push(format!(
-            "gitodrile-test-default-branch-invalid-{}",
+            "gitodile-test-default-branch-invalid-{}",
             std::process::id()
         ));
         let _ = fs::remove_file(&config_path);
@@ -1197,7 +1197,7 @@ mod tests {
     #[test]
     fn line_endings_round_trip_through_a_temporary_global_config() {
         let mut config_path = std::env::temp_dir();
-        config_path.push(format!("gitodrile-test-eol-config-{}", std::process::id()));
+        config_path.push(format!("gitodile-test-eol-config-{}", std::process::id()));
         let _ = fs::remove_file(&config_path);
         let config_override = config_path.to_string_lossy().to_string();
 
@@ -1233,7 +1233,7 @@ mod tests {
         let repo = crate::test_support::unique_temp_dir("line-endings");
         crate::test_support::git_init(&repo);
         let mut config_path = std::env::temp_dir();
-        config_path.push(format!("gitodrile-test-eol-project-{}", std::process::id()));
+        config_path.push(format!("gitodile-test-eol-project-{}", std::process::id()));
         let _ = fs::remove_file(&config_path);
         let config_override = config_path.to_string_lossy().to_string();
         in_test_frame(|| {

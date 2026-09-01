@@ -37,7 +37,7 @@ lifecycle established by 037-1 through 037-4.
 - Run normal hooks/signing/identity behavior, verify the commit/ref/index/
   worktree result, and preserve resolved work on failure.
 - Plan abort separately, explain limits for externally started dirty merges,
-  use verified GitOdrile snapshots where available, and require confirmation.
+  use verified GitOdile snapshots where available, and require confirmation.
 - Handle retry, stale, lock, hook/signing, missing identity, external mutation,
   restart, interruption, partial, and uncertain outcomes without auto-repair.
 - Return success to the initiating workflow without publishing automatically.
@@ -53,7 +53,7 @@ lifecycle established by 037-1 through 037-4.
 - [ ] Successful completion creates/verifies the intended merge saved version,
       runs hooks/signing, refreshes once, and never publishes.
 - [ ] Failed hooks/signing/identity preserve staged resolutions and support retry.
-- [ ] Abort preview distinguishes exact GitOdrile recovery from best-effort
+- [ ] Abort preview distinguishes exact GitOdile recovery from best-effort
       external merge behavior and never promises unsupported restoration.
 - [ ] Partial/uncertain completion or abort retains snapshots and observed state.
 - [ ] Complete/retry/abort/restart journeys pass Rust/frontend/desktop tests.

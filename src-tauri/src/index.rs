@@ -35,7 +35,7 @@ pub(crate) fn selection_index_path() -> PathBuf {
     let sequence = INDEX_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let mut index_path = std::env::temp_dir();
     index_path.push(format!(
-        "gitodrile-selection-index-{}-{nanos}-{sequence}",
+        "gitodile-selection-index-{}-{nanos}-{sequence}",
         std::process::id()
     ));
     index_path
@@ -95,7 +95,7 @@ pub(crate) fn prepare_index(
 pub(crate) fn index_unavailable_error() -> AppError {
     AppError::new(
         AppErrorCode::IndexUnavailable,
-        "GitOdrile couldn't safely prepare this project's Git index.",
+        "GitOdile couldn't safely prepare this project's Git index.",
     )
     .with_remediation("Check available disk space and file permissions (antivirus tools can lock this file on Windows), then try again.")
 }

@@ -662,7 +662,7 @@ Known gaps (flagged for manual review, not silently dropped):
   (`create_version_line_state_fingerprint`). The cost is a `git add -A` into
   a temporary index during planning, not just execution.
 - **Unrepresentable ref names are skipped, not converted and not fatal.** Git
-  ref names are bytes, so a name GitOdrile cannot represent is possible.
+  ref names are bytes, so a name GitOdile cannot represent is possible.
   Showing it with replacement characters would invite the user to act on a
   name that does not exist, and every mutation is keyed by exact name — so
   those records are dropped. Dropping them individually, rather than failing

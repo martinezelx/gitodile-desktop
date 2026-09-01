@@ -293,7 +293,7 @@ describe("VersionLinesPanel", () => {
   it("surfaces a retry action when discovery fails with nothing cached", async () => {
     const { onRefresh } = renderPanel({
       snapshot: null,
-      error: "GitOdrile couldn't load this project's version lines.",
+      error: "GitOdile couldn't load this project's version lines.",
     });
 
     await userEvent.click(await screen.findByText("Try again"));

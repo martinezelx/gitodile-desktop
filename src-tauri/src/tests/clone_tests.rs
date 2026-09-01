@@ -46,7 +46,7 @@ fn local_clone_stages_verifies_publishes_and_opens_through_the_existing_lifecycl
         .join("hello.txt")
         .is_file());
     assert!(!Path::new(&destination_parent)
-        .join(format!(".gitodrile-clone-{}", plan.operation_id))
+        .join(format!(".gitodile-clone-{}", plan.operation_id))
         .exists());
 
     let opened = open_repository(result.destination_path, None).unwrap();
@@ -83,7 +83,7 @@ fn a_destination_race_blocks_publication_and_cleans_only_owned_staging() {
         "do not touch\n"
     );
     assert!(!Path::new(&destination_parent)
-        .join(format!(".gitodrile-clone-{}", plan.operation_id))
+        .join(format!(".gitodile-clone-{}", plan.operation_id))
         .exists());
 }
 

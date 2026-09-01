@@ -319,7 +319,7 @@ export function AppOverlays({
               <X aria-hidden="true" />
             </button>
             <div className="about-dialog__mark" aria-hidden="true">{CROCODILE_MARK}</div>
-            <p className="eyebrow">{t.aboutGitOdrile}</p>
+            <p className="eyebrow">{t.aboutGitOdile}</p>
             <h2 id="about-title">{t.aboutHeading}</h2>
             <p>{t.aboutDescription}</p>
             {(systemInfo || gitVersion) && (

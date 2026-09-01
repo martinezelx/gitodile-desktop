@@ -1,6 +1,6 @@
 # Task 023 GitButler research record
 
-GitButler was inspected only to answer narrow GitOdrile architecture questions:
+GitButler was inspected only to answer narrow GitOdile architecture questions:
 how to isolate desktop transport, normalize IPC failures, keep feature services
 independent of Tauri, model watcher invalidations and centralize repository
 context. This record is evidence for [ADR 0003](../adr/0003-adopt-a-modular-feature-architecture.md),
@@ -19,7 +19,7 @@ The FSL terms prohibit Competing Use before the applicable Future License
 date, after which the covered version becomes MIT. The license defines that
 date per version as the second anniversary of the version becoming available;
 the commit timestamp alone is useful traceability but is not substituted for
-legal advice about a particular file or release. GitOdrile therefore treats
+legal advice about a particular file or release. GitOdile therefore treats
 this snapshot as restricted reference material: no source, macros, tests,
 crate topology, product language or visual assets were copied or adapted.
 Only independently expressed engineering principles were retained.
@@ -34,7 +34,7 @@ Only independently expressed engineering principles were retained.
 | [`crates/but-api/src/watcher.rs`](https://github.com/gitbutlerapp/gitbutler/blob/b98b6dc84a6d8a33332eb41543f20d97cab676a9/crates/but-api/src/watcher.rs) | How can watcher output express meaning rather than raw filesystem noise? | Translate platform events into tagged domain invalidations before crossing the renderer boundary. |
 | [`crates/but-ctx/src/project_handle.rs`](https://github.com/gitbutlerapp/gitbutler/blob/b98b6dc84a6d8a33332eb41543f20d97cab676a9/crates/but-ctx/src/project_handle.rs) | Where should repository/project context be established? | Centralize conversion from project identity to an authorized repository context instead of reopening arbitrary paths in each command. |
 
-## GitOdrile conclusions
+## GitOdile conclusions
 
 These principles support, but do not dictate, the selected design:
 
@@ -42,11 +42,11 @@ These principles support, but do not dictate, the selected design:
 - Rust IPC validates and delegates to application modules;
 - repository authorization and related-worktree scheduling live in one Rust
   coordinator keyed by `commonGitDir` where appropriate;
-- watcher events become typed invalidations and carry GitOdrile's own session
+- watcher events become typed invalidations and carry GitOdile's own session
   epoch contract;
 - errors are normalized at the transport boundary without exposing raw Git or
   command output as the primary message.
 
-GitOdrile deliberately does not adopt GitButler's monorepo/crate boundaries,
+GitOdile deliberately does not adopt GitButler's monorepo/crate boundaries,
 Svelte/Redux choices, virtual-branch workflow, cloud services or naming. The
 smallest independent implementation remains the rule for tasks 024-031.

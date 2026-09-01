@@ -1,9 +1,9 @@
-# GitOdrile
+# GitOdile
 
 > **Git without the bite.** A friendly desktop Git client built around user
 > intent, clear consequences, and safe recovery paths.
 
-GitOdrile is a pre-release, local-first Git client for Windows, macOS, and
+GitOdile is a pre-release, local-first Git client for Windows, macOS, and
 Linux. It is designed for learners, AI-assisted builders, designers, writers,
 and developers who want a calmer workflow without losing access to Git's
 technical truth.
@@ -15,7 +15,7 @@ Current application version: **0.1.0**.
 - Open a local project from its root or any nested folder, validate it in Rust,
   and switch between recent projects.
 - Clone an HTTPS, SSH, Git, file-URL, or local-path project through a previewed
-  provider-neutral flow. GitOdrile stages privately, verifies the worktree,
+  provider-neutral flow. GitOdile stages privately, verifies the worktree,
   publishes without replacement, and opens it through the normal session
   lifecycle; configured Git credential helpers and SSH setup remain in control.
 - Create a named local project or turn an ordinary existing folder into one
@@ -45,7 +45,7 @@ Current application version: **0.1.0**.
   version line or files, manually or on an opt-in 15/30/60-minute cadence, with
   cached/fresh status and clear next steps.
 - Review and get strictly newer upstream versions through a confirmed,
-  fast-forward-only update. GitOdrile blocks local work and path collisions,
+  fast-forward-only update. GitOdile blocks local work and path collisions,
   creates a verified durable recovery point first, and reports uncertain local
   outcomes without attempting an automatic repair.
 - List, create, switch, and safely delete version lines (local branches), with
@@ -60,7 +60,7 @@ Current application version: **0.1.0**.
 - Set the default version-line name for new projects (written to Git's own
   `init.defaultBranch`), choose how often project changes are checked
   automatically — from every minute to every day, or never — and decide whether
-  GitOdrile runs a project's Git hooks when it saves or publishes. Hooks run by
+  GitOdile runs a project's Git hooks when it saves or publishes. Hooks run by
   default; turning them off is app-wide, writes nothing to any project, and the
   setting says plainly what stops running. When a hook rejects a save, its
   output is shown with a one-time way to save without running it.
@@ -151,7 +151,7 @@ snapshot:
 | TanStack Virtual | `3.14.8` |
 | notify | `8.2.0` |
 
-GitOdrile uses the system Git executable. Git **2.23 or newer** is required for
+GitOdile uses the system Git executable. Git **2.23 or newer** is required for
 version-line switching; diagnostics remain available when Git is missing or
 unusable.
 
@@ -196,8 +196,8 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 463 frontend tests, the production build, Rust formatting,
-Clippy with warnings denied, and 306 Rust tests. Individual commands remain
+rules, TypeScript, 619 frontend tests, the production build, Rust formatting,
+Clippy with warnings denied, and 319 Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.
 

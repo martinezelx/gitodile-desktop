@@ -1,12 +1,12 @@
-# GitOdrile Design Direction
+# GitOdile Design Direction
 
-This document owns GitOdrile's visual and interaction direction. See
+This document owns GitOdile's visual and interaction direction. See
 [`docs/PRODUCT_STRATEGY.md`](docs/PRODUCT_STRATEGY.md) for the product thesis,
 audience, positioning, and detailed competitive context.
 
 ## Design goal
 
-GitOdrile should make a complex technical system feel calm, understandable, and safe. The interface must be modern and distinctive without sacrificing readability or looking like a decorative concept app.
+GitOdile should make a complex technical system feel calm, understandable, and safe. The interface must be modern and distinctive without sacrificing readability or looking like a decorative concept app.
 
 The intended feeling is:
 
@@ -29,7 +29,7 @@ The visual language uses:
 - compact spacing in file lists and diffs;
 - a crocodile mascot used selectively.
 
-Blur/translucency is not the default depth mechanism for GitOdrile chrome. Reserve it, if used at all, for genuinely transient overlays (a modal scrim) — never for a panel that sits on screen the whole session. Code, diffs, file lists, conflict editors, forms, and long-form content must sit on fully opaque surfaces.
+Blur/translucency is not the default depth mechanism for GitOdile chrome. Reserve it, if used at all, for genuinely transient overlays (a modal scrim) — never for a panel that sits on screen the whole session. Code, diffs, file lists, conflict editors, forms, and long-form content must sit on fully opaque surfaces.
 
 ## Layout concept
 
@@ -450,7 +450,7 @@ Do not introduce a color anywhere in the product (status badges, diff highlighti
 
 ## Brand and mascot
 
-Working brand: **GitOdrile**.
+Working brand: **GitOdile**.
 
 Mascot: a stylized crocodile that feels clever, calm, and trustworthy.
 
@@ -473,10 +473,10 @@ The mascot may appear in:
 
 Do not place the mascot in every panel or use it to trivialize serious errors.
 
-**Application mark:** the compact GitOdrile mark is a rounded, geometric
+**Application mark:** the compact GitOdile mark is a rounded, geometric
 crocodile head with two attentive eyes, two small snout details, and a calm
 smile. Its facial details are transparent cutouts rather than white decoration,
-so the single-color SVG in `src/assets/gitodrile-mark.svg` can inherit any
+so the single-color SVG in `src/assets/gitodile-mark.svg` can inherit any
 foreground/background pairing. The native app icon places the dark mark on the
 fixed brand-lime rounded tile (`#8bc53f`); its eye, snout, and smile cutouts
 reveal that lime beneath. Keep this compact mark consistent in the sidebar,

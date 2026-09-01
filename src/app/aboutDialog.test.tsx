@@ -150,9 +150,9 @@ describe("formatDiagnostics", () => {
         system: { platform: "windows", version: "10.0.26200", arch: "x86_64" },
         gitVersion: "2.50.0",
       }),
-    ).toBe("GitOdrile 0.1.0\nSystem: Windows 11 (x86_64)\nSystem version: 10.0.26200\nGit: 2.50.0");
+    ).toBe("GitOdile 0.1.0\nSystem: Windows 11 (x86_64)\nSystem version: 10.0.26200\nGit: 2.50.0");
 
-    expect(formatDiagnostics({ appVersion: "0.1.0", system: null, gitVersion: null })).toBe("GitOdrile 0.1.0");
+    expect(formatDiagnostics({ appVersion: "0.1.0", system: null, gitVersion: null })).toBe("GitOdile 0.1.0");
   });
 });
 
@@ -215,7 +215,7 @@ describe("About dialog", () => {
     await userEvent.click(screen.getByRole("button", { name: /Copy system info/ }));
 
     expect(writeText).toHaveBeenCalledWith(
-      "GitOdrile " + __APP_VERSION__ + "\nSystem: Windows 11 (x86_64)\nSystem version: 10.0.26200\nGit: 2.45.0",
+      "GitOdile " + __APP_VERSION__ + "\nSystem: Windows 11 (x86_64)\nSystem version: 10.0.26200\nGit: 2.45.0",
     );
     expect(await screen.findByRole("button", { name: /Copied/ })).toBeInTheDocument();
   });

@@ -5,7 +5,7 @@
 
 ## Context
 
-GitOdrile's behavior is covered by 206 frontend tests and 180 Rust tests, but
+GitOdile's behavior is covered by 206 frontend tests and 180 Rust tests, but
 its composition roots have accumulated most of that behavior. At the task 022
 starting point, `src/main.tsx` has 3,367 physical lines and
 `src-tauri/src/lib.rs` has 9,897. The former owns shell rendering, project
@@ -258,7 +258,7 @@ Dependencies considered for this migration:
 | --- | --- | --- | --- | --- |
 | `dependency-cruiser` (dev) | Resolves TS/TSX static, dynamic, type-only and test edges with declarative forbidden rules and cycle reports | pnpm install/lock growth and a config/API to maintain; zero runtime or bundle cost | custom parser using TypeScript 7's currently unstable compiler API; regex | Accept in task 026 after a pinned compatibility check |
 | `syn` with `full` (Rust dev) | Correctly parses module/import syntax for a repository-owned architecture test | compile time and direct dev-dependency maintenance; already present transitively, zero release cost | regex or global `cargo-modules` | Accept when the Rust guard lands |
-| `cargo-modules` global tool | Ready-made Rust module graph | extra CI install, version drift, limited GitOdrile-specific direction/test policy | `syn` architecture test plus compiler privacy | Reject |
+| `cargo-modules` global tool | Ready-made Rust module graph | extra CI install, version drift, limited GitOdile-specific direction/test policy | `syn` architecture test plus compiler privacy | Reject |
 | Redux/Zustand | selector stores and devtools | runtime bytes, another state model and migration cost | reducer plus `useSyncExternalStore` | Reject |
 | XState | explicit statecharts | substantial concepts/runtime for flows that are currently linear plans | typed reducers and operation phases | Reject |
 | React Query | request cache/deduplication | repository invalidation and session epochs still need custom ownership; cache semantics can conflict with local Git freshness | project runtime request registry | Reject |
@@ -282,7 +282,7 @@ Dependencies considered for this migration:
 
 - Compatibility adapters temporarily duplicate call paths and make the tree
   less tidy during tasks 024-030.
-- Project-runtime selectors and lifecycle contracts are code GitOdrile must
+- Project-runtime selectors and lifecycle contracts are code GitOdile must
   maintain.
 - Architecture tools add development install/compile cost.
 - Cross-feature workflows require deliberate orchestration rather than a

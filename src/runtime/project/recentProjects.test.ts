@@ -59,11 +59,11 @@ describe("recent projects storage", () => {
   });
 
   it("treats corrupt JSON and an unrecognized schema as nothing stored", () => {
-    localStorage.setItem("gitodrile-recent-projects", "{not json");
+    localStorage.setItem("gitodile-recent-projects", "{not json");
     expect(readRecentProjects()).toEqual([]);
 
     localStorage.setItem(
-      "gitodrile-recent-projects",
+      "gitodile-recent-projects",
       JSON.stringify({ version: 2, entries: [{ path: "/a", name: "a" }] }),
     );
     expect(readRecentProjects()).toEqual([]);
@@ -71,7 +71,7 @@ describe("recent projects storage", () => {
 
   it("rejects entries that are not a path and a name", () => {
     localStorage.setItem(
-      "gitodrile-recent-projects",
+      "gitodile-recent-projects",
       JSON.stringify({ version: 1, entries: [{ path: "/a" }] }),
     );
     expect(readRecentProjects()).toEqual([]);

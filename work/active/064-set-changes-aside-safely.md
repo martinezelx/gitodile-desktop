@@ -31,7 +31,7 @@ to know Git's stash stack, reflog syntax, index semantics, or conflict behavior.
 
 # Context
 
-GitOdrile already uses **Set changes aside** as its simple-mode wording for
+GitOdile already uses **Set changes aside** as its simple-mode wording for
 `git stash`, but no workflow exists. Version-line switching and team updates
 correctly refuse to hide or move unsaved work automatically, so users currently
 have to save an unfinished version or leave the app.
@@ -56,7 +56,7 @@ The product problem is broader than exposing `git stash` as a button:
 - [GitHub Desktop](https://docs.github.com/en/desktop/making-changes-in-a-branch/stashing-changes-in-github-desktop)
   presents stashing as temporary work, keeps it close to Changes, and offers a
   clear restore/discard choice. Its one-stash/all-changes limit is approachable
-  but does not meet GitOdrile's interoperability or progressive-power goals.
+  but does not meet GitOdile's interoperability or progressive-power goals.
 - [GitKraken Desktop](https://help.gitkraken.com/gitkraken-desktop/stashing/)
   supports multiple named entries, apply versus pop, list management, and
   file-level partial stashes. This is a useful completeness benchmark, but its
@@ -64,11 +64,11 @@ The product problem is broader than exposing `git stash` as a button:
 - [Tower](https://www.git-tower.com/help/guides/working-copy/stash/windows)
   gives stashes a browsable list/detail view and exposes index restoration. Its
   warning about ignored content beneath untracked directories is a safety case
-  GitOdrile must test and block when it cannot prove preservation.
+  GitOdile must test and block when it cannot prove preservation.
 - [GitButler](https://docs.gitbutler.com/guide) avoids this context-switching
   problem with parallel applied branches. The reusable principle is to keep
   unfinished work visible and reversible; adopting its workflow model is not
-  appropriate for this bounded GitOdrile feature.
+  appropriate for this bounded GitOdile feature.
 - The authoritative behavior remains the
   [`git stash` documentation](https://git-scm.com/docs/git-stash): stashes are
   standard commits rooted at `refs/stash`, `apply` keeps the entry, `pop` may
@@ -88,7 +88,7 @@ Use a hybrid of the best competitor behaviors without copying any product:
   layout; do not add another top-level navigation destination and do not mix
   user-created stashes into the future Recovery screen.
 - Use standard system-Git stashes so the CLI and other clients remain
-  interoperable. App metadata may enrich entries created by GitOdrile, but the
+  interoperable. App metadata may enrich entries created by GitOdile, but the
   feature must remain correct when metadata is absent, stale, or deleted.
 - Restore with `apply --index`, not `pop`. Keep the stash until the user removes
   it in a separate action, so a successful-looking restore never destroys the
@@ -105,7 +105,7 @@ Use a hybrid of the best competitor behaviors without copying any product:
   frontend contract rather than placing workflow logic in `changes.rs`,
   `ipc.rs`, `main.tsx`, or a visual component.
 - Read the complete standard `refs/stash` reflog, including entries created by
-  GitOdrile, the CLI, and other clients. Do not invent a parallel private stash
+  GitOdile, the CLI, and other clients. Do not invent a parallel private stash
   namespace for the primary data.
 - Return a bounded, paginated, snapshot-aware `SetAsidePage`. Each entry has:
   - the stash commit ID and a display selector;
@@ -136,7 +136,7 @@ Use a hybrid of the best competitor behaviors without copying any product:
   empty. Show the exact Git stash term and commit/ref evidence only under
   technical details.
 - The default all-changes scope includes tracked, prepared/staged, and new
-  untracked files because they are all presented as current work in GitOdrile.
+  untracked files because they are all presented as current work in GitOdile.
   Ignored files are never included. The plan must state exact counts, which
   prepared state will leave the index, that files will temporarily leave the
   project, that no branch commit or remote will change, and where the standard
@@ -194,7 +194,7 @@ Use a hybrid of the best competitor behaviors without copying any product:
   currently in the project are not changed, and require explicit confirmation.
 - Before dropping the reflog entry, create and verify a durable hidden recovery
   ref plus versioned metadata that protects the stash commit from pruning and
-  lets GitOdrile reinsert it at the top of the standard stash stack. Add an ADR
+  lets GitOdile reinsert it at the top of the standard stash stack. Add an ADR
   or an explicit extension to the recovery ADRs before implementing this
   record, including linked-worktree ownership, retention, atomicity, privacy,
   garbage collection, duplicate commit IDs, and failure behavior.
@@ -271,7 +271,7 @@ uncertain-outcome rules. Incomplete mutating affordances remain unavailable.
 
 - Automatic or “magic” stashing during version-line switch, sync, publish,
   project close, or app exit.
-- Replacing GitOdrile's version-line model with GitButler-style parallel applied
+- Replacing GitOdile's version-line model with GitButler-style parallel applied
   branches or adding linked worktrees as the solution to context switching.
 - Ignored-file stashes (`git stash --all`).
 - Partial-hunk/line stashes, interactive patch mode, or arbitrary manual Git
@@ -289,7 +289,7 @@ uncertain-outcome rules. Incomplete mutating affordances remain unavailable.
 - [ ] Users can set all or selected current changes aside through a typed,
       confirmed plan and reach a verified clean/planned result without a branch
       commit or remote change.
-- [ ] Standard CLI/client stashes and multiple GitOdrile-created entries appear
+- [ ] Standard CLI/client stashes and multiple GitOdile-created entries appear
       in a bounded, paginated list with names, dates, counts, origin confidence,
       technical evidence, and on-demand file/diff details.
 - [ ] Actions target a stable planned reflog entry/object; creating/removing a
@@ -403,7 +403,7 @@ uncertain-outcome rules. Incomplete mutating affordances remain unavailable.
 
 # Decisions
 
-- Use the standard Git stash stack for interoperability; optional GitOdrile
+- Use the standard Git stash stack for interoperability; optional GitOdile
   metadata can enrich but never own the saved work.
 - Combine GitHub Desktop's simple entry point with Tower/GitKraken's multi-entry
   list, names, inspection, and explicit lifecycle.

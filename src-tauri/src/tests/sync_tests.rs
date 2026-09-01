@@ -1291,7 +1291,7 @@ fn changing_a_remote_url_validates_names_and_addresses_before_writing() {
     assert_eq!(after.remotes[0].url, "https://example.test/moved.git");
     assert!(
         !after.remotes[0].has_hidden_credentials,
-        "GitOdrile stores the address without the password, exactly as connecting one does"
+        "GitOdile stores the address without the password, exactly as connecting one does"
     );
     let configured = git_command(&repo)
         .args(["config", "--local", "--get", "remote.origin.url"])

@@ -136,7 +136,7 @@ const en: VersionLinesTranslations = {
   versionLinesNoProjectTitle: "No project open",
   versionLinesNoProjectDescription: "Open a project to see and manage its version lines.",
   versionLinesLoading: "Loading version lines…",
-  versionLinesErrorLoading: "GitOdrile couldn't load this project's version lines.",
+  versionLinesErrorLoading: "GitOdile couldn't load this project's version lines.",
   versionLinesRetry: "Try again",
   versionLinesActiveLabel: "Active",
   versionLinesNewButton: "New version line",
@@ -145,8 +145,8 @@ const en: VersionLinesTranslations = {
   versionLinesTruncatedNote: (visible, total) => `Showing the ${visible} most recently saved of ${total}.`,
   versionLinesUnreadableNote: (count) =>
     count === 1
-      ? "One version line isn't shown: its name uses characters GitOdrile can't read exactly. Use Git directly to rename it."
-      : `${count} version lines aren't shown: their names use characters GitOdrile can't read exactly. Use Git directly to rename them.`,
+      ? "One version line isn't shown: its name uses characters GitOdile can't read exactly. Use Git directly to rename it."
+      : `${count} version lines aren't shown: their names use characters GitOdile can't read exactly. Use Git directly to rename them.`,
   versionLinesQuickSwitchChangeLabel: (current) => `Change version line (${current})`,
   versionLinesQuickSwitchTitle: "Switch version line",
   versionLinesQuickSwitchSearchPlaceholder: "Search version lines…",
@@ -184,7 +184,7 @@ const en: VersionLinesTranslations = {
   createVersionLineSwitchLabel: "Create and switch to it",
   createVersionLineWithoutSwitchLabel: "Create without switching",
   createVersionLineDetachedNote:
-    "This project isn't on a version line right now, so GitOdrile will switch to the new one to keep this commit easy to find.",
+    "This project isn't on a version line right now, so GitOdile will switch to the new one to keep this commit easy to find.",
   createVersionLineUnsavedNote:
     "Your unsaved files and prepared changes stay exactly as they are. Future saved versions will belong to the new version line.",
   createVersionLineUnbornBlocked: "Save the first version before creating another version line.",
@@ -199,7 +199,7 @@ const en: VersionLinesTranslations = {
   switchVersionLineChangedFilesTruncated: (visible, total) => `Showing ${visible} of ${total} changed files.`,
   switchVersionLineDirtyTitle: "This project has unsaved changes",
   switchVersionLineDirtyDescription:
-    "GitOdrile can't switch version lines with unsaved work in the way. Save a version, or start a new version line with this work instead.",
+    "GitOdile can't switch version lines with unsaved work in the way. Save a version, or start a new version line with this work instead.",
   switchVersionLineSaveVersionAction: "Save version",
   switchVersionLineNewLineAction: "New version line with this work",
   switchVersionLineConfirm: "Switch",
@@ -247,7 +247,7 @@ const en: VersionLinesTranslations = {
   deleteVersionLineTitle: (name) => `Delete “${name}”?`,
   deleteVersionLineBlockedTitle: (name) => `“${name}” can't be deleted yet`,
   deleteVersionLineBlockedUniqueLead:
-    "This version line has saved work that isn't reachable from any other version line or remote. Deleting it now would be the only copy lost, so GitOdrile won't do it.",
+    "This version line has saved work that isn't reachable from any other version line or remote. Deleting it now would be the only copy lost, so GitOdile won't do it.",
   deleteVersionLineBlockedUniqueOptionPublish:
     "Publish this line to a remote, so the work has a home outside this computer.",
   deleteVersionLineBlockedUniqueOptionMerge:
@@ -258,15 +258,15 @@ const en: VersionLinesTranslations = {
   deleteVersionLineBlockedActiveLead:
     "This is the version line you're working on right now. Switch to a different one first, then delete it.",
   deleteVersionLineBlockedOperationLead:
-    "This project is in the middle of an unfinished Git operation — usually a merge, a rebase, or a cherry-pick that stopped on conflicting changes. Until it's finished or undone, GitOdrile won't change any version line, including deleting one.",
+    "This project is in the middle of an unfinished Git operation — usually a merge, a rebase, or a cherry-pick that stopped on conflicting changes. Until it's finished or undone, GitOdile won't change any version line, including deleting one.",
   deleteVersionLineBlockedOperationNote:
-    "GitOdrile can show you which files are in conflict, but resolving them isn't supported here yet — finish or abort the operation in your Git tool, then come back.",
+    "GitOdile can show you which files are in conflict, but resolving them isn't supported here yet — finish or abort the operation in your Git tool, then come back.",
   deleteVersionLineOpenChangesAction: "See the files in conflict",
   deleteVersionLineSwitchAction: "Switch to this line",
   deleteVersionLineRetainedBy: (refs) => `Its saved work stays reachable from: ${refs}.`,
   deleteVersionLineSafeLead:
     "Only the local name is removed. The saved work itself is already kept elsewhere:",
-  deleteVersionLineWarning: "This can't be undone from GitOdrile.",
+  deleteVersionLineWarning: "This can't be undone from GitOdile.",
   deleteVersionLineConfirm: "Delete",
   deleteVersionLineDeleting: "Deleting…",
   deleteVersionLineSuccessTitle: "Version line deleted",
@@ -284,7 +284,7 @@ const es: VersionLinesTranslations = {
   versionLinesNoProjectTitle: "No hay ningún proyecto abierto",
   versionLinesNoProjectDescription: "Abre un proyecto para ver y gestionar sus líneas de versión.",
   versionLinesLoading: "Cargando líneas de versión…",
-  versionLinesErrorLoading: "GitOdrile no pudo cargar las líneas de versión de este proyecto.",
+  versionLinesErrorLoading: "GitOdile no pudo cargar las líneas de versión de este proyecto.",
   versionLinesRetry: "Intentar de nuevo",
   versionLinesActiveLabel: "Activa",
   versionLinesNewButton: "Nueva línea de versión",
@@ -293,8 +293,8 @@ const es: VersionLinesTranslations = {
   versionLinesTruncatedNote: (visible, total) => `Se muestran las ${visible} guardadas más recientemente de ${total}.`,
   versionLinesUnreadableNote: (count) =>
     count === 1
-      ? "Hay una línea de versión que no se muestra: su nombre usa caracteres que GitOdrile no puede leer con exactitud. Cámbiale el nombre desde Git."
-      : `Hay ${count} líneas de versión que no se muestran: sus nombres usan caracteres que GitOdrile no puede leer con exactitud. Cámbiales el nombre desde Git.`,
+      ? "Hay una línea de versión que no se muestra: su nombre usa caracteres que GitOdile no puede leer con exactitud. Cámbiale el nombre desde Git."
+      : `Hay ${count} líneas de versión que no se muestran: sus nombres usan caracteres que GitOdile no puede leer con exactitud. Cámbiales el nombre desde Git.`,
   versionLinesQuickSwitchChangeLabel: (current) => `Cambiar línea de versión (${current})`,
   versionLinesQuickSwitchTitle: "Cambiar línea de versión",
   versionLinesQuickSwitchSearchPlaceholder: "Buscar líneas de versión…",
@@ -333,7 +333,7 @@ const es: VersionLinesTranslations = {
   createVersionLineSwitchLabel: "Crear y cambiar a ella",
   createVersionLineWithoutSwitchLabel: "Crear sin cambiar",
   createVersionLineDetachedNote:
-    "Este proyecto no está en una línea de versión ahora mismo, así que GitOdrile cambiará a la nueva para que este commit sea fácil de encontrar.",
+    "Este proyecto no está en una línea de versión ahora mismo, así que GitOdile cambiará a la nueva para que este commit sea fácil de encontrar.",
   createVersionLineUnsavedNote:
     "Tus archivos sin guardar y los cambios preparados permanecen exactamente igual. Las próximas versiones guardadas pertenecerán a la nueva línea de versión.",
   createVersionLineUnbornBlocked: "Guarda la primera versión antes de crear otra línea de versión.",
@@ -348,7 +348,7 @@ const es: VersionLinesTranslations = {
   switchVersionLineChangedFilesTruncated: (visible, total) => `Se muestran ${visible} de ${total} archivos cambiados.`,
   switchVersionLineDirtyTitle: "Este proyecto tiene cambios sin guardar",
   switchVersionLineDirtyDescription:
-    "GitOdrile no puede cambiar de línea de versión con trabajo sin guardar de por medio. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
+    "GitOdile no puede cambiar de línea de versión con trabajo sin guardar de por medio. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
   switchVersionLineSaveVersionAction: "Guardar versión",
   switchVersionLineNewLineAction: "Nueva línea de versión con este trabajo",
   switchVersionLineConfirm: "Cambiar",
@@ -396,7 +396,7 @@ const es: VersionLinesTranslations = {
   deleteVersionLineTitle: (name) => `¿Eliminar «${name}»?`,
   deleteVersionLineBlockedTitle: (name) => `«${name}» todavía no se puede eliminar`,
   deleteVersionLineBlockedUniqueLead:
-    "Esta línea de versión tiene trabajo guardado que no es accesible desde ninguna otra línea ni desde ningún remoto. Eliminarla ahora perdería la única copia, así que GitOdrile no lo hará.",
+    "Esta línea de versión tiene trabajo guardado que no es accesible desde ninguna otra línea ni desde ningún remoto. Eliminarla ahora perdería la única copia, así que GitOdile no lo hará.",
   deleteVersionLineBlockedUniqueOptionPublish:
     "Publica esta línea en un remoto, para que el trabajo tenga un sitio fuera de este ordenador.",
   deleteVersionLineBlockedUniqueOptionMerge:
@@ -408,15 +408,15 @@ const es: VersionLinesTranslations = {
   deleteVersionLineBlockedActiveLead:
     "Es la línea de versión en la que estás trabajando ahora mismo. Cambia primero a otra distinta y después elimínala.",
   deleteVersionLineBlockedOperationLead:
-    "Este proyecto está en medio de una operación de Git sin terminar: normalmente una fusión, un rebase o un cherry-pick que se paró por cambios en conflicto. Hasta que se termine o se deshaga, GitOdrile no tocará ninguna línea de versión, tampoco para eliminarla.",
+    "Este proyecto está en medio de una operación de Git sin terminar: normalmente una fusión, un rebase o un cherry-pick que se paró por cambios en conflicto. Hasta que se termine o se deshaga, GitOdile no tocará ninguna línea de versión, tampoco para eliminarla.",
   deleteVersionLineBlockedOperationNote:
-    "GitOdrile puede enseñarte qué archivos están en conflicto, pero resolverlos todavía no se puede hacer aquí: termina o cancela la operación en tu herramienta de Git y vuelve.",
+    "GitOdile puede enseñarte qué archivos están en conflicto, pero resolverlos todavía no se puede hacer aquí: termina o cancela la operación en tu herramienta de Git y vuelve.",
   deleteVersionLineOpenChangesAction: "Ver los archivos en conflicto",
   deleteVersionLineSwitchAction: "Cambiar a esta línea",
   deleteVersionLineRetainedBy: (refs) => `Su trabajo guardado sigue siendo accesible desde: ${refs}.`,
   deleteVersionLineSafeLead:
     "Solo se elimina el nombre local. El trabajo guardado ya se conserva en otro sitio:",
-  deleteVersionLineWarning: "Esto no se puede deshacer desde GitOdrile.",
+  deleteVersionLineWarning: "Esto no se puede deshacer desde GitOdile.",
   deleteVersionLineConfirm: "Eliminar",
   deleteVersionLineDeleting: "Eliminando…",
   deleteVersionLineSuccessTitle: "Línea de versión eliminada",

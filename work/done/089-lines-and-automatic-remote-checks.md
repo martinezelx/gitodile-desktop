@@ -37,7 +37,7 @@ without becoming tied to any screen.
   tick that overlaps a manual check reuses the in-flight request.
 - [GitButler's public settings](https://github.com/gitbutlerapp/gitbutler/blob/master/crates/but-settings/assets/defaults.jsonc)
   use a 15-minute automatic-fetch default. The reusable principle is a coarse
-  application-level setting; GitOdrile keeps it opt-in to preserve its
+  application-level setting; GitOdile keeps it opt-in to preserve its
   explicit-network and local-first promise.
 
 # Acceptance criteria

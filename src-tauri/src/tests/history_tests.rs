@@ -149,9 +149,9 @@ fn messages_preserve_unicode_multiline_and_empty_content() {
     assert!(git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "commit",
             "--allow-empty",
             "-q",
@@ -166,9 +166,9 @@ fn messages_preserve_unicode_multiline_and_empty_content() {
     assert!(git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "commit",
             "--allow-empty",
             "--allow-empty-message",
@@ -247,9 +247,9 @@ fn merge_tag_and_detached_history_keep_typed_graph_and_decorations() {
     assert!(git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "merge",
             "--no-ff",
             "-m",
@@ -345,9 +345,9 @@ fn details_compare_root_to_empty_tree_and_merge_to_first_parent() {
     assert!(git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "merge",
             "--no-ff",
             "-m",
@@ -471,9 +471,9 @@ fn unborn_and_oversized_messages_return_truthful_bounded_pages() {
     assert!(git_command(&path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "commit",
             "--allow-empty",
             "-q",

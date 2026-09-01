@@ -160,9 +160,9 @@ export type GitDefaultBranch = { name: string | null };
  * is the point: this is a preference, not an allow-list. */
 export const DEFAULT_BRANCH_SUGGESTIONS = ["main", "master"] as const;
 
-/** The name GitOdrile gives a new project when `init.defaultBranch` is unset.
+/** The name GitOdile gives a new project when `init.defaultBranch` is unset.
  *
- * Git's own fallback in that case is `master`, but GitOdrile is the thing
+ * Git's own fallback in that case is `master`, but GitOdile is the thing
  * creating the project — it writes the initial ref itself — so `main` is what
  * actually happens, and the panel shows it selected rather than showing nothing
  * and leaving the reader to guess. It is still not written to the user's config

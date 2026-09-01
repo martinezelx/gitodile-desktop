@@ -74,7 +74,7 @@ P3 0.
 # Initial audit verdict
 
 The rework is visually coherent, product-specific, and substantially better
-than the baseline. It preserves GitOdrile's Friendly Card direction, uses the
+than the baseline. It preserves GitOdile's Friendly Card direction, uses the
 plain-language vocabulary consistently, keeps destructive version-line
 operations behind plans and revalidation, and includes unusually strong tests
 for the new diff behavior.

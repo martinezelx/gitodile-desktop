@@ -52,10 +52,10 @@ prefix chips, and a per-row `<details>` disclosure without a layout pass. The
 delete flow in particular only revealed a refusal *after* the user opened the
 dialog and read a raw localized error.
 
-Conflict resolution is deliberately not implemented anywhere in GitOdrile
+Conflict resolution is deliberately not implemented anywhere in GitOdile
 (see the Changes screen's read-only conflict view), so the
 "unfinished Git operation" case can only explain and redirect — it must not
-imply GitOdrile can resolve the conflict.
+imply GitOdile can resolve the conflict.
 
 # Scope
 

@@ -4,7 +4,7 @@ use std::path::Path;
 
 pub(crate) fn unique_temp_dir(label: &str) -> String {
     let mut dir = std::env::temp_dir();
-    dir.push(format!("gitodrile-test-{label}-{}", std::process::id()));
+    dir.push(format!("gitodile-test-{label}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).expect("create temp dir for test");
     dir.to_string_lossy().to_string()
@@ -22,9 +22,9 @@ pub(crate) fn git_commit_empty(path: &str) {
     let status = git_command(path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "commit",
             "--allow-empty",
             "-q",
@@ -60,9 +60,9 @@ pub(crate) fn git_commit(path: &str, message: &str) {
     let status = git_command(path)
         .args([
             "-c",
-            "user.name=GitOdrile Test",
+            "user.name=GitOdile Test",
             "-c",
-            "user.email=test@gitodrile.local",
+            "user.email=test@gitodile.local",
             "commit",
             "-q",
             "-m",
@@ -86,12 +86,12 @@ pub(crate) fn current_branch(path: &str) -> String {
 pub(crate) fn write_test_identity_config(label: &str) -> String {
     let mut path = std::env::temp_dir();
     path.push(format!(
-        "gitodrile-test-identity-{label}-{}.gitconfig",
+        "gitodile-test-identity-{label}-{}.gitconfig",
         std::process::id()
     ));
     fs::write(
         &path,
-        "[user]\n\tname = GitOdrile Test\n\temail = test@gitodrile.local\n",
+        "[user]\n\tname = GitOdile Test\n\temail = test@gitodile.local\n",
     )
     .expect("write temp identity config");
     path.to_string_lossy().to_string()
@@ -103,7 +103,7 @@ pub(crate) fn write_test_identity_config(label: &str) -> String {
 pub(crate) fn empty_identity_override(label: &str) -> String {
     let mut path = std::env::temp_dir();
     path.push(format!(
-        "gitodrile-test-no-identity-{label}-{}.gitconfig",
+        "gitodile-test-no-identity-{label}-{}.gitconfig",
         std::process::id()
     ));
     let _ = fs::remove_file(&path);
@@ -141,7 +141,7 @@ pub(crate) fn write_failing_hook(git_dir: &Path, name: &str) {
 pub(crate) fn write_fake_failing_gpg(label: &str) -> String {
     let mut path = std::env::temp_dir();
     path.push(format!(
-        "gitodrile-fake-gpg-{label}-{}.bat",
+        "gitodile-fake-gpg-{label}-{}.bat",
         std::process::id()
     ));
     fs::write(
@@ -157,7 +157,7 @@ pub(crate) fn write_fake_failing_gpg(label: &str) -> String {
     use std::os::unix::fs::PermissionsExt;
     let mut path = std::env::temp_dir();
     path.push(format!(
-        "gitodrile-fake-gpg-{label}-{}.sh",
+        "gitodile-fake-gpg-{label}-{}.sh",
         std::process::id()
     ));
     fs::write(

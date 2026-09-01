@@ -1492,7 +1492,7 @@ export function App(): React.JSX.Element {
         ]
       : []),
     { id: "changelog", label: t.changelogTitle, action: () => setIsChangelogOpen(true) },
-    { id: "about", label: t.aboutGitOdrile, action: () => setIsAboutOpen(true) },
+    { id: "about", label: t.aboutGitOdile, action: () => setIsAboutOpen(true) },
   ];
 
   const projectNameCounts = sessionsState.order.reduce<Record<string, number>>((counts, id) => {
@@ -1635,7 +1635,7 @@ export function App(): React.JSX.Element {
           <button
             className="window-titlebar__mark"
             type="button"
-            aria-label={t.aboutGitOdrile}
+            aria-label={t.aboutGitOdile}
             onClick={() => setIsAboutOpen(true)}
           >
             {CROCODILE_MARK}

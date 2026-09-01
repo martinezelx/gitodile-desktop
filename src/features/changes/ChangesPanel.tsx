@@ -134,7 +134,7 @@ export type DiffLineTotals = { added: number; removed: number };
 
 /** Added and removed line counts for one file's diff. Only `text` and
  * `conflict` diffs carry hunks; the binary/too-large/unchanged kinds
- * contribute nothing, which is the honest answer — GitOdrile never read their
+ * contribute nothing, which is the honest answer — GitOdile never read their
  * contents. */
 export function countDiffLines(diff: FileDiff): DiffLineTotals {
   const totals = { added: 0, removed: 0 };

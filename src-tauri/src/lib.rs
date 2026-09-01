@@ -133,7 +133,7 @@ pub fn run() {
             ipc::close_project_session
         ])
         .run(tauri::generate_context!())
-        .expect("error while running GitOdrile");
+        .expect("error while running GitOdile");
 }
 
 #[cfg(test)]

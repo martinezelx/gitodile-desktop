@@ -12,7 +12,7 @@ function FirstFrameCopy(): React.JSX.Element {
 }
 
 function renderFirstFrame(language: Language): string {
-  localStorage.setItem("gitodrile-language", language);
+  localStorage.setItem("gitodile-language", language);
   const { container } = render(
     <LanguageProvider>
       <FirstFrameCopy />

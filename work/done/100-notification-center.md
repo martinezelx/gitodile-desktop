@@ -17,13 +17,13 @@ queue: "18"
 
 # Goal
 
-Give GitOdrile one place that records what happened to the open project while
+Give GitOdile one place that records what happened to the open project while
 nobody was looking at it, reachable from a bell in the window titlebar, and one
 switch in Settings that turns the whole thing off.
 
 # User outcome
 
-A user who left GitOdrile open in the background can come back, see a badge on
+A user who left GitOdile open in the background can come back, see a badge on
 the titlebar bell, open it and read that newer project changes are waiting — or
 that the last automatic check could not reach the remote — and go straight to
 the review flow from there. A user who does not want any of it turns
@@ -50,9 +50,9 @@ the implementation:
 - Clicking a notification takes the user to the context that explains it.
 
 Two of those three transfer directly. The third does not: GitHub Desktop's
-high-signal events are hosting events (checks, reviews), and GitOdrile has no
+high-signal events are hosting events (checks, reviews), and GitOdile has no
 hosting integration — provider accounts and pull requests are explicitly
-post-1.0 backlog items. GitOdrile's equivalent background event is the automatic
+post-1.0 backlog items. GitOdile's equivalent background event is the automatic
 upstream check, so that is what this task notifies about.
 
 GitHub Desktop also raises **operating-system** notifications and has no in-app
@@ -138,7 +138,7 @@ None. Task 089 already provides the automatic remote check this listens to.
 
 **In-app centre, not operating-system notifications.** GitHub Desktop raises OS
 toasts, which is the right call for an app whose events arrive from a server
-while it is minimised. GitOdrile's events arrive from a timer inside the app
+while it is minimised. GitOdile's events arrive from a timer inside the app
 itself, so an OS toast would add a dependency, a capability, a Windows shortcut
 requirement and a permission prompt to say something the window could say by
 itself. The centre is also the thing OS notifications would need afterwards

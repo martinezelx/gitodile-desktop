@@ -1,6 +1,6 @@
 ---
 id: 065-8
-title: Verify and distribute GitOdrile 1.0.0
+title: Verify and distribute GitOdile 1.0.0
 status: active
 priority: high
 type: release
@@ -24,7 +24,7 @@ signed, updateable, supportable `1.0.0` artifacts.
 
 # User outcome
 
-Users can install GitOdrile from a trusted package, complete every advertised
+Users can install GitOdile from a trusted package, complete every advertised
 workflow on their platform, update safely, and understand compatibility and
 support boundaries.
 

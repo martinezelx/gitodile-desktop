@@ -556,7 +556,7 @@ export function DeleteVersionLineDialog({
   onSwitchInstead?: () => void;
   /** Offered when an unfinished Git operation blocks every version-line
    * change: the Changes screen is the one place that shows which files are
-   * in conflict, which is as far as GitOdrile goes on conflicts today. */
+   * in conflict, which is as far as GitOdile goes on conflicts today. */
   onOpenChanges?: () => void;
   onPhaseChange?: (phase: VersionLineOperationPhase) => void;
 }): React.JSX.Element | null {

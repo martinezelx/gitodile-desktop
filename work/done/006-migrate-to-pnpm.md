@@ -16,7 +16,7 @@ completed: 2026-07-24
 
 # Goal
 
-Make pnpm 11.17.0 the supported JavaScript package manager for GitOdrile, with a current Node 24 LTS and dependency stack.
+Make pnpm 11.17.0 the supported JavaScript package manager for GitOdile, with a current Node 24 LTS and dependency stack.
 
 # User outcome
 

@@ -16,7 +16,7 @@ completed: 2026-08-10
 
 # Goal
 
-Refactor GitOdrile into an incremental modular monolith organized around its
+Refactor GitOdile into an incremental modular monolith organized around its
 durable product domains, with thin application-shell and Tauri composition
 roots. This epic coordinates the behavior-preserving tasks 023–031; it is not
 implemented as one repository-wide rewrite.

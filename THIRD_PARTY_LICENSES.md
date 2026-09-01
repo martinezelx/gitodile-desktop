@@ -2,7 +2,7 @@
 
 ## Bundled fonts
 
-GitOdrile bundles the monospaced families offered by the code-font setting.
+GitOdile bundles the monospaced families offered by the code-font setting.
 All three are licensed under the SIL Open Font License, Version 1.1, whose
 full text follows.
 

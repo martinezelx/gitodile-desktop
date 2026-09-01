@@ -20,7 +20,7 @@ possible — not just mask the flash.
 
 # User outcome
 
-Launching GitOdrile (dev or the packaged app) no longer shows a blank/white
+Launching GitOdile (dev or the packaged app) no longer shows a blank/white
 window before the UI appears; the app also has a smaller initial JS payload
 and a smaller installed binary to load from disk.
 
@@ -96,7 +96,7 @@ None.
   a `setTimeout` fallback) warms the chunk in the background after first
   paint, so normal use is unaffected while the initial chunk still ships
   without that code.
-- **`opt-level = "s"`, not `"3"`, for the release profile.** GitOdrile's
+- **`opt-level = "s"`, not `"3"`, for the release profile.** GitOdile's
   runtime cost is dominated by spawning and waiting on `git` subprocesses
   (I/O-bound), not Rust-side computation, so trading peak CPU optimization
   for a smaller binary was judged a safe, effectively free trade. Documented

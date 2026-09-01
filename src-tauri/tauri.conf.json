@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "GitOdrile",
+  "productName": "GitOdile",
   "version": "0.1.0",
   "identifier": "app.gitodrile.desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "GitOdrile",
+        "title": "GitOdile",
         "width": 1180,
         "height": 760,
         "minWidth": 900,

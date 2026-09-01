@@ -5,7 +5,7 @@
 
 ## Context
 
-GitOdrile currently uses the system `git` executable for repository inspection
+GitOdile currently uses the system `git` executable for repository inspection
 and configuration. This provides mature compatibility with repositories,
 credentials, hooks, signing, filters, Git LFS, transports, and platform-specific
 Git installations, but it makes the application dependent on Git being
@@ -18,7 +18,7 @@ workflow can function weakens the intended beginner-friendly experience.
 There are four broad implementation strategies:
 
 1. Continue relying exclusively on the system Git executable.
-2. Bundle a private Git executable with GitOdrile.
+2. Bundle a private Git executable with GitOdile.
 3. Embed an existing Git implementation such as `gitoxide`/`gix` or `libgit2`.
 4. Implement Git storage, worktree, merge, transport, and compatibility
    behavior ourselves.
@@ -55,7 +55,7 @@ bundling Git:
   - commit and tag signing;
   - filters, Git LFS, and external tools;
   - any repository state not yet supported reliably by the embedded backend.
-- Allow capability-based fallback. GitOdrile should explain which feature needs
+- Allow capability-based fallback. GitOdile should explain which feature needs
   external Git instead of treating the whole application as unusable.
 - Do not build a Git implementation from scratch.
 - Do not bundle a private Git executable unless a later ADR demonstrates that
@@ -63,7 +63,7 @@ bundling Git:
   and installer-size trade-off than the hybrid library approach.
 
 This proposal must not be marked accepted until a bounded technical experiment
-demonstrates that an embedded backend can reproduce GitOdrile's existing
+demonstrates that an embedded backend can reproduce GitOdile's existing
 repository-opening contract without invoking `git`.
 
 ## Validation experiment
@@ -78,7 +78,7 @@ Create a separate task before implementation with the following limits:
 - Cover normal repositories, nested paths, linked worktrees, bare repositories,
   unborn branches, detached HEAD, missing paths, and non-repositories.
 - Run the experiment with the system Git executable unavailable to the
-  GitOdrile process.
+  GitOdile process.
 - Compare behavior, error quality, binary-size impact, build complexity, and
   cross-platform implications.
 - Do not migrate production commands or remove the system Git path as part of
@@ -92,7 +92,7 @@ operation.
 
 ### Positive
 
-- GitOdrile can progressively support useful local workflows without requiring
+- GitOdile can progressively support useful local workflows without requiring
   a separate Git installation.
 - The existing, proven system Git integration remains available as a fallback.
 - Migration risk is limited to one typed operation at a time.
@@ -131,10 +131,10 @@ defined in `AGENTS.md`. It does not meet the longer-term goal of useful
 operation without a separate installation, so it remains a backend rather than
 the only planned backend.
 
-### Bundle Git with GitOdrile
+### Bundle Git with GitOdile
 
 This would provide high command-line compatibility without relying on the
-user's installation. It also makes GitOdrile responsible for platform-specific
+user's installation. It also makes GitOdile responsible for platform-specific
 binary distribution, security updates, licensing notices, installer size,
 credential helpers, SSH tooling, and deciding when to prefer user configuration
 over bundled components. Keep it as a later option, not the first experiment.
@@ -144,7 +144,7 @@ over bundled components. Keep it as a later option, not the first experiment.
 `libgit2` is mature and widely used, but it introduces a native C dependency and
 still has compatibility differences from command-line Git. It remains a valid
 comparison point if `gitoxide` cannot meet the experiment, but a Rust-native
-implementation fits GitOdrile's backend and build direction better.
+implementation fits GitOdile's backend and build direction better.
 
 ### Implement a custom Git engine
 

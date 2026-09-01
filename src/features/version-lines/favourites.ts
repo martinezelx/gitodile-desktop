@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-export const FAVOURITE_VERSION_LINES_STORAGE_KEY = "gitodrile-favourite-version-lines";
+export const FAVOURITE_VERSION_LINES_STORAGE_KEY = "gitodile-favourite-version-lines";
 
 type StoredFavourites = Readonly<Record<string, readonly string[]>>;
 

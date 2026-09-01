@@ -479,7 +479,7 @@ pub(crate) fn read_project_remotes(path: String) -> Result<ProjectRemotes, AppEr
 /// own planned flow, and the other two rewrite tracking refs. Changing where an
 /// existing one points is the repair a mistyped or moved URL actually needs,
 /// and it is verified after the write exactly as connecting one is — Git
-/// reporting success is not the same as the configuration saying what GitOdrile
+/// reporting success is not the same as the configuration saying what GitOdile
 /// intended.
 pub(crate) fn set_remote_url(
     path: String,
@@ -490,7 +490,7 @@ pub(crate) fn set_remote_url(
     let remote_name = remote_name.trim().to_string();
     // Membership is the check that belongs here, not the rule for a name the
     // user is inventing: these names come from Git's own listing, and applying
-    // `validate_new_remote_name` refused to edit remotes GitOdrile had just
+    // `validate_new_remote_name` refused to edit remotes GitOdile had just
     // shown — a name with a slash in it, or one over eighty characters, is
     // unusual but real, and Git made it, not the user.
     if !configured_remote_names(&path)?
@@ -528,8 +528,8 @@ pub(crate) fn set_remote_url(
     if !observed.status.success() || observed_urls != [url.persisted.as_str()] {
         return Err(connect_remote_error(
             AppErrorCode::RemoteConnectUncertain,
-            "Git changed remote configuration, but GitOdrile could not verify its exact URL.",
-            "Inspect .git/config before publishing again. GitOdrile did not contact the network.",
+            "Git changed remote configuration, but GitOdile could not verify its exact URL.",
+            "Inspect .git/config before publishing again. GitOdile did not contact the network.",
         ));
     }
     project_remotes(&path)
@@ -565,7 +565,7 @@ fn local_remote_config_snapshot(path: &str) -> Result<Vec<u8>, AppError> {
     } else {
         Err(connect_remote_error(
             AppErrorCode::InvalidRemoteConfiguration,
-            "GitOdrile couldn't inspect the project's existing remote configuration.",
+            "GitOdile couldn't inspect the project's existing remote configuration.",
             "Check .git/config and try again.",
         ))
     }
@@ -576,7 +576,7 @@ fn configured_remote_names(path: &str) -> Result<Vec<String>, AppError> {
     if !output.status.success() {
         return Err(connect_remote_error(
             AppErrorCode::InvalidRemoteConfiguration,
-            "GitOdrile couldn't inspect this project's remotes.",
+            "GitOdile couldn't inspect this project's remotes.",
             "Check the repository configuration and try again.",
         ));
     }
@@ -705,8 +705,8 @@ pub(crate) fn connect_remote(
     if !observed.status.success() || observed_urls != [validated.url.persisted.as_str()] {
         return Err(connect_remote_error(
             AppErrorCode::RemoteConnectUncertain,
-            "Git added remote configuration, but GitOdrile could not verify its exact URL.",
-            "Inspect .git/config before editing or retrying this remote. GitOdrile did not contact the network.",
+            "Git added remote configuration, but GitOdile could not verify its exact URL.",
+            "Inspect .git/config before editing or retrying this remote. GitOdile did not contact the network.",
         ));
     }
     Ok(ConnectRemoteResult {
@@ -854,14 +854,14 @@ pub(crate) fn classify_remote_failure(stderr: &str) -> AppError {
     if looks_like_authentication_failure(&lower) {
         return AppError::new(
             AppErrorCode::AuthenticationFailed,
-            "GitOdrile couldn't sign in to the remote project.",
+            "GitOdile couldn't sign in to the remote project.",
         )
         .with_remediation("Check your Git credentials for this remote, then try again.")
         .with_detail(truncate_detail(stderr));
     }
     AppError::new(
         AppErrorCode::GitCommandFailed,
-        "GitOdrile couldn't check the remote project's latest state.",
+        "GitOdile couldn't check the remote project's latest state.",
     )
     .with_remediation("Check your connection and the remote project, then try again.")
     .with_detail(truncate_detail(stderr))
@@ -1047,14 +1047,14 @@ pub(crate) fn fetch_remote_target(
     if output.timed_out {
         return Err(AppError::new(
             AppErrorCode::NetworkTimeout,
-            "GitOdrile couldn't reach the remote project in time.",
+            "GitOdile couldn't reach the remote project in time.",
         )
         .with_remediation("Check your connection and try again."));
     }
     let status = output.status.ok_or_else(|| {
         AppError::new(
             AppErrorCode::GitCommandFailed,
-            "GitOdrile couldn't confirm the remote check.",
+            "GitOdile couldn't confirm the remote check.",
         )
     })?;
     if !status.success() {

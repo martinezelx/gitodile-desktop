@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Use this directory for decisions that materially affect GitOdrile's architecture, security model, cross-platform behavior, or Git safety guarantees.
+Use this directory for decisions that materially affect GitOdile's architecture, security model, cross-platform behavior, or Git safety guarantees.
 
 ## File naming
 

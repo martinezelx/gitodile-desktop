@@ -6,7 +6,7 @@ records are historical evidence, not the current specification.
 
 ## System shape
 
-GitOdrile is a modular desktop application with a React/TypeScript frontend in
+GitOdile is a modular desktop application with a React/TypeScript frontend in
 a Tauri shell and Rust services for Git, filesystem, process, session, and
 platform-sensitive behavior.
 
@@ -269,7 +269,7 @@ Rust accepts HTTPS, SSH (including scp-like syntax), Git, file URLs, and local
 paths. It strips URL user-info, queries, and fragments before Git invocation,
 remote persistence, diagnostics, or IPC-safe display. A plan binds the
 normalized source and exact absent destination with a state token. Execution
-creates `.gitodrile-clone-<operation-id>` under the selected parent, writes an
+creates `.gitodile-clone-<operation-id>` under the selected parent, writes an
 exact ownership marker, clones without recursive submodules, sanitizes
 `origin`, verifies repository identity and worktree usability, and publishes
 the `project` child with an OS-specific exclusive no-replace rename. It then
@@ -518,6 +518,24 @@ Performance comparison protocol and retained budgets live in the
 absent from normal development and production builds.
 
 ## Platform and security constraints
+
+### Brand-rename compatibility identities
+
+The shipped product, npm/Cargo packages, Rust crate, executable, frontend
+assets, and newly written browser preferences use **GitOdile** / `gitodile`.
+Three pre-rename identifiers deliberately remain stable compatibility
+contracts rather than current branding:
+
+- the Tauri bundle identifier is still `app.gitodrile.desktop`, so an update
+  retains the installed application's platform identity and WebView data;
+- startup copies `gitodrile-*` browser-storage entries to `gitodile-*` only
+  when the new entry is absent, retaining the legacy copy for rollback;
+- recovery schema v1 continues to use `refs/gitodrile/recovery/...` and
+  `<git-dir>/gitodrile/...`, so protected states created before the rename stay
+  discoverable and retention rules keep operating over one namespace.
+
+Do not cosmetically rename those stable identifiers. A future namespace
+version requires an explicit dual-read migration and recovery tests.
 
 - Repository content stays local unless the user explicitly invokes a remote
   feature.

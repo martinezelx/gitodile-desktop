@@ -24,7 +24,7 @@ recoverable fast-forward.
 When the Team changes section reports newer versions, the user can inspect the
 incoming saved versions and bounded file impact, understand exactly which
 local files and history will change, and confirm a safe update. If local work,
-repository state, or the remote makes that unsafe, GitOdrile stops and explains
+repository state, or the remote makes that unsafe, GitOdile stops and explains
 the next step instead of merging, rebasing, stashing, or discarding.
 
 # Current context
@@ -168,7 +168,7 @@ Before recovery exists, every blocked/failing path must leave `HEAD`, index,
 and working files unchanged. After it exists, retain it according to the ADR
 even if update or verification fails.
 
-If GitOdrile cannot prove whether `HEAD` or files changed, report an uncertain
+If GitOdile cannot prove whether `HEAD` or files changed, report an uncertain
 local outcome with the observed `HEAD`, recovery reference, and safe inspection
 instructions. Never rewrite files automatically to repair uncertainty.
 

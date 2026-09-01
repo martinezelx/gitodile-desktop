@@ -41,9 +41,9 @@ pub(crate) fn require_policy() -> Result<git::ExecutionPolicy, AppError> {
             );
             Err(AppError::new(
                 AppErrorCode::GitCommandFailed,
-                "GitOdrile couldn't run this Git command safely.",
+                "GitOdile couldn't run this Git command safely.",
             )
-            .with_remediation("Restart GitOdrile, and please report this if it happens again."))
+            .with_remediation("Restart GitOdile, and please report this if it happens again."))
         }
     }
 }

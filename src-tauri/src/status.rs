@@ -329,7 +329,7 @@ pub(crate) fn parse_status_porcelain_v2(stdout: &[u8]) -> WorkingTreeStatus {
 pub(crate) fn unsupported_path_encoding_error() -> AppError {
     AppError::new(
         AppErrorCode::PathEncodingUnsupported,
-        "This project contains a file path GitOdrile can't represent safely.",
+        "This project contains a file path GitOdile can't represent safely.",
     )
     .with_remediation("Rename that file with a Unicode-compatible name, then refresh the project.")
 }
@@ -530,7 +530,7 @@ pub(crate) fn list_unpublished_versions(path: String) -> Result<PendingVersionsR
         .map_err(|_| {
             AppError::new(
                 AppErrorCode::GitCommandFailed,
-                "GitOdrile couldn't count the saved versions waiting to be published.",
+                "GitOdile couldn't count the saved versions waiting to be published.",
             )
             .with_remediation("Refresh and try again.")
         })?;

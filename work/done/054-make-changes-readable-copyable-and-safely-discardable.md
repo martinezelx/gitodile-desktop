@@ -20,7 +20,7 @@ Finish the Changes screen as a comfortable review-and-correct workspace:
 source text can be selected and copied through the familiar desktop context
 menu, code is easier to read and receives restrained language-aware syntax
 coloring, and the user can discard one file or every unsaved change without
-GitOdrile hiding the consequences or leaving the work unrecoverable.
+GitOdile hiding the consequences or leaving the work unrecoverable.
 
 # User outcome
 
@@ -30,7 +30,7 @@ GitOdrile hiding the consequences or leaving the work unrecoverable.
 - A user can discard the selected file's changes or all changes shown by the
   current working-tree snapshot, after reviewing exactly what will be
   replaced or removed.
-- A mistaken discard can be recovered through GitOdrile, including after the
+- A mistaken discard can be recovered through GitOdile, including after the
   app is restarted, rather than depending on filesystem luck or Git expertise.
 - Diffs feel closer to a good editor: the code face is friendlier and more
   legible, while supported languages receive useful syntax color without
@@ -62,7 +62,7 @@ GitButler is a bounded conceptual reference only: its public recovery guidance
 describes taking a project snapshot before potentially data-changing
 operations, and its discard UI/CLI confirms destructive local work. Its
 repository is Fair Source and expressly unsuitable as implementation source
-for a competitor, so GitOdrile must reuse only that high-level principle and
+for a competitor, so GitOdile must reuse only that high-level principle and
 write an independent, substantially smaller design:
 
 - <https://docs.gitbutler.com/troubleshooting/recovering-stuff>
@@ -207,7 +207,7 @@ write an independent, substantially smaller design:
 
 # Out of scope
 
-- Editing code inside GitOdrile.
+- Editing code inside GitOdile.
 - Discarding individual hunks or selected lines.
 - Staging/unstaging controls or changing Save selected semantics.
 - A general application context-menu framework beyond the smallest reusable
@@ -333,7 +333,7 @@ must be accepted in the same task before destructive execution is added.
 - “Discard all” means the complete current working-tree status, including
   staged, untracked and conflicted entries; it never means only filtered or
   Save-selected files. The confirmation must make those differences explicit.
-- A confirmation without recovery is insufficient for GitOdrile. Persistent
+- A confirmation without recovery is insufficient for GitOdile. Persistent
   recovery and a real restore path are part of the feature, not deferred UI
   polish.
 - Atkinson Hyperlegible Mono is the chosen code face because its character

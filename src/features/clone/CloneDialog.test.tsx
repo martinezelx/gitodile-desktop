@@ -93,7 +93,7 @@ describe("CloneDialog", () => {
 
     await waitFor(() => expect(onVerifiedClone).toHaveBeenCalledWith(result));
     expect(onClose).toHaveBeenCalledOnce();
-    expect(localStorage.getItem("gitodrile-clone-parent")).toBe("C:\\projects");
+    expect(localStorage.getItem("gitodile-clone-parent")).toBe("C:\\projects");
     expect(JSON.stringify(localStorage)).not.toContain("secret");
   });
 

@@ -128,12 +128,12 @@ fn index_path(git_dir: &Path) -> PathBuf {
 
 fn hash_file(path: &Path, hasher: &mut impl Hasher) -> Result<(), AppError> {
     let mut file = File::open(path)
-        .map_err(|_| error("GitOdrile couldn't read a file before creating recovery."))?;
+        .map_err(|_| error("GitOdile couldn't read a file before creating recovery."))?;
     let mut buffer = [0_u8; 64 * 1024];
     loop {
         let read = file
             .read(&mut buffer)
-            .map_err(|_| error("GitOdrile couldn't finish reading a file for recovery."))?;
+            .map_err(|_| error("GitOdile couldn't finish reading a file for recovery."))?;
         if read == 0 {
             break;
         }
@@ -190,7 +190,7 @@ fn state_token(
                 Ok(metadata) if metadata.file_type().is_symlink() => {
                     "symlink".hash(&mut hasher);
                     fs::read_link(&path)
-                        .map_err(|_| error("GitOdrile couldn't read a changed symbolic link."))?
+                        .map_err(|_| error("GitOdile couldn't read a changed symbolic link."))?
                         .hash(&mut hasher);
                 }
                 Ok(metadata) if metadata.is_file() => {
@@ -202,7 +202,7 @@ fn state_token(
                 Err(value) if value.kind() == std::io::ErrorKind::NotFound => {
                     "absent".hash(&mut hasher)
                 }
-                Err(_) => return Err(error("GitOdrile couldn't inspect a changed path safely.")),
+                Err(_) => return Err(error("GitOdile couldn't inspect a changed path safely.")),
             }
         }
     }
@@ -305,7 +305,7 @@ pub(crate) fn plan_discard_changes(
             .iter()
             .any(|entry| entry.category == ChangeCategory::Conflicted),
         is_unborn: validated.head_state == HeadState::Unborn,
-        recovery: "GitOdrile will keep a private local recovery copy before changing any file."
+        recovery: "GitOdile will keep a private local recovery copy before changing any file."
             .to_string(),
         requires_confirmation: true,
     })
@@ -321,7 +321,7 @@ fn capture_path(
     let state = match fs::symlink_metadata(&path) {
         Ok(metadata) if metadata.file_type().is_symlink() => {
             let target = fs::read_link(&path)
-                .map_err(|_| error("GitOdrile couldn't capture a changed symbolic link."))?;
+                .map_err(|_| error("GitOdile couldn't capture a changed symbolic link."))?;
             RecoveryPathState::Symlink {
                 target: target.to_string_lossy().to_string(),
                 // Git symlinks are file-like entries. Avoid following the
@@ -332,7 +332,7 @@ fn capture_path(
         Ok(metadata) if metadata.is_file() => {
             let payload = format!("files/{index}");
             fs::copy(&path, record.join(&payload))
-                .map_err(|_| error("GitOdrile couldn't copy a changed file into recovery."))?;
+                .map_err(|_| error("GitOdile couldn't copy a changed file into recovery."))?;
             #[cfg(unix)]
             let mode = {
                 use std::os::unix::fs::PermissionsExt;
@@ -356,12 +356,12 @@ fn capture_path(
                 AppErrorCode::PathInvalid,
                 "This changed path is a submodule or unsupported filesystem entry.",
             )
-            .with_remediation("Handle submodules outside GitOdrile for now."))
+            .with_remediation("Handle submodules outside GitOdile for now."))
         }
         Err(value) if value.kind() == std::io::ErrorKind::NotFound => RecoveryPathState::Absent,
         Err(_) => {
             return Err(error(
-                "GitOdrile couldn't inspect a changed path for recovery.",
+                "GitOdile couldn't inspect a changed path for recovery.",
             ))
         }
     };
@@ -373,37 +373,37 @@ fn capture_path(
 
 fn write_manifest(record: &Path, manifest: &RecoveryManifest) -> Result<(), AppError> {
     let value = serde_json::to_vec_pretty(manifest)
-        .map_err(|_| error("GitOdrile couldn't encode the recovery manifest."))?;
+        .map_err(|_| error("GitOdile couldn't encode the recovery manifest."))?;
     let temporary = record.join("manifest.json.tmp");
     let final_path = record.join("manifest.json");
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&temporary)
-        .map_err(|_| error("GitOdrile couldn't create the recovery manifest."))?;
+        .map_err(|_| error("GitOdile couldn't create the recovery manifest."))?;
     file.write_all(&value)
         .and_then(|_| file.sync_all())
-        .map_err(|_| error("GitOdrile couldn't finish writing the recovery manifest."))?;
+        .map_err(|_| error("GitOdile couldn't finish writing the recovery manifest."))?;
     drop(file);
     if final_path.exists() {
         fs::remove_file(&final_path)
-            .map_err(|_| error("GitOdrile couldn't update recovery safely."))?;
+            .map_err(|_| error("GitOdile couldn't update recovery safely."))?;
     }
     fs::rename(&temporary, &final_path)
-        .map_err(|_| error("GitOdrile couldn't publish the recovery manifest atomically."))
+        .map_err(|_| error("GitOdile couldn't publish the recovery manifest atomically."))
 }
 
 fn publish_latest(root: &Path, recovery_id: &str) -> Result<(), AppError> {
     let temporary = root.join("latest.tmp");
     let latest = root.join("latest");
     fs::write(&temporary, recovery_id)
-        .map_err(|_| error("GitOdrile couldn't publish the recovery pointer."))?;
+        .map_err(|_| error("GitOdile couldn't publish the recovery pointer."))?;
     if latest.exists() {
         fs::remove_file(&latest)
-            .map_err(|_| error("GitOdrile couldn't update the recovery pointer."))?;
+            .map_err(|_| error("GitOdile couldn't update the recovery pointer."))?;
     }
     fs::rename(temporary, latest)
-        .map_err(|_| error("GitOdrile couldn't publish the recovery pointer."))
+        .map_err(|_| error("GitOdile couldn't publish the recovery pointer."))
 }
 
 fn create_snapshot(
@@ -414,16 +414,16 @@ fn create_snapshot(
 ) -> Result<(PathBuf, RecoveryManifest), AppError> {
     let recovery_root = recovery_root(git_dir);
     fs::create_dir_all(recovery_root.join("pending"))
-        .map_err(|_| error("GitOdrile couldn't create its local recovery folder."))?;
+        .map_err(|_| error("GitOdile couldn't create its local recovery folder."))?;
     let recovery_id = unique_recovery_id();
     let pending = recovery_root.join("pending").join(&recovery_id);
     fs::create_dir_all(pending.join("files"))
-        .map_err(|_| error("GitOdrile couldn't create a recovery record."))?;
+        .map_err(|_| error("GitOdile couldn't create a recovery record."))?;
     let index = index_path(git_dir);
     let index_existed = index.exists();
     if index_existed {
         fs::copy(&index, pending.join("index"))
-            .map_err(|_| error("GitOdrile couldn't protect the project's prepared changes."))?;
+            .map_err(|_| error("GitOdile couldn't protect the project's prepared changes."))?;
     }
     let mut paths = Vec::new();
     for (sequence, relative) in validated.target_paths.iter().enumerate() {
@@ -442,7 +442,7 @@ fn create_snapshot(
     write_manifest(&pending, &manifest)?;
     let complete = recovery_root.join(&recovery_id);
     fs::rename(&pending, &complete)
-        .map_err(|_| error("GitOdrile couldn't publish the completed recovery record."))?;
+        .map_err(|_| error("GitOdile couldn't publish the completed recovery record."))?;
     publish_latest(&recovery_root, &recovery_id)?;
     Ok((complete, manifest))
 }
@@ -480,18 +480,17 @@ fn remove_worktree_path(root: &Path, relative: &str) -> Result<(), AppError> {
     let target = validate_target(root, relative)?;
     match fs::symlink_metadata(&target) {
         Ok(metadata) if metadata.is_file() || metadata.file_type().is_symlink() => {
-            fs::remove_file(&target)
-                .map_err(|_| error("GitOdrile couldn't remove an unsaved file."))
+            fs::remove_file(&target).map_err(|_| error("GitOdile couldn't remove an unsaved file."))
         }
         Ok(metadata) if metadata.is_dir() => fs::remove_dir(&target).map_err(|_| {
             AppError::new(
                 AppErrorCode::PathInvalid,
-                "GitOdrile refused to remove a non-empty directory while discarding changes.",
+                "GitOdile refused to remove a non-empty directory while discarding changes.",
             )
         }),
         Ok(_) => Err(AppError::new(
             AppErrorCode::PathInvalid,
-            "GitOdrile refused to remove an unsupported filesystem entry.",
+            "GitOdile refused to remove an unsupported filesystem entry.",
         )),
         Err(value)
             if matches!(
@@ -502,7 +501,7 @@ fn remove_worktree_path(root: &Path, relative: &str) -> Result<(), AppError> {
             Ok(())
         }
         Err(_) => Err(error(
-            "GitOdrile couldn't inspect an unsaved file before removing it.",
+            "GitOdile couldn't inspect an unsaved file before removing it.",
         )),
     }
 }
@@ -549,7 +548,7 @@ fn mutate_discard(path: &str, root: &Path, validated: &ValidatedDiscard) -> Resu
             && fs::read_dir(&target).is_ok_and(|mut entries| entries.next().is_none())
         {
             fs::remove_dir(&target)
-                .map_err(|_| error("GitOdrile couldn't clear an empty file-transition folder."))?;
+                .map_err(|_| error("GitOdile couldn't clear an empty file-transition folder."))?;
         }
     }
     if !tracked.is_empty() {
@@ -602,7 +601,7 @@ fn restore_snapshot(
             RecoveryPathState::Absent => {}
             RecoveryPathState::Directory => {
                 fs::create_dir_all(&target)
-                    .map_err(|_| error("GitOdrile couldn't restore a recovered directory."))?;
+                    .map_err(|_| error("GitOdile couldn't restore a recovered directory."))?;
             }
             RecoveryPathState::File {
                 payload,
@@ -612,25 +611,25 @@ fn restore_snapshot(
             } => {
                 if let Some(parent) = target.parent() {
                     fs::create_dir_all(parent).map_err(|_| {
-                        error("GitOdrile couldn't recreate a parent folder during recovery.")
+                        error("GitOdile couldn't recreate a parent folder during recovery.")
                     })?;
                 }
                 fs::copy(record.join(payload), &target)
-                    .map_err(|_| error("GitOdrile couldn't restore a recovered file."))?;
+                    .map_err(|_| error("GitOdile couldn't restore a recovered file."))?;
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::PermissionsExt;
                     fs::set_permissions(&target, fs::Permissions::from_mode(*mode))
-                        .map_err(|_| error("GitOdrile couldn't restore a file's mode."))?;
+                        .map_err(|_| error("GitOdile couldn't restore a file's mode."))?;
                 }
                 #[cfg(not(unix))]
                 {
                     let mut permissions = fs::metadata(&target)
-                        .map_err(|_| error("GitOdrile couldn't inspect a restored file."))?
+                        .map_err(|_| error("GitOdile couldn't inspect a restored file."))?
                         .permissions();
                     permissions.set_readonly(*readonly);
                     fs::set_permissions(&target, permissions)
-                        .map_err(|_| error("GitOdrile couldn't restore a file's permissions."))?;
+                        .map_err(|_| error("GitOdile couldn't restore a file's permissions."))?;
                 }
                 let _ = readonly;
             }
@@ -640,21 +639,21 @@ fn restore_snapshot(
             } => {
                 if let Some(parent) = target.parent() {
                     fs::create_dir_all(parent).map_err(|_| {
-                        error("GitOdrile couldn't recreate a symlink parent folder.")
+                        error("GitOdile couldn't recreate a symlink parent folder.")
                     })?;
                 }
                 create_symlink(link_target, &target, *target_is_directory)
-                    .map_err(|_| error("GitOdrile couldn't restore a symbolic link."))?;
+                    .map_err(|_| error("GitOdile couldn't restore a symbolic link."))?;
             }
         }
     }
     let index = index_path(git_dir);
     if manifest.index_existed {
         fs::copy(record.join("index"), &index)
-            .map_err(|_| error("GitOdrile couldn't restore the project's prepared changes."))?;
+            .map_err(|_| error("GitOdile couldn't restore the project's prepared changes."))?;
     } else if index.exists() {
         fs::remove_file(index)
-            .map_err(|_| error("GitOdrile couldn't restore the empty prepared state."))?;
+            .map_err(|_| error("GitOdile couldn't restore the empty prepared state."))?;
     }
     Ok(())
 }
@@ -667,7 +666,7 @@ fn read_manifest(record: &Path) -> Result<RecoveryManifest, AppError> {
         )
     })?;
     let manifest: RecoveryManifest = serde_json::from_slice(&bytes)
-        .map_err(|_| error("GitOdrile couldn't read the discard recovery manifest."))?;
+        .map_err(|_| error("GitOdile couldn't read the discard recovery manifest."))?;
     if manifest.version != RECOVERY_SCHEMA_VERSION {
         return Err(AppError::new(
             AppErrorCode::RecoveryUnavailable,
@@ -758,7 +757,7 @@ pub(crate) fn discard_changes(
         Err(primary) => {
             return match restore_snapshot(root, git_dir, &record, &manifest) {
                 Ok(()) => Err(primary.with_remediation(
-                    "GitOdrile restored the protected files. Refresh and try again.",
+                    "GitOdile restored the protected files. Refresh and try again.",
                 )),
                 Err(restore) => Err(primary.with_detail(format!(
                     "Automatic recovery also failed: {}",
@@ -839,7 +838,7 @@ pub(crate) fn restore_discarded_changes(
     if current != expected || state_token_value != expected {
         return Err(AppError::new(
             AppErrorCode::RecoveryConflict,
-            "The project changed after this discard, so GitOdrile won't overwrite the newer work.",
+            "The project changed after this discard, so GitOdile won't overwrite the newer work.",
         )
         .with_remediation(
             "Keep this recovery and review the current changes before restoring manually.",

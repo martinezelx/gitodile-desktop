@@ -62,7 +62,7 @@ fn open_repository_rejects_a_non_repository_folder() {
 fn open_repository_rejects_a_missing_folder() {
     let mut path = std::env::temp_dir();
     path.push(format!(
-        "gitodrile-test-does-not-exist-{}",
+        "gitodile-test-does-not-exist-{}",
         std::process::id()
     ));
     let path = path.to_string_lossy().to_string();
@@ -95,7 +95,7 @@ fn open_repository_detects_a_linked_worktree() {
 
     let mut worktree_buf = std::env::temp_dir();
     worktree_buf.push(format!(
-        "gitodrile-test-worktree-linked-{}",
+        "gitodile-test-worktree-linked-{}",
         std::process::id()
     ));
     let _ = fs::remove_dir_all(&worktree_buf);
@@ -108,7 +108,7 @@ fn open_repository_detects_a_linked_worktree() {
             "-q",
             &worktree_path,
             "-b",
-            "gitodrile-test-branch",
+            "gitodile-test-branch",
         ])
         .status()
         .expect("run git worktree add");
@@ -118,7 +118,7 @@ fn open_repository_detects_a_linked_worktree() {
         open_repository(worktree_path.clone(), None).expect("the linked worktree should open");
     assert!(matches!(info.kind, RepositoryKind::Worktree));
     assert_eq!(info.head_state, HeadState::Branch);
-    assert_eq!(info.branch.as_deref(), Some("gitodrile-test-branch"));
+    assert_eq!(info.branch.as_deref(), Some("gitodile-test-branch"));
     assert_ne!(info.git_dir, info.common_git_dir);
 
     let _ = git_command(&main_path)

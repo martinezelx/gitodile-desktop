@@ -14,14 +14,14 @@ completed: 2026-07-31
 
 # Goal
 
-Allow several local Git projects to remain open in one GitOdrile window while
+Allow several local Git projects to remain open in one GitOdile window while
 the user works in one active project at a time.
 
 # User outcome
 
 The user can open another project without replacing the current one, switch
 between projects quickly, and return to the same screen and selection they left
-in each project. Closing a project only removes it from GitOdrile; it never
+in each project. Closing a project only removes it from GitOdile; it never
 changes or deletes repository content.
 
 # Context
@@ -79,7 +79,7 @@ feature.
 ## Interaction and layout
 
 - Add a compact project switcher to the top portion of the existing sidebar,
-  without duplicating the GitOdrile brand block.
+  without duplicating the GitOdile brand block.
 - Show the active project clearly and provide:
   - a list of open projects;
   - an **Open another project** action;

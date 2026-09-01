@@ -1,7 +1,7 @@
 //! Provider-neutral repository acquisition.
 //!
 //! Clone is deliberately separate from opening an existing repository. It
-//! validates a remote/local Git source, clones into a marked GitOdrile-owned
+//! validates a remote/local Git source, clones into a marked GitOdile-owned
 //! staging container, sanitizes persisted remote configuration, verifies the
 //! worktree, and only then publishes with an exclusive filesystem move.
 
@@ -22,9 +22,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const STAGING_PREFIX: &str = ".gitodrile-clone-";
-const OWNER_MARKER: &str = ".gitodrile-clone-owner";
-const OWNER_VERSION: &str = "gitodrile-clone-v1";
+const STAGING_PREFIX: &str = ".gitodile-clone-";
+const OWNER_MARKER: &str = ".gitodile-clone-owner";
+const OWNER_VERSION: &str = "gitodile-clone-v1";
 const MAX_PROJECT_NAME_CHARS: usize = 120;
 const MAX_ATTRIBUTES_FILES: usize = 1_000;
 const MAX_ATTRIBUTES_BYTES: u64 = 256 * 1024;
@@ -537,7 +537,7 @@ fn check_destination_available(parent: &Path, name: &str) -> Result<PathBuf, App
         return Err(clone_error(
             AppErrorCode::CloneDestinationExists,
             "A file or folder already exists at this destination.",
-            "Choose a different project name or parent folder. GitOdrile won't replace it.",
+            "Choose a different project name or parent folder. GitOdile won't replace it.",
         ));
     }
     let folded = name.to_lowercase();
@@ -663,10 +663,10 @@ fn prepare_staging(parent: &Path, operation_id: &str) -> Result<Staging, AppErro
         ),
         ErrorKind::PermissionDenied => clone_error(
             AppErrorCode::PermissionDenied,
-            "GitOdrile can't create a private staging folder here.",
+            "GitOdile can't create a private staging folder here.",
             "Check the destination permissions or choose another folder.",
         ),
-        _ => classify_filesystem_error(&error, "GitOdrile couldn't prepare the destination."),
+        _ => classify_filesystem_error(&error, "GitOdile couldn't prepare the destination."),
     })?;
     let marker_result = OpenOptions::new()
         .write(true)
@@ -681,7 +681,7 @@ fn prepare_staging(parent: &Path, operation_id: &str) -> Result<Staging, AppErro
         let _ = fs::remove_dir_all(&staging.container);
         return Err(classify_filesystem_error(
             &error,
-            "GitOdrile couldn't mark its private staging folder.",
+            "GitOdile couldn't mark its private staging folder.",
         ));
     }
     Ok(staging)
@@ -698,15 +698,15 @@ fn verify_staging_ownership(staging: &Staging) -> Result<(), AppError> {
     let marker_metadata = fs::symlink_metadata(&staging.marker).map_err(|_| {
         clone_error(
             AppErrorCode::CloneCleanupUnavailable,
-            "GitOdrile can't prove that it owns this staging folder.",
-            "Do not remove it from GitOdrile; inspect it manually.",
+            "GitOdile can't prove that it owns this staging folder.",
+            "Do not remove it from GitOdile; inspect it manually.",
         )
     })?;
     if !container_metadata.file_type().is_dir() || !marker_metadata.file_type().is_file() {
         return Err(clone_error(
             AppErrorCode::CloneCleanupUnavailable,
-            "GitOdrile can't prove that it owns this staging path.",
-            "Inspect the path manually. GitOdrile will not remove it.",
+            "GitOdile can't prove that it owns this staging path.",
+            "Inspect the path manually. GitOdile will not remove it.",
         ));
     }
     let expected_name = format!("{STAGING_PREFIX}{}", staging.operation_id);
@@ -714,14 +714,14 @@ fn verify_staging_ownership(staging: &Staging) -> Result<(), AppError> {
         return Err(clone_error(
             AppErrorCode::CloneCleanupUnavailable,
             "The staging path doesn't match this clone attempt.",
-            "GitOdrile will not remove it.",
+            "GitOdile will not remove it.",
         ));
     }
     let marker = fs::read_to_string(&staging.marker).map_err(|_| {
         clone_error(
             AppErrorCode::CloneCleanupUnavailable,
-            "GitOdrile can't read the staging ownership marker.",
-            "GitOdrile will not remove it.",
+            "GitOdile can't read the staging ownership marker.",
+            "GitOdile will not remove it.",
         )
     })?;
     let expected = format!("{OWNER_VERSION}\n{}\n", staging.operation_id);
@@ -729,7 +729,7 @@ fn verify_staging_ownership(staging: &Staging) -> Result<(), AppError> {
         return Err(clone_error(
             AppErrorCode::CloneCleanupUnavailable,
             "The staging ownership marker doesn't match this clone attempt.",
-            "GitOdrile will not remove it.",
+            "GitOdile will not remove it.",
         ));
     }
     Ok(())
@@ -743,7 +743,7 @@ fn cleanup_staging(staging: &Staging) -> Result<(), AppError> {
     fs::remove_dir_all(&staging.container).map_err(|error| {
         classify_filesystem_error(
             &error,
-            "GitOdrile couldn't remove its private staging folder.",
+            "GitOdile couldn't remove its private staging folder.",
         )
     })
 }
@@ -754,7 +754,7 @@ fn failure_after_cleanup(error: AppError, staging: &Staging) -> AppError {
         Err(cleanup_error) => clone_error(
             AppErrorCode::CloneCleanupRequired,
             "The clone stopped, but its private staging folder still needs cleanup.",
-            "Retry cleanup from this dialog. GitOdrile will only remove the path it marked as its own.",
+            "Retry cleanup from this dialog. GitOdile will only remove the path it marked as its own.",
         )
         .with_detail(format!(
             "{} Cleanup path: {}. {}",
@@ -778,7 +778,7 @@ fn classify_filesystem_error(error: &std::io::Error, context: &str) -> AppError 
         return clone_error(
             AppErrorCode::DiskFull,
             "There isn't enough disk space to finish cloning.",
-            "Free some space, then try again. GitOdrile will not delete an existing destination.",
+            "Free some space, then try again. GitOdile will not delete an existing destination.",
         );
     }
     if lower.contains("filename too long") || lower.contains("path too long") {
@@ -809,7 +809,7 @@ fn classify_clone_failure(stderr: &[u8]) -> AppError {
     {
         return clone_error(
             AppErrorCode::AuthenticationFailed,
-            "GitOdrile couldn't authenticate with the remote project.",
+            "GitOdile couldn't authenticate with the remote project.",
             "Check your configured Git credential helper, SSH key, or access rights, then retry.",
         )
         .with_detail(detail());
@@ -833,7 +833,7 @@ fn classify_clone_failure(stderr: &[u8]) -> AppError {
         return clone_error(
             AppErrorCode::CertificateFailed,
             "Git couldn't verify the remote server certificate.",
-            "Check the server certificate, proxy, and system trust settings. GitOdrile will not bypass verification.",
+            "Check the server certificate, proxy, and system trust settings. GitOdile will not bypass verification.",
         )
         .with_detail(detail());
     }
@@ -846,7 +846,7 @@ fn classify_clone_failure(stderr: &[u8]) -> AppError {
     {
         return clone_error(
             AppErrorCode::Offline,
-            "GitOdrile couldn't reach the remote host.",
+            "GitOdile couldn't reach the remote host.",
             "Check your connection, VPN, proxy, and the host name, then retry.",
         )
         .with_detail(detail());
@@ -934,7 +934,7 @@ fn verify_repository(path: &Path) -> Result<(), AppError> {
         return Err(clone_error(
             AppErrorCode::CloneVerificationFailed,
             "The cloned worktree identity doesn't match its staging path.",
-            "GitOdrile will not publish this clone.",
+            "GitOdile will not publish this clone.",
         ));
     }
     let status = run_git(
@@ -1099,7 +1099,7 @@ fn clone_with_token(
         return Err(failure_after_cleanup(
             clone_error(
                 AppErrorCode::CloneVerificationFailed,
-                "GitOdrile couldn't remove private URL details from the cloned remote.",
+                "GitOdile couldn't remove private URL details from the cloned remote.",
                 "The clone will not be published. Check the remote location and retry.",
             ),
             &staging,
@@ -1135,10 +1135,10 @@ fn clone_with_token(
             clone_error(
                 AppErrorCode::CloneDestinationExists,
                 "The destination appeared while cloning.",
-                "GitOdrile did not replace it. Choose a different destination and retry.",
+                "GitOdile did not replace it. Choose a different destination and retry.",
             )
         } else {
-            classify_filesystem_error(&error, "GitOdrile couldn't publish the verified clone.")
+            classify_filesystem_error(&error, "GitOdile couldn't publish the verified clone.")
         };
         return Err(failure_after_cleanup(mapped, &staging));
     }
@@ -1147,7 +1147,7 @@ fn clone_with_token(
         let _ = cleanup_staging(&staging);
         return Err(clone_error(
             AppErrorCode::ClonePublishUncertain,
-            "The project was moved into place, but GitOdrile couldn't verify the final path.",
+            "The project was moved into place, but GitOdile couldn't verify the final path.",
             "Do not retry into the same destination. Inspect the project and open it manually if it is complete.",
         )
         .with_detail(error.message));

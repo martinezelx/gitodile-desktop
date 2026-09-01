@@ -18,12 +18,12 @@ queue: "09"
 # Goal
 
 Turn the disabled Recovery destination into an honest inventory of the local
-recovery evidence GitOdrile creates and the restores it can still prove safe.
+recovery evidence GitOdile creates and the restores it can still prove safe.
 
 # User outcome
 
 After a discard, team update, conflict operation, or later supported mutation,
-the user can see what GitOdrile protected, why it exists, how long it is kept,
+the user can see what GitOdile protected, why it exists, how long it is kept,
 and whether it can be restored automatically.
 
 # Context
@@ -61,7 +61,7 @@ restored.
 
 # Acceptance criteria
 
-- [ ] Every supported GitOdrile recovery record is discoverable with accurate
+- [ ] Every supported GitOdile recovery record is discoverable with accurate
       ownership, operation, scope, retention, and current eligibility.
 - [ ] Corrupt, incomplete, expired-ref, missing-object, unsupported-version,
       permission, and externally changed records remain truthful and preserved.

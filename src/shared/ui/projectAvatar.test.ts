@@ -3,11 +3,11 @@ import { avatarColorVar, avatarInitials, avatarPaletteIndex } from "./projectAva
 
 describe("avatarPaletteIndex", () => {
   it("is stable for the same id", () => {
-    expect(avatarPaletteIndex("/repos/gitodrile")).toBe(avatarPaletteIndex("/repos/gitodrile"));
+    expect(avatarPaletteIndex("/repos/gitodile")).toBe(avatarPaletteIndex("/repos/gitodile"));
   });
 
   it("stays within the palette range", () => {
-    for (const id of ["/a", "/repos/gitodrile", "C:\\work\\project-x", ""]) {
+    for (const id of ["/a", "/repos/gitodile", "C:\\work\\project-x", ""]) {
       const index = avatarPaletteIndex(id);
       expect(index).toBeGreaterThanOrEqual(0);
       expect(index).toBeLessThan(8);
@@ -23,8 +23,8 @@ describe("avatarPaletteIndex", () => {
 
 describe("avatarColorVar", () => {
   it("references the palette variable matching the id's index", () => {
-    const index = avatarPaletteIndex("/repos/gitodrile");
-    expect(avatarColorVar("/repos/gitodrile")).toBe(`var(--avatar-color-${index})`);
+    const index = avatarPaletteIndex("/repos/gitodile");
+    expect(avatarColorVar("/repos/gitodile")).toBe(`var(--avatar-color-${index})`);
   });
 });
 
@@ -36,7 +36,7 @@ describe("avatarInitials", () => {
   });
 
   it("falls back to the first two characters of a single word", () => {
-    expect(avatarInitials("gitodrile")).toBe("GI");
+    expect(avatarInitials("gitodile")).toBe("GI");
   });
 
   it("handles short and empty names without throwing", () => {

@@ -18,7 +18,7 @@ queue: "06"
 # Goal
 
 Provide safe whole-file or specialized resolution paths for every non-text and
-structural conflict in epic 037, with explicit fallbacks where GitOdrile cannot
+structural conflict in epic 037, with explicit fallbacks where GitOdile cannot
 edit content meaningfully.
 
 # User outcome
@@ -35,7 +35,7 @@ slice completes coverage without pretending unsupported data is text.
 
 - Add whole current/incoming/delete/rename destination choices where valid,
   with previews, confirmation, snapshot recovery, and exact mode/path handling.
-- Add external-editor/file-manager reconciliation for formats GitOdrile cannot
+- Add external-editor/file-manager reconciliation for formats GitOdile cannot
   render, without treating launch success as resolution.
 - Handle or explicitly block symlink, submodule, invalid encoding, binary,
   rename/rename, directory/file, and case-collision states with safe next steps.

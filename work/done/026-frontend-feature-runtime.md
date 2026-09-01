@@ -54,7 +54,7 @@ hidden work or repository reads caused by visiting a screen.
 
 - Moving Version lines or other feature data lifecycles; task 027 is the pilot.
 - Fetching merely because a screen became active.
-- Introducing a general frontend framework inside GitOdrile.
+- Introducing a general frontend framework inside GitOdile.
 - Splitting CSS or translations; task 030 owns that work.
 
 # Acceptance criteria

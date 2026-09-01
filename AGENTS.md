@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file is the primary operating guide for AI coding agents working on GitOdrile.
+This file is the primary operating guide for AI coding agents working on GitOdile.
 
 Read [`docs/PRODUCT_STRATEGY.md`](docs/PRODUCT_STRATEGY.md) for the durable
 product thesis, audience, positioning, and competitive context. Keep this file
@@ -10,7 +10,7 @@ focused on rules agents can apply while making changes.
 
 Build a cross-platform desktop Git client that makes version control understandable and safe for beginners, non-developers, students, AI-assisted builders, designers, and developers who prefer a calmer workflow.
 
-GitOdrile must not merely map Git commands to buttons. It should translate user intent into safe Git operations.
+GitOdile must not merely map Git commands to buttons. It should translate user intent into safe Git operations.
 
 Examples:
 
@@ -24,7 +24,7 @@ The UI should explain what will happen and preserve a recovery path whenever rea
 
 ## Product positioning
 
-Working name: **GitOdrile**
+Working name: **GitOdile**
 
 Working promise: **Git without the bite.**
 
@@ -143,14 +143,14 @@ Longer-term options may include `gitoxide`, `git2-rs`, or a hybrid implementatio
 ### External references
 
 GitButler is the primary product and engineering reference for complex desktop
-Git problems, not a specification for GitOdrile. When a task involves repository
+Git problems, not a specification for GitOdile. When a task involves repository
 watching, asynchronous work, conflicts, recovery, large repositories, packaging,
 updates, or Tauri/Rust boundaries:
 
-1. Define the concrete GitOdrile problem first.
+1. Define the concrete GitOdile problem first.
 2. Study the smallest relevant part of GitButler's public implementation.
 3. Identify the reason for its design and extract the reusable principle.
-4. Implement the smallest independent solution appropriate for GitOdrile.
+4. Implement the smallest independent solution appropriate for GitOdile.
 
 Do not copy its monorepo structure, advanced workflow model, source code, visual
 assets, branding, or product language. Check applicable licenses before adapting
@@ -207,12 +207,12 @@ Agents must follow these rules when implementing operations:
 - Do not silently discard untracked files.
 - Surface hooks and signing failures accurately; do not bypass them by default.
   A project's hooks run unless the user has turned them off in Settings, and
-  only then does GitOdrile pass `--no-verify` on its own commit and push. When
+  only then does GitOdile pass `--no-verify` on its own commit and push. When
   it does, the failure classifier must not attribute a failure to a hook that
   never ran, and no other operation may quietly widen the bypass. Never disable
   hooks by writing to the user's Git configuration — that would change what
   every other Git tool on the machine does.
-- Preserve user Git configuration unless a setting is explicitly scoped to GitOdrile.
+- Preserve user Git configuration unless a setting is explicitly scoped to GitOdile.
 
 ## UI and visual direction
 

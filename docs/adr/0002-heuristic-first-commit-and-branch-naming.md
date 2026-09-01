@@ -5,16 +5,16 @@
 
 ## Context
 
-GitOdrile aims to make everyday Git workflows approachable, including naming
+GitOdile aims to make everyday Git workflows approachable, including naming
 commits and branches well. Tools like GitButler solve this with AI: the user
 configures an OpenAI/Anthropic/Ollama key, or routes requests through
 GitButler's own backend, which forwards them to a third-party LLM on the
 user's behalf.
 
-That model has trade-offs that do not fit GitOdrile's current stage:
+That model has trade-offs that do not fit GitOdile's current stage:
 
 - It requires either a user-supplied API key, a network dependency, or
-  GitOdrile operating (and paying for) a backend proxy.
+  GitOdile operating (and paying for) a backend proxy.
 - `docs/ARCHITECTURE.md` already requires "explicit consent before sending
   source or diffs to an AI service," which adds UX friction for a feature that
   should feel instant and low-stakes.
@@ -24,7 +24,7 @@ That model has trade-offs that do not fit GitOdrile's current stage:
 Naming a commit or branch from a diff is a narrow, structured task: it mostly
 needs the changed file paths, the change kind (added/modified/deleted/renamed),
 and simple content signals (e.g. changes under a `test`/`docs` path). Much of
-this can be produced deterministically from the diff GitOdrile already parses
+this can be produced deterministically from the diff GitOdile already parses
 for the working-tree status view, without any model, network call, or consent
 prompt.
 
@@ -111,7 +111,7 @@ build the second when the first is demonstrated to be insufficient:
 
 ### Integrate a hosted LLM provider now (GitButler-style)
 
-Rejected for now. It requires API-key management or a GitOdrile-operated proxy,
+Rejected for now. It requires API-key management or a GitOdile-operated proxy,
 triggers the existing AI-consent requirement in `docs/ARCHITECTURE.md`, and
 adds cost and a network dependency for a task that a local heuristic can
 mostly solve today.

@@ -216,7 +216,7 @@ const en: SettingsTranslations = {
     "Keeps a short record of what happened to your open projects, under the bell beside the window buttons. Nothing leaves the app and no operating-system notifications are shown.",
   notificationsEventsTitle: "What you'll be told about",
   notificationsEventsDescription:
-    "Only what happens on its own, plus a receipt for what you publish. GitOdrile never interrupts you about something you are already watching happen.",
+    "Only what happens on its own, plus a receipt for what you publish. GitOdile never interrupts you about something you are already watching happen.",
   notificationsEventTeamChangesLabel: "Newer project versions",
   notificationsEventTeamChangesDescription:
     "An automatic check found versions someone else has published. Nothing on your computer has changed yet, and the notification takes you straight to the review flow.",
@@ -230,14 +230,14 @@ const en: SettingsTranslations = {
   settingsGitInstalledVersionLabel: "Installed version",
   settingsGeneralChecking: "Checking…",
   settingsGeneralUpdateAvailable: "Update available",
-  settingsGeneralGitMissing: "Git isn't installed or isn't available to GitOdrile.",
+  settingsGeneralGitMissing: "Git isn't installed or isn't available to GitOdile.",
   settingsGeneralGitUnusable: "Git was found, but it isn't working correctly.",
-  settingsGeneralGitCheckFailed: "GitOdrile couldn't check the Git installation.",
+  settingsGeneralGitCheckFailed: "GitOdile couldn't check the Git installation.",
   settingsGeneralCheckAgain: "Check again",
   settingsGeneralInstallGit: "Install Git",
   settingsGeneralUpdate: "Update",
   gitStartingInstaller: "Starting…",
-  gitInstallerLaunched: "Installer launched — this can take a moment to appear. Reopen GitOdrile once it finishes.",
+  gitInstallerLaunched: "Installer launched — this can take a moment to appear. Reopen GitOdile once it finishes.",
   gitInstallerAlreadyStarting: "The installer is already starting.",
   gitInstallerFailedWithGuidance: "The installer couldn't start. The official Windows instructions were opened instead.",
   gitWindowsGuidanceOpened: "winget isn't available, so the official Windows installation instructions were opened.",
@@ -252,7 +252,7 @@ const en: SettingsTranslations = {
   gitUpdateCheckFailed: "Couldn't check for a Git update. Try again later.",
   gitUpdateCheckTimedOut: "The update check took too long and was stopped.",
   gitUpdateStarting: "Starting…",
-  gitUpdateLaunched: "Update launched — this can take a moment to appear. Reopen GitOdrile once it finishes.",
+  gitUpdateLaunched: "Update launched — this can take a moment to appear. Reopen GitOdile once it finishes.",
   gitUpdateAlreadyStarting: "The Git update is already starting.",
   gitCouldntStart: "Couldn't start that.",
   settingsDefaultBranchTitle: "Default version line",
@@ -264,13 +264,13 @@ const en: SettingsTranslations = {
   defaultBranchUnset:
     "Not saved to your Git configuration yet, so other Git tools still use their own default. Pick an option to save it for all of them.",
   defaultBranchSaved: "Default version line saved.",
-  defaultBranchCouldntSave: "GitOdrile couldn't save that name.",
+  defaultBranchCouldntSave: "GitOdile couldn't save that name.",
   settingsHooksTitle: "Git hooks",
   hooksLabel: "Run Git hooks when saving and publishing",
   hooksDescription:
-    "Hooks are scripts a project can run automatically when a version is saved or published. This setting applies to every project you open in GitOdrile.",
+    "Hooks are scripts a project can run automatically when a version is saved or published. This setting applies to every project you open in GitOdile.",
   hooksSkippedHint:
-    "While this is off, GitOdrile skips them in every project, so checks a project would normally run do not run. No project's configuration is changed either way.",
+    "While this is off, GitOdile skips them in every project, so checks a project would normally run do not run. No project's configuration is changed either way.",
   settingsIdentityTitle: "Identity",
   settingsIdentityDescription: "Your name and email are added to saved versions through your global Git settings.",
   identityNameLabel: "Name",
@@ -403,7 +403,7 @@ const es: SettingsTranslations = {
     "Guarda un breve registro de lo que les ha pasado a tus proyectos abiertos, en la campana que hay junto a los botones de la ventana. Nada sale de la aplicación y no se muestran notificaciones del sistema.",
   notificationsEventsTitle: "De qué te avisa",
   notificationsEventsDescription:
-    "Solo de lo que ocurre por su cuenta, más un recibo de lo que publicas. GitOdrile nunca te avisa de algo que ya estás viendo suceder.",
+    "Solo de lo que ocurre por su cuenta, más un recibo de lo que publicas. GitOdile nunca te avisa de algo que ya estás viendo suceder.",
   notificationsEventTeamChangesLabel: "Versiones nuevas del proyecto",
   notificationsEventTeamChangesDescription:
     "Una comprobación automática encontró versiones que ha publicado otra persona. En tu equipo no ha cambiado nada todavía, y la notificación te lleva directamente al flujo de revisión.",
@@ -417,15 +417,15 @@ const es: SettingsTranslations = {
   settingsGitInstalledVersionLabel: "Versión instalada",
   settingsGeneralChecking: "Comprobando…",
   settingsGeneralUpdateAvailable: "Actualización disponible",
-  settingsGeneralGitMissing: "Git no está instalado o no está disponible para GitOdrile.",
+  settingsGeneralGitMissing: "Git no está instalado o no está disponible para GitOdile.",
   settingsGeneralGitUnusable: "Git se encontró, pero no funciona correctamente.",
-  settingsGeneralGitCheckFailed: "GitOdrile no pudo comprobar la instalación de Git.",
+  settingsGeneralGitCheckFailed: "GitOdile no pudo comprobar la instalación de Git.",
   settingsGeneralCheckAgain: "Comprobar de nuevo",
   settingsGeneralInstallGit: "Instalar Git",
   settingsGeneralUpdate: "Actualizar",
   gitStartingInstaller: "Iniciando…",
   gitInstallerLaunched:
-    "Instalador iniciado — puede tardar un momento en aparecer. Vuelve a abrir GitOdrile cuando termine.",
+    "Instalador iniciado — puede tardar un momento en aparecer. Vuelve a abrir GitOdile cuando termine.",
   gitInstallerAlreadyStarting: "El instalador ya se está iniciando.",
   gitInstallerFailedWithGuidance:
     "El instalador no pudo iniciarse. Se abrieron en su lugar las instrucciones oficiales para Windows.",
@@ -445,7 +445,7 @@ const es: SettingsTranslations = {
   gitUpdateCheckTimedOut: "La comprobación tardó demasiado y se detuvo.",
   gitUpdateStarting: "Iniciando…",
   gitUpdateLaunched:
-    "Actualización iniciada — puede tardar un momento en aparecer. Vuelve a abrir GitOdrile cuando termine.",
+    "Actualización iniciada — puede tardar un momento en aparecer. Vuelve a abrir GitOdile cuando termine.",
   gitUpdateAlreadyStarting: "La actualización de Git ya se está iniciando.",
   gitCouldntStart: "No se pudo iniciar eso.",
   settingsDefaultBranchTitle: "Línea de versión predeterminada",
@@ -457,13 +457,13 @@ const es: SettingsTranslations = {
   defaultBranchUnset:
     "Todavía no está guardado en tu configuración de Git, así que otras herramientas siguen usando su propio valor. Elige una opción para guardarlo para todas.",
   defaultBranchSaved: "Línea de versión predeterminada guardada.",
-  defaultBranchCouldntSave: "GitOdrile no pudo guardar ese nombre.",
+  defaultBranchCouldntSave: "GitOdile no pudo guardar ese nombre.",
   settingsHooksTitle: "Hooks de Git",
   hooksLabel: "Ejecutar los hooks de Git al guardar y publicar",
   hooksDescription:
-    "Los hooks son scripts que un proyecto puede ejecutar automáticamente al guardar o publicar una versión. Este ajuste se aplica a todos los proyectos que abras en GitOdrile.",
+    "Los hooks son scripts que un proyecto puede ejecutar automáticamente al guardar o publicar una versión. Este ajuste se aplica a todos los proyectos que abras en GitOdile.",
   hooksSkippedHint:
-    "Mientras esté desactivado, GitOdrile los omite en todos los proyectos, así que las comprobaciones que un proyecto haría normalmente no se ejecutan. En ningún caso se modifica la configuración de ningún proyecto.",
+    "Mientras esté desactivado, GitOdile los omite en todos los proyectos, así que las comprobaciones que un proyecto haría normalmente no se ejecutan. En ningún caso se modifica la configuración de ningún proyecto.",
   settingsIdentityTitle: "Identidad",
   settingsIdentityDescription:
     "Tu nombre y correo se añaden a las versiones guardadas mediante la configuración global de Git.",

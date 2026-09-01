@@ -19,7 +19,7 @@ Let the user turn all or a chosen set of current non-ignored project changes
 into one local saved version, with a clear preview, explicit confirmation, and
 no requirement to understand Git staging.
 
-This is GitOdrile's simple-mode commit flow. The primary wording is **Save
+This is GitOdile's simple-mode commit flow. The primary wording is **Save
 version**; the exact Git term **commit** may appear as secondary educational
 context.
 
@@ -67,7 +67,7 @@ After reviewing the Changes screen, a user can:
 - The confirmation must state how many files will be saved and how many will
   remain pending.
 - If selected changes were already prepared through another Git tool, explain
-  contextually that GitOdrile will save them with the chosen selection. Do not
+  contextually that GitOdile will save them with the chosen selection. Do not
   expose the index split in the ordinary file list.
 - On success, refresh repository status and show:
   - the saved description;
@@ -145,7 +145,7 @@ recovery.
 
 On successful partial save, selected files become part of the new version and
 unselected files remain ordinary pending changes. The real index must match the
-new `HEAD`; GitOdrile does not preserve an external tool's staged subset after a
+new `HEAD`; GitOdile does not preserve an external tool's staged subset after a
 successful save because the confirmed selection becomes the source of truth.
 
 ## Safety model

@@ -22,7 +22,7 @@ personalization behave as one desktop interaction system.
 
 # User outcome
 
-GitOdrile keeps the project workspace wide while the rail remains readable and
+GitOdile keeps the project workspace wide while the rail remains readable and
 predictable. Destinations that do not fit move into More instead of scrolling,
 projects switch from one stable control, Settings and account stay anchored,
 and each person can choose which destinations stay visible and whether the rail
@@ -36,7 +36,7 @@ opened its project menus from different vertical origins. Tooltips also covered
 nearby rail controls, and a short window required an invisible scrollbar.
 
 The refactor follows Slack's hierarchy and adaptive-overflow principle without
-copying its visual assets or shrinking GitOdrile's pointer targets. The product
+copying its visual assets or shrinking GitOdile's pointer targets. The product
 still owns its 88px rounded rail, crocodile mark, vocabulary, project safety
 states, and simple/advanced navigation registry.
 

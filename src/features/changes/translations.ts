@@ -125,10 +125,10 @@ const en: ChangesTranslations = {
   changesDiffErrorTitle: "We couldn’t read this file’s difference",
   changesDiffRetry: "Try again",
   changesDiffBinaryTitle: "This file can’t be previewed as text",
-  changesDiffBinaryDescription: "GitOdrile can tell this file changed, but its contents aren’t readable as text.",
+  changesDiffBinaryDescription: "GitOdile can tell this file changed, but its contents aren’t readable as text.",
   changesDiffTooLargeTitle: "This difference is too large to show here",
   changesDiffTooLargeDescription: (limit) =>
-    `This file’s difference is larger than ${limit}, GitOdrile’s safety limit for reviewing changes here. The file itself is unaffected.`,
+    `This file’s difference is larger than ${limit}, GitOdile’s safety limit for reviewing changes here. The file itself is unaffected.`,
   changesDiffWhitespaceOnlyTitle: "Only spacing changed",
   changesDiffWhitespaceOnlyDescription:
     "Every change in this file is whitespace, and you asked for those to be ignored. Turn that off in Settings to see them.",
@@ -136,8 +136,8 @@ const en: ChangesTranslations = {
   changesDiffUnchangedDescription: "Only the file’s name or permissions changed. There is no text difference to show.",
   changesDiffConflictTitle: "This file needs your attention",
   changesDiffConflictDescription:
-    "GitOdrile is showing the current conflict markers for information only. Resolving conflicts isn’t supported here yet.",
-  changesDiffConflictUnavailable: "GitOdrile couldn’t read the current conflict markers for this file.",
+    "GitOdile is showing the current conflict markers for information only. Resolving conflicts isn’t supported here yet.",
+  changesDiffConflictUnavailable: "GitOdile couldn’t read the current conflict markers for this file.",
   changesDiffConflictBinary: "This file’s contents aren’t readable as text, so its conflict markers can’t be shown.",
   changesDiffConflictTooLarge: "The conflict is too large to preview safely here.",
   changesDiffAriaLabel: (path) => `Difference for ${path}`,
@@ -198,7 +198,7 @@ const en: ChangesTranslations = {
   changesDiscardPreparedWarning: "Prepared changes in this selection will also be replaced.",
   changesDiscardUntrackedWarning: "New files in this selection will leave the project.",
   changesDiscardConflictWarning: "Conflict state in this selection will be replaced by the latest saved content.",
-  changesDiscardRecoveryNote: "GitOdrile creates a private local recovery copy first, so this can be undone.",
+  changesDiscardRecoveryNote: "GitOdile creates a private local recovery copy first, so this can be undone.",
   changesDiscardConfirmFile: "Discard file changes",
   changesDiscardConfirmAll: "Discard all changes",
   changesRestoreConfirm: "Restore discarded changes",
@@ -206,7 +206,7 @@ const en: ChangesTranslations = {
   changesRestoreSuccess: "The discarded changes were restored.",
   changesUndoDiscard: "Undo discard",
   changesDiscardLoading: "Preparing a safe preview…",
-  changesRestoreSummary: (count) => count === 1 ? "GitOdrile will restore the protected state of 1 path." : `GitOdrile will restore the protected state of ${count} paths.`,
+  changesRestoreSummary: (count) => count === 1 ? "GitOdile will restore the protected state of 1 path." : `GitOdile will restore the protected state of ${count} paths.`,
   changesDiscardUnavailable: "This action is no longer available. Refresh Changes and try again.",
 };
 
@@ -238,10 +238,10 @@ const es: ChangesTranslations = {
   changesDiffErrorTitle: "No pudimos leer la diferencia de este archivo",
   changesDiffRetry: "Reintentar",
   changesDiffBinaryTitle: "Este archivo no se puede previsualizar como texto",
-  changesDiffBinaryDescription: "GitOdrile detecta que este archivo cambió, pero su contenido no es legible como texto.",
+  changesDiffBinaryDescription: "GitOdile detecta que este archivo cambió, pero su contenido no es legible como texto.",
   changesDiffTooLargeTitle: "Esta diferencia es demasiado grande para mostrarla aquí",
   changesDiffTooLargeDescription: (limit) =>
-    `La diferencia de este archivo supera ${limit}, el límite de seguridad de GitOdrile para revisar cambios aquí. El archivo en sí no se ve afectado.`,
+    `La diferencia de este archivo supera ${limit}, el límite de seguridad de GitOdile para revisar cambios aquí. El archivo en sí no se ve afectado.`,
   changesDiffWhitespaceOnlyTitle: "Solo cambió el espaciado",
   changesDiffWhitespaceOnlyDescription:
     "Todos los cambios de este archivo son espacios en blanco, y pediste ignorarlos. Desactiva esa opción en Ajustes para verlos.",
@@ -249,8 +249,8 @@ const es: ChangesTranslations = {
   changesDiffUnchangedDescription: "Solo cambió el nombre o los permisos del archivo. No hay diferencia de texto que mostrar.",
   changesDiffConflictTitle: "Este archivo necesita tu atención",
   changesDiffConflictDescription:
-    "GitOdrile muestra las marcas de conflicto actuales solo a título informativo. Resolver conflictos aún no está disponible aquí.",
-  changesDiffConflictUnavailable: "GitOdrile no pudo leer las marcas de conflicto actuales de este archivo.",
+    "GitOdile muestra las marcas de conflicto actuales solo a título informativo. Resolver conflictos aún no está disponible aquí.",
+  changesDiffConflictUnavailable: "GitOdile no pudo leer las marcas de conflicto actuales de este archivo.",
   changesDiffConflictBinary: "El contenido de este archivo no es legible como texto, así que sus marcas de conflicto no se pueden mostrar.",
   changesDiffConflictTooLarge: "El conflicto es demasiado grande para previsualizarlo aquí de forma segura.",
   changesDiffAriaLabel: (path) => `Diferencia de ${path}`,
@@ -311,7 +311,7 @@ const es: ChangesTranslations = {
   changesDiscardPreparedWarning: "Los cambios preparados de esta selección también se reemplazarán.",
   changesDiscardUntrackedWarning: "Los archivos nuevos de esta selección saldrán del proyecto.",
   changesDiscardConflictWarning: "Los conflictos de esta selección se reemplazarán por el contenido guardado más reciente.",
-  changesDiscardRecoveryNote: "GitOdrile crea primero una copia de recuperación privada y local, para que puedas deshacerlo.",
+  changesDiscardRecoveryNote: "GitOdile crea primero una copia de recuperación privada y local, para que puedas deshacerlo.",
   changesDiscardConfirmFile: "Descartar cambios del archivo",
   changesDiscardConfirmAll: "Descartar todos los cambios",
   changesRestoreConfirm: "Restaurar cambios descartados",
@@ -319,7 +319,7 @@ const es: ChangesTranslations = {
   changesRestoreSuccess: "Los cambios descartados se han restaurado.",
   changesUndoDiscard: "Deshacer descarte",
   changesDiscardLoading: "Preparando una vista previa segura…",
-  changesRestoreSummary: (count) => count === 1 ? "GitOdrile restaurará el estado protegido de 1 ruta." : `GitOdrile restaurará el estado protegido de ${count} rutas.`,
+  changesRestoreSummary: (count) => count === 1 ? "GitOdile restaurará el estado protegido de 1 ruta." : `GitOdile restaurará el estado protegido de ${count} rutas.`,
   changesDiscardUnavailable: "Esta acción ya no está disponible. Actualiza Cambios e inténtalo de nuevo.",
 };
 

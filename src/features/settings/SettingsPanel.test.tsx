@@ -494,7 +494,7 @@ describe("Settings panel default version line", () => {
     const port = createPort();
     renderPanel(port, { initialSection: "git" });
 
-    // An empty group reads as unfinished. `main` is what GitOdrile will
+    // An empty group reads as unfinished. `main` is what GitOdile will
     // actually name the first version line, so that is what is shown.
     expect(await screen.findByRole("radio", { name: "main" })).toHaveAttribute(
       "aria-checked",
@@ -574,10 +574,10 @@ describe("Settings panel Git hooks", () => {
       name: "Run Git hooks when saving and publishing",
     });
     expect(toggle).toHaveAttribute("aria-checked", "true");
-    expect(screen.queryByText(/GitOdrile skips them in every project/)).toBeNull();
+    expect(screen.queryByText(/GitOdile skips them in every project/)).toBeNull();
     // The row must not read as a property of the open project: the switch is
     // app-wide, and the copy has to say so where it is set.
-    expect(screen.getByText(/applies to every project you open in GitOdrile/)).toBeInTheDocument();
+    expect(screen.getByText(/applies to every project you open in GitOdile/)).toBeInTheDocument();
   });
 
   it("states the cost as soon as hooks are turned off", async () => {
@@ -591,7 +591,7 @@ describe("Settings panel Git hooks", () => {
     // Turning them off is the choice that costs something, so that is the
     // state that has to explain itself.
     expect(
-      await screen.findByText(/GitOdrile skips them in every project/),
+      await screen.findByText(/GitOdile skips them in every project/),
     ).toBeInTheDocument();
   });
 });
@@ -668,7 +668,7 @@ describe("Settings panel date and number formats", () => {
     expect(dayFirst).toHaveAttribute("aria-checked", "false");
     await userEvent.click(dayFirst);
     await waitFor(() => expect(dayFirst).toHaveAttribute("aria-checked", "true"));
-    expect(localStorage.getItem("gitodrile-date-format")).toBe("day-first");
+    expect(localStorage.getItem("gitodile-date-format")).toBe("day-first");
   });
 });
 
