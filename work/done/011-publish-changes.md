@@ -291,7 +291,7 @@ where a hermetic real integration is not practical.
 - `node .agents/skills/impeccable/scripts/detect.mjs --json src` — pass,
   no findings.
 - Live Tauri desktop verification — pass against
-  `C:\workspace\gitodrile-sandbox\repo` in dark and light themes:
+  `C:\workspace\gitodile-sandbox\repo` in dark and light themes:
   compound saved/pending status, primary publish action, changed-file
   disclosure, per-file line diff, full first-publish preview, and a 3-of-5
   checkpoint preview. The final pending-row action and adaptive-height diff

@@ -171,7 +171,7 @@ The first draft of the two new descriptions was two lines each and pushed
 General 9px past its panel — the first version of this measurement caught it.
 Both were cut to one sentence, which took the rows from 61px back to 42px and
 brought the section back inside. Toggling watching off wrote
-`gitodrile-watch-projects=false`, and "Reset this section" put it back to
+`gitodile-watch-projects=false`, and "Reset this section" put it back to
 `true` and disabled itself again.
 
 **The Changes screen itself could not be opened through the app.** Opening a

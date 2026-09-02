@@ -35,7 +35,7 @@ concurrent regression test.
 `backup_index` in `src-tauri/src/save_version.rs` still uses the old pattern:
 
 ```text
-gitodrile-index-backup-<pid>-<system-time-nanos>.bak
+gitodile-index-backup-<pid>-<system-time-nanos>.bak
 ```
 
 The common-Git-dir coordinator serializes one repository family, not every
@@ -60,7 +60,7 @@ a data-safety defect, not only a test-runner race.
   every backup contains the matching original bytes.
 - Add a collision/stale-file test that forces the first candidate to exist and
   proves it is neither overwritten nor selected.
-- Audit the other production `gitodrile-*` temporary-path allocations in the
+- Audit the other production `gitodile-*` temporary-path allocations in the
   save workflow for the same create-after-check pattern; fix only equivalent
   collision risks found there and record the result.
 - Preserve structured `IndexUnavailable` and `IndexRestoreFailed` behavior and

@@ -53,7 +53,7 @@ marks on one project and two rules for which comes first.
 
 # Acceptance criteria
 
-- [x] Starring a row writes to `gitodrile-favourite-projects`, the same store
+- [x] Starring a row writes to `gitodile-favourite-projects`, the same store
       the rail and the switcher read.
 - [x] A starred project sorts above newer unstarred ones, and both groups keep
       their own recency order.
@@ -103,8 +103,8 @@ favourite: the starred project rendered first with `aria-pressed="true"`, a
 filled `--accent-primary` star at 11.46:1 on the app surface and full opacity,
 while unmarked stars stayed outlined at 0.55 in `--text-secondary`; all four
 32px at `--radius-item`. Clicking a second star wrote both paths to
-`gitodrile-favourite-projects` and reordered to
-`[project-gitodrile, web corporativa, tienda-online, api-pedidos]` — both
+`gitodile-favourite-projects` and reordered to
+`[project-gitodile, web corporativa, tienda-online, api-pedidos]` — both
 favourites first, each group still in recency order. Labels resolved to the
 switcher's own Spanish strings.
 

@@ -2,6 +2,10 @@
 
 GitOdile tracks product and engineering work inside this directory. The repository is the source of truth; external issue trackers are optional mirrors, never required context.
 
+Product names and example keys/paths in completed tasks were normalized to the
+current spelling during the naming cleanup. Validation dates, results, and
+commit references remain historical; Git history preserves their original text.
+
 ## Structure
 
 - `backlog.md` — unrefined ideas and future work. Items here are not approved for implementation.

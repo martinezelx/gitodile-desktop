@@ -1,7 +1,7 @@
 //! Recovery records for history-rewriting workflows.
 //!
 //! A `get team changes` rebase moves the version line, so the pre-rewrite tip
-//! is preserved as a hidden ref under `refs/gitodrile/recovery/` per ADR 0008.
+//! is preserved as a hidden ref under `refs/gitodile/recovery/` per ADR 0008.
 //! Records are owned per worktree and reconciled before a new one is reserved.
 //! This is a separate owner from [`super::discard`]: the two share only the
 //! clock.
@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 const HISTORY_RECOVERY_SCHEMA_VERSION: u32 = 1;
 pub(crate) const MAX_HISTORY_RECOVERY_RECORDS: usize = 20;
-const HISTORY_RECOVERY_NAMESPACE: &str = "refs/gitodrile/recovery/v1/get-team-changes";
+const HISTORY_RECOVERY_NAMESPACE: &str = "refs/gitodile/recovery/v1/get-team-changes";
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -96,7 +96,7 @@ fn unique_history_recovery_id() -> String {
 
 fn history_recovery_root(common_git_dir: &Path) -> PathBuf {
     common_git_dir
-        .join("gitodrile")
+        .join("gitodile")
         .join("history-recovery")
         .join("v1")
 }
@@ -499,6 +499,26 @@ pub(crate) fn verify_history_recovery(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn history_storage_and_refs_use_the_canonical_product_namespace() {
+        let common = Path::new("project").join(".git");
+        let root = common.join("gitodile").join("history-recovery").join("v1");
+        assert_eq!(
+            HISTORY_RECOVERY_NAMESPACE,
+            "refs/gitodile/recovery/v1/get-team-changes"
+        );
+        assert_eq!(
+            history_record_path(&common, "worktree-main", "record-id"),
+            root.join("get-team-changes")
+                .join("worktree-main")
+                .join("record-id.json")
+        );
+        assert_eq!(
+            history_pending_path(&common, "worktree-main", "record-id"),
+            root.join("pending").join("worktree-main-record-id.json")
+        );
+    }
 
     #[test]
     fn history_owner_hash_and_ids_are_stable_and_collision_resistant() {

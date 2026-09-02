@@ -58,7 +58,7 @@ approved directly by the user while task 007 was already active.
 - `AGENTS.md`
 - `DESIGN.md`
 - `docs/PRODUCT_STRATEGY.md`
-- `src/assets/gitodrile-mark.svg`
+- `src/assets/gitodile-mark.svg`
 - `src/main.tsx`
 - `src/styles.css`
 - `src-tauri/icons/source.svg`
@@ -77,7 +77,7 @@ None.
 
 # Implementation notes
 
-- Added `src/assets/gitodrile-mark.svg` as the reusable monochrome source for
+- Added `src/assets/gitodile-mark.svg` as the reusable monochrome source for
   the UI. CSS masking makes the mark inherit `currentColor` while the eye and
   smile cutouts reveal the surface underneath.
 - Replaced the inline OpenMoji drawing in `src/main.tsx`; the sidebar, compact
@@ -101,7 +101,7 @@ None.
 # Validation
 
 - `node .agents/skills/impeccable/scripts/detect.mjs --json src/main.tsx
-  src/styles.css src/assets/gitodrile-mark.svg` — passed with no findings.
+  src/styles.css src/assets/gitodile-mark.svg` — passed with no findings.
 - `pnpm run typecheck` — passed.
 - `pnpm run test` — passed, 13 tests across 2 files.
 - `pnpm run build` — passed.

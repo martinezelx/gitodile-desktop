@@ -3,6 +3,9 @@
 - Status: accepted
 - Date: 2026-08-16
 
+Namespace spelling superseded by [ADR 0009](0009-use-only-the-canonical-product-identity.md).
+Path examples below use the canonical spelling; the recovery protocol is unchanged.
+
 ## Context
 
 Getting team changes advances the active branch and replaces index/worktree
@@ -30,13 +33,13 @@ and how partial artifacts are handled before local mutation is allowed.
 History recovery refs use this versioned namespace:
 
 ```text
-refs/gitodrile/recovery/v1/get-team-changes/<owner-id>/<recovery-id>
+refs/gitodile/recovery/v1/get-team-changes/<owner-id>/<recovery-id>
 ```
 
 Their matching manifests live in the common repository metadata:
 
 ```text
-<common-git-dir>/gitodrile/history-recovery/v1/
+<common-git-dir>/gitodile/history-recovery/v1/
   get-team-changes/<owner-id>/<recovery-id>.json
   pending/<owner-id>-<recovery-id>.json
 ```
@@ -92,7 +95,7 @@ ref.
 
 ### Visibility, retention, and cleanup
 
-`refs/gitodrile/...` does not appear in ordinary local branch, remote branch,
+`refs/gitodile/...` does not appear in ordinary local branch, remote branch,
 or tag listings. It remains visible to explicit all-ref plumbing commands and
 keeps the protected commit reachable for Git garbage collection. The UI calls
 it a local recovery point and puts the exact ref in technical details.

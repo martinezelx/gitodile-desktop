@@ -62,7 +62,7 @@ first line spent on the name of a screen nobody navigated to.
 # Out of scope
 
 - A recent-projects list on the welcome screen. It needs a persisted store of
-  its own: `gitodrile-projects` holds the *currently open* set and forgets a
+  its own: `gitodile-projects` holds the *currently open* set and forgets a
   project the moment it is closed.
 - Drag-and-drop of a folder onto the window.
 - History's own empty and error states, which still render bare glyphs where

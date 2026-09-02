@@ -82,7 +82,7 @@ All JavaScript dependencies and GitHub Actions report current through `pnpm outd
 - `pnpm install --frozen-lockfile` — pass with pnpm 11.17.0.
 - `pnpm run check:frontend` — pass (typecheck, 4 tests, and Vite 8 production build).
 - `pnpm outdated` — pass with no pending JavaScript dependency or GitHub Action update.
-- `pnpm run tauri -- dev --no-watch --verbose` — remained active for more than one minute without an error or early exit; the spawned `gitodrile` process was subsequently closed after the startup check.
+- `pnpm run tauri -- dev --no-watch --verbose` — remained active for more than one minute without an error or early exit; the spawned `gitodile` process was subsequently closed after the startup check.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — pass.
 - `cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features` — pass (15 tests).

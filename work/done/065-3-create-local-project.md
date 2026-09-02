@@ -121,7 +121,7 @@ unusable path, or non-empty new destination blocks the plan.
 requires the same state token. A new-folder attempt creates the exact absent
 child with create-new semantics; an existing-folder attempt creates only its
 absent `.git` directory. The attempt writes
-`.gitodrile-init-owner` containing its operation id before invoking system Git
+`.gitodile-init-owner` containing its operation id before invoking system Git
 with separate arguments. `git init --initial-branch <name>` is followed by root,
 branch, worktree, and unborn-state verification. README creation is create-new
 and only occurs when selected; its exact initial contents are `# Project` plus a

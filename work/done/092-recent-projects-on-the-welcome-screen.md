@@ -28,7 +28,7 @@ the switcher use, and a row they no longer want is removed on the spot.
 
 # Context
 
-`gitodrile-projects` is the set of projects *currently open*, written on every
+`gitodile-projects` is the set of projects *currently open*, written on every
 session change; closing a project erases it from storage, which is exactly the
 moment a recents list becomes useful. So a recents list needs a store of its
 own rather than a read of that one.
@@ -39,7 +39,7 @@ door — "let me back into the thing I had" — had no entry point at all.
 
 # Scope
 
-- A `gitodrile-recent-projects` store: canonical path plus display name,
+- A `gitodile-recent-projects` store: canonical path plus display name,
   newest first, capped, with corrupt or foreign JSON read as empty.
 - Record a project when its session appears, so every route into a project
   (picker, clone, initialize, restore, drop) records it once.

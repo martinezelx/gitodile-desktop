@@ -186,7 +186,7 @@ Measured against the running dev server rather than assumed:
   four options share one baseline (y=468), and neither the section view nor the
   document scrolls horizontally.
 - Clicking JetBrains moved the selection and wrote
-  `codeFont: "jetbrains"` to `gitodrile-diff-preferences`; "Restablecer" became
+  `codeFont: "jetbrains"` to `gitodile-diff-preferences`; "Restablecer" became
   enabled.
 - A probe `.diff-code` element resolves Atkinson with no custom property set,
   and each stack in turn when one is, at the character widths quoted above.

@@ -3,7 +3,7 @@ import { Bug, CloudDownload, Ellipsis, FolderInput, FolderOpen, FolderX, Info, K
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLanguage } from "../i18n";
 
-const ISSUES_URL = "https://github.com/martinezelx/project-gitodrile/issues/new";
+const ISSUES_URL = "https://github.com/martinezelx/project-gitodile/issues/new";
 
 export function TitlebarMenu({
   onOpenAbout,

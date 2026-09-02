@@ -132,7 +132,7 @@ None.
   296.19 KB (gzip 87.64 KB) entry chunk plus separate `changes` (300.15 KB),
   `publishDialog` (9.28 KB), and `pendingVersions` (4.62 KB) chunks loaded on
   demand/prefetch.
-- Release binary: `gitodrile.exe` went from 9.8 MB to 3.4 MB.
+- Release binary: `gitodile.exe` went from 9.8 MB to 3.4 MB.
 
 # Validation
 

@@ -138,7 +138,6 @@ fn validate_project_name(name: &str) -> Result<(), AppError> {
         || name.contains(['/', '\\', ':'])
         || name.ends_with(['.', ' '])
         || name.starts_with(".gitodile-")
-        || name.starts_with(".gitodrile-")
         || is_reserved_windows_name(name)
     {
         return Err(initialize_error(
@@ -885,17 +884,7 @@ mod tests {
     #[test]
     fn project_names_cover_unicode_and_cross_platform_rejections() {
         assert!(validate_project_name("mi proyecto 🐊").is_ok());
-        for name in [
-            "",
-            ".",
-            "..",
-            "a/b",
-            "a\\b",
-            "CON",
-            "name.",
-            ".gitodile-x",
-            ".gitodrile-x",
-        ] {
+        for name in ["", ".", "..", "a/b", "a\\b", "CON", "name.", ".gitodile-x"] {
             assert_eq!(
                 validate_project_name(name).unwrap_err().code,
                 AppErrorCode::InvalidProjectName

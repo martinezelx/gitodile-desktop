@@ -84,7 +84,7 @@ This project's own conventions did a lot of the design work:
   - **General**: Settings (navigates via `navigateToView("settings")`),
     Reload window (`window.location.reload()`).
   - **Help**: Keyboard shortcuts (new dialog, see below), Report an issue
-    (opens `https://github.com/martinezelx/project-gitodrile/issues/new` via
+    (opens `https://github.com/martinezelx/project-gitodile/issues/new` via
     the existing `openUrl`), About.
 - Every item now pairs an icon with its label (`FolderOpen`, `FolderX`,
   `Settings`, `RotateCw`, `Keyboard`, `Bug`, `Info`) instead of bare text.

@@ -26,7 +26,7 @@ with no memory of why.
 # Context
 
 `useSettingsSection` persists the active section in `localStorage` under
-`gitodrile-settings-section`, and its comment records the original reasoning:
+`gitodile-settings-section`, and its comment records the original reasoning:
 
 > Stored rather than reset because a user who came back for the Git section
 > almost always wants it twice: closing the dialog is not an instruction to
@@ -81,7 +81,7 @@ a fix.
       lands on that section.
 - [x] Switching sections while the dialog is open still works, and the
       identity close-guard can still steer to Git.
-- [x] Nothing is written to `gitodrile-settings-section` any more.
+- [x] Nothing is written to `gitodile-settings-section` any more.
 - [x] Full `pnpm run check` passes.
 
 # Relevant files
@@ -139,7 +139,7 @@ The identity/line-endings latency is untouched, as scoped. It is recorded under
 
 Behaviour was also measured against the running dev server rather than assumed:
 
-- With `gitodrile-settings-section` planted as `"line-endings"`, opening
+- With `gitodile-settings-section` planted as `"line-endings"`, opening
   Settings selected `General=true` and left every other tab `false`; focus
   landed on the General tab.
 - Switching to Finales de línea, closing with Escape and reopening selected

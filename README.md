@@ -10,6 +10,12 @@ technical truth.
 
 Current application version: **0.1.0**.
 
+Official repository: [martinezelx/project-gitodile](https://github.com/martinezelx/project-gitodile).
+
+The pre-release naming reset uses a new desktop identity and recovery namespace.
+Previous-brand preferences and recovery records are not migrated or discovered;
+existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canonical-product-identity.md).
+
 ## What works today
 
 - Open a local project from its root or any nested folder, validate it in Rust,
@@ -196,8 +202,8 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 619 frontend tests, the production build, Rust formatting,
-Clippy with warnings denied, and 319 Rust tests. Individual commands remain
+rules, TypeScript, 618 frontend tests, the production build, Rust formatting,
+Clippy with warnings denied, and 321 Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.
 

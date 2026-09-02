@@ -427,7 +427,7 @@ Third visual pass, after the user reviewed Part 3's changes:
   the heading to *why* this section is different, instead of a divider any
   section heading could have had.
 
-Demo branches created in `project-gitodrile` for manual testing
+Demo branches created in `project-gitodile` for manual testing
 (`demo/borrable-1`, `demo/borrable-2`, `demo/no-borrable-1`,
 `demo/no-borrable-2`, and `demo/en-otro-espacio` in a linked worktree). They
 are throwaway; remove them once Part 2's visual QA is done.

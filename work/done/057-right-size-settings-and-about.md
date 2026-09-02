@@ -464,7 +464,7 @@ before it existed. No section scrolls at this window height.
 - **Invalid email is reported in place.** "ada@lovelace" then blur produced
   the inline message and `aria-invalid="true"`, and `setIdentity` was not
   called.
-- **The section persists.** `gitodrile-settings-section` read `git` after
+- **The section persists.** `gitodile-settings-section` read `git` after
   closing on Git; reopening selected Git, and it survived a full page reload.
 - **Git trouble is visible from anywhere.** The header chip renders for a
   broken installation and switches the rail to Git; the rail carries its dot.

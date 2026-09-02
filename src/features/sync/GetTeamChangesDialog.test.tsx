@@ -37,7 +37,7 @@ const plan: GetTeamChangesPlan = {
   },
   consequences: [], risks: [], steps: [], verification: "verified",
   recovery: {
-    reference: "refs/gitodrile/recovery/v1/get-team-changes/worktree-a/1",
+    reference: "refs/gitodile/recovery/v1/get-team-changes/worktree-a/1",
     explanation: "protected",
     retention: "newest 20",
     retentionLimit: 20,

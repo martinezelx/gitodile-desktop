@@ -115,7 +115,7 @@ feature.
 
 ## Persistence and migration
 
-- Replace the single `gitodrile-last-project-path` value with a versioned stored
+- Replace the single `gitodile-last-project-path` value with a versioned stored
   list, order, and active-project identity.
 - Migrate the existing last-project preference once without losing it.
 - Evolve “reopen last project” into “reopen projects from the previous
@@ -255,8 +255,8 @@ feature.
 - Frontend session store: `src/projectSessions.ts` — a pure reducer
   (`projectSessionsReducer`) plus `localStorage` read/write/migration
   helpers, with no React dependency so it's unit-testable directly
-  (`src/projectSessions.test.ts`). Storage key `gitodrile-projects` (`{
-  version: 1, order, activeId }`); `gitodrile-last-project-path` migrates
+  (`src/projectSessions.test.ts`). Storage key `gitodile-projects` (`{
+  version: 1, order, activeId }`); `gitodile-last-project-path` migrates
   into it once, then is removed.
 - Stale-response protection: each session carries a `statusGeneration`.
   `main.tsx` owns the actual counter (a ref keyed by session id) and stamps

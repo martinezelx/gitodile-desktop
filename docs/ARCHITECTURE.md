@@ -481,7 +481,7 @@ watcher invalidations never issue a fetch.
 History-mutation recovery follows
 [ADR 0008](adr/0008-store-history-recovery-as-versioned-hidden-refs.md): the
 previous commit is protected by a create-only ref under
-`refs/gitodrile/recovery/v1/get-team-changes/`, paired with versioned metadata
+`refs/gitodile/recovery/v1/get-team-changes/`, paired with versioned metadata
 in the common Git directory. The newest 20 complete records are retained per
 common repository across linked worktrees, and incomplete or unsupported
 evidence is never guessed at or deleted.
@@ -519,23 +519,25 @@ absent from normal development and production builds.
 
 ## Platform and security constraints
 
-### Brand-rename compatibility identities
+### Canonical product identity
 
 The shipped product, npm/Cargo packages, Rust crate, executable, frontend
-assets, and newly written browser preferences use **GitOdile** / `gitodile`.
-Three pre-rename identifiers deliberately remain stable compatibility
-contracts rather than current branding:
+assets, and browser preferences use **GitOdile** / `gitodile`:
 
-- the Tauri bundle identifier is still `app.gitodrile.desktop`, so an update
-  retains the installed application's platform identity and WebView data;
-- startup copies `gitodrile-*` browser-storage entries to `gitodile-*` only
-  when the new entry is absent, retaining the legacy copy for rollback;
-- recovery schema v1 continues to use `refs/gitodrile/recovery/...` and
-  `<git-dir>/gitodrile/...`, so protected states created before the rename stay
-  discoverable and retention rules keep operating over one namespace.
+- Tauri uses the bundle identifier `app.gitodile.desktop`;
+- browser preferences use `gitodile-*`, without a brand-compatibility reader;
+- recovery schema v1 uses `refs/gitodile/recovery/...` and
+  `<git-dir>/gitodile/...`;
+- repository links target `https://github.com/martinezelx/project-gitodile`.
 
-Do not cosmetically rename those stable identifiers. A future namespace
-version requires an explicit dual-read migration and recovery tests.
+The owner explicitly authorized a breaking pre-release identity reset, recorded
+in [ADR 0009](adr/0009-use-only-the-canonical-product-identity.md). Previous-brand
+preferences and recovery records are no longer read or migrated; no existing
+data is deleted. An installation under the new identifier may start with fresh
+WebView state and coexist with an earlier installation.
+
+Future changes to state-bearing identifiers require a separately reviewed
+migration or explicit reset decision and recovery tests.
 
 - Repository content stays local unless the user explicitly invokes a remote
   feature.

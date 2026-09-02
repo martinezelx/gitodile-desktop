@@ -3,6 +3,9 @@
 - Status: accepted
 - Date: 2026-08-13
 
+Namespace spelling superseded by [ADR 0009](0009-use-only-the-canonical-product-identity.md).
+Path examples below use the canonical spelling; the recovery protocol is unchanged.
+
 ## Context
 
 Discarding unsaved work can replace tracked files, remove new files, resolve an
@@ -22,11 +25,11 @@ Discard recovery records live below the opened worktree's resolved Git
 directory:
 
 ```text
-<git-dir>/gitodrile/recovery/<opaque-id>/
+<git-dir>/gitodile/recovery/<opaque-id>/
   manifest.json
   index
   files/<sequence>
-<git-dir>/gitodrile/recovery/latest
+<git-dir>/gitodile/recovery/latest
 ```
 
 The record is a private implementation detail with an explicit schema version.

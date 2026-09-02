@@ -119,7 +119,7 @@ fn unique_recovery_id() -> String {
 }
 
 fn recovery_root(git_dir: &Path) -> PathBuf {
-    git_dir.join("gitodrile").join("recovery")
+    git_dir.join("gitodile").join("recovery")
 }
 
 fn index_path(git_dir: &Path) -> PathBuf {
@@ -861,6 +861,15 @@ pub(crate) fn restore_discarded_changes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn discard_storage_uses_the_canonical_product_namespace() {
+        let git_dir = Path::new("project").join(".git");
+        assert_eq!(
+            recovery_root(&git_dir),
+            git_dir.join("gitodile").join("recovery")
+        );
+    }
 
     #[test]
     fn recovery_ids_are_unique_and_sortable() {

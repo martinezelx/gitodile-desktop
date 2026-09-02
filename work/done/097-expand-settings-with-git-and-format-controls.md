@@ -434,7 +434,7 @@ New automated coverage:
 
 Manually verified in the dev preview by reproducing the reported state rather
 than a clean one — the earlier check had cleared the key by hand first, which is
-precisely why the bug survived it. With `gitodrile-run-git-hooks` set to
+precisely why the bug survived it. With `gitodile-run-git-hooks` set to
 `"false"` and the repair marker absent, a reload leaves the key unset and the
 switch on; turning it off then stores `"false"` and keeps it. On a profile with
 no GitOdile keys at all, opening the app writes no preference defaults, and

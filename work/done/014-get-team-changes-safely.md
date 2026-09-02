@@ -350,7 +350,7 @@ Use bare remotes, separate clones, and linked worktrees for:
 Recovery is defined by accepted
 [ADR 0008](../../docs/adr/0008-store-history-recovery-as-versioned-hidden-refs.md).
 It uses
-`refs/gitodrile/recovery/v1/get-team-changes/<owner-id>/<recovery-id>` and a
+`refs/gitodile/recovery/v1/get-team-changes/<owner-id>/<recovery-id>` and a
 version-1 manifest below the common Git directory. The owner is a stable digest
 of the worktree's relative administrative Git directory; metadata contains the
 operation, branch, old/target commits, remote destination, tracking ref and

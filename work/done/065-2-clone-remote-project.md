@@ -141,8 +141,8 @@ failures and never log secrets.
 1. Rust normalizes source/parent/name, proves the exact destination absent, and
    returns a preview plus a token over the normalized source and destination.
 2. Execution revalidates the token and absence, then exclusively creates
-   `<parent>/.gitodrile-clone-<operation-id>` and an exact two-line
-   `.gitodrile-clone-owner` marker (`gitodrile-clone-v1` plus operation id).
+   `<parent>/.gitodile-clone-<operation-id>` and an exact two-line
+   `.gitodile-clone-owner` marker (`gitodile-clone-v1` plus operation id).
 3. The bounded runner invokes `git clone --no-recurse-submodules --progress --
    <source> <staging>/project` as separate arguments. It then rewrites `origin`
    to the sanitized source.

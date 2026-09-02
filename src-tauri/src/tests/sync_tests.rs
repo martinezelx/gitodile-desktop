@@ -1030,7 +1030,7 @@ fn history_recovery_names_are_create_only_and_retention_survives_reacquisition()
         let pending = repository
             .common_git_dir
             .backend_path()
-            .join("gitodrile")
+            .join("gitodile")
             .join("history-recovery")
             .join("v1")
             .join("pending")
@@ -1087,7 +1087,7 @@ fn history_recovery_names_are_create_only_and_retention_survives_reacquisition()
             &[
                 "for-each-ref",
                 "--format=%(refname)",
-                "refs/gitodrile/recovery/v1/get-team-changes",
+                "refs/gitodile/recovery/v1/get-team-changes",
             ],
         )
         .unwrap(),
@@ -1149,7 +1149,7 @@ fn a_post_recovery_ref_lock_returns_uncertain_and_keeps_the_recovery() {
         result.previous_commit
     );
     assert!(Path::new(&git_dir)
-        .join("gitodrile")
+        .join("gitodile")
         .join("history-recovery")
         .join("v1")
         .join("get-team-changes")

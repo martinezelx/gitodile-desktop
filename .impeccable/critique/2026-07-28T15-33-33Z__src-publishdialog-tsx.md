@@ -8,7 +8,7 @@ p1_count: 3
 timestamp: 2026-07-28T15-33-33Z
 slug: src-publishdialog-tsx
 ---
-# GitOdrile task 011 — Publish changes
+# GitOdile task 011 — Publish changes
 
 ## Design Health Score
 
@@ -28,7 +28,7 @@ slug: src-publishdialog-tsx
 
 ## Design Specificity Verdict
 
-**LLM assessment:** Authored interaction model inside a category-interchangeable shell. Saved versions, cumulative checkpoint publishing, excluded unsaved work, and teammate impact feel distinctly GitOdrile. Dark rounded cards, disclosure rows, send icons, and a centered modal could belong to many sync tools. The missing product-specific opportunity is a visible local-to-remote model.
+**LLM assessment:** Authored interaction model inside a category-interchangeable shell. Saved versions, cumulative checkpoint publishing, excluded unsaved work, and teammate impact feel distinctly GitOdile. Dark rounded cards, disclosure rows, send icons, and a centered modal could belong to many sync tools. The missing product-specific opportunity is a visible local-to-remote model.
 
 **Deterministic scan:** `detect.mjs --json src` scanned 10 JSX/TSX/markup files and returned zero findings. Manual runtime evidence caught two detector-blind concerns: the 26×26px checkpoint target and a nested button inside `<summary>`.
 

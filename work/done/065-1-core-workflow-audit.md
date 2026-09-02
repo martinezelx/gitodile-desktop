@@ -156,7 +156,7 @@ remain 065-8.
 # Windows desktop validation
 
 Validated the production release executable at
-`src-tauri/target/release/gitodrile.exe`, built from commit
+`src-tauri/target/release/gitodile.exe`, built from commit
 `10a44e49a963742805cea6d85798aa2eec51b684` plus this task's uncommitted changes,
 directly on `main`.
 
@@ -171,7 +171,7 @@ directly on `main`.
 | Locale/themes | English and Spanish; explicit dark and light |
 
 The desktop fixture lived under
-`%LOCALAPPDATA%\Temp\gitodrile-desktop-audit-20260821122012` and contained
+`%LOCALAPPDATA%\Temp\gitodile-desktop-audit-20260821122012` and contained
 `project`, `team`, and a local bare `remote.git`. The release UI opened the
 project through the Windows folder picker, inspected two dirty files and their
 diff, saved one then the remainder, published both, detected a separately

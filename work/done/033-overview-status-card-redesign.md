@@ -327,7 +327,7 @@ cargo test --manifest-path src-tauri/Cargo.toml                # 172 passed
   `--border-subtle` and `--border-divider` in dark mode, the commit-graph
   line's position against each node's center, the author chip's truncation
   and full-text tooltip, and no horizontal overflow at 375/760/950/1100/1280px.
-- A real repository (`C:\workspace\gitodrile-sandbox\repo`) was set up with
+- A real repository (`C:\workspace\gitodile-sandbox\repo`) was set up with
   every file category represented at once (edited, added, deleted, a
   Git-detected rename via `git mv`, and a genuine unresolved merge conflict
   via two temporary branches adding the same new file) to confirm the
