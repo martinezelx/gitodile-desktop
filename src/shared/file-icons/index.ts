@@ -1,4 +1,4 @@
-import { createElement, type ComponentType, type ImgHTMLAttributes } from "react";
+import { rawSvgImage, type RawSvgImage } from "../ui/rawSvgImage";
 import Assembly from "~icons/vscode-icons/file-type-assembly";
 import Babel from "~icons/vscode-icons/file-type-babel";
 import CSharp from "~icons/vscode-icons/file-type-csharp2";
@@ -71,39 +71,13 @@ import Yaml from "~icons/vscode-icons/file-type-yaml-official";
 import Yarn from "~icons/vscode-icons/file-type-yarn";
 import Zip from "~icons/vscode-icons/file-type-zip";
 
-type FileTypeIconProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "alt" | "draggable" | "src">;
-export type FileTypeIcon = ComponentType<FileTypeIconProps>;
+/** The file-type set is vendor artwork, so it takes the shared raw-SVG image
+ * adapter rather than a private copy of it; see `shared/ui/rawSvgImage.ts` for
+ * why these are images and not inline SVG. Imported by file: the `shared/ui`
+ * barrel is eager and this module is deliberately kept out of the entry chunk,
+ * which `pnpm run check:architecture` enforces. */
+export type FileTypeIcon = RawSvgImage;
 type FileTypeIconSource = string;
-
-const ICON_COMPONENTS = new Map<FileTypeIconSource, FileTypeIcon>();
-
-/** File icons are full-colour artwork, not controls, so they do not need to
- * inherit `currentColor`. Rendering each raw SVG as an image also gives every
- * instance its own SVG document: gradients, masks, and filters can safely
- * reuse the collection's internal IDs across keep-alive screens. */
-function iconComponent(source: FileTypeIconSource): FileTypeIcon {
-  const cached = ICON_COMPONENTS.get(source);
-  if (cached) {
-    return cached;
-  }
-
-  // `unplugin-icons` emits markup intended for inline DOM use and therefore
-  // omits the XML namespace. A standalone SVG image needs it to load in
-  // WebView2, Safari, and other XML-based image decoders.
-  const standaloneSource = source.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
-  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(standaloneSource)}`;
-  const Icon: FileTypeIcon = (props) =>
-    createElement("img", {
-      ...props,
-      "aria-hidden": true,
-      alt: "",
-      draggable: false,
-      src: dataUrl,
-    });
-  Icon.displayName = "FileTypeIcon";
-  ICON_COMPONENTS.set(source, Icon);
-  return Icon;
-}
 
 /** Extension → icon from the vscode-icons set (MIT), covering common
  * languages and tooling beyond whatever happens to be in this repo today —
@@ -210,15 +184,15 @@ const NAME_PREFIX_ICONS: [prefix: string, icon: FileTypeIconSource][] = [
 export function getFileTypeIcon(path: string): FileTypeIcon {
   const name = path.slice(path.lastIndexOf("/") + 1);
   if (NAME_ICONS[name]) {
-    return iconComponent(NAME_ICONS[name]);
+    return rawSvgImage(NAME_ICONS[name]);
   }
   const prefixMatch = NAME_PREFIX_ICONS.find(([prefix]) => name.startsWith(prefix));
   if (prefixMatch) {
-    return iconComponent(prefixMatch[1]);
+    return rawSvgImage(prefixMatch[1]);
   }
   const dot = name.lastIndexOf(".");
   if (dot <= 0) {
-    return iconComponent(DefaultFile);
+    return rawSvgImage(DefaultFile);
   }
-  return iconComponent(EXTENSION_ICONS[name.slice(dot + 1).toLowerCase()] ?? DefaultFile);
+  return rawSvgImage(EXTENSION_ICONS[name.slice(dot + 1).toLowerCase()] ?? DefaultFile);
 }

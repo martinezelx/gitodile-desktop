@@ -26,7 +26,9 @@ import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
-import { describePlatform, formatDiagnostics, useSystemInfo } from "./systemInfo";
+import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
+import { describeStack } from "./stack";
+import { OperatingSystemMark, StackMark } from "./vendorMarks";
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
 
@@ -170,10 +172,20 @@ export function AppOverlays({
   // lives; About reports it, it does not own it.
   const gitVersion =
     settings.gitTooling.diagnostics?.state === "available" ? settings.gitTooling.diagnostics.version : null;
+  // Both are constants for the life of the window, so they are read inline
+  // rather than held in state: a regex over the user agent and a lookup over
+  // four build-time strings cost less than the hook that would cache them.
+  const webviewVersion = readWebviewVersion(navigator.userAgent);
+  const stack = describeStack();
   const copyDiagnostics = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(
-        formatDiagnostics({ appVersion: CURRENT_APP_RELEASE.version, system: systemInfo, gitVersion }),
+        formatDiagnostics({
+          appVersion: CURRENT_APP_RELEASE.version,
+          system: systemInfo,
+          webview: webviewVersion,
+          gitVersion,
+        }),
       );
       setDidCopyDiagnostics(true);
     } catch {
@@ -322,7 +334,7 @@ export function AppOverlays({
             <p className="eyebrow">{t.aboutGitOdile}</p>
             <h2 id="about-title">{t.aboutHeading}</h2>
             <p>{t.aboutDescription}</p>
-            {(systemInfo || gitVersion) && (
+            {(systemInfo || webviewVersion || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">
                 <h3 id="about-technical-title">{t.aboutTechnicalDetails}</h3>
                 <dl className="about-details">
@@ -331,12 +343,43 @@ export function AppOverlays({
                       {/* Name and build are separate rows on purpose. Windows 11
                           reports NT 10.0, so a combined "Windows 10.0.26200" tells
                           a Windows 11 user the wrong thing. */}
-                      <div><dt>{t.aboutSystem}</dt><dd>{describePlatform(systemInfo)} ({systemInfo.arch})</dd></div>
+                      <div>
+                        <dt>{t.aboutSystem}</dt>
+                        <dd>
+                          {/* The mark restates the value beside it rather than
+                              adding a fact, so it sits inside the value and not
+                              in a column of its own. */}
+                          <span className="about-details__value">
+                            <OperatingSystemMark platform={systemInfo.platform} />
+                            {describePlatform(systemInfo)} ({systemInfo.arch})
+                          </span>
+                        </dd>
+                      </div>
                       <div><dt>{t.aboutSystemVersion}</dt><dd>{systemInfo.version}</dd></div>
                     </>
                   )}
+                  {webviewVersion && <div><dt>{t.aboutWebview}</dt><dd>{webviewVersion}</dd></div>}
                   {gitVersion && <div><dt>{t.aboutGitVersion}</dt><dd>{gitVersion}</dd></div>}
                 </dl>
+              </section>
+            )}
+            {/* Credits, kept apart from the diagnostics above because they are
+                not diagnostics: every user on this build runs these same four
+                versions, so none of them can explain a machine-specific bug.
+                Chips rather than rows for the same reason — they are a lockup
+                of name and number, not a table to read down. */}
+            {stack.length > 0 && (
+              <section className="about-stack" aria-labelledby="about-stack-title">
+                <h3 id="about-stack-title">{t.aboutBuiltWith}</h3>
+                <ul className="about-stack__list">
+                  {stack.map((layer) => (
+                    <li className="about-stack__item" key={layer.id}>
+                      <StackMark layer={layer.id} />
+                      <span className="about-stack__name">{layer.name}</span>
+                      <span className="about-stack__version">{layer.version}</span>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
             <button className="secondary-button about-dialog__copy" type="button" onClick={() => void copyDiagnostics()}>

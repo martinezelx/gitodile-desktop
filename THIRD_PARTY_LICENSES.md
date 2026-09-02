@@ -105,3 +105,19 @@ ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING ANY GENERAL, SPECIAL,
 INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WHETHER IN AN ACTION OF
 CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF THE USE OR INABILITY TO USE
 THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE FONT SOFTWARE.
+
+## Third-party brand marks
+
+The About dialog identifies the technologies GitOdile is built on and the
+operating system it is running on. The marks used there are the trademarks of
+their respective owners and are reproduced only to name those products, which
+is nominative use — they do not indicate sponsorship, affiliation, or
+endorsement by Microsoft, Apple, the Tauri Programme within the Commons
+Conservancy, Meta Platforms, the Rust Foundation, or Linus Torvalds.
+
+- Tauri, React, TypeScript, and Rust marks come from the
+  [vscode-icons](https://github.com/vscode-icons/vscode-icons) collection
+  (MIT), already bundled for file-type icons.
+- The Windows, Apple, and Linux marks are drawn in
+  `src/app/vendorMarks.tsx`, as that collection carries no artwork for them.
+  "Tux" is by Larry Ewing, Simon Budig, and Anja Gerwinski.

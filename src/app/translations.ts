@@ -139,7 +139,11 @@ export interface AppTranslations {
   aboutTechnicalDetails: string;
   aboutSystem: string;
   aboutSystemVersion: string;
+  aboutWebview: string;
   aboutGitVersion: string;
+  /* Credits, not diagnostics: the layers the product is built on. The layer
+     names themselves are never translated — a product name is a name. */
+  aboutBuiltWith: string;
   aboutCopySystemInfo: string;
   aboutCopied: string;
   /* Split around the heart so it can be colored, and so both halves stay
@@ -301,7 +305,9 @@ const en: AppTranslations = {
   aboutTechnicalDetails: "Technical details",
   aboutSystem: "System",
   aboutSystemVersion: "System version",
+  aboutWebview: "Webview",
   aboutGitVersion: "Git",
+  aboutBuiltWith: "Built with",
   aboutCopySystemInfo: "Copy system info",
   aboutCopied: "Copied",
   aboutFooterMadeWith: "Made with",
@@ -468,7 +474,9 @@ const es: AppTranslations = {
   aboutTechnicalDetails: "Detalles técnicos",
   aboutSystem: "Sistema",
   aboutSystemVersion: "Versión del sistema",
+  aboutWebview: "Webview",
   aboutGitVersion: "Git",
+  aboutBuiltWith: "Hecho con",
   aboutCopySystemInfo: "Copiar info del sistema",
   aboutCopied: "Copiado",
   aboutFooterMadeWith: "Hecho con",

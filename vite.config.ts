@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
 import Icons from "unplugin-icons/vite";
@@ -8,9 +9,52 @@ const packageVersion = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf8"),
 ) as { version: string };
 
+/** What About credits, read from what is actually installed rather than from
+ * `package.json`'s ranges. `^19.2.8` is a constraint, not a version: a dialog
+ * that prints it is describing the manifest instead of the build the user is
+ * running. Anything unresolvable stays `null` and simply loses its chip, the
+ * same rule the diagnostics block already follows. */
+function installedVersion(packageName: string): string | null {
+  try {
+    const manifest = JSON.parse(
+      readFileSync(new URL(`./node_modules/${packageName}/package.json`, import.meta.url), "utf8"),
+    ) as { version?: string };
+    return manifest.version ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** `Cargo.lock`, never `Cargo.toml`: the manifest asks for `"2"`, and only the
+ * lockfile says which 2 the desktop shell was built against. */
+function lockedCrateVersion(crate: string): string | null {
+  try {
+    const lock = readFileSync(new URL("./src-tauri/Cargo.lock", import.meta.url), "utf8");
+    const entry = new RegExp(`\\[\\[package\\]\\]\\r?\\nname = "${crate}"\\r?\\nversion = "([^"]+)"`);
+    return lock.match(entry)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** `rust-toolchain.toml` pins a channel, not a version, so the only truthful
+ * answer is the `rustc` that the build machine resolved that channel to. A
+ * frontend-only build has no Rust on `PATH`; it drops the chip rather than
+ * printing a guess. */
+function toolchainRustVersion(): string | null {
+  const result = spawnSync("rustc", ["--version"], { encoding: "utf8", windowsHide: true });
+  return result.stdout?.match(/^rustc (\d+\.\d+\.\d+)/)?.[1] ?? null;
+}
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(packageVersion.version),
+    __STACK_VERSIONS__: JSON.stringify({
+      tauri: lockedCrateVersion("tauri"),
+      react: installedVersion("react"),
+      typescript: installedVersion("typescript"),
+      rust: toolchainRustVersion(),
+    }),
   },
   // File-type artwork is consumed as raw SVG and rendered through an `<img>`
   // adapter in `src/shared/file-icons/index.ts`, which isolates every icon's

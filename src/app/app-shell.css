@@ -1034,8 +1034,55 @@
 .about-dialog__heart { color: var(--accent-heart); }
 .about-dialog h2 { margin-bottom: 12px; font-size: 28px; }
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: 1.6; }
-.about-technical h3 { margin: 0; font-size: 13px; font-weight: 700; }
-.about-technical { margin-top: 18px; }
+/* About's two lower sections are siblings in weight as well as in role, so they
+   share a heading and a rhythm rather than each inventing one. */
+.about-technical h3,
+.about-stack h3 { margin: 0; font-size: 13px; font-weight: 700; }
+.about-technical,
+.about-stack { margin-top: 18px; }
+/* Credits, not diagnostics — one column per layer, all on one row.
+   Laid out as capsules first, which is what a mark beside short text asks to
+   be. Four of them measure 468px against the 356px this dialog leaves, so they
+   wrapped three-and-one: a ragged row that read as an accident rather than a
+   set. Putting the mark above the text instead fits four columns in 356px with
+   room to spare, and settles the shape question at the same time — a capsule
+   is a *single-line* control (DESIGN.md § Shape), so a stacked one was never
+   the right container anyway. What is left is a cell inside this section, not a
+   surface of its own, so it takes `--radius-item`.
+
+   `grid-auto-flow: column` rather than a fixed four: a frontend-only build has
+   no Rust tile, and three equal columns stay as balanced as four. */
+.about-stack__list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.about-stack__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-item);
+  background: var(--surface-hover);
+  line-height: 1.3;
+  text-align: center;
+}
+/* These are the only fixed vendor colours in the app; see
+   `src/app/vendorMarks.tsx` for why a logo keeps them. 18px rather than the
+   14px it wore inline: with its own line it is the thing the eye lands on. */
+.about-stack__mark { width: 18px; height: 18px; display: block; }
+.about-stack__name { font-size: 12px; font-weight: 600; }
+.about-stack__version {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
 
 /* The changelog is About's shell with a different document inside it, the same
    way the shortcuts dialog is. Only the release list is its own vocabulary;
@@ -1126,6 +1173,11 @@
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
 .about-details dt { color: var(--text-secondary); }
 .about-details dd { margin: 0; text-align: right; }
+/* The platform mark rides with its value, so the row still has two columns and
+   the value still ends flush right. 6px binds a glyph to the text it belongs
+   to, the same distance the chips above use. */
+.about-details__value { display: inline-flex; align-items: center; gap: 6px; }
+.about-details__mark { flex-shrink: 0; width: 14px; height: 14px; }
 
 .shortcuts-dialog { width: min(100%, 380px); }
 .shortcuts-list { list-style: none; margin: 4px 0 0; padding: 0; }

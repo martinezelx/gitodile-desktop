@@ -143,7 +143,9 @@ Rust syntax-based boundary tests, and a checked JSON IPC contract. Read the
 ## Technology versions
 
 The lockfiles are authoritative. This is the current resolved development
-snapshot:
+snapshot; the About dialog credits the Tauri, React, TypeScript, and Rust rows
+of it, reading them from the same lockfiles at build time rather than from a
+hardcoded list:
 
 | Layer | Version |
 | --- | --- |

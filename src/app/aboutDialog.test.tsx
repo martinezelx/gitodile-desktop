@@ -7,7 +7,8 @@ import { LanguageProvider } from "../i18n";
 import { DEFAULT_DIFF_PREFERENCES } from "../features/changes";
 import { createProjectSettingsCache } from "../features/project-settings";
 import { AppOverlays, type AppOverlaysProps } from "./AppOverlays";
-import { describePlatform, formatDiagnostics, readSystemInfo } from "./systemInfo";
+import { describePlatform, formatDiagnostics, readSystemInfo, readWebviewVersion } from "./systemInfo";
+import { describeStack } from "./stack";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async () => undefined),
@@ -28,6 +29,9 @@ vi.mock("@tauri-apps/plugin-os", () => ({
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  // Only the webview test defines one; deleting the own property hands the
+  // getter back to `Navigator.prototype` so the next test reads jsdom's again.
+  Reflect.deleteProperty(navigator, "userAgent");
 });
 
 const closedOverlay = { isOpen: false, setOpen: vi.fn() };
@@ -148,11 +152,54 @@ describe("formatDiagnostics", () => {
       formatDiagnostics({
         appVersion: "0.1.0",
         system: { platform: "windows", version: "10.0.26200", arch: "x86_64" },
+        webview: "Chromium 140.0.0.0",
         gitVersion: "2.50.0",
       }),
-    ).toBe("GitOdile 0.1.0\nSystem: Windows 11 (x86_64)\nSystem version: 10.0.26200\nGit: 2.50.0");
+    ).toBe(
+      "GitOdile 0.1.0\nSystem: Windows 11 (x86_64)\nSystem version: 10.0.26200\n" +
+        "Webview: Chromium 140.0.0.0\nGit: 2.50.0",
+    );
 
-    expect(formatDiagnostics({ appVersion: "0.1.0", system: null, gitVersion: null })).toBe("GitOdile 0.1.0");
+    expect(
+      formatDiagnostics({ appVersion: "0.1.0", system: null, webview: null, gitVersion: null }),
+    ).toBe("GitOdile 0.1.0");
+  });
+});
+
+describe("readWebviewVersion", () => {
+  it("names the Chromium build behind WebView2", () => {
+    expect(
+      readWebviewVersion(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+          "Chrome/140.0.0.0 Safari/537.36",
+      ),
+    ).toBe("Chromium 140.0.0.0");
+  });
+
+  it("says nothing rather than repeating a frozen WebKit token", () => {
+    // `AppleWebKit/605.1.15` is what every WKWebView and WebKitGTK has reported
+    // for years regardless of the engine underneath, so printing it would put a
+    // number in a bug report that means nothing.
+    expect(
+      readWebviewVersion("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)"),
+    ).toBeNull();
+  });
+});
+
+describe("describeStack", () => {
+  it("credits the layers shell-outwards and drops the ones it cannot resolve", () => {
+    expect(
+      describeStack({ tauri: "2.11.5", react: "19.2.8", typescript: "6.0.3", rust: "1.90.0" }).map(
+        (layer) => `${layer.name} ${layer.version}`,
+      ),
+    ).toEqual(["Tauri 2.11.5", "React 19.2.8", "TypeScript 6.0.3", "Rust 1.90.0"]);
+
+    // A frontend-only build has no Rust on PATH. The chip goes; the order of
+    // what is left does not shuffle to fill the gap.
+    expect(
+      describeStack({ tauri: "2.11.5", react: "19.2.8", typescript: null, rust: null }).map((layer) => layer.id),
+    ).toEqual(["tauri", "react"]);
+    expect(describeStack({ tauri: null, react: null, typescript: null, rust: null })).toEqual([]);
   });
 });
 
@@ -189,11 +236,63 @@ describe("About dialog", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
     const rows = [...dialog.querySelectorAll(".about-details > div")];
+    // No webview row under jsdom: its user agent carries no Chromium token, and
+    // an unknown engine is omitted rather than guessed.
     expect(rows.map((row) => row.querySelector("dt")?.textContent)).toEqual([
       "System",
       "System version",
       "Git",
     ]);
+  });
+
+  it("reports the webview between the machine and Git when it can name one", () => {
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      value:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    });
+    renderOverlays();
+
+    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const rows = [...dialog.querySelectorAll(".about-details > div")];
+    expect(rows.map((row) => row.querySelector("dt")?.textContent)).toEqual([
+      "System",
+      "System version",
+      "Webview",
+      "Git",
+    ]);
+    expect(dialog).toHaveTextContent("Chromium 140.0.0.0");
+  });
+
+  it("marks the platform it is running on", () => {
+    renderOverlays();
+
+    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    // Decoration for a value that is already spelled out beside it, so it must
+    // stay out of the accessibility tree rather than announce "Windows" twice.
+    const mark = dialog.querySelector(".about-details__mark");
+    expect(mark).toBeInTheDocument();
+    expect(mark).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("credits the stack it is built on, apart from the diagnostics", () => {
+    renderOverlays();
+
+    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const tiles = [...dialog.querySelectorAll(".about-stack__item")];
+    const names = tiles.map((tile) => tile.querySelector(".about-stack__name")?.textContent);
+    expect(tiles.length).toBeGreaterThan(0);
+    expect(dialog).toHaveTextContent("Built with");
+    // Asserted as an order, not a set. Which layers resolve depends on the
+    // machine that ran the build — a frontend-only one has no Rust — but
+    // whichever do must appear shell-outwards, never reshuffled to fill a gap.
+    expect(names).toEqual(["Tauri", "React", "TypeScript", "Rust"].filter((name) => names.includes(name)));
+    // Real versions off the lockfiles, not placeholders. Pinning the numbers
+    // would mean editing this test on every dependency bump.
+    for (const tile of tiles) {
+      expect(tile.querySelector(".about-stack__version")?.textContent).toMatch(/^\d+\.\d+\.\d+/);
+    }
   });
 
   it("omits empty technical details without a platform bridge", async () => {

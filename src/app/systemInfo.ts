@@ -65,6 +65,21 @@ export function readSystemInfo(): SystemInfo | null {
   }
 }
 
+/** The webview the app is actually rendering in — the most useful line in a
+ * bug report about layout or rendering, and the only part of the runtime that
+ * varies from machine to machine. Everyone on a given build runs the same React
+ * and the same Tauri; nobody runs the same WebView2.
+ *
+ * `plugin-os` does not report it, so it comes off the user agent. Only the
+ * Chromium token is read: WKWebView and WebKitGTK freeze theirs
+ * (`AppleWebKit/605.1.15` has been constant since 2017 whatever the real engine
+ * underneath is), so on those platforms there is nothing truthful to print and
+ * the row is simply absent — the same rule the rest of this file follows. */
+export function readWebviewVersion(userAgent: string): string | null {
+  const chromium = userAgent.match(/Chrome\/(\d+(?:\.\d+)*)/)?.[1];
+  return chromium === undefined ? null : `Chromium ${chromium}`;
+}
+
 /** Read once per mount. None of these values change while the app is running. */
 export function useSystemInfo(): SystemInfo | null {
   const [info] = useState(readSystemInfo);
@@ -78,12 +93,16 @@ export function useSystemInfo(): SystemInfo | null {
 export function formatDiagnostics(parts: {
   appVersion: string;
   system: SystemInfo | null;
+  webview: string | null;
   gitVersion: string | null;
 }): string {
   const lines = [`GitOdile ${parts.appVersion}`];
   if (parts.system) {
     lines.push(`System: ${describePlatform(parts.system)} (${parts.system.arch})`);
     lines.push(`System version: ${parts.system.version}`);
+  }
+  if (parts.webview) {
+    lines.push(`Webview: ${parts.webview}`);
   }
   if (parts.gitVersion) {
     lines.push(`Git: ${parts.gitVersion}`);
