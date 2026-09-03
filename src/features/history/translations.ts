@@ -61,7 +61,6 @@ export interface HistoryTranslations {
   historyDeletedFiles: string;
   historyContributorCount: (count: number) => string;
   historyParentCount: (count: number) => string;
-  historyBranchLabel: string;
   historyRefLineLabel: (name: string) => string;
   historyRefTagLabel: (name: string) => string;
   historyReadMore: string;
@@ -161,7 +160,6 @@ const en: HistoryTranslations = {
   historyDeletedFiles: "Deleted",
   historyContributorCount: (count) => `${count} ${count === 1 ? "contributor" : "contributors"}`,
   historyParentCount: (count) => `${count} parent ${count === 1 ? "commit" : "commits"}`,
-  historyBranchLabel: "Version line",
   historyRefLineLabel: (name) => `Version line ${name}`,
   historyRefTagLabel: (name) => `Tag ${name}`,
   historyReadMore: "Read more",
@@ -261,7 +259,6 @@ const es: HistoryTranslations = {
   historyDeletedFiles: "Eliminados",
   historyContributorCount: (count) => `${count} ${count === 1 ? "colaborador" : "colaboradores"}`,
   historyParentCount: (count) => `${count} ${count === 1 ? "commit padre" : "commits padre"}`,
-  historyBranchLabel: "Línea de versión",
   historyRefLineLabel: (name) => `Línea de versión ${name}`,
   historyRefTagLabel: (name) => `Etiqueta ${name}`,
   historyReadMore: "Leer más",

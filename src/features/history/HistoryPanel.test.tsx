@@ -248,6 +248,7 @@ describe("HistoryPanel", () => {
     expect(within(detailRegion).getByText(selected.shortCommit)).toBeInTheDocument();
     expect(within(detailRegion).getByText("Published")).toBeInTheDocument();
     expect(within(detailRegion).getByText("v2.0")).toBeInTheDocument();
+    expect(within(detailRegion).queryByText("main")).not.toBeInTheDocument();
     expect(detailRegion.querySelector(".history-file__type img")).toBeInTheDocument();
   });
 

@@ -1032,7 +1032,25 @@
 .about-dialog__copy svg { width: 15px; height: 15px; }
 .about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary); font-size: 12.5px; text-align: center; }
 .about-dialog__heart { color: var(--accent-heart); }
-.about-dialog h2 { margin-bottom: 12px; font-size: 28px; }
+.about-dialog h2 { margin-bottom: 7px; font-size: 28px; }
+.about-dialog__release {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+}
+.about-dialog__release-version { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.about-dialog__release-channel {
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--status-warning) 35%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  color: var(--status-warning);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: 1.6; }
 /* About's two lower sections are siblings in weight as well as in role, so they
    share a heading and a rhythm rather than each inventing one. */
@@ -1102,11 +1120,50 @@
 .changelog { margin: 24px 0 0; padding: 0; list-style: none; }
 .changelog-release { padding-top: 18px; border-top: 1px solid var(--border-divider); }
 .changelog-release + .changelog-release { margin-top: 18px; }
+.changelog-release__trigger {
+  width: 100%;
+  padding: 5px 4px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+}
+.changelog-release__trigger:hover { background: var(--surface-hover); color: var(--text-primary); }
+.changelog-release__trigger:active { background: var(--surface-active); }
+.changelog-release__trigger:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 .changelog-release__heading {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+.changelog-release__identity {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 7px;
+  min-width: 0;
+}
+.changelog-release__chevron {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-round);
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  transition: transform var(--duration-normal), background var(--duration-fast), color var(--duration-fast);
+}
+.changelog-release__chevron svg { width: 15px; height: 15px; }
+.changelog-release__trigger[aria-expanded="true"] .changelog-release__chevron {
+  transform: rotate(180deg);
+  background: var(--surface-active);
+  color: var(--accent-primary);
 }
 .changelog-release h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
 .changelog-release__channel,
@@ -1151,43 +1208,36 @@
   font-size: 12px;
 }
 .changelog-release__notes {
-  margin: 12px 0 0;
+  margin: 12px 4px 0 38px;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 9px;
+  gap: 10px;
+  animation: changelog-notes-enter var(--duration-normal) cubic-bezier(.16, 1, .3, 1);
 }
 .changelog-release__notes li {
-  position: relative;
-  padding-left: 16px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.45;
 }
-.changelog-release__notes li::before {
-  content: "";
-  position: absolute;
-  left: 1px;
-  top: 0.55em;
-  width: 5px;
-  height: 5px;
+.changelog-release__note-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
   border-radius: var(--radius-round);
-  background: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: var(--accent-primary);
 }
-.changelog-history { margin-top: 18px; }
-.changelog-history > summary {
-  width: fit-content;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 650;
+.changelog-release__note-icon svg { width: 14px; height: 14px; }
+@keyframes changelog-notes-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.changelog-history > summary:hover { color: var(--text-primary); }
-.changelog-history > summary:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 3px;
-  border-radius: var(--radius-sm);
-}
-.changelog--history { margin-top: 14px; }
 .about-details { margin: 8px 0 0; }
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
 .about-details dt { color: var(--text-secondary); }
@@ -1216,6 +1266,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .changelog-release__notes { animation: none; }
+  .changelog-release__chevron { transition: none; }
   .titlebar-menu__list { animation: none; }
   .rail-more__menu { animation: none; }
   .sidebar-jump__menu { animation: none; }

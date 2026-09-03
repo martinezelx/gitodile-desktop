@@ -338,6 +338,12 @@ export function AppOverlays({
             <div className="about-dialog__mark" aria-hidden="true">{CROCODILE_MARK}</div>
             <p className="eyebrow">{t.aboutGitOdile}</p>
             <h2 id="about-title">{t.aboutHeading}</h2>
+            <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version} ${CURRENT_APP_RELEASE.channel}`}>
+              <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
+              {CURRENT_APP_RELEASE.channel === "preview" && (
+                <span className="about-dialog__release-channel" aria-hidden="true">preview</span>
+              )}
+            </p>
             <p>{t.aboutDescription}</p>
             {(systemInfo || webviewVersion || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">

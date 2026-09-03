@@ -290,7 +290,6 @@ function HistoryOverview({ detail, state, formats, comparison, onSelectFile }: {
           <div><dt>{t.historyParentsLabel}</dt><dd>{version.parents.length ? version.parents.map((parent) => <code key={parent}>{parent.slice(0, 10)}</code>) : t.historyNoParents}</dd></div>
           <div><dt>{t.historyAuthorLabel}</dt><dd><span>{version.author?.name || t.historyAuthorUnknown}</span>{version.author?.email && <small>{version.author.email}</small>}</dd></div>
           <div><dt>{t.historyCommittedLabel}</dt><dd>{committed?.absolute ?? authored?.absolute ?? "—"}</dd></div>
-          <div><dt>{t.historyBranchLabel}</dt><dd>{state.snapshot?.branch ? <span className="history-technical-chip">{state.snapshot.branch}</span> : "—"}</dd></div>
           <div><dt>{t.historyRefsLabel}</dt><dd>{version.decorations.length ? version.decorations.slice(0, 4).map((item) => <span className="history-technical-chip" key={item.fullRef}>{item.name}</span>) : "—"}</dd></div>
         </dl></section>
         <section className="history-overview-section"><h3>{t.historyComparisonTitle}</h3><p>{comparison}</p></section>

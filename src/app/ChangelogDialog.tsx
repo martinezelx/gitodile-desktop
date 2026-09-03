@@ -1,11 +1,23 @@
-import React, { useRef } from "react";
+import React, { useId, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Sparkles, X } from "lucide-react";
+import {
+  Bug,
+  ChevronDown,
+  FolderOpen,
+  GitBranch,
+  History,
+  ListChecks,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  X,
+} from "lucide-react";
 
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
 import { useModalFocus } from "../shared/ui";
-import { APP_CHANGELOG, CURRENT_APP_RELEASE, type AppReleaseEntry } from "./appRelease";
+import { APP_CHANGELOG, type AppReleaseEntry, type AppReleaseNoteId } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
  * same entry reads correctly in every supported language. A missing or unparseable date
@@ -22,6 +34,18 @@ function formatReleaseDate(date: string | null, formats: LocaleFormats): string 
   return formatDate(parsed, formats);
 }
 
+const RELEASE_NOTE_ICONS: Record<AppReleaseNoteId, React.ComponentType<{ "aria-hidden": true }>> = {
+  projectSessions: FolderOpen,
+  saveAndPublish: Send,
+  historyTimeline: History,
+  truthfulStatus: ListChecks,
+  safeLineSwitching: GitBranch,
+  releaseDetails: Sparkles,
+  publicIssueReporting: Bug,
+  previewVersions: Tag,
+  canonicalIdentity: ShieldCheck,
+};
+
 function ReleaseNotes({
   release,
   isCurrent,
@@ -30,25 +54,50 @@ function ReleaseNotes({
   isCurrent: boolean;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const notesId = useId();
   const releaseDate = formatReleaseDate(release.date, formats);
 
   return (
     <li className="changelog-release">
-      <div className="changelog-release__heading">
-        <h3>{t.changelogVersionHeading(release.version)}</h3>
-        <span className={`changelog-release__channel changelog-release__channel--${release.channel}`}>
-          {release.channel}
-        </span>
-        {isCurrent && <span className="changelog-release__current">{t.changelogCurrentRelease}</span>}
-        {releaseDate && release.date && (
-          <span className="changelog-release__date">
-            <time dateTime={release.date}>{releaseDate}</time>
+      <button
+        className="changelog-release__trigger"
+        type="button"
+        aria-expanded={isExpanded}
+        aria-controls={notesId}
+        onClick={() => setIsExpanded((expanded) => !expanded)}
+      >
+        <span className="changelog-release__heading">
+          <span className="changelog-release__chevron" aria-hidden="true">
+            <ChevronDown />
           </span>
-        )}
-      </div>
-      <ul className="changelog-release__notes" role="list">
-        {release.noteIds.map((noteId) => <li key={noteId}>{t.changelogNotes[noteId]}</li>)}
-      </ul>
+          <span className="changelog-release__identity">
+            <h3>{t.changelogVersionHeading(release.version)}</h3>
+            <span className={`changelog-release__channel changelog-release__channel--${release.channel}`}>
+              {release.channel}
+            </span>
+            {isCurrent && <span className="changelog-release__current">{t.changelogCurrentRelease}</span>}
+          </span>
+          {releaseDate && release.date && (
+            <span className="changelog-release__date">
+              <time dateTime={release.date}>{releaseDate}</time>
+            </span>
+          )}
+        </span>
+      </button>
+      {isExpanded && (
+        <ul id={notesId} className="changelog-release__notes" role="list">
+          {release.noteIds.map((noteId) => {
+            const NoteIcon = RELEASE_NOTE_ICONS[noteId];
+            return (
+              <li key={noteId}>
+                <span className="changelog-release__note-icon" aria-hidden="true"><NoteIcon aria-hidden /></span>
+                <span>{t.changelogNotes[noteId]}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </li>
   );
 }
@@ -77,8 +126,6 @@ export function ChangelogDialog({
     return null;
   }
 
-  const previousReleases = APP_CHANGELOG.slice(1);
-
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
       <div
@@ -104,18 +151,14 @@ export function ChangelogDialog({
             with the marker. The count is the point here: "six changes in this
             release" is what a screen-reader user is owed. */}
         <ol className="changelog" role="list">
-          <ReleaseNotes release={CURRENT_APP_RELEASE} isCurrent />
+          {APP_CHANGELOG.map((release, index) => (
+            <ReleaseNotes
+              key={`${release.version}-${release.channel}`}
+              release={release}
+              isCurrent={index === 0}
+            />
+          ))}
         </ol>
-        {previousReleases.length > 0 && (
-          <details className="changelog-history">
-            <summary>{t.changelogPreviousReleases(previousReleases.length)}</summary>
-            <ol className="changelog changelog--history" role="list">
-              {previousReleases.map((release) => (
-                <ReleaseNotes key={`${release.version}-${release.channel}`} release={release} isCurrent={false} />
-              ))}
-            </ol>
-          </details>
-        )}
       </div>
     </div>
   );
