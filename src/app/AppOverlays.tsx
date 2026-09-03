@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
-import { Check, CircleAlert, Copy, X } from "lucide-react";
+import { ArrowUpRight, Check, CircleAlert, Copy, X } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import {
@@ -30,7 +31,7 @@ import { ChangelogDialog } from "./ChangelogDialog";
 import { IssueReportErrorDialog } from "./IssueReportErrorDialog";
 import type { IssueReportState } from "./useIssueReport";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
-import { describeStack } from "./stack";
+import { describeStack, describeStackHost } from "./stack";
 import { OperatingSystemMark, StackMark } from "./vendorMarks";
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
@@ -388,10 +389,22 @@ export function AppOverlays({
                 <h3 id="about-stack-title">{t.aboutBuiltWith}</h3>
                 <ul className="about-stack__list">
                   {stack.map((layer) => (
-                    <li className="about-stack__item" key={layer.id}>
-                      <StackMark layer={layer.id} />
-                      <span className="about-stack__name">{layer.name}</span>
-                      <span className="about-stack__version">{layer.version}</span>
+                    <li key={layer.id}>
+                      {/* A button rather than an anchor: the destination is a
+                          browser outside the app, not a document this webview
+                          can navigate to, and an `href` here would let a middle
+                          click replace the window the dialog is sitting in. */}
+                      <button
+                        className="about-stack__item"
+                        type="button"
+                        aria-label={t.aboutStackLink(layer.name, describeStackHost(layer.url))}
+                        onClick={() => void openUrl(layer.url).catch(() => undefined)}
+                      >
+                        <StackMark layer={layer.id} />
+                        <span className="about-stack__name">{layer.name}</span>
+                        <span className="about-stack__version">{layer.version}</span>
+                        <ArrowUpRight className="about-stack__go" aria-hidden="true" />
+                      </button>
                     </li>
                   ))}
                 </ul>

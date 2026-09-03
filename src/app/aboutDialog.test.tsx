@@ -1,15 +1,17 @@
 import React from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { LanguageProvider } from "../i18n";
 import { DEFAULT_DIFF_PREFERENCES } from "../features/changes";
 import { createProjectSettingsCache } from "../features/project-settings";
 import { AppOverlays, type AppOverlaysProps } from "./AppOverlays";
 import { describePlatform, formatDiagnostics, readSystemInfo, readWebviewVersion } from "./systemInfo";
-import { describeStack } from "./stack";
+import { describeStack, describeStackHost } from "./stack";
 
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn(async () => undefined) }));
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async () => undefined),
   Channel: class TestChannel<T> {
@@ -25,6 +27,10 @@ vi.mock("@tauri-apps/plugin-os", () => ({
   version: vi.fn(() => "10.0.26200"),
   arch: vi.fn(() => "x86_64"),
 }));
+
+beforeEach(() => {
+  vi.mocked(openUrl).mockClear();
+});
 
 afterEach(() => {
   cleanup();
@@ -206,6 +212,26 @@ describe("describeStack", () => {
   });
 });
 
+describe("describeStackHost", () => {
+  it("names the site the way it is read aloud, without the www subdomain", () => {
+    expect(describeStackHost("https://tauri.app/")).toBe("tauri.app");
+    expect(describeStackHost("https://www.rust-lang.org/")).toBe("rust-lang.org");
+  });
+
+  it("points every layer at its own project", () => {
+    expect(
+      describeStack({ tauri: "2.11.5", react: "19.2.8", typescript: "6.0.3", rust: "1.90.0" }).map(
+        (layer) => layer.url,
+      ),
+    ).toEqual([
+      "https://tauri.app/",
+      "https://react.dev/",
+      "https://www.typescriptlang.org/",
+      "https://www.rust-lang.org/",
+    ]);
+  });
+});
+
 describe("readSystemInfo", () => {
   it("returns null instead of throwing when Tauri's OS bridge is absent", async () => {
     const os = await import("@tauri-apps/plugin-os");
@@ -300,6 +326,34 @@ describe("About dialog", () => {
     for (const tile of tiles) {
       expect(tile.querySelector(".about-stack__version")?.textContent).toMatch(/^\d+\.\d+\.\d+/);
     }
+  });
+
+  it("opens a credited project's own site in the browser, not in the webview", async () => {
+    renderOverlays();
+
+    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    // Named by destination as well as by layer: the chip leaves the app, and a
+    // screen reader user has to hear that before pressing it. The version sits
+    // inside the chip but not in its name — it is not what the press acts on.
+    const tauri = screen.getByRole("button", { name: "Tauri — open tauri.app" });
+    expect(tauri).toHaveClass("about-stack__item");
+    await userEvent.click(tauri);
+
+    expect(openUrl).toHaveBeenCalledExactlyOnceWith("https://tauri.app/");
+    // A control, not a link: an `href` would let a middle click navigate the
+    // webview the dialog is living in away from the app.
+    expect(dialog.querySelector(".about-stack__list a")).not.toBeInTheDocument();
+  });
+
+  it("says nothing rather than breaking when the browser cannot be reached", async () => {
+    vi.mocked(openUrl).mockRejectedValueOnce(new Error("no browser"));
+    renderOverlays();
+
+    await userEvent.click(screen.getByRole("button", { name: "React — open react.dev" }));
+
+    // The rejection is swallowed on purpose: an unopened credit is not worth an
+    // error dialog, and an unhandled rejection here fails the whole suite.
+    expect(screen.getByRole("dialog", { name: "Git without the bite." })).toBeInTheDocument();
   });
 
   it("omits empty technical details without a platform bridge", async () => {

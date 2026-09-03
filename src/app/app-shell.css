@@ -1079,7 +1079,20 @@
   padding: 0;
   list-style: none;
 }
+/* The list item is only the grid cell; the chip inside it is the control, and
+   it fills the cell so the target is the whole tile rather than the text. */
+.about-stack__list > li { display: flex; }
+/* Each chip opens the project's own site, so it is a control and has to look
+   like one on approach — but a credit is not a call to action, so it stays at
+   rest until pointed at. Hover is the neutral vocabulary the rest of the app
+   uses (DESIGN.md § Interaction), warmed by the accent that already carries
+   the identity a few lines above it: the border picks up the accent, the fill
+   goes from the flat `--surface-hover` to a tint of it, and the tile lifts by
+   a pixel. Nothing about the resting state is withheld — name, mark and
+   version are all readable without pointing. */
 .about-stack__item {
+  position: relative;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1088,8 +1101,44 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item);
   background: var(--surface-hover);
+  color: var(--text-primary);
   line-height: 1.3;
   text-align: center;
+  transition:
+    border-color var(--duration-fast),
+    background var(--duration-fast),
+    box-shadow var(--duration-fast),
+    transform var(--duration-fast);
+}
+.about-stack__item:hover,
+.about-stack__item:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-hover));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+/* Presses back into the surface with the same gesture the rail icons use, so
+   a chip answers a click the way every other control in the app does. */
+.about-stack__item:active { transform: translateY(0) scale(0.97); }
+/* The only thing held back for hover, because it is the one fact the resting
+   chip cannot state: this leaves the app. It says "outward", so it is placed
+   where a corner points and arrives from that direction. Small and secondary —
+   it marks the destination, it is not the label. */
+.about-stack__go {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 12px;
+  height: 12px;
+  color: var(--accent-primary);
+  opacity: 0;
+  transform: translate(-2px, 2px);
+  transition: opacity var(--duration-fast), transform var(--duration-fast);
+}
+.about-stack__item:hover .about-stack__go,
+.about-stack__item:focus-visible .about-stack__go {
+  opacity: 1;
+  transform: translate(0, 0);
 }
 /* These are the only fixed vendor colours in the app; see
    `src/app/vendorMarks.tsx` for why a logo keeps them. 18px rather than the

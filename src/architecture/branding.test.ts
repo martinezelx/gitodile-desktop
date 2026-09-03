@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildIssueReportUrl, FEEDBACK_REPOSITORY_URL } from "../app/issueReport";
+import { describeStack } from "../app/stack";
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8");
@@ -90,6 +91,15 @@ describe("desktop link permissions", () => {
     }
   });
 
+  it("lets About open the home page of every layer it credits", () => {
+    // The chips are a claim the reader should be able to check, and an
+    // unlisted host fails silently: the scope is where a new credit is most
+    // easily forgotten.
+    for (const layer of describeStack({ tauri: "1", react: "1", typescript: "1", rust: "1" })) {
+      expect(scopeAllows(openerScope(), layer.url), layer.name).toBe(true);
+    }
+  });
+
   it("keeps the scope off the open web", () => {
     // Every capability can contribute scopes. Reject extra permissions such
     // as opener:default/allow-default-urls as well as extra allowed hosts.
@@ -104,6 +114,10 @@ describe("desktop link permissions", () => {
       allow: [
         { url: "https://github.com/martinezelx/gitodile-feedback/*" },
         { url: "https://git-scm.com/download/*" },
+        { url: "https://tauri.app/*" },
+        { url: "https://react.dev/*" },
+        { url: "https://www.typescriptlang.org/*" },
+        { url: "https://www.rust-lang.org/*" },
       ],
     }]);
     for (const url of [

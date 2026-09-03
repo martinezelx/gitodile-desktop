@@ -152,6 +152,10 @@ export interface AppTranslations {
   /* Credits, not diagnostics: the layers the product is built on. The layer
      names themselves are never translated — a product name is a name. */
   aboutBuiltWith: string;
+  /* Names the destination as well as the layer: a chip that leaves the app for
+     a browser should say so before it is pressed, and the version beside the
+     name is not what the press acts on. */
+  aboutStackLink: (name: string, site: string) => string;
   aboutCopySystemInfo: string;
   aboutCopied: string;
   /* Split around the heart so it can be colored, and so both halves stay
@@ -324,6 +328,7 @@ const en: AppTranslations = {
   aboutWebview: "Webview",
   aboutGitVersion: "Git",
   aboutBuiltWith: "Built with",
+  aboutStackLink: (name, site) => `${name} — open ${site}`,
   aboutCopySystemInfo: "Copy system info",
   aboutCopied: "Copied",
   aboutFooterMadeWith: "Made with",
@@ -504,6 +509,7 @@ const es: AppTranslations = {
   aboutWebview: "Webview",
   aboutGitVersion: "Git",
   aboutBuiltWith: "Hecho con",
+  aboutStackLink: (name, site) => `${name} — abrir ${site}`,
   aboutCopySystemInfo: "Copiar info del sistema",
   aboutCopied: "Copiado",
   aboutFooterMadeWith: "Hecho con",
