@@ -224,6 +224,12 @@ Run only the Vite frontend at `http://localhost:1420`:
 pnpm run dev
 ```
 
+The status bar, About and What's new share the version injected from
+`package.json`. Vite watches that manifest as a configuration dependency and
+reloads the frontend after a version change. A Git branch name alone does not
+change the app version; installed packages retain the version they were built
+with. Keep npm, Cargo and Tauri metadata synchronized when preparing a release.
+
 Run the complete repository harness:
 
 ```bash

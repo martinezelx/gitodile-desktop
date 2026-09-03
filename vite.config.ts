@@ -4,10 +4,10 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
 import Icons from "unplugin-icons/vite";
+import { version as packageVersion } from "./package.json";
 
-const packageVersion = JSON.parse(
-  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
-) as { version: string };
+// A static import makes the manifest a watched config dependency. Reading it
+// with fs would leave the dev server's injected version stale after a bump.
 
 /** What About credits, read from what is actually installed rather than from
  * `package.json`'s ranges. `^19.2.8` is a constraint, not a version: a dialog
@@ -48,7 +48,7 @@ function toolchainRustVersion(): string | null {
 
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(packageVersion.version),
+    __APP_VERSION__: JSON.stringify(packageVersion),
     __STACK_VERSIONS__: JSON.stringify({
       tauri: lockedCrateVersion("tauri"),
       react: installedVersion("react"),

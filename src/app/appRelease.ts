@@ -5,6 +5,8 @@ export const APP_RELEASE_NOTE_IDS = [
   "truthfulStatus",
   "safeLineSwitching",
   "releaseDetails",
+  "publicIssueReporting",
+  "previewVersions",
 ] as const;
 
 export type AppReleaseNoteId = (typeof APP_RELEASE_NOTE_IDS)[number];
@@ -38,6 +40,8 @@ export const APP_CHANGELOG: readonly AppReleaseEntry[] = [
     // works only while there is exactly one entry; the next release would
     // silently claim its predecessor's notes as its own.
     noteIds: [
+      "publicIssueReporting",
+      "previewVersions",
       "projectSessions",
       "saveAndPublish",
       "historyTimeline",

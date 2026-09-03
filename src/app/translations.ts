@@ -335,6 +335,8 @@ const en: AppTranslations = {
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "You are running this",
   changelogNotes: {
+    publicIssueReporting: "Report an issue from More actions. Review the app and system details before submitting your report on GitHub.",
+    previewVersions: "Preview builds now show their full version number so you can identify the build you are using.",
     projectSessions: "Open, clone, or create local projects, and pick your last session up where you left it.",
     saveAndPublish: "Save all or selected changes as a version, then publish it through a previewed flow that reports uncertain remote outcomes honestly.",
     historyTimeline: "Browse the saved-version timeline and read syntax-colored diffs for any change.",
@@ -512,6 +514,8 @@ const es: AppTranslations = {
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Estás usando esta",
   changelogNotes: {
+    publicIssueReporting: "Informa de un problema desde Más acciones. Revisa los datos de la aplicación y del sistema antes de enviar el informe en GitHub.",
+    previewVersions: "Las versiones preview muestran ahora su número completo para que puedas identificar la build que estás usando.",
     projectSessions: "Abre, clona o crea proyectos locales, y retoma tu última sesión donde la dejaste.",
     saveAndPublish: "Guarda todos los cambios o los que elijas como una versión y publícala con un flujo previsualizado que reconoce cuando el resultado remoto es incierto.",
     historyTimeline: "Recorre la línea de tiempo de versiones guardadas y lee las diferencias con color de sintaxis de cualquier cambio.",
