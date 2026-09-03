@@ -229,6 +229,32 @@ now doubled up as `.changes-view-picker__trigger.version-line-selector`, and
 the label went from 0px of slack to 12px. A pre-existing bug rather than one
 this task introduced, but this task is what made it matter.
 
+**A regression this task shipped, found by the user and fixed after
+completion.** `--changes-toolbar-control-height` is declared on
+`.changes-layout`, and the History diff toolbar is *not* inside that container —
+`.history-workspace--diff` was the only place declaring it for the History
+screen. Removing that declaration as "redundant" left the variable undefined
+there, so `height: var(--changes-toolbar-control-height)` became invalid at
+computed-value time and the view picker fell to `height: auto`, collapsing from
+32px to 17px beside a 32px search box.
+
+The mid-task verification gave a false pass: the harness measured the picker at
+32px because `.version-line-selector`'s stray `padding: 6px` happened to add up
+to exactly that, and the later cascade fix removed the padding that was hiding
+it. Measuring a number without checking *which rule produced it* is what let
+that through.
+
+Fixed in three places rather than by putting the declaration back: the shared
+`DiffViewSelector` trigger and the Changes search box now read
+`var(--changes-toolbar-control-height, var(--control-height-sm))`, so a control
+shared between screens falls back to the row tier instead of to nothing when a
+host does not declare the variable; `.history-search-box--diff` reads the same
+token instead of a literal `32px`, so the pair matches structurally rather than
+by two numbers agreeing; and a fourth guard (`keeps control-height variable
+reads fallback-safe`) fails the build on a feature-scoped control-height read
+with no fallback. Verified against the real toolbar markup: both controls 32px,
+identical top and bottom edges.
+
 **Follow-ups, deliberately not taken here:** `.pending-versions__publish-button`
 (34px), `.overview-history__all` (36px) and `.version-lines-filter__clear`
 (36px) are bespoke inline controls that still carry their own heights; the
@@ -270,6 +296,8 @@ Commands run:
 - `pnpm run check:frontend` — 70 test files, 634 tests passed; typecheck and
   build clean.
 - `pnpm run check:docs` — passed over 161 Markdown files and 127 task ids.
+- After the post-completion fix: `pnpm run check:frontend` — 70 test files, 636
+  tests passed. The new guard was checked against a deliberate regression.
 
 `pnpm run check:rust` was not run: no Rust source was touched.
 

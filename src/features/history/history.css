@@ -309,7 +309,12 @@
 .history-lines-added { color: var(--status-success); font-size: 12px; font-weight: 700; }
 .history-lines-removed { color: var(--status-danger); font-size: 12px; font-weight: 700; }
 .history-diff-controls { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-.history-search-box--diff { width: clamp(160px, 24vw, 280px); height: 32px; }
+/* The search box and the view picker sit side by side in this toolbar and have
+   to be the same height. Both read the row tier rather than each carrying its
+   own number, so "the same" is structural instead of two literals that happen
+   to agree — which is exactly what stopped agreeing when the picker lost its
+   height and collapsed to its text. */
+.history-search-box--diff { width: clamp(160px, 24vw, 280px); height: var(--control-height-sm); }
 .history-diff-controls .changes-view-picker__value { font-size: 11px; }
 .history-diff-controls .changes-view-picker__menu { right: 0; left: auto; }
 

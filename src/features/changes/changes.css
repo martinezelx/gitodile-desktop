@@ -313,7 +313,8 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 .changes-search-box {
-  flex: 1; min-width: 0; box-sizing: border-box; height: var(--changes-toolbar-control-height);
+  /* Same fallback as the view picker below, for the same reason. */
+  flex: 1; min-width: 0; box-sizing: border-box; height: var(--changes-toolbar-control-height, var(--control-height-sm));
   display: flex; align-items: center; gap: 8px; padding: 0 var(--space-4);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: var(--surface-hover); transition: border-color var(--duration-fast), background var(--duration-fast);
@@ -495,7 +496,13 @@
    which is what surfaced it. The fixed height is what centres the label here,
    so the block padding has to be the 0 this rule always meant. */
 .changes-view-picker__trigger.version-line-selector {
-  box-sizing: border-box; height: var(--changes-toolbar-control-height);
+  /* The fallback is load-bearing, not decoration. `DiffViewSelector` is shared,
+     and `--changes-toolbar-control-height` is scoped to `.changes-layout` —
+     which the History diff toolbar is not inside, so that host has to declare
+     the variable itself. When it stopped doing so the `height` became invalid
+     at computed-value time and the trigger collapsed to its text. A shared
+     control falls back to the row tier instead of to nothing. */
+  box-sizing: border-box; height: var(--changes-toolbar-control-height, var(--control-height-sm));
   padding: 0 var(--space-4); gap: 7px; border-radius: var(--radius-pill);
 }
 .changes-view-picker__value { font-size: 13.5px; font-weight: 500; white-space: nowrap; }

@@ -297,6 +297,36 @@ describe("production style composition", () => {
     expect(offenders).toEqual([]);
   });
 
+  // A control-height variable is scoped to whichever container declares it, so
+  // a control shared between two screens depends on each host remembering to.
+  // The History diff toolbar reuses `DiffViewSelector` from outside
+  // `.changes-layout`; when it stopped declaring the variable, the `height`
+  // became invalid at computed-value time and the trigger collapsed from 32px
+  // to its text. A fallback makes that failure land on the row tier instead of
+  // on nothing.
+  it("keeps control-height variable reads fallback-safe", () => {
+    // A token on `:root` is always in scope and needs no fallback. Only the
+    // feature-scoped variables — the ones a host has to remember to declare —
+    // are at risk here.
+    const tokens = readSource("styles/tokens.css");
+    const offenders: string[] = [];
+
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const use of readSource(relativePath).matchAll(
+        /(?<![\w-])(?:min-)?height:\s*var\((--[\w-]*control-height[\w-]*)([^)]*)\)/g,
+      )) {
+        const [, name, rest] = use;
+        if (tokens.includes(`${name}:`)) continue;
+        if (!rest.includes(",")) {
+          offenders.push(`${relativePath}: height: var(${name}) has no fallback`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it("keeps audited shape roles and concentric menu insets explicit", () => {
     const expectedDeclarations = [
       ["app/app-shell.css", ".titlebar-menu__list", "padding: var(--space-2)"],
