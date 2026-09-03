@@ -1,19 +1,75 @@
 import { StrictMode } from "react";
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   REMOTE_CHECK_INTERVAL_STORAGE_KEY,
+  REDUCE_MOTION_STORAGE_KEY,
   REOPEN_LAST_PROJECT_DEFAULT,
   REOPEN_LAST_PROJECT_STORAGE_KEY,
   RUN_GIT_HOOKS_DEFAULT,
   RUN_GIT_HOOKS_STORAGE_KEY,
   repairEagerlyStoredDefaults,
+  useReducedMotionPreference,
   useStoredBoolean,
   useStoredRemoteCheckInterval,
 } from "./preferences";
+import { startThemeFade } from "./themeTransition";
 
-afterEach(() => localStorage.clear());
+afterEach(() => {
+  localStorage.clear();
+  delete document.documentElement.dataset.reducedMotion;
+  delete document.documentElement.dataset.themeTransition;
+  Reflect.deleteProperty(document, "startViewTransition");
+  Reflect.deleteProperty(window, "matchMedia");
+});
+
+describe("reduced motion preference", () => {
+  it("keeps full motion by default without freezing that default in storage", () => {
+    const { result } = renderHook(() => useReducedMotionPreference(), strict);
+
+    expect(result.current[0]).toBe(false);
+    expect(document.documentElement.dataset.reducedMotion).toBeUndefined();
+    expect(localStorage.getItem(REDUCE_MOTION_STORAGE_KEY)).toBeNull();
+  });
+
+  it("applies and persists an explicit request to reduce motion", () => {
+    const { result } = renderHook(() => useReducedMotionPreference(), strict);
+
+    act(() => result.current[1](true));
+
+    expect(document.documentElement.dataset.reducedMotion).toBe("true");
+    expect(localStorage.getItem(REDUCE_MOTION_STORAGE_KEY)).toBe("true");
+  });
+
+  it("stops a theme transition that was already in flight", () => {
+    const skipTransition = vi.fn();
+    const unfinished = new Promise<void>(() => undefined);
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: (callback: () => void) => {
+        callback();
+        return {
+          finished: unfinished,
+          ready: unfinished,
+          updateCallbackDone: unfinished,
+          skipTransition,
+        };
+      },
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: false }),
+    });
+    startThemeFade(vi.fn());
+    const { result } = renderHook(() => useReducedMotionPreference(), strict);
+
+    act(() => result.current[1](true));
+
+    expect(skipTransition).toHaveBeenCalledOnce();
+    expect(document.documentElement.dataset.themeTransition).toBeUndefined();
+  });
+});
 
 describe("useStoredRemoteCheckInterval", () => {
   it("defaults invalid or missing values to manual checks", () => {

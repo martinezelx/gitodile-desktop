@@ -588,6 +588,10 @@ Rules:
   which Settings offers — has no origin to sweep from anyway;
 - avoid large spring animations in work surfaces;
 - respect `prefers-reduced-motion`;
+- Appearance settings offers an app-specific **Reduce motion** switch, off by
+  default. When enabled it removes GitOdile's transitions and animations while
+  keeping every state change immediately visible; the operating-system
+  preference is respected independently and never needs this switch to be on;
 - never delay an operation solely to show an animation.
 
 ## Transparency and native effects

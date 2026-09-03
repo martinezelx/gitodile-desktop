@@ -1,4 +1,5 @@
 import { flushSync } from "react-dom";
+import { isReducedMotionRequested } from "../shared/ui";
 
 /** Theme changes cross-fade the whole window.
  *
@@ -19,12 +20,23 @@ import { flushSync } from "react-dom";
  * race the first one and strip the root attribute mid-animation. */
 let activeTransition: ViewTransition | null = null;
 
+/** End a theme transition that was already in flight when motion was turned
+ * off. The CSS override covers document content, but the browser owns view-
+ * transition snapshots outside that subtree, so they need an explicit stop. */
+export function stopActiveThemeTransition(): void {
+  if (activeTransition === null) return;
+  const transition = activeTransition;
+  activeTransition = null;
+  transition.skipTransition();
+  delete document.documentElement.dataset.themeTransition;
+}
+
 /** No view transitions under jsdom, and reduced motion means skipping the
  * animation outright rather than running it at zero duration. */
 function prefersInstantChange(): boolean {
   return (
     typeof document.startViewTransition !== "function" ||
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    isReducedMotionRequested()
   );
 }
 
@@ -35,7 +47,7 @@ export function startThemeFade(applyPreference: () => void): void {
     return;
   }
   const root = document.documentElement;
-  activeTransition?.skipTransition();
+  stopActiveThemeTransition();
   // Set before the transition starts so the outgoing capture already carries
   // the attribute, and the two halves of the pair are styled alike.
   root.dataset.themeTransition = "fade";

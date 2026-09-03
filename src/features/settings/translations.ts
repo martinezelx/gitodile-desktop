@@ -34,6 +34,9 @@ export interface SettingsTranslations {
   settingsThemeDescription: string;
   themeLight: string;
   themeDark: string;
+  settingsMotionTitle: string;
+  reduceMotionLabel: string;
+  reduceMotionDescription: string;
   settingsGeneralTitle: string;
   settingsNotificationsTitle: string;
   settingsNotificationsWhileAwayTitle: string;
@@ -208,6 +211,10 @@ const en: SettingsTranslations = {
   settingsThemeDescription: '"System" matches your device.',
   themeLight: "Light",
   themeDark: "Dark",
+  settingsMotionTitle: "Motion",
+  reduceMotionLabel: "Reduce motion",
+  reduceMotionDescription:
+    "Turn off interface transitions and animations. Your system motion preference is always respected.",
   settingsGeneralTitle: "General",
   settingsNotificationsTitle: "Notifications",
   settingsNotificationsWhileAwayTitle: "While you're doing something else",
@@ -395,6 +402,10 @@ const es: SettingsTranslations = {
   settingsThemeDescription: '"Sistema" usa el tema de tu dispositivo.',
   themeLight: "Claro",
   themeDark: "Oscuro",
+  settingsMotionTitle: "Movimiento",
+  reduceMotionLabel: "Reducir movimiento",
+  reduceMotionDescription:
+    "Desactiva las transiciones y animaciones de la interfaz. La preferencia de movimiento del sistema se respeta siempre.",
   settingsGeneralTitle: "General",
   settingsNotificationsTitle: "Notificaciones",
   settingsNotificationsWhileAwayTitle: "Mientras estás en otra cosa",

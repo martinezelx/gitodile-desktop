@@ -41,6 +41,8 @@ type PanelOverrides = Partial<{
   onClose: () => void;
   onRegisterCloseGuard: (guard: (() => boolean) | null) => void;
   setReopenLastProject: (value: boolean) => void;
+  reducedMotion: boolean;
+  setReducedMotion: (value: boolean) => void;
   confirmCloseProject: boolean;
   setConfirmCloseProject: (value: boolean) => void;
   watchProjects: boolean;
@@ -83,6 +85,8 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
     <SettingsPanel
       theme="system"
       setTheme={vi.fn()}
+      reducedMotion={overrides.reducedMotion ?? false}
+      setReducedMotion={overrides.setReducedMotion ?? vi.fn()}
       activeSection={section}
       onSectionChange={setSection}
       gitDiagnostics={overrides.gitDiagnostics ?? { state: "available", version: "2.45.0" }}
@@ -179,6 +183,8 @@ describe("Settings panel native boundary", () => {
             <SettingsPanel
               theme="system"
               setTheme={vi.fn()}
+              reducedMotion={false}
+              setReducedMotion={vi.fn()}
               activeSection="git"
               onSectionChange={vi.fn()}
               gitDiagnostics={{ state: "available", version: "2.45.0" }}
@@ -434,6 +440,17 @@ describe("Settings panel line endings", () => {
 });
 
 describe("Settings panel option groups", () => {
+  it("offers reduced motion in Appearance and leaves it off by default", async () => {
+    const setReducedMotion = vi.fn();
+    renderPanel(createPort(), { initialSection: "appearance", setReducedMotion });
+
+    const motionSwitch = screen.getByRole("switch", { name: "Reduce motion" });
+    expect(motionSwitch).toHaveAttribute("aria-checked", "false");
+
+    await userEvent.click(motionSwitch);
+    expect(setReducedMotion).toHaveBeenCalledWith(true);
+  });
+
   it("is one Tab stop per group, with the arrow keys moving inside it", async () => {
     renderPanel(createPort(), { initialSection: "appearance" });
 

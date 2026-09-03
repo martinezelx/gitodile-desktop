@@ -42,6 +42,8 @@ export type AppOverlaysProps = {
     setOpen: BooleanSetter;
     theme: ThemePreference;
     setTheme: (theme: ThemePreference) => void;
+    reducedMotion: boolean;
+    setReducedMotion: BooleanSetter;
     section: SettingsSection;
     setSection: (section: SettingsSection) => void;
     gitTooling: GitToolingState;
@@ -248,6 +250,8 @@ export function AppOverlays({
             <SettingsPanel
               theme={settings.theme}
               setTheme={settings.setTheme}
+              reducedMotion={settings.reducedMotion}
+              setReducedMotion={settings.setReducedMotion}
               activeSection={settings.section}
               onSectionChange={settings.setSection}
               gitDiagnostics={settings.gitTooling.diagnostics}

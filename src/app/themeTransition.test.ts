@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { startThemeFade } from "./themeTransition";
+import { startThemeFade, stopActiveThemeTransition } from "./themeTransition";
 
 /** Stand-in for the real API: jsdom has no view transitions, so the tests drive
  * the capture callback and the `finished` promise by hand. */
@@ -50,6 +50,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete root.dataset.themeTransition;
+  delete root.dataset.reducedMotion;
   root.removeAttribute("style");
   Reflect.deleteProperty(document, "startViewTransition");
 });
@@ -73,6 +74,17 @@ describe("theme transitions", () => {
     expect(apply).toHaveBeenCalledOnce();
     expect(transitions).toHaveLength(0);
     expect(root.dataset.themeTransition).toBeUndefined();
+  });
+
+  it("skips the animation when GitOdile's reduced-motion setting is on", () => {
+    const { transitions } = stubViewTransitions();
+    root.dataset.reducedMotion = "true";
+    const apply = vi.fn();
+
+    startThemeFade(apply);
+
+    expect(apply).toHaveBeenCalledOnce();
+    expect(transitions).toHaveLength(0);
   });
 
   it("tags the root before capture so the outgoing snapshot matches the incoming one", () => {
@@ -118,5 +130,15 @@ describe("theme transitions", () => {
     await Promise.resolve();
 
     expect(root.dataset.themeTransition).toBe("fade");
+  });
+
+  it("stops an in-flight snapshot when reduced motion is turned on", () => {
+    const { transitions } = stubViewTransitions();
+    startThemeFade(vi.fn());
+
+    stopActiveThemeTransition();
+
+    expect(transitions[0].skipTransition).toHaveBeenCalledOnce();
+    expect(root.dataset.themeTransition).toBeUndefined();
   });
 });

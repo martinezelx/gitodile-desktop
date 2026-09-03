@@ -30,3 +30,14 @@ input:focus-visible,
     transition: none;
   }
 }
+
+/* The app preference is stronger than the selective system fallback above:
+   someone who turns it on has explicitly asked GitOdile for no animated
+   movement. State changes remain immediate and visible. */
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation: none !important;
+  scroll-behavior: auto !important;
+  transition: none !important;
+}

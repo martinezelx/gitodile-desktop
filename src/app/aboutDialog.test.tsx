@@ -43,6 +43,8 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       ...closedOverlay,
       theme: "system",
       setTheme: vi.fn(),
+      reducedMotion: false,
+      setReducedMotion: vi.fn(),
       section: "general",
       setSection: vi.fn(),
       gitTooling: {

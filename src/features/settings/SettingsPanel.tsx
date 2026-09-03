@@ -258,6 +258,8 @@ export function isGitInstallationBroken(diagnostics: GitDiagnostics | null): boo
 export function SettingsPanel({
   theme,
   setTheme,
+  reducedMotion,
+  setReducedMotion,
   activeSection,
   onSectionChange,
   gitDiagnostics,
@@ -294,6 +296,8 @@ export function SettingsPanel({
 }: {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  reducedMotion: boolean;
+  setReducedMotion: (value: boolean) => void;
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   gitDiagnostics: GitDiagnostics | null;
@@ -1055,6 +1059,24 @@ export function SettingsPanel({
                       {option === "system" ? t.commonSystem : option === "light" ? t.themeLight : t.themeDark}
                     </button>
                   ))}
+                </div>
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsMotionTitle}</h3>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.reduceMotionLabel}</strong>
+                    <p>{t.reduceMotionDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.reduceMotionLabel}
+                    checked={reducedMotion}
+                    onChange={setReducedMotion}
+                  />
                 </div>
               </div>
             </section>

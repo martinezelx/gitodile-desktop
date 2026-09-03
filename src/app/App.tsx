@@ -117,6 +117,7 @@ import {
   useStoredDiffPreferences,
   useStoredNavigationPreferences,
   useStoredRemoteCheckInterval,
+  useReducedMotionPreference,
   useThemePreference,
 } from "./preferences";
 import { startThemeFade } from "./themeTransition";
@@ -547,6 +548,7 @@ export function App(): React.JSX.Element {
     });
   };
   const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
+  const [reducedMotion, setReducedMotion] = useReducedMotionPreference();
   const [navigationPreferences, setNavigationPreferences] =
     useStoredNavigationPreferences(DEFAULT_NAVIGATION_PREFERENCES.visibleDestinationIds);
   const [reopenLastProject, setReopenLastProject] = useStoredBoolean(
@@ -2513,6 +2515,8 @@ export function App(): React.JSX.Element {
           setOpen: setIsSettingsOpen,
           theme,
           setTheme: changeTheme,
+          reducedMotion,
+          setReducedMotion,
           section: settingsSection,
           setSection: setSettingsSection,
           gitTooling,

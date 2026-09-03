@@ -119,6 +119,7 @@ describe("production style composition", () => {
     expect(readSource("styles/tokens.css")).toContain(':root[data-theme="light"]');
     expect(readSource("styles/tokens.css")).toContain(':root[data-theme="dark"]');
     expect(readSource("styles/base.css")).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(readSource("styles/base.css")).toContain(':root[data-reduced-motion="true"] *');
 
     // Theme-change choreography is its own sheet: base.css stays the reset,
     // body and focus foundations rather than the larger half of an effect.

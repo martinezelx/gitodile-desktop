@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   DEFAULT_DIFF_PREFERENCES,
@@ -12,6 +12,7 @@ import {
   type RemoteCheckIntervalMinutes,
   type ThemePreference,
 } from "../features/settings";
+import { stopActiveThemeTransition } from "./themeTransition";
 
 const THEME_STORAGE_KEY = "gitodile-theme";
 export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodile-reopen-last-project";
@@ -21,6 +22,7 @@ export const REMOTE_CHECK_INTERVAL_STORAGE_KEY = "gitodile-remote-check-interval
 export const RUN_GIT_HOOKS_STORAGE_KEY = "gitodile-run-git-hooks";
 export const CONFIRM_DISCARD_STORAGE_KEY = "gitodile-confirm-discard";
 export const NOTIFICATIONS_STORAGE_KEY = "gitodile-notifications";
+export const REDUCE_MOTION_STORAGE_KEY = "gitodile-reduce-motion";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodile-diff-preferences";
 export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodile-navigation-preferences";
@@ -50,6 +52,10 @@ export const CONFIRM_DISCARD_DEFAULT = true;
  * eager-write bug had already frozen in storage, and this one is newer than the
  * fix. */
 export const NOTIFICATIONS_DEFAULT = true;
+/** Off keeps GitOdile's full motion language. The operating system preference
+ * is still respected independently, whether or not this app-specific choice
+ * has ever been made. */
+export const REDUCE_MOTION_DEFAULT = false;
 /** On, because a hook is the project's own rule and skipping it by default
  * would make GitOdile produce commits the same repository would have rejected
  * from a terminal — the same action giving a different result depending on
@@ -183,6 +189,28 @@ export function useThemePreference(): [ThemePreference, Dispatch<SetStateAction<
   usePersistedChoice(THEME_STORAGE_KEY, theme);
 
   return [theme, setTheme];
+}
+
+function applyReducedMotionPreference(reducedMotion: boolean): void {
+  if (reducedMotion) {
+    document.documentElement.dataset.reducedMotion = "true";
+    stopActiveThemeTransition();
+  } else {
+    delete document.documentElement.dataset.reducedMotion;
+  }
+}
+
+/** App-specific motion override. A layout effect applies it before paint so
+ * the switch itself cannot animate on the frame that turns motion off. */
+export function useReducedMotionPreference(): [boolean, Dispatch<SetStateAction<boolean>>] {
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    readStoredBoolean(REDUCE_MOTION_STORAGE_KEY, REDUCE_MOTION_DEFAULT),
+  );
+
+  useLayoutEffect(() => applyReducedMotionPreference(reducedMotion), [reducedMotion]);
+  usePersistedChoice(REDUCE_MOTION_STORAGE_KEY, String(reducedMotion));
+
+  return [reducedMotion, setReducedMotion];
 }
 
 export function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {

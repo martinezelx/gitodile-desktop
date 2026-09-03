@@ -68,10 +68,10 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Browse the active version line as a bounded, read-only saved-version
   timeline. Inspect author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
-- Configure light/dark/system themes, English/Spanish copy, date and number
-  formats, Git identity, installation diagnostics, supported Git update
-  guidance, how diffs are read, and whether projects are watched and discards
-  confirmed.
+- Configure light/dark/system themes, reduced motion, English/Spanish copy,
+  date and number formats, Git identity, installation diagnostics, supported
+  Git update guidance, how diffs are read, and whether projects are watched
+  and discards confirmed.
 - Set the default version-line name for new projects (written to Git's own
   `init.defaultBranch`), choose how often project changes are checked
   automatically — from every minute to every day, or never — and decide whether
