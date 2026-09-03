@@ -75,7 +75,7 @@
 }
 .initialize-dialog__field textarea:focus-visible { border-color: var(--focus-ring); outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .initialize-dialog__path-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
-.initialize-dialog__path-picker .secondary-button { min-height: 42px; white-space: nowrap; }
+.initialize-dialog__path-picker .secondary-button { white-space: nowrap; }
 
 .initialize-dialog__mode {
   display: grid;
@@ -167,7 +167,6 @@
 .initialize-dialog__notice--danger > svg { color: var(--status-danger); }
 
 .initialize-dialog__actions { margin-top: var(--space-2); }
-.initialize-dialog__actions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
 .initialize-dialog__progress .loading-state { margin-bottom: var(--space-2); }
 .initialize-dialog__progress ol { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .initialize-dialog__progress li { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; color: var(--text-secondary); font-size: 13px; }

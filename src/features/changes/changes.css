@@ -108,7 +108,7 @@
 .changes-status-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
 .changes-status-notice strong { display: block; margin-bottom: 2px; font-size: 12px; }
 .changes-status-notice p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
-.changes-status-notice > .secondary-button { flex: 0 0 auto; align-self: center; display: inline-flex; align-items: center; gap: 7px; }
+.changes-status-notice > .secondary-button { flex: 0 0 auto; align-self: center; }
 .changes-status-notice > .secondary-button svg { width: 14px; height: 14px; }
 .changes-status-notice--danger { outline: 1px solid var(--status-danger); outline-offset: -1px; }
 .changes-status-notice--danger > svg { color: var(--status-danger); }
@@ -125,7 +125,7 @@
 .changes-notice--discarded > svg, .changes-notice--restored > svg { color: var(--status-success); }
 .changes-notice--error > svg { color: var(--status-danger); }
 .changes-notice--error { outline: 1px solid var(--status-danger); outline-offset: -1px; }
-.changes-notice .secondary-button { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; }
+.changes-notice .secondary-button { flex-shrink: 0; }
 .changes-notice .secondary-button svg { width: 15px; height: 15px; }
 .changes-notice__dismiss {
   flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 26px;
@@ -152,8 +152,6 @@
 .changes-header-actions__buttons { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .changes-header-actions .secondary-button,
 .changes-header-actions__save {
-  height: 38px;
-  min-height: 38px;
   border-color: var(--border-control);
 }
 /* Same rule as the Overview summary row: a single-line control is fully
@@ -162,15 +160,14 @@
    cluster is now half its own height, so the whole row nests concentrically
    without a single number needing to be worked out. */
 .changes-actions-menu__trigger {
-  width: 38px;
-  min-width: 38px;
+  width: var(--control-height-md);
+  min-width: var(--control-height-md);
   padding: 0;
   border-radius: var(--radius-round);
 }
 .changes-header-actions .secondary-button { background: var(--surface-control); }
 .changes-header-actions .secondary-button:hover:not(:disabled) { background: var(--surface-hover); }
 .changes-header-actions .secondary-button:active:not(:disabled) { background: var(--surface-active); }
-.changes-header-actions__save { display: inline-flex; align-items: center; gap: var(--space-2); padding-block: 0; }
 .changes-header-actions__save svg { width: 16px; height: 16px; }
 .changes-actions-menu { position: relative; display: inline-flex; }
 .changes-actions-menu__trigger { justify-content: center; }
@@ -221,11 +218,13 @@
 .changes-discard-success { display: flex; align-items: flex-start; gap: 9px; color: var(--text-primary); }
 .changes-discard-success p { margin: 0; }
 .changes-discard-success svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--status-success); }
-.changes-discard-dialog .dialog-actions button { display: inline-flex; align-items: center; gap: 8px; }
 .changes-discard-dialog .dialog-actions button svg { width: 16px; height: 16px; }
 .changes-danger-button {
-  min-height: 38px; padding: 8px var(--space-4); border: 1px solid transparent; border-radius: var(--radius-pill);
-  background: var(--status-danger); color: var(--status-danger-contrast); font: inherit; font-weight: 700;
+  min-height: var(--control-height-md);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  padding: 6px var(--space-4); border: 1px solid transparent; border-radius: var(--radius-pill);
+  background: var(--status-danger); color: var(--status-danger-contrast);
+  font: inherit; font-size: var(--control-font-md); font-weight: 700;
 }
 .changes-danger-button:hover { filter: brightness(1.06); }
 .changes-danger-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -253,18 +252,26 @@
   --changes-header-height: 57px;
   /* The second paired strip, below the two headers: the file list's search
      box on the left, the diff's view/change toolbar on the right. Same
-     contract as `--changes-header-height` — both strips wrap one 34px-tall
-     control with 9px of breathing room above and below, so pinning the
-     height here keeps their bottom rules on one pixel row even when only one
-     side has content (a file with no hunks hides the change navigation).
-     Exactly 34 + 9 + 9 + 1px border, and applied as a fixed `height` rather
-     than a `min-height`: both strips are flex items in a column whose other
-     child is a scroller, so a `min-height` let whichever side was under
-     shrink pressure settle 1px shorter than the other — the two rules landing
-     one pixel apart is precisely what a paired header is supposed to prevent.
-     `flex: 0 0 auto` below is the other half of that fix. */
-  --changes-toolbar-height: 53px;
-  --changes-toolbar-control-height: 34px;
+     contract as `--changes-header-height` — both strips wrap one control with
+     9px of breathing room above and below, so pinning the height here keeps
+     their bottom rules on one pixel row even when only one side has content
+     (a file with no hunks hides the change navigation).
+
+     The control is the row tier from DESIGN.md § Size, not a size of this
+     toolbar's own: this variable predates the scale, sat at 34px, and the
+     History diff workspace had already overridden it to 32 — one control
+     wearing two heights two pixels apart, which is the drift the scale
+     exists to stop. The strip height is a `calc` off it rather than a second
+     number, so the +9/+9/+1 contract holds by construction if the tier moves.
+
+     Applied as a fixed `height` rather than a `min-height`: both strips are
+     flex items in a column whose other child is a scroller, so a `min-height`
+     let whichever side was under shrink pressure settle 1px shorter than the
+     other — the two rules landing one pixel apart is precisely what a paired
+     header is supposed to prevent. `flex: 0 0 auto` below is the other half
+     of that fix. */
+  --changes-toolbar-control-height: var(--control-height-sm);
+  --changes-toolbar-height: calc(var(--changes-toolbar-control-height) + 19px);
 }
 .changes-file-list {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
@@ -479,7 +486,15 @@
 .changes-diff__view { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .changes-diff__view-label { color: var(--text-secondary); font-size: 12.5px; white-space: nowrap; }
 .changes-view-picker { position: relative; display: inline-flex; }
-.changes-view-picker__trigger {
+/* Doubled up on `.version-line-selector` on purpose. The trigger wears that
+   class too, and `features/version-lines` loads *after* this file, so at equal
+   specificity its `padding: 6px var(--space-4)` was quietly beating the `0`
+   below — the block padding this rule asks for has never actually applied. It
+   went unnoticed while the control was 34px tall and the label had 2px to
+   spare; at the shared 32px row tier the text fills the content box exactly,
+   which is what surfaced it. The fixed height is what centres the label here,
+   so the block padding has to be the 0 this rule always meant. */
+.changes-view-picker__trigger.version-line-selector {
   box-sizing: border-box; height: var(--changes-toolbar-control-height);
   padding: 0 var(--space-4); gap: 7px; border-radius: var(--radius-pill);
 }
@@ -616,14 +631,11 @@
 }
 
 @media (pointer: coarse) {
-  .changes-header-actions .secondary-button,
-  .changes-header-actions__save {
-    height: 44px;
-    min-height: 44px;
-  }
+  /* The labelled and secondary buttons already grow with the shared primitive.
+     Only the circle needs saying, because a width is not a height. */
   .changes-actions-menu__trigger {
-    width: 44px;
-    min-width: 44px;
+    width: var(--control-height-lg);
+    min-width: var(--control-height-lg);
   }
-  .changes-notice__dismiss { width: 44px; height: 44px; }
+  .changes-notice__dismiss { width: var(--control-height-lg); height: var(--control-height-lg); }
 }

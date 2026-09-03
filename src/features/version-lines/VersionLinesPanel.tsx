@@ -182,7 +182,7 @@ function VersionLineRow({
           {line.isActive ? (
             <>
               <button
-                className="secondary-button"
+                className="secondary-button secondary-button--sm"
                 type="button"
                 aria-expanded={showDetails}
                 aria-label={detailsLabel}
@@ -192,7 +192,7 @@ function VersionLineRow({
                 {t.versionLinesViewDetails}
               </button>
               {onNewFromLine && (
-                <button className="secondary-button" type="button" onClick={onNewFromLine}>
+                <button className="secondary-button secondary-button--sm" type="button" onClick={onNewFromLine}>
                   <Plus aria-hidden="true" />
                   {t.versionLinesNewFromLine}
                 </button>
@@ -215,7 +215,7 @@ function VersionLineRow({
               </button>
               <span className="version-line-row__actions-divider" aria-hidden="true" />
               <button
-                className="secondary-button"
+                className="secondary-button secondary-button--sm"
                 type="button"
                 onClick={onSwitch}
                 disabled={isCheckedOutElsewhere}
@@ -227,7 +227,7 @@ function VersionLineRow({
                   is where the refusal is explained and where the way forward
                   is offered, which beats a dead button with no reason. */}
               <button
-                className="secondary-button version-line-row__delete"
+                className="secondary-button secondary-button--sm version-line-row__delete"
                 type="button"
                 onClick={onDelete}
                 disabled={deletability === "elsewhere"}

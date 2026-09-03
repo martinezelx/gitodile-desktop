@@ -35,7 +35,7 @@
 .version-lines-view__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
 .version-lines-view__header h1 { margin: 0; }
 .version-lines-view__header p { margin: 4px 0 0; max-width: 76ch; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
-.version-lines-view__header .primary-button { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.version-lines-view__header .primary-button { flex-shrink: 0; }
 .version-lines-view__header .primary-button svg { width: 16px; height: 16px; }
 
 .version-lines-banner {
@@ -45,7 +45,6 @@
 }
 .version-lines-banner h2 { margin: 0; font-size: 15px; }
 .version-lines-banner p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
-.version-lines-banner .primary-button { display: inline-flex; align-items: center; gap: 8px; }
 .version-lines-banner .primary-button svg { width: 16px; height: 16px; }
 .version-lines-refresh-error {
   display: flex;
@@ -207,20 +206,24 @@
 .version-line-row__details-panel-prose { font-family: inherit; font-size: 12px; }
 .version-line-row__actions { flex-shrink: 0; display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .version-line-row__actions-divider { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--border-subtle); }
-.version-line-row__actions .secondary-button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  min-height: 32px; padding: 6px 12px; font-size: 13px; white-space: nowrap;
-}
+/* Row-scale: these live inside a version-line row and must not out-weigh the
+   line's own name. The size comes from the shared `--sm` modifier on the
+   buttons themselves; only the no-wrap is this row's own. */
+.version-line-row__actions .secondary-button { white-space: nowrap; }
 .version-line-row__actions .secondary-button svg { width: 15px; height: 15px; flex-shrink: 0; }
 .version-line-row__delete { padding: 6px 9px; color: var(--status-danger); }
 
 .version-lines-checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin: 4px 0; }
 
 .version-lines-quick-switch { position: relative; display: inline-flex; gap: 8px; }
+/* A circle at row scale. `min-height` as well as `height`, because the shared
+   button primitive sets a `min-height` of its own and a minimum outranks a
+   height — without this the glyph's box would be 32 wide and 38 tall. */
 .version-lines-quick-switch__create {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
   padding: 0;
   display: inline-flex;
   align-items: center;

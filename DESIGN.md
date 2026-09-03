@@ -246,6 +246,13 @@ The app should work well between approximately 1024px and large desktop displays
   --space-5: 24px;
   --space-6: 32px;
 
+  /* Control size states a role, not a measurement — see Size below. */
+  --control-height-sm: 32px;
+  --control-height-md: 38px;
+  --control-height-lg: 44px;
+  --control-font-sm: 13px;
+  --control-font-md: 13.5px;
+
   --duration-fast: 120ms;
   --duration-normal: 180ms;
 }
@@ -386,6 +393,46 @@ corners go dead. That is a real cost only where the shape is a *target* — keep
 the 44px coarse-pointer override on circular controls, and prefer a rectangle
 for a small interactive one. It costs nothing on an avatar or a glyph tile,
 which is why those are circles at any size.
+
+### Size
+
+**A control's height is a token, the same way its radius is.** There is one
+house size and it is `--control-height-md` (38px). A feature does not get to
+pick a height; if a control needs one, it takes a tier.
+
+| Token | What it is | Examples |
+| --- | --- | --- |
+| `--control-height-sm` (32px) | An action inside a row it must not out-weigh | Row actions, ghost buttons, the quick-switch create circle |
+| `--control-height-md` (38px) | **Any labelled action, and its square siblings** | Every primary/secondary button, single-line inputs, refresh and overflow circles |
+| `--control-height-lg` (44px) | Reached only through `pointer: coarse` | Nothing declares it directly |
+
+Three things this settles:
+
+- **`lg` is a pointer accommodation, not a hierarchy step.** A dialog's confirm
+  is not a bigger control than the same action on a screen. Writing 44px as a
+  fixed `min-height` — which four dialogs used to do — silently ships the touch
+  size to every mouse user, and it is the single biggest source of the drift
+  this section exists to stop.
+- **Height and type size are chosen together, in the primitive.** The button
+  used to declare padding and radius and nothing else, so its height came from
+  `line-height: normal` over the browser's default 16px — a number nobody chose,
+  and one that differs per platform's system font. `--control-font-md` (13.5px)
+  goes with `md`, `--control-font-sm` (13px) with `sm`. A height without a font
+  is half a decision and the other half drifts.
+- **Radius depends on this.** `--radius-pill` reads as half the height, which is
+  what makes the concentric nesting above true for free. It is only true where
+  the height is actually known, so an un-sized control quietly breaks the shape
+  rules as well as the size ones.
+
+A control that genuinely belongs to a denser context may sit outside the scale —
+the diff pane's footer runs at 30px over a 10px type scale, because the pane
+around it is a code surface with its own measure. That is an exception, it is
+written down here, and it is the only one.
+
+A guard in `styleComposition.test.ts` fails the build on any feature rule that
+gives a `.primary-button` or `.secondary-button` its own height, font size or
+`min-height` — the exception above is allowlisted there by name, so adding a
+second one is a deliberate edit to the guard rather than a quiet override.
 
 ### Icons
 

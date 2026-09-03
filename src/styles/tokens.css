@@ -25,6 +25,22 @@
   --space-5: 24px;
   --space-6: 32px;
 
+  /* Control size states a role, the same way radius does — see DESIGN.md
+     § Size. `md` is the house size for any labelled action; `sm` is for an
+     action that lives inside a row it must not out-weigh; `lg` is reached
+     only through `pointer: coarse` and is never a hierarchy step.
+
+     These carry their own type size because the two cannot be chosen apart:
+     the primitive declares no height without also declaring the font that
+     fills it, which is exactly the gap that let every un-overridden button
+     inherit the browser's 16px default and size itself off the system font's
+     metrics. */
+  --control-height-sm: 32px;
+  --control-height-md: 38px;
+  --control-height-lg: 44px;
+  --control-font-sm: 13px;
+  --control-font-md: 13.5px;
+
   --duration-fast: 120ms;
   --duration-normal: 180ms;
 

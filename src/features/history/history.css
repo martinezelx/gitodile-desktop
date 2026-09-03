@@ -299,7 +299,9 @@
 .history-tab__count { min-width: 19px; height: 19px; display: grid; place-items: center; padding: 0 5px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary); font-size: 9.5px; }
 
 .history-workspace { flex: 1; min-height: 0; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); }
-.history-workspace--diff { --changes-toolbar-control-height: 32px; display: flex; flex-direction: column; }
+/* The toolbar control height is the shared row tier now, which is the 32px
+   this workspace used to have to ask for by hand. */
+.history-workspace--diff { display: flex; flex-direction: column; }
 .history-workspace__toolbar { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--border-divider); }
 .history-workspace__toolbar > strong, .history-change-summary strong { font-size: 12px; }
 .history-workspace__toolbar > span { color: var(--status-warning); font-size: 10.5px; }

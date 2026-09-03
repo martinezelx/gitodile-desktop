@@ -219,6 +219,84 @@ describe("production style composition", () => {
     expect(surface).toBe(control + 4);
   });
 
+  // DESIGN.md § Size. The button primitive used to declare padding and radius
+  // and nothing else, so its height fell out of `line-height: normal` over the
+  // browser's default 16px — a number nobody chose, different per platform.
+  // Height and type size are one decision and both belong here.
+  it("keeps the labelled button primitive sized from tokens", () => {
+    const tokens = readSource("styles/tokens.css");
+    const read = (name: string): number => {
+      const match = tokens.match(new RegExp(`--control-height-${name}:\\s*(\\d+)px`));
+      if (!match) throw new Error(`--control-height-${name} is not defined`);
+      return Number(match[1]);
+    };
+    expect(read("sm")).toBeLessThan(read("md"));
+    // `lg` is the coarse-pointer accommodation, so it is the only tier allowed
+    // to exceed the house size, and it has to clear the 44px touch target.
+    expect(read("lg")).toBeGreaterThanOrEqual(44);
+    expect(tokens).toMatch(/--control-font-sm:/);
+    expect(tokens).toMatch(/--control-font-md:/);
+
+    const primitive = ruleBody("shared/ui/primitives.css", ".primary-button, .secondary-button");
+    expect(primitive).toMatch(/min-height:\s*var\(--control-height-md\)/);
+    expect(primitive).toMatch(/font-size:\s*var\(--control-font-md\)/);
+  });
+
+  // The drift this replaced: five features had each pinned their own button
+  // height (38, 39, 42, 43 and 44px), and four of them shipped the 44px
+  // coarse-pointer size to every mouse user by writing it as a fixed
+  // `min-height`. A feature may restyle a button; it may not resize one.
+  it("keeps feature CSS from resizing the button primitive", () => {
+    // DESIGN.md § Size names this the one exception: the diff panes are a code
+    // surface with their own type scale, and their footer control runs at 30px.
+    const documentedExceptions = new Set([".history-diff-pane__footer .secondary-button"]);
+    const offenders: string[] = [];
+
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "shared/ui/primitives.css") continue;
+      for (const rule of readRules(relativePath)) {
+        // The button itself, not something inside it: `... .secondary-button svg`
+        // sizing its own glyph is the feature's business, so only a selector
+        // whose final compound *is* the button counts.
+        const targetsButton = rule.selector
+          .split(",")
+          .some((one) => /(?:primary|secondary)-button[\w-]*(?::[\w-]+(?:\([^)]*\))?)*$/.test(one.trim()));
+        if (!targetsButton) continue;
+        if (documentedExceptions.has(rule.selector)) continue;
+        const size = rule.body.match(/(?<![\w-])(min-height|height|font-size):\s*(\d[\d.]*)px/);
+        if (size) {
+          offenders.push(`${relativePath}: ${rule.selector} — ${size[1]}: ${size[2]}px`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  // The other way a feature invents a size: not by overriding a button, but by
+  // declaring a control-height variable of its own. The Changes toolbar had one
+  // at 34px and the History diff workspace overrode it to 32 — one control
+  // wearing two heights, invisible to a guard that only watches button rules.
+  it("keeps control-height variables derived from the scale", () => {
+    const offenders: string[] = [];
+
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css") continue;
+      for (const declaration of readSource(relativePath).matchAll(
+        /(--[\w-]*control-height[\w-]*):\s*([^;}]+)/g,
+      )) {
+        const [, name, value] = declaration;
+        if (!value.includes("var(--control-height-")) {
+          offenders.push(`${relativePath}: ${name} is ${value.trim()}, not derived from the scale`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it("keeps audited shape roles and concentric menu insets explicit", () => {
     const expectedDeclarations = [
       ["app/app-shell.css", ".titlebar-menu__list", "padding: var(--space-2)"],

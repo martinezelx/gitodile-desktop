@@ -54,9 +54,29 @@
 .auto-hide-scrollbar::-webkit-scrollbar-corner { background: transparent; }
 .eyebrow { margin-bottom: 6px; color: var(--accent-primary); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 
+/* The labelled button carries its own size. It used to declare padding and
+   radius only, which left its height to `line-height: normal` over the
+   browser's default 16px — a number nobody chose and that differs per
+   platform's system font. Every feature that cared then pinned its own height,
+   which is how one control ended up at 38, 39, 42, 43 and 44px in one app.
+   Height, type size and the icon-plus-label layout belong here, together:
+   declaring one without the others is what left the drift a feature's problem.
+   `min-height` rather than `height` so a wrapped label grows the button
+   instead of spilling out of it. */
 .primary-button, .secondary-button {
-  border-radius: var(--radius-pill); padding: 10px var(--space-4); border: 1px solid var(--border-subtle);
+  min-height: var(--control-height-md);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  border-radius: var(--radius-pill); padding: 6px var(--space-4); border: 1px solid var(--border-subtle);
+  font-size: var(--control-font-md);
   transition: background var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+/* An action that sits inside a row it must not out-weigh: a row's own controls,
+   a dense footer. Not a quieter *colour* — that is what `.secondary-button` and
+   `.ghost-button` are for — just a smaller box. */
+.primary-button--sm, .secondary-button--sm {
+  min-height: var(--control-height-sm);
+  padding: 6px var(--space-3);
+  font-size: var(--control-font-sm);
 }
 .primary-button { background: var(--accent-brand); color: var(--accent-brand-contrast); border-color: transparent; font-weight: 700; }
 .primary-button:not(:disabled):hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
@@ -64,8 +84,10 @@
 .secondary-button:not(:disabled):hover { background: var(--surface-active); }
 .primary-button:disabled, .secondary-button:disabled { opacity: 0.5; }
 .ghost-button {
+  min-height: var(--control-height-sm);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   padding: 6px var(--space-3);
   border: 0;
@@ -73,7 +95,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--control-font-sm);
   font-weight: 600;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
@@ -159,10 +181,13 @@
 
 .icon--spinning { animation: spin 900ms linear infinite; }
 
+/* The square sibling of a labelled button: same box, no label. It reads as one
+   family with the capsule beside it only while both take their size from the
+   same token. */
 .refresh-icon-button {
-  width: 38px;
-  min-width: 38px;
-  min-height: 38px;
+  width: var(--control-height-md);
+  min-width: var(--control-height-md);
+  min-height: var(--control-height-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -187,8 +212,13 @@
 .segmented-control__option:hover:not(.segmented-control__option--active) { color: var(--text-primary); }
 .segmented-control__option--active { background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-sm); }
 .text-field { display: grid; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+/* A single-line field is the same box as a button — DESIGN.md § Shape asks the
+   two to read as one family, and the Clone and Initialize path pickers put one
+   of each in a single grid row, where any difference is visible. It keeps its
+   own slightly larger type: the user's text is the content here, not a label. */
 .text-field input {
-  padding: 9px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  min-height: var(--control-height-md);
+  padding: 6px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: var(--surface-hover); color: var(--text-primary); font: inherit; font-size: 14px; outline: none;
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
@@ -359,10 +389,10 @@
   .segmented-control__option,
   .choice-list__option,
   .text-field input {
-    min-height: 44px;
+    min-height: var(--control-height-lg);
   }
-  .dialog-close-button { width: 44px; height: 44px; }
-  .toggle-switch { width: 52px; height: 44px; padding: 6px; }
+  .dialog-close-button { width: var(--control-height-lg); height: var(--control-height-lg); }
+  .toggle-switch { width: 52px; height: var(--control-height-lg); padding: 6px; }
   .toggle-switch__knob { width: 30px; height: 30px; }
   .toggle-switch--on .toggle-switch__knob { transform: translateX(10px); }
 }
