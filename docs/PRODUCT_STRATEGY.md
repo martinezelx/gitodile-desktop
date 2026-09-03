@@ -382,25 +382,23 @@ Before adding a feature, ask:
 
 If the feature fails these questions, it should be redesigned, deferred, or excluded.
 
-## Business model and monetization context
+## Business model
 
-The MVP must work locally without an account, subscription, or cloud service.
-GitOdile should not assume that GitButler's funding or future collaboration
-model is appropriate for this product.
+GitOdile uses an accountless free core with optional paid tiers. Ordinary local
+Git workflows must remain useful without an account, subscription, or cloud
+service. Paid capabilities may require sign-in, but they should monetize
+advanced workflows, convenience, integrations, organization, and optional
+connected services rather than safety or access to the user's own repository.
 
-Possible paid value may later include:
+Recovery required by a supported GitOdile operation, truthful consequences,
+and the protections that make the free local workflow safe must not be weakened
+to manufacture paid value. Optional AI features remain consented and transparent
+about the exact repository data they transmit.
 
-- optional AI explanations and conflict assistance;
-- advanced recovery and guided diagnostics;
-- multiple provider and account management;
-- team onboarding and shared safety policies;
-- collaboration features;
-- a Pro subscription or paid desktop license.
-
-These are hypotheses, not MVP commitments. Core local Git workflows, truthful
-consequences, and basic recovery must not be weakened to manufacture a cloud
-dependency. Any AI feature must be optional and transparent about the exact
-repository data it transmits.
+The current tier hypotheses, working pricing, unit-economics assumptions,
+account boundaries, revenue milestones, and commercial rollout are owned by
+[`BUSINESS_MODEL.md`](BUSINESS_MODEL.md). Pricing there is internal working
+strategy until it is explicitly published.
 
 ## Strategic summary
 
