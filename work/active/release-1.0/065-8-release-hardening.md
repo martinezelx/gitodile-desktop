@@ -14,7 +14,7 @@ areas:
 created: 2026-08-18
 completed:
 parent: "065"
-queue: "18"
+queue: "24"
 ---
 
 # Goal
@@ -48,7 +48,7 @@ macOS/Linux runtime validation to this task.
   documented Linux packages/distributions with reproducible CI provenance and
   artifact hashes.
 - Qualify the updater and publication pipeline delivered by
-  [task 065-9](065-9-signed-application-updates.md) against the final signed
+  [epic 065-9](065-9-signed-application-updates.md) against the final signed
   artifacts: signature verification, failure behavior, reinstall instructions,
   and no repository mutation during update. The accepted strategy is in
   [ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md).
@@ -96,7 +96,7 @@ macOS/Linux runtime validation to this task.
 # Dependencies
 
 - Tasks 015, 037, 064, and 065-1 through 065-7 complete.
-- Task 065-9's signed updater and publication pipeline complete before freeze.
+- Epic 065-9 and all seven children complete; its signed updater and publication pipeline complete before freeze.
 - Access to representative Windows, macOS, and Linux QA/signing environments.
 
 # Decisions

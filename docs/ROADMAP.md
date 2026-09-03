@@ -73,7 +73,8 @@ product specification.
 ## Ordered path to `1.0.0`
 
 The release epic is [`065`](../work/active/release-1.0/065-release-1.0.md).
-The order below is dependency order; only one active implementation task should
+The order below prioritizes the updater for preview distribution, followed by
+the remaining product dependencies. Only one active implementation task should
 be worked at a time.
 
 `queue` is the simple ascending execution number. Task IDs remain permanent
@@ -81,24 +82,41 @@ references and therefore do not change when priorities move.
 
 | Queue | Task | Outcome |
 | --- | --- | --- |
-| Q01 | 037-1 | Establish conflict truth and recovery |
-| Q02 | 037-2 | Select the editor foundation |
-| Q03 | 037-3 | Add the read-only conflict workspace |
-| Q04 | 037-4 | Resolve text conflicts safely |
-| Q05 | 037-5 | Complete or abort a merge |
-| Q06 | 037-6 | Handle non-text and structural conflicts |
-| Q07 | 037-7 | Audit the conflict workflow |
-| Q08 | 065-4 | Integrate local lines and diverged project changes |
-| Q09 | 065-5 | Make recovery records visible/actionable |
-| Q10 | 065-6 | Undo or reverse a saved version |
-| Q11 | 064-1 | Discover and inspect saved sets |
-| Q12 | 064-2 | Set all or selected changes aside |
-| Q13 | 064-3 | Restore a saved set and keep its copy |
-| Q14 | 064-4 | Remove one saved set with recovery |
-| Q15 | 064-5 | Audit the set-aside workflow |
-| Q16 | 065-7 | Harden credential and remote diagnostics |
-| Q17 | 065-9 | Deliver signed application updates and public release publishing |
-| Q18 | 065-8 | Verify and distribute `1.0.0` |
+| Q01 | 065-9-1 | Define updater contracts and supported installations |
+| Q02 | 065-9-2 | Protect operations and drafts before app installation |
+| Q03 | 065-9-3 | Implement the native signed updater lifecycle |
+| Q04 | 065-9-4 | Integrate update controls and preferences |
+| Q05 | 065-9-5 | Build signed release artifacts in private CI |
+| Q06 | 065-9-6 | Publish public releases and stable preview feeds |
+| Q07 | 065-9-7 | Qualify signed upgrades and release operations |
+| Q08 | 037-1 | Establish conflict truth and recovery |
+| Q09 | 037-2 | Select the editor foundation |
+| Q10 | 037-3 | Add the read-only conflict workspace |
+| Q11 | 037-4 | Resolve text conflicts safely |
+| Q12 | 037-5 | Complete or abort a merge |
+| Q13 | 037-6 | Handle non-text and structural conflicts |
+| Q14 | 037-7 | Audit the conflict workflow |
+| Q15 | 065-4 | Integrate local lines and diverged project changes |
+| Q16 | 065-5 | Make recovery records visible/actionable |
+| Q17 | 065-6 | Undo or reverse a saved version |
+| Q18 | 064-1 | Discover and inspect saved sets |
+| Q19 | 064-2 | Set all or selected changes aside |
+| Q20 | 064-3 | Restore a saved set and keep its copy |
+| Q21 | 064-4 | Remove one saved set with recovery |
+| Q22 | 064-5 | Audit the set-aside workflow |
+| Q23 | 065-7 | Harden credential and remote diagnostics |
+| Q24 | 065-8 | Verify and distribute `1.0.0` |
+
+### Preview distribution — current priority
+
+- **Q01–Q07 / 065-9: Signed application updates.** Complete the seven children of
+  [epic 065-9](../work/active/release-1.0/065-9-signed-application-updates.md)
+  in order: contracts, install protection, native updater, interface, signed
+  builds, public publishing, and real upgrade qualification.
+- This enables preview distribution before the rest of the 1.0.0 feature set.
+  New operations and drafts must integrate with install protection as they land.
+  Git credential diagnostics remain Q23 / 065-7; final product qualification
+  remains Q24 / 065-8. Completing this epic does not establish 1.0.0 readiness.
 
 ### Gate 0 — Prove the existing loop (completed 2026-08-21)
 
@@ -128,11 +146,11 @@ save a change, and verify the result in History.
 
 ### Gate 2 — Complete collaboration and overlaps
 
-- **Q01–Q07 / 037: Guided conflict resolution.** Deliver its child slices from conflict
+- **Q08–Q14 / 037: Guided conflict resolution.** Deliver its child slices from conflict
    truth/recovery through editing, completion/abort, accessibility, and audit.
    It first supports an externally started merge so its safety model can be
    proven independently.
-- **Q08 / 065-4: Integrate version lines and diverged project changes.** Add previewed
+- **Q15 / 065-4: Integrate version lines and diverged project changes.** Add previewed
    local-branch merge and non-fast-forward team integration. Clean results
    complete normally; overlaps enter task 037's established session contract.
 
@@ -141,12 +159,12 @@ without a terminal. Rebase and force push remain excluded.
 
 ### Gate 3 — Make safety visible and reusable
 
-- **Q09 / 065-5: Recovery center.** Inventory supported recovery records, explain
+- **Q16 / 065-5: Recovery center.** Inventory supported recovery records, explain
    retention/eligibility, and perform only state-token-safe restores.
-- **Q10 / 065-6: Restore a saved version.** From History, choose a reversible
+- **Q17 / 065-6: Restore a saved version.** From History, choose a reversible
    strategy: undo unpublished local work or create a new reverting version for
    shared work. Never hide history rewriting or use a destructive hard reset.
-- **Q11–Q15 / 064: Set changes aside.** Deliver the five epic children in order;
+- **Q18–Q22 / 064: Set changes aside.** Deliver the five epic children in order;
   discovery/create come first, then restore and
    removal after the conflict and recovery contracts they consume are stable.
 
@@ -156,7 +174,7 @@ restored safely.
 
 ### Gate 4 — Release candidate
 
-- **Q16 / 065-7: Credential and remote diagnostics.** Verify system credential
+- **Q23 / 065-7: Credential and remote diagnostics.** Verify system credential
     helper behavior for clone/fetch/publish, classify common provider-neutral
     failures, and give actionable remediation. Native provider login remains
     post-`1.0.0`.
@@ -164,12 +182,7 @@ restored safely.
     region, menu, popover, dialog, control family, and representative state
     against the settled radius and control-geometry system. Fix and guard all
     drift before the final platform matrix.
-- **Q17 / 065-9: Signed application updates.** Implement the updater and private
-    build/public release pipeline defined in
-    [ADR 0010](adr/0010-distribute-signed-app-updates-through-public-github-releases.md),
-    with safe installation/restart, stable/preview feeds, and real upgrade
-    evidence. Scope lives in [task 065-9](../work/active/release-1.0/065-9-signed-application-updates.md).
-- **Q18 / 065-8: Release hardening and distribution.** Run the complete workflow
+- **Q24 / 065-8: Release hardening and distribution.** Run the complete workflow
     matrix, accessibility and large-repository audits; validate real WebView
     behavior on all supported platforms; produce signed/notarized packages;
     qualify updates and reinstall recovery, versioning, release notes, and
@@ -194,8 +207,11 @@ artifact being shipped.
 existing recovery records + 037 recovery contract
           └──────────────> 065-5 recovery center ──> 065-6
 
-all functional gates ──> 065-7 diagnostics ──> 099 visual closure
-          ──> 065-9 signed updates ──> 065-8 release candidate
+current baseline ──> 065-9-1 → 2 → 3 → 4 → 5 → 6 → 7 signed updates
+                                                        │
+all functional gates ──> 065-7 diagnostics ───────────────┤
+099 visual closure (complete) ───────────────────────────┤
+                                                        └─> 065-8 release candidate
 ```
 
 Task 064 discovery and create slices may be developed before task 037, but its

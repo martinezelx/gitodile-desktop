@@ -3,7 +3,7 @@ id: 065-9
 title: Update GitOdile safely from signed public releases
 status: active
 priority: high
-type: feature
+type: epic
 areas:
   - release
   - frontend
@@ -14,7 +14,6 @@ areas:
 created: 2026-09-03
 completed:
 parent: "065"
-queue: "17"
 ---
 
 # Goal
@@ -42,7 +41,32 @@ release, signing key, or external repository change was created during planning.
 
 This extracts implementation from [065-8](065-8-release-hardening.md), which
 retains final release-readiness validation. The suffix is a permanent ID;
-queue order places this work before 065-8.
+its children now lead the implementation queue, ahead of the remaining product
+features. It does not absorb Git credential hardening in 065-7 or final full-product
+qualification in 065-8.
+
+# Ordered implementation
+
+On 2026-09-03 the user requested a dedicated updater epic with separate ordered
+tasks. The permanent ID and existing acceptance criteria are preserved. Children
+own executable work; this epic has no queue position.
+
+| Queue | Child | Acceptance coverage |
+| --- | --- | --- |
+| Q01 | [065-9-1 — Define updater contracts and supported installations](../app-updates/065-9-1-contracts-and-targets.md) | Versions, channels, target/install matrix and key prerequisites |
+| Q02 | [065-9-2 — Protect operations and drafts before app installation](../app-updates/065-9-2-install-admission-and-drafts.md) | Native admission, operations, helpers and draft preservation |
+| Q03 | [065-9-3 — Implement the native signed updater lifecycle](../app-updates/065-9-3-native-updater.md) | Checks, verified downloads, install handoff and startup truth |
+| Q04 | [065-9-4 — Integrate update controls and preferences](../app-updates/065-9-4-updater-interface.md) | Entry points, consent, preferences, privacy and accessibility |
+| Q05 | [065-9-5 — Build signed release artifacts in private CI](../app-updates/065-9-5-signed-builds.md) | Private CI, signing, provenance and source-tag gates |
+| Q06 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
+| Q07 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
+
+All criteria below remain the epic completion gate. Each child records its own
+evidence; 065-9-7 checks the combined coverage before this epic can be closed.
+The updater can ship in previews before conflict/stash features exist. Later
+operations and drafts must join its protection contract, and 065-8 revalidates
+the final product. Production feed promotion requires 065-9-7; validation builds
+and controlled feeds are used first so testing does not depend on publication.
 
 # Scope
 
@@ -192,6 +216,12 @@ draft inventory, actual matrix, public workflow/feed setup, and any justified
 departures from the ADR here as work progresses.
 
 # Validation
+
+Epic decomposition and queue reprioritization on 2026-09-03: `pnpm run check`
+passed over 172 Markdown files and 137 task IDs, with architecture checks,
+TypeScript, 655 frontend tests, production build, Rust formatting, Clippy and
+321 Rust tests. This validates the planning change; all implementation and
+real-update acceptance criteria remain open.
 
 Planning and preview-label validation on 2026-09-03: `pnpm run check` passed documentation and
 architecture checks, TypeScript, 655 frontend tests, the production build,
