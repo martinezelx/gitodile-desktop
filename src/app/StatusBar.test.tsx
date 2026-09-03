@@ -122,8 +122,8 @@ describe("StatusBar", () => {
     });
 
     expect(screen.getByText("No project open")).toBeInTheDocument();
-    const release = screen.getByRole("button", { name: "What's new in GitOdile v0.1.0 alpha" });
-    expect(release).toHaveTextContent("v0.1.0alpha");
+    const release = screen.getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__} preview` });
+    expect(release).toHaveTextContent(`v${__APP_VERSION__}preview`);
     await userEvent.click(release);
     expect(onOpenChangelog).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();

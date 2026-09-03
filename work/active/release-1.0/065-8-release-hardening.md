@@ -14,7 +14,7 @@ areas:
 created: 2026-08-18
 completed:
 parent: "065"
-queue: "17"
+queue: "18"
 ---
 
 # Goal
@@ -47,9 +47,11 @@ macOS/Linux runtime validation to this task.
 - Produce signed Windows installers, signed/notarized macOS packages, and
   documented Linux packages/distributions with reproducible CI provenance and
   artifact hashes.
-- Implement and verify an update strategy with signature verification, staged
-  failure behavior, rollback/reinstall instructions, and no silent repository
-  mutation during update.
+- Qualify the updater and publication pipeline delivered by
+  [task 065-9](065-9-signed-application-updates.md) against the final signed
+  artifacts: signature verification, failure behavior, reinstall instructions,
+  and no repository mutation during update. The accepted strategy is in
+  [ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md).
 - Complete versioning, release notes, privacy/security/support docs, install and
   uninstall behavior, crash/log locations, known limitations, and upgrade tests.
 - Run an independent final safety audit and the aggregate repository gate.
@@ -94,6 +96,7 @@ macOS/Linux runtime validation to this task.
 # Dependencies
 
 - Tasks 015, 037, 064, and 065-1 through 065-7 complete.
+- Task 065-9's signed updater and publication pipeline complete before freeze.
 - Access to representative Windows, macOS, and Linux QA/signing environments.
 
 # Decisions

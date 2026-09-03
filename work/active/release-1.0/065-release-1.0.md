@@ -34,7 +34,8 @@ is the authoritative release sequence and capability cut.
 
 # Scope
 
-- Deliver child tasks 065-1 through 065-8 in roadmap order.
+- Deliver child tasks 065-1 through 065-9 in roadmap order; updater task 065-9
+  precedes final release qualification in 065-8.
 - Complete existing tasks 015, 037, and 064 at their defined dependency points.
 - Close the settled visual system across the release-candidate surface in task
   099 before final platform and distribution hardening.
@@ -55,7 +56,7 @@ is the authoritative release sequence and capability cut.
 # Acceptance criteria
 
 - [ ] Gates 0–4 in `docs/ROADMAP.md` are complete in dependency order.
-- [ ] Tasks 015, 037, 064, 099, and 065-1 through 065-8 are done with their own
+- [ ] Tasks 015, 037, 064, 099, and 065-1 through 065-9 are done with their own
       validation recorded.
 - [ ] The release capability matrix has no unsupported path presented as
       working and no required path dependent on the terminal.

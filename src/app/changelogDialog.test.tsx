@@ -26,7 +26,7 @@ function TriggerAndDialog(): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <LanguageProvider>
-      <button type="button" onClick={() => setIsOpen(true)}>v0.1.0</button>
+      <button type="button" onClick={() => setIsOpen(true)}>v{__APP_VERSION__}</button>
       <ChangelogDialog isOpen={isOpen} setOpen={setIsOpen} />
     </LanguageProvider>
   );
@@ -54,7 +54,11 @@ describe("Changelog dialog", () => {
       const rendered = releases[index] as HTMLElement;
       expect(within(rendered).getByRole("heading", { name: `v${release.version}` })).toBeInTheDocument();
       expect(rendered).toHaveTextContent(release.channel);
-      expect(rendered.querySelector("time")).toHaveAttribute("dateTime", release.date);
+      if (release.date === null) {
+        expect(rendered.querySelector("time")).toBeNull();
+      } else {
+        expect(rendered.querySelector("time")).toHaveAttribute("dateTime", release.date);
+      }
       expect(rendered.querySelectorAll(".changelog-release__notes li")).toHaveLength(release.noteIds.length);
     }
   });
@@ -100,7 +104,7 @@ describe("Changelog dialog", () => {
 
   it("returns focus to whatever opened it", async () => {
     render(<TriggerAndDialog />);
-    const trigger = screen.getByRole("button", { name: "v0.1.0" });
+    const trigger = screen.getByRole("button", { name: `v${__APP_VERSION__}` });
 
     await userEvent.click(trigger);
     expect(await screen.findByRole("dialog", { name: "What's new" })).toBeInTheDocument();

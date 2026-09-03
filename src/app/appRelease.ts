@@ -9,14 +9,14 @@ export const APP_RELEASE_NOTE_IDS = [
 
 export type AppReleaseNoteId = (typeof APP_RELEASE_NOTE_IDS)[number];
 
-export type AppReleaseChannel = "alpha";
+export type AppReleaseChannel = "stable" | "preview";
 
 export type AppReleaseEntry = {
   version: string;
   channel: AppReleaseChannel;
-  /** ISO `YYYY-MM-DD`. Formatted for the reader's language at render time
-   * rather than stored pre-formatted, so one entry serves every locale. */
-  date: string;
+  /** Publication date as ISO `YYYY-MM-DD`, or null for an unpublished
+   * candidate. Formatted for the reader's language at render time. */
+  date: string | null;
   noteIds: readonly AppReleaseNoteId[];
 };
 
@@ -25,14 +25,14 @@ export type AppReleaseEntry = {
  * the same version/channel identity without making release notes themselves
  * network-dependent.
  *
- * One entry, on purpose. `AGENTS.md` forbids inventing a historical changelog,
- * so this list starts where the app started tracking releases and grows by
- * prepending a real shipped build. */
+ * The first entry describes the running build, including unpublished
+ * candidates. Retain historical entries only for actual shipped releases;
+ * `AGENTS.md` forbids inventing a historical changelog. */
 export const APP_CHANGELOG: readonly AppReleaseEntry[] = [
   {
     version: __APP_VERSION__,
-    channel: "alpha",
-    date: "2026-08-30",
+    channel: "preview",
+    date: null,
     // Listed one by one rather than reusing `APP_RELEASE_NOTE_IDS`, which is
     // the union of every id this app has ever shipped. Pointing an entry at it
     // works only while there is exactly one entry; the next release would

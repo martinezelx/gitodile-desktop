@@ -162,12 +162,15 @@ The main desktop window should broadly support:
      scroll boundary; fading it makes the surface appear not to end. They keep
      only a compact 8px gap above the status bar;
    - the release metadata is grouped at the far right: the version is shown as
-     `v0.1.0` with its compact lifecycle tag (`alpha`) beside it. Together they
-     form one quiet button that opens the Changelog — the version the reader
+     `v0.2.0-preview.1` with its compact release channel (`preview`) beside it. The two
+     channel names are `stable` and `preview`, kept the same in both locales.
+     Together they form one quiet button that opens the Changelog — the version the reader
      can already see is what a release note is *about*, so the tag leads to the
      notes and not to the product description. The changelog shares the About
-     dialog's shell and lists each release with its channel, date, notes, and a
-     marker for the build being run. Notes are bundled and open without a
+     dialog's shell and lists each release with its channel, publication date
+     when known, notes, and a
+     marker for the build being run. Unpublished candidates omit the date.
+     Notes are bundled and open without a
      network request; a future application updater may report through this
      surface but must keep its remote state separate from the local notes. The
      titlebar stays reserved for global actions and window controls; no product

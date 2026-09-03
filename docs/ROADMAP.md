@@ -97,7 +97,8 @@ references and therefore do not change when priorities move.
 | Q14 | 064-4 | Remove one saved set with recovery |
 | Q15 | 064-5 | Audit the set-aside workflow |
 | Q16 | 065-7 | Harden credential and remote diagnostics |
-| Q17 | 065-8 | Verify and distribute `1.0.0` |
+| Q17 | 065-9 | Deliver signed application updates and public release publishing |
+| Q18 | 065-8 | Verify and distribute `1.0.0` |
 
 ### Gate 0 — Prove the existing loop (completed 2026-08-21)
 
@@ -163,10 +164,16 @@ restored safely.
     region, menu, popover, dialog, control family, and representative state
     against the settled radius and control-geometry system. Fix and guard all
     drift before the final platform matrix.
-- **Q17 / 065-8: Release hardening and distribution.** Run the complete workflow
+- **Q17 / 065-9: Signed application updates.** Implement the updater and private
+    build/public release pipeline defined in
+    [ADR 0010](adr/0010-distribute-signed-app-updates-through-public-github-releases.md),
+    with safe installation/restart, stable/preview feeds, and real upgrade
+    evidence. Scope lives in [task 065-9](../work/active/release-1.0/065-9-signed-application-updates.md).
+- **Q18 / 065-8: Release hardening and distribution.** Run the complete workflow
     matrix, accessibility and large-repository audits; validate real WebView
     behavior on all supported platforms; produce signed/notarized packages;
-    establish updates, rollback, versioning, release notes, and support docs.
+    qualify updates and reinstall recovery, versioning, release notes, and
+    support docs.
 
 Exit condition: all `1.0.0` acceptance criteria pass, there are no known
 data-loss defects, and every advertised platform has evidence from the actual
@@ -188,7 +195,7 @@ existing recovery records + 037 recovery contract
           └──────────────> 065-5 recovery center ──> 065-6
 
 all functional gates ──> 065-7 diagnostics ──> 099 visual closure
-          ──> 065-8 release candidate
+          ──> 065-9 signed updates ──> 065-8 release candidate
 ```
 
 Task 064 discovery and create slices may be developed before task 037, but its

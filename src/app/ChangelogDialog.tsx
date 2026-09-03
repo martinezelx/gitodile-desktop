@@ -8,10 +8,13 @@ import { useModalFocus } from "../shared/ui";
 import { APP_CHANGELOG, CURRENT_APP_RELEASE, type AppReleaseEntry } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
- * same entry reads correctly in every supported language. An unparseable date
+ * same entry reads correctly in every supported language. A missing or unparseable date
  * yields no row rather than "Invalid Date" — a changelog is a factual
  * document and a broken one is worse than a quiet one. */
-function formatReleaseDate(date: string, formats: LocaleFormats): string | null {
+function formatReleaseDate(date: string | null, formats: LocaleFormats): string | null {
+  if (date === null) {
+    return null;
+  }
   const parsed = new Date(`${date}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) {
     return null;
@@ -81,7 +84,7 @@ export function ChangelogDialog({
                   {isCurrent(release) && (
                     <span className="changelog-release__current">{t.changelogCurrentRelease}</span>
                   )}
-                  {releaseDate && (
+                  {releaseDate && release.date && (
                     <span className="changelog-release__date">
                       <time dateTime={release.date}>{releaseDate}</time>
                     </span>

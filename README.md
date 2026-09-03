@@ -8,7 +8,8 @@ Linux. It is designed for learners, AI-assisted builders, designers, writers,
 and developers who want a calmer workflow without losing access to Git's
 technical truth.
 
-Current application version: **0.1.0**.
+Current development version: **0.2.0-preview.1**, **preview** channel.
+This candidate has not been tagged or published yet.
 
 Official repository: [martinezelx/project-gitodile](https://github.com/martinezelx/project-gitodile).
 
@@ -103,6 +104,13 @@ The completed History implementation and its validation are recorded in
 [`task 015`](work/done/015-history-timeline.md).
 
 ## Publication checks
+
+The planned updater uses two channels, `stable` and `preview`, both released
+from tagged commits on `main`. Short-lived version branches prepare releases;
+the version/tag selects the channel. See
+[ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
+The updater and publishing pipeline are not implemented yet.
 
 Before publishing a desktop build, run `pnpm run check:publication`. It runs
 the complete local gate plus `check:feedback`, which checks the live public
