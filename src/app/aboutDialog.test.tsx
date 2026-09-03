@@ -38,6 +38,7 @@ const closedOverlay = { isOpen: false, setOpen: vi.fn() };
 
 function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["diagnostics"]): AppOverlaysProps {
   return {
+    issueReport: { failedUrl: null, isOpening: false, copyState: "idle", dismiss: vi.fn(), copyLink: vi.fn(), report: vi.fn(), retry: vi.fn() },
     settings: {
       ...closedOverlay,
       theme: "system",

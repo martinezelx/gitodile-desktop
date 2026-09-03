@@ -162,6 +162,17 @@ is never mistaken for a full preload — and never triggers a request per change
 file either. Whatever the warm skipped loads on demand through `read_file_diff`
 when the user opens it.
 
+### Issue reporting
+
+Issue reporting is an app-shell service: `issueReport.ts` builds a URL from
+available local diagnostics and `issueReportContract.json`; `useIssueReport.ts`
+owns launch/copy attempts through `issueReportAdapter.ts`. The titlebar receives
+an action, and an eager error overlay provides retry, copy and manual selection.
+Dismissed attempts cannot restore stale errors or clipboard state. Opening the
+form is an explicit external action and sends no repository content. The live
+tracker/form contract is checked separately from the offline gate by
+`pnpm run check:feedback`, including private vulnerability reporting enablement.
+
 ### Styles and translations
 
 `src/styles.css` is the eager cascade manifest: tokens, base, theme transition,
@@ -528,7 +539,8 @@ assets, and browser preferences use **GitOdile** / `gitodile`:
 - browser preferences use `gitodile-*`, without a brand-compatibility reader;
 - recovery schema v1 uses `refs/gitodile/recovery/...` and
   `<git-dir>/gitodile/...`;
-- repository links target `https://github.com/martinezelx/project-gitodile`.
+- source links target `https://github.com/martinezelx/project-gitodile`; user
+  feedback targets the public `https://github.com/martinezelx/gitodile-feedback`.
 
 The owner explicitly authorized a breaking pre-release identity reset, recorded
 in [ADR 0009](adr/0009-use-only-the-canonical-product-identity.md). Previous-brand

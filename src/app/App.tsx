@@ -67,6 +67,7 @@ import {
   settingsPort,
   settingsSectionLabel,
   DEFAULT_BRANCH_FALLBACK,
+  readGitVersion,
   useDefaultBranch,
   useGitIdentity,
   useGitTooling,
@@ -91,6 +92,7 @@ import { createHistoryController, historyPort } from "../features/history";
 import { TooltipHost } from "../shared/ui/tooltip";
 import { LoadingBar } from "../shared/ui/loadingBar";
 import { AppOverlays } from "./AppOverlays";
+import { useIssueReport } from "./useIssueReport";
 import { CROCODILE_MARK } from "./branding";
 import { CommandPalette, type AppCommand } from "./CommandPalette";
 import {
@@ -496,6 +498,7 @@ export function App(): React.JSX.Element {
   const [skippedRestoreCount, setSkippedRestoreCount] = useState(0);
   const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const gitTooling = useGitTooling(settingsPort);
+  const issueReport = useIssueReport(readGitVersion(gitTooling.diagnostics));
   /* Read once after first paint and kept, like the Git diagnostics above.
      Owned here rather than inside the panel because the shell unmounts the
      panel on every close, which used to throw both answers away and pay for
@@ -1303,12 +1306,14 @@ export function App(): React.JSX.Element {
     isShortcutsOpen ||
     isCloseConfirmOpen ||
     isOpenErrorDialogOpen ||
+    issueReport.failedUrl !== null ||
     isPaletteOpen;
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent): void => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (hasOpenDialog) return;
         openPalette();
         return;
       }
@@ -1654,6 +1659,8 @@ export function App(): React.JSX.Element {
             hasProject={project !== null}
             isOpeningProject={isOpening}
             canReloadWindow={!hasUnsettledOperation(sessionsState)}
+            onReportIssue={() => void issueReport.report()}
+            isReportingIssue={issueReport.isOpening}
           />
           {/* Sits with the menu rather than in the rail it collapses: a
               control that hides its own container would vanish with it, and
@@ -2489,6 +2496,7 @@ export function App(): React.JSX.Element {
       )}
 
       <AppOverlays
+        issueReport={issueReport}
         projectSettings={{
           isOpen: isProjectSettingsOpen,
           setOpen: setIsProjectSettingsOpen,

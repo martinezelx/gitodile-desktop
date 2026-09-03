@@ -10,7 +10,15 @@ export interface AppTranslations {
   titlebarReloadWindow: string;
   titlebarReloadBlocked: string;
   titlebarReportIssue: string;
-  titlebarReportIssueTitle: string;
+  issueReportHint: string;
+  issueReportFailedTitle: string;
+  issueReportFailedMessage: string;
+  issueReportLink: string;
+  issueReportCopyLink: string;
+  issueReportCopied: string;
+  issueReportCopyFailed: string;
+  issueReportOpening: string;
+  issueReportRetry: string;
   titlebarKeyboardShortcuts: string;
   shortcutsDialogTitle: string;
   shortcutsOpenPalette: string;
@@ -172,7 +180,15 @@ const en: AppTranslations = {
   titlebarReloadWindow: "Reload window",
   titlebarReloadBlocked: "Finish the current project operation before reloading.",
   titlebarReportIssue: "Report an issue",
-  titlebarReportIssueTitle: "Report an issue — Coming soon",
+  issueReportHint: "Opens GitHub in your browser with the available system versions. A GitHub account is required; reports are public.",
+  issueReportFailedTitle: "Couldn't open the issue report",
+  issueReportFailedMessage: "Try again or copy the link into your browser. GitHub requires sign-in, and you can review the public report before submitting it.",
+  issueReportLink: "Report link",
+  issueReportCopyLink: "Copy link",
+  issueReportCopied: "Link copied.",
+  issueReportCopyFailed: "Couldn't copy the link. Select the address above and copy it manually.",
+  issueReportOpening: "Opening…",
+  issueReportRetry: "Try again",
   titlebarKeyboardShortcuts: "Keyboard shortcuts",
   shortcutsDialogTitle: "Keyboard shortcuts",
   shortcutsOpenPalette: "Open command palette",
@@ -341,7 +357,15 @@ const es: AppTranslations = {
   titlebarReloadWindow: "Recargar ventana",
   titlebarReloadBlocked: "Termina la operación actual del proyecto antes de recargar.",
   titlebarReportIssue: "Reportar un problema",
-  titlebarReportIssueTitle: "Reportar un problema — Próximamente",
+  issueReportHint: "Abre GitHub en el navegador con las versiones del sistema disponibles. Requiere una cuenta de GitHub; los informes son públicos.",
+  issueReportFailedTitle: "No se pudo abrir el informe",
+  issueReportFailedMessage: "Reinténtalo o copia el enlace en tu navegador. GitHub requiere iniciar sesión y podrás revisar el informe público antes de enviarlo.",
+  issueReportLink: "Enlace del informe",
+  issueReportCopyLink: "Copiar enlace",
+  issueReportCopied: "Enlace copiado.",
+  issueReportCopyFailed: "No se pudo copiar el enlace. Selecciona la dirección de arriba y cópiala manualmente.",
+  issueReportOpening: "Abriendo…",
+  issueReportRetry: "Reintentar",
   titlebarKeyboardShortcuts: "Atajos de teclado",
   shortcutsDialogTitle: "Atajos de teclado",
   shortcutsOpenPalette: "Abrir la paleta de comandos",

@@ -6,6 +6,7 @@ import type { DiffPreferences } from "../features/changes";
 import {
   SettingsPanel,
   isGitInstallationBroken,
+  readGitVersion,
   type DefaultBranchState,
   type GitIdentityState,
   type GitToolingState,
@@ -26,6 +27,8 @@ import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
+import { IssueReportErrorDialog } from "./IssueReportErrorDialog";
+import type { IssueReportState } from "./useIssueReport";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
 import { describeStack } from "./stack";
 import { OperatingSystemMark, StackMark } from "./vendorMarks";
@@ -33,6 +36,7 @@ import { OperatingSystemMark, StackMark } from "./vendorMarks";
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
 
 export type AppOverlaysProps = {
+  issueReport: IssueReportState;
   settings: {
     isOpen: boolean;
     setOpen: BooleanSetter;
@@ -104,6 +108,7 @@ export type AppOverlaysProps = {
 };
 
 export function AppOverlays({
+  issueReport,
   settings,
   projectSettings,
   about,
@@ -170,8 +175,7 @@ export function AppOverlays({
 
   // Read off the settings props because that is where Git tooling already
   // lives; About reports it, it does not own it.
-  const gitVersion =
-    settings.gitTooling.diagnostics?.state === "available" ? settings.gitTooling.diagnostics.version : null;
+  const gitVersion = readGitVersion(settings.gitTooling.diagnostics);
   // Both are constants for the life of the window, so they are read inline
   // rather than held in state: a regex over the user agent and a lookup over
   // four build-time strings cost less than the hook that would cache them.
@@ -209,6 +213,7 @@ export function AppOverlays({
 
   return (
     <>
+      <IssueReportErrorDialog report={issueReport} />
       {settings.isOpen && (
         <div className="settings-backdrop" role="presentation" onMouseDown={() => requestSettingsClose(false)}>
           <div

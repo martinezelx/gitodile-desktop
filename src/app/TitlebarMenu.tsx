@@ -1,9 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Bug, CloudDownload, Ellipsis, FolderInput, FolderOpen, FolderX, Info, Keyboard, RotateCw, Settings, Sparkles } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLanguage } from "../i18n";
-
-const ISSUES_URL = "https://github.com/martinezelx/project-gitodile/issues/new";
 
 export function TitlebarMenu({
   onOpenAbout,
@@ -17,6 +14,8 @@ export function TitlebarMenu({
   hasProject,
   isOpeningProject,
   canReloadWindow,
+  onReportIssue,
+  isReportingIssue,
 }: {
   onOpenAbout: () => void;
   onOpenChangelog: () => void;
@@ -29,6 +28,8 @@ export function TitlebarMenu({
   hasProject: boolean;
   isOpeningProject: boolean;
   canReloadWindow: boolean;
+  onReportIssue: () => void;
+  isReportingIssue: boolean;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -166,19 +167,13 @@ export function TitlebarMenu({
             <Keyboard aria-hidden="true" />
             <span>{t.titlebarKeyboardShortcuts}</span>
           </button>
-          <button
-            className="titlebar-menu__item"
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            disabled
-            aria-label={t.titlebarReportIssueTitle}
-            data-tooltip={t.titlebarReportIssueTitle}
-            onClick={() => runMenuAction(() => void openUrl(ISSUES_URL))}
-          >
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1}
+            aria-disabled={isReportingIssue} aria-describedby="issue-report-hint"
+            onClick={() => { if (!isReportingIssue) runMenuAction(onReportIssue); }}>
             <Bug aria-hidden="true" />
             <span>{t.titlebarReportIssue}</span>
           </button>
+          <span id="issue-report-hint" className="visually-hidden">{t.issueReportHint}</span>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenChangelog)}>
             <Sparkles aria-hidden="true" />
             <span>{t.changelogTitle}</span>

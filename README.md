@@ -12,6 +12,14 @@ Current application version: **0.1.0**.
 
 Official repository: [martinezelx/project-gitodile](https://github.com/martinezelx/project-gitodile).
 
+Public feedback: [martinezelx/gitodile-feedback](https://github.com/martinezelx/gitodile-feedback).
+Use **More actions → Report an issue** to open an English or Spanish bug form
+with the available app, system, WebView and Git versions. Reporting requires a
+GitHub account. You review the public report before submitting it. Project
+paths, code and remote URLs are not included. Browser launch failures offer
+retry, copy link and a selectable address. Security reports use the tracker's
+private vulnerability reporting channel.
+
 The pre-release naming reset uses a new desktop identity and recovery namespace.
 Previous-brand preferences and recovery records are not migrated or discovered;
 existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canonical-product-identity.md).
@@ -93,6 +101,17 @@ The dependency-ordered `1.0.0` plan is in the
 evidence in [`task 065-3`](work/done/065-3-create-local-project.md).
 The completed History implementation and its validation are recorded in
 [`task 015`](work/done/015-history-timeline.md).
+
+## Publication checks
+
+Before publishing a desktop build, run `pnpm run check:publication`. It runs
+the complete local gate plus `check:feedback`, which checks the live public
+repository settings and both languages' forms against
+`src/app/issueReportContract.json`. CI runs that public contract check separately;
+ordinary `pnpm run check` does not depend on GitHub availability. For prepared
+tracker changes, use `pnpm run check:feedback --local <feedback-checkout>` to
+validate form files before publishing them. Preserve form filenames and field
+IDs used by already released app versions.
 
 ## Architecture at a glance
 
@@ -204,7 +223,7 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 618 frontend tests, the production build, Rust formatting,
+rules, TypeScript, 655 frontend tests, the production build, Rust formatting,
 Clippy with warnings denied, and 321 Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.

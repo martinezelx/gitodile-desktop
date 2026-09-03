@@ -134,6 +134,13 @@ export type GitDiagnostics = {
   version: string | null;
 };
 
+/** The version worth reporting, or `null` when Git never answered. A version
+ * field is carried in every state, but only `available` means the executable
+ * actually ran; the rest leave a stale or absent value behind. */
+export function readGitVersion(diagnostics: GitDiagnostics | null): string | null {
+  return diagnostics?.state === "available" ? diagnostics.version : null;
+}
+
 export type GitInstallationResult = {
   outcome: "started" | "guidance" | "already_starting" | "failed";
   platform: "windows" | "macos" | "linux" | "unsupported";

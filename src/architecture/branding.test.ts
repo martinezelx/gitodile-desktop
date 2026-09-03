@@ -1,8 +1,10 @@
 /// <reference types="node" />
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { buildIssueReportUrl, FEEDBACK_REPOSITORY_URL } from "../app/issueReport";
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8");
@@ -28,10 +30,87 @@ describe("product identity", () => {
     expect(readSource("index.html")).toContain("<title>GitOdile</title>");
   });
 
-  it("targets the renamed official repository for issue reporting", () => {
-    const menu = readSource("src/app/TitlebarMenu.tsx");
-    expect(menu).toContain(
-      'const ISSUES_URL = "https://github.com/martinezelx/project-gitodile/issues/new";',
+  it("points issue reporting at the public tracker, never the private source repository", () => {
+    expect(FEEDBACK_REPOSITORY_URL).toBe("https://github.com/martinezelx/gitodile-feedback");
+    // The private repository 404s for every user this button exists for, so a
+    // link back to it is a regression however it gets reintroduced.
+    expect(readSource("src/app/issueReport.ts")).not.toContain("project-gitodile");
+    expect(readSource("src/app/TitlebarMenu.tsx")).not.toContain("github.com");
+  });
+});
+
+/** The permission and the URL live in two files that nothing else connects:
+ * `opener:allow-open-url` enables the command but ships no scope, so an
+ * unlisted destination is refused at the Rust boundary. */
+describe("desktop link permissions", () => {
+  type Capability = {
+    permissions: Array<string | { identifier: string; allow?: Array<{ url?: string }> }>;
+  };
+
+  /** `glob::Pattern` with default options, which is what the opener plugin
+   * uses: a trailing `*` matches the rest of the string, separators included.
+   * Only that one shape is modelled, because only that one shape is used. */
+  function scopeAllows(patterns: string[], url: string): boolean {
+    return patterns.some((pattern) =>
+      pattern.endsWith("*") ? url.startsWith(pattern.slice(0, -1)) : pattern === url,
     );
+  }
+
+  function openerScope(): string[] {
+    const capability = JSON.parse(readSource("src-tauri/capabilities/default.json")) as Capability;
+    const entry = capability.permissions.find(
+      (permission) => typeof permission === "object" && permission.identifier === "opener:allow-open-url",
+    );
+    if (typeof entry !== "object") {
+      throw new Error("opener:allow-open-url is listed without a scope, so every URL is refused");
+    }
+    return (entry.allow ?? []).flatMap((allowed) => (allowed.url === undefined ? [] : [allowed.url]));
+  }
+
+  it("lets the app open the issue report it builds", () => {
+    const url = buildIssueReportUrl({
+      appVersion: "0.1.0",
+      system: { platform: "windows", version: "10.0.26200", arch: "x86_64" },
+      webview: "Chromium 130.0.0.0",
+      gitVersion: "2.45.0",
+    });
+
+    expect(scopeAllows(openerScope(), url)).toBe(true);
+  });
+
+  it("lets the app open the Git download pages Rust hands it", () => {
+    const tooling = readSource("src-tauri/src/tooling.rs");
+    const urls = [...tooling.matchAll(/const GIT_\w+_DOWNLOAD_URL: &str = "([^"]+)";/g)].map(
+      (match) => match[1],
+    );
+
+    expect(urls.length).toBeGreaterThan(0);
+    for (const url of urls) {
+      expect(scopeAllows(openerScope(), url), url).toBe(true);
+    }
+  });
+
+  it("keeps the scope off the open web", () => {
+    // Every capability can contribute scopes. Reject extra permissions such
+    // as opener:default/allow-default-urls as well as extra allowed hosts.
+    const files = readdirSync(resolve(process.cwd(), "src-tauri/capabilities"));
+    expect(files).toEqual(["default.json"]);
+    const capability = JSON.parse(readSource("src-tauri/capabilities/default.json")) as Capability;
+    const openerPermissions = capability.permissions.filter((permission) =>
+      (typeof permission === "string" ? permission : permission.identifier).startsWith("opener:"),
+    );
+    expect(openerPermissions).toEqual([{
+      identifier: "opener:allow-open-url",
+      allow: [
+        { url: "https://github.com/martinezelx/gitodile-feedback/*" },
+        { url: "https://git-scm.com/download/*" },
+      ],
+    }]);
+    for (const url of [
+      "https://example.com/", "http://github.com/martinezelx/gitodile-feedback/issues/new",
+      "https://github.com/other/tracker/issues/new", "file:///C:/private.txt", "mailto:user@example.com",
+    ]) {
+      expect(scopeAllows(openerScope(), url)).toBe(false);
+    }
   });
 });

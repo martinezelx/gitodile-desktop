@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { LanguageProvider } from "../i18n";
 import { App } from "./App";
 import { TitlebarMenu } from "./TitlebarMenu";
@@ -252,6 +253,8 @@ describe("TitlebarMenu", () => {
       hasProject: true,
       isOpeningProject: false,
       canReloadWindow: true,
+      onReportIssue: vi.fn(),
+      isReportingIssue: false,
       ...overrides,
     };
     render(
@@ -375,6 +378,41 @@ describe("ProjectPath", () => {
 });
 
 describe("App project restoration", () => {
+  it("keeps the issue error as the only focus trap when a palette shortcut is pressed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(openUrl).mockRejectedValue(new Error("browser unavailable"));
+    mockedInvoke.mockResolvedValue(undefined);
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Report an issue" }));
+    expect(await screen.findByRole("alertdialog")).toHaveAccessibleName("Couldn't open the issue report");
+    await user.keyboard("{Control>}k{/Control}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("opens a Spanish report with the Git diagnostics supplied by the composition root", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("gitodile-language", "es");
+    vi.mocked(openUrl).mockResolvedValue(undefined);
+    mockedInvoke.mockImplementation((command) => command === "git_diagnostics"
+      ? Promise.resolve({ state: "available", version: "2.50.0" })
+      : Promise.reject(new Error("No project open")));
+
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await user.click(screen.getByRole("button", { name: "Más acciones" }));
+    await user.click(screen.getByRole("menuitem", { name: "Reportar un problema" }));
+
+    expect(openUrl).toHaveBeenCalledOnce();
+    const url = new URL(vi.mocked(openUrl).mock.calls[0][0]);
+    expect(url.pathname).toBe("/martinezelx/gitodile-feedback/issues/new");
+    expect(url.searchParams.get("template")).toBe("bug-es.yml");
+    expect(url.searchParams.get("diagnostics")).toContain("Git: 2.50.0");
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("wires the status bar to the active project and its remote check", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
