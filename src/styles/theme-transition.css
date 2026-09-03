@@ -1,40 +1,18 @@
 /* Theme changes animated by src/app/themeTransition.ts, which tags the root with
-   `data-theme-transition` for the length of the animation. Two modes: `reveal`
-   (titlebar toggle, swept in from the button) and `fade` (Settings and the
-   command palette, which have no origin point to sweep from).
+   `data-theme-transition` for the length of the animation.
 
    Nineteen-odd rules across the app transition their own background and colour
    over `--duration-fast`. Those would otherwise re-run *inside* the incoming
-   layer, so the first 120ms of a change would expose half-migrated colours on
-   exactly the controls nearest the origin. The transition owns the change;
-   nothing else animates underneath it. Measured at 0.1ms median for the recalc
-   this forces, against a 16.7ms frame — and the one on the way out lands after
-   the animation, on an idle frame.
+   layer, so the first 120ms of a change would expose half-migrated colours.
+   The transition owns the change; nothing else animates underneath it.
+   Measured at 0.1ms median for the recalc this forces, against a 16.7ms frame —
+   and the one on the way out lands after the animation, on an idle frame.
 
    `!important` because this sheet loads before the feature ones and would
    otherwise lose every specificity tie to them. */
 :root[data-theme-transition] *,
 :root[data-theme-transition] *::before,
 :root[data-theme-transition] *::after { transition: none !important; }
-
-/* The incoming theme is clipped in over a still snapshot of the old one, so the
-   default cross-fade (and its `plus-lighter` blending, which would flash) has to
-   be turned off on both halves of the pair. */
-:root[data-theme-transition="reveal"]::view-transition-old(root),
-:root[data-theme-transition="reveal"]::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-:root[data-theme-transition="reveal"]::view-transition-old(root) { z-index: 0; }
-:root[data-theme-transition="reveal"]::view-transition-new(root) {
-  z-index: 1;
-  animation: theme-reveal var(--duration-theme-reveal) cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes theme-reveal {
-  from { clip-path: circle(0 at var(--theme-reveal-x) var(--theme-reveal-y)); }
-  to { clip-path: circle(var(--theme-reveal-radius) at var(--theme-reveal-x) var(--theme-reveal-y)); }
-}
 
 /* The browser's own root cross-fade, only retimed to the house duration. Its
    job is to make the entire surface change together, which is what the bare
@@ -45,22 +23,26 @@
   animation-duration: var(--duration-normal);
 }
 
-/* The sun/moon glyph rides its own layer, turning over rather than being wiped:
-   the reveal says where the change came from, the icon says what it changed to.
-   Finishes before the sweep does. Only a `reveal` grants the name (see
-   `.titlebar-theme-icon`), so these never fire during a fade — where the icon
-   often does not change at all and would spin for nothing. */
+/* A window-wide cross-fade dissolves the glyph along with everything behind it,
+   which at 16px reads as the icon simply being replaced. Its own layer lets it
+   turn over instead: the fade says the theme changed, the glyph says what it
+   changed to.
+
+   Deliberately slight — a quarter turn and a small dip in scale, not a spin.
+   The gesture is a hinge, and it shares `--duration-normal` with the fade so
+   the two land together rather than one outliving the other and stretching the
+   transition to its own length. */
 ::view-transition-old(theme-toggle-icon),
 ::view-transition-new(theme-toggle-icon) {
-  animation-duration: calc(var(--duration-theme-reveal) * 0.7);
+  animation-duration: var(--duration-normal);
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 ::view-transition-old(theme-toggle-icon) { animation-name: theme-icon-exit; }
 ::view-transition-new(theme-toggle-icon) { animation-name: theme-icon-enter; }
 
 @keyframes theme-icon-exit {
-  to { opacity: 0; transform: rotate(-90deg) scale(0.4); }
+  to { opacity: 0; transform: rotate(-40deg) scale(0.75); }
 }
 @keyframes theme-icon-enter {
-  from { opacity: 0; transform: rotate(90deg) scale(0.4); }
+  from { opacity: 0; transform: rotate(40deg) scale(0.75); }
 }

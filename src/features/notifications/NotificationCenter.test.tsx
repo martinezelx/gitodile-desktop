@@ -216,4 +216,105 @@ describe("the titlebar notification centre", () => {
     expect(rows[0]?.textContent).toContain("3 newer project versions are available");
     expect(rows[1]?.textContent).toContain("Published 1 saved version");
   });
+
+  /** The movement itself is CSS. These assert when the bell is asked to move
+   * and when it must not, which is the part with decisions in it. */
+  function bellClass(): string {
+    return (
+      screen.getByRole("button", { name: /notification/i }).querySelector("svg")!.getAttribute("class") ?? ""
+    );
+  }
+
+  it("rings when the unread count rises", () => {
+    const { rerender } = renderCentre({ unreadCount: 0 });
+    expect(bellClass()).not.toContain("ring");
+
+    rerender(
+      <LanguageProvider>
+        <NotificationCenter
+          notifications={[]}
+          unreadCount={1}
+          isEnabled
+          onOpened={vi.fn()}
+          onClear={vi.fn()}
+          onReviewTeamChanges={vi.fn()}
+          onOpenSettings={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(bellClass()).toContain("notification-center__bell--ring");
+  });
+
+  it("does not ring when the unread count only falls", () => {
+    const { rerender } = renderCentre({ unreadCount: 3 });
+
+    rerender(
+      <LanguageProvider>
+        <NotificationCenter
+          notifications={[]}
+          unreadCount={0}
+          isEnabled
+          onOpened={vi.fn()}
+          onClear={vi.fn()}
+          onReviewTeamChanges={vi.fn()}
+          onOpenSettings={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    // Reading the pile is not news. Only a rise is.
+    expect(bellClass()).not.toContain("ring");
+  });
+
+  it("stays still when pressed, like every other control in its row", async () => {
+    const user = userEvent.setup();
+    renderCentre({ unreadCount: 0 });
+
+    await user.click(screen.getByRole("button", { name: /notification/i }));
+
+    // A press gesture was built and removed on purpose: the bell borrows
+    // `.titlebar-icon-button` so that it reads as one of the row, and it was
+    // the only control there answering a press. This keeps it that way.
+    expect(bellClass()).not.toContain("notification-center__bell--");
+  });
+
+  /* The ring's class is cleared by `animationend`, and that cannot be asserted
+   * here: jsdom never delivers the event to a React handler, even dispatched
+   * natively and bubbling — verified with a scratch probe before this comment
+   * was written. A test would assert a listener that never fires and pass for
+   * the wrong reason, which is the failure mode task 101 was about. The
+   * clearing is verified in a running browser instead, and recorded in the
+   * task. What is testable here is the reason the clearing can be trusted to
+   * happen: the ring is only ever started when an animation will actually
+   * run. */
+  it("does not ring at all under reduced motion", () => {
+    // Defined rather than spied: jsdom has no `matchMedia` to spy on.
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({ matches: query.includes("prefers-reduced-motion"), media: query }),
+    });
+    const { rerender } = renderCentre({ unreadCount: 0 });
+
+    rerender(
+      <LanguageProvider>
+        <NotificationCenter
+          notifications={[]}
+          unreadCount={1}
+          isEnabled
+          onOpened={vi.fn()}
+          onClear={vi.fn()}
+          onReviewTeamChanges={vi.fn()}
+          onOpenSettings={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    // Suppressing the animation in CSS instead would leave the class with
+    // nothing to clear it, stuck for the rest of the session.
+    expect(bellClass()).not.toContain("notification-center__bell--");
+
+    Reflect.deleteProperty(window, "matchMedia");
+  });
 });

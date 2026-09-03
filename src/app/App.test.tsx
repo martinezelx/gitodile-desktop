@@ -1062,7 +1062,7 @@ describe("App project restoration", () => {
     expect(localStorage.getItem("gitodile-watch-projects")).toBe("true");
   });
 
-  it("animates a theme change by where it was asked for", async () => {
+  it("animates every theme change the same way", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") {
         return Promise.resolve({ state: "available", version: "2.50.0" });
@@ -1093,19 +1093,20 @@ describe("App project restoration", () => {
       </LanguageProvider>,
     );
 
-    // The titlebar toggle has one origin to sweep from; Settings does not.
+    // Titlebar toggle and Settings reach the same animation: the toggle's own
+    // origin-anchored sweep was withdrawn, and "system" never had an origin.
     await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
     await user.click(screen.getAllByRole("button", { name: "Settings" })[0]);
     const dialog = screen.getByRole("dialog", { name: "Settings" });
     await user.click(within(dialog).getByRole("tab", { name: "Interface" }));
     await user.click(within(dialog).getByRole("radio", { name: "Light" }));
 
-    expect(modes).toEqual(["reveal", "fade"]);
+    expect(modes).toEqual(["fade", "fade"]);
 
     // Re-picking the option already in effect must not snapshot the window to
     // cross-fade it into an identical frame.
     await user.click(within(dialog).getByRole("radio", { name: "Light" }));
-    expect(modes).toEqual(["reveal", "fade"]);
+    expect(modes).toEqual(["fade", "fade"]);
 
     Reflect.deleteProperty(document, "startViewTransition");
     delete document.documentElement.dataset.themeTransition;

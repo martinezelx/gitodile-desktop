@@ -27,11 +27,6 @@
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
-  /* Deliberately above the 120-220ms house range: this one drives a reveal
-     that crosses the whole window diagonal, so the usual range reads as a
-     flash rather than a sweep. Single knob for the effect — the toggle icon
-     derives its own timing from it. */
-  --duration-theme-reveal: 420ms;
 
   /* Light theme values (default). Dark values are applied via the
      prefers-color-scheme query below, and either can be pinned with

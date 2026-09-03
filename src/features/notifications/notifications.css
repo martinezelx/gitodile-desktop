@@ -167,3 +167,45 @@
   .notification-center__badge { border-color: CanvasText; background: Highlight; color: HighlightText; }
   .notification--unread { border: 1px solid CanvasText; box-shadow: none; }
 }
+
+/* The bell moves for one reason: something arrived while nobody was looking,
+   which is the only thing this centre exists to report. It is otherwise as
+   still as the buttons beside it, because DESIGN.md § Motion asks motion to
+   communicate a state change rather than decorate, and a bell that stirred on
+   hover would be decorating.
+
+   A press moves nothing either, and NotificationCenter.tsx records why.
+
+   Two swings, damped, then still, pivoting at the crown because a bell swings
+   from where it hangs. Longer than the 120-220ms house range on purpose: that
+   range is for a control answering an interaction, and this one is unprompted —
+   at 200ms an unprompted movement in the corner of the eye registers as a
+   glitch rather than as a bell. */
+.notification-center__bell--ring {
+  transform-origin: 50% 15%;
+  animation: notification-bell-ring 520ms ease-out;
+}
+
+@keyframes notification-bell-ring {
+  0% { transform: rotate(0deg); }
+  15% { transform: rotate(8deg); }
+  35% { transform: rotate(-7deg); }
+  55% { transform: rotate(4deg); }
+  75% { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
+/* The count arriving is itself the news, so it enters rather than appearing.
+   Kept to a scale so it reads as the same badge growing into place, not as a
+   second thing flying in beside the bell. */
+.notification-center__badge { animation: notification-badge-in var(--duration-fast) ease-out; }
+
+@keyframes notification-badge-in {
+  from { opacity: 0; transform: scale(0.4); }
+}
+
+/* Only the badge. The ring is refused in the component instead, because the
+   class that carries it is cleared by `animationend` and a suppressed
+   animation never fires one. */
+@media (prefers-reduced-motion: reduce) {
+  .notification-center__badge { animation: none; }
+}

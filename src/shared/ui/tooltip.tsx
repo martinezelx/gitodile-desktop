@@ -20,6 +20,13 @@ interface TooltipPlacement {
   above: boolean;
   left: number;
   top: number;
+  /** The state this placement belongs to. A tooltip moving from one control to
+   * another renders once before its layout effect re-measures, and a placement
+   * left over from the previous control would put that render at the wrong
+   * coordinates on the wrong side — which also restarts the entry animation
+   * when the side turns out to differ. Matching on identity makes a stale
+   * placement indistinguishable from no placement, which is the safe state. */
+  measuredFor: TooltipState;
 }
 
 /** A tooltip that only repeats text the element already shows in full is
@@ -34,6 +41,26 @@ function isRedundant(target: HTMLElement, text: string): boolean {
   return !isClipped;
 }
 
+/** Whether focus landed on `target` in a way that is asking for its label.
+ *
+ * `focusin` fires for a mouse click as readily as for Tab, so wiring it
+ * straight to the show path means every click on a control re-arms the tooltip
+ * that `pointerdown` had just dismissed: it returns 150ms later, under a
+ * pointer already resting on the thing it describes. Fifty-odd controls carry
+ * `data-tooltip`, so that was every one of them.
+ *
+ * `:focus-visible` is exactly this distinction and the browser already owns
+ * it: Chromium does not match it for a pointer click, and does for Tab. jsdom's
+ * selector engine may not know the pseudo-class, so a throw falls back to
+ * showing the tooltip rather than silently suppressing it everywhere. */
+function isKeyboardFocus(target: HTMLElement): boolean {
+  try {
+    return target.matches(":focus-visible");
+  } catch {
+    return true;
+  }
+}
+
 export function TooltipHost(): React.JSX.Element | null {
   const [state, setState] = useState<TooltipState | null>(null);
   const [placement, setPlacement] = useState<TooltipPlacement | null>(null);
@@ -42,6 +69,10 @@ export function TooltipHost(): React.JSX.Element | null {
   useEffect(() => {
     let showTimer: number | undefined;
     let activeTarget: HTMLElement | null = null;
+    // The control a tooltip is counting down for. Separate from `activeTarget`,
+    // which is the one already showing: both have to be recognised as "this
+    // hover is already accounted for".
+    let pendingTarget: HTMLElement | null = null;
 
     const clearShowTimer = () => {
       if (showTimer !== undefined) {
@@ -53,26 +84,48 @@ export function TooltipHost(): React.JSX.Element | null {
     const clearTooltip = () => {
       clearShowTimer();
       activeTarget = null;
+      pendingTarget = null;
       setState(null);
     };
 
     const onOver = (event: Event) => {
       const target = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-tooltip]");
       if (!target) return;
+      // `mouseover` bubbles, so it fires again every time the pointer crosses
+      // from one descendant of a control to another — the glyph inside a
+      // button, one `<path>` inside that glyph. That is the same hover, not a
+      // new one, and restarting the countdown for it is what made a tooltip
+      // blink under a pointer that had barely moved.
+      if (target === activeTarget || target === pendingTarget) return;
       const text = target.getAttribute("data-tooltip");
       if (!text) return;
       if (isRedundant(target, text)) return;
       clearShowTimer();
+      pendingTarget = target;
       showTimer = window.setTimeout(() => {
+        pendingTarget = null;
         if (!target.isConnected) return;
         activeTarget = target;
         setState({ text, rect: target.getBoundingClientRect() });
       }, SHOW_DELAY_MS);
     };
 
+    const onFocusIn = (event: Event) => {
+      const target = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-tooltip]");
+      if (!target || !isKeyboardFocus(target)) return;
+      onOver(event);
+    };
+
     const onOut = (event: Event) => {
       const target = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-tooltip]");
       if (!target) return;
+      // The other half of the same problem: `mouseout` bubbles too, so it also
+      // reports the pointer leaving a child for its sibling. Only a departure
+      // from the control itself ends the tooltip. `relatedTarget` is where the
+      // pointer went — or, for `focusout`, where focus went — and it is null
+      // when it left the window entirely, which does end it.
+      const next = (event as MouseEvent | FocusEvent).relatedTarget;
+      if (next instanceof Node && target.contains(next)) return;
       clearTooltip();
     };
 
@@ -92,7 +145,7 @@ export function TooltipHost(): React.JSX.Element | null {
 
     document.addEventListener("mouseover", onOver);
     document.addEventListener("mouseout", onOut);
-    document.addEventListener("focusin", onOver);
+    document.addEventListener("focusin", onFocusIn);
     document.addEventListener("focusout", onOut);
     document.addEventListener("pointerdown", clearTooltip, true);
     document.addEventListener("keydown", clearTooltip, true);
@@ -105,7 +158,7 @@ export function TooltipHost(): React.JSX.Element | null {
       observer.disconnect();
       document.removeEventListener("mouseover", onOver);
       document.removeEventListener("mouseout", onOut);
-      document.removeEventListener("focusin", onOver);
+      document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onOut);
       document.removeEventListener("pointerdown", clearTooltip, true);
       document.removeEventListener("keydown", clearTooltip, true);
@@ -135,21 +188,33 @@ export function TooltipHost(): React.JSX.Element | null {
       ? state.rect.top - VIEWPORT_MARGIN
       : state.rect.bottom + VIEWPORT_MARGIN;
 
-    setPlacement({ above, left, top });
+    setPlacement({ above, left, top, measuredFor: state });
   }, [state]);
 
   if (!state) return null;
 
-  const above = placement?.above ?? false;
+  // Anything measured for a previous tooltip is not an answer for this one.
+  const resolved = placement?.measuredFor === state ? placement : null;
+  // The direction class carries the entry animation, so it waits for the
+  // measurement rather than guessing a side. Naming one before it is known
+  // starts `tooltip-in-below` on the hidden pass and then restarts it as
+  // `tooltip-in-above` once the real side lands — two entry animations for one
+  // tooltip. Unclassed, the hidden pass animates nothing and the visible pass
+  // animates once.
+  const direction = resolved
+    ? resolved.above
+      ? " app-tooltip--above"
+      : " app-tooltip--below"
+    : "";
 
   return createPortal(
     <div
       ref={tooltipRef}
-      className={`app-tooltip${above ? " app-tooltip--above" : " app-tooltip--below"}`}
+      className={`app-tooltip${direction}`}
       style={{
-        left: placement?.left ?? 0,
-        top: placement?.top ?? 0,
-        visibility: placement ? "visible" : "hidden",
+        left: resolved?.left ?? 0,
+        top: resolved?.top ?? 0,
+        visibility: resolved ? "visible" : "hidden",
       }}
       role="presentation"
     >

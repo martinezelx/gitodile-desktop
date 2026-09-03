@@ -117,7 +117,7 @@ import {
   useStoredRemoteCheckInterval,
   useThemePreference,
 } from "./preferences";
-import { startThemeFade, startThemeReveal } from "./themeTransition";
+import { startThemeFade } from "./themeTransition";
 import { planWatcherChanges } from "./watcherPlan";
 import { TitlebarMenu } from "./TitlebarMenu";
 import { RailNav, type RailNavItem } from "./RailNav";
@@ -230,7 +230,6 @@ export function App(): React.JSX.Element {
   const [view, setView] = useState<View>("overview");
   const [theme, setTheme] = useThemePreference();
   const effectiveTheme = resolveEffectiveTheme(theme);
-  const themeToggleRef = useRef<HTMLButtonElement>(null);
   // `applyTheme` runs alongside `setTheme` because the hook applies the
   // attribute from a passive effect, which is not guaranteed to have run by the
   // time a transition captures the DOM.
@@ -248,7 +247,7 @@ export function App(): React.JSX.Element {
     startThemeFade(commitTheme(next));
   };
   const toggleTheme = (): void => {
-    startThemeReveal(themeToggleRef.current, commitTheme(effectiveTheme === "dark" ? "light" : "dark"));
+    startThemeFade(commitTheme(effectiveTheme === "dark" ? "light" : "dark"));
   };
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
@@ -1857,7 +1856,6 @@ export function App(): React.JSX.Element {
             </button>
           </div>
           <button
-            ref={themeToggleRef}
             className="titlebar-icon-button"
             type="button"
             aria-label={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}

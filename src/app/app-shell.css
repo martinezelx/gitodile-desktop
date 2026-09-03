@@ -120,12 +120,12 @@
 .titlebar-icon-button:disabled { opacity: 0.35; }
 .titlebar-icon-button:disabled:hover { background: transparent; }
 .titlebar-icon-button svg { width: 16px; height: 16px; }
-/* Opting the sun/moon glyph out of the root snapshot so it animates on its own
-   layer instead of being wiped along with everything else. Granted only for the
-   duration of a reveal: a bare `view-transition-name` would enlist this icon in
-   every future view transition in the app. The choreography for the name lives
-   with the other view-transition rules in styles/base.css. */
-:root[data-theme-transition="reveal"] .titlebar-theme-icon {
+/* Opting the sun/moon glyph out of the root snapshot so it turns over on its own
+   layer instead of dissolving along with the rest of the window. Granted only
+   while a theme change is in flight: a bare `view-transition-name` would enlist
+   this icon in every future view transition in the app. The choreography for the
+   name lives with the other view-transition rules in styles/theme-transition.css. */
+:root[data-theme-transition] .titlebar-theme-icon {
   view-transition-name: theme-toggle-icon;
 }
 .titlebar-history-controls { display: flex; align-items: center; gap: 2px; }

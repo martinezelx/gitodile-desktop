@@ -248,7 +248,6 @@ The app should work well between approximately 1024px and large desktop displays
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
-  --duration-theme-reveal: 420ms;
 }
 ```
 
@@ -520,13 +519,14 @@ Good uses:
 Rules:
 
 - keep most transitions between 120–220ms;
-- one deliberate exception (`--duration-theme-reveal`): the titlebar theme
-  toggle sweeps a circular reveal across the whole window, and at 220ms a
-  travel that long reads as a flash rather than a movement. Settings and the
-  command palette have no single origin to sweep from, so they cross-fade the
-  window at `--duration-normal` instead; either way the whole surface changes
-  together, rather than the background fading while the panels on top of it
-  snap;
+- a theme change cross-fades the whole window at `--duration-normal`, from
+  every control that offers one — the titlebar toggle, Settings and the command
+  palette. The point is that the whole surface changes together, rather than the
+  background fading while the panels on top of it snap. The titlebar toggle once
+  had its own circular reveal anchored on the button, on the theory that a change
+  caused by one control should look like it came from there; it was withdrawn,
+  because a curve that paces a position does not pace a radius, and "system" —
+  which Settings offers — has no origin to sweep from anyway;
 - avoid large spring animations in work surfaces;
 - respect `prefers-reduced-motion`;
 - never delay an operation solely to show an animation.

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bell, Settings, Trash2 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
@@ -137,6 +137,21 @@ export type NotificationCenterProps = {
  * absolutely positioned panel inside it would be clipped by the app window's
  * own overflow.
  */
+/** Reduced motion means not starting a gesture at all, the same answer
+ * `themeTransition.ts` gives. Decided here rather than in CSS because the
+ * ring's class is cleared by `animationend`, and an animation suppressed to
+ * `none` never ends — the class would stick to the element for the rest of the
+ * session and no later ring could restart it. The badge keeps its own
+ * reduced-motion rule in CSS, because nothing clears that one.
+ *
+ * Called optionally because jsdom does not implement `matchMedia`, and this
+ * component renders in a dozen tests that have no reason to know that. An
+ * environment that cannot answer has not expressed a preference, so the ring
+ * runs — the same default a browser gives. */
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+
 export function NotificationCenter({
   notifications,
   unreadCount,
@@ -157,6 +172,27 @@ export function NotificationCenter({
   // and a ticking clock behind a closed popup is background work for nothing.
   const [openedAt, setOpenedAt] = useState(0);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  /* The bell moves for exactly one reason: something arrived while nobody was
+   * looking, which is the only thing this centre exists to report.
+   *
+   * A press deliberately gets nothing. It was built and then removed: the bell
+   * borrows `.titlebar-icon-button` outright so that it reads as one of the
+   * row rather than as a special case, and a bell that answered a press while
+   * the palette, the history arrows and the theme toggle sat still would have
+   * been the one control there behaving differently for no reason the user
+   * could name. Press feedback across that whole row is a decision about the
+   * titlebar, not about notifications.
+   *
+   * On a rise, not on every arrival: a publish is recorded already read, and
+   * announcing something the user just watched succeed is how a badge — or a
+   * gesture — teaches people to ignore it. */
+  const [isRinging, setIsRinging] = useState(false);
+  const previousUnreadCount = useRef(unreadCount);
+  useEffect(() => {
+    const rose = unreadCount > previousUnreadCount.current;
+    previousUnreadCount.current = unreadCount;
+    if (rose && !prefersReducedMotion()) setIsRinging(true);
+  }, [unreadCount]);
 
   const close = (restoreFocus: boolean): void => {
     setIsOpen(false);
@@ -207,7 +243,14 @@ export function NotificationCenter({
         data-tooltip={t.notificationsTitle}
         onClick={() => (isOpen ? close(true) : open())}
       >
-        <Bell aria-hidden="true" />
+        <Bell
+          aria-hidden="true"
+          className={isRinging ? "notification-center__bell--ring" : undefined}
+          // Cleared on the animation itself rather than on a timer, so the class
+          // goes exactly when the animation does and a later ring starts from a
+          // clean element instead of a name that never left.
+          onAnimationEnd={() => setIsRinging(false)}
+        />
         {unreadCount > 0 && (
           <span className="notification-center__badge" aria-hidden="true">
             {unreadCount > 9 ? "9+" : unreadCount}

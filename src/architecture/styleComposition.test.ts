@@ -123,9 +123,12 @@ describe("production style composition", () => {
     // Theme-change choreography is its own sheet: base.css stays the reset,
     // body and focus foundations rather than the larger half of an effect.
     const themeTransition = readSource("styles/theme-transition.css");
-    expect(themeTransition).toContain('[data-theme-transition="reveal"]::view-transition-new(root)');
     expect(themeTransition).toContain('[data-theme-transition="fade"]::view-transition-new(root)');
-    expect(themeTransition).toContain("@keyframes theme-reveal");
+    // One animation for every theme control. The titlebar toggle had a second,
+    // origin-anchored one; it was withdrawn, and this keeps its geometry from
+    // creeping back in beside the fade rather than replacing it.
+    expect(themeTransition).not.toContain("theme-reveal");
+    expect(readSource("styles/tokens.css")).not.toContain("--duration-theme-reveal");
     expect(readSource("styles/base.css")).not.toContain("view-transition");
     const primitives = readSource("shared/ui/primitives.css");
     expect(primitives).toContain(":focus-visible");
