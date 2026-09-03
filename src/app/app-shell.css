@@ -349,10 +349,10 @@
 .status-bar__version { font-variant-numeric: tabular-nums; }
 .status-bar__channel {
   padding: 2px 6px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid color-mix(in srgb, var(--status-warning) 35%, transparent);
   border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  color: var(--status-warning);
   font-size: 10px;
   font-weight: 700;
   line-height: 1.2;
@@ -1124,6 +1124,11 @@
   background: var(--surface-hover);
   color: var(--text-secondary);
 }
+.changelog-release__channel--preview {
+  border-color: color-mix(in srgb, var(--status-warning) 35%, transparent);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  color: var(--status-warning);
+}
 /* Which build the reader is actually running is the one fact a changelog has
    to answer before any note means anything, so it is the only accented thing
    in the list.
@@ -1169,6 +1174,20 @@
   border-radius: var(--radius-round);
   background: var(--accent-primary);
 }
+.changelog-history { margin-top: 18px; }
+.changelog-history > summary {
+  width: fit-content;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+.changelog-history > summary:hover { color: var(--text-primary); }
+.changelog-history > summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+.changelog--history { margin-top: 14px; }
 .about-details { margin: 8px 0 0; }
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
 .about-details dt { color: var(--text-secondary); }

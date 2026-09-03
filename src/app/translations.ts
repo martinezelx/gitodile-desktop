@@ -164,6 +164,7 @@ export interface AppTranslations {
   changelogDescription: string;
   changelogVersionHeading: (version: string) => string;
   changelogCurrentRelease: string;
+  changelogPreviousReleases: (count: number) => string;
   changelogNotes: Record<AppReleaseNoteId, string>;
   closeConfirmTitle: string;
   closeConfirmBodyGeneric: string;
@@ -334,6 +335,7 @@ const en: AppTranslations = {
   changelogDescription: "Every note ships with the build you are running and opens without a network request.",
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "You are running this",
+  changelogPreviousReleases: (count) => count === 1 ? "1 previous version" : `${count} previous versions`,
   changelogNotes: {
     publicIssueReporting: "Report an issue from More actions. Review the app and system details before submitting your report on GitHub.",
     previewVersions: "Preview builds now show their full version number so you can identify the build you are using.",
@@ -513,6 +515,7 @@ const es: AppTranslations = {
   changelogDescription: "Todas las notas vienen con la build que estás usando y se abren sin ninguna petición de red.",
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Estás usando esta",
+  changelogPreviousReleases: (count) => count === 1 ? "1 versión anterior" : `${count} versiones anteriores`,
   changelogNotes: {
     publicIssueReporting: "Informa de un problema desde Más acciones. Revisa los datos de la aplicación y del sistema antes de enviar el informe en GitHub.",
     previewVersions: "Las versiones preview muestran ahora su número completo para que puedas identificar la build que estás usando.",

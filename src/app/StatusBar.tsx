@@ -227,9 +227,9 @@ export function StatusBar({
           data-tooltip={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
         >
           <span className="status-bar__version">{t.statusBarVersion(CURRENT_APP_RELEASE.version)}</span>
-          <span className="status-bar__channel" aria-hidden="true">
-            {CURRENT_APP_RELEASE.channel}
-          </span>
+          {CURRENT_APP_RELEASE.channel === "preview" && (
+            <span className="status-bar__channel" aria-hidden="true">preview</span>
+          )}
         </button>
       </div>
     </footer>

@@ -22,6 +22,37 @@ function formatReleaseDate(date: string | null, formats: LocaleFormats): string 
   return formatDate(parsed, formats);
 }
 
+function ReleaseNotes({
+  release,
+  isCurrent,
+}: {
+  release: AppReleaseEntry;
+  isCurrent: boolean;
+}): React.JSX.Element {
+  const { t, formats } = useLanguage();
+  const releaseDate = formatReleaseDate(release.date, formats);
+
+  return (
+    <li className="changelog-release">
+      <div className="changelog-release__heading">
+        <h3>{t.changelogVersionHeading(release.version)}</h3>
+        <span className={`changelog-release__channel changelog-release__channel--${release.channel}`}>
+          {release.channel}
+        </span>
+        {isCurrent && <span className="changelog-release__current">{t.changelogCurrentRelease}</span>}
+        {releaseDate && release.date && (
+          <span className="changelog-release__date">
+            <time dateTime={release.date}>{releaseDate}</time>
+          </span>
+        )}
+      </div>
+      <ul className="changelog-release__notes" role="list">
+        {release.noteIds.map((noteId) => <li key={noteId}>{t.changelogNotes[noteId]}</li>)}
+      </ul>
+    </li>
+  );
+}
+
 /**
  * The bundled release notes, on their own surface.
  *
@@ -37,7 +68,7 @@ export function ChangelogDialog({
   isOpen: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
 }): React.JSX.Element | null {
-  const { t, formats } = useLanguage();
+  const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useModalFocus(isOpen, dialogRef, setOpen);
@@ -46,8 +77,7 @@ export function ChangelogDialog({
     return null;
   }
 
-  const isCurrent = (release: AppReleaseEntry): boolean =>
-    release.version === CURRENT_APP_RELEASE.version && release.channel === CURRENT_APP_RELEASE.channel;
+  const previousReleases = APP_CHANGELOG.slice(1);
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
@@ -74,31 +104,18 @@ export function ChangelogDialog({
             with the marker. The count is the point here: "six changes in this
             release" is what a screen-reader user is owed. */}
         <ol className="changelog" role="list">
-          {APP_CHANGELOG.map((release) => {
-            const releaseDate = formatReleaseDate(release.date, formats);
-            return (
-              <li key={`${release.version}-${release.channel}`} className="changelog-release">
-                <div className="changelog-release__heading">
-                  <h3>{t.changelogVersionHeading(release.version)}</h3>
-                  <span className="changelog-release__channel">{release.channel}</span>
-                  {isCurrent(release) && (
-                    <span className="changelog-release__current">{t.changelogCurrentRelease}</span>
-                  )}
-                  {releaseDate && release.date && (
-                    <span className="changelog-release__date">
-                      <time dateTime={release.date}>{releaseDate}</time>
-                    </span>
-                  )}
-                </div>
-                <ul className="changelog-release__notes" role="list">
-                  {release.noteIds.map((noteId) => (
-                    <li key={noteId}>{t.changelogNotes[noteId]}</li>
-                  ))}
-                </ul>
-              </li>
-            );
-          })}
+          <ReleaseNotes release={CURRENT_APP_RELEASE} isCurrent />
         </ol>
+        {previousReleases.length > 0 && (
+          <details className="changelog-history">
+            <summary>{t.changelogPreviousReleases(previousReleases.length)}</summary>
+            <ol className="changelog changelog--history" role="list">
+              {previousReleases.map((release) => (
+                <ReleaseNotes key={`${release.version}-${release.channel}`} release={release} isCurrent={false} />
+              ))}
+            </ol>
+          </details>
+        )}
       </div>
     </div>
   );
