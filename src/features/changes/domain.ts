@@ -6,6 +6,7 @@ export type DiffHunk = { header: string; oldStart: number; oldLines: number; new
 export type FileDiff =
   | { kind: "text"; path: string; originalPath: string | null; change: ChangeCategory; hunks: DiffHunk[]; truncated: boolean }
   | { kind: "binary"; path: string; originalPath: string | null; change: ChangeCategory }
+  | { kind: "image"; path: string; originalPath: string | null; change: ChangeCategory }
   | { kind: "too-large"; path: string; originalPath: string | null; change: ChangeCategory; limitBytes: number }
   | { kind: "conflict"; path: string; hunks: DiffHunk[]; truncated: boolean; detail: string | null }
   | { kind: "unchanged"; path: string; originalPath: string | null; change: ChangeCategory };
@@ -23,6 +24,36 @@ export type WorkingTreeDiffBatch = {
   budgetBytes: number;
 };
 export type FileLines = { startLine: number; lines: string[]; truncated: boolean };
+/** One version of a changed image. `ready` carries the picture; the other two
+ * say why there is none, so a frame is never drawn empty. A side that is
+ * `null` in `ImagePreview` does not exist at all — an added image has no
+ * before, a deleted one has no after. */
+export type ImagePreviewSide =
+  | { kind: "ready"; mediaType: string; byteLength: number; data: string }
+  | { kind: "too-large"; byteLength: number; limitBytes: number }
+  | { kind: "unsupported"; byteLength: number };
+export type ImagePreview = { before: ImagePreviewSide | null; after: ImagePreviewSide | null };
+
+/** Reads a changed image's two versions. Supplied by whichever surface is
+ * showing the diff, because only it knows whether the file is being compared
+ * against the working tree or inside a saved version. */
+export type ImagePreviewLoader = (
+  filePath: string,
+  originalPath: string | null,
+) => Promise<ImagePreview>;
+
+/** An SVG keeps its text diff and gains a drawing, so the decision to offer
+ * one is made from the path rather than from a diff kind of its own. */
+export function isSvgPath(path: string): boolean {
+  return path.toLocaleLowerCase().endsWith(".svg");
+}
+
+/** The `data:` URL an `<img>` draws a preview from. Never inserted as markup:
+ * in an `img` context the engine runs no script and fetches nothing, which is
+ * what makes rendering an SVG out of a repository safe. */
+export function imagePreviewDataUrl(side: { mediaType: string; data: string }): string {
+  return `data:${side.mediaType};base64,${side.data}`;
+}
 export type DiscardPlan = {
   operationKind: "destructive";
   stateToken: string;

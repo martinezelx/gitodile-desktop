@@ -13,6 +13,7 @@
     { "name": "cleanup_initialize_project", "arguments": ["destinationPath", "targetKind", "operationId"], "response": "void" },
     { "name": "read_working_tree_status", "arguments": ["path", "sessionEpoch"], "response": "WorkingTreeStatus" },
     { "name": "read_file_diff", "arguments": ["path", "filePath", "sessionEpoch"], "response": "FileDiff" },
+    { "name": "read_file_image_preview", "arguments": ["path", "filePath", "originalPath?", "commit?", "sessionEpoch"], "response": "ImagePreview" },
     { "name": "read_file_lines", "arguments": ["path", "filePath", "startLine", "endLine", "sessionEpoch"], "response": "FileLines" },
     { "name": "read_working_tree_diffs", "arguments": ["path", "sessionEpoch"], "response": "WorkingTreeDiffBatch" },
     { "name": "plan_discard_changes", "arguments": ["path", "selectedPath?", "sessionEpoch"], "response": "DiscardPlan" },

@@ -76,6 +76,7 @@ function port(overrides: Partial<HistoryPort> = {}): HistoryPort {
     readFileDiff: vi.fn(async ({ filePath }) => ({
       kind: "text", path: filePath, originalPath: null, change: "changed", hunks: [], truncated: false,
     } satisfies FileDiff)),
+    readImagePreview: vi.fn(async () => ({ before: null, after: null })),
     ...overrides,
   };
 }

@@ -24,6 +24,7 @@ describe("HistoryScreen lifecycle", () => {
       readPage: vi.fn(async () => emptyPage("unexpected")),
       readDetail: vi.fn(),
       readFileDiff: vi.fn(),
+      readImagePreview: vi.fn(),
     };
     const controller = createHistoryController(port);
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };

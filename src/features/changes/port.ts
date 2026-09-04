@@ -4,15 +4,25 @@ import type {
   DiscardResult,
   FileDiff,
   FileLines,
+  ImagePreview,
   WorkingTreeDiffBatch,
 } from "./domain";
 export type ChangesQuery = { projectId: string; sessionEpoch: string };
 export type FileDiffQuery = ChangesQuery & { filePath: string };
+/** `commit` chooses the pair of versions to compare: absent reads the working
+ * tree against the latest saved version, present reads that saved version
+ * against its parent. `originalPath` is the pre-rename name, needed to find
+ * the earlier version of a renamed image. */
+export type ImagePreviewQuery = FileDiffQuery & {
+  originalPath: string | null;
+  commit?: string;
+};
 export type FileLinesQuery = FileDiffQuery & { startLine: number; endLine: number };
 export interface ChangesPort {
   readFileDiff(query: FileDiffQuery): Promise<FileDiff>;
   readWorkingTreeDiffs(query: ChangesQuery): Promise<WorkingTreeDiffBatch>;
   readFileLines(query: FileLinesQuery): Promise<FileLines>;
+  readFileImagePreview(query: ImagePreviewQuery): Promise<ImagePreview>;
   planDiscard(query: ChangesQuery & { selectedPath: string | null }): Promise<DiscardPlan>;
   discard(query: ChangesQuery & { selectedPath: string | null; stateToken: string }): Promise<DiscardResult>;
   getDiscardRecovery(query: ChangesQuery): Promise<DiscardRecovery>;

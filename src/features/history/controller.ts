@@ -458,6 +458,14 @@ export function createHistoryController(port: HistoryPort) {
         run: () => refreshInternal(query, false),
       });
     },
+    readImagePreview(
+      query: HistoryQuery,
+      commit: string,
+      filePath: string,
+      originalPath: string | null,
+    ) {
+      return port.readImagePreview({ ...query, commit, filePath, originalPath });
+    },
     close(query: HistoryQuery): void {
       const entry = entries.get(keyOf(query));
       if (entry) entry.state = { ...entry.state, generation: entry.state.generation + 1 };

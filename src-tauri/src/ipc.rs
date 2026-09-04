@@ -5,7 +5,7 @@
 //! behind the application boundary.
 
 use crate::{
-    changes::{self, CommitFileChange, FileDiff, FileLines, WorkingTreeDiffBatch},
+    changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
     clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
     desktop,
     error::AppError,
@@ -188,6 +188,22 @@ pub(crate) fn read_file_diff(
 ) -> Result<FileDiff, AppError> {
     validate_session(&path, &session_epoch)?;
     changes::read_file_diff(path, file_path)
+}
+
+/// `commit` chooses which pair of versions to read: absent means the working
+/// tree against `HEAD`, present means that saved version against its parent.
+/// One command rather than two because the surfaces asking differ only in
+/// that, and a second command would be the same body with a different name.
+#[tauri::command(async)]
+pub(crate) fn read_file_image_preview(
+    path: String,
+    file_path: String,
+    original_path: Option<String>,
+    commit: Option<String>,
+    session_epoch: String,
+) -> Result<ImagePreview, AppError> {
+    validate_session(&path, &session_epoch)?;
+    changes::read_file_image_preview(path, file_path, original_path, commit)
 }
 
 #[tauri::command(async)]
@@ -1064,6 +1080,33 @@ mod contract_tests {
                 "name":"project", "path":"/repo", "selectedPath":"/repo", "gitDir":"/repo/.git",
                 "commonGitDir":"/repo/.git", "branch":"main", "headState":"branch",
                 "kind":"repository", "sessionEpoch":"epoch-1"
+            })
+        );
+        // The one shape whose field names the frontend reads out of a tagged
+        // enum variant, and the shape that broke when they were left in
+        // snake_case: a picture with no `mediaType` is drawn with an unusable
+        // `data:` URL, and no `byteLength` prints as "NaN MB".
+        assert_eq!(
+            serde_json::to_value(changes::ImagePreview {
+                before: Some(changes::ImagePreviewSide::Ready {
+                    media_type: "image/png".into(),
+                    byte_length: 747,
+                    data: "iVBORw0KGgo=".into(),
+                }),
+                after: Some(changes::ImagePreviewSide::TooLarge {
+                    byte_length: 20 * 1024 * 1024,
+                    limit_bytes: 10 * 1024 * 1024,
+                }),
+            })
+            .unwrap(),
+            serde_json::json!({
+                "before": {
+                    "kind":"ready", "mediaType":"image/png", "byteLength":747,
+                    "data":"iVBORw0KGgo="
+                },
+                "after": {
+                    "kind":"too-large", "byteLength":20971520, "limitBytes":10485760
+                }
             })
         );
         assert_eq!(

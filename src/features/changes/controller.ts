@@ -107,6 +107,14 @@ export function createChangesController(port: ChangesPort) {
     readFileLines(projectId: string, sessionEpoch: string, filePath: string, startLine: number, endLine: number) {
       return port.readFileLines({ projectId, sessionEpoch, filePath, startLine, endLine });
     },
+    readFileImagePreview(
+      projectId: string,
+      sessionEpoch: string,
+      filePath: string,
+      originalPath: string | null,
+    ) {
+      return port.readFileImagePreview({ projectId, sessionEpoch, filePath, originalPath });
+    },
     planDiscard(projectId: string, sessionEpoch: string, selectedPath: string | null) {
       return port.planDiscard({ projectId, sessionEpoch, selectedPath });
     },

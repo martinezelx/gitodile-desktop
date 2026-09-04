@@ -507,6 +507,12 @@
 }
 .changes-view-picker__value { font-size: 13.5px; font-weight: 500; white-space: nowrap; }
 .changes-view-picker__menu { right: auto; left: 0; min-width: 180px; }
+/* The trigger's leading glyph is wrapped in a span rather than classed on the
+   SVG itself, because the same icon is reused inside the menu where a
+   different rule sizes it. The 15px the shared token sets therefore has to
+   reach the SVG inside the wrapper. */
+.changes-view-picker__trigger .version-line-selector__icon { display: inline-flex; }
+.changes-view-picker__trigger .version-line-selector__icon svg { width: 100%; height: 100%; }
 .changes-diff__body {
   flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; margin-bottom: var(--space-2);
   background: var(--surface-code);
@@ -646,3 +652,65 @@
   }
   .changes-notice__dismiss { width: var(--control-height-lg); height: var(--control-height-lg); }
 }
+
+/* Pictures instead of a note (task 111). A changed image, and the drawing
+   behind a changed SVG, are shown here; the diff language above stays exactly
+   as it was for every file that really is text. */
+.image-diff { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+/* Lives in the surface's own toolbar next to the picker, so it takes a share
+   of that row rather than a whole one. */
+.image-diff__slider { display: flex; align-items: center; flex: 0 1 200px; min-width: 120px; }
+.image-diff__slider input { width: 100%; accent-color: var(--accent-primary); }
+.image-diff__pair {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4); align-items: start;
+}
+.image-diff__figure { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.image-diff__figure--overlay { max-width: 720px; align-self: center; width: 100%; }
+/* The checkerboard is not decoration: a transparent PNG on a flat panel reads
+   as a white (or black) background, which is exactly the mistake someone
+   opens this view to catch. It is built from `--surface-hover` over the panel
+   so it stays a whisper in both themes. */
+.image-diff__frame {
+  position: relative; display: grid; place-items: center; min-height: 120px; padding: var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
+  background-color: var(--surface-panel);
+  background-image:
+    linear-gradient(45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-hover) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--surface-hover) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  overflow: hidden;
+}
+.image-diff__image { display: block; max-width: 100%; max-height: 320px; object-fit: contain; }
+.image-diff__caption {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3);
+  font-size: 12.5px; color: var(--text-secondary);
+}
+.image-diff__caption strong { color: var(--text-primary); font-weight: 600; }
+.image-diff__side-note { padding: var(--space-4); text-align: center; color: var(--text-secondary); font-size: 12.5px; }
+.image-diff__status {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: var(--space-6); color: var(--text-secondary); text-align: center;
+}
+.image-diff__status svg { width: 22px; height: 22px; }
+.image-diff__status--error { color: var(--status-danger); }
+/* The stage hugs the pictures: it is a grid item of the frame, so it is sized
+   by its content rather than stretched to the frame's width. Both layers then
+   fill that one cell — overlaying exactly, whatever the two pictures measure —
+   and the divider and the clip below are percentages of the same box. */
+.image-diff__stage { position: relative; display: grid; max-width: 100%; }
+.image-diff__layer { grid-area: 1 / 1; display: grid; place-items: center; min-width: 0; }
+.image-diff__stage--swipe .image-diff__layer--after { clip-path: inset(0 0 0 var(--image-diff-position)); }
+/* The one piece of movement in this view, and it is a cross-fade of state,
+   not decoration. The app-wide reduced-motion rule removes it. */
+.image-diff__stage--fade .image-diff__layer--after { opacity: var(--image-diff-opacity); transition: opacity 120ms ease; }
+/* Centred on the cut rather than starting at it, so a 2px rule does not read
+   as 2px of the new version leaking past the divider. */
+.image-diff__swipe-line {
+  position: absolute; top: 0; bottom: 0; left: var(--image-diff-position);
+  width: 2px; margin-left: -1px; background: var(--accent-primary); pointer-events: none;
+}
+

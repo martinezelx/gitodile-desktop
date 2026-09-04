@@ -1016,3 +1016,302 @@ fn read_commit_file_diff_rejects_a_flag_shaped_commit_value() {
 
     let _ = fs::remove_dir_all(&repo);
 }
+
+// ---- Image previews (task 111) ----
+
+/// Enough of a PNG for both the classifier and the sniffer: they read the
+/// signature, not the pixels.
+const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+
+fn png_bytes(tail: &str) -> Vec<u8> {
+    let mut bytes = PNG_SIGNATURE.to_vec();
+    // A real IHDR chunk header, NUL bytes and all: Git decides a file is
+    // binary by finding one, so a fixture without them would be diffed as
+    // text and would never reach the classification under test.
+    bytes.extend_from_slice(&[0, 0, 0, 0x0D]);
+    bytes.extend_from_slice(b"IHDR");
+    bytes.extend_from_slice(&[0, 0, 0, 1]);
+    bytes.extend_from_slice(tail.as_bytes());
+    bytes
+}
+
+fn write_bytes(repo_path: &str, name: &str, bytes: &[u8]) {
+    fs::write(Path::new(repo_path).join(name), bytes).expect("write binary file");
+}
+
+fn head_commit(path: &str) -> String {
+    let output = test_git(path, &["rev-parse", "HEAD"]).expect("rev-parse");
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+#[test]
+fn read_file_diff_calls_a_changed_png_an_image() {
+    let path = unique_temp_dir("diff-image-png");
+    git_init(&path);
+    write_bytes(&path, "logo.png", &png_bytes("before"));
+    git_add(&path, "logo.png");
+    git_commit(&path, "add logo");
+    write_bytes(&path, "logo.png", &png_bytes("after"));
+
+    let diff = read_file_diff(path.clone(), "logo.png".to_string()).expect("diff should succeed");
+    match diff {
+        FileDiff::Image { change, .. } => assert_eq!(change, ChangeCategory::Changed),
+        other => panic!("expected an image, got {other:?}"),
+    }
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_working_tree_diffs_calls_an_untracked_png_an_image() {
+    let path = unique_temp_dir("batch-diffs-image");
+    git_init(&path);
+    git_commit_empty(&path);
+    write_bytes(&path, "shot.png", &png_bytes("fresh"));
+    // Named like an image but not one: the name alone must not be enough.
+    write_file(&path, "notes.png", "plain text pretending\n");
+
+    let batch = read_working_tree_diffs(path.clone()).expect("batch should succeed");
+    match find_diff(&batch.diffs, "shot.png") {
+        Some(FileDiff::Image { .. }) => {}
+        other => panic!("expected an image for an untracked png, got {other:?}"),
+    }
+    match find_diff(&batch.diffs, "notes.png") {
+        Some(FileDiff::Text { .. }) => {}
+        other => panic!("expected text for a text file named .png, got {other:?}"),
+    }
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_image_preview_reads_both_working_tree_versions() {
+    let path = unique_temp_dir("image-preview-working-tree");
+    git_init(&path);
+    let before = png_bytes("the saved pixels");
+    write_bytes(&path, "logo.png", &before);
+    git_add(&path, "logo.png");
+    git_commit(&path, "add logo");
+    let after = png_bytes("the pixels on disk right now");
+    write_bytes(&path, "logo.png", &after);
+
+    let preview = read_file_image_preview(path.clone(), "logo.png".to_string(), None, None)
+        .expect("preview should succeed");
+
+    match preview.before {
+        Some(ImagePreviewSide::Ready {
+            media_type,
+            byte_length,
+            data,
+        }) => {
+            assert_eq!(media_type, "image/png");
+            assert_eq!(byte_length, before.len() as u64);
+            assert_eq!(data, base64_encode(&before));
+        }
+        other => panic!("expected the saved version, got {other:?}"),
+    }
+    match preview.after {
+        Some(ImagePreviewSide::Ready {
+            byte_length, data, ..
+        }) => {
+            assert_eq!(byte_length, after.len() as u64);
+            assert_eq!(data, base64_encode(&after));
+        }
+        other => panic!("expected the working-tree version, got {other:?}"),
+    }
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_image_preview_leaves_the_missing_side_empty() {
+    let path = unique_temp_dir("image-preview-added");
+    git_init(&path);
+    git_commit_empty(&path);
+    write_bytes(&path, "new.png", &png_bytes("brand new"));
+
+    let preview = read_file_image_preview(path.clone(), "new.png".to_string(), None, None)
+        .expect("preview should succeed");
+
+    // An added image has no earlier version. That is not an error, and must
+    // not be drawn as one.
+    assert!(preview.before.is_none());
+    assert!(matches!(
+        preview.after,
+        Some(ImagePreviewSide::Ready { .. })
+    ));
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_image_preview_reads_a_saved_version_against_its_parent() {
+    let path = unique_temp_dir("image-preview-commit");
+    git_init(&path);
+    let first = png_bytes("first cut");
+    write_bytes(&path, "logo.png", &first);
+    git_add(&path, "logo.png");
+    git_commit(&path, "add logo");
+    let second = png_bytes("second cut, larger");
+    write_bytes(&path, "logo.png", &second);
+    git_add(&path, "logo.png");
+    git_commit(&path, "redraw logo");
+    let commit = head_commit(&path);
+
+    let preview = read_file_image_preview(path.clone(), "logo.png".to_string(), None, Some(commit))
+        .expect("preview should succeed");
+
+    match (preview.before, preview.after) {
+        (
+            Some(ImagePreviewSide::Ready {
+                byte_length: before_bytes,
+                ..
+            }),
+            Some(ImagePreviewSide::Ready {
+                byte_length: after_bytes,
+                ..
+            }),
+        ) => {
+            assert_eq!(before_bytes, first.len() as u64);
+            assert_eq!(after_bytes, second.len() as u64);
+        }
+        other => panic!("expected both versions of the saved change, got {other:?}"),
+    }
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_image_preview_reports_a_version_past_the_limit_without_reading_it() {
+    let path = unique_temp_dir("image-preview-too-large");
+    git_init(&path);
+    git_commit_empty(&path);
+    let mut huge = PNG_SIGNATURE.to_vec();
+    huge.resize(MAX_IMAGE_PREVIEW_BYTES as usize + 1024, b'x');
+    write_bytes(&path, "huge.png", &huge);
+
+    let preview = read_file_image_preview(path.clone(), "huge.png".to_string(), None, None)
+        .expect("preview should succeed");
+
+    match preview.after {
+        // The variant carries no `data` field at all, so passing this is the
+        // assertion that the bytes never reached memory or the payload.
+        Some(ImagePreviewSide::TooLarge {
+            byte_length,
+            limit_bytes,
+        }) => {
+            assert_eq!(byte_length, huge.len() as u64);
+            assert_eq!(limit_bytes, MAX_IMAGE_PREVIEW_BYTES);
+        }
+        other => panic!("expected the oversized version to be reported, got {other:?}"),
+    }
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_image_preview_reads_an_svg_as_a_drawing() {
+    let path = unique_temp_dir("image-preview-svg");
+    git_init(&path);
+    write_file(
+        &path,
+        "icon.svg",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 0h10v10H0z\"/></svg>\n",
+    );
+    git_add(&path, "icon.svg");
+    git_commit(&path, "add icon");
+    write_file(
+        &path,
+        "icon.svg",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 0h12v12H0z\"/></svg>\n",
+    );
+
+    // An SVG keeps its text diff …
+    match read_file_diff(path.clone(), "icon.svg".to_string()).expect("diff should succeed") {
+        FileDiff::Text { .. } => {}
+        other => panic!("expected an SVG to stay text, got {other:?}"),
+    }
+    // … and gains a drawing through the same preview command.
+    let preview = read_file_image_preview(path.clone(), "icon.svg".to_string(), None, None)
+        .expect("preview should succeed");
+    match preview.after {
+        Some(ImagePreviewSide::Ready { media_type, .. }) => {
+            assert_eq!(media_type, "image/svg+xml");
+        }
+        other => panic!("expected the drawing, got {other:?}"),
+    }
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_image_preview_refuses_a_file_that_is_not_an_image() {
+    let path = unique_temp_dir("image-preview-not-an-image");
+    git_init(&path);
+    write_file(&path, "notes.txt", "not a picture\n");
+    git_add(&path, "notes.txt");
+    git_commit(&path, "add notes");
+
+    let error = read_file_image_preview(path.clone(), "notes.txt".to_string(), None, None)
+        .expect_err("a text file has no drawing to read");
+    assert_eq!(error.code, AppErrorCode::PathInvalid);
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+/// The picture half of `read_file_lines_refuses_a_symlink_that_escapes_the_repository`:
+/// a repository-relative name that passes the string check can still resolve
+/// outside the project, and a preview would put that file on screen.
+#[test]
+fn read_file_image_preview_refuses_a_symlink_that_escapes_the_repository() {
+    let outside = unique_temp_dir("image-preview-outside");
+    write_bytes(&(outside.clone()), "private.png", &png_bytes("not yours"));
+    let path = unique_temp_dir("image-preview-symlink");
+    git_init(&path);
+
+    let link = Path::new(&path).join("innocent.png");
+    let target = Path::new(&outside).join("private.png");
+    #[cfg(windows)]
+    let linked = std::os::windows::fs::symlink_file(&target, &link).is_ok();
+    #[cfg(not(windows))]
+    let linked = std::os::unix::fs::symlink(&target, &link).is_ok();
+
+    // Creating a symlink needs a privilege Windows does not grant by default;
+    // skip rather than fail when the platform said no.
+    if linked {
+        assert!(
+            read_file_image_preview(path.clone(), "innocent.png".to_string(), None, None).is_err()
+        );
+    }
+
+    let _ = fs::remove_dir_all(&path);
+    let _ = fs::remove_dir_all(&outside);
+}
+
+#[test]
+fn read_file_image_preview_does_not_call_an_unreadable_picture_a_deleted_one() {
+    let path = unique_temp_dir("image-preview-unreadable");
+    git_init(&path);
+    write_bytes(&path, "logo.png", &png_bytes("saved"));
+    git_add(&path, "logo.png");
+    git_commit(&path, "add logo");
+    // Replacing the file with a directory is the portable stand-in for "the
+    // path is there and cannot be read as a file". Reporting it as an absent
+    // side would tell the user the picture was deleted.
+    fs::remove_file(Path::new(&path).join("logo.png")).expect("remove file");
+    fs::create_dir(Path::new(&path).join("logo.png")).expect("create directory");
+
+    assert!(read_file_image_preview(path.clone(), "logo.png".to_string(), None, None).is_err());
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn svg_sniffing_accepts_a_lowercase_doctype() {
+    assert_eq!(
+        sniff_image_media_type(b"<!doctype svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\">\n<svg/>"),
+        Some(SVG_MEDIA_TYPE)
+    );
+    // Still not every file that happens to mention the tag somewhere.
+    assert_eq!(sniff_image_media_type(b"a note about <svg> tags"), None);
+}

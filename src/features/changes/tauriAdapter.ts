@@ -5,6 +5,8 @@ export const changesPort: ChangesPort = {
   readWorkingTreeDiffs: ({ projectId: path, sessionEpoch }) => invoke("read_working_tree_diffs", { path, sessionEpoch }),
   readFileLines: ({ projectId: path, sessionEpoch, filePath, startLine, endLine }) =>
     invoke("read_file_lines", { path, sessionEpoch, filePath, startLine, endLine }),
+  readFileImagePreview: ({ projectId: path, sessionEpoch, filePath, originalPath, commit }) =>
+    invoke("read_file_image_preview", { path, sessionEpoch, filePath, originalPath, commit }),
   planDiscard: ({ projectId: path, sessionEpoch, selectedPath }) =>
     invoke("plan_discard_changes", { path, sessionEpoch, selectedPath }),
   discard: ({ projectId: path, sessionEpoch, selectedPath, stateToken }) =>

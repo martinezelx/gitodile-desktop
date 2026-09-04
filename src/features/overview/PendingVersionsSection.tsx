@@ -10,7 +10,7 @@ import {
   User,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { DiffResultView, type FileDiff } from "../changes";
+import { DiffResultView, isSvgPath, PictureDiffControls, usePictureDiff, type FileDiff, type ImagePreview } from "../changes";
 import { CHANGE_CATEGORY_ICONS } from "../status";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import type { PendingVersionsResult } from "../publish";
@@ -21,6 +21,15 @@ function diffPanelHeight(diff: DiffState | undefined): number {
   if (typeof diff !== "object") {
     return 64;
   }
+  // A picture needs room no line count can predict: the frame, the caption
+  // under it and the row of comparison controls above. An SVG opens on its
+  // drawing, so it is sized that way too even though its diff is text. The
+  // number is the ceiling this surface's own `max-height` allows — asking for
+  // more would be silently clipped, because that box does not scroll — and
+  // `overview.css` shrinks the pictures to fit inside it.
+  if (diff.kind === "image" || (diff.kind === "text" && isSvgPath(diff.path))) {
+    return 300;
+  }
   if (diff.kind !== "text") {
     return 120;
   }
@@ -30,12 +39,43 @@ function diffPanelHeight(diff: DiffState | undefined): number {
   return Math.min(300, Math.max(44, lineCount * 20 + markerCount * 32 + truncatedNoteHeight + 24));
 }
 
+/** One expanded file. It exists as a component because a changed picture is
+ * read through a hook, and this list renders a file per row — and because
+ * this surface has no toolbar of its own, so the picture's controls sit
+ * directly above it rather than in one. */
+function PendingFileDiff({
+  diff,
+  commit,
+  readImagePreview,
+  t,
+}: {
+  diff: FileDiff;
+  commit: string;
+  readImagePreview: (commit: string, filePath: string, originalPath: string | null) => Promise<ImagePreview>;
+  t: Translations;
+}): React.JSX.Element {
+  const picture = usePictureDiff(diff, commit, (filePath, originalPath) =>
+    readImagePreview(commit, filePath, originalPath),
+  );
+  return (
+    <>
+      {/* Empty when the picture has nothing to choose; the stylesheet hides it
+          rather than this rendering a row that measures zero. */}
+      <div className="pending-versions__diff-controls">
+        {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
+      </div>
+      <DiffResultView diff={diff} picture={picture} t={t} />
+    </>
+  );
+}
+
 function CommitFilesList({
   commit,
   files,
   selectedPath,
   diffs,
   onToggleFile,
+  readImagePreview,
   t,
 }: {
   commit: string;
@@ -43,6 +83,7 @@ function CommitFilesList({
   selectedPath: string | undefined;
   diffs: Record<string, DiffState> | undefined;
   onToggleFile: (commit: string, filePath: string) => void;
+  readImagePreview: (commit: string, filePath: string, originalPath: string | null) => Promise<ImagePreview>;
   t: Translations;
 }): React.JSX.Element | null {
   if (files === undefined || files === "loading") {
@@ -99,7 +140,14 @@ function CommitFilesList({
                     {t.publishDiffError}
                   </p>
                 )}
-                {typeof diff === "object" && <DiffResultView diff={diff} t={t} />}
+                {typeof diff === "object" && (
+                  <PendingFileDiff
+                    diff={diff}
+                    commit={commit}
+                    readImagePreview={readImagePreview}
+                    t={t}
+                  />
+                )}
               </div>
             )}
           </li>
@@ -133,7 +181,7 @@ export function PendingVersionsSection({
   onPublish: () => void;
 }): React.JSX.Element {
   const { t, formatDate } = useLanguage();
-  const { filesByCommit, selectedFileByCommit, diffsByCommit, toggleCommit, toggleFile } =
+  const { filesByCommit, selectedFileByCommit, diffsByCommit, toggleCommit, toggleFile, readImagePreview } =
     usePendingVersionDetails(projectPath, sessionEpoch);
 
   return (
@@ -231,6 +279,7 @@ export function PendingVersionsSection({
                     selectedPath={selectedFileByCommit[version.commit]}
                     diffs={diffsByCommit[version.commit]}
                     onToggleFile={toggleFile}
+                    readImagePreview={readImagePreview}
                     t={t}
                   />
                 </details>

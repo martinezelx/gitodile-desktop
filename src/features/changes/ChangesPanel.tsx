@@ -28,6 +28,7 @@ import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../sta
 import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
 import { DiffViewSelector } from "./DiffViewSelector";
+import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
 import type { DiscardRecovery, FileDiff } from "./domain";
 import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
@@ -403,6 +404,20 @@ function DiffWorkspace({
   const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
   const [hunkTarget, setHunkTarget] = useState({ index: 0, token: 0 });
   const hunkCount = getHunkCount(diffState);
+  const picture = usePictureDiff(
+    diffState.status === "ready" ? diffState.diff : null,
+    `${projectPath}\0${sessionEpoch}`,
+    (filePath, originalPath) =>
+      controller.readFileImagePreview(projectPath, sessionEpoch, filePath, originalPath),
+  );
+  // A picture showing the only version it has needs no control, and the
+  // reading-mode picker would be one that does nothing: unified, split and
+  // accessible text are ways of laying out lines, and a drawing has none. The
+  // row itself stays either way — it is what keeps this pane's top edge level
+  // with the file list's search strip — but it loses its label rather than
+  // standing there naming a control that is not underneath it.
+  const showsReadingMode = picture === null || (picture.isSvg && !picture.showsDrawing);
+  const hasViewControls = showsReadingMode || picture.hasControls;
 
   useEffect(() => {
     setHunkTarget({ index: 0, token: 0 });
@@ -487,10 +502,16 @@ function DiffWorkspace({
           rule, so the two panels keep reading as one grid. See the note on
           `--changes-toolbar-height` in styles.css. */}
       <div className="changes-diff__toolbar">
-        <div className="changes-diff__view">
-          <span className="changes-diff__view-label">{t.changesViewLabel}</span>
-          <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />
-        </div>
+        {/* One row, one question: how am I looking at this file. A picture
+            answers it with its own pickers, in the same place and the same
+            shape as the reading-mode picker a text file gets. */}
+        {hasViewControls && (
+          <div className="changes-diff__view">
+            <span className="changes-diff__view-label">{t.changesViewLabel}</span>
+            {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
+            {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
+          </div>
+        )}
         {hunkCount > 0 && viewMode !== "accessible" && (
           <div className="changes-diff__hunk-nav">
             <span className="changes-diff__position">{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span>
@@ -540,6 +561,7 @@ function DiffWorkspace({
               readFileLines={(filePath, startLine, endLine) =>
                 controller.readFileLines(projectPath, sessionEpoch, filePath, startLine, endLine)
               }
+              picture={picture}
               viewMode={viewMode}
               hunkTarget={hunkTarget}
               t={t}

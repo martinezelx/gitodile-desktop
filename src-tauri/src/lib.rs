@@ -81,6 +81,7 @@ pub fn run() {
             ipc::cleanup_initialize_project,
             ipc::read_working_tree_status,
             ipc::read_file_diff,
+            ipc::read_file_image_preview,
             ipc::read_file_lines,
             ipc::read_working_tree_diffs,
             ipc::plan_discard_changes,

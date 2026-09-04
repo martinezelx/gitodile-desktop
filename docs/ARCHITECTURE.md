@@ -556,6 +556,10 @@ migration or explicit reset decision and recovery tests.
 - Tauri capabilities remain minimal; no generic command-execution endpoint is
   permitted.
 - Repository content, config, hooks, remote responses, and paths are untrusted.
+- Repository content is never rendered as markup. A picture — an SVG
+  included — is drawn as an `<img>` with a `data:` URL, a context in which
+  the engine runs no script and fetches no external resource. Inlining it
+  would hand repository content the application's own document and origin.
 - Never log credentials, helper output, private keys, or authenticated remote
   URLs.
 - AI features require explicit consent and disclosure of transmitted data.

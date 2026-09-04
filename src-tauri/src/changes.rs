@@ -72,6 +72,16 @@ pub(crate) enum FileDiff {
         original_path: Option<String>,
         change: ChangeCategory,
     },
+    /// A binary file in a format the webview draws by itself. It deliberately
+    /// carries no pixels: classification happens for every changed file in a
+    /// batch, and a folder of screenshots must not turn a diff payload into a
+    /// gallery. The bytes are fetched per file, on demand, by
+    /// `read_file_image_preview` once the user actually opens it.
+    Image {
+        path: String,
+        original_path: Option<String>,
+        change: ChangeCategory,
+    },
     #[serde(rename = "too-large")]
     TooLarge {
         path: String,
@@ -346,6 +356,21 @@ pub(crate) fn diff_result_from_text(
     }
 
     if is_binary_diff_output(text) {
+        // Git has already decided this file is binary; the only remaining
+        // question is whether it is one the webview can draw. The answer is
+        // taken from the path, because a tracked file's bytes are not in
+        // hand here — Git printed a one-line marker instead of them. Content
+        // still gets the last word: `read_file_image_preview` sniffs the real
+        // bytes and reports an unrecognized format as unsupported, so a text
+        // file named `.png` degrades to this same note rather than to a
+        // broken frame.
+        if is_binary_image_path(&entry.path) {
+            return FileDiff::Image {
+                path: entry.path.clone(),
+                original_path: entry.original_path.clone(),
+                change: entry.category,
+            };
+        }
         return FileDiff::Binary {
             path: entry.path.clone(),
             original_path: entry.original_path.clone(),
@@ -691,6 +716,18 @@ pub(crate) fn untracked_file_diff(repo_path: &Path, entry: &RawStatusEntry) -> F
             limit_bytes: MAX_DIFF_OUTPUT_BYTES as u64,
         };
     }
+    // An untracked file arrives with its bytes already read, so both halves of
+    // the question can be answered at once. Naming and content must agree:
+    // the extension decides how the preview will be requested, and the magic
+    // bytes confirm the file really is that. Requiring both keeps this path's
+    // classification identical to the tracked one, which only has the name.
+    if is_binary_image_path(&entry.path) && sniff_image_media_type(&bytes).is_some() {
+        return FileDiff::Image {
+            path: entry.path.clone(),
+            original_path: None,
+            change: entry.category,
+        };
+    }
     if looks_binary(&bytes) {
         return FileDiff::Binary {
             path: entry.path.clone(),
@@ -986,13 +1023,61 @@ mod tests {
 
     #[test]
     fn build_text_result_flags_binary_marker_output() {
-        let entry = sample_entry("image.png", ChangeCategory::Changed);
-        let output = fake_output("Binary files a/image.png and b/image.png differ\n");
+        let entry = sample_entry("archive.bin", ChangeCategory::Changed);
+        let output = fake_output("Binary files a/archive.bin and b/archive.bin differ\n");
 
         assert!(matches!(
             build_text_result(&entry, &output),
             FileDiff::Binary { .. }
         ));
+    }
+
+    #[test]
+    fn build_text_result_calls_a_binary_image_an_image() {
+        let entry = sample_entry("logo.PNG", ChangeCategory::Changed);
+        let output = fake_output("Binary files a/logo.PNG and b/logo.PNG differ\n");
+
+        assert!(matches!(
+            build_text_result(&entry, &output),
+            FileDiff::Image { .. }
+        ));
+    }
+
+    #[test]
+    fn image_media_type_covers_the_formats_the_webview_draws() {
+        assert_eq!(image_media_type_for_path("a/logo.png"), Some("image/png"));
+        assert_eq!(image_media_type_for_path("photo.JPEG"), Some("image/jpeg"));
+        assert_eq!(image_media_type_for_path("icon.svg"), Some("image/svg+xml"));
+        assert_eq!(image_media_type_for_path("notes.txt"), None);
+        assert_eq!(image_media_type_for_path("png"), None);
+    }
+
+    #[test]
+    fn sniffing_answers_from_content_not_from_the_name() {
+        assert_eq!(
+            sniff_image_media_type(b"\x89PNG\r\n\x1a\nrest"),
+            Some("image/png")
+        );
+        assert_eq!(sniff_image_media_type(b"GIF89a..."), Some("image/gif"));
+        assert_eq!(
+            sniff_image_media_type(b"RIFF\0\0\0\0WEBPVP8 "),
+            Some("image/webp")
+        );
+        assert_eq!(
+            sniff_image_media_type(b"<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"),
+            Some("image/svg+xml")
+        );
+        assert_eq!(sniff_image_media_type(b"just text"), None);
+    }
+
+    #[test]
+    fn base64_encodes_with_the_expected_padding() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+        assert_eq!(base64_encode(&[0xFF, 0xEE, 0xDD]), "/+7d");
     }
 
     #[test]
@@ -1545,4 +1630,320 @@ pub(crate) fn read_working_tree_diffs(path: String) -> Result<WorkingTreeDiffBat
         changed_files,
         budget_bytes,
     })
+}
+
+// ---- Image previews (task 111) ----
+//
+// Classification says *that* a changed file is a drawable image; this section
+// answers *what it looks like*, for one file, only once the user opens it.
+// The two are deliberately separate: a diff payload covers every changed file
+// at once, and a folder of screenshots must not turn it into a gallery.
+//
+// The bytes cross IPC base64-encoded and are drawn by the frontend as an
+// `<img>` `data:` URL. That is the whole security model for the SVG half of
+// the feature too: in an `img` context a browser engine runs no script and
+// fetches no external resource, so repository content is rendered without ever
+// becoming part of the application's own document.
+
+/// Bounds one side of an image preview. Five times `MAX_DIFF_OUTPUT_BYTES`,
+/// because a legitimate photograph is far larger than any legitimate diff —
+/// and no higher, because base64 inflates what crosses IPC by a third, so
+/// 10 MiB of pixels is already ~13 MiB of JSON.
+pub(crate) const MAX_IMAGE_PREVIEW_BYTES: u64 = 10 * 1024 * 1024;
+
+pub(crate) const SVG_MEDIA_TYPE: &str = "image/svg+xml";
+
+/// Every format a webview decodes on its own, SVG included: the preview
+/// command serves the drawing behind an SVG's text diff through exactly the
+/// same path as a photograph, because from `<img>`'s point of view they are
+/// the same thing.
+pub(crate) fn image_media_type_for_path(file_path: &str) -> Option<&'static str> {
+    let extension = Path::new(file_path)
+        .extension()?
+        .to_str()?
+        .to_ascii_lowercase();
+    Some(match extension.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "bmp" => "image/bmp",
+        "ico" => "image/x-icon",
+        "svg" => SVG_MEDIA_TYPE,
+        _ => return None,
+    })
+}
+
+/// Which images stop being text. An SVG *is* text — it has a real line-by-line
+/// diff worth keeping, and rendering it is a second way to read that diff, not
+/// a different classification. Everything else in the list has no text to show
+/// at all, so for those the picture replaces the diff rather than joining it.
+pub(crate) fn is_binary_image_path(file_path: &str) -> bool {
+    matches!(image_media_type_for_path(file_path), Some(media_type) if media_type != SVG_MEDIA_TYPE)
+}
+
+/// What the bytes actually are, which is what the `data:` URL must declare.
+/// A file's name is a claim; this is the evidence. When the two disagree the
+/// preview is reported unsupported rather than handed to the webview with a
+/// media type it will refuse to decode.
+pub(crate) fn sniff_image_media_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Some("image/png");
+    }
+    if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        return Some("image/jpeg");
+    }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Some("image/gif");
+    }
+    if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
+        return Some("image/webp");
+    }
+    if bytes.len() >= 12 && &bytes[4..8] == b"ftyp" && matches!(&bytes[8..12], b"avif" | b"avis") {
+        return Some("image/avif");
+    }
+    if bytes.starts_with(b"BM") {
+        return Some("image/bmp");
+    }
+    if bytes.starts_with(&[0x00, 0x00, 0x01, 0x00]) {
+        return Some("image/x-icon");
+    }
+    if looks_like_svg(bytes) {
+        return Some(SVG_MEDIA_TYPE);
+    }
+    None
+}
+
+/// SVG has no magic number, so this is a shape test rather than a signature:
+/// the document must *begin* like XML or SVG — after an optional byte-order
+/// mark and whitespace — and carry an `<svg` tag near the top. Requiring the
+/// opening keeps an arbitrary text file that merely mentions `<svg` somewhere
+/// from being handed to the webview as a drawing.
+fn looks_like_svg(bytes: &[u8]) -> bool {
+    let head = bytes.get(..SVG_SNIFF_BYTES).unwrap_or(bytes);
+    let text = String::from_utf8_lossy(head);
+    let trimmed = text.trim_start_matches('\u{feff}').trim_start();
+    let opens_as_markup = trimmed.starts_with("<?xml")
+        || trimmed.starts_with("<!--")
+        || trimmed.starts_with("<svg")
+        // `get` rather than slicing: the head may end mid-character, and a
+        // doctype is spelled either way in the wild.
+        || trimmed
+            .get(..9)
+            .is_some_and(|head| head.eq_ignore_ascii_case("<!doctype"));
+    opens_as_markup && trimmed.contains("<svg")
+}
+
+/// Enough to clear an XML declaration, a licence comment and a doctype before
+/// the root element, and short enough that the check stays cheap.
+pub(crate) const SVG_SNIFF_BYTES: usize = 4096;
+
+const BASE64_ALPHABET: &[u8; 64] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/// Standard base64, written here rather than pulled in: it is twenty lines,
+/// and task 018 traded `opt-level = "s"`, `lto` and `strip` for launch time
+/// that a dependency would spend back.
+pub(crate) fn base64_encode(bytes: &[u8]) -> String {
+    let mut encoded = String::with_capacity(bytes.len() / 3 * 4 + 4);
+    for chunk in bytes.chunks(3) {
+        let first = u32::from(chunk[0]);
+        let second = u32::from(*chunk.get(1).unwrap_or(&0));
+        let third = u32::from(*chunk.get(2).unwrap_or(&0));
+        let triple = (first << 16) | (second << 8) | third;
+        encoded.push(BASE64_ALPHABET[((triple >> 18) & 63) as usize] as char);
+        encoded.push(BASE64_ALPHABET[((triple >> 12) & 63) as usize] as char);
+        encoded.push(if chunk.len() > 1 {
+            BASE64_ALPHABET[((triple >> 6) & 63) as usize] as char
+        } else {
+            '='
+        });
+        encoded.push(if chunk.len() > 2 {
+            BASE64_ALPHABET[(triple & 63) as usize] as char
+        } else {
+            '='
+        });
+    }
+    encoded
+}
+
+/// One version of one image. `Ready` carries the picture; the other two are
+/// the honest answers that keep a frame from being drawn empty — the file is
+/// past the preview limit, or its bytes are not an image the webview knows.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub(crate) enum ImagePreviewSide {
+    // `rename_all` on the enum renames the *variants*; a struct variant's own
+    // fields need saying again, or they cross IPC in snake_case and every
+    // reader of `mediaType`/`byteLength` silently gets `undefined`.
+    #[serde(rename_all = "camelCase")]
+    Ready {
+        media_type: String,
+        byte_length: u64,
+        /// Base64, ready to be placed in a `data:` URL unmodified.
+        data: String,
+    },
+    #[serde(rename = "too-large", rename_all = "camelCase")]
+    TooLarge { byte_length: u64, limit_bytes: u64 },
+    #[serde(rename_all = "camelCase")]
+    Unsupported { byte_length: u64 },
+}
+
+/// `None` on a side means that side does not exist — an added image has no
+/// before, a deleted one has no after. It is not an error and must not be
+/// drawn as one.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ImagePreview {
+    pub(crate) before: Option<ImagePreviewSide>,
+    pub(crate) after: Option<ImagePreviewSide>,
+}
+
+pub(crate) fn image_preview_side(bytes: Vec<u8>) -> ImagePreviewSide {
+    let byte_length = bytes.len() as u64;
+    match sniff_image_media_type(&bytes) {
+        Some(media_type) => ImagePreviewSide::Ready {
+            media_type: media_type.to_string(),
+            byte_length,
+            data: base64_encode(&bytes),
+        },
+        None => ImagePreviewSide::Unsupported { byte_length },
+    }
+}
+
+/// `None` means this side does not exist, which the frontend states as added
+/// or removed. Nothing that merely *failed* may return it: telling someone a
+/// picture was deleted when it was only unreadable is worse than saying
+/// nothing, so every failure past a resolvable object is an error.
+fn unreadable_picture(code: AppErrorCode) -> AppError {
+    AppError::new(code, "GitOdile couldn't read this picture.")
+        .with_remediation("Check that the file is readable and try again.")
+}
+
+/// Reads one blob by `<rev>:<path>` spec. The size is asked for first and
+/// separately: an object past the limit must be reported without ever being
+/// read into memory, which is the entire point of having a limit.
+///
+/// A spec that does not resolve is `Ok(None)` — that is exactly what an added
+/// file's before side and a deleted file's after side look like.
+fn blob_preview_side(path: &str, spec: &str) -> Result<Option<ImagePreviewSide>, AppError> {
+    let size_output = run_git(path, &["cat-file", "-s", spec])?;
+    if !size_output.status.success() {
+        return Ok(None);
+    }
+    let Ok(byte_length) = git_stdout(&size_output).trim().parse::<u64>() else {
+        return Err(unreadable_picture(AppErrorCode::GitCommandFailed));
+    };
+    if byte_length > MAX_IMAGE_PREVIEW_BYTES {
+        return Ok(Some(ImagePreviewSide::TooLarge {
+            byte_length,
+            limit_bytes: MAX_IMAGE_PREVIEW_BYTES,
+        }));
+    }
+    let output = run_git_capped(
+        path,
+        &["cat-file", "blob", spec],
+        MAX_IMAGE_PREVIEW_BYTES as usize,
+    )?;
+    // The object resolved a moment ago, so a failure here is a failure, not an
+    // absent version.
+    if !output.status.success() || output.limit_exceeded {
+        return Err(unreadable_picture(AppErrorCode::GitCommandFailed));
+    }
+    Ok(Some(image_preview_side(output.stdout)))
+}
+
+/// The working-tree copy, which needs no Git process at all.
+///
+/// `validate_repo_relative_path` rejects `..` and absolute paths, but it works
+/// on the string alone — a symlink committed inside the repository still
+/// resolves outside it. Containment is therefore confirmed by resolving both
+/// ends, the same check and for the same reason as `read_file_lines`: without
+/// it, a repository could put any picture on the user's disk on screen by
+/// naming a link after one of its own files.
+fn disk_preview_side(
+    repo_path: &Path,
+    file_path: &str,
+) -> Result<Option<ImagePreviewSide>, AppError> {
+    let repo_root = repo_path.canonicalize().map_err(|_| {
+        AppError::new(
+            AppErrorCode::PathUnusable,
+            "This project's folder can't be read.",
+        )
+        .with_remediation("Open the project again, or choose another folder.")
+    })?;
+    let full_path = match repo_root.join(file_path).canonicalize() {
+        Ok(resolved) => resolved,
+        // Genuinely absent: this is the deleted side, and not an error.
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err(unreadable_picture(AppErrorCode::PathUnusable)),
+    };
+    if !full_path.starts_with(&repo_root) {
+        return Err(
+            AppError::new(AppErrorCode::PathInvalid, "That file path isn't valid.")
+                .with_remediation("Refresh the changes list and choose the file again."),
+        );
+    }
+    let metadata = full_path
+        .metadata()
+        .map_err(|_| unreadable_picture(AppErrorCode::PathUnusable))?;
+    if !metadata.is_file() {
+        return Err(
+            AppError::new(AppErrorCode::PathUnusable, "That path isn't a file.")
+                .with_remediation("Refresh the changes list."),
+        );
+    }
+    if metadata.len() > MAX_IMAGE_PREVIEW_BYTES {
+        return Ok(Some(ImagePreviewSide::TooLarge {
+            byte_length: metadata.len(),
+            limit_bytes: MAX_IMAGE_PREVIEW_BYTES,
+        }));
+    }
+    let bytes =
+        std::fs::read(&full_path).map_err(|_| unreadable_picture(AppErrorCode::PathUnusable))?;
+    Ok(Some(image_preview_side(bytes)))
+}
+
+/// Both versions of one changed image, for whichever surface asked.
+///
+/// `commit` selects the pair: `None` compares `HEAD` with the file on disk,
+/// which is what the Changes screen shows; `Some(commit)` compares that saved
+/// version with its parent, which is what History and the pending-versions
+/// list show. `original_path` is the pre-rename name and is used for the
+/// before side only, so a renamed image still finds the version it came from.
+pub(crate) fn read_file_image_preview(
+    path: String,
+    file_path: String,
+    original_path: Option<String>,
+    commit: Option<String>,
+) -> Result<ImagePreview, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_file_image_preview", None)?;
+    validate_repo_relative_path(&file_path)?;
+    if let Some(original) = original_path.as_deref() {
+        validate_repo_relative_path(original)?;
+    }
+    if let Some(commit) = commit.as_deref() {
+        validate_commit_ish(commit)?;
+    }
+    if image_media_type_for_path(&file_path).is_none() {
+        return Err(AppError::new(
+            AppErrorCode::PathInvalid,
+            "That file isn't an image GitOdile can show.",
+        )
+        .with_remediation("Choose a PNG, JPEG, GIF, WebP, AVIF, BMP or ICO file."));
+    }
+    let base_path = original_path.as_deref().unwrap_or(&file_path);
+
+    match commit {
+        Some(commit) => Ok(ImagePreview {
+            before: blob_preview_side(&path, &format!("{commit}^:{base_path}"))?,
+            after: blob_preview_side(&path, &format!("{commit}:{file_path}"))?,
+        }),
+        None => Ok(ImagePreview {
+            before: blob_preview_side(&path, &format!("HEAD:{base_path}"))?,
+            after: disk_preview_side(Path::new(&path), &file_path)?,
+        }),
+    }
 }

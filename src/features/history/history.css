@@ -349,6 +349,10 @@
 .history-detail__diff { flex: 1; min-height: 120px; display: flex; flex-direction: column; overflow: hidden; }
 .history-detail__diff .diff-code { flex: 1; min-height: 0; margin: 0; border-radius: 0; }
 .history-detail__diff .changes-diff__note { flex: 1; }
+/* The text diff scrolls inside `.diff-code`; a picture has no such inner
+   viewport, so it gets one here. Without it this pane's `overflow: hidden`
+   clips a tall picture and its captions with no way to reach them. */
+.history-detail__diff .image-diff { flex: 1; min-height: 0; overflow: auto; }
 .history-diff-state { flex: 1; display: grid; place-items: center; align-content: center; gap: 12px; padding: 20px; color: var(--text-secondary); text-align: center; }
 .history-diff-state p { margin: 0; }
 .history-diff-pane__footer { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 9px 5px 14px; border-top: 1px solid var(--border-divider); color: var(--text-secondary); font-size: 10.5px; }

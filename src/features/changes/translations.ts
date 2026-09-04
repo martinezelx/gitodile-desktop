@@ -20,6 +20,29 @@ export interface ChangesTranslations {
   changesDiffRetry: string;
   changesDiffBinaryTitle: string;
   changesDiffBinaryDescription: string;
+  changesImageLoading: string;
+  changesImageError: string;
+  changesImageUnavailable: string;
+  changesImageBefore: string;
+  changesImageAfter: string;
+  changesImageAdded: string;
+  changesImageRemoved: string;
+  changesImageBeforeAlt: (path: string) => string;
+  changesImageAfterAlt: (path: string) => string;
+  changesImageTooLarge: (limit: string) => string;
+  changesImageUnsupported: string;
+  changesImageComparisonLabel: string;
+  changesImageModeSideBySide: string;
+  changesImageModeSwipe: string;
+  changesImageModeFade: string;
+  changesImageSwipePosition: string;
+  changesImageFadeAmount: string;
+  changesImageSameSize: string;
+  changesImageLarger: (amount: string) => string;
+  changesImageSmaller: (amount: string) => string;
+  changesSvgViewLabel: string;
+  changesSvgDrawing: string;
+  changesSvgSource: string;
   changesDiffTooLargeTitle: string;
   changesDiffTooLargeDescription: (limit: string) => string;
   changesDiffWhitespaceOnlyTitle: string;
@@ -126,6 +149,30 @@ const en: ChangesTranslations = {
   changesDiffRetry: "Try again",
   changesDiffBinaryTitle: "This file can’t be previewed as text",
   changesDiffBinaryDescription: "GitOdile can tell this file changed, but its contents aren’t readable as text.",
+  changesImageLoading: "Opening the picture…",
+  changesImageError: "GitOdile couldn’t open this picture.",
+  changesImageUnavailable: "There is no version of this picture to show.",
+  changesImageBefore: "Before",
+  changesImageAfter: "After",
+  changesImageAdded: "Added",
+  changesImageRemoved: "Removed",
+  changesImageBeforeAlt: (path) => `${path} before this change`,
+  changesImageAfterAlt: (path) => `${path} after this change`,
+  changesImageTooLarge: (limit) =>
+    `This version is larger than ${limit}, GitOdile’s limit for showing pictures here. The file itself is unaffected.`,
+  changesImageUnsupported: "This version isn’t a picture GitOdile can draw.",
+  changesImageComparisonLabel: "How to compare",
+  changesImageModeSideBySide: "Side by side",
+  changesImageModeSwipe: "Swipe",
+  changesImageModeFade: "Fade",
+  changesImageSwipePosition: "Move the divider",
+  changesImageFadeAmount: "Fade between the two versions",
+  changesImageSameSize: "same size",
+  changesImageLarger: (amount) => `${amount} larger`,
+  changesImageSmaller: (amount) => `${amount} smaller`,
+  changesSvgViewLabel: "How to read this file",
+  changesSvgDrawing: "Drawing",
+  changesSvgSource: "Source",
   changesDiffTooLargeTitle: "This difference is too large to show here",
   changesDiffTooLargeDescription: (limit) =>
     `This file’s difference is larger than ${limit}, GitOdile’s safety limit for reviewing changes here. The file itself is unaffected.`,
@@ -239,6 +286,30 @@ const es: ChangesTranslations = {
   changesDiffRetry: "Reintentar",
   changesDiffBinaryTitle: "Este archivo no se puede previsualizar como texto",
   changesDiffBinaryDescription: "GitOdile detecta que este archivo cambió, pero su contenido no es legible como texto.",
+  changesImageLoading: "Abriendo la imagen…",
+  changesImageError: "GitOdile no pudo abrir esta imagen.",
+  changesImageUnavailable: "No hay ninguna versión de esta imagen que mostrar.",
+  changesImageBefore: "Antes",
+  changesImageAfter: "Después",
+  changesImageAdded: "Añadida",
+  changesImageRemoved: "Eliminada",
+  changesImageBeforeAlt: (path) => `${path} antes de este cambio`,
+  changesImageAfterAlt: (path) => `${path} después de este cambio`,
+  changesImageTooLarge: (limit) =>
+    `Esta versión supera ${limit}, el límite de GitOdile para mostrar imágenes aquí. El archivo no se ve afectado.`,
+  changesImageUnsupported: "Esta versión no es una imagen que GitOdile pueda dibujar.",
+  changesImageComparisonLabel: "Cómo comparar",
+  changesImageModeSideBySide: "Lado a lado",
+  changesImageModeSwipe: "Cortinilla",
+  changesImageModeFade: "Fundido",
+  changesImageSwipePosition: "Mueve la divisoria",
+  changesImageFadeAmount: "Funde entre las dos versiones",
+  changesImageSameSize: "mismo tamaño",
+  changesImageLarger: (amount) => `${amount} más`,
+  changesImageSmaller: (amount) => `${amount} menos`,
+  changesSvgViewLabel: "Cómo leer este archivo",
+  changesSvgDrawing: "Dibujo",
+  changesSvgSource: "Código",
   changesDiffTooLargeTitle: "Esta diferencia es demasiado grande para mostrarla aquí",
   changesDiffTooLargeDescription: (limit) =>
     `La diferencia de este archivo supera ${limit}, el límite de seguridad de GitOdile para revisar cambios aquí. El archivo en sí no se ve afectado.`,

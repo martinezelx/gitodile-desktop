@@ -84,6 +84,7 @@ function controller() {
     readPage: vi.fn(async () => page(1)),
     readDetail: vi.fn(async () => { throw new Error("not expected"); }),
     readFileDiff: vi.fn(async () => { throw new Error("not expected"); }),
+    readImagePreview: vi.fn(async () => { throw new Error("not expected"); }),
   };
   return createHistoryController(port);
 }

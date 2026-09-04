@@ -11,7 +11,7 @@ import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatNumber, type LocaleFormats } from "../../shared/i18n";
 import { AutomaticUpdatesNotice, autoHideScrollbarProps, handlePopupMenuKeyDown, LoadingBar, useAnchoredPopup } from "../../shared/ui";
-import { ChangesContextMenu, DiffResultView, DiffViewSelector, type ChangesContextMenuState, type DiffViewMode, type FileDiff } from "../changes";
+import { ChangesContextMenu, DiffResultView, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
 import type { HistoryFileChange, HistoryState, PublicationState, SavedVersionDetail, SavedVersionSummary } from "./domain";
@@ -341,8 +341,8 @@ function HistoryFilterMenu({ label, value, options, onChange }: {
   </div>;
 }
 
-function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDiff, onBack }: {
-  state: HistoryState; formats: LocaleFormats; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void;
+function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDiff, onBack, readImagePreview, sourceKey }: {
+  state: HistoryState; formats: LocaleFormats; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void; readImagePreview: ImagePreviewLoader; sourceKey: string;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<HistoryTab>("diff");
@@ -357,6 +357,9 @@ function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDif
 
   useEffect(() => { setFileSearch(""); setDiffSearch(""); setContextMenu(null); }, [state.selectedCommit]);
   useEffect(() => setHunkTarget({ index: 0, token: 0 }), [state.selectedFilePath]);
+  const picture = usePictureDiff(state.fileDiff.diff, sourceKey, readImagePreview);
+  // The reading-mode picker lays out lines; a drawing has none.
+  const showsReadingMode = picture === null || (picture.isSvg && !picture.showsDrawing);
 
   if (state.detail.isLoading) return <section className="history-detail history-detail--loading" aria-labelledby="history-detail-title" aria-busy="true">{selectedVersion && <div className="history-detail__loading-title"><h2 id="history-detail-title">{versionTitle(selectedVersion, t)}</h2></div>}<div className="history-detail__loading"><LoadingBar label={t.historyDetailLoading} /><p>{t.historyDetailLoading}</p></div></section>;
   if (state.detail.error) return <section className="history-detail history-detail--state" role="alert"><CircleAlert /><h2>{t.historyDetailError}</h2><button className="secondary-button" type="button" onClick={onRetryDetail}>{t.historyRetry}</button></section>;
@@ -409,9 +412,9 @@ function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDif
     <HistoryDetailHeader detail={detail} formats={formats} activeTab={activeTab} onTab={setActiveTab} />
     {activeTab === "overview" && <HistoryOverview detail={detail} state={state} formats={formats} comparison={comparison} onSelectFile={openFileFromOverview} />}
     {activeTab === "diff" && <div id="history-panel-diff" className="history-workspace history-workspace--diff" role="tabpanel" aria-labelledby="history-tab-diff">
-      <header className="history-workspace__toolbar"><div className="history-change-summary"><strong>{fileCount}</strong>{totals && <><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></>}</div><div className="history-diff-controls"><label className="history-search-box history-search-box--diff"><Search aria-hidden="true" /><input type="search" value={diffSearch} onChange={(event) => setDiffSearch(event.target.value)} placeholder={t.historySearchDiffPlaceholder} aria-label={t.historySearchDiffAriaLabel} /></label><DiffViewSelector value={viewMode} onChange={setViewMode} t={t} /></div></header>
+      <header className="history-workspace__toolbar"><div className="history-change-summary"><strong>{fileCount}</strong>{totals && <><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></>}</div><div className="history-diff-controls"><label className="history-search-box history-search-box--diff"><Search aria-hidden="true" /><input type="search" value={diffSearch} onChange={(event) => setDiffSearch(event.target.value)} placeholder={t.historySearchDiffPlaceholder} aria-label={t.historySearchDiffAriaLabel} /></label>{picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}{showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}</div></header>
       <div className="history-diff-grid"><aside className="history-files-pane">{fileSearchControl}{fileList}</aside><div className="history-diff-pane"><header className="history-diff-pane__header">{selectedFile ? <><span className="history-file__type" aria-hidden="true">{React.createElement(getFileTypeIcon(selectedFile.path))}</span><strong>{splitPath(selectedFile.path).name}</strong><span>{splitPath(selectedFile.path).dir}</span><button className="history-icon-button" type="button" aria-label={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} data-tooltip={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} onClick={copySelectedPath}>{copiedPath ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}</button></> : <span>{t.historySelectFilePrompt}</span>}</header>
-        <div className="history-detail__diff" onContextMenu={openCodeContextMenu}>{state.fileDiff.isLoading && <div className="history-diff-state" aria-busy="true"><LoadingBar label={t.historyDiffLoading} /><p>{t.historyDiffLoading}</p></div>}{state.fileDiff.error !== null && <div className="history-diff-state" role="alert"><p>{t.historyDiffError}</p><button className="secondary-button" type="button" onClick={onRetryDiff}>{t.historyRetry}</button></div>}{state.fileDiff.diff && <DiffResultView diff={state.fileDiff.diff} viewMode={viewMode} hunkTarget={hunkTarget} searchQuery={diffSearch} t={t} />}{!state.fileDiff.isLoading && !state.fileDiff.error && !state.fileDiff.diff && detail.files.length > 0 && <p className="history-diff-state">{t.historySelectFilePrompt}</p>}</div>
+        <div className="history-detail__diff" onContextMenu={openCodeContextMenu}>{state.fileDiff.isLoading && <div className="history-diff-state" aria-busy="true"><LoadingBar label={t.historyDiffLoading} /><p>{t.historyDiffLoading}</p></div>}{state.fileDiff.error !== null && <div className="history-diff-state" role="alert"><p>{t.historyDiffError}</p><button className="secondary-button" type="button" onClick={onRetryDiff}>{t.historyRetry}</button></div>}{state.fileDiff.diff && <DiffResultView diff={state.fileDiff.diff} viewMode={viewMode} hunkTarget={hunkTarget} searchQuery={diffSearch} picture={picture} t={t} />}{!state.fileDiff.isLoading && !state.fileDiff.error && !state.fileDiff.diff && detail.files.length > 0 && <p className="history-diff-state">{t.historySelectFilePrompt}</p>}</div>
         {hunkCount > 0 && viewMode !== "accessible" && <footer className="history-diff-pane__footer"><span>{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span><div><button className="secondary-button" type="button" disabled={hunkTarget.index <= 0} onClick={() => goToHunk(hunkTarget.index - 1)}><ArrowUp aria-hidden="true" />{t.changesPreviousHunk}</button><button className="secondary-button" type="button" disabled={hunkTarget.index >= hunkCount - 1} onClick={() => goToHunk(hunkTarget.index + 1)}>{t.changesNextHunk}<ArrowDown aria-hidden="true" /></button></div></footer>}
       </div></div>
     </div>}
@@ -442,6 +445,20 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
   const selectFile = useCallback((path: string) => controller.selectFile(query, path), [controller, query]);
   const retryDetail = useCallback(() => controller.retryDetail(query), [controller, query]);
   const retryDiff = useCallback(() => controller.retryFileDiff(query), [controller, query]);
+  // A picture is read from the selected saved version and its parent, so the
+  // loader carries the commit rather than the snapshot token the text diff
+  // uses. A file can only be open once a version is selected.
+  const selectedCommit = state.selectedCommit;
+  const readImagePreview = useCallback<ImagePreviewLoader>(
+    (filePath, originalPath) =>
+      selectedCommit === null
+        ? // Unreachable through the UI, and stated rather than papered over:
+          // an empty commit-ish makes `:path` — which Git resolves to the
+          // *index* — so this must never be sent as one.
+          Promise.reject(new Error("no saved version is selected"))
+        : controller.readImagePreview(query, selectedCommit, filePath, originalPath),
+    [controller, query, selectedCommit],
+  );
   const saveScrollOffset = useCallback((offset: number) => controller.setScrollOffset(query, offset), [controller, query]);
   const openNarrowDetail = useCallback(() => setShowNarrowDetail(true), []);
   const closeNarrowDetail = useCallback(() => setShowNarrowDetail(false), []);
@@ -465,7 +482,7 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
     </div>
     <div className="history-layout">
       <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} loadedCount={state.versions.length} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} publicationFilter={publicationFilter} sort={sort} onSearch={setSearch} onPublicationFilter={setPublicationFilter} onSort={setSort} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
-      <HistoryDetail state={state} formats={formats} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} />
+      <HistoryDetail state={state} formats={formats} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
     </div>
   </div>;
 }

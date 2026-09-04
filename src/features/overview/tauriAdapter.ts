@@ -8,5 +8,7 @@ export const pendingVersionDetailsPort: PendingVersionDetailsPort = {
     invoke("read_commit_file_changes", { path, sessionEpoch, commit }),
   readDiff: (path, sessionEpoch, commit, filePath) =>
     invoke("read_commit_file_diff", { path, sessionEpoch, commit, filePath }),
+  readImagePreview: (path, sessionEpoch, commit, filePath, originalPath) =>
+    invoke("read_file_image_preview", { path, sessionEpoch, commit, filePath, originalPath }),
 };
 

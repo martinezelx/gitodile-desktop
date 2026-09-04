@@ -465,6 +465,13 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .pending-versions__file-path { overflow-wrap: anywhere; }
 .pending-versions__file-category { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
 .pending-versions__diff {
+  /* A column, so whatever is inside can claim the leftover height and scroll
+     within it. As a plain block this box clipped anything taller than its
+     ceiling — which `38vh` makes short on a small window — with no way to
+     reach the rest. `.diff-code` already asks for `flex: 1; min-height: 0`;
+     here that finally means something. */
+  display: flex;
+  flex-direction: column;
   max-height: min(300px, 38vh);
   margin: 2px 0 var(--space-2) 19px;
   overflow: hidden;
@@ -1056,3 +1063,16 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
     outline-offset: -1px;
   }
 }
+
+/* The picture pickers for one expanded file. This surface has no toolbar to
+   put them in, so they sit directly above the picture — and disappear when a
+   picture has nothing to choose. */
+.pending-versions__diff-controls { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3) 0; }
+.pending-versions__diff-controls:empty { display: none; }
+/* The picture takes the room the controls row leaves and scrolls inside it,
+   and is drawn smaller here than on a full screen: this box's ceiling is a
+   fraction of the viewport, and a caption nobody can reach is a caption that
+   may as well not exist. */
+.pending-versions__diff .image-diff { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+.pending-versions__diff .image-diff__frame { min-height: 0; padding: var(--space-2); }
+.pending-versions__diff .image-diff__image { max-height: 150px; }

@@ -175,6 +175,7 @@ pub(crate) fn find_diff<'a>(diffs: &'a [FileDiff], path: &str) -> Option<&'a Fil
     diffs.iter().find(|diff| match diff {
         FileDiff::Text { path: p, .. }
         | FileDiff::Binary { path: p, .. }
+        | FileDiff::Image { path: p, .. }
         | FileDiff::TooLarge { path: p, .. }
         | FileDiff::Unchanged { path: p, .. } => p == path,
         FileDiff::Conflict { path: p, .. } => p == path,
