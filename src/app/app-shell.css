@@ -1013,6 +1013,63 @@
 }
 .message-dialog__icon svg { width: 20px; height: 20px; }
 
+.issue-report-dialog { position: relative; width: min(100%, 720px); }
+.issue-report-dialog > .dialog-close-button { position: absolute; top: 18px; right: 18px; }
+.issue-report-dialog > h2 { margin-right: 44px; }
+.issue-report-dialog__loader {
+  width: 32px;
+  height: 32px;
+  color: var(--accent-primary);
+  animation: spin 900ms linear infinite;
+}
+.issue-report-dialog__report {
+  /* Owns the frame so the radius can clip what the scroller paints: an
+     element's own border-radius leaves its scrollbar uncut, which let the
+     thumb spill past the corner curve. */
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-control);
+}
+.issue-report-dialog__report:has(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+.issue-report-dialog__report-body {
+  min-height: 180px;
+  max-height: min(44vh, 360px);
+  margin: 0;
+  padding: var(--space-3);
+  /* The activity log lines up in columns, so wrapping would destroy the one
+     property that makes a long report scannable: it scrolls instead. */
+  overflow: auto;
+  white-space: pre;
+  outline: none;
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  tab-size: 2;
+}
+/* A chip rather than a bordered strip: the guidance is an aside to the report
+   above it, and a rule across the dialog reads as another section beginning. */
+.issue-report-dialog .issue-report-dialog__note {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px 6px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+.issue-report-dialog__note svg { flex: 0 0 auto; width: 15px; height: 15px; }
+.issue-report-dialog .issue-report-dialog__status { min-height: 20px; font-size: 12.5px; }
+.issue-report-dialog__actions svg { width: 15px; height: 15px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .issue-report-dialog__loader { animation: none; }
+}
+
 .about-dialog__close {
   position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);

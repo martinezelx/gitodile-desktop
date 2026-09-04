@@ -5,7 +5,7 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(63);
+    expect(contract.commands).toHaveLength(65);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "open_repository", "plan_clone", "clone_repository",
       "cancel_clone", "cleanup_clone", "plan_initialize_project", "initialize_project",
@@ -13,7 +13,8 @@ describe("IPC contract snapshot", () => {
       "read_file_diff", "read_file_image_preview", "read_file_lines", "read_working_tree_diffs",
       "plan_discard_changes",
       "discard_changes", "get_discard_recovery", "restore_discarded_changes", "git_diagnostics",
-      "install_git", "update_git", "check_git_update", "get_git_identity", "set_git_identity",
+      "install_git", "update_git", "check_git_update", "get_git_identity",
+      "render_diagnostic_report", "save_diagnostic_report", "set_git_identity",
       "get_line_endings", "set_line_endings", "get_default_branch", "set_default_branch",
       "plan_save_version", "save_version", "discover_remotes", "plan_connect_remote",
       "connect_remote", "read_project_remotes", "set_remote_url", "read_project_identity",

@@ -95,6 +95,8 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     global_process("update_git", OperationClass::PlatformMutation, 900),
     global_process("check_git_update", OperationClass::ReadOnly, 15),
     global_process("get_git_identity", OperationClass::ReadOnly, 15),
+    no_process("render_diagnostic_report"),
+    no_process_with_class("save_diagnostic_report", OperationClass::PlatformMutation),
     global_process("set_git_identity", OperationClass::LocalMutation, 30),
     // Reads the global config, and the open project's when there is one, so it
     // is a repository read rather than a purely global one.
@@ -379,6 +381,8 @@ mod tests {
         "update_git",
         "check_git_update",
         "get_git_identity",
+        "render_diagnostic_report",
+        "save_diagnostic_report",
         "set_git_identity",
         "get_line_endings",
         "set_line_endings",

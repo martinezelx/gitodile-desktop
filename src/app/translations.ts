@@ -11,6 +11,20 @@ export interface AppTranslations {
   titlebarReloadBlocked: string;
   titlebarReportIssue: string;
   issueReportHint: string;
+  issueReportPreparingTitle: string;
+  issueReportPreparingMessage: string;
+  issueReportReviewTitle: string;
+  issueReportReviewMessage: string;
+  issueReportContentsLabel: string;
+  issueReportAttachmentNote: string;
+  issueReportCopyReport: string;
+  issueReportReportCopied: string;
+  issueReportCopyReportFailed: string;
+  issueReportSaveReport: string;
+  issueReportSaving: string;
+  issueReportSaved: string;
+  issueReportSaveFailed: string;
+  issueReportContinue: string;
   issueReportFailedTitle: string;
   issueReportFailedMessage: string;
   issueReportLink: string;
@@ -184,7 +198,21 @@ const en: AppTranslations = {
   titlebarReloadWindow: "Reload window",
   titlebarReloadBlocked: "Finish the current project operation before reloading.",
   titlebarReportIssue: "Report an issue",
-  issueReportHint: "Opens GitHub in your browser with the available system versions. A GitHub account is required; reports are public.",
+  issueReportHint: "Reviews the system details and recent app activity before opening GitHub. A GitHub account is required; reports are public.",
+  issueReportPreparingTitle: "Preparing your report",
+  issueReportPreparingMessage: "Collecting the app and system details stored for this session.",
+  issueReportReviewTitle: "Review issue report",
+  issueReportReviewMessage: "Only the versions are prefilled. Copy or save to include the activity.",
+  issueReportContentsLabel: "Report contents",
+  issueReportAttachmentNote: "If you save the report, attach it to the issue yourself.",
+  issueReportCopyReport: "Copy",
+  issueReportReportCopied: "Report copied.",
+  issueReportCopyReportFailed: "Couldn't copy the report. Select the text above and copy it manually.",
+  issueReportSaveReport: "Save report…",
+  issueReportSaving: "Saving…",
+  issueReportSaved: "Report saved. Attach the file to your GitHub issue.",
+  issueReportSaveFailed: "Couldn't save the report. Choose another location and try again.",
+  issueReportContinue: "Open issue",
   issueReportFailedTitle: "Couldn't open the issue report",
   issueReportFailedMessage: "Try again or copy the link into your browser. GitHub requires sign-in, and you can review the public report before submitting it.",
   issueReportLink: "Report link",
@@ -365,7 +393,21 @@ const es: AppTranslations = {
   titlebarReloadWindow: "Recargar ventana",
   titlebarReloadBlocked: "Termina la operación actual del proyecto antes de recargar.",
   titlebarReportIssue: "Reportar un problema",
-  issueReportHint: "Abre GitHub en el navegador con las versiones del sistema disponibles. Requiere una cuenta de GitHub; los informes son públicos.",
+  issueReportHint: "Permite revisar los datos del sistema y la actividad reciente antes de abrir GitHub. Requiere una cuenta de GitHub; los informes son públicos.",
+  issueReportPreparingTitle: "Preparando el informe",
+  issueReportPreparingMessage: "Recopilando los datos de la aplicación y del sistema guardados durante esta sesión.",
+  issueReportReviewTitle: "Revisar informe del problema",
+  issueReportReviewMessage: "Solo se rellenan las versiones. Copia o guarda para incluir la actividad.",
+  issueReportContentsLabel: "Contenido del informe",
+  issueReportAttachmentNote: "Si guardas el informe, adjúntalo tú en GitHub.",
+  issueReportCopyReport: "Copiar",
+  issueReportReportCopied: "Informe copiado.",
+  issueReportCopyReportFailed: "No se pudo copiar el informe. Selecciona el texto de arriba y cópialo manualmente.",
+  issueReportSaveReport: "Guardar informe…",
+  issueReportSaving: "Guardando…",
+  issueReportSaved: "Informe guardado. Adjunta el archivo en GitHub.",
+  issueReportSaveFailed: "No se pudo guardar el informe. Elige otra ubicación e inténtalo de nuevo.",
+  issueReportContinue: "Reportar en GitHub",
   issueReportFailedTitle: "No se pudo abrir el informe",
   issueReportFailedMessage: "Reinténtalo o copia el enlace en tu navegador. GitHub requiere iniciar sesión y podrás revisar el informe público antes de enviarlo.",
   issueReportLink: "Enlace del informe",

@@ -25,6 +25,8 @@
     { "name": "update_git", "arguments": [], "response": "GitUpdateLaunchResult" },
     { "name": "check_git_update", "arguments": [], "response": "GitUpdateStatus" },
     { "name": "get_git_identity", "arguments": [], "response": "GitIdentity" },
+    { "name": "render_diagnostic_report", "arguments": ["environment"], "response": "string" },
+    { "name": "save_diagnostic_report", "arguments": ["path", "report"], "response": "void" },
     { "name": "set_git_identity", "arguments": ["name", "email"], "response": "void" },
     { "name": "get_line_endings", "arguments": ["path?", "sessionEpoch?"], "response": "GitLineEndings" },
     { "name": "set_line_endings", "arguments": ["mode"], "response": "void" },

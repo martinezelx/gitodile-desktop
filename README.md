@@ -68,6 +68,9 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Browse the active version line as a bounded, read-only saved-version
   timeline. Inspect author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
+- Review a bounded, redacted record of this session's app commands, Git
+  operations, and failures before reporting an issue; copy it, save it locally to attach, or
+  continue to the public GitHub form. Nothing is retained between sessions.
 - Configure light/dark/system themes, reduced motion, English/Spanish copy,
   date and number formats, Git identity, installation diagnostics, supported
   Git update guidance, how diffs are read, and whether projects are watched

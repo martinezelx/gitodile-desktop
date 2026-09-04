@@ -164,14 +164,29 @@ when the user opens it.
 
 ### Issue reporting
 
-Issue reporting is an app-shell service: `issueReport.ts` builds a URL from
-available local diagnostics and `issueReportContract.json`; `useIssueReport.ts`
-owns launch/copy attempts through `issueReportAdapter.ts`. The titlebar receives
-an action, and an eager error overlay provides retry, copy and manual selection.
-Dismissed attempts cannot restore stale errors or clipboard state. Opening the
-form is an explicit external action and sends no repository content. The live
-tracker/form contract is checked separately from the offline gate by
-`pnpm run check:feedback`, including private vulnerability reporting enablement.
+Issue reporting is an app-shell service. Rust's `diagnostics.rs` owns a bounded,
+session-only ring buffer of typed Git-invocation and IPC-command events. Command
+events retain the checked operation and success or stable error code; Git events
+add only an allowlisted subcommand, exit status and duration. Event construction
+accepts no repository path, ref, file content, command result or raw Git
+argument, and failure excerpts reuse the product's bounded redaction path. The
+report states its UTC start, a readable session duration, the retained event
+count and whether older events were omitted; timings read as offsets from that
+start rather than raw milliseconds. The buffer is managed as Tauri state and is
+never persisted unless the user explicitly saves the reviewed report.
+
+`issueReport.ts` builds a URL from the environment block of that reviewed
+snapshot and `issueReportContract.json`. Only the versions travel in the
+address: a full session encodes to some twelve thousand characters, which GitHub
+answers with 414 rather than a form, so the activity reaches the issue through
+the clipboard or the attached file instead. `useIssueReport.ts` owns the
+review/copy/save/launch flow through `issueReportAdapter.ts`. The titlebar
+receives an action, and one eager dialog moves through preparing, review,
+opening and browser-failure states. Dismissed attempts cannot restore stale
+errors or clipboard state. Opening the form is an explicit external action;
+the saved text file must be attached manually. The live tracker/form contract
+is checked separately from the offline gate by `pnpm run check:feedback`,
+including private vulnerability reporting enablement.
 
 ### Styles and translations
 

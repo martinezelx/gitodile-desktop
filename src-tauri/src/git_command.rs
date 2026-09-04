@@ -6,13 +6,51 @@
 //! constructing processes themselves.
 
 use crate::application;
+use crate::diagnostics;
 use crate::error::{AppError, AppErrorCode};
 use crate::git;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::path::Path;
 #[cfg(test)]
 use std::process::Command;
 use std::process::{ExitStatus, Output};
+use std::time::Instant;
+
+fn owned_args<I, S>(args: I) -> Vec<OsString>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    args.into_iter()
+        .map(|argument| argument.as_ref().to_owned())
+        .collect()
+}
+
+fn record_result(
+    policy: git::ExecutionPolicy,
+    subcommand: &'static str,
+    started: Instant,
+    result: &Result<git::BoundedOutput, AppError>,
+) {
+    match result {
+        Ok(output) => diagnostics::record_git(
+            policy.class,
+            policy.command,
+            subcommand,
+            output.status.code(),
+            started.elapsed().as_millis(),
+            Some(&output.stderr),
+        ),
+        Err(_) => diagnostics::record_git(
+            policy.class,
+            policy.command,
+            subcommand,
+            None,
+            started.elapsed().as_millis(),
+            None,
+        ),
+    }
+}
 
 #[cfg(test)]
 pub(crate) fn base_git_command() -> Command {
@@ -75,13 +113,18 @@ where
 {
     let policy = require_policy()?;
     let cancellation = application::current_cancellation();
-    let output = git::run_with_env(
+    let args = owned_args(args);
+    let subcommand = diagnostics::safe_git_subcommand(args.first().map(OsString::as_os_str));
+    let started = Instant::now();
+    let result = git::run_with_env(
         Some(Path::new(repo_path)),
-        args,
+        &args,
         envs,
         policy,
         cancellation.as_ref(),
-    )?;
+    );
+    record_result(policy, subcommand, started, &result);
+    let output = result?;
     let _stderr_was_truncated = output.stderr_truncated;
     Ok(Output {
         status: output.status,
@@ -100,7 +143,12 @@ where
 {
     let policy = require_policy()?;
     let cancellation = application::current_cancellation();
-    let output = git::run_with_env(None, args, envs, policy, cancellation.as_ref())?;
+    let args = owned_args(args);
+    let subcommand = diagnostics::safe_git_subcommand(args.first().map(OsString::as_os_str));
+    let started = Instant::now();
+    let result = git::run_with_env(None, &args, envs, policy, cancellation.as_ref());
+    record_result(policy, subcommand, started, &result);
+    let output = result?;
     Ok(Output {
         status: output.status,
         stdout: output.stdout,
@@ -122,12 +170,16 @@ pub(crate) fn run_git_capped(
     let mut policy = require_policy()?;
     policy.stdout_cap = limit;
     let cancellation = application::current_cancellation();
-    let output = git::run(
+    let subcommand = diagnostics::safe_git_subcommand(args.first().map(OsStr::new));
+    let started = Instant::now();
+    let result = git::run(
         Some(Path::new(repo_path)),
         args,
         policy,
         cancellation.as_ref(),
-    )?;
+    );
+    record_result(policy, subcommand, started, &result);
+    let output = result?;
     Ok(CappedOutput {
         status: output.status,
         stdout: output.stdout,
@@ -144,13 +196,17 @@ pub(crate) fn run_git_with_input_capped(
     let mut policy = require_policy()?;
     policy.stdout_cap = limit;
     let cancellation = application::current_cancellation();
-    let output = git::run_with_input(
+    let subcommand = diagnostics::safe_git_subcommand(args.first().map(OsStr::new));
+    let started = Instant::now();
+    let result = git::run_with_input(
         Some(Path::new(repo_path)),
         args,
         input,
         policy,
         cancellation.as_ref(),
-    )?;
+    );
+    record_result(policy, subcommand, started, &result);
+    let output = result?;
     Ok(CappedOutput {
         status: output.status,
         stdout: output.stdout,

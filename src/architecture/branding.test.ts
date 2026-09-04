@@ -69,14 +69,24 @@ describe("desktop link permissions", () => {
   }
 
   it("lets the app open the issue report it builds", () => {
-    const url = buildIssueReportUrl({
-      appVersion: "0.1.0",
-      system: { platform: "windows", version: "10.0.26200", arch: "x86_64" },
-      webview: "Chromium 130.0.0.0",
-      gitVersion: "2.45.0",
-    });
+    const url = buildIssueReportUrl("GitOdile 0.1.0\nSystem: Windows 11");
 
     expect(scopeAllows(openerScope(), url)).toBe(true);
+  });
+
+  it("keeps the prefill reading the headings Rust actually writes", () => {
+    // `buildIssueReportUrl` finds the environment by these two literals. Renamed
+    // in Rust alone, nothing throws: the prefill quietly falls back to the whole
+    // report, and a full session is a 12,000-character address GitHub answers
+    // with 414 instead of a form.
+    const rust = readSource("src-tauri/src/diagnostics.rs");
+    expect(rust).toContain('String::from("Environment\\n-----------\\n")');
+    expect(rust).toContain('"\\n\\nSession activity\\n----------------\\n"');
+
+    const url = new URL(buildIssueReportUrl(
+      "Environment\n-----------\nGitOdile 0.1.0\n\nSession activity\n----------------\nEvents: 0 retained of 0\n",
+    ));
+    expect(url.searchParams.get("diagnostics")).toBe("GitOdile 0.1.0");
   });
 
   it("lets the app open the Git download pages Rust hands it", () => {

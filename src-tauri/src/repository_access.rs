@@ -1,3 +1,4 @@
+use crate::diagnostics;
 use crate::error::{AppError, AppErrorCode};
 use crate::git::{self, CancellationToken, ExecutionPolicy};
 use std::cell::RefCell;
@@ -5,7 +6,7 @@ use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::thread::ThreadId;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PathIdentity {
@@ -115,7 +116,29 @@ impl RepositoryContext {
     pub(crate) fn discover(path: &Path) -> Result<Self, AppError> {
         let policy = ExecutionPolicy::repository_read("repository_context");
         let run = |args: &[&str]| -> Result<String, AppError> {
-            let output = git::run(Some(path), args, policy, None)?;
+            let started = Instant::now();
+            let result = git::run(Some(path), args, policy, None);
+            let subcommand =
+                diagnostics::safe_git_subcommand(args.first().map(std::ffi::OsStr::new));
+            match &result {
+                Ok(output) => diagnostics::record_git(
+                    policy.class,
+                    policy.command,
+                    subcommand,
+                    output.status.code(),
+                    started.elapsed().as_millis(),
+                    Some(&output.stderr),
+                ),
+                Err(_) => diagnostics::record_git(
+                    policy.class,
+                    policy.command,
+                    subcommand,
+                    None,
+                    started.elapsed().as_millis(),
+                    None,
+                ),
+            }
+            let output = result?;
             if !output.status.success() {
                 return Err(AppError::new(
                     AppErrorCode::NotRepository,

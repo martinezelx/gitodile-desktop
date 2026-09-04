@@ -381,10 +381,13 @@ describe("App project restoration", () => {
   it("keeps the issue error as the only focus trap when a palette shortcut is pressed", async () => {
     const user = userEvent.setup();
     vi.mocked(openUrl).mockRejectedValue(new Error("browser unavailable"));
-    mockedInvoke.mockResolvedValue(undefined);
+    mockedInvoke.mockImplementation((command) => command === "render_diagnostic_report"
+      ? Promise.resolve("Environment\n-----------\nGitOdile test\n\nSession activity\n----------------\nNo activity has been recorded in this session.")
+      : Promise.resolve(undefined));
     render(<LanguageProvider><App /></LanguageProvider>);
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Report an issue" }));
+    await user.click(await screen.findByRole("button", { name: "Open issue" }));
     expect(await screen.findByRole("alertdialog")).toHaveAccessibleName("Couldn't open the issue report");
     await user.keyboard("{Control>}k{/Control}");
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -397,13 +400,20 @@ describe("App project restoration", () => {
     const user = userEvent.setup();
     localStorage.setItem("gitodile-language", "es");
     vi.mocked(openUrl).mockResolvedValue(undefined);
-    mockedInvoke.mockImplementation((command) => command === "git_diagnostics"
-      ? Promise.resolve({ state: "available", version: "2.50.0" })
-      : Promise.reject(new Error("No project open")));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "render_diagnostic_report") {
+        return Promise.resolve("Environment\n-----------\nGitOdile test\nGit: 2.50.0\n\nSession activity\n----------------\nNo activity has been recorded in this session.");
+      }
+      return Promise.reject(new Error("No project open"));
+    });
 
     render(<LanguageProvider><App /></LanguageProvider>);
     await user.click(screen.getByRole("button", { name: "Más acciones" }));
     await user.click(screen.getByRole("menuitem", { name: "Reportar un problema" }));
+    await user.click(await screen.findByRole("button", { name: "Reportar en GitHub" }));
 
     expect(openUrl).toHaveBeenCalledOnce();
     const url = new URL(vi.mocked(openUrl).mock.calls[0][0]);

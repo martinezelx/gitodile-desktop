@@ -67,7 +67,10 @@ not implied by the `1.0.0` merge and restore workflows.
 
 - Explain repository health in plain language with actionable, bounded checks.
 - Detect changes caused only by line-ending normalization.
-- Add privacy-safe application logging and a user-controlled diagnostic bundle.
+- Persist the diagnostic record across sessions. Task 110 promoted the
+  in-memory half of this idea and deliberately left out a rotating log file,
+  retention policy and opt-out switch. They become necessary the day a crash
+  that kills the process before the user can report it actually shows up.
 - Continue large-repository benchmarks beyond the `1.0.0` gate, including:
   - thousands of changes through status, IPC, virtualization, diffs, selection,
     save planning, watcher invalidation, and cancellation;

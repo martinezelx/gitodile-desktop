@@ -6,6 +6,7 @@ mod architecture;
 mod changes;
 mod clone;
 mod desktop;
+mod diagnostics;
 mod error;
 mod git;
 mod git_command;
@@ -62,6 +63,7 @@ use std::path::Path;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(diagnostics::install_global())
         .manage(watch::WatcherRegistry::default())
         .manage(clone::CloneOperationRegistry::default())
         .manage(history::HistoryReadCache::default())
@@ -93,6 +95,8 @@ pub fn run() {
             ipc::update_git,
             ipc::check_git_update,
             ipc::get_git_identity,
+            ipc::render_diagnostic_report,
+            ipc::save_diagnostic_report,
             ipc::set_git_identity,
             ipc::get_line_endings,
             ipc::set_line_endings,

@@ -5,9 +5,11 @@
 //! behind the application boundary.
 
 use crate::{
+    application,
     changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
     clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
     desktop,
+    diagnostics::{self, DiagnosticsLog},
     error::AppError,
     history::{self, HistoryPage, SavedVersionDetail},
     initialize::{
@@ -36,6 +38,20 @@ use crate::{
     watch,
 };
 
+fn report_result<T>(operation: &'static str, result: Result<T, AppError>) -> Result<T, AppError> {
+    diagnostics::record_command(
+        application::policy(operation).class,
+        operation,
+        result.as_ref().err(),
+    );
+    result
+}
+
+fn report_value<T>(operation: &'static str, value: T) -> T {
+    diagnostics::record_command(application::policy(operation).class, operation, None);
+    value
+}
+
 /// Every repository-scoped command that acts on an already-open project proves
 /// its incarnation here. Reads and mutations share one rule; there is no
 /// weaker read path and no missing-epoch allowance.
@@ -45,12 +61,13 @@ fn validate_session(path: &str, session_epoch: &str) -> Result<(), AppError> {
 
 #[tauri::command]
 pub(crate) fn app_status() -> &'static str {
-    desktop::app_status()
+    report_value("app_status", desktop::app_status())
 }
 
 #[tauri::command]
 pub(crate) fn show_main_window(window: tauri::Window) {
     desktop::show_main_window(window);
+    report_value("show_main_window", ());
 }
 
 #[tauri::command(async)]
@@ -58,7 +75,10 @@ pub(crate) fn open_repository(
     path: String,
     session_epoch: Option<String>,
 ) -> Result<RepositoryInfo, AppError> {
-    repository::open_repository(path, session_epoch)
+    report_result(
+        "open_repository",
+        repository::open_repository(path, session_epoch),
+    )
 }
 
 #[tauri::command(async)]
@@ -67,7 +87,10 @@ pub(crate) fn plan_clone(
     destination_parent: String,
     destination_name: String,
 ) -> Result<ClonePlan, AppError> {
-    clone::plan_clone(source, destination_parent, destination_name)
+    report_result(
+        "plan_clone",
+        clone::plan_clone(source, destination_parent, destination_name),
+    )
 }
 
 #[tauri::command(async)]
@@ -81,16 +104,19 @@ pub(crate) fn clone_repository(
     state_token: String,
     on_progress: tauri::ipc::Channel<CloneProgressPhase>,
 ) -> Result<CloneResult, AppError> {
-    clone::clone_repository(
-        &registry,
-        source,
-        destination_parent,
-        destination_name,
-        operation_id,
-        state_token,
-        |phase| {
-            let _ = on_progress.send(phase);
-        },
+    report_result(
+        "clone_repository",
+        clone::clone_repository(
+            &registry,
+            source,
+            destination_parent,
+            destination_name,
+            operation_id,
+            state_token,
+            |phase| {
+                let _ = on_progress.send(phase);
+            },
+        ),
     )
 }
 
@@ -99,7 +125,7 @@ pub(crate) fn cancel_clone(
     registry: tauri::State<'_, CloneOperationRegistry>,
     operation_id: String,
 ) -> Result<(), AppError> {
-    clone::cancel_clone(&registry, operation_id)
+    report_result("cancel_clone", clone::cancel_clone(&registry, operation_id))
 }
 
 #[tauri::command]
@@ -107,7 +133,10 @@ pub(crate) fn cleanup_clone(
     destination_parent: String,
     operation_id: String,
 ) -> Result<(), AppError> {
-    clone::cleanup_clone(destination_parent, operation_id)
+    report_result(
+        "cleanup_clone",
+        clone::cleanup_clone(destination_parent, operation_id),
+    )
 }
 
 #[tauri::command(async)]
@@ -121,14 +150,17 @@ pub(crate) fn plan_initialize_project(
     create_readme: bool,
     save_initial_version: bool,
 ) -> Result<InitializeProjectPlan, AppError> {
-    initialize::plan_initialize_project(
-        target_kind,
-        destination_parent,
-        destination_name,
-        existing_path,
-        initial_branch,
-        create_readme,
-        save_initial_version,
+    report_result(
+        "plan_initialize_project",
+        initialize::plan_initialize_project(
+            target_kind,
+            destination_parent,
+            destination_name,
+            existing_path,
+            initial_branch,
+            create_readme,
+            save_initial_version,
+        ),
     )
 }
 
@@ -146,19 +178,22 @@ pub(crate) fn initialize_project(
     state_token: String,
     on_progress: tauri::ipc::Channel<InitializeProgressPhase>,
 ) -> Result<InitializeProjectResult, AppError> {
-    initialize::initialize_project(
-        target_kind,
-        destination_parent,
-        destination_name,
-        existing_path,
-        initial_branch,
-        create_readme,
-        save_initial_version,
-        operation_id,
-        state_token,
-        |phase| {
-            let _ = on_progress.send(phase);
-        },
+    report_result(
+        "initialize_project",
+        initialize::initialize_project(
+            target_kind,
+            destination_parent,
+            destination_name,
+            existing_path,
+            initial_branch,
+            create_readme,
+            save_initial_version,
+            operation_id,
+            state_token,
+            |phase| {
+                let _ = on_progress.send(phase);
+            },
+        ),
     )
 }
 
@@ -168,7 +203,10 @@ pub(crate) fn cleanup_initialize_project(
     target_kind: InitializeTargetKind,
     operation_id: String,
 ) -> Result<(), AppError> {
-    initialize::cleanup_initialize_project(destination_path, target_kind, operation_id)
+    report_result(
+        "cleanup_initialize_project",
+        initialize::cleanup_initialize_project(destination_path, target_kind, operation_id),
+    )
 }
 
 #[tauri::command(async)]
@@ -176,8 +214,13 @@ pub(crate) fn read_working_tree_status(
     path: String,
     session_epoch: String,
 ) -> Result<WorkingTreeStatus, AppError> {
-    validate_session(&path, &session_epoch)?;
-    status::read_working_tree_status(path)
+    report_result(
+        "read_working_tree_status",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            status::read_working_tree_status(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -186,8 +229,13 @@ pub(crate) fn read_file_diff(
     file_path: String,
     session_epoch: String,
 ) -> Result<FileDiff, AppError> {
-    validate_session(&path, &session_epoch)?;
-    changes::read_file_diff(path, file_path)
+    report_result(
+        "read_file_diff",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            changes::read_file_diff(path, file_path)
+        })(),
+    )
 }
 
 /// `commit` chooses which pair of versions to read: absent means the working
@@ -202,8 +250,13 @@ pub(crate) fn read_file_image_preview(
     commit: Option<String>,
     session_epoch: String,
 ) -> Result<ImagePreview, AppError> {
-    validate_session(&path, &session_epoch)?;
-    changes::read_file_image_preview(path, file_path, original_path, commit)
+    report_result(
+        "read_file_image_preview",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            changes::read_file_image_preview(path, file_path, original_path, commit)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -214,8 +267,13 @@ pub(crate) fn read_file_lines(
     end_line: u32,
     session_epoch: String,
 ) -> Result<FileLines, AppError> {
-    validate_session(&path, &session_epoch)?;
-    changes::read_file_lines(path, file_path, start_line, end_line)
+    report_result(
+        "read_file_lines",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            changes::read_file_lines(path, file_path, start_line, end_line)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -223,8 +281,13 @@ pub(crate) fn read_working_tree_diffs(
     path: String,
     session_epoch: String,
 ) -> Result<WorkingTreeDiffBatch, AppError> {
-    validate_session(&path, &session_epoch)?;
-    changes::read_working_tree_diffs(path)
+    report_result(
+        "read_working_tree_diffs",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            changes::read_working_tree_diffs(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -233,8 +296,13 @@ pub(crate) fn plan_discard_changes(
     selected_path: Option<String>,
     session_epoch: String,
 ) -> Result<DiscardPlan, AppError> {
-    validate_session(&path, &session_epoch)?;
-    recovery::plan_discard_changes(path, selected_path)
+    report_result(
+        "plan_discard_changes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            recovery::plan_discard_changes(path, selected_path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -244,8 +312,13 @@ pub(crate) fn discard_changes(
     state_token: String,
     session_epoch: String,
 ) -> Result<DiscardResult, AppError> {
-    validate_session(&path, &session_epoch)?;
-    recovery::discard_changes(path, selected_path, state_token)
+    report_result(
+        "discard_changes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            recovery::discard_changes(path, selected_path, state_token)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -253,8 +326,13 @@ pub(crate) fn get_discard_recovery(
     path: String,
     session_epoch: String,
 ) -> Result<DiscardRecovery, AppError> {
-    validate_session(&path, &session_epoch)?;
-    recovery::get_discard_recovery(path)
+    report_result(
+        "get_discard_recovery",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            recovery::get_discard_recovery(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -264,38 +342,62 @@ pub(crate) fn restore_discarded_changes(
     state_token: String,
     session_epoch: String,
 ) -> Result<(), AppError> {
-    validate_session(&path, &session_epoch)?;
-    recovery::restore_discarded_changes(path, recovery_id, state_token)
+    report_result(
+        "restore_discarded_changes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            recovery::restore_discarded_changes(path, recovery_id, state_token)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
 pub(crate) fn git_diagnostics() -> GitDiagnostics {
-    tooling::git_diagnostics()
+    report_value("git_diagnostics", tooling::git_diagnostics())
 }
 
 #[tauri::command(async)]
 pub(crate) fn install_git() -> GitInstallationResult {
-    tooling::install_git()
+    report_value("install_git", tooling::install_git())
 }
 
 #[tauri::command(async)]
 pub(crate) fn update_git() -> GitUpdateLaunchResult {
-    tooling::update_git()
+    report_value("update_git", tooling::update_git())
 }
 
 #[tauri::command(async)]
 pub(crate) fn check_git_update() -> GitUpdateStatus {
-    tooling::check_git_update()
+    report_value("check_git_update", tooling::check_git_update())
 }
 
 #[tauri::command(async)]
 pub(crate) fn get_git_identity() -> GitIdentity {
-    tooling::get_git_identity()
+    report_value("get_git_identity", tooling::get_git_identity())
+}
+
+#[tauri::command]
+pub(crate) fn render_diagnostic_report(
+    log: tauri::State<'_, DiagnosticsLog>,
+    environment: String,
+) -> String {
+    report_value(
+        "render_diagnostic_report",
+        diagnostics::render_report(&log, environment),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn save_diagnostic_report(path: String, report: String) -> Result<(), AppError> {
+    report_result(
+        "save_diagnostic_report",
+        diagnostics::save_report(path, report),
+    )
 }
 
 #[tauri::command(async)]
 pub(crate) fn set_git_identity(name: String, email: String) -> Result<(), AppError> {
-    tooling::set_git_identity(name, email)
+    report_result("set_git_identity", tooling::set_git_identity(name, email))
 }
 
 /// The one Settings read that can be repository-scoped: a project can override
@@ -306,21 +408,26 @@ pub(crate) fn get_line_endings(
     path: Option<String>,
     session_epoch: Option<String>,
 ) -> Result<GitLineEndings, AppError> {
-    if let Some(path) = path.as_deref() {
-        // Semantic optionality, not compatibility: without a project there is
-        // no session to prove. With one, the epoch is required exactly like
-        // any other repository read.
-        let epoch = session_epoch
-            .as_deref()
-            .ok_or_else(session::stale_session_error)?;
-        validate_session(path, epoch)?;
-    }
-    Ok(tooling::get_line_endings(path))
+    report_result(
+        "get_line_endings",
+        (|| {
+            if let Some(path) = path.as_deref() {
+                // Semantic optionality, not compatibility: without a project there is
+                // no session to prove. With one, the epoch is required exactly like
+                // any other repository read.
+                let epoch = session_epoch
+                    .as_deref()
+                    .ok_or_else(session::stale_session_error)?;
+                validate_session(path, epoch)?;
+            }
+            Ok(tooling::get_line_endings(path))
+        })(),
+    )
 }
 
 #[tauri::command(async)]
 pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
-    tooling::set_line_endings(mode)
+    report_result("set_line_endings", tooling::set_line_endings(mode))
 }
 
 /// The name Git will give the first version line of the next project it
@@ -328,12 +435,12 @@ pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
 /// applies.
 #[tauri::command(async)]
 pub(crate) fn get_default_branch() -> GitDefaultBranch {
-    tooling::get_default_branch()
+    report_value("get_default_branch", tooling::get_default_branch())
 }
 
 #[tauri::command(async)]
 pub(crate) fn set_default_branch(name: String) -> Result<(), AppError> {
-    tooling::set_default_branch(name)
+    report_result("set_default_branch", tooling::set_default_branch(name))
 }
 
 #[tauri::command(async)]
@@ -342,8 +449,13 @@ pub(crate) fn plan_save_version(
     selected_paths: Option<Vec<String>>,
     session_epoch: String,
 ) -> Result<SaveVersionPlan, AppError> {
-    validate_session(&path, &session_epoch)?;
-    save_version::plan_save_version(path, selected_paths)
+    report_result(
+        "plan_save_version",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            save_version::plan_save_version(path, selected_paths)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -356,14 +468,19 @@ pub(crate) fn save_version(
     run_hooks: bool,
     session_epoch: String,
 ) -> Result<SaveVersionResult, AppError> {
-    validate_session(&path, &session_epoch)?;
-    save_version::save_version(
-        path,
-        title,
-        description,
-        state_token,
-        selected_paths,
-        run_hooks,
+    report_result(
+        "save_version",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            save_version::save_version(
+                path,
+                title,
+                description,
+                state_token,
+                selected_paths,
+                run_hooks,
+            )
+        })(),
     )
 }
 
@@ -372,8 +489,13 @@ pub(crate) fn discover_remotes(
     path: String,
     session_epoch: String,
 ) -> Result<RemoteDiscovery, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::discover_remotes(path)
+    report_result(
+        "discover_remotes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::discover_remotes(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -383,8 +505,13 @@ pub(crate) fn plan_connect_remote(
     remote_name: String,
     remote_url: String,
 ) -> Result<ConnectRemotePlan, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::plan_connect_remote(path, session_epoch, remote_name, remote_url)
+    report_result(
+        "plan_connect_remote",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::plan_connect_remote(path, session_epoch, remote_name, remote_url)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -395,8 +522,13 @@ pub(crate) fn connect_remote(
     remote_url: String,
     state_token: String,
 ) -> Result<ConnectRemoteResult, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::connect_remote(path, session_epoch, remote_name, remote_url, state_token)
+    report_result(
+        "connect_remote",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::connect_remote(path, session_epoch, remote_name, remote_url, state_token)
+        })(),
+    )
 }
 
 /// The project's own settings read the remotes with their editable detail,
@@ -407,8 +539,13 @@ pub(crate) fn read_project_remotes(
     path: String,
     session_epoch: String,
 ) -> Result<ProjectRemotes, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::read_project_remotes(path)
+    report_result(
+        "read_project_remotes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::read_project_remotes(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -418,8 +555,13 @@ pub(crate) fn set_remote_url(
     remote_name: String,
     remote_url: String,
 ) -> Result<ProjectRemotes, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::set_remote_url(path, remote_name, remote_url)
+    report_result(
+        "set_remote_url",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::set_remote_url(path, remote_name, remote_url)
+        })(),
+    )
 }
 
 /// The identity *this project* saves as, alongside the one it would inherit.
@@ -429,8 +571,13 @@ pub(crate) fn read_project_identity(
     path: String,
     session_epoch: String,
 ) -> Result<ProjectIdentity, AppError> {
-    validate_session(&path, &session_epoch)?;
-    project_settings::read_project_identity(path)
+    report_result(
+        "read_project_identity",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            project_settings::read_project_identity(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -440,8 +587,13 @@ pub(crate) fn set_project_identity(
     name: String,
     email: String,
 ) -> Result<ProjectIdentity, AppError> {
-    validate_session(&path, &session_epoch)?;
-    project_settings::set_project_identity(path, name, email)
+    report_result(
+        "set_project_identity",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            project_settings::set_project_identity(path, name, email)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -449,8 +601,13 @@ pub(crate) fn clear_project_identity(
     path: String,
     session_epoch: String,
 ) -> Result<ProjectIdentity, AppError> {
-    validate_session(&path, &session_epoch)?;
-    project_settings::clear_project_identity(path)
+    report_result(
+        "clear_project_identity",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            project_settings::clear_project_identity(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -459,8 +616,13 @@ pub(crate) fn read_ignore_file(
     session_epoch: String,
     scope: String,
 ) -> Result<IgnoreFile, AppError> {
-    validate_session(&path, &session_epoch)?;
-    project_settings::read_ignore_file(path, scope)
+    report_result(
+        "read_ignore_file",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            project_settings::read_ignore_file(path, scope)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -471,8 +633,13 @@ pub(crate) fn write_ignore_file(
     contents: String,
     state_token: String,
 ) -> Result<IgnoreFile, AppError> {
-    validate_session(&path, &session_epoch)?;
-    project_settings::write_ignore_file(path, scope, contents, state_token)
+    report_result(
+        "write_ignore_file",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            project_settings::write_ignore_file(path, scope, contents, state_token)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -480,8 +647,13 @@ pub(crate) fn read_team_sync_status(
     path: String,
     session_epoch: String,
 ) -> Result<TeamSyncStatus, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::read_team_sync_status(path, session_epoch)
+    report_result(
+        "read_team_sync_status",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::read_team_sync_status(path, session_epoch)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -489,8 +661,13 @@ pub(crate) fn check_team_changes(
     path: String,
     session_epoch: String,
 ) -> Result<TeamSyncStatus, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::check_team_changes(path, session_epoch)
+    report_result(
+        "check_team_changes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::check_team_changes(path, session_epoch)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -499,10 +676,15 @@ pub(crate) fn plan_get_team_changes(
     session_epoch: String,
     on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
 ) -> Result<GetTeamChangesPlan, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::plan_get_team_changes(path, session_epoch, |phase| {
-        let _ = on_progress.send(phase);
-    })
+    report_result(
+        "plan_get_team_changes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::plan_get_team_changes(path, session_epoch, |phase| {
+                let _ = on_progress.send(phase);
+            })
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -513,15 +695,20 @@ pub(crate) fn get_team_changes(
     recovery_reference: String,
     on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
 ) -> Result<GetTeamChangesResult, AppError> {
-    validate_session(&path, &session_epoch)?;
-    sync::get_team_changes(
-        path,
-        session_epoch,
-        state_token,
-        recovery_reference,
-        |phase| {
-            let _ = on_progress.send(phase);
-        },
+    report_result(
+        "get_team_changes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::get_team_changes(
+                path,
+                session_epoch,
+                state_token,
+                recovery_reference,
+                |phase| {
+                    let _ = on_progress.send(phase);
+                },
+            )
+        })(),
     )
 }
 
@@ -530,8 +717,13 @@ pub(crate) fn list_unpublished_versions(
     path: String,
     session_epoch: String,
 ) -> Result<PendingVersionsResult, AppError> {
-    validate_session(&path, &session_epoch)?;
-    status::list_unpublished_versions(path)
+    report_result(
+        "list_unpublished_versions",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            status::list_unpublished_versions(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -540,8 +732,13 @@ pub(crate) fn read_commit_file_changes(
     commit: String,
     session_epoch: String,
 ) -> Result<Vec<CommitFileChange>, AppError> {
-    validate_session(&path, &session_epoch)?;
-    changes::read_commit_file_changes(path, commit)
+    report_result(
+        "read_commit_file_changes",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            changes::read_commit_file_changes(path, commit)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -551,8 +748,13 @@ pub(crate) fn read_commit_file_diff(
     file_path: String,
     session_epoch: String,
 ) -> Result<FileDiff, AppError> {
-    validate_session(&path, &session_epoch)?;
-    changes::read_commit_file_diff(path, commit, file_path)
+    report_result(
+        "read_commit_file_diff",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            changes::read_commit_file_diff(path, commit, file_path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -563,8 +765,13 @@ pub(crate) fn read_history_page(
     page_size: Option<usize>,
     session_epoch: String,
 ) -> Result<HistoryPage, AppError> {
-    validate_session(&path, &session_epoch)?;
-    history::read_history_page_cached(&cache, path, cursor, page_size)
+    report_result(
+        "read_history_page",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            history::read_history_page_cached(&cache, path, cursor, page_size)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -575,8 +782,13 @@ pub(crate) fn read_saved_version_detail(
     commit: String,
     session_epoch: String,
 ) -> Result<SavedVersionDetail, AppError> {
-    validate_session(&path, &session_epoch)?;
-    history::read_saved_version_detail_cached(&cache, path, snapshot_token, commit)
+    report_result(
+        "read_saved_version_detail",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            history::read_saved_version_detail_cached(&cache, path, snapshot_token, commit)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -588,8 +800,19 @@ pub(crate) fn read_saved_version_file_diff(
     file_path: String,
     session_epoch: String,
 ) -> Result<FileDiff, AppError> {
-    validate_session(&path, &session_epoch)?;
-    history::read_saved_version_file_diff_cached(&cache, path, snapshot_token, commit, file_path)
+    report_result(
+        "read_saved_version_file_diff",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            history::read_saved_version_file_diff_cached(
+                &cache,
+                path,
+                snapshot_token,
+                commit,
+                file_path,
+            )
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -599,8 +822,13 @@ pub(crate) fn plan_publish(
     up_to: Option<String>,
     session_epoch: String,
 ) -> Result<PublishPlan, AppError> {
-    validate_session(&path, &session_epoch)?;
-    publish_domain::plan_publish(path, remote, up_to)
+    report_result(
+        "plan_publish",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            publish_domain::plan_publish(path, remote, up_to)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -612,8 +840,13 @@ pub(crate) fn publish(
     run_hooks: bool,
     session_epoch: String,
 ) -> Result<PublishResult, AppError> {
-    validate_session(&path, &session_epoch)?;
-    publish_domain::publish(path, remote, state_token, up_to, run_hooks)
+    report_result(
+        "publish",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            publish_domain::publish(path, remote, state_token, up_to, run_hooks)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -621,8 +854,13 @@ pub(crate) fn get_version_lines(
     path: String,
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_session(&path, &session_epoch)?;
-    version_lines::get_version_lines(path)
+    report_result(
+        "get_version_lines",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::get_version_lines(path)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -632,8 +870,13 @@ pub(crate) fn plan_create_version_line(
     switch: bool,
     session_epoch: String,
 ) -> Result<CreateVersionLinePlan, AppError> {
-    validate_session(&path, &session_epoch)?;
-    version_lines::plan_create_version_line(path, name, switch)
+    report_result(
+        "plan_create_version_line",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::plan_create_version_line(path, name, switch)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -644,8 +887,13 @@ pub(crate) fn create_version_line(
     state_token: String,
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_session(&path, &session_epoch)?;
-    version_lines::create_version_line(path, name, switch, state_token)
+    report_result(
+        "create_version_line",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::create_version_line(path, name, switch, state_token)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -654,8 +902,13 @@ pub(crate) fn plan_switch_version_line(
     target: String,
     session_epoch: String,
 ) -> Result<SwitchVersionLinePlan, AppError> {
-    validate_session(&path, &session_epoch)?;
-    version_lines::plan_switch_version_line(path, target)
+    report_result(
+        "plan_switch_version_line",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::plan_switch_version_line(path, target)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -665,8 +918,13 @@ pub(crate) fn switch_version_line(
     state_token: String,
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_session(&path, &session_epoch)?;
-    version_lines::switch_version_line(path, target, state_token)
+    report_result(
+        "switch_version_line",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::switch_version_line(path, target, state_token)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -675,8 +933,13 @@ pub(crate) fn plan_delete_version_line(
     name: String,
     session_epoch: String,
 ) -> Result<DeleteVersionLinePlan, AppError> {
-    validate_session(&path, &session_epoch)?;
-    version_lines::plan_delete_version_line(path, name)
+    report_result(
+        "plan_delete_version_line",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::plan_delete_version_line(path, name)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -686,8 +949,13 @@ pub(crate) fn delete_version_line(
     state_token: String,
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
-    validate_session(&path, &session_epoch)?;
-    version_lines::delete_version_line(path, name, state_token)
+    report_result(
+        "delete_version_line",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::delete_version_line(path, name, state_token)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -697,8 +965,13 @@ pub(crate) fn watch_repository(
     path: String,
     session_epoch: String,
 ) -> Result<bool, AppError> {
-    validate_session(&path, &session_epoch)?;
-    watch::watch_repository(app, registry, path, session_epoch)
+    report_result(
+        "watch_repository",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            watch::watch_repository(app, registry, path, session_epoch)
+        })(),
+    )
 }
 
 #[tauri::command(async)]
@@ -712,6 +985,7 @@ pub(crate) fn unwatch_repository(
     session_epoch: String,
 ) {
     watch::unwatch_repository(registry, path, session_epoch);
+    report_value("unwatch_repository", ());
 }
 
 #[tauri::command(async)]
@@ -721,7 +995,10 @@ pub(crate) fn close_project_session(
     session_epoch: String,
 ) -> Result<(), AppError> {
     registry.unwatch(&path, &session_epoch);
-    session::global().close(&path, &session_epoch)
+    report_result(
+        "close_project_session",
+        session::global().close(&path, &session_epoch),
+    )
 }
 
 #[cfg(test)]
@@ -858,6 +1135,7 @@ mod contract_tests {
         match response.as_str() {
             "()" => "void".to_string(),
             "bool" => "boolean".to_string(),
+            "String" => "string".to_string(),
             "&'staticstr" => "string".to_string(),
             value if value.starts_with("Vec<") && value.ends_with('>') => {
                 format!("{}[]", &value[4..value.len() - 1])

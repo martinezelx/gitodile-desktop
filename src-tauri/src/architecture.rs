@@ -68,6 +68,7 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         "application",
         "changes",
         "desktop",
+        "diagnostics",
         "git",
         "git_command",
         "history",

@@ -44,7 +44,23 @@ const closedOverlay = { isOpen: false, setOpen: vi.fn() };
 
 function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["diagnostics"]): AppOverlaysProps {
   return {
-    issueReport: { failedUrl: null, isOpening: false, copyState: "idle", dismiss: vi.fn(), copyLink: vi.fn(), report: vi.fn(), retry: vi.fn() },
+    issueReport: {
+      phase: "closed",
+      isOpen: false,
+      isOpening: false,
+      reportText: null,
+      failedUrl: null,
+      copyReportState: "idle",
+      saveState: "idle",
+      copyLinkState: "idle",
+      dismiss: vi.fn(),
+      report: vi.fn(),
+      continueToGitHub: vi.fn(),
+      retry: vi.fn(),
+      copyReport: vi.fn(),
+      saveReport: vi.fn(),
+      copyLink: vi.fn(),
+    },
     settings: {
       ...closedOverlay,
       theme: "system",

@@ -28,7 +28,7 @@ import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
-import { IssueReportErrorDialog } from "./IssueReportErrorDialog";
+import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
 import { describeStack, describeStackHost } from "./stack";
@@ -216,7 +216,7 @@ export function AppOverlays({
 
   return (
     <>
-      <IssueReportErrorDialog report={issueReport} />
+      <IssueReportDialog report={issueReport} />
       {settings.isOpen && (
         <div className="settings-backdrop" role="presentation" onMouseDown={() => requestSettingsClose(false)}>
           <div
