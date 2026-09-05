@@ -257,8 +257,41 @@ The app should work well between approximately 1024px and large desktop displays
   --control-height-sm: 32px;
   --control-height-md: 38px;
   --control-height-lg: 44px;
-  --control-font-sm: 13px;
-  --control-font-md: 13.5px;
+  --control-font-sm: 12px;
+  --control-font-md: 13px;
+
+  /* Type size and weight each state a role too — see Typography below. */
+  --text-hero: 28px;
+  --text-display: 22px;
+  --text-title: 17px;
+  --text-subtitle: 15px;
+  --text-lead: 14px;
+  --text-body: 13px;
+  --text-label: 12px;
+  --text-caption: 11px;
+  --text-micro: 10px;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+  --weight-heading: 650;
+  --weight-title: 700;
+
+  /* Leading and tracking state a role too — see Typography below. */
+  --leading-none: 1;
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-code: 1.6;
+
+  --tracking-hero: -0.02em;
+  --tracking-tight: -0.01em;
+  --tracking-wide: 0.02em;
+  --tracking-caps: 0.06em;
+
+  /* The two stacks, named once each. */
+  --font-sans: ui-sans-serif, system-ui, ...;
+  --font-mono: ui-monospace, SFMono-Regular, ...;
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
@@ -423,18 +456,21 @@ Three things this settles:
 - **Height and type size are chosen together, in the primitive.** The button
   used to declare padding and radius and nothing else, so its height came from
   `line-height: normal` over the browser's default 16px — a number nobody chose,
-  and one that differs per platform's system font. `--control-font-md` (13.5px)
-  goes with `md`, `--control-font-sm` (13px) with `sm`. A height without a font
-  is half a decision and the other half drifts.
+  and one that differs per platform's system font. `--control-font-md` (13px)
+  goes with `md`, `--control-font-sm` (12px) with `sm` — the same two numbers as
+  `--text-body` and `--text-label`, because a label and the control it names
+  must agree. A height without a font is half a decision and the other half
+  drifts.
 - **Radius depends on this.** `--radius-pill` reads as half the height, which is
   what makes the concentric nesting above true for free. It is only true where
   the height is actually known, so an un-sized control quietly breaks the shape
   rules as well as the size ones.
 
 A control that genuinely belongs to a denser context may sit outside the scale —
-the diff pane's footer runs at 30px over a 10px type scale, because the pane
-around it is a code surface with its own measure. That is an exception, it is
-written down here, and it is the only one.
+the diff pane's footer runs at 30px, below even `sm`, because the pane around it
+is a code surface with its own measure. That is an exception, it is written down
+here, and it is the only one. Its *type* is not an exception: it takes
+`--text-caption` like any other chip-sized label.
 
 A guard in `styleComposition.test.ts` fails the build on any feature rule that
 gives a `.primary-button` or `.secondary-button` its own height, font size or
@@ -562,6 +598,159 @@ Requirements:
 - readable line heights;
 - no tiny low-contrast secondary text;
 - avoid all-caps labels except very short status tags.
+
+### Size
+
+**Type size is a token, the same way a control's height is.** Pick the step by
+what the text *is*, never by how big it needs to look on the surface in front of
+you — that is what let one screen drift a whole step below the rest while every
+value in it looked locally reasonable.
+
+| Token | What it is |
+| --- | --- |
+| `--text-hero` (28px) | A name, not a heading: the app's, the project's. One per surface |
+| `--text-display` (22px) | The screen's own title (`h1`), and a figure meant to be read at a glance |
+| `--text-title` (17px) | A card, dialog or section heading (`h2`) |
+| `--text-subtitle` (15px) | A heading inside a card (`h3`) |
+| `--text-lead` (14px) | The name of a row, where the row *is* the content |
+| `--text-body` (13px) | Body copy, and any labelled control (`--control-font-md`) |
+| `--text-label` (12px) | A label, and a control living inside a row (`--control-font-sm`) |
+| `--text-caption` (11px) | A chip, a count, metadata beside a name |
+| `--text-micro` (10px) | The floor: an avatar's initials, a badge's number |
+
+**Whole pixels, and these particular ones.** The steps are not house taste; they
+are where desktop software has converged, and they were checked against it:
+
+| | Body | Secondary | Floor | Section heading | Screen title |
+| --- | --- | --- | --- | --- | --- |
+| [macOS HIG](https://developer.apple.com/design/human-interface-guidelines/typography) | 13 | 12 / 11 | 10 | 15 / 17 | 22 |
+| [Windows 11 / Fluent 2](https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/typography) | 14 | 12 | 12 | 20 | 28 |
+| VS Code | 13 | 12 | 11 | — | — |
+| [GitHub Desktop](https://github.com/desktop/desktop) | 12 | 11 | 9 | 14 | 28 |
+| [GitButler](https://github.com/gitbutlerapp/gitbutler) | 12 | 11 | 10 | 13–15 | — |
+| **GitOdile** | **13** | **12 / 11** | **10** | **15 / 17** | **22** |
+
+22/17/15 is the macOS title ramp and 13/12/11/10 its body ramp, which is also
+where VS Code, GitHub Desktop and GitButler land. Fluent's 14px body and 12px
+floor belong to a general-audience, touch-capable ramp; every dense developer
+tool in the table sits below it, and so do we.
+
+The scale used to run half a pixel above all of them — 13.5, 12.5, 11.5, 10.5 —
+because five steps had been squeezed into the four the ramp has. No established
+ramp uses a fractional size, and a fractional one also sits worse on the pixel
+grid at small sizes. `styleComposition.test.ts` fails the build on a non-integer
+step.
+
+One naming trap, worth knowing before you grep: `--text-primary` and
+`--text-secondary` are **colors**, not steps of this scale. They predate it and
+are listed with the other semantic colors above. Every step here is named for
+what the text *is* — `body`, `label`, `caption` — and never for its prominence.
+
+`--text-micro` is a floor, not a step to reach for. Below it the app was running
+8.5px and 9px secondary text, which the Accessibility section already forbids.
+
+Two things sit below the floor, and both are named in the guard rather than
+left to judgement. `.sidebar-project__badge-count` is a numeral inside a 14px
+status dot, which leaves a 10px box once the ring and padding are out; and
+`.navigation-display__preview small` is a label inside a miniature *drawing* of
+the navigation rail, where the text is part of the picture rather than something
+anyone reads. Neither is prose. Adding a third is a deliberate edit to the
+guard, not a quiet override.
+
+### Weight
+
+**Five steps, and each of them is a role.** Anything in between is a number
+somebody eyeballed.
+
+| Token | What it is |
+| --- | --- |
+| `--weight-normal` (400) | Body copy and metadata |
+| `--weight-medium` (500) | A value that must not be mistaken for a name |
+| `--weight-strong` (600) | The name of a thing: a file, a version line, a row's subject |
+| `--weight-heading` (650) | A heading, and the label of a selected control |
+| `--weight-title` (700) | A screen title, a primary action, an avatar's initials |
+
+Two things this settles:
+
+- **Semibold, not bold, carries emphasis.** Fluent states it outright: bold is
+  not part of the Windows type ramp, and Semibold is what emphasis uses. That is
+  what `--weight-strong` is.
+- **`<strong>` is a semantic mark, not a request for a weight.** Left to the
+  browser it lands on 700 — the loudest step the app owns. History reached for
+  it on every filename, count, value and area total, so the densest screen in
+  the app was also its boldest, and no single rule looked wrong. `base.css`
+  pins `strong`/`b` to `--weight-strong`; a surface that genuinely needs more
+  says so itself.
+- **A heading is never heavier than the screen title.** `h2` and `h3` carry
+  `--weight-heading` from `base.css` rather than the browser's bold, and their
+  sizes come from the scale, so an un-styled heading is never a 24px guess.
+
+The drift this replaced: History ran 630, 680 and 760 while every other screen
+sat on 600/650/700 — including the *same* commit row, which Overview renders at
+650 and History rendered at 680.
+
+### Leading and tracking
+
+The same idea on the last two axes. Every ramp in the table above pairs a line
+height with each *size*; ours pairs one with each *role*, which survives a size
+change — the size pass moved every number in the app and not one line height had
+to follow.
+
+| Token | What it is |
+| --- | --- |
+| `--leading-none` (1) | A glyph centred in a box of its own: a count, an avatar's initials |
+| `--leading-tight` (1.2) | A heading — the bigger the type, the less air it needs |
+| `--leading-snug` (1.35) | A name, or a row that may wrap to a second line |
+| `--leading-normal` (1.5) | Body copy and prose |
+| `--leading-code` (1.6) | A monospace *surface*: a diff, a code block, an editable file |
+
+| Token | What it is |
+| --- | --- |
+| `--tracking-hero` (-0.02em) | The largest type on a surface |
+| `--tracking-tight` (-0.01em) | A heading |
+| `--tracking-wide` (0.02em) | Small text opened out: initials, a count |
+| `--tracking-caps` (0.06em) | An uppercase label |
+
+### Family and figures
+
+`--font-sans` and `--font-mono` name the two stacks. Before them the monospace
+stack was spelled out verbatim twelve times, so adding a fallback meant finding
+all twelve. TypeScript had already understood this — `SYSTEM_MONO_STACK` in
+`features/changes/diffPreferences.tsx` builds the diff's font preference and has
+to spell the stack out — so a guard compares that constant against the token and
+fails if they drift.
+
+**A figure read against a sibling takes tabular figures.** A column of counts, a
+row of stats, a badge whose number updates in place: without
+`font-variant-numeric: tabular-nums` the digits are proportional, so the value
+shifts sideways as it changes and a column of them never lines up. Changes
+already did this for its diff totals; History rendered the same two numbers
+without it, alongside four other figures that wanted it.
+
+Two distinctions worth keeping:
+
+- **A code surface is not the same as monospace text.** A diff, a code block and
+  the ignore-file editor take `--leading-code`; a branch name or a file path
+  that merely happens to be monospace is a *name*, and takes `--leading-snug`
+  like any other. Deciding this by font family rather than by role is how the
+  same list ended up at 1.35, 1.4 and 1.45 in one sheet.
+- **`letter-spacing: 0` is a reset, not a step.** The tooltip uses it to shed
+  whatever tracking it was rendered inside of, and the guard allows it.
+
+The drift this replaced: twelve line heights for what were only ever four roles
+plus code, and eleven tracking values — among them −0.005, −0.012 and −0.018em,
+which at the sizes they were written on differ by about a fifth of a pixel.
+
+`styleComposition.test.ts` fails the build on any literal `font-weight` or
+`font-size` anywhere in the eager cascade — inside the `font:` shorthand too,
+which is where six rules had been hiding from both guards — on a fractional step
+in the tokens, on `--control-font-*` drifting from the text step it must match,
+on any literal `line-height` or `letter-spacing`, on a font stack spelled out
+in a feature sheet, on the TypeScript mono stack drifting from `--font-mono`,
+and on a `<strong>` left to the browser's bold. Every sheet is on the scale: the
+pass that got them there moved 248 declarations spread across twenty-two
+distinct values — 14.5, 16, 18, 20 and 21 among them, each reasonable where it
+was written and none of them agreeing with the next sheet over.
 
 ## Motion
 

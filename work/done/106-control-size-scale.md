@@ -262,7 +262,7 @@ segmented control sits off the scale at ~34.6px. `.changes-danger-button`
 now reads the tokens but is not a primitive, so the button guard cannot see it;
 promoting it to a shared danger variant would close that and is a markup change
 this task did not need. Typography is the larger one
-and is now task [107](../active/107-type-scale.md): 24 literal font sizes in 306
+and is now task [107](107-type-scale.md): 24 literal font sizes in 306
 declarations, no scale in `DESIGN.md`, and the missing `body` `font-size` that
 leaves anything un-sized on the browser's 16px.
 

@@ -9,14 +9,30 @@ body {
   min-width: 320px;
   color: var(--text-primary);
   background: var(--surface-app);
+  /* Without this, anything written without a size of its own inherits the
+     browser's 16px — a value nobody in this codebase has ever chosen, and one
+     that differs per platform's system font. It was a trap rather than a
+     defect: the *next* element written without a size got it silently. */
+  font-size: var(--text-body);
   /* Only ever seen where a view transition did not run — a browser without the
      API during `pnpm dev`. In the shipped app all three theme controls animate
      the change instead, and styles/theme-transition.css suppresses this. */
   transition: color var(--duration-normal), background var(--duration-normal);
 }
 button { font: inherit; }
+/* `<strong>` marks what a sentence leans on; it is not a request for a weight.
+   Left to the browser it lands on 700 — the loudest step the app owns — so a
+   screen that reaches for it on every filename, count and value ends up
+   reading as bold throughout while each use looks reasonable on its own.
+   Pinned here to the step meant for the name of a thing; a surface that really
+   needs more says so itself. See DESIGN.md § Typography. */
+strong, b { font-weight: var(--weight-strong); }
 h1, h2, h3, p { margin-top: 0; }
-h1 { margin-bottom: 0; font-size: 22px; letter-spacing: -0.01em; }
+/* Headings carry the scale's own steps so an un-styled one is never the
+   browser's 24px/1.17em guess, and never heavier than the screen title. */
+h1 { margin-bottom: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+h2 { font-size: var(--text-title); font-weight: var(--weight-heading); }
+h3 { font-size: var(--text-subtitle); font-weight: var(--weight-heading); }
 
 button:focus-visible,
 summary:focus-visible,

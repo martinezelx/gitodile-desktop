@@ -275,6 +275,169 @@ describe("production style composition", () => {
     expect(offenders).toEqual([]);
   });
 
+  // The drift this replaced: History had reached for 630, 680 and 760 while
+  // every other screen sat on 600/650/700, and eight of its surfaces used a
+  // bare `<strong>` — which the browser renders at 700, the loudest step the
+  // app owns. One screen read as bold throughout and no single rule looked
+  // wrong. A weight is a role now, and a role has a token.
+  it("keeps font weight on the scale", () => {
+    const tokens = readSource("styles/tokens.css");
+    for (const step of ["normal", "medium", "strong", "heading", "title"]) {
+      expect(tokens).toMatch(new RegExp(`--weight-${step}:\\s*\\d`));
+    }
+    // `<strong>` is semantic, so it must not inherit the browser's 700.
+    expect(readSource("styles/base.css")).toMatch(
+      /strong,\s*b\s*\{[^}]*font-weight:\s*var\(--weight-strong\)/,
+    );
+
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css") continue;
+      for (const rule of readRules(relativePath)) {
+        const literal = rule.body.match(/(?<![\w-])font-weight:\s*(\d[\d.]*)/);
+        if (literal) offenders.push(`${relativePath}: ${rule.selector} — font-weight: ${literal[1]}`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  // The type scale is the same idea one axis over. It is not yet a guard —
+  // most screens still carry sizes that predate it — so this only holds the
+  // steps themselves in place for the code that has moved onto them.
+  it("keeps the type scale defined", () => {
+    const tokens = readSource("styles/tokens.css");
+    for (const step of ["display", "title", "subtitle", "lead", "body", "label", "caption", "micro"]) {
+      expect(tokens).toMatch(new RegExp(`--text-${step}:\\s*\\d`));
+    }
+    // DESIGN.md § Size states that a label and the control it names agree, so
+    // the two pairs are the same number. Nothing but this stops them drifting
+    // apart the next time one of the four is edited on its own.
+    const step = (name: string) => tokens.match(new RegExp(`${name}:\s*([\d.]+)px`))?.[1];
+    expect(step("--control-font-md")).toBe(step("--text-body"));
+    expect(step("--control-font-sm")).toBe(step("--text-label"));
+
+    // Whole pixels: every ramp this one was calibrated against (macOS, Fluent,
+    // VS Code, GitHub Desktop) uses integers, and the halves we used to carry
+    // were the mark of one step too many rather than a decision.
+    for (const declaration of tokens.matchAll(/--(?:text|control-font)-[\w-]+:\s*([\d.]+)px/g)) {
+      expect(Number(declaration[1]) % 1).toBe(0);
+    }
+  });
+
+  // Every sheet in the eager cascade is on the scale now, so this is the whole
+  // app rather than one screen's guard. The drift it replaced: 248 literal
+  // sizes across fourteen sheets, spread over twenty-two distinct values —
+  // 14.5, 16, 18, 20 and 21 among them, each reasonable where it was written
+  // and none of them agreeing with the next sheet over.
+  it("keeps font size on the scale", () => {
+    // DESIGN.md § Typography names both: a numeral inside a 14px status dot,
+    // and the label inside a miniature drawing of the navigation rail. Neither
+    // is text anyone reads, and neither fits the floor.
+    const documentedExceptions = new Set([
+      ".sidebar-project__badge-count",
+      ".navigation-display__preview small",
+    ]);
+    const offenders: string[] = [];
+
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        if (documentedExceptions.has(rule.selector)) continue;
+        // `font-size: 0` hides a label rather than sizing one — it is how the
+        // diff pane's footer drops its button text at narrow widths.
+        const literal = rule.body.match(/(?<![\w-])font-size:\s*([\d.]+)px/);
+        if (literal) offenders.push(`${relativePath}: ${rule.selector} — font-size: ${literal[1]}px`);
+        // The `font:` shorthand carries the size and the weight inside itself,
+        // so neither this guard nor the weight one could see it: six rules hid
+        // there, one of them still on 11.5px after the whole cascade had moved.
+        const shorthand = rule.body.match(/(?<![\w-])font:\s*(?!inherit)([^;]*)/);
+        if (shorthand && /(?:^|\s)\d[\d.]*(?:px|\/|$)|\/\s*\d|(?:^|\s)[1-9]00(?:\s|$)/.test(shorthand[1])) {
+          offenders.push(`${relativePath}: ${rule.selector} — font: ${shorthand[1].trim()}`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  // The fifth typographic axis, and the last one still repeating itself: the
+  // monospace stack was written out verbatim twelve times across the cascade.
+  // TypeScript had already named it; CSS was the half that never did.
+  it("keeps the font stacks named once", () => {
+    const tokens = readSource("styles/tokens.css");
+    const step = (name: string) => tokens.match(new RegExp(`${name}:\\s*([\\d.]+)px`))?.[1];
+    expect(tokens).toMatch(/--font-sans:\s*\S/);
+    expect(tokens).toMatch(/--font-mono:\s*\S/);
+
+    // `diffPreferences.tsx` builds the diff's font preference in TypeScript and
+    // has to spell the fallback stack out. The two copies must stay in step.
+    const token = tokens.match(/--font-mono:\s*([^;]+);/)?.[1].trim();
+    const constant = readSource("features/changes/diffPreferences.tsx")
+      .match(/const SYSTEM_MONO_STACK = '([^']+)'/)?.[1];
+    expect(constant).toBe(token);
+
+    // The same shape one file over. `DiffResultView` seeds its row-height
+    // estimate with `.diff-code`'s line box before the first measurement lands,
+    // and it can only spell that out. It said 20 — "matching the CSS's
+    // `font: 12.5px/1.6`" — through a move to 13px and then to 12px, so the
+    // number and the comment explaining it were both wrong for two scale
+    // changes running. It is written as the two factors now, and this is what
+    // makes the next one fail loudly.
+    const seed = readSource("features/changes/DiffResultView.tsx")
+      .match(/const FALLBACK_LINE_HEIGHT = ([\d.]+) \* ([\d.]+);/);
+    expect(seed).not.toBeNull();
+    const diffCode = ruleBody("features/changes/changes.css", ".diff-code");
+    expect(diffCode).toContain("font-size: var(--text-label)");
+    expect(diffCode).toContain("line-height: var(--leading-code)");
+    expect(seed?.[1]).toBe(step("--text-label"));
+    expect(seed?.[2]).toBe(tokens.match(/--leading-code:\s*([\d.]+)/)?.[1]);
+
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css") continue;
+      for (const rule of readRules(relativePath)) {
+        if (/ui-monospace|ui-sans-serif/.test(rule.body)) {
+          offenders.push(`${relativePath}: ${rule.selector} spells out a font stack`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  // The two axes the size and weight passes had left alone. Twelve line heights
+  // for four roles plus code, and eleven tracking values including −0.005,
+  // −0.012 and −0.018em — differences of a fifth of a pixel at the sizes they
+  // were written on, which is to say differences nobody could see.
+  it("keeps leading and tracking on their scales", () => {
+    const tokens = readSource("styles/tokens.css");
+    for (const step of ["none", "tight", "snug", "normal", "code"]) {
+      expect(tokens).toMatch(new RegExp(`--leading-${step}:\\s*\\d`));
+    }
+    for (const step of ["hero", "tight", "wide", "caps"]) {
+      expect(tokens).toMatch(new RegExp(`--tracking-${step}:\\s*-?[\\d.]`));
+    }
+
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css") continue;
+      for (const rule of readRules(relativePath)) {
+        const leading = rule.body.match(/(?<![\w-])line-height:\s*([\d.]+)/);
+        if (leading) offenders.push(`${relativePath}: ${rule.selector} — line-height: ${leading[1]}`);
+        // `letter-spacing: 0` is a reset, not a value someone picked: the
+        // tooltip uses it to shed whatever tracking it was rendered inside of.
+        const tracking = rule.body.match(/(?<![\w-])letter-spacing:\s*(-?[\d.]*[\d]e?m)/);
+        if (tracking) offenders.push(`${relativePath}: ${rule.selector} — letter-spacing: ${tracking[1]}`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   // The other way a feature invents a size: not by overriding a button, but by
   // declaring a control-height variable of its own. The Changes toolbar had one
   // at 34px and the History diff workspace overrode it to 32 — one control

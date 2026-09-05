@@ -1,5 +1,11 @@
 :root {
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* The two stacks, named once. `--font-mono` is repeated verbatim by
+     `SYSTEM_MONO_STACK` in `features/changes/diffPreferences.tsx`, which builds
+     the diff's font preference in TypeScript; the two must stay in step. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+
+  font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
@@ -38,8 +44,60 @@
   --control-height-sm: 32px;
   --control-height-md: 38px;
   --control-height-lg: 44px;
-  --control-font-sm: 13px;
-  --control-font-md: 13.5px;
+  --control-font-sm: 12px;
+  --control-font-md: 13px;
+
+  /* Type states a role, the same way radius and control size do — see
+     DESIGN.md § Typography. Pick the step by what the text *is*, never by how
+     big it needs to look: that is what let one screen drift a whole step below
+     the rest while every value in it looked locally reasonable.
+
+     Whole pixels, and these particular ones: 22/17/15 is the macOS title ramp
+     and 13/12/11/10 is its body ramp, which is also where VS Code, GitHub
+     Desktop and GitButler land. The scale used to run half a pixel above all of
+     them, because five steps had been squeezed into the four the ramp has —
+     hence 13.5 and 12.5, numbers no established ramp uses.
+
+     `body` and `label` are the same numbers as `--control-font-md` and
+     `--control-font-sm` on purpose — a label and the control it names must
+     agree, and a control is only ever text in a box. */
+  --text-hero: 28px;     /* a name, not a heading: the app's, the project's */
+  --text-display: 22px;  /* the screen's own title (h1) */
+  --text-title: 17px;    /* a card, dialog or section heading (h2) */
+  --text-subtitle: 15px; /* a heading inside a card (h3) */
+  --text-lead: 14px;     /* the name of a row, where the row *is* the content */
+  --text-body: 13px;     /* body copy, and any labelled control */
+  --text-label: 12px;    /* a label, and a control living inside a row */
+  --text-caption: 11px;  /* a chip, a count, metadata beside a name */
+  --text-micro: 10px;    /* the floor: an avatar's initials, a badge's number */
+
+  /* Weight states a role too, and the roles are deliberately few. Anything
+     between these steps is a value someone eyeballed — 630, 680 and 760 all
+     lived on one screen and made it read as shouting next to every other. */
+  --weight-normal: 400;  /* body copy and metadata */
+  --weight-medium: 500;  /* a value that must not be mistaken for a name */
+  --weight-strong: 600;  /* the name of a thing: a file, a line, a row's subject */
+  --weight-heading: 650; /* a heading, and the label of a selected control */
+  --weight-title: 700;   /* a screen title, a primary action, an avatar's initials */
+
+  /* Leading is the third axis of the same idea, and the one that had drifted
+     furthest: twelve values for what were only ever four roles, plus code.
+     Every ramp in DESIGN.md § Typography pairs a line height with each size —
+     ours pairs one with each *role*, which survives a size change. */
+  --leading-none: 1;      /* a glyph centred in a box of its own: a count, initials */
+  --leading-tight: 1.2;   /* a heading — the bigger the type, the less air it needs */
+  --leading-snug: 1.35;   /* a name or a row that may wrap to a second line */
+  --leading-normal: 1.5;  /* body copy and prose */
+  --leading-code: 1.6;    /* a monospace surface: a diff, a path, a hash */
+
+  /* Tracking follows size, not taste: large type closes up, small type and
+     uppercase open out. The eleven values this replaced included −0.005,
+     −0.012 and −0.018em — differences of a fifth of a pixel at the sizes they
+     were used on, which is to say differences nobody could see. */
+  --tracking-hero: -0.02em;  /* the largest type on a surface */
+  --tracking-tight: -0.01em; /* a heading */
+  --tracking-wide: 0.02em;   /* small text opened out: initials, a count */
+  --tracking-caps: 0.06em;   /* an uppercase label */
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;

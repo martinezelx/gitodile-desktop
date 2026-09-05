@@ -38,23 +38,23 @@
 .team-changes--danger .team-changes__icon { color: var(--status-danger); }
 .team-changes__heading h2 {
   margin: 0 0 2px;
-  font-size: 16px;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-size: var(--text-subtitle);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
 }
 .team-changes__heading p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 12.5px;
-  line-height: 1.4;
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
 }
 .team-changes__body { min-width: 0; }
 .team-changes__summary {
   max-width: 70ch;
   margin: 0;
   color: var(--text-secondary);
-  font-size: 13.5px;
-  line-height: 1.5;
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
 }
 .team-changes__knowledge {
   display: flex;
@@ -62,7 +62,7 @@
   gap: var(--space-2) var(--space-3);
   margin-top: var(--space-2);
   color: var(--text-secondary);
-  font-size: 12.5px;
+  font-size: var(--text-label);
 }
 .team-changes__relationship {
   display: grid;
@@ -91,15 +91,15 @@
 .team-changes__endpoint small {
   display: block;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.25;
+  font-size: var(--text-caption);
+  line-height: var(--leading-tight);
 }
 .team-changes__endpoint strong {
   display: block;
   overflow: hidden;
   margin-top: 2px;
   color: var(--text-primary);
-  font: 600 12px/1.4 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font: var(--weight-strong) var(--text-label)/var(--leading-snug) var(--font-mono);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -121,8 +121,8 @@
 .team-changes__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: auto; }
 .team-changes__actions button { white-space: nowrap; }
 .team-changes__actions button > svg { width: 16px; height: 16px; }
-.team-changes__coming-soon > span { display: grid; text-align: left; line-height: 1.15; }
-.team-changes__coming-soon small { color: var(--text-secondary); font-size: 10.5px; font-weight: 500; }
+.team-changes__coming-soon > span { display: grid; text-align: left; line-height: var(--leading-tight); }
+.team-changes__coming-soon small { color: var(--text-secondary); font-size: var(--text-micro); font-weight: var(--weight-medium); }
 @media (max-width: 800px) {
   .team-changes { padding: var(--space-4); }
   .team-changes__actions { justify-content: stretch; }
@@ -181,8 +181,8 @@
 }
 
 .get-team-dialog__header svg { width: 20px; height: 20px; }
-.get-team-dialog__header h2 { margin: 0; font-size: 22px; line-height: 1.25; letter-spacing: -0.02em; }
-.get-team-dialog__header p { max-width: 70ch; margin: var(--space-1) 0 0; color: var(--text-secondary); line-height: 1.5; }
+.get-team-dialog__header h2 { margin: 0; font-size: var(--text-display); line-height: var(--leading-tight); letter-spacing: var(--tracking-hero); }
+.get-team-dialog__header p { max-width: 70ch; margin: var(--space-1) 0 0; color: var(--text-secondary); line-height: var(--leading-normal); }
 
 .get-team-phases {
   display: grid;
@@ -200,8 +200,8 @@
   align-items: center;
   gap: var(--space-2);
   color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: var(--text-label);
+  line-height: var(--leading-tight);
 }
 
 .get-team-phases li > span {
@@ -214,12 +214,12 @@
 }
 
 .get-team-phases li > span svg { width: 13px; height: 13px; }
-.get-team-phases__item--active { color: var(--text-primary) !important; font-weight: 650; }
+.get-team-phases__item--active { color: var(--text-primary) !important; font-weight: var(--weight-heading); }
 .get-team-phases__item--active > span { border-color: var(--accent-primary); color: var(--accent-primary); }
 .get-team-phases__item--complete > span { border-color: var(--status-success); background: var(--surface-active); color: var(--status-success); }
 
 .get-team-plan { display: grid; gap: var(--space-5); }
-.get-team-plan h3 { margin: 0 0 var(--space-3); font-size: 14px; line-height: 1.3; }
+.get-team-plan h3 { margin: 0 0 var(--space-3); font-size: var(--text-lead); line-height: var(--leading-snug); }
 
 .get-team-plan__lead {
   display: grid;
@@ -251,17 +251,17 @@
 .get-team-version-list li { grid-template-columns: minmax(0, 1fr) auto; }
 .get-team-version-list li + li,
 .get-team-file-list li + li { margin-top: var(--space-1); }
-.get-team-version-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-.get-team-version-list small { grid-column: 1; color: var(--text-secondary); font-size: 11.5px; }
-.get-team-version-list code { grid-column: 2; grid-row: 1 / span 2; color: var(--text-secondary); font-size: 11.5px; }
+.get-team-version-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); }
+.get-team-version-list small { grid-column: 1; color: var(--text-secondary); font-size: var(--text-caption); }
+.get-team-version-list code { grid-column: 2; grid-row: 1 / span 2; color: var(--text-secondary); font-size: var(--text-caption); }
 
 .get-team-file-list li { grid-template-columns: 22px minmax(0, 1fr) auto; }
 .get-team-file-list__icon { color: var(--text-secondary); }
 .get-team-file-list__icon svg { width: 15px; height: 15px; }
-.get-team-file-list__path { min-width: 0; display: grid; overflow-wrap: anywhere; font: 12px/1.35 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+.get-team-file-list__path { min-width: 0; display: grid; overflow-wrap: anywhere; font: var(--text-label)/var(--leading-snug) var(--font-mono); }
 .get-team-file-list__path s { color: var(--text-secondary); }
-.get-team-file-list__kind { color: var(--text-secondary); font-size: 11.5px; }
-.get-team-plan__bounded-note { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: 12px; }
+.get-team-file-list__kind { color: var(--text-secondary); font-size: var(--text-caption); }
+.get-team-plan__bounded-note { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: var(--text-label); }
 
 .get-team-plan__assurances {
   display: grid;
@@ -271,7 +271,7 @@
 
 .get-team-plan__assurances section { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-3); }
 .get-team-plan__assurances h3 { margin-bottom: var(--space-1); }
-.get-team-plan__assurances p { margin: 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.5; }
+.get-team-plan__assurances p { margin: 0; color: var(--text-secondary); font-size: var(--text-label); line-height: var(--leading-normal); }
 .get-team-plan__assurance-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--accent-primary); }
 .get-team-plan__assurance-icon svg { width: 16px; height: 16px; }
 
@@ -284,26 +284,26 @@
   border-radius: var(--radius-surface);
   background: var(--surface-panel);
   color: var(--text-secondary);
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
 }
 .get-team-plan__local-note svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; color: var(--status-warning); }
 
-.get-team-technical summary { width: fit-content; display: flex; align-items: center; gap: var(--space-1); color: var(--text-secondary); font-size: 12.5px; font-weight: 650; list-style: none; }
+.get-team-technical summary { width: fit-content; display: flex; align-items: center; gap: var(--space-1); color: var(--text-secondary); font-size: var(--text-label); font-weight: var(--weight-heading); list-style: none; }
 .get-team-technical summary::-webkit-details-marker { display: none; }
 .get-team-technical summary svg { width: 14px; height: 14px; transition: transform var(--duration-fast); }
 .get-team-technical[open] summary svg { transform: rotate(180deg); }
 .get-team-technical dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-5); margin: var(--space-4) 0 0; }
-.get-team-technical dt { color: var(--text-secondary); font-size: 11.5px; }
-.get-team-technical dd { margin: 2px 0 0; overflow-wrap: anywhere; font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
-.get-team-technical > p { margin: var(--space-3) 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.get-team-technical dt { color: var(--text-secondary); font-size: var(--text-caption); }
+.get-team-technical dd { margin: 2px 0 0; overflow-wrap: anywhere; font: var(--text-label)/var(--leading-normal) var(--font-mono); }
+.get-team-technical > p { margin: var(--space-3) 0 0; color: var(--text-secondary); font-size: var(--text-label); line-height: var(--leading-normal); }
 
 .get-team-message { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-surface); background: var(--surface-panel); }
 .get-team-message > svg { width: 20px; height: 20px; flex: 0 0 auto; }
-.get-team-message h3 { margin: 0 0 var(--space-1); font-size: 15px; }
-.get-team-message p { margin: 0; line-height: 1.5; }
+.get-team-message h3 { margin: 0 0 var(--space-1); font-size: var(--text-subtitle); }
+.get-team-message p { margin: 0; line-height: var(--leading-normal); }
 .get-team-message p + p { margin-top: var(--space-2); }
-.get-team-message code { display: block; margin-top: var(--space-2); overflow-wrap: anywhere; font-size: 12px; }
+.get-team-message code { display: block; margin-top: var(--space-2); overflow-wrap: anywhere; font-size: var(--text-label); }
 .get-team-message--error > svg { color: var(--status-danger); }
 .get-team-message--warning > svg { color: var(--status-warning); }
 .get-team-message--success > svg { color: var(--status-success); }

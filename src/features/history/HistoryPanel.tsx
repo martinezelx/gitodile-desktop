@@ -111,7 +111,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCo
   const selectedIndex = versions.findIndex((version) => version.commit === selectedCommit);
   const previousSelectedIndex = versions.findIndex((version) => version.commit === previousSelectedCommitRef.current);
   const selectionDirection = previousSelectedIndex >= 0 && selectedIndex >= 0 && selectedIndex < previousSelectedIndex ? "up" : "down";
-  const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: () => 80, overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
+  const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: () => 82, overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
   const rows = virtualizer.getVirtualItems();
   const lastIndex = rows.at(-1)?.index ?? -1;
 

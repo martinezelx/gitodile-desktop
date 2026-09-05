@@ -42,7 +42,7 @@
   width: 20px; height: 20px; flex-shrink: 0;
   display: grid; place-items: center;
   border-radius: var(--radius-round); color: var(--avatar-foreground);
-  font-size: 9px; font-weight: 700; letter-spacing: 0.02em;
+  font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
 
 .window-titlebar {
@@ -159,7 +159,7 @@
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  font-size: 13.5px;
+  font-size: var(--text-body);
 }
 .titlebar-menu__item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary); }
 .titlebar-menu__item:hover { background: var(--surface-hover); }
@@ -173,7 +173,7 @@
 }
 .window-control:hover { background: var(--surface-hover); }
 .window-control--close:hover { background: var(--status-danger); color: var(--status-danger-contrast); }
-.window-control > span { line-height: 1; }
+.window-control > span { line-height: var(--leading-none); }
 .window-control__maximize-icon { width: 12px; height: 12px; stroke-width: 1.75; }
 .window-control__close { width: 12px; height: 12px; position: relative; }
 .window-control__close::before, .window-control__close::after { content: ""; position: absolute; top: 5px; left: 0; width: 12px; height: 1.5px; background: currentColor; }
@@ -185,13 +185,13 @@
 .palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
 .palette-input-row:focus-within { box-shadow: inset 0 -2px 0 var(--focus-ring); }
 .palette-input-row svg { width: 16px; height: 16px; flex-shrink: 0; }
-.palette-input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: 15px; color: var(--text-primary); }
+.palette-input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: var(--text-subtitle); color: var(--text-primary); }
 .palette-input::placeholder { color: var(--text-secondary); }
 .palette-list { list-style: none; margin: 0; max-height: 280px; overflow-y: auto; padding: var(--space-2); }
-.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: var(--radius-item); font-size: 13.5px; color: var(--text-primary); }
+.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: var(--radius-item); font-size: var(--text-body); color: var(--text-primary); }
 .palette-item[aria-selected="true"] { background: var(--surface-active); }
-.palette-item__hint { color: var(--text-secondary); font-size: 12px; }
-.palette-empty { padding: 24px 16px; text-align: center; color: var(--text-secondary); font-size: 13px; list-style: none; }
+.palette-item__hint { color: var(--text-secondary); font-size: var(--text-label); }
+.palette-empty { padding: 24px 16px; text-align: center; color: var(--text-secondary); font-size: var(--text-body); list-style: none; }
 
 /* Grid rather than a row of two, so the status bar can span from the rail's
    edge to the window's without the workspace being wrapped in a column of its
@@ -233,8 +233,8 @@
   height: 34px;
   padding: 0 var(--workspace-inset-right) 0 var(--workspace-inset-left);
   color: var(--text-primary);
-  font-size: 13px;
-  line-height: 1.35;
+  font-size: var(--text-body);
+  line-height: var(--leading-snug);
 }
 /* No rule above it either — a hairline was drawing a boundary the layout
    already draws. What was missing is what happens *mid-scroll*, where content
@@ -353,10 +353,10 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--status-warning) 10%, transparent);
   color: var(--status-warning);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.015em;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-wide);
 }
 .status-bar .version-lines-quick-switch {
   flex: 0 1 auto;
@@ -386,8 +386,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
 }
 .status-bar .version-line-selector__chevron { width: 12px; height: 12px; }
 /* The hierarchy is two text tokens, not one token at two opacities. Fading
@@ -496,7 +496,7 @@
 }
 .rail-item__label {
   max-width: 100%; overflow: hidden; overflow-wrap: anywhere;
-  font-size: 11px; line-height: 1.15; font-weight: 500; letter-spacing: -0.005em;
+  font-size: var(--text-caption); line-height: var(--leading-tight); font-weight: var(--weight-medium); letter-spacing: var(--tracking-tight);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 /* Icon-only mode compacts the destination cells, not their hit targets. The
@@ -512,7 +512,7 @@
 .rail-item--active { color: var(--text-primary); }
 .rail-item--active .rail-item__icon { background: var(--surface-active); color: var(--accent-primary); }
 .rail-item--active .rail-item__icon svg { animation: rail-icon-settle var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1); }
-.rail-item--active .rail-item__label { font-weight: 600; }
+.rail-item--active .rail-item__label { font-weight: var(--weight-strong); }
 .rail-item:disabled,
 .rail-item[aria-disabled="true"] { opacity: 0.55; }
 .rail-item:disabled .rail-item__icon,
@@ -597,7 +597,7 @@
 .sidebar-project__avatar {
   width: 36px; height: 36px; display: grid; place-items: center;
   border-radius: var(--radius-round); color: var(--avatar-foreground);
-  font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+  font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
   transition: filter var(--duration-fast), transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sidebar-project:hover:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { filter: brightness(1.08); }
@@ -622,7 +622,11 @@
   border-radius: var(--radius-pill); background: var(--surface-raised); border: 1px solid var(--border-subtle);
 }
 .sidebar-project__badge svg { width: 10px; height: 10px; }
-.sidebar-project__badge-count { font-size: 7px; line-height: 1; font-weight: 700; }
+/* Below the scale's floor on purpose, and named in DESIGN.md § Typography: a
+   numeral inside a 14px dot has a 10px box once the ring and padding are out,
+   and `--text-micro` would fill it edge to edge with nothing left to breathe.
+   It is a count on a status dot, not text anyone reads a sentence of. */
+.sidebar-project__badge-count { font-size: 7px; line-height: var(--leading-none); font-weight: var(--weight-title); font-variant-numeric: tabular-nums; }
 .sidebar-project__badge--error { color: var(--status-danger); }
 .sidebar-project__badge--operation { color: var(--accent-primary); }
 .sidebar-project__badge--unsaved { color: var(--status-warning); }
@@ -650,7 +654,7 @@
 .sidebar-project__search svg { width: 14px; height: 14px; flex-shrink: 0; }
 .sidebar-project__search input {
   flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
-  font: inherit; font-size: 13px; color: var(--text-primary);
+  font: inherit; font-size: var(--text-body); color: var(--text-primary);
 }
 .sidebar-project__search input::placeholder { color: var(--text-secondary); }
 /* Rides in the search row, sized to the row's own height so it reads as part
@@ -683,7 +687,7 @@
 .sidebar-project__filter--on { color: var(--accent-primary); }
 .sidebar-project__filter--on svg { fill: currentColor; }
 .sidebar-project__empty {
-  margin: 0; padding: 14px 8px; color: var(--text-secondary); font-size: 12.5px; text-align: center;
+  margin: 0; padding: 14px 8px; color: var(--text-secondary); font-size: var(--text-label); text-align: center;
 }
 
 .workspace {
@@ -740,15 +744,15 @@
   color: var(--accent-primary);
 }
 .folder-drop-overlay__icon svg { width: 20px; height: 20px; }
-.folder-drop-overlay__title { margin: 0; font-size: 15px; font-weight: 600; }
-.folder-drop-overlay__hint { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
+.folder-drop-overlay__title { margin: 0; font-size: var(--text-subtitle); font-weight: var(--weight-strong); }
+.folder-drop-overlay__hint { margin: 0; color: var(--text-secondary); font-size: var(--text-body); line-height: var(--leading-normal); }
 
 .app-tooltip {
   position: fixed; max-width: 260px; width: max-content;
   padding: 5px 8px; border-radius: var(--radius-item);
   background: var(--tooltip-surface); color: var(--tooltip-text);
   box-shadow: var(--tooltip-shadow);
-  font-size: 12px; font-weight: 500; line-height: 1.4; text-align: center;
+  font-size: var(--text-label); font-weight: var(--weight-medium); line-height: var(--leading-normal); text-align: center;
   white-space: normal; overflow-wrap: anywhere; letter-spacing: 0;
   pointer-events: none; z-index: 1000;
 }
@@ -780,20 +784,20 @@
 }
 .project-switcher__button:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); }
 .project-switcher__button--active {
-  color: var(--text-primary); background: var(--surface-active); font-weight: 600;
+  color: var(--text-primary); background: var(--surface-active); font-weight: var(--weight-strong);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
 .project-switcher__button:disabled { opacity: 0.45; }
 .project-switcher__avatar {
   flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
-  border-radius: var(--radius-round); color: var(--avatar-foreground); font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
+  border-radius: var(--radius-round); color: var(--avatar-foreground); font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
 .project-switcher__button--active .project-switcher__avatar { box-shadow: 0 0 0 2px var(--accent-primary); }
 .project-switcher__copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.project-switcher__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.project-switcher__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); }
 .project-switcher__context {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--text-secondary); font-size: 11px; font-weight: 400;
+  color: var(--text-secondary); font-size: var(--text-caption); font-weight: var(--weight-normal);
 }
 .project-switcher__indicators { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; }
 .project-switcher__indicator { flex-shrink: 0; width: 14px; height: 14px; }
@@ -852,7 +856,7 @@
 .project-switcher__add {
   display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
-  font-size: 13px; transition: background var(--duration-fast), color var(--duration-fast);
+  font-size: var(--text-body); transition: background var(--duration-fast), color var(--duration-fast);
 }
 .project-switcher__add svg { width: 16px; height: 16px; flex-shrink: 0; }
 .project-switcher__add:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); }
@@ -885,7 +889,7 @@
 .project-switcher-compact__trigger svg { width: 16px; height: 16px; }
 .project-switcher-compact__avatar {
   width: 100%; height: 100%; display: grid; place-items: center;
-  border-radius: var(--radius-round); color: var(--avatar-foreground); font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+  border-radius: var(--radius-round); color: var(--avatar-foreground); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
 .project-switcher-compact__popover {
   position: absolute; z-index: 5; top: calc(100% + var(--space-2)); left: 0; min-width: 220px;
@@ -922,7 +926,7 @@
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px;
   padding: 6px var(--space-3); border-radius: var(--radius-pill);
   border: 1px solid transparent; background: transparent;
-  color: var(--status-danger); font-size: 12.5px; font-weight: 650;
+  color: var(--status-danger); font-size: var(--text-label); font-weight: var(--weight-heading);
   opacity: 0.78;
   transition: background var(--duration-fast), border-color var(--duration-fast), opacity var(--duration-fast);
 }
@@ -939,8 +943,8 @@
   background: color-mix(in srgb, var(--status-danger) 14%, transparent);
 }
 .settings-dialog__alert svg { width: 14px; height: 14px; }
-.settings-dialog__header h2 { margin: 0 0 3px; font-size: 21px; letter-spacing: -0.018em; }
-.settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
+.settings-dialog__header h2 { margin: 0 0 3px; font-size: var(--text-display); letter-spacing: var(--tracking-tight); }
+.settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: var(--text-body); }
 /* Names the project the panel is scoped to. It wears the same shell as
    Settings, so the one thing it must never be mistaken for is Settings. */
 .project-settings-dialog__project {
@@ -990,8 +994,8 @@
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
 }
-.message-dialog h2 { margin: 0; font-size: 22px; }
-.message-dialog p { margin: 0; color: var(--text-secondary); line-height: 1.55; }
+.message-dialog h2 { margin: 0; font-size: var(--text-display); }
+.message-dialog p { margin: 0; color: var(--text-secondary); line-height: var(--leading-normal); }
 /* A capsule is a single-line control (DESIGN.md § Shape), so a label that no
    longer fits takes its own row rather than wrapping to two lines inside the
    pill — which is exactly what the welcome screen's old capsule row did, and
@@ -1015,7 +1019,9 @@
 
 .issue-report-dialog { position: relative; width: min(100%, 720px); }
 .issue-report-dialog > .dialog-close-button { position: absolute; top: 18px; right: 18px; }
-.issue-report-dialog > h2 { margin-right: 44px; }
+/* The only dialog title that never sized itself, so it used to ride the
+   browser's 24px while every sibling dialog sat at 22. It says so now. */
+.issue-report-dialog > h2 { margin-right: 44px; font-size: var(--text-display); }
 .issue-report-dialog__loader {
   width: 32px;
   height: 32px;
@@ -1043,9 +1049,9 @@
   white-space: pre;
   outline: none;
   color: var(--text-primary);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
   tab-size: 2;
 }
 /* A chip rather than a bordered strip: the guidance is an aside to the report
@@ -1060,10 +1066,10 @@
   border-radius: var(--radius-pill);
   background: var(--surface-hover);
   color: var(--text-secondary);
-  font-size: 12.5px;
+  font-size: var(--text-label);
 }
 .issue-report-dialog__note svg { flex: 0 0 auto; width: 15px; height: 15px; }
-.issue-report-dialog .issue-report-dialog__status { min-height: 20px; font-size: 12.5px; }
+.issue-report-dialog .issue-report-dialog__status { min-height: 20px; font-size: var(--text-label); }
 .issue-report-dialog__actions svg { width: 15px; height: 15px; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1084,12 +1090,22 @@
 .about-dialog__mark .gitodile-mark { width: 44px; height: 23px; }
 .about-dialog__copy {
   width: 100%; margin-top: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .about-dialog__copy svg { width: 15px; height: 15px; }
-.about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary); font-size: 12.5px; text-align: center; }
+.about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary); font-size: var(--text-label); text-align: center; }
 .about-dialog__heart { color: var(--accent-heart); }
-.about-dialog h2 { margin-bottom: 7px; font-size: 28px; }
+/* `--text-hero` is a *name*, not a heading, so this reads like the project name
+   on Overview rather than like the `h2` it happens to be: the title weight and
+   the hero tracking, both of which large type needs. It had been relying on the
+   browser's bold for an `h2`, which the scale's `h2` default (650) took away —
+   at 28px that is visibly thin, and it is the app's own name. */
+.about-dialog h2 {
+  margin-bottom: 7px;
+  font-size: var(--text-hero);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-hero);
+}
 .about-dialog__release {
   display: flex;
   align-items: center;
@@ -1097,22 +1113,22 @@
   margin: 0 0 12px;
   color: var(--text-secondary);
 }
-.about-dialog__release-version { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.about-dialog__release-version { font-size: var(--text-label); font-weight: var(--weight-heading); font-variant-numeric: tabular-nums; }
 .about-dialog__release-channel {
   padding: 2px 7px;
   border: 1px solid color-mix(in srgb, var(--status-warning) 35%, transparent);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--status-warning) 10%, transparent);
   color: var(--status-warning);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-tight);
 }
-.about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: 1.6; }
+.about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: var(--leading-normal); }
 /* About's two lower sections are siblings in weight as well as in role, so they
    share a heading and a rhythm rather than each inventing one. */
 .about-technical h3,
-.about-stack h3 { margin: 0; font-size: 13px; font-weight: 700; }
+.about-stack h3 { margin: 0; font-size: var(--text-body); font-weight: var(--weight-title); }
 .about-technical,
 .about-stack { margin-top: 18px; }
 /* Credits, not diagnostics — one column per layer, all on one row.
@@ -1159,7 +1175,7 @@
   border-radius: var(--radius-item);
   background: var(--surface-hover);
   color: var(--text-primary);
-  line-height: 1.3;
+  line-height: var(--leading-snug);
   text-align: center;
   transition:
     border-color var(--duration-fast),
@@ -1201,9 +1217,9 @@
    `src/app/vendorMarks.tsx` for why a logo keeps them. 18px rather than the
    14px it wore inline: with its own line it is the thing the eye lands on. */
 .about-stack__mark { width: 18px; height: 18px; display: block; }
-.about-stack__name { font-size: 12px; font-weight: 600; }
+.about-stack__name { font-size: var(--text-label); font-weight: var(--weight-strong); }
 .about-stack__version {
-  font-size: 11px;
+  font-size: var(--text-caption);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -1271,16 +1287,16 @@
   background: var(--surface-active);
   color: var(--accent-primary);
 }
-.changelog-release h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.changelog-release h3 { margin: 0; font-size: var(--text-subtitle); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
 .changelog-release__channel,
 .changelog-release__current {
   flex-shrink: 0;
   padding: 2px 7px;
   border-radius: var(--radius-pill);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.015em;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-wide);
 }
 .changelog-release__channel {
   border: 1px solid var(--border-subtle);
@@ -1311,7 +1327,7 @@
   margin-left: auto;
   flex-shrink: 0;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-label);
 }
 .changelog-release__notes {
   margin: 12px 4px 0 38px;
@@ -1327,8 +1343,8 @@
   align-items: start;
   gap: 10px;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
 }
 .changelog-release__note-icon {
   width: 30px;
@@ -1356,7 +1372,7 @@
 
 .shortcuts-dialog { width: min(100%, 380px); }
 .shortcuts-list { list-style: none; margin: 4px 0 0; padding: 0; }
-.shortcuts-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-divider); font-size: 13.5px; color: var(--text-primary); }
+.shortcuts-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-divider); font-size: var(--text-body); color: var(--text-primary); }
 .shortcuts-list li:first-child { border-top: 0; }
 .shortcuts-list__keys { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .shortcuts-list kbd {
@@ -1367,7 +1383,7 @@
   background: var(--surface-hover);
   color: var(--text-secondary);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-label);
   text-align: center;
 }
 
@@ -1442,7 +1458,7 @@
     background: transparent;
     color: var(--text-secondary);
     font: inherit;
-    font-weight: 600;
+    font-weight: var(--weight-strong);
   }
   .compact-nav__item svg { width: 18px; height: 18px; }
   .compact-nav__item--active { background: var(--surface-active); color: var(--text-primary); }

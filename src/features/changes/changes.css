@@ -19,9 +19,9 @@
   gap: 6px;
   margin: 0 0 var(--space-1);
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: var(--text-label);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-wide);
 }
 .changes-preview__group-icon { display: inline-flex; align-items: center; }
 .changes-preview__group-icon svg { width: 13px; height: 13px; }
@@ -64,7 +64,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 13.5px;
+  font-size: var(--text-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -79,8 +79,8 @@
   background: transparent;
   color: var(--accent-primary);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
 }
 .changes-preview__more:hover { background: var(--surface-hover); }
 .changes-preview__more svg { width: 15px; height: 15px; }
@@ -91,11 +91,11 @@
 
 .changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
 .changes-view__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
-.changes-view__header p { margin: 4px 0 0; color: var(--text-secondary); font-size: 14px; }
+.changes-view__header p { margin: 4px 0 0; color: var(--text-secondary); font-size: var(--text-lead); }
 .changes-view__summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .changes-view__summary-separator { color: var(--text-secondary); opacity: 0.6; }
 .changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 10px; }
-.changes-view__lines { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13.5px; }
+.changes-view__lines { font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); font-size: var(--text-body); }
 .changes-view__lines--added { color: var(--diff-added); }
 .changes-view__lines--removed { color: var(--diff-removed); }
 .changes-status-notice {
@@ -106,8 +106,8 @@
 }
 .changes-status-notice__body { flex: 1; min-width: 0; }
 .changes-status-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
-.changes-status-notice strong { display: block; margin-bottom: 2px; font-size: 12px; }
-.changes-status-notice p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.changes-status-notice strong { display: block; margin-bottom: 2px; font-size: var(--text-label); }
+.changes-status-notice p { margin: 0; color: var(--text-secondary); font-size: var(--text-label); line-height: var(--leading-normal); }
 .changes-status-notice > .secondary-button { flex: 0 0 auto; align-self: center; }
 .changes-status-notice > .secondary-button svg { width: 14px; height: 14px; }
 .changes-status-notice--danger { outline: 1px solid var(--status-danger); outline-offset: -1px; }
@@ -120,7 +120,7 @@
   padding: 10px var(--space-4);
   border-radius: var(--radius-surface); background: var(--surface-raised);
 }
-.changes-notice p { flex: 1; min-width: 0; margin: 0; font-size: 14px; color: var(--text-primary); }
+.changes-notice p { flex: 1; min-width: 0; margin: 0; font-size: var(--text-lead); color: var(--text-primary); }
 .changes-notice > svg { width: 18px; height: 18px; flex-shrink: 0; }
 .changes-notice--discarded > svg, .changes-notice--restored > svg { color: var(--status-success); }
 .changes-notice--error > svg { color: var(--status-danger); }
@@ -134,40 +134,26 @@
 }
 .changes-notice__dismiss:hover { background: var(--surface-active); color: var(--text-primary); }
 .changes-notice__dismiss svg { width: 15px; height: 15px; }
-/* A pill, not an 18px card: the elements at its corners are the two circular
-   icon buttons, and a container stays concentric with the shape it hugs when
-   its radius is the child's plus the padding — 19 + 8 here, which is exactly
-   half of the 54px the row measures. `999px` keeps that true when coarse
-   pointers grow the buttons to 44px and the row to 60. */
+/* No card of its own. The Version lines header sets the pattern for a screen
+   heading's actions: the controls sit straight on the screen background and
+   each carries its own shape, so nothing here paints a surface or a shadow. */
 .changes-header-actions {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
 }
 .changes-header-actions__buttons { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
-.changes-header-actions .secondary-button,
-.changes-header-actions__save {
-  border-color: var(--border-control);
-}
 /* Same rule as the Overview summary row: a single-line control is fully
    rounded — a circle where it is square, a capsule where it carries a label.
-   Save is the capsule between these two circles, and every radius in the
-   cluster is now half its own height, so the whole row nests concentrically
-   without a single number needing to be worked out. */
+   Save is the capsule beside this circle, and every radius in the cluster is
+   half its own height, so the row keeps its shape at any pointer size. */
 .changes-actions-menu__trigger {
   width: var(--control-height-md);
   min-width: var(--control-height-md);
   padding: 0;
   border-radius: var(--radius-round);
 }
-.changes-header-actions .secondary-button { background: var(--surface-control); }
-.changes-header-actions .secondary-button:hover:not(:disabled) { background: var(--surface-hover); }
-.changes-header-actions .secondary-button:active:not(:disabled) { background: var(--surface-active); }
 .changes-header-actions__save svg { width: 16px; height: 16px; }
 .changes-actions-menu { position: relative; display: inline-flex; }
 .changes-actions-menu__trigger { justify-content: center; }
@@ -185,7 +171,7 @@
 .changes-context-menu .app-menu__item:disabled { opacity: 0.42; cursor: default; }
 .changes-context-menu__error {
   max-width: 280px; margin: 4px 8px 6px; color: var(--status-danger);
-  font-size: 12px; line-height: 1.45; overflow-wrap: anywhere;
+  font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere;
 }
 .changes-diff-context-scope { display: contents; }
 
@@ -199,20 +185,20 @@
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); outline: none;
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
-.changes-discard-dialog h2 { margin: 0; font-size: 22px; }
+.changes-discard-dialog h2 { margin: 0; font-size: var(--text-display); }
 .changes-discard-status { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); }
 .changes-discard-status svg { width: 19px; height: 19px; }
 .changes-discard-summary { display: grid; gap: var(--space-3); }
 .changes-discard-summary > p, .changes-discard-summary ul { margin: 0; }
-.changes-discard-summary ul { display: grid; gap: 6px; padding-left: 20px; color: var(--text-secondary); font-size: 13px; }
+.changes-discard-summary ul { display: grid; gap: 6px; padding-left: 20px; color: var(--text-secondary); font-size: var(--text-body); }
 .changes-discard-recovery {
   display: flex; align-items: flex-start; gap: 9px; padding: 10px 12px; border-radius: var(--radius-surface);
-  background: var(--surface-active); color: var(--text-primary); font-size: 13px;
+  background: var(--surface-active); color: var(--text-primary); font-size: var(--text-body);
 }
 .changes-discard-recovery svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; color: var(--accent-primary); }
 .changes-discard-error {
   display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); font-size: 13px;
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); font-size: var(--text-body);
 }
 .changes-discard-error svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
 .changes-discard-success { display: flex; align-items: flex-start; gap: 9px; color: var(--text-primary); }
@@ -224,7 +210,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
   padding: 6px var(--space-4); border: 1px solid transparent; border-radius: var(--radius-pill);
   background: var(--status-danger); color: var(--status-danger-contrast);
-  font: inherit; font-size: var(--control-font-md); font-weight: 700;
+  font: inherit; font-size: var(--control-font-md); font-weight: var(--weight-title);
 }
 .changes-danger-button:hover { filter: brightness(1.06); }
 .changes-danger-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -237,8 +223,8 @@
   border-radius: var(--radius-round); background: var(--surface-active); color: var(--status-success); box-shadow: var(--shadow-sm);
 }
 .changes-empty__icon svg { width: 20px; height: 20px; }
-.changes-empty h2 { font-size: 17px; margin-bottom: 6px; }
-.changes-empty p { color: var(--text-secondary); font-size: 14px; line-height: 1.55; margin-bottom: 22px; }
+.changes-empty h2 { font-size: var(--text-title); margin-bottom: 6px; }
+.changes-empty p { color: var(--text-secondary); font-size: var(--text-lead); line-height: var(--leading-normal); margin-bottom: 22px; }
 .changes-layout {
   flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: var(--space-4);
   /* Both panels open with a header strip closed by a bottom rule, and those
@@ -297,7 +283,7 @@
      height, which is the same 1px mismatch the toolbar strips had. */
   flex-shrink: 0;
   min-height: var(--changes-header-height);
-  color: var(--text-secondary); font-size: 12px;
+  color: var(--text-secondary); font-size: var(--text-label);
 }
 .changes-file-list__select-all {
   display: inline-flex;
@@ -323,10 +309,10 @@
 .changes-search-box svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary); }
 .changes-search-box input {
   flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text-primary);
-  font: inherit; font-size: 13.5px; outline: none;
+  font: inherit; font-size: var(--text-body); outline: none;
 }
 .changes-file-list__empty {
-  margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-secondary); font-size: 13px; text-align: center;
+  margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-secondary); font-size: var(--text-body); text-align: center;
 }
 .changes-file-list__scroll {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: var(--space-2);
@@ -371,7 +357,7 @@
 .changes-file-row .changes-file-item { flex: 1; width: auto; }
 .changes-file-list__truncated {
   margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-item); background: var(--surface-hover);
-  color: var(--text-secondary); font-size: 12.5px;
+  color: var(--text-secondary); font-size: var(--text-label);
 }
 .changes-file-item {
   width: 100%; min-width: 0; display: flex; align-items: flex-start; gap: 13px; padding: 9px var(--space-3);
@@ -392,18 +378,18 @@
 .changes-file-item__category-icon--renamed { color: var(--status-renamed); }
 .changes-file-item__category-icon--conflicted { color: var(--status-warning); }
 .changes-file-item__details { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
-.changes-file-item__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
-.changes-file-item--active .changes-file-item__name { font-weight: 600; }
+.changes-file-item__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); }
+.changes-file-item--active .changes-file-item__name { font-weight: var(--weight-strong); }
 .changes-file-item__dir {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;
-  font-size: 11.5px; color: var(--text-secondary);
+  font-size: var(--text-caption); color: var(--text-secondary);
 }
 @media (forced-colors: active) {
   .changes-notice, .changes-status-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
   .changes-file-row__checkbox { appearance: auto; }
 }
 .changes-file-item__origin {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--text-secondary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--text-secondary);
 }
 
 .changes-diff {
@@ -412,7 +398,7 @@
 }
 .changes-diff__back {
   display: none; align-items: center; gap: 6px; margin: var(--space-3) var(--space-3) 0; padding: 4px 0;
-  border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px;
+  border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--text-body);
   align-self: flex-start;
 }
 .changes-diff__back svg { width: 16px; height: 16px; }
@@ -431,13 +417,13 @@
 .changes-diff__header-text { min-width: 0; flex: 1; }
 .changes-diff__title-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex-wrap: nowrap; }
 .changes-diff__path {
-  min-width: 0; margin: 0; font-weight: 600; font-size: 14px;
+  min-width: 0; margin: 0; font-weight: var(--weight-strong); font-size: var(--text-lead);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   direction: rtl; unicode-bidi: plaintext; text-align: left;
 }
 .changes-diff__category {
   flex-shrink: 0; padding: 3px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); color: var(--text-secondary); font-size: 11.5px; font-weight: 650; line-height: 1.3;
+  background: var(--surface-hover); color: var(--text-secondary); font-size: var(--text-caption); font-weight: var(--weight-heading); line-height: var(--leading-snug);
 }
 .changes-diff__category--new {
   border-color: transparent; background: color-mix(in srgb, var(--status-success) 16%, transparent);
@@ -456,14 +442,14 @@
   color: var(--status-warning);
 }
 .changes-diff__origin {
-  min-width: 0; flex: 0 1 auto; margin: 0; font-size: 12px; color: var(--text-secondary);
+  min-width: 0; flex: 0 1 auto; margin: 0; font-size: var(--text-label); color: var(--text-secondary);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .changes-diff__file-nav,
 .changes-diff__hunk-nav { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .changes-diff__file-nav { align-self: center; }
 .changes-diff__position {
-  margin-right: 4px; color: var(--text-secondary); font-size: 12.5px; font-variant-numeric: tabular-nums;
+  margin-right: 4px; color: var(--text-secondary); font-size: var(--text-label); font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .changes-diff__step {
@@ -485,7 +471,7 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 .changes-diff__view { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.changes-diff__view-label { color: var(--text-secondary); font-size: 12.5px; white-space: nowrap; }
+.changes-diff__view-label { color: var(--text-secondary); font-size: var(--text-label); white-space: nowrap; }
 .changes-view-picker { position: relative; display: inline-flex; }
 /* Doubled up on `.version-line-selector` on purpose. The trigger wears that
    class too, and `features/version-lines` loads *after* this file, so at equal
@@ -505,7 +491,7 @@
   box-sizing: border-box; height: var(--changes-toolbar-control-height, var(--control-height-sm));
   padding: 0 var(--space-4); gap: 7px; border-radius: var(--radius-pill);
 }
-.changes-view-picker__value { font-size: 13.5px; font-weight: 500; white-space: nowrap; }
+.changes-view-picker__value { font-size: var(--text-body); font-weight: var(--weight-medium); white-space: nowrap; }
 .changes-view-picker__menu { right: auto; left: 0; min-width: 180px; }
 /* The trigger's leading glyph is wrapped in a span rather than classed on the
    SVG itself, because the same icon is reused inside the menu where a
@@ -525,13 +511,13 @@
 .changes-diff__status--error { color: var(--status-danger); }
 .changes-diff__truncated {
   margin: var(--space-3) var(--space-4) 0; padding: 8px 10px; border-radius: var(--radius-item);
-  background: var(--surface-hover); color: var(--text-secondary); font-size: 12.5px;
+  background: var(--surface-hover); color: var(--text-secondary); font-size: var(--text-label);
 }
 
 .changes-diff__note { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: var(--space-6); text-align: center; color: var(--text-secondary); }
 .changes-diff__note-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-hover); margin-bottom: 6px; }
 .changes-diff__note-icon svg { width: 18px; height: 18px; }
-.changes-diff__note h3 { font-size: 15px; color: var(--text-primary); }
+.changes-diff__note h3 { font-size: var(--text-subtitle); color: var(--text-primary); }
 .changes-diff__note--attention .changes-diff__note-icon { background: var(--surface-active); color: var(--status-warning); }
 
 .diff-code {
@@ -542,11 +528,11 @@
      that sibling and either overlap it or hand scrolling back to the parent,
      which would defeat virtualization by keeping every row mounted. */
   flex: 1; min-height: 0; margin: 0; padding: var(--space-3) 0; overflow-x: hidden; overflow-y: auto;
-  background: var(--surface-code); font-size: 12.5px; line-height: 1.6;
+  background: var(--surface-code); font-size: var(--text-label); line-height: var(--leading-code);
   /* The family is a preference, set on the element by `DiffResultView`. The
      fallback here is the same stack that value carries, so a diff rendered
      without a preferences provider still reads correctly. */
-  font-family: var(--diff-code-font, "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace);
+  font-family: var(--diff-code-font, "Atkinson Hyperlegible Mono", var(--font-mono));
   user-select: text;
 }
 .diff-code--accessible {
@@ -572,7 +558,7 @@
 .diff-hunk__marker {
   margin: 6px var(--space-4); padding: 0; border-radius: var(--radius-item);
   background: var(--surface-hover); color: var(--text-secondary); text-align: left;
-  font: 11.5px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: var(--text-caption)/var(--leading-normal) var(--font-sans);
   display: flex; align-items: center; gap: var(--space-2); overflow: hidden;
 }
 .diff-hunk__expand {
@@ -588,14 +574,14 @@
 .diff-hunk__expand-error { flex-shrink: 0; padding-right: 14px; color: var(--status-danger); }
 .diff-hunk__marker--static { display: block; padding: 5px 14px; }
 .diff-line { display: grid; grid-template-columns: 48px 16px 1fr; align-items: baseline; padding-right: var(--space-4); }
-.diff-line__number { padding: 0 6px; text-align: right; color: var(--text-secondary); opacity: 0.55; font-size: 11px; user-select: none; }
+.diff-line__number { padding: 0 6px; text-align: right; color: var(--text-secondary); opacity: 0.55; font-size: var(--text-caption); user-select: none; }
 .diff-line__sign { text-align: center; user-select: none; }
 .diff-line .visually-hidden { user-select: none; }
 .diff-line__content { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
 .syntax-token--comment { color: var(--syntax-comment); font-style: italic; }
 .syntax-token--string { color: var(--syntax-string); }
 .syntax-token--number { color: var(--syntax-number); }
-.syntax-token--keyword { color: var(--syntax-keyword); font-weight: 600; }
+.syntax-token--keyword { color: var(--syntax-keyword); font-weight: var(--weight-strong); }
 .syntax-token--type { color: var(--syntax-type); }
 .syntax-token--property { color: var(--syntax-property); }
 .diff-line--addition { background: color-mix(in srgb, var(--diff-added) 12%, transparent); }
@@ -626,14 +612,10 @@
 
 @media (max-width: 800px) {
   .changes-view__header { flex-direction: column; align-items: stretch; }
-  /* Stacked, the cluster is taller than it is wide, and a pill radius would
-     round it into a lozenge. Back to the card radius, which is what the shape
-     now is. */
   .changes-header-actions {
     flex-direction: column;
     align-items: stretch;
     gap: var(--space-2);
-    border-radius: var(--radius-surface);
   }
   .changes-header-actions__buttons { width: 100%; }
   /* Only the labelled action takes the free width. Stretching the two icon
@@ -687,10 +669,10 @@
 .image-diff__image { display: block; max-width: 100%; max-height: 320px; object-fit: contain; }
 .image-diff__caption {
   display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3);
-  font-size: 12.5px; color: var(--text-secondary);
+  font-size: var(--text-label); color: var(--text-secondary);
 }
-.image-diff__caption strong { color: var(--text-primary); font-weight: 600; }
-.image-diff__side-note { padding: var(--space-4); text-align: center; color: var(--text-secondary); font-size: 12.5px; }
+.image-diff__caption strong { color: var(--text-primary); font-weight: var(--weight-strong); }
+.image-diff__side-note { padding: var(--space-4); text-align: center; color: var(--text-secondary); font-size: var(--text-label); }
 .image-diff__status {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; padding: var(--space-6); color: var(--text-secondary); text-align: center;
