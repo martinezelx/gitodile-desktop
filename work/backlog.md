@@ -63,6 +63,22 @@ not implied by the `1.0.0` merge and restore workflows.
   Deferred because changing the concurrency policy of a repository read is worth
   more care than the case is worth.
 
+### Design system
+
+- Finish the control-size scale on the four controls task
+  [106](done/106-control-size-scale.md) left off. `.pending-versions__publish-button`
+  (34px), `.overview-history__all` (36px) and `.version-lines-filter__clear`
+  (36px) still carry heights of their own, and `.segmented-control__option`
+  derives ~34.6px from padding rather than declaring a tier — its only height is
+  the `pointer: coarse` one, so a mouse user gets whatever the padding adds up
+  to. None is a bug: they are bespoke inline controls that read fine, which is
+  why 106 left them. They are the reason `DESIGN.md` § Size can say "one house
+  size" while four controls quietly disagree, and the button guard cannot see
+  any of them because none is a `.primary-button` or `.secondary-button`.
+- Promote `.changes-danger-button` to a shared danger variant of the button
+  primitive. It reads the size tokens correctly today, but as a bespoke class the
+  guard cannot hold it there — a markup change task 106 did not need.
+
 ## Product and quality research
 
 - Explain repository health in plain language with actionable, bounded checks.

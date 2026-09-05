@@ -10,7 +10,6 @@ areas:
 created: 2026-09-03
 completed: 2026-09-03
 parent:
-queue: "19"
 ---
 
 # Goal
@@ -301,5 +300,7 @@ Commands run:
 
 `pnpm run check:rust` was not run: no Rust source was touched.
 
-Left `active` at the user's request — the visual result is under review and this
-task is expected to iterate before it moves to `done/`.
+Left `active` at the user's request while the visual result was under review,
+and closed once it was. The follow-ups listed above outlived the task: they are
+in [`work/backlog.md`](../backlog.md) now rather than only here, where a
+completed file is the last place anyone would look for open work.
