@@ -37,20 +37,20 @@
   color: var(--accent-primary);
 }
 .initialize-dialog__header-icon svg { width: 21px; height: 21px; }
-.initialize-dialog__header h2 { margin: 0; font-size: var(--text-display); line-height: var(--leading-tight); letter-spacing: var(--tracking-hero); }
+.initialize-dialog__header h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
 .initialize-dialog__header p,
 .initialize-dialog__intro p,
 .initialize-dialog__center > p {
   max-width: 70ch;
   margin: var(--space-1) 0 0;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   line-height: var(--leading-normal);
 }
 .initialize-dialog__form,
 .initialize-dialog__body { display: grid; gap: var(--space-4); }
 .initialize-dialog__intro h3,
 .initialize-dialog__center h3 { margin: 0; font-size: var(--text-title); letter-spacing: var(--tracking-tight); }
-.initialize-dialog__field small { color: var(--text-secondary); line-height: var(--leading-normal); }
+.initialize-dialog__field small { color: var(--text-secondary-color); line-height: var(--leading-normal); }
 .initialize-dialog__field input,
 .initialize-dialog__field textarea,
 .initialize-dialog__summary dd {
@@ -70,7 +70,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   background: var(--surface-panel);
-  color: var(--text-primary);
+  color: var(--text-primary-color);
   line-height: var(--leading-normal);
 }
 .initialize-dialog__field textarea:focus-visible { border-color: var(--focus-ring); outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -104,9 +104,9 @@
 .initialize-dialog__mode span,
 .initialize-dialog__option span { display: grid; gap: var(--space-1); }
 .initialize-dialog__mode strong,
-.initialize-dialog__option strong { color: var(--text-primary); font-size: var(--text-body); }
+.initialize-dialog__option strong { color: var(--text-primary-color); font-size: var(--text-body); }
 .initialize-dialog__mode small,
-.initialize-dialog__option small { color: var(--text-secondary); font-size: var(--text-label); line-height: var(--leading-normal); }
+.initialize-dialog__option small { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 
 .initialize-dialog__options { display: grid; gap: var(--space-2); }
 .initialize-dialog__option {
@@ -133,8 +133,8 @@
 
 .initialize-dialog__summary { display: grid; gap: var(--space-3); margin: 0; }
 .initialize-dialog__summary > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: baseline; gap: var(--space-3); }
-.initialize-dialog__summary dt { color: var(--text-secondary); font-size: var(--text-label); font-weight: var(--weight-title); }
-.initialize-dialog__summary dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--text-primary); font-size: var(--text-label); }
+.initialize-dialog__summary dt { color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-title); }
+.initialize-dialog__summary dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--text-primary-color); font-size: var(--text-label); }
 
 .initialize-dialog__effects {
   display: grid;
@@ -145,7 +145,7 @@
 .initialize-dialog__effects section { display: flex; align-items: flex-start; gap: var(--space-3); }
 .initialize-dialog__effects section > svg { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; color: var(--accent-primary); }
 .initialize-dialog__effects h3 { margin: 0 0 var(--space-1); font-size: var(--text-body); }
-.initialize-dialog__effects p { margin: 0; color: var(--text-secondary); font-size: var(--text-label); line-height: var(--leading-normal); }
+.initialize-dialog__effects p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 
 .initialize-dialog__notice {
   display: flex;
@@ -155,7 +155,7 @@
   padding: var(--space-3);
   border-radius: var(--radius-surface);
   background: var(--surface-active);
-  color: var(--text-primary);
+  color: var(--text-primary-color);
   font-size: var(--text-label);
   line-height: var(--leading-normal);
 }
@@ -169,16 +169,16 @@
 .initialize-dialog__actions { margin-top: var(--space-2); }
 .initialize-dialog__progress .loading-state { margin-bottom: var(--space-2); }
 .initialize-dialog__progress ol { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-.initialize-dialog__progress li { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; color: var(--text-secondary); font-size: var(--text-body); }
+.initialize-dialog__progress li { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; color: var(--text-secondary-color); font-size: var(--text-body); }
 .initialize-dialog__progress li > svg,
 .initialize-dialog__progress li > span { width: 24px; height: 24px; padding: 5px; border-radius: var(--radius-round); background: var(--surface-hover); }
-.initialize-dialog__progress li.is-current { color: var(--text-primary); font-weight: var(--weight-title); }
+.initialize-dialog__progress li.is-current { color: var(--text-primary-color); font-weight: var(--weight-title); }
 .initialize-dialog__progress li.is-current > svg { background: var(--surface-active); color: var(--accent-primary); animation: initialize-spin 900ms linear infinite; }
 .initialize-dialog__progress li.is-complete > svg { color: var(--status-success); }
 
 .initialize-dialog__center { justify-items: start; }
 .initialize-dialog__center > svg:first-of-type { padding: 11px; }
-.initialize-dialog__center details { width: 100%; color: var(--text-secondary); font-size: var(--text-label); }
+.initialize-dialog__center details { width: 100%; color: var(--text-secondary-color); font-size: var(--text-label); }
 .initialize-dialog__center summary { width: fit-content; }
 .initialize-dialog__center pre {
   max-height: 150px;
@@ -186,7 +186,7 @@
   padding: var(--space-3);
   border-radius: var(--radius-surface);
   background: var(--surface-code);
-  color: var(--text-primary);
+  color: var(--text-primary-color);
   font: var(--text-label)/var(--leading-code) var(--font-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;

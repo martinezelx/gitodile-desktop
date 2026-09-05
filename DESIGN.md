@@ -304,8 +304,8 @@ Colors should be defined semantically rather than by component:
 - `--surface-panel`
 - `--surface-raised`
 - `--surface-code`
-- `--text-primary`
-- `--text-secondary`
+- `--text-primary-color`
+- `--text-secondary-color`
 - `--border-subtle`
 - `--accent-brand` / `--accent-brand-contrast` (the fixed lime brand mark and primary CTA)
 - `--accent-primary`
@@ -479,7 +479,7 @@ second one is a deliberate edit to the guard rather than a quiet override.
 
 ### Icons
 
-Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`lucide-react`, ISC) at 16–18px, imported by name so unused icons are tree-shaken out of the bundle. Chosen over hand-drawing our own because it ships real Git-specific glyphs (`GitCompare`, `GitCommitHorizontal`) instead of the generic pencil/clock metaphors the app used before — see the icon-library comparison done when this was decided. An active nav item tints its icon with `--accent-primary`; the label stays `--text-primary`. Don't mix in a second icon library or hand-drawn icons alongside it — pick the closest Lucide glyph even when it's not a perfect semantic match.
+Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`lucide-react`, ISC) at 16–18px, imported by name so unused icons are tree-shaken out of the bundle. Chosen over hand-drawing our own because it ships real Git-specific glyphs (`GitCompare`, `GitCommitHorizontal`) instead of the generic pencil/clock metaphors the app used before — see the icon-library comparison done when this was decided. An active nav item tints its icon with `--accent-primary`; the label stays `--text-primary-color`. Don't mix in a second icon library or hand-drawn icons alongside it — pick the closest Lucide glyph even when it's not a perfect semantic match.
 
 That rule governs **controls** — the glyph vocabulary a user learns to operate the app. It does not govern **artwork naming somebody else's product**, which Lucide has no glyphs for at all: file-type icons in the Changes list, and the stack and operating-system marks in About. Those come from the vscode-icons set already installed for file types, or — for the three OS marks, which that set does not carry — are drawn in `src/app/vendorMarks.tsx` and used nowhere else. They keep their vendor colours, because a logo reduced to one ink stops being recognizable at 14px, which is the only job it has. That is the trade: About accepts a handful of fixed colours it does not own so that nothing else in the app has to. The exception is a mark whose brand colour is an ink rather than a hue — Apple's, monochrome by its own definition, and Tux's black body, which is a hole in the layout on the dark dialog surface. Those take `currentColor` and the dialog's own surface, so they are legible in both themes; what identifies Tux at 14px is the silhouette and the yellow beak, not which side of the ink it is on.
 
@@ -492,7 +492,7 @@ Preview builds repeat their textual channel badge there; stable builds show only
 the version. Both facts come from the same release model as the status bar and
 changelog, so these three surfaces cannot describe one build differently.
 
-The titlebar mark is also the About affordance, as it is in every desktop application: clicking the identity is how you ask what the thing is. It is deliberately the *quiet* route — no tooltip and no hover plate, because a fill would turn the identity into the first button of the toolbar and advertise a shortcut nobody needs advertised. The signposted routes are the toolbar menu and the command palette; this one rewards knowing the convention. What it does keep: an accessible name, which is invisible to a sighted user and is the only thing naming the button to a screen reader; a 30px target around the 24px glyph, since nothing paints that box and an unadvertised control still has to be easy to hit once found; and a response on the silhouette itself — the mark deepens toward `--text-primary` on hover (6.85:1 on light, 12.97:1 on dark, from a resting 5.09:1 and 11.46:1) and presses with the same `scale(0.94)` the rail icons use. `data-tauri-drag-region` stays on the wrapper around it, so the chrome still drags the window while the button keeps its click.
+The titlebar mark is also the About affordance, as it is in every desktop application: clicking the identity is how you ask what the thing is. It is deliberately the *quiet* route — no tooltip and no hover plate, because a fill would turn the identity into the first button of the toolbar and advertise a shortcut nobody needs advertised. The signposted routes are the toolbar menu and the command palette; this one rewards knowing the convention. What it does keep: an accessible name, which is invisible to a sighted user and is the only thing naming the button to a screen reader; a 30px target around the 24px glyph, since nothing paints that box and an unadvertised control still has to be easy to hit once found; and a response on the silhouette itself — the mark deepens toward `--text-primary-color` on hover (6.85:1 on light, 12.97:1 on dark, from a resting 5.09:1 and 11.46:1) and presses with the same `scale(0.94)` the rail icons use. `data-tauri-drag-region` stays on the wrapper around it, so the chrome still drags the window while the button keeps its click.
 
 ### Honest affordances
 
@@ -508,8 +508,8 @@ The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and prima
 | `--surface-panel` | `#1a1a1a` | `#ffffff` |
 | `--surface-raised` | `#242424` | `#ffffff` |
 | `--surface-code` | `#1a1a1a` | `#f5f5f4` |
-| `--text-primary` | `#fafafa` | `#1c1917` |
-| `--text-secondary` | `#a1a1aa` | `#6f6a64` |
+| `--text-primary-color` | `#fafafa` | `#1c1917` |
+| `--text-secondary-color` | `#a1a1aa` | `#6f6a64` |
 | `--border-subtle` | `#27272a` | `#e7e5e4` |
 | `--accent-brand` | `#8bc53f` | `#8bc53f` |
 | `--accent-brand-contrast` | `#14170f` | `#14170f` |
@@ -641,10 +641,12 @@ ramp uses a fractional size, and a fractional one also sits worse on the pixel
 grid at small sizes. `styleComposition.test.ts` fails the build on a non-integer
 step.
 
-One naming trap, worth knowing before you grep: `--text-primary` and
-`--text-secondary` are **colors**, not steps of this scale. They predate it and
-are listed with the other semantic colors above. Every step here is named for
-what the text *is* — `body`, `label`, `caption` — and never for its prominence.
+**`--text-*` is a size, always.** The two text *colors* carry a `-color`
+suffix — `--text-primary-color` and `--text-secondary-color` — because they
+predate this scale and would otherwise read as steps of it. So `var(--text-label)`
+is a size and `var(--text-secondary-color)` is a color, and you can tell which
+without looking either one up. Every step here is named for what the text *is*
+(`body`, `label`, `caption`), never for its prominence.
 
 `--text-micro` is a floor, not a step to reach for. Below it the app was running
 8.5px and 9px secondary text, which the Accessibility section already forbids.
@@ -668,7 +670,7 @@ somebody eyeballed.
 | `--weight-medium` (500) | A value that must not be mistaken for a name |
 | `--weight-strong` (600) | The name of a thing: a file, a version line, a row's subject |
 | `--weight-heading` (650) | A heading, and the label of a selected control |
-| `--weight-title` (700) | A screen title, a primary action, an avatar's initials |
+| `--weight-title` (700) | A screen or dialog title, a primary action, an avatar's initials |
 
 Two things this settles:
 

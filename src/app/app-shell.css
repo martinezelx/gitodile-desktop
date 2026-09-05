@@ -85,7 +85,7 @@
 /* A button, not an ornament: the mark is how About opens, matching the
    convention every desktop app follows. But it is the quiet route, so it does
    not dress up as a toolbar control — no fill, no plate, no tooltip. The
-   silhouette itself answers: it deepens toward `--text-primary` on hover and
+   silhouette itself answers: it deepens toward `--text-primary-color` on hover and
    presses like the rail icons do, which is enough to tell a pointer that
    something is there without putting a button where the identity should be.
 
@@ -98,7 +98,7 @@
   background: transparent; color: var(--accent-primary);
   transition: color var(--duration-fast), transform var(--duration-fast);
 }
-.window-titlebar__mark:hover { color: color-mix(in srgb, var(--accent-primary) 76%, var(--text-primary)); }
+.window-titlebar__mark:hover { color: color-mix(in srgb, var(--accent-primary) 76%, var(--text-primary-color)); }
 .window-titlebar__mark:active { transform: scale(0.94); }
 .window-titlebar__mark .gitodile-mark { width: 24px; height: 13px; }
 /* No wordmark beside it. The mark is the identity at every width, and the
@@ -113,10 +113,10 @@
    — it is the operating system's chrome, not the app's. */
 .titlebar-icon-button {
   width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--radius-round);
-  background: transparent; color: var(--text-secondary);
+  background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.titlebar-icon-button:hover { background: var(--surface-hover); color: var(--text-primary); }
+.titlebar-icon-button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .titlebar-icon-button:disabled { opacity: 0.35; }
 .titlebar-icon-button:disabled:hover { background: transparent; }
 .titlebar-icon-button svg { width: 16px; height: 16px; }
@@ -157,19 +157,19 @@
   border: 0;
   border-radius: var(--radius-item);
   background: transparent;
-  color: var(--text-primary);
+  color: var(--text-primary-color);
   text-align: left;
   font-size: var(--text-body);
 }
-.titlebar-menu__item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary); }
+.titlebar-menu__item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
 .titlebar-menu__item:hover { background: var(--surface-hover); }
-.titlebar-menu__item:disabled { color: var(--text-secondary); }
+.titlebar-menu__item:disabled { color: var(--text-secondary-color); }
 .titlebar-menu__item:disabled:hover { background: transparent; }
-.titlebar-menu__item[aria-disabled="true"] { color: var(--text-secondary); }
+.titlebar-menu__item[aria-disabled="true"] { color: var(--text-secondary-color); }
 .titlebar-menu__item[aria-disabled="true"]:hover { background: transparent; }
 .window-control {
   width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--radius-item);
-  color: var(--text-primary); background: transparent; transition: background var(--duration-fast);
+  color: var(--text-primary-color); background: transparent; transition: background var(--duration-fast);
 }
 .window-control:hover { background: var(--surface-hover); }
 .window-control--close:hover { background: var(--status-danger); color: var(--status-danger-contrast); }
@@ -182,16 +182,16 @@
 
 .palette-backdrop { position: fixed; inset: 0; z-index: 20; display: flex; justify-content: center; padding: 14vh 24px 24px; background: var(--overlay); }
 .palette-dialog { width: min(100%, 560px); height: fit-content; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-raised); box-shadow: var(--shadow-lg); overflow: hidden; }
-.palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
+.palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary-color); }
 .palette-input-row:focus-within { box-shadow: inset 0 -2px 0 var(--focus-ring); }
 .palette-input-row svg { width: 16px; height: 16px; flex-shrink: 0; }
-.palette-input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: var(--text-subtitle); color: var(--text-primary); }
-.palette-input::placeholder { color: var(--text-secondary); }
+.palette-input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: var(--text-subtitle); color: var(--text-primary-color); }
+.palette-input::placeholder { color: var(--text-secondary-color); }
 .palette-list { list-style: none; margin: 0; max-height: 280px; overflow-y: auto; padding: var(--space-2); }
-.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: var(--radius-item); font-size: var(--text-body); color: var(--text-primary); }
+.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: var(--radius-item); font-size: var(--text-body); color: var(--text-primary-color); }
 .palette-item[aria-selected="true"] { background: var(--surface-active); }
-.palette-item__hint { color: var(--text-secondary); font-size: var(--text-label); }
-.palette-empty { padding: 24px 16px; text-align: center; color: var(--text-secondary); font-size: var(--text-body); list-style: none; }
+.palette-item__hint { color: var(--text-secondary-color); font-size: var(--text-label); }
+.palette-empty { padding: 24px 16px; text-align: center; color: var(--text-secondary-color); font-size: var(--text-body); list-style: none; }
 
 /* Grid rather than a row of two, so the status bar can span from the rail's
    edge to the window's without the workspace being wrapped in a column of its
@@ -232,7 +232,7 @@
   gap: var(--space-4);
   height: 34px;
   padding: 0 var(--workspace-inset-right) 0 var(--workspace-inset-left);
-  color: var(--text-primary);
+  color: var(--text-primary-color);
   font-size: var(--text-body);
   line-height: var(--leading-snug);
 }
@@ -334,13 +334,13 @@
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font: inherit;
   flex-shrink: 0;
   white-space: nowrap;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.status-bar__release:hover { background: var(--surface-hover); color: var(--text-primary); }
+.status-bar__release:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .status-bar__release:active { background: var(--surface-active); }
 .status-bar__release:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -372,7 +372,7 @@
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--text-primary);
+  color: var(--text-primary-color);
 }
 .status-bar .version-line-selector:hover { background: var(--surface-hover); }
 .status-bar .version-line-selector[aria-expanded="true"] { background: var(--surface-active); }
@@ -391,11 +391,11 @@
 }
 .status-bar .version-line-selector__chevron { width: 12px; height: 12px; }
 /* The hierarchy is two text tokens, not one token at two opacities. Fading
-   `--text-secondary` to 0.72 to make a third tier measured 2.92:1 on the light
+   `--text-secondary-color` to 0.72 to make a third tier measured 2.92:1 on the light
    surface and 4.45:1 on the dark one — both under the 4.5:1 that small text
    needs. Primary against secondary gives the same separation at 16.5:1 and
    5.05:1. */
-.status-bar__item--muted { color: var(--text-secondary); }
+.status-bar__item--muted { color: var(--text-secondary-color); }
 .status-bar__action {
   width: 28px; height: 28px; flex-shrink: 0;
   display: grid; place-items: center;
@@ -404,7 +404,7 @@
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .status-bar__action svg { width: 14px; height: 14px; }
-.status-bar__action:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
+.status-bar__action:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .status-bar__action:disabled { opacity: 0.45; }
 .status-bar__action:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -476,7 +476,7 @@
 .rail-item {
   width: 100%; display: grid; justify-items: center; gap: 2px;
   padding: 0; border: 0; border-radius: var(--radius-control);
-  background: transparent; color: var(--text-secondary); text-align: center;
+  background: transparent; color: var(--text-secondary-color); text-align: center;
 }
 /* The active state fills the icon's circle, not the whole cell. Wrapping the
    label too gave neighbouring destinations blocks of different heights — one
@@ -506,10 +506,10 @@
 .rail-nav--icons-only { --rail-nav-gap: 4px; }
 .rail-nav--icons-only .rail-item { gap: 0; }
 .rail-nav--icons-only .rail-item__label { display: none; }
-.rail-item:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--text-primary); }
+.rail-item:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--text-primary-color); }
 .rail-item:hover:not(:disabled):not([aria-disabled="true"]) .rail-item__icon { background: var(--surface-hover); }
 .rail-item:active:not(:disabled):not([aria-disabled="true"]) .rail-item__icon { transform: scale(0.97); }
-.rail-item--active { color: var(--text-primary); }
+.rail-item--active { color: var(--text-primary-color); }
 .rail-item--active .rail-item__icon { background: var(--surface-active); color: var(--accent-primary); }
 .rail-item--active .rail-item__icon svg { animation: rail-icon-settle var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1); }
 .rail-item--active .rail-item__label { font-weight: var(--weight-strong); }
@@ -530,8 +530,8 @@
   margin: 5px 4px;
   background: var(--border-divider);
 }
-.rail-more__customize { color: var(--text-secondary); }
-.rail-more__customize:hover { color: var(--text-primary); }
+.rail-more__customize { color: var(--text-secondary-color); }
+.rail-more__customize:hover { color: var(--text-primary-color); }
 
 @keyframes rail-icon-settle {
   from { transform: scale(0.9); }
@@ -574,7 +574,7 @@
 .app-window--icons-only .sidebar-divider { margin: var(--space-3) 2px; }
 .sidebar-round {
   width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
   transition:
     background var(--duration-fast),
     color var(--duration-fast),
@@ -584,7 +584,7 @@
   width: 18px;
   height: 18px;
 }
-.sidebar-round:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-hover); color: var(--text-primary); }
+.sidebar-round:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-hover); color: var(--text-primary-color); }
 .sidebar-round:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.97); }
 .sidebar-round--active { background: var(--surface-active); color: var(--accent-primary); }
 .sidebar-round:disabled,
@@ -608,7 +608,7 @@
 .sidebar-project__chevron {
   position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px;
   display: grid; place-items: center; border-radius: var(--radius-round);
-  border: 1px solid var(--border-subtle); background: var(--surface-raised); color: var(--text-secondary);
+  border: 1px solid var(--border-subtle); background: var(--surface-raised); color: var(--text-secondary-color);
 }
 .sidebar-project__chevron svg {
   width: 10px;
@@ -648,15 +648,15 @@
 .sidebar-project__popover { padding: 8px; gap: 6px; }
 .sidebar-project__search {
   display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 var(--space-3);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); color: var(--text-secondary);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); color: var(--text-secondary-color);
 }
 .sidebar-project__search:focus-within { border-color: var(--focus-ring); }
 .sidebar-project__search svg { width: 14px; height: 14px; flex-shrink: 0; }
 .sidebar-project__search input {
   flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
-  font: inherit; font-size: var(--text-body); color: var(--text-primary);
+  font: inherit; font-size: var(--text-body); color: var(--text-primary-color);
 }
-.sidebar-project__search input::placeholder { color: var(--text-secondary); }
+.sidebar-project__search input::placeholder { color: var(--text-secondary-color); }
 /* Rides in the search row, sized to the row's own height so it reads as part
    of the field rather than a button parked next to it. Same star, same on-state
    accent as the per-row control, so "marked" and "showing only marked" are
@@ -679,15 +679,15 @@
   width: 24px; height: 24px; flex-shrink: 0;
   display: grid; place-items: center;
   padding: 0; border: 0; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-secondary);
+  background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .sidebar-project__filter svg { width: 14px; height: 14px; }
-.sidebar-project__filter:hover { background: var(--surface-hover); color: var(--text-primary); }
+.sidebar-project__filter:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .sidebar-project__filter--on { color: var(--accent-primary); }
 .sidebar-project__filter--on svg { fill: currentColor; }
 .sidebar-project__empty {
-  margin: 0; padding: 14px 8px; color: var(--text-secondary); font-size: var(--text-label); text-align: center;
+  margin: 0; padding: 14px 8px; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center;
 }
 
 .workspace {
@@ -745,7 +745,7 @@
 }
 .folder-drop-overlay__icon svg { width: 20px; height: 20px; }
 .folder-drop-overlay__title { margin: 0; font-size: var(--text-subtitle); font-weight: var(--weight-strong); }
-.folder-drop-overlay__hint { margin: 0; color: var(--text-secondary); font-size: var(--text-body); line-height: var(--leading-normal); }
+.folder-drop-overlay__hint { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); }
 
 .app-tooltip {
   position: fixed; max-width: 260px; width: max-content;
@@ -779,12 +779,12 @@
 .project-switcher__button {
   display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; height: 40px;
   padding: 0 8px; border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--text-secondary); text-align: left;
+  color: var(--text-secondary-color); text-align: left;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.project-switcher__button:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); }
+.project-switcher__button:hover:not(:disabled) { color: var(--text-primary-color); background: var(--surface-hover); }
 .project-switcher__button--active {
-  color: var(--text-primary); background: var(--surface-active); font-weight: var(--weight-strong);
+  color: var(--text-primary-color); background: var(--surface-active); font-weight: var(--weight-strong);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
 .project-switcher__button:disabled { opacity: 0.45; }
@@ -797,7 +797,7 @@
 .project-switcher__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); }
 .project-switcher__context {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--text-secondary); font-size: var(--text-caption); font-weight: var(--weight-normal);
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-normal);
 }
 .project-switcher__indicators { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; }
 .project-switcher__indicator { flex-shrink: 0; width: 14px; height: 14px; }
@@ -806,14 +806,14 @@
 .project-switcher__indicator--unsaved { color: var(--status-warning); }
 .project-switcher__close {
   flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
   opacity: 0.55;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .project-switcher__close svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__close,
 .project-switcher__close:focus-visible { opacity: 1; }
-.project-switcher__close:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
+.project-switcher__close:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__close:disabled { opacity: 0.3; }
 /* Mirrors Close in footprint so the two trailing controls line up, but not in
    behaviour: Close fades until the row is hovered because it is destructive
@@ -823,14 +823,14 @@
    the one state that must survive not pointing at the row. */
 .project-switcher__favourite {
   flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
   opacity: 0.55;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .project-switcher__favourite svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__favourite,
 .project-switcher__favourite:focus-visible { opacity: 1; }
-.project-switcher__favourite:hover { background: var(--surface-hover); color: var(--text-primary); }
+.project-switcher__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__favourite--on {
   opacity: 1;
   color: var(--accent-primary);
@@ -842,24 +842,24 @@
    important one. */
 .project-switcher__settings {
   flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
   opacity: 0.55;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .project-switcher__settings svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__settings,
 .project-switcher__settings:focus-visible { opacity: 1; }
-.project-switcher__settings:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
+.project-switcher__settings:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__settings:disabled { opacity: 0.3; }
 
 .project-switcher__item--add { margin-top: 2px; }
 .project-switcher__add {
   display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
   font-size: var(--text-body); transition: background var(--duration-fast), color var(--duration-fast);
 }
 .project-switcher__add svg { width: 16px; height: 16px; flex-shrink: 0; }
-.project-switcher__add:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); }
+.project-switcher__add:hover:not(:disabled) { color: var(--text-primary-color); background: var(--surface-hover); }
 .project-switcher__add:disabled { opacity: 0.45; }
 
 /* One trigger for create/open/clone. The popup wears the shared `.app-menu`
@@ -868,7 +868,7 @@
    trigger's open state belongs here. (A rule for the popup would be dead
    weight anyway: primitives.css loads after this file, so `.app-menu` wins
    every tie at equal specificity.) */
-.project-switcher-add-menu__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary); }
+.project-switcher-add-menu__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher-add-menu__trigger > svg {
   transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -881,11 +881,11 @@
 .project-switcher-compact__trigger {
   width: 32px; height: 32px; padding: 2px; display: grid; place-items: center; flex-shrink: 0;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-round); background: var(--surface-panel);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .project-switcher-compact__trigger:hover,
-.project-switcher-compact__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary); }
+.project-switcher-compact__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher-compact__trigger svg { width: 16px; height: 16px; }
 .project-switcher-compact__avatar {
   width: 100%; height: 100%; display: grid; place-items: center;
@@ -943,8 +943,8 @@
   background: color-mix(in srgb, var(--status-danger) 14%, transparent);
 }
 .settings-dialog__alert svg { width: 14px; height: 14px; }
-.settings-dialog__header h2 { margin: 0 0 3px; font-size: var(--text-display); letter-spacing: var(--tracking-tight); }
-.settings-dialog__header p { margin: 0; color: var(--text-secondary); font-size: var(--text-body); }
+.settings-dialog__header h2 { margin: 0 0 3px; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+.settings-dialog__header p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
 /* Names the project the panel is scoped to. It wears the same shell as
    Settings, so the one thing it must never be mistaken for is Settings. */
 .project-settings-dialog__project {
@@ -994,8 +994,8 @@
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
 }
-.message-dialog h2 { margin: 0; font-size: var(--text-display); }
-.message-dialog p { margin: 0; color: var(--text-secondary); line-height: var(--leading-normal); }
+.message-dialog h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+.message-dialog p { margin: 0; color: var(--text-secondary-color); line-height: var(--leading-normal); }
 /* A capsule is a single-line control (DESIGN.md § Shape), so a label that no
    longer fits takes its own row rather than wrapping to two lines inside the
    pill — which is exactly what the welcome screen's old capsule row did, and
@@ -1048,7 +1048,7 @@
   overflow: auto;
   white-space: pre;
   outline: none;
-  color: var(--text-primary);
+  color: var(--text-primary-color);
   font-family: var(--font-mono);
   font-size: var(--text-label);
   line-height: var(--leading-normal);
@@ -1065,7 +1065,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
   background: var(--surface-hover);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font-size: var(--text-label);
 }
 .issue-report-dialog__note svg { flex: 0 0 auto; width: 15px; height: 15px; }
@@ -1078,10 +1078,10 @@
 
 .about-dialog__close {
   position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.about-dialog__close:hover { background: var(--surface-hover); color: var(--text-primary); }
+.about-dialog__close:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .about-dialog__close svg { width: 16px; height: 16px; }
 /* The same mark as the titlebar, at hero scale: one identity, one treatment.
    `--accent-primary` measures 5.39:1 on the light dialog surface and 8.99:1 on
@@ -1093,7 +1093,7 @@
   font-size: var(--text-body);
 }
 .about-dialog__copy svg { width: 15px; height: 15px; }
-.about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary); font-size: var(--text-label); text-align: center; }
+.about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center; }
 .about-dialog__heart { color: var(--accent-heart); }
 /* `--text-hero` is a *name*, not a heading, so this reads like the project name
    on Overview rather than like the `h2` it happens to be: the title weight and
@@ -1111,7 +1111,7 @@
   align-items: center;
   gap: 7px;
   margin: 0 0 12px;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
 }
 .about-dialog__release-version { font-size: var(--text-label); font-weight: var(--weight-heading); font-variant-numeric: tabular-nums; }
 .about-dialog__release-channel {
@@ -1124,7 +1124,7 @@
   font-weight: var(--weight-title);
   line-height: var(--leading-tight);
 }
-.about-dialog > p:not(.eyebrow) { color: var(--text-secondary); line-height: var(--leading-normal); }
+.about-dialog > p:not(.eyebrow) { color: var(--text-secondary-color); line-height: var(--leading-normal); }
 /* About's two lower sections are siblings in weight as well as in role, so they
    share a heading and a rhythm rather than each inventing one. */
 .about-technical h3,
@@ -1174,7 +1174,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item);
   background: var(--surface-hover);
-  color: var(--text-primary);
+  color: var(--text-primary-color);
   line-height: var(--leading-snug);
   text-align: center;
   transition:
@@ -1220,7 +1220,7 @@
 .about-stack__name { font-size: var(--text-label); font-weight: var(--weight-strong); }
 .about-stack__version {
   font-size: var(--text-caption);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1248,11 +1248,11 @@
   border: 0;
   border-radius: var(--radius-item);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font: inherit;
   text-align: left;
 }
-.changelog-release__trigger:hover { background: var(--surface-hover); color: var(--text-primary); }
+.changelog-release__trigger:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .changelog-release__trigger:active { background: var(--surface-active); }
 .changelog-release__trigger:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -1278,7 +1278,7 @@
   flex-shrink: 0;
   border-radius: var(--radius-round);
   background: var(--surface-control);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   transition: transform var(--duration-normal), background var(--duration-fast), color var(--duration-fast);
 }
 .changelog-release__chevron svg { width: 15px; height: 15px; }
@@ -1301,7 +1301,7 @@
 .changelog-release__channel {
   border: 1px solid var(--border-subtle);
   background: var(--surface-hover);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
 }
 .changelog-release__channel--preview {
   border-color: color-mix(in srgb, var(--status-warning) 35%, transparent);
@@ -1326,7 +1326,7 @@
 .changelog-release__date {
   margin-left: auto;
   flex-shrink: 0;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font-size: var(--text-label);
 }
 .changelog-release__notes {
@@ -1342,7 +1342,7 @@
   grid-template-columns: 30px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font-size: var(--text-body);
   line-height: var(--leading-normal);
 }
@@ -1362,7 +1362,7 @@
 }
 .about-details { margin: 8px 0 0; }
 .about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
-.about-details dt { color: var(--text-secondary); }
+.about-details dt { color: var(--text-secondary-color); }
 .about-details dd { margin: 0; text-align: right; }
 /* The platform mark rides with its value, so the row still has two columns and
    the value still ends flush right. 6px binds a glyph to the text it belongs
@@ -1372,7 +1372,7 @@
 
 .shortcuts-dialog { width: min(100%, 380px); }
 .shortcuts-list { list-style: none; margin: 4px 0 0; padding: 0; }
-.shortcuts-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-divider); font-size: var(--text-body); color: var(--text-primary); }
+.shortcuts-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-divider); font-size: var(--text-body); color: var(--text-primary-color); }
 .shortcuts-list li:first-child { border-top: 0; }
 .shortcuts-list__keys { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .shortcuts-list kbd {
@@ -1381,7 +1381,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item);
   background: var(--surface-hover);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font: inherit;
   font-size: var(--text-label);
   text-align: center;
@@ -1456,12 +1456,12 @@
     border: 0;
     border-radius: var(--radius-item);
     background: transparent;
-    color: var(--text-secondary);
+    color: var(--text-secondary-color);
     font: inherit;
     font-weight: var(--weight-strong);
   }
   .compact-nav__item svg { width: 18px; height: 18px; }
-  .compact-nav__item--active { background: var(--surface-active); color: var(--text-primary); }
+  .compact-nav__item--active { background: var(--surface-active); color: var(--text-primary-color); }
 }
 
 @media (pointer: coarse) {

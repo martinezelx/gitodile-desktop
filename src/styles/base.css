@@ -7,7 +7,7 @@ html, body, #root {
 body {
   margin: 0;
   min-width: 320px;
-  color: var(--text-primary);
+  color: var(--text-primary-color);
   background: var(--surface-app);
   /* Without this, anything written without a size of its own inherits the
      browser's 16px — a value nobody in this codebase has ever chosen, and one

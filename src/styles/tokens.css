@@ -112,8 +112,8 @@
   --surface-code: #f5f5f4;
   --surface-hover: rgba(28, 25, 23, 0.05);
   --surface-active: rgba(107, 155, 46, 0.12);
-  --text-primary: #1c1917;
-  --text-secondary: #6f6a64;
+  --text-primary-color: #1c1917;
+  --text-secondary-color: #6f6a64;
   --border-subtle: #e7e5e4;
   /* A second, dedicated token for lines whose whole job is to be seen — a
      divider between rows or sections, not a container's own edge. In light
@@ -207,8 +207,8 @@
     --surface-code: #1a1a1a;
     --surface-hover: rgba(255, 255, 255, 0.06);
     --surface-active: rgba(155, 214, 90, 0.14);
-    --text-primary: #fafafa;
-    --text-secondary: #a1a1aa;
+    --text-primary-color: #fafafa;
+    --text-secondary-color: #a1a1aa;
     --border-subtle: #27272a;
     --border-divider: #3f3f46;
     --surface-control: #1a1a1a;
@@ -247,8 +247,8 @@
   --surface-code: #f5f5f4;
   --surface-hover: rgba(28, 25, 23, 0.05);
   --surface-active: rgba(107, 155, 46, 0.12);
-  --text-primary: #1c1917;
-  --text-secondary: #6f6a64;
+  --text-primary-color: #1c1917;
+  --text-secondary-color: #6f6a64;
   --border-subtle: #e7e5e4;
   --border-divider: #e7e5e4;
   --surface-control: #f4f2ef;
@@ -286,8 +286,8 @@
   --surface-code: #1a1a1a;
   --surface-hover: rgba(255, 255, 255, 0.06);
   --surface-active: rgba(155, 214, 90, 0.14);
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
+  --text-primary-color: #fafafa;
+  --text-secondary-color: #a1a1aa;
   --border-subtle: #27272a;
   --border-divider: #3f3f46;
   --surface-control: #1a1a1a;

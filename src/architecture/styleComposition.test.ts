@@ -362,6 +362,36 @@ describe("production style composition", () => {
     expect(offenders).toEqual([]);
   });
 
+  // `--text-*` used to mean two unrelated things: nine sizes and two colors.
+  // The colors carry a `-color` suffix now, which is only worth the rename if
+  // something keeps the two halves from leaking back into each other.
+  it("keeps --text-* a size and --text-*-color a color", () => {
+    const tokens = readSource("styles/tokens.css");
+    expect(tokens).not.toMatch(/--text-(?:primary|secondary):/);
+    expect(tokens).toMatch(/--text-primary-color:/);
+    expect(tokens).toMatch(/--text-secondary-color:/);
+
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css") continue;
+      for (const rule of readRules(relativePath)) {
+        for (const use of rule.body.matchAll(/font-size:\s*var\((--text-[\w-]+)\)/g)) {
+          if (use[1].endsWith("-color")) {
+            offenders.push(`${relativePath}: ${rule.selector} sizes text with ${use[1]}`);
+          }
+        }
+        for (const use of rule.body.matchAll(/(?<![\w-])color:\s*var\((--text-[\w-]+)\)/g)) {
+          if (!use[1].endsWith("-color")) {
+            offenders.push(`${relativePath}: ${rule.selector} colors text with ${use[1]}`);
+          }
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   // The fifth typographic axis, and the last one still repeating itself: the
   // monospace stack was written out verbatim twelve times across the cascade.
   // TypeScript had already named it; CSS was the half that never did.

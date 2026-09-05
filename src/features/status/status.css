@@ -11,7 +11,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
   background: var(--surface-panel);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font-size: var(--text-label);
   line-height: var(--leading-normal);
   white-space: nowrap;

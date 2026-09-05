@@ -5,17 +5,17 @@
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); outline: none;
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
-.save-version-dialog h2 { margin: 0; font-size: var(--text-display); }
-.save-version-status { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); }
+.save-version-dialog h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+.save-version-status { display: flex; align-items: center; gap: 10px; color: var(--text-secondary-color); }
 .save-version-status svg { width: 20px; height: 20px; }
 .save-version-summary { display: flex; flex-direction: column; gap: var(--space-2); }
 .save-version-summary > p:first-child { margin: 0; font-weight: var(--weight-strong); }
-.save-version-note { margin: 0; color: var(--text-secondary); font-size: var(--text-body); }
+.save-version-note { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
 .save-version-success { display: grid; gap: var(--space-2); }
 .save-version-success > p { margin: 0; }
 .save-version-success-details {
   margin: 0; padding: 10px 12px; border-radius: var(--radius-surface); background: var(--surface-hover);
-  color: var(--text-primary); font-size: var(--text-body); white-space: pre-wrap; word-break: break-word;
+  color: var(--text-primary-color); font-size: var(--text-body); white-space: pre-wrap; word-break: break-word;
 }
 .save-version-error {
   display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px;
@@ -28,20 +28,20 @@
   border: 0; background: transparent; color: var(--accent-primary); font: inherit; font-size: var(--text-label);
   padding: 0; cursor: pointer; text-decoration: underline;
 }
-.save-version-detail__heading { margin: 8px 0 4px; font-size: var(--text-label); color: var(--text-secondary); }
+.save-version-detail__heading { margin: 8px 0 4px; font-size: var(--text-label); color: var(--text-secondary-color); }
 .save-version-detail__body {
   margin: 0; padding: 10px; border-radius: var(--radius-surface); background: var(--surface-hover);
-  color: var(--text-secondary); font-size: var(--text-label); white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto;
+  color: var(--text-secondary-color); font-size: var(--text-label); white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto;
 }
 .save-version-description textarea {
   padding: 9px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
-  background: var(--surface-hover); color: var(--text-primary); font: inherit; font-size: var(--text-lead); outline: none;
+  background: var(--surface-hover); color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); outline: none;
   resize: vertical; min-height: 64px;
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
 .save-version-description textarea:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
 .save-version-description__error { color: var(--status-danger); font-size: var(--text-label); }
-.save-version-title__guidance { color: var(--text-secondary); font-size: var(--text-label); }
+.save-version-title__guidance { color: var(--text-secondary-color); font-size: var(--text-label); }
 .save-version-title__error { color: var(--status-danger); font-size: var(--text-label); }
 /* The way past a hook rejection, kept with the hook's own output. The button
    leads and the note explains it, because the note is a caveat about a choice

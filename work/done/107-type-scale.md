@@ -303,9 +303,28 @@ skipped four files whose rule counts had changed, which is exactly where the
 added and removed rules were. Worth remembering: an audit that pairs by position
 hides its findings in precisely the files that changed most.
 
-**Left as it is, and worth a second opinion:** those seven dialog titles are at
-the `display` *size* step but the `heading` *weight* step. It reads well and the
-user reviewed it, but a dialog title arguably is a title.
+**And then taken, at the user's call:** those seven dialog titles were at the
+`display` *size* step but the `heading` *weight* step. A dialog title is the
+title of that surface, so they take `--weight-title` now, like the screen `h1`
+they sit alongside. Seven declarations rather than one, because the dialogs
+share `.dialog-actions` and `.dialog-close-button` but no root class.
+
+Aligning the weight then exposed the tracking: three of the seven were on
+`--tracking-hero`, which is documented for the *largest* type on a surface and
+is a step too tight at 22px, and three had none at all. All seven are on
+`--tracking-tight` now, which is what `base.css` already gives the `h1`. That
+also leaves `--tracking-hero` used in exactly the two places `--text-hero` is —
+the About title and the project name. Every title in the app now measures
+identically for its step: 22/700/-0.01em, or 28/700/-0.02em for the two names.
+
+**`--text-*` meant two things.** Nine sizes and two colors shared the prefix,
+which the scale made worse rather than caused: before it there were two
+`--text-*` tokens and both were colors. The colors carry a `-color` suffix now —
+`--text-primary-color`, `--text-secondary-color`, 426 occurrences — so
+`var(--text-label)` is a size and `var(--text-secondary-color)` is a color, and
+you can tell which without looking either one up. A guard keeps the halves from
+leaking back: sizing text with a `-color` token, or coloring it with a step,
+fails the build.
 
 **A process note worth recording.** Reverting one of those deliberate
 regressions with `git checkout <file>` restored the file from HEAD and silently
@@ -357,6 +376,8 @@ reasoned about. Before → after:
 | Diff code | 13px / 1.6 | 12px / `--leading-code` 1.6 |
 | `.eyebrow` / caps section title | .08em / .04em | both `--tracking-caps` 0.06em |
 | History diff totals | `--status-*`, proportional figures | `--diff-*`, tabular figures |
+| About title (`--text-hero`) | 28px / browser bold, no tracking | 28px / 700 / `--tracking-hero` |
+| The seven dialog titles | 22px / 650, tracking 3 ways | 22px / 700 / `--tracking-tight` |
 
 Every fixed-height container that could grow was measured rather than argued
 about: the pinned timeline row, the clamped two-line title, the filter trigger,
@@ -371,7 +392,7 @@ Guards checked against deliberate regressions, each caught and reverted:
 
 Commands run:
 
-- `pnpm vitest run src/architecture/styleComposition.test.ts` — 20 passed.
+- `pnpm vitest run src/architecture/styleComposition.test.ts` — 21 passed.
 - `pnpm run test` — 73 test files, 687 tests passed.
 - `pnpm run check:architecture` — passed over 345 modules.
 - `pnpm run typecheck` — clean.
