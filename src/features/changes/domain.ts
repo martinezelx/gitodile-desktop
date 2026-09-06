@@ -75,3 +75,25 @@ export type DiscardRecovery = {
   selectedPath: string | null;
   stateToken: string;
 };
+/** Whether a stored recovery can be applied right now. Restoring writes the
+ * protected state back over the working tree, so Rust only offers it while
+ * nothing has been written at the paths it would restore: `superseded` means
+ * exactly that has happened, `incomplete` that the discard never finished.
+ * Neither is a lost snapshot — both are still on disk, and both are worth
+ * showing. */
+export type DiscardRecoveryAvailability = "restorable" | "superseded" | "incomplete";
+/** One stored recovery, as the restore picker lists it. `previewPaths` names a
+ * handful of the paths; `fileCount` is how many there really are. */
+export type DiscardRecoveryRecord = {
+  recoveryId: string;
+  createdAtMs: number;
+  fileCount: number;
+  selectedPath: string | null;
+  previewPaths: string[];
+  stateToken: string | null;
+  availability: DiscardRecoveryAvailability;
+  /** Whether restoring also puts the project's prepared changes back. Only a
+   * record the whole project still matches can: once anything else has moved
+   * on, that record's copy of the index is older than the real one. */
+  restoresPreparedState: boolean;
+};

@@ -10,7 +10,7 @@ import type { DiscardRecovery } from "./domain";
 export type DirectDiscardOutcome =
   | { status: "running" }
   | { status: "discarded"; discardedFiles: number; recovery: DiscardRecovery }
-  | { status: "restored" }
+  | { status: "restored"; restoredFiles: number }
   | { status: "error"; message: string };
 
 export type DirectDiscardRequest = { mode: "selected" | "all"; selectedPath: string | null };
@@ -92,7 +92,7 @@ export function useDirectDiscard({
     onPhaseChange("executing");
     try {
       await controller.restoreDiscard(projectPath, sessionEpoch, recovery.recoveryId, recovery.stateToken);
-      setOutcome({ status: "restored" });
+      setOutcome({ status: "restored", restoredFiles: recovery.fileCount });
       onPhaseChange("success");
       onMutationCompleted();
     } catch (error) {

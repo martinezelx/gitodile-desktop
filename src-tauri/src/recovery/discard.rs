@@ -24,6 +24,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 const RECOVERY_SCHEMA_VERSION: u32 = 1;
 const MAX_RECOVERY_RECORDS: usize = 10;
+/// How many paths a listed record names on screen before it just says how
+/// many more there are.
+const RECOVERY_PREVIEW_PATHS: usize = 4;
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -58,6 +61,45 @@ pub(crate) struct DiscardRecovery {
     pub(crate) state_token: String,
 }
 
+/// Whether a stored recovery can be applied *right now*. Restoring writes the
+/// protected state back over the working tree, so it is only ever offered when
+/// nothing has been written at the paths it would restore; `Superseded` means
+/// exactly that has happened, and `Incomplete` that the discard never finished.
+/// The two are different facts and call for different answers, so they are
+/// different values.
+#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum DiscardRecoveryAvailability {
+    Restorable,
+    Superseded,
+    Incomplete,
+}
+
+/// One stored recovery, as the restore picker reads it.
+///
+/// `preview_paths` is a handful of paths for naming the record on screen, not
+/// its contents: a discard may hold a thousand of them, and ten records' worth
+/// of full path lists is a payload nobody displays. `file_count` stays the
+/// whole number.
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DiscardRecoveryRecord {
+    pub(crate) recovery_id: String,
+    pub(crate) created_at_ms: u128,
+    pub(crate) file_count: usize,
+    pub(crate) selected_path: Option<String>,
+    pub(crate) preview_paths: Vec<String>,
+    /// The token `restore_discarded_changes` expects back. `None` when the
+    /// discard never finished, which is also why it cannot be restored.
+    pub(crate) state_token: Option<String>,
+    pub(crate) availability: DiscardRecoveryAvailability,
+    /// Whether restoring will also put the project's prepared changes back.
+    /// Only an exact whole-tree match can: once anything else in the project
+    /// has moved on, today's index is newer than this record's copy of it, and
+    /// writing that copy back would undo work this record never captured.
+    pub(crate) restores_prepared_state: bool,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct RecoveryManifest {
@@ -69,6 +111,16 @@ struct RecoveryManifest {
     after_state_token: Option<String>,
     index_existed: bool,
     paths: Vec<RecoveryPath>,
+    /// What this record would write, independent of everything around it: the
+    /// paths and the bytes, and nothing about the rest of the project. It is
+    /// how a later discard recognises that it is protecting work an older
+    /// record already holds.
+    ///
+    /// Optional because records written before it exist on disk and must stay
+    /// readable; `serde` fills it with `None` and the caller falls back to
+    /// comparing whole-tree fingerprints, which is what those records have.
+    #[serde(default)]
+    content_fingerprint: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -100,6 +152,17 @@ struct ValidatedDiscard {
     target_paths: Vec<String>,
     state_token: String,
     head_state: HeadState,
+}
+
+/// The one refusal a restore has: something has been written where this record
+/// would write. Its wording names the files rather than "the project", because
+/// that is now exactly what was checked.
+fn conflict() -> AppError {
+    AppError::new(
+        AppErrorCode::RecoveryConflict,
+        "One of these files changed after this discard, so GitOdile won't overwrite the newer work.",
+    )
+    .with_remediation("Keep this recovery and review those files before restoring manually.")
 }
 
 fn error(message: &str) -> AppError {
@@ -406,6 +469,32 @@ fn publish_latest(root: &Path, recovery_id: &str) -> Result<(), AppError> {
         .map_err(|_| error("GitOdile couldn't publish the recovery pointer."))
 }
 
+/// A fingerprint of exactly what a record restores: each path, what kind of
+/// thing it is, and — for files — the bytes now sitting in the record. It is
+/// deliberately blind to the rest of the project, so discarding the same work
+/// twice produces the same value however much has moved on around it.
+fn content_fingerprint(record: &Path, paths: &[RecoveryPath]) -> Result<String, AppError> {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut ordered = paths.iter().collect::<Vec<_>>();
+    ordered.sort_by(|left, right| left.path.cmp(&right.path));
+    for item in ordered {
+        item.path.hash(&mut hasher);
+        match &item.state {
+            RecoveryPathState::Absent => "absent".hash(&mut hasher),
+            RecoveryPathState::Directory => "directory".hash(&mut hasher),
+            RecoveryPathState::Symlink { target, .. } => {
+                "symlink".hash(&mut hasher);
+                target.hash(&mut hasher);
+            }
+            RecoveryPathState::File { payload, .. } => {
+                "file".hash(&mut hasher);
+                hash_file(&record.join(payload), &mut hasher)?;
+            }
+        }
+    }
+    Ok(format!("{:016x}", hasher.finish()))
+}
+
 fn create_snapshot(
     root: &Path,
     git_dir: &Path,
@@ -429,6 +518,7 @@ fn create_snapshot(
     for (sequence, relative) in validated.target_paths.iter().enumerate() {
         paths.push(capture_path(root, &pending, relative, sequence)?);
     }
+    let content_fingerprint = Some(content_fingerprint(&pending, &paths)?);
     let manifest = RecoveryManifest {
         version: RECOVERY_SCHEMA_VERSION,
         recovery_id: recovery_id.clone(),
@@ -438,6 +528,7 @@ fn create_snapshot(
         after_state_token: None,
         index_existed,
         paths,
+        content_fingerprint,
     };
     write_manifest(&pending, &manifest)?;
     let complete = recovery_root.join(&recovery_id);
@@ -587,6 +678,7 @@ fn restore_snapshot(
     git_dir: &Path,
     record: &Path,
     manifest: &RecoveryManifest,
+    restore_index: bool,
 ) -> Result<(), AppError> {
     // Remove exact targets deepest-first, so a captured file/directory
     // transition never requires a recursive delete.
@@ -647,6 +739,12 @@ fn restore_snapshot(
             }
         }
     }
+    // The index is the whole project's prepared state, not this record's own:
+    // it can only go back when nothing else has moved on, or restoring it
+    // would undo staging this record never captured.
+    if !restore_index {
+        return Ok(());
+    }
     let index = index_path(git_dir);
     if manifest.index_existed {
         fs::copy(record.join("index"), &index)
@@ -656,6 +754,91 @@ fn restore_snapshot(
             .map_err(|_| error("GitOdile couldn't restore the empty prepared state."))?;
     }
     Ok(())
+}
+
+/// Whether every path this record would write is still exactly as the discard
+/// left it.
+///
+/// A discard leaves each of its targets in the project's saved state or removes
+/// it altogether, and Git reports both as unchanged — so one of a record's own
+/// paths showing up in today's status is precisely the signal that something
+/// has been written there since. Anything *inside* a captured directory counts
+/// as well, because restoring replaces the directory rather than merging into
+/// it.
+///
+/// This is the check that matches what a restore can actually damage. The
+/// whole-tree fingerprint answers a much broader question — "is the entire
+/// project exactly as this discard left it" — which an edit to any unrelated
+/// file makes false, taking every stored record out of reach with it.
+fn record_paths_untouched(
+    manifest: &RecoveryManifest,
+    status_output: &[u8],
+) -> Result<bool, AppError> {
+    let records = checked_status_records(status_output)?;
+    let changed = records
+        .entries
+        .iter()
+        .flat_map(|entry| std::iter::once(entry.path.clone()).chain(entry.original_path.clone()))
+        .collect::<Vec<_>>();
+    Ok(!manifest.paths.iter().any(|item| {
+        let inside = format!("{}/", item.path);
+        changed
+            .iter()
+            .any(|path| *path == item.path || path.starts_with(&inside))
+    }))
+}
+
+/// Confirms one restored path really carries the state the manifest recorded.
+///
+/// The exact-match restore verifies itself by recomputing the whole-tree
+/// fingerprint, which a scoped restore cannot use: the rest of the project has
+/// legitimately moved on, so that number is expected to differ. Checking each
+/// path it wrote is the same guarantee applied to the part it touched.
+fn verify_restored_path(root: &Path, record: &Path, item: &RecoveryPath) -> Result<(), AppError> {
+    let target = validate_target(root, &item.path)?;
+    let metadata = fs::symlink_metadata(&target);
+    let mismatch = || {
+        error("The recovered files were written, but their verification did not match the protected state.")
+    };
+    match &item.state {
+        RecoveryPathState::Absent => match metadata {
+            Err(value) if value.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            _ => Err(mismatch()),
+        },
+        RecoveryPathState::Directory => match metadata {
+            Ok(value) if value.is_dir() => Ok(()),
+            _ => Err(mismatch()),
+        },
+        RecoveryPathState::Symlink {
+            target: link_target,
+            ..
+        } => match metadata {
+            Ok(value) if value.file_type().is_symlink() => {
+                let written = fs::read_link(&target)
+                    .map_err(|_| error("GitOdile couldn't read a restored symbolic link."))?;
+                if written.to_string_lossy() == *link_target {
+                    Ok(())
+                } else {
+                    Err(mismatch())
+                }
+            }
+            _ => Err(mismatch()),
+        },
+        RecoveryPathState::File { payload, .. } => match metadata {
+            Ok(value) if value.is_file() => {
+                let mut written = std::collections::hash_map::DefaultHasher::new();
+                let mut saved = std::collections::hash_map::DefaultHasher::new();
+                hash_file(&target, &mut written)?;
+                hash_file(&record.join(payload), &mut saved)?;
+                if written.finish() == saved.finish() {
+                    Ok(())
+                } else {
+                    Err(mismatch())
+                }
+            }
+            _ => Err(mismatch()),
+        },
+    }
 }
 
 fn read_manifest(record: &Path) -> Result<RecoveryManifest, AppError> {
@@ -689,7 +872,23 @@ fn latest_manifest(git_dir: &Path) -> Result<(PathBuf, RecoveryManifest), AppErr
     Ok((record, manifest))
 }
 
-fn cleanup_old_records(root: &Path, protected: &str) {
+/// Retention, plus the one record a new one makes pointless.
+///
+/// A discard that captures exactly the work an older record already holds is
+/// not a second recovery point, it is the same one again: discarding a file,
+/// bringing it back and discarding it once more would otherwise leave the
+/// picker offering the same bytes twice, with nothing to tell the two entries
+/// apart but a clock. Both would restore identically, so the older one goes
+/// and nothing is lost. Two discards of genuinely different content have
+/// different fingerprints and both stay.
+///
+/// The comparison is the new record's own content, not the state of the
+/// project around it: an edit somewhere else between the two discards is
+/// exactly the sort of thing that makes a whole-tree fingerprint differ while
+/// the two records still hold the same file, byte for byte. Records written
+/// before this field existed have no content fingerprint, so for those the
+/// whole-tree before-state is all there is to compare.
+fn cleanup_old_records(root: &Path, protected: &str, protects: &RecoveryManifest) {
     let Ok(read) = fs::read_dir(root) else { return };
     let mut records = read
         .filter_map(Result::ok)
@@ -701,11 +900,21 @@ fn cleanup_old_records(root: &Path, protected: &str) {
         })
         .collect::<Vec<_>>();
     records.sort_by(|left, right| right.0.cmp(&left.0));
-    for (_, path) in records
-        .into_iter()
-        .skip(MAX_RECOVERY_RECORDS.saturating_sub(1))
-    {
-        let _ = fs::remove_dir_all(path);
+    let mut kept = 0;
+    for (_, path) in records {
+        let duplicate = read_manifest(&path)
+            .map(
+                |manifest| match (&manifest.content_fingerprint, &protects.content_fingerprint) {
+                    (Some(stored), Some(new)) => stored == new,
+                    _ => manifest.before_state_token == protects.before_state_token,
+                },
+            )
+            .unwrap_or(false);
+        if duplicate || kept >= MAX_RECOVERY_RECORDS.saturating_sub(1) {
+            let _ = fs::remove_dir_all(path);
+        } else {
+            kept += 1;
+        }
     }
 }
 
@@ -755,7 +964,9 @@ pub(crate) fn discard_changes(
     let after_state_token = match mutation_result {
         Ok(token) => token,
         Err(primary) => {
-            return match restore_snapshot(root, git_dir, &record, &manifest) {
+            // The discard's own rollback, undoing a mutation it started: the
+            // index it puts back is the one it captured moments ago.
+            return match restore_snapshot(root, git_dir, &record, &manifest, true) {
                 Ok(()) => Err(primary.with_remediation(
                     "GitOdile restored the protected files. Refresh and try again.",
                 )),
@@ -769,7 +980,7 @@ pub(crate) fn discard_changes(
     manifest.after_state_token = Some(after_state_token);
     write_manifest(&record, &manifest)?;
     publish_latest(&recovery_root(git_dir), &manifest.recovery_id)?;
-    cleanup_old_records(&recovery_root(git_dir), &manifest.recovery_id);
+    cleanup_old_records(&recovery_root(git_dir), &manifest.recovery_id, &manifest);
     let after_state_token = manifest
         .after_state_token
         .clone()
@@ -805,6 +1016,168 @@ pub(crate) fn get_discard_recovery(path: String) -> Result<DiscardRecovery, AppE
     })
 }
 
+/// Every stored recovery, newest first, each carrying whether it can be
+/// applied right now.
+///
+/// The records were always there — up to [`MAX_RECOVERY_RECORDS`] of them, on
+/// disk under the worktree's own `.git` — but only the `latest` pointer was
+/// ever readable, so a second discard hid the first one behind it. Reading
+/// them all is what lets the app offer a choice instead of an undo of exactly
+/// one step.
+///
+/// A record whose manifest cannot be read at all is skipped rather than
+/// failing the listing: an unreadable or future-schema record must not take
+/// the recoverable ones down with it.
+pub(crate) fn list_discard_recoveries(
+    path: String,
+) -> Result<Vec<DiscardRecoveryRecord>, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "list_discard_recoveries", None)?;
+    let root = repository.worktree_root.backend_path();
+    let git_dir = repository.git_dir.backend_path();
+    let Ok(entries) = fs::read_dir(recovery_root(git_dir)) else {
+        return Ok(Vec::new());
+    };
+    let mut manifests = entries
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        .filter(|entry| entry.file_name() != "pending")
+        .filter_map(|entry| read_manifest(&entry.path()).ok())
+        .collect::<Vec<_>>();
+    manifests.sort_by_key(|manifest| std::cmp::Reverse(manifest.created_at_ms));
+    if manifests.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // One status read for the whole listing, and one token per distinct
+    // `selected_path` — the token hashes that value, so records made from
+    // different selections do not share one, but ten records rarely span more
+    // than a couple of selections.
+    let status = read_status(&path)?;
+    let mut tokens: std::collections::HashMap<Option<String>, String> =
+        std::collections::HashMap::new();
+    let mut records = Vec::with_capacity(manifests.len());
+    for manifest in manifests {
+        let mut restores_prepared_state = false;
+        let availability = match manifest.after_state_token.as_deref() {
+            None => DiscardRecoveryAvailability::Incomplete,
+            Some(after) => {
+                let current = match tokens.get(&manifest.selected_path) {
+                    Some(value) => value.clone(),
+                    None => {
+                        let value =
+                            state_token(root, git_dir, &status, manifest.selected_path.as_deref())?;
+                        tokens.insert(manifest.selected_path.clone(), value.clone());
+                        value
+                    }
+                };
+                if current == after {
+                    restores_prepared_state = true;
+                    DiscardRecoveryAvailability::Restorable
+                } else if record_paths_untouched(&manifest, &status)? {
+                    DiscardRecoveryAvailability::Restorable
+                } else {
+                    DiscardRecoveryAvailability::Superseded
+                }
+            }
+        };
+        records.push(DiscardRecoveryRecord {
+            recovery_id: manifest.recovery_id,
+            created_at_ms: manifest.created_at_ms,
+            file_count: manifest.paths.len(),
+            selected_path: manifest.selected_path,
+            preview_paths: manifest
+                .paths
+                .iter()
+                .take(RECOVERY_PREVIEW_PATHS)
+                .map(|item| item.path.clone())
+                .collect(),
+            state_token: manifest.after_state_token,
+            availability,
+            restores_prepared_state,
+        });
+    }
+    Ok(records)
+}
+
+/// An id names one record directory and nothing else.
+///
+/// Every other operation here would merely fail on a crafted id, because it
+/// reads a manifest that will not be there. Deleting removes a directory tree,
+/// so this one is checked before the path is built rather than after: the id
+/// is the app's own, `discard-<millis>-<pid>-<sequence>`, and anything with a
+/// separator, a parent hop or a character outside that shape is refused
+/// outright.
+fn validate_recovery_id(recovery_id: &str) -> Result<(), AppError> {
+    let shaped = !recovery_id.is_empty()
+        && recovery_id.len() <= 128
+        && recovery_id
+            .chars()
+            .all(|value| value.is_ascii_alphanumeric() || value == '-');
+    if shaped {
+        Ok(())
+    } else {
+        Err(AppError::new(
+            AppErrorCode::RecoveryUnavailable,
+            "That recovery id is invalid.",
+        ))
+    }
+}
+
+/// Deletes one stored recovery for good.
+///
+/// This is the one thing in this module that destroys a snapshot instead of
+/// protecting one, and it exists because the alternative is worse: copies of
+/// discarded work sitting in the project's Git metadata with no way for the
+/// person who made them to say "that one can go". ADR 0007 anticipated it.
+/// The confirmation and the warning that it cannot be undone belong to the
+/// caller; what belongs here is refusing to act on an id that does not name a
+/// real record, and leaving the store consistent afterwards.
+pub(crate) fn delete_discard_recovery(path: String, recovery_id: String) -> Result<(), AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "delete_discard_recovery", None)?;
+    validate_recovery_id(&recovery_id)?;
+    let root = recovery_root(repository.git_dir.backend_path());
+    let record = root.join(&recovery_id);
+    // Reading the manifest first is the proof that this id names a record this
+    // module wrote, rather than any directory that happens to sit there.
+    let manifest = read_manifest(&record)?;
+    if manifest.recovery_id != recovery_id {
+        return Err(AppError::new(
+            AppErrorCode::RecoveryUnavailable,
+            "That recovery id is invalid.",
+        ));
+    }
+    fs::remove_dir_all(&record)
+        .map_err(|_| error("GitOdile couldn't delete that recovery copy."))?;
+    // A pointer to a deleted record would read as "there is nothing to
+    // restore" while other records sat right beside it.
+    republish_latest(&root);
+    Ok(())
+}
+
+/// Points `latest` at the newest record that is still there, or removes it
+/// when the last one is gone.
+fn republish_latest(root: &Path) {
+    let newest = fs::read_dir(root)
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        .filter(|entry| entry.file_name() != "pending")
+        .filter_map(|entry| read_manifest(&entry.path()).ok())
+        .max_by_key(|manifest| manifest.created_at_ms);
+    match newest {
+        Some(manifest) => {
+            let _ = publish_latest(root, &manifest.recovery_id);
+        }
+        None => {
+            let _ = fs::remove_file(root.join("latest"));
+        }
+    }
+}
+
 pub(crate) fn restore_discarded_changes(
     path: String,
     recovery_id: String,
@@ -814,6 +1187,7 @@ pub(crate) fn restore_discarded_changes(
         application::authorize_repository(&path, "restore_discarded_changes", None)?;
     let root = repository.worktree_root.backend_path();
     let git_dir = repository.git_dir.backend_path();
+    validate_recovery_id(&recovery_id)?;
     let record = recovery_root(git_dir).join(&recovery_id);
     let manifest = read_manifest(&record)?;
     if manifest.recovery_id != recovery_id {
@@ -828,6 +1202,11 @@ pub(crate) fn restore_discarded_changes(
             "That discard cannot be restored automatically.",
         )
     })?;
+    // The caller has to be acting on the record it was shown, whichever way
+    // this restore then proves it is safe.
+    if state_token_value != expected {
+        return Err(conflict());
+    }
     let current_status = read_status(&path)?;
     let current = state_token(
         root,
@@ -835,25 +1214,37 @@ pub(crate) fn restore_discarded_changes(
         &current_status,
         manifest.selected_path.as_deref(),
     )?;
-    if current != expected || state_token_value != expected {
-        return Err(AppError::new(
-            AppErrorCode::RecoveryConflict,
-            "The project changed after this discard, so GitOdile won't overwrite the newer work.",
-        )
-        .with_remediation(
-            "Keep this recovery and review the current changes before restoring manually.",
-        ));
+    // Two ways to be safe, and they are not the same guarantee.
+    //
+    // The whole project still exactly as the discard left it is the stronger
+    // one: nothing anywhere has moved on, so the record's index copy is still
+    // the project's own prepared state and goes back with the files.
+    //
+    // Otherwise the question narrows to what this restore can actually damage:
+    // has anything been written at the paths it would rewrite? A file edited
+    // elsewhere in the project is not a reason to refuse — it used to be,
+    // which made a record unreachable within seconds of anyone getting back to
+    // work, on the exact screen that exists to say discarding is undoable.
+    let exact = current == expected;
+    if !exact && !record_paths_untouched(&manifest, &current_status)? {
+        return Err(conflict());
     }
-    restore_snapshot(root, git_dir, &record, &manifest)?;
-    let restored_status = read_status(&path)?;
-    let restored = state_token(
-        root,
-        git_dir,
-        &restored_status,
-        manifest.selected_path.as_deref(),
-    )?;
-    if restored != manifest.before_state_token {
-        return Err(error("The recovered files were written, but their verification did not match the protected state."));
+    restore_snapshot(root, git_dir, &record, &manifest, exact)?;
+    if exact {
+        let restored_status = read_status(&path)?;
+        let restored = state_token(
+            root,
+            git_dir,
+            &restored_status,
+            manifest.selected_path.as_deref(),
+        )?;
+        if restored != manifest.before_state_token {
+            return Err(error("The recovered files were written, but their verification did not match the protected state."));
+        }
+    } else {
+        for item in &manifest.paths {
+            verify_restored_path(root, &record, item)?;
+        }
     }
     Ok(())
 }

@@ -1,6 +1,7 @@
 import type {
   DiscardPlan,
   DiscardRecovery,
+  DiscardRecoveryRecord,
   DiscardResult,
   FileDiff,
   FileLines,
@@ -26,5 +27,9 @@ export interface ChangesPort {
   planDiscard(query: ChangesQuery & { selectedPath: string | null }): Promise<DiscardPlan>;
   discard(query: ChangesQuery & { selectedPath: string | null; stateToken: string }): Promise<DiscardResult>;
   getDiscardRecovery(query: ChangesQuery): Promise<DiscardRecovery>;
+  listDiscardRecoveries(query: ChangesQuery): Promise<DiscardRecoveryRecord[]>;
   restoreDiscard(query: ChangesQuery & { recoveryId: string; stateToken: string }): Promise<void>;
+  /** Deletes one stored recovery for good. The only copy of that work goes
+   * with it, so the surface asking for this owes the user a confirmation. */
+  deleteDiscardRecovery(query: ChangesQuery & { recoveryId: string }): Promise<void>;
 }

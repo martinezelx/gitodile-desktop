@@ -46,6 +46,27 @@ const ChangesContextMenu = React.lazy(async () => {
 
 export type { DiffHunk, DiffLine, DiffLineKind, FileDiff } from "./domain";
 
+/** Whether this project has any discarded work stored at all.
+ *
+ * The cheap question first — is there a newest recovery — and the whole list
+ * only when that rejects. A discard that never finished has no restorable
+ * state, so the cheap check says no while older records may still be there;
+ * that is a reason to open the door to the list, not to hide it. Reading the
+ * list costs a status pass per stored record, which is not what a menu should
+ * pay on every open. */
+async function hasStoredRecoveries(
+  controller: ChangesController,
+  projectPath: string,
+  sessionEpoch: string,
+): Promise<boolean> {
+  try {
+    await controller.getDiscardRecovery(projectPath, sessionEpoch);
+    return true;
+  } catch {
+    return (await controller.listDiscardRecoveries(projectPath, sessionEpoch)).length > 0;
+  }
+}
+
 function ChangesActionsMenu({
   controller,
   projectPath,
@@ -79,14 +100,14 @@ function ChangesActionsMenu({
     const next = !open;
     setOpen(next);
     if (next) {
-      controller.getDiscardRecovery(projectPath, sessionEpoch)
-        .then(() => setCanRestore(true))
+      hasStoredRecoveries(controller, projectPath, sessionEpoch)
+        .then((value) => setCanRestore(value))
         .catch(() => setCanRestore(false));
     }
   };
   return (
     <div className="changes-actions-menu" ref={containerRef}>
-      <button ref={triggerRef} className="secondary-button changes-actions-menu__trigger" type="button" aria-label={t.changesMoreActions} aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={toggle} data-tooltip={t.changesMoreActions}>
+      <button ref={triggerRef} className="secondary-button secondary-button--sm changes-actions-menu__trigger" type="button" aria-label={t.changesMoreActions} aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={toggle} data-tooltip={t.changesMoreActions}>
         <Ellipsis aria-hidden="true" />
       </button>
       {open && <div ref={popupRef} className="app-menu changes-actions-menu__popup" role="menu" aria-label={t.changesMoreActions} tabIndex={-1} onKeyDown={(event) => handlePopupMenuKeyDown(event, popupRef.current, () => close(true))}>
@@ -191,31 +212,25 @@ export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<strin
   return totals;
 }
 
+/* The screen's heading carries one action now. Discarding acts on the files
+   in the list — the selected one, or all of them — so its menu moved down to
+   the strip that owns that list, where what it will affect is on screen with
+   it. */
 function ChangesHeaderActions({
-  controller,
-  projectPath,
-  sessionEpoch,
   workingTree,
   isChecking,
-  selectedPath,
   canChooseFiles,
   canSaveSelection,
-  includedCount,
+  isEverythingSelected,
   onSave,
-  onChooseDiscard,
   t,
 }: {
-  controller: ChangesController;
-  projectPath: string;
-  sessionEpoch: string;
   workingTree: WorkingTreeStatus | null;
   isChecking: boolean;
-  selectedPath: string | null;
   canChooseFiles: boolean;
   canSaveSelection: boolean;
-  includedCount: number;
+  isEverythingSelected: boolean;
   onSave: () => void;
-  onChooseDiscard: (request: DiscardDialogRequest) => void;
   t: Translations;
 }): React.JSX.Element {
   const hasSavableChanges = workingTree !== null && !workingTree.isClean;
@@ -238,19 +253,16 @@ function ChangesHeaderActions({
           }
         >
           <Save aria-hidden="true" />
-          {/* Names the actual selection when per-file choices are available;
-              a truncated status has no trustworthy selection count. */}
-          {canChooseFiles && canSaveSelection ? t.changesSaveSelected(includedCount) : t.changesSaveVersion}
+          {/* The label qualifies itself only when there is something to
+              qualify. Saving everything is just saving a version, so it says
+              so; leaving files out is the case worth naming, and the count
+              belongs to the summary line rather than to a second copy of it on
+              the button. A truncated status has no trustworthy selection, so
+              it reads as the whole thing too. */}
+          {canChooseFiles && canSaveSelection && !isEverythingSelected
+            ? t.changesSaveSelected
+            : t.changesSaveVersion}
         </button>
-        <ChangesActionsMenu
-          controller={controller}
-          projectPath={projectPath}
-          sessionEpoch={sessionEpoch}
-          selectedPath={selectedPath}
-          disabled={actionsDisabled}
-          onChoose={onChooseDiscard}
-          t={t}
-        />
       </div>
     </div>
   );
@@ -314,7 +326,7 @@ function DiscardOutcomeNotice({
           : outcome.status === "error"
             ? outcome.message
             : outcome.status === "restored"
-              ? t.changesRestoreSuccess
+              ? t.changesRestoreSuccess(outcome.restoredFiles)
               : t.changesDiscardSuccess(outcome.discardedFiles)}
       </p>
       {outcome.status === "discarded" && (
@@ -413,9 +425,8 @@ function DiffWorkspace({
   // A picture showing the only version it has needs no control, and the
   // reading-mode picker would be one that does nothing: unified, split and
   // accessible text are ways of laying out lines, and a drawing has none. The
-  // row itself stays either way — it is what keeps this pane's top edge level
-  // with the file list's search strip — but it loses its label rather than
-  // standing there naming a control that is not underneath it.
+  // strip itself stays either way — it names the open file — so what a picture
+  // drops is the picker, not a row, and the file keeps its header.
   const showsReadingMode = picture === null || (picture.isSvg && !picture.showsDrawing);
   const hasViewControls = showsReadingMode || picture.hasControls;
 
@@ -433,111 +444,125 @@ function DiffWorkspace({
     return <div className="changes-diff" />;
   }
 
+  const { name, dir } = splitPath(selectedPath);
+  const FileTypeIcon = getFileTypeIcon(selectedPath);
+
   return (
     <div className="changes-diff" aria-label={t.changesDiffAriaLabel(selectedPath)}>
       <button type="button" className="changes-diff__back" onClick={onBackToList}>
         <ArrowLeft aria-hidden="true" />
         {t.changesBackToList}
       </button>
+      {/* One strip, not two. The file being read and the controls for reading
+          it were a header stacked on a toolbar, which cost this panel two
+          rules and ~100px before the first line of code appeared. They ask
+          one question between them — which file, shown how — so they are one
+          row now, paired with the file list's. See `--changes-header-height`
+          in changes.css. */}
       <header className="changes-diff__header">
         <span className="changes-diff__header-icon" aria-hidden="true">
-          {entry ? CHANGE_CATEGORY_ICONS[entry.category] : null}
+          <FileTypeIcon className="changes-diff__type-icon" />
         </span>
-        <div className="changes-diff__header-text">
-          <div className="changes-diff__title-row">
-            <p className="changes-diff__path">
-              {selectedPath}
-            </p>
-            {entry && (
-              <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
-                {t[CATEGORY_LABEL_KEYS[entry.category]]}
-              </span>
-            )}
-            {/* Inline, not a second line: a line of its own grew this header
-                past the height it shares with the file list's, putting the
-                two panels' rules back out of step for exactly the renamed
-                files this text appears on. It truncates like the path, with
-                the full value on the tooltip. */}
-            {entry?.originalPath && (
-              <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
-                {t.changesRenamedFrom(entry.originalPath)}
-              </span>
-            )}
-          </div>
+        <div className="changes-diff__title-row">
+          {/* Name first and dir after, the same shape the file rows use, so
+              the open file is recognizable as the row it was chosen from. The
+              full path stays on the pane's accessible name. */}
+          <p className="changes-diff__path">
+            <span className="changes-diff__name">{name}</span>
+            <span className="changes-diff__dir">{dir ?? t.changesProjectRoot}</span>
+          </p>
+          {entry && (
+            <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
+              {t[CATEGORY_LABEL_KEYS[entry.category]]}
+            </span>
+          )}
+          {/* Inline, not a second line: a line of its own grew this header
+              past the height it shares with the file list's, putting the
+              two panels' rules back out of step for exactly the renamed
+              files this text appears on. It truncates like the path, with
+              the full value on the tooltip. */}
+          {entry?.originalPath && (
+            <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
+              {t.changesRenamedFrom(entry.originalPath)}
+            </span>
+          )}
         </div>
-        {fileTotal > 0 && (
-          <div className="changes-diff__file-nav">
-            {/* `0` means the open file is not in the list being shown — a
-                search can narrow the list without changing the selection —
-                and "File 0 of 3" is not a position. The arrows stay
-                (disabled) so the control does not jump in and out while
-                someone types. */}
-            {filePosition > 0 && (
-              <span className="changes-diff__position">{t.changesFilePosition(filePosition, fileTotal)}</span>
-            )}
-            <button
-              type="button"
-              className="changes-diff__step"
-              aria-label={t.changesPreviousFile}
-              data-tooltip={t.changesPreviousFile}
-              disabled={filePosition <= 1}
-              onClick={onSelectPreviousFile}
-            >
-              <ChevronLeft aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="changes-diff__step"
-              aria-label={t.changesNextFile}
-              data-tooltip={t.changesNextFile}
-              disabled={filePosition === 0 || filePosition >= fileTotal}
-              onClick={onSelectNextFile}
-            >
-              <ChevronRight aria-hidden="true" />
-            </button>
-          </div>
-        )}
+        <div className="changes-diff__controls">
+          {fileTotal > 0 && (
+            <div className="changes-diff__file-nav">
+              {/* The position is read, not shown: two counters beside four
+                  arrows made this strip a row of numbers, and the list on the
+                  left already says which file is open and where it sits. It
+                  stays in the accessibility tree for anyone who cannot see
+                  that list, and `0` still means the open file is not in it —
+                  a search can narrow the list without changing the selection,
+                  and "File 0 of 3" is not a position. The arrows stay
+                  (disabled) so the control does not jump in and out while
+                  someone types. */}
+              {filePosition > 0 && (
+                <span className="visually-hidden">{t.changesFilePosition(filePosition, fileTotal)}</span>
+              )}
+              <button
+                type="button"
+                className="changes-diff__step"
+                aria-label={t.changesPreviousFile}
+                data-tooltip={t.changesPreviousFile}
+                disabled={filePosition <= 1}
+                onClick={onSelectPreviousFile}
+              >
+                <ChevronLeft aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="changes-diff__step"
+                aria-label={t.changesNextFile}
+                data-tooltip={t.changesNextFile}
+                disabled={filePosition === 0 || filePosition >= fileTotal}
+                onClick={onSelectNextFile}
+              >
+                <ChevronRight aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          {hunkCount > 0 && viewMode !== "accessible" && (
+            <div className="changes-diff__hunk-nav">
+              <span className="visually-hidden">{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span>
+              <button
+                type="button"
+                className="changes-diff__step"
+                aria-label={t.changesPreviousHunk}
+                data-tooltip={t.changesPreviousHunk}
+                disabled={hunkTarget.index <= 0}
+                onClick={() => goToHunk(hunkTarget.index - 1)}
+              >
+                <ArrowUp aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="changes-diff__step"
+                aria-label={t.changesNextHunk}
+                data-tooltip={t.changesNextHunk}
+                disabled={hunkTarget.index >= hunkCount - 1}
+                onClick={() => goToHunk(hunkTarget.index + 1)}
+              >
+                <ArrowDown aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          {/* Last, at the far edge: the arrows move within this file, and the
+              picker changes the file's whole shape. A picture answers the same
+              question with its own pickers, in the same place and the same
+              shape as the reading-mode picker a text file gets. Each picker
+              names itself to a screen reader, so nothing labels them a second
+              time in a row this dense. */}
+          {hasViewControls && (
+            <div className="changes-diff__view">
+              {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
+              {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
+            </div>
+          )}
+        </div>
       </header>
-      {/* Paired with the file list's search strip: same height, same bottom
-          rule, so the two panels keep reading as one grid. See the note on
-          `--changes-toolbar-height` in styles.css. */}
-      <div className="changes-diff__toolbar">
-        {/* One row, one question: how am I looking at this file. A picture
-            answers it with its own pickers, in the same place and the same
-            shape as the reading-mode picker a text file gets. */}
-        {hasViewControls && (
-          <div className="changes-diff__view">
-            <span className="changes-diff__view-label">{t.changesViewLabel}</span>
-            {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
-            {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
-          </div>
-        )}
-        {hunkCount > 0 && viewMode !== "accessible" && (
-          <div className="changes-diff__hunk-nav">
-            <span className="changes-diff__position">{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span>
-            <button
-              type="button"
-              className="changes-diff__step"
-              aria-label={t.changesPreviousHunk}
-              data-tooltip={t.changesPreviousHunk}
-              disabled={hunkTarget.index <= 0}
-              onClick={() => goToHunk(hunkTarget.index - 1)}
-            >
-              <ArrowUp aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="changes-diff__step"
-              aria-label={t.changesNextHunk}
-              data-tooltip={t.changesNextHunk}
-              disabled={hunkTarget.index >= hunkCount - 1}
-              onClick={() => goToHunk(hunkTarget.index + 1)}
-            >
-              <ArrowDown aria-hidden="true" />
-            </button>
-          </div>
-        )}
-      </div>
       <div
         {...autoHideScrollbarProps<HTMLDivElement>()}
         className="changes-diff__body auto-hide-scrollbar"
@@ -821,6 +846,19 @@ export function ChangesPanel({
   const [search, setSearch] = useState("");
   const [discardRequest, setDiscardRequest] = useState<DiscardDialogRequest | null>(null);
   const [contextMenu, setContextMenu] = useState<ChangesContextMenuState | null>(null);
+  /* Only asked while this screen is empty, and only then: with a file list on
+     screen the same question is answered when its menu opens, and a screen
+     that has something to review does not need to know. */
+  const [hasRecoveries, setHasRecoveries] = useState(false);
+  const isClean = workingTree?.isClean === true;
+  useEffect(() => {
+    if (!isClean) return undefined;
+    let cancelled = false;
+    hasStoredRecoveries(controller, projectPath, sessionEpoch)
+      .then((value) => { if (!cancelled) setHasRecoveries(value); })
+      .catch(() => { if (!cancelled) setHasRecoveries(false); });
+    return () => { cancelled = true; };
+  }, [controller, isClean, projectPath, sessionEpoch, discardRequest]);
   const directDiscard = useDirectDiscard({
     controller,
     projectPath,
@@ -1023,6 +1061,20 @@ export function ChangesPanel({
             </span>
           </>
         )}
+        {/* The selection belongs with the other things this screen says about
+            its changes, not beside the search box: the strip's job is finding
+            a file, and the count was taking a third of it to answer a question
+            nobody asks while typing. */}
+        {!workingTree.isClean && (
+          <>
+            <span className="changes-view__summary-separator" aria-hidden="true">
+              ·
+            </span>
+            <span className="changes-view__selection">
+              {t.changesSelectionSummary(includedCount, total)}
+            </span>
+          </>
+        )}
       </p>
     );
   }
@@ -1031,22 +1083,20 @@ export function ChangesPanel({
     <div className="changes-view" aria-busy={isCheckingChanges}>
       <ChangesStatusNotice watcherState={watcherState} error={workingTreeError} busy={isCheckingChanges} onRefresh={onRefresh} onOpenSettings={onOpenSettings} t={t} />
       <header className="changes-view__header">
-        <div>
+        {/* Title and state on one line. The summary is a caption for the
+            heading beside it, not a paragraph under it, and the line it used
+            to occupy belongs to the files. */}
+        <div className="changes-view__heading">
           <h1>{t.changesHeading}</h1>
           {headerMessage}
         </div>
         <ChangesHeaderActions
-          controller={controller}
-          projectPath={projectPath}
-          sessionEpoch={sessionEpoch}
           workingTree={workingTree}
           isChecking={isCheckingChanges}
-          selectedPath={selectedPath}
           canChooseFiles={canChooseFiles}
           canSaveSelection={canSaveSelection}
-          includedCount={includedCount}
+          isEverythingSelected={allSelected}
           onSave={onOpenSaveVersion}
-          onChooseDiscard={requestDiscard}
           t={t}
         />
       </header>
@@ -1067,14 +1117,32 @@ export function ChangesPanel({
           </div>
           <h2>{t.changesEmptyTitle}</h2>
           <p>{t.changesEmptyDescription}</p>
-          <button className="secondary-button" type="button" onClick={onNavigateOverview}>
-            {t.changesBackToOverview}
-          </button>
+          <div className="changes-empty__actions">
+            <button className="secondary-button" type="button" onClick={onNavigateOverview}>
+              {t.changesBackToOverview}
+            </button>
+            {/* Discarding everything empties this screen, and the file list
+                takes the menu that reaches stored copies with it. Without this
+                the way back would exist only while there was still something
+                to review — which is exactly when nobody needs it. */}
+            {hasRecoveries && (
+              <button className="ghost-button" type="button" onClick={() => requestDiscard({ mode: "restore", selectedPath: null })}>
+                <RotateCcw aria-hidden="true" />
+                {t.changesRestoreDiscarded}
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}`}>
           <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
-            <div className="changes-file-list__selection">
+            {/* One strip: what is included, and what is listed. The selection
+                summary had a band of its own above the search box, which is a
+                whole row of chrome for a fraction like "3/12"; beside the
+                checkbox it names it holds the same meaning in a quarter of
+                the space, and the files start ~50px higher. Paired with the
+                diff header — see `--changes-header-height` in changes.css. */}
+            <div className="changes-file-list__toolbar">
               <span className="changes-file-list__select-all">
                 {canChooseFiles ? (
                   <input
@@ -1101,11 +1169,6 @@ export function ChangesPanel({
                   />
                 )}
               </span>
-              <span>{t.changesSelectionSummary(includedCount, workingTree.counts.total)}</span>
-            </div>
-            {/* Paired with `.changes-diff__toolbar` — see the note on
-                `--changes-toolbar-height` in styles.css. */}
-            <div className="changes-file-list__search">
               <label className="changes-search-box">
                 <Search aria-hidden="true" />
                 <input
@@ -1116,6 +1179,15 @@ export function ChangesPanel({
                   aria-label={t.changesSearchAriaLabel}
                 />
               </label>
+              <ChangesActionsMenu
+                controller={controller}
+                projectPath={projectPath}
+                sessionEpoch={sessionEpoch}
+                selectedPath={selectedPath}
+                disabled={isCheckingChanges}
+                onChoose={requestDiscard}
+                t={t}
+              />
             </div>
             <div
               {...autoHideScrollbarProps<HTMLDivElement>()}

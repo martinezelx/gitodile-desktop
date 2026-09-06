@@ -108,11 +108,24 @@ describe("production style composition", () => {
   it("loads shared app menus before feature alignment overrides", () => {
     const primitives = readSource("shared/ui/primitives.css");
     const changes = readSource("features/changes/changes.css");
+    const history = readSource("features/history/history.css");
     const versionLines = readSource("features/version-lines/version-lines.css");
 
     expect(primitives).toContain(".app-menu {");
-    expect(changes).toContain(".changes-view-picker__menu { right: auto; left: 0;");
+    // A feature override still has to be able to win on equal specificity —
+    // the discard menu is one, because its trigger is not at the right edge of
+    // the window and its items name the list underneath it.
+    expect(changes).toContain(".changes-actions-menu__popup { right: auto; left: 0;");
     expect(versionLines).not.toMatch(/^\s*\.app-menu(?:\s|,|\{)/m);
+
+    // The shared view picker is not one, in either of its two hosts. Both put
+    // it at the right edge of a panel that clips its own overflow, so both
+    // take `.app-menu`'s right-anchored default: the Changes rule that forced
+    // `left: 0` (from when that picker sat at the left of a toolbar of its
+    // own) opened the menu straight off the panel edge, and History's rule
+    // existed only to undo it for its own toolbar.
+    expect(changes).not.toMatch(/\.changes-view-picker__menu \{[^}]*left: 0/);
+    expect(history).not.toMatch(/\.changes-view-picker__menu \{[^}]*(?:left|right): 0/);
   });
 
   it("retains theme, focus, reduced-motion and forced-color foundations", () => {

@@ -21,6 +21,8 @@ const port = (overrides: Partial<ChangesPort> = {}): ChangesPort => ({
   planDiscard: async () => { throw new Error("unused"); },
   discard: async () => { throw new Error("unused"); },
   getDiscardRecovery: async () => { throw new Error("unused"); },
+  listDiscardRecoveries: async () => [],
+  deleteDiscardRecovery: async () => { throw new Error("unused"); },
   restoreDiscard: async () => { throw new Error("unused"); },
   ...overrides,
 });

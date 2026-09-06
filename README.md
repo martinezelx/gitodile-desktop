@@ -47,6 +47,11 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Discard one file or every unsaved change through a confirmed, state-checked
   flow that creates a persistent local recovery record and offers Undo. The
   confirmation can be turned off; the recovery record and Undo cannot.
+- Bring discarded work back from a picker listing every stored recovery, not
+  just the last one. A record the working tree has moved past stays listed and
+  says why it cannot be applied, so a protected snapshot never reads as a lost
+  one. A copy that is no longer wanted can be deleted from the same list, and
+  says what goes with it before it does.
 - Receive live, debounced repository updates without exposing raw filesystem
   paths to the frontend, or turn watching off — in which case Changes, History,
   and Lines disclose that their local snapshot may be out of date and offer a

@@ -13,6 +13,10 @@ export const changesPort: ChangesPort = {
     invoke("discard_changes", { path, sessionEpoch, selectedPath, stateToken }),
   getDiscardRecovery: ({ projectId: path, sessionEpoch }) =>
     invoke("get_discard_recovery", { path, sessionEpoch }),
+  listDiscardRecoveries: ({ projectId: path, sessionEpoch }) =>
+    invoke("list_discard_recoveries", { path, sessionEpoch }),
   restoreDiscard: ({ projectId: path, sessionEpoch, recoveryId, stateToken }) =>
     invoke("restore_discarded_changes", { path, sessionEpoch, recoveryId, stateToken }),
+  deleteDiscardRecovery: ({ projectId: path, sessionEpoch, recoveryId }) =>
+    invoke("delete_discard_recovery", { path, sessionEpoch, recoveryId }),
 };

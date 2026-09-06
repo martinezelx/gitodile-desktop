@@ -517,6 +517,18 @@ persistent record under the selected worktree's Git metadata before mutation.
 The record preserves exact target bytes and the real index, can be restored
 after restart only while its post-discard state token still matches, and is
 defined by [ADR 0007](adr/0007-store-discard-recovery-in-worktree-git-metadata.md).
+All retained records are readable, not only the newest: `list_discard_recoveries`
+reports each one with whether it can be applied right now, which is what lets
+the app offer a choice instead of an undo of exactly one step. That question is
+answered per path rather than over the whole tree — a record is applicable while
+nothing has been written where it would write — so ordinary work elsewhere no
+longer retires every stored record, and several discards can be brought back in
+any order. Only a record the whole project still matches also restores the
+index; the rest bring their files back and leave the prepared state alone. A new
+record that would write exactly what an existing one holds replaces it, so
+discarding the same work twice leaves one entry rather than two. The 2026-09-06
+amendment to ADR 0007 carries the reasoning, the verification that replaces the
+whole-tree comparison in that mode, and the retention rule.
 
 Never silently resolve conflicts, discard untracked files, bypass hooks or
 signing, force-push, run `reset --hard`, clean files, or delete a branch without

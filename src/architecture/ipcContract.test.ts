@@ -5,14 +5,15 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(65);
+    expect(contract.commands).toHaveLength(67);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "open_repository", "plan_clone", "clone_repository",
       "cancel_clone", "cleanup_clone", "plan_initialize_project", "initialize_project",
       "cleanup_initialize_project", "read_working_tree_status",
       "read_file_diff", "read_file_image_preview", "read_file_lines", "read_working_tree_diffs",
       "plan_discard_changes",
-      "discard_changes", "get_discard_recovery", "restore_discarded_changes", "git_diagnostics",
+      "discard_changes", "get_discard_recovery", "list_discard_recoveries",
+      "restore_discarded_changes", "delete_discard_recovery", "git_diagnostics",
       "install_git", "update_git", "check_git_update", "get_git_identity",
       "render_diagnostic_report", "save_diagnostic_report", "set_git_identity",
       "get_line_endings", "set_line_endings", "get_default_branch", "set_default_branch",
@@ -46,7 +47,8 @@ describe("IPC contract snapshot", () => {
       "plan_publish", "publish",
       "plan_create_version_line", "create_version_line", "plan_switch_version_line",
       "switch_version_line", "plan_delete_version_line", "delete_version_line",
-      "plan_discard_changes", "discard_changes", "get_discard_recovery", "restore_discarded_changes",
+      "plan_discard_changes", "discard_changes", "get_discard_recovery", "list_discard_recoveries",
+      "restore_discarded_changes", "delete_discard_recovery",
       "read_history_page", "read_saved_version_detail", "read_saved_version_file_diff",
     ]) {
       const command = contract.commands.find(({ name }) => name === commandName);

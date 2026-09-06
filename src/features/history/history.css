@@ -316,7 +316,6 @@
    height and collapsed to its text. */
 .history-search-box--diff { width: clamp(160px, 24vw, 280px); height: var(--control-height-sm); }
 .history-diff-controls .changes-view-picker__value { font-size: var(--text-label); }
-.history-diff-controls .changes-view-picker__menu { right: 0; left: auto; }
 
 .history-diff-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(148px, 190px) minmax(0, 1fr); }
 .history-files-pane { min-height: 0; display: flex; flex-direction: column; border-inline-end: 1px solid var(--border-divider); background: color-mix(in srgb, var(--surface-raised) 55%, var(--surface-panel)); }

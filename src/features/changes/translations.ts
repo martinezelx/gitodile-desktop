@@ -71,7 +71,6 @@ export interface ChangesTranslations {
   changesFilePosition: (position: number, total: number) => string;
   changesPreviousFile: string;
   changesNextFile: string;
-  changesViewLabel: string;
   changesViewUnified: string;
   changesViewSplit: string;
   changesViewAccessible: string;
@@ -83,7 +82,7 @@ export interface ChangesTranslations {
   changesCheckLocal: string;
   changesRefreshFailedTitle: string;
   changesDiscardingNow: string;
-  changesSaveSelected: (count: number) => string;
+  changesSaveSelected: string;
   changesSaveVersion: string;
   changesSaveVersionDisabledHint: string;
   changesSaveVersionNoSelectionHint: string;
@@ -105,6 +104,8 @@ export interface ChangesTranslations {
   changesDiscardFileTitle: string;
   changesDiscardAllTitle: string;
   changesRestoreTitle: string;
+  changesDiscardDoneTitle: string;
+  changesRestoreDoneTitle: string;
   changesDiscardFileSummary: (path: string) => string;
   changesDiscardAllSummary: (count: number) => string;
   changesDiscardPreparedWarning: string;
@@ -115,10 +116,26 @@ export interface ChangesTranslations {
   changesDiscardConfirmAll: string;
   changesRestoreConfirm: string;
   changesDiscardSuccess: (count: number) => string;
-  changesRestoreSuccess: string;
+  changesRestoreSuccess: (count: number) => string;
   changesUndoDiscard: string;
   changesDiscardLoading: string;
+  changesRestoreLoading: string;
   changesRestoreSummary: (count: number) => string;
+  changesRestoreChooseLabel: string;
+  changesRestoreChooseIntro: string;
+  changesRestoreEmpty: string;
+  changesRestoreEntryPaths: (count: number) => string;
+  changesRestoreEntryMore: (preview: string, hidden: number) => string;
+  changesRestoreUnavailableSuperseded: string;
+  changesRestoreUnavailableIncomplete: string;
+  changesRestoreUnavailableToggle: (count: number) => string;
+  changesRestoreNoneAvailable: string;
+  changesRestorePreparedNote: string;
+  changesRestoreForget: string;
+  changesRestoreForgetTitle: string;
+  changesRestoreForgetWarning: (count: number) => string;
+  changesRestoreForgetConfirm: string;
+  changesRestoreForgetCancel: string;
   changesDiscardUnavailable: string;
 }
 
@@ -205,7 +222,6 @@ const en: ChangesTranslations = {
   changesFilePosition: (position, total) => `File ${position} of ${total}`,
   changesPreviousFile: "Previous file",
   changesNextFile: "Next file",
-  changesViewLabel: "View:",
   changesViewUnified: "Unified",
   changesViewSplit: "Split",
   changesViewAccessible: "Accessible text",
@@ -217,44 +233,66 @@ const en: ChangesTranslations = {
   changesCheckLocal: "Check local changes",
   changesRefreshFailedTitle: "Changes couldn’t be refreshed",
   changesDiscardingNow: "Discarding…",
-  changesSaveSelected: (count) => `Save selected (${count})`,
+  changesSaveSelected: "Save selected",
   changesSaveVersion: "Save version",
   changesSaveVersionDisabledHint: "Make some changes first, then come back to save a version.",
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
-  changesSelectionSummary: (selected, total) => `${selected}/${total}`,
+  changesSelectionSummary: (selected, total) => `${selected} of ${total} selected`,
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
   changesIncludeFile: (path) => `Include ${path} in this version`,
   changesPartialUnavailableTruncated:
     "This project has more changed files than can be listed safely. Save all changes before using file selection.",
   changesProjectRoot: "Project root",
-  changesMoreActions: "More change actions",
+  changesMoreActions: "Discard or restore changes",
   changesContextMenuLabel: "Context actions",
   changesCopy: "Copy",
   changesCopied: "Selected text copied.",
   changesCopyFailed: "Couldn’t copy the selected text. Use Ctrl+C or Cmd+C instead.",
   changesDiscardFileContext: "Discard changes…",
-  changesDiscardSelected: "Discard changes in selected file…",
+  changesDiscardSelected: "Discard this file’s changes…",
   changesDiscardAll: "Discard all changes…",
-  changesRestoreDiscarded: "Restore last discarded changes…",
+  changesRestoreDiscarded: "Restore discarded changes…",
   changesDiscardFileTitle: "Discard this file’s changes?",
   changesDiscardAllTitle: "Discard all unsaved changes?",
-  changesRestoreTitle: "Restore discarded changes?",
-  changesDiscardFileSummary: (path) => `${path} will return to its latest saved state.`,
-  changesDiscardAllSummary: (count) => count === 1 ? "1 changed file will return to its latest saved state." : `${count} changed files will return to their latest saved state.`,
-  changesDiscardPreparedWarning: "Prepared changes in this selection will also be replaced.",
-  changesDiscardUntrackedWarning: "New files in this selection will leave the project.",
-  changesDiscardConflictWarning: "Conflict state in this selection will be replaced by the latest saved content.",
-  changesDiscardRecoveryNote: "GitOdile creates a private local recovery copy first, so this can be undone.",
-  changesDiscardConfirmFile: "Discard file changes",
+  changesRestoreTitle: "Restore discarded changes",
+  changesDiscardDoneTitle: "Changes discarded",
+  changesRestoreDoneTitle: "Changes restored",
+  changesDiscardFileSummary: (path) => `${path} goes back to its last saved version.`,
+  changesDiscardAllSummary: (count) => count === 1 ? "1 changed file goes back to its last saved version." : `${count} changed files go back to their last saved version.`,
+  changesDiscardPreparedWarning: "Prepared changes are replaced too.",
+  changesDiscardUntrackedWarning: "New files leave the project.",
+  changesDiscardConflictWarning: "Unresolved conflicts are replaced by the last saved version.",
+  changesDiscardRecoveryNote: "GitOdile keeps a copy on this computer first, so you can undo it.",
+  changesDiscardConfirmFile: "Discard these changes",
   changesDiscardConfirmAll: "Discard all changes",
-  changesRestoreConfirm: "Restore discarded changes",
-  changesDiscardSuccess: (count) => count === 1 ? "The file’s changes were discarded safely." : `${count} files were returned to their saved state.`,
-  changesRestoreSuccess: "The discarded changes were restored.",
+  changesRestoreConfirm: "Restore these changes",
+  changesDiscardSuccess: (count) => count === 1 ? "1 file went back to its last saved version." : `${count} files went back to their last saved version.`,
+  changesRestoreSuccess: (count) => count === 1 ? "1 file is back where it was." : `${count} files are back where they were.`,
   changesUndoDiscard: "Undo discard",
-  changesDiscardLoading: "Preparing a safe preview…",
-  changesRestoreSummary: (count) => count === 1 ? "GitOdile will restore the protected state of 1 path." : `GitOdile will restore the protected state of ${count} paths.`,
-  changesDiscardUnavailable: "This action is no longer available. Refresh Changes and try again.",
+  changesDiscardLoading: "Checking what will change…",
+  changesRestoreLoading: "Looking for discarded changes…",
+  changesRestoreSummary: (count) => count === 1 ? "Bringing back 1 file…" : `Bringing back ${count} files…`,
+  changesRestoreChooseLabel: "Discarded changes",
+  changesRestoreChooseIntro: "Choose what to bring back.",
+  changesRestoreEmpty: "There are no stored copies to bring back.",
+  changesRestoreEntryPaths: (count) => count === 1 ? "1 file" : `${count} files`,
+  changesRestoreEntryMore: (preview, hidden) => `${preview} and ${hidden} more`,
+  changesRestoreUnavailableSuperseded: "One of these files changed after this discard, so restoring it would overwrite newer work.",
+  changesRestoreUnavailableIncomplete: "This discard didn’t finish, so it can’t be restored automatically.",
+  changesRestoreUnavailableToggle: (count) =>
+    count === 1 ? "1 more can’t be restored right now" : `${count} more can’t be restored right now`,
+  changesRestoreNoneAvailable: "None can be restored right now: each names a file that changed afterwards.",
+  changesRestorePreparedNote: "Brings the files back. Prepared changes stay as they are.",
+  changesRestoreForget: "Delete this copy",
+  changesRestoreForgetTitle: "Delete this copy?",
+  changesRestoreForgetWarning: (count) =>
+    count === 1
+      ? " The file it holds can’t be brought back afterwards."
+      : ` The ${count} files it holds can’t be brought back afterwards.`,
+  changesRestoreForgetConfirm: "Delete copy",
+  changesRestoreForgetCancel: "Keep it",
+  changesDiscardUnavailable: "This action is no longer available. Check local changes and try again.",
 };
 
 const es: ChangesTranslations = {
@@ -342,7 +380,6 @@ const es: ChangesTranslations = {
   changesFilePosition: (position, total) => `Archivo ${position} de ${total}`,
   changesPreviousFile: "Archivo anterior",
   changesNextFile: "Archivo siguiente",
-  changesViewLabel: "Vista:",
   changesViewUnified: "Unificada",
   changesViewSplit: "Dividida",
   changesViewAccessible: "Texto accesible",
@@ -354,44 +391,67 @@ const es: ChangesTranslations = {
   changesCheckLocal: "Comprobar cambios locales",
   changesRefreshFailedTitle: "No se pudieron actualizar los cambios",
   changesDiscardingNow: "Descartando…",
-  changesSaveSelected: (count) => `Guardar selección (${count})`,
+  changesSaveSelected: "Guardar selección",
   changesSaveVersion: "Guardar versión",
   changesSaveVersionDisabledHint: "Haz algún cambio primero y vuelve para guardar una versión.",
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
-  changesSelectionSummary: (selected, total) => `${selected}/${total}`,
+  changesSelectionSummary: (selected, total) =>
+    selected === 1 ? `${selected} de ${total} seleccionado` : `${selected} de ${total} seleccionados`,
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",
   changesIncludeFile: (path) => `Incluir ${path} en esta versión`,
   changesPartialUnavailableTruncated:
     "Este proyecto tiene más archivos modificados de los que se pueden listar con seguridad. Guarda todos los cambios antes de usar la selección.",
   changesProjectRoot: "Raíz del proyecto",
-  changesMoreActions: "Más acciones de cambios",
+  changesMoreActions: "Descartar o restaurar cambios",
   changesContextMenuLabel: "Acciones contextuales",
   changesCopy: "Copiar",
   changesCopied: "Texto seleccionado copiado.",
   changesCopyFailed: "No se pudo copiar el texto seleccionado. Usa Ctrl+C o Cmd+C en su lugar.",
   changesDiscardFileContext: "Descartar cambios…",
-  changesDiscardSelected: "Descartar cambios del archivo seleccionado…",
+  changesDiscardSelected: "Descartar los cambios de este archivo…",
   changesDiscardAll: "Descartar todos los cambios…",
-  changesRestoreDiscarded: "Restaurar los últimos cambios descartados…",
+  changesRestoreDiscarded: "Restaurar cambios descartados…",
   changesDiscardFileTitle: "¿Descartar los cambios de este archivo?",
   changesDiscardAllTitle: "¿Descartar todos los cambios sin guardar?",
-  changesRestoreTitle: "¿Restaurar los cambios descartados?",
-  changesDiscardFileSummary: (path) => `${path} volverá a su último estado guardado.`,
-  changesDiscardAllSummary: (count) => count === 1 ? "1 archivo modificado volverá a su último estado guardado." : `${count} archivos modificados volverán a su último estado guardado.`,
-  changesDiscardPreparedWarning: "Los cambios preparados de esta selección también se reemplazarán.",
-  changesDiscardUntrackedWarning: "Los archivos nuevos de esta selección saldrán del proyecto.",
-  changesDiscardConflictWarning: "Los conflictos de esta selección se reemplazarán por el contenido guardado más reciente.",
-  changesDiscardRecoveryNote: "GitOdile crea primero una copia de recuperación privada y local, para que puedas deshacerlo.",
-  changesDiscardConfirmFile: "Descartar cambios del archivo",
+  changesRestoreTitle: "Restaurar cambios descartados",
+  changesDiscardDoneTitle: "Cambios descartados",
+  changesRestoreDoneTitle: "Cambios restaurados",
+  changesDiscardFileSummary: (path) => `${path} volverá a su última versión guardada.`,
+  changesDiscardAllSummary: (count) => count === 1 ? "1 archivo modificado volverá a su última versión guardada." : `${count} archivos modificados volverán a su última versión guardada.`,
+  changesDiscardPreparedWarning: "Los cambios preparados también se reemplazan.",
+  changesDiscardUntrackedWarning: "Los archivos nuevos salen del proyecto.",
+  changesDiscardConflictWarning: "Los conflictos sin resolver se reemplazan por la última versión guardada.",
+  changesDiscardRecoveryNote: "GitOdile guarda antes una copia en este equipo, para que puedas deshacerlo.",
+  changesDiscardConfirmFile: "Descartar estos cambios",
   changesDiscardConfirmAll: "Descartar todos los cambios",
-  changesRestoreConfirm: "Restaurar cambios descartados",
-  changesDiscardSuccess: (count) => count === 1 ? "Los cambios del archivo se descartaron de forma segura." : `${count} archivos volvieron a su estado guardado.`,
-  changesRestoreSuccess: "Los cambios descartados se han restaurado.",
+  changesRestoreConfirm: "Restaurar estos cambios",
+  changesDiscardSuccess: (count) => count === 1 ? "1 archivo volvió a su última versión guardada." : `${count} archivos volvieron a su última versión guardada.`,
+  changesRestoreSuccess: (count) => count === 1 ? "1 archivo ha vuelto a donde estaba." : `${count} archivos han vuelto a donde estaban.`,
   changesUndoDiscard: "Deshacer descarte",
-  changesDiscardLoading: "Preparando una vista previa segura…",
-  changesRestoreSummary: (count) => count === 1 ? "GitOdile restaurará el estado protegido de 1 ruta." : `GitOdile restaurará el estado protegido de ${count} rutas.`,
-  changesDiscardUnavailable: "Esta acción ya no está disponible. Actualiza Cambios e inténtalo de nuevo.",
+  changesDiscardLoading: "Comprobando qué va a cambiar…",
+  changesRestoreLoading: "Buscando cambios descartados…",
+  changesRestoreSummary: (count) => count === 1 ? "Recuperando 1 archivo…" : `Recuperando ${count} archivos…`,
+  changesRestoreChooseLabel: "Cambios descartados",
+  changesRestoreChooseIntro: "Elige qué quieres recuperar.",
+  changesRestoreEmpty: "No hay copias guardadas que recuperar.",
+  changesRestoreEntryPaths: (count) => count === 1 ? "1 archivo" : `${count} archivos`,
+  changesRestoreEntryMore: (preview, hidden) => `${preview} y ${hidden} más`,
+  changesRestoreUnavailableSuperseded: "Uno de estos archivos cambió después del descarte, así que restaurarlo sobrescribiría trabajo más nuevo.",
+  changesRestoreUnavailableIncomplete: "Este descarte no llegó a terminar, así que no se puede restaurar automáticamente.",
+  changesRestoreUnavailableToggle: (count) =>
+    count === 1 ? "1 más no se puede restaurar ahora" : `${count} más no se pueden restaurar ahora`,
+  changesRestoreNoneAvailable: "Ninguno se puede restaurar ahora: todos nombran un archivo que cambió después.",
+  changesRestorePreparedNote: "Recupera los archivos. Los cambios preparados se quedan como están.",
+  changesRestoreForget: "Eliminar esta copia",
+  changesRestoreForgetTitle: "¿Eliminar esta copia?",
+  changesRestoreForgetWarning: (count) =>
+    count === 1
+      ? " El archivo que guarda no se podrá recuperar después."
+      : ` Los ${count} archivos que guarda no se podrán recuperar después.`,
+  changesRestoreForgetConfirm: "Eliminar copia",
+  changesRestoreForgetCancel: "Conservarla",
+  changesDiscardUnavailable: "Esta acción ya no está disponible. Comprueba los cambios locales e inténtalo de nuevo.",
 };
 
 export const changesTranslations = { en, es } as const;

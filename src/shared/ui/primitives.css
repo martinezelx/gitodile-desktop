@@ -267,14 +267,16 @@
 /* The shared anchored-popup surface, worn by every app-styled dropdown that
    is not a native `<select>` (the Changes view picker, the titlebar menus).
    It belongs here rather than in a feature file precisely so features can
-   still override it: the cascade order in `styles.css` puts shared
-   primitives ahead of every feature, so a rule like
-   `.changes-view-picker__menu { left: 0 }` wins on equal specificity. When
+   still override it: the cascade order in `styles.css` puts shared primitives
+   ahead of every feature, so a rule like
+   `.changes-actions-menu__popup { left: 0 }` wins on equal specificity. When
    this block lived in `features/version-lines/version-lines.css` it loaded
    *after* `features/changes/changes.css`, so `.app-menu`'s `right: 0` beat
    the Changes override and dropped that menu leftwards, overlapping the file
    list beside it. Default alignment stays `right: 0` — most triggers in this
-   app sit at the right edge of their row. */
+   app sit at the right edge of their row, and a menu that opens off that edge
+   is one a panel with `overflow: hidden` cuts in half. A feature aligns this
+   the other way only when its trigger is *not* at that edge. */
 .app-menu {
   position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 5;
   min-width: 220px; max-width: min(320px, calc(100vw - 2 * var(--space-5)));

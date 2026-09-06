@@ -124,8 +124,14 @@ export function createChangesController(port: ChangesPort) {
     getDiscardRecovery(projectId: string, sessionEpoch: string) {
       return port.getDiscardRecovery({ projectId, sessionEpoch });
     },
+    listDiscardRecoveries(projectId: string, sessionEpoch: string) {
+      return port.listDiscardRecoveries({ projectId, sessionEpoch });
+    },
     restoreDiscard(projectId: string, sessionEpoch: string, recoveryId: string, stateToken: string) {
       return port.restoreDiscard({ projectId, sessionEpoch, recoveryId, stateToken });
+    },
+    deleteDiscardRecovery(projectId: string, sessionEpoch: string, recoveryId: string) {
+      return port.deleteDiscardRecovery({ projectId, sessionEpoch, recoveryId });
     },
     scheduleWarm(runtime: ProjectRuntime, projectId: string, sessionEpoch: string, workingTree: WorkingTreeStatus, reason: ProjectCacheWarmReason): () => void {
       const store = getStore(projectId, sessionEpoch, workingTree);

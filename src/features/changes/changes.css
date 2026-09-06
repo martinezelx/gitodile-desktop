@@ -90,11 +90,19 @@
 }
 
 .changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
-.changes-view__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
-.changes-view__header p { margin: 4px 0 0; color: var(--text-secondary-color); font-size: var(--text-lead); }
+.changes-view__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); }
+/* The title and the state of the working tree are one line, not a heading with
+   a paragraph under it: the sentence is a caption for the word beside it, and
+   the line it used to take is a line the file list and the diff now get.
+   `baseline` is what lets a 22px heading and a 14px caption share a row without
+   the caption reading as dropped; the wrap is for the narrow window, where the
+   sentence returns to a line of its own rather than being cut. */
+.changes-view__heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); min-width: 0; }
+.changes-view__header p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-lead); }
 .changes-view__summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .changes-view__summary-separator { color: var(--text-secondary-color); opacity: 0.6; }
 .changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 10px; }
+.changes-view__selection { font-variant-numeric: tabular-nums; }
 .changes-view__lines { font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); font-size: var(--text-body); }
 .changes-view__lines--added { color: var(--diff-added); }
 .changes-view__lines--removed { color: var(--diff-removed); }
@@ -146,19 +154,27 @@
 .changes-header-actions__buttons { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 /* Same rule as the Overview summary row: a single-line control is fully
    rounded — a circle where it is square, a capsule where it carries a label.
-   Save is the capsule beside this circle, and every radius in the cluster is
-   half its own height, so the row keeps its shape at any pointer size. */
+   It is a circle at the row tier because it now lives inside a row (the file
+   list's strip), which is what `--sm` on the primitive says; only the width is
+   set here, since a feature may not resize a button's height. */
 .changes-actions-menu__trigger {
-  width: var(--control-height-md);
-  min-width: var(--control-height-md);
+  width: var(--control-height-sm);
+  min-width: var(--control-height-sm);
   padding: 0;
   border-radius: var(--radius-round);
 }
 .changes-header-actions__save svg { width: 16px; height: 16px; }
-.changes-actions-menu { position: relative; display: inline-flex; }
+.changes-actions-menu { position: relative; display: inline-flex; flex-shrink: 0; }
 .changes-actions-menu__trigger { justify-content: center; }
 .changes-actions-menu__trigger svg { width: 17px; height: 17px; }
-.changes-actions-menu__popup { min-width: 270px; }
+/* The one menu in this screen that opens rightward, and the exception the
+   shared default allows for: its items name files — this one, all of them —
+   and right-anchored it dropped straight down over the list that answers
+   which. Hung from the trigger's left edge it opens across the diff instead,
+   so what is about to be discarded stays on screen while the choice is made.
+   There is room for it there: the list panel is 280px at most and the menu is
+   270px, so it clears the diff's own edge by a wide margin. */
+.changes-actions-menu__popup { right: auto; left: 0; min-width: 270px; }
 .changes-actions-menu .app-menu__item--danger { color: var(--status-danger); }
 .changes-actions-menu .app-menu__item--danger svg { color: currentColor; }
 .changes-actions-menu .app-menu__item:disabled { opacity: 0.42; }
@@ -186,6 +202,12 @@
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .changes-discard-dialog h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+/* The dialog spaces its own parts with one gap, so nothing inside it brings a
+   margin of its own. Discarding said this through a wrapper it happened to
+   have; restoring's sentences sat straight in the column and kept the
+   browser's, which is how two halves of one dialog ended up with different
+   rhythm. */
+.changes-discard-dialog > p { margin: 0; }
 .changes-discard-status { display: flex; align-items: center; gap: 10px; color: var(--text-secondary-color); }
 .changes-discard-status svg { width: 19px; height: 19px; }
 .changes-discard-summary { display: grid; gap: var(--space-3); }
@@ -196,6 +218,77 @@
   background: var(--surface-active); color: var(--text-primary-color); font-size: var(--text-body);
 }
 .changes-discard-recovery svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; color: var(--accent-primary); }
+/* The stored recoveries scroll inside the dialog rather than growing it: ten
+   is the cap Rust keeps, and the actions below have to stay reachable without
+   scrolling past the list to find them. The padding is for the focus ring,
+   which an `overflow` container would otherwise clip on the first and last
+   card. */
+.changes-restore-list {
+  max-height: 264px; overflow-y: auto; padding: 2px;
+  /* `flex: 0 0 auto` because the dialog is a flex column that scrolls: an
+     `overflow` child has a zero min-height, so it was the one thing here that
+     could shrink, and expanding the folded-away records squeezed the actual
+     choices down to a sliver. The list caps itself at its own height; anything
+     past that is the dialog's scroll to take. */
+  flex: 0 0 auto;
+}
+/* Why a record is not on offer, on the record itself. A reason that lived in a
+   tooltip would be unreachable on exactly the card that cannot be focused. */
+.changes-restore-option__reason {
+  color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
+}
+/* A record and the one thing that can be done to it besides restoring. The
+   card keeps the whole row's width; the delete control is a quiet square
+   beside it, because a destructive action on a list of protected work should
+   not be the loudest thing in the row. */
+.changes-restore-row { display: flex; align-items: stretch; gap: 4px; }
+.changes-restore-row > .choice-list__option { flex: 1; min-width: 0; }
+.changes-restore-row__forget {
+  flex: 0 0 auto; width: 32px; display: grid; place-items: center;
+  border: 1px solid transparent; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.changes-restore-row__forget:hover { background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); }
+.changes-restore-row__forget:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.changes-restore-row__forget svg { width: 15px; height: 15px; }
+/* The row becomes its own question rather than opening a dialog over the
+   dialog: the list stays readable behind the choice, and the answer sits
+   exactly where the thing it destroys was. */
+.changes-restore-row--forgetting {
+  flex-direction: column; gap: var(--space-2);
+  padding: 10px var(--space-3);
+  border: 1px solid var(--status-danger); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) 8%, transparent);
+}
+.changes-restore-row__question { margin: 0; font-size: var(--text-body); line-height: var(--leading-normal); }
+.changes-restore-row__question strong { margin-right: 4px; }
+.changes-restore-row__answers { display: flex; justify-content: flex-end; gap: var(--space-2); }
+/* The row tier from DESIGN.md § Size: this pair lives inside a list row, not
+   in the dialog's own action bar. */
+.changes-danger-button--sm {
+  min-height: var(--control-height-sm);
+  padding: 6px var(--space-3);
+  font-size: var(--control-font-sm);
+}
+.changes-restore-unavailable { display: grid; gap: var(--space-2); }
+/* A disclosure, not a control that acts: it reads as the quiet line it is
+   until pointed at, and carries its own caret rather than a chevron button. */
+.changes-restore-unavailable__toggle {
+  display: flex; align-items: center; gap: 6px; justify-self: start;
+  padding: 4px 8px 4px 4px; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  font: inherit; font-size: var(--text-label);
+}
+.changes-restore-unavailable__toggle:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.changes-restore-unavailable__toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.changes-restore-unavailable__toggle svg { width: 15px; height: 15px; flex-shrink: 0; }
+/* The same card as an option, minus every affordance of one: nothing here is
+   pickable, so nothing here hovers, focuses or claims to be a choice. */
+.changes-restore-option--static { opacity: 0.75; background: var(--surface-hover); }
+.changes-discard-dialog__header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+}
 .changes-discard-error {
   display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--radius-surface);
   background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); font-size: var(--text-body);
@@ -225,39 +318,42 @@
 .changes-empty__icon svg { width: 20px; height: 20px; }
 .changes-empty h2 { font-size: var(--text-title); margin-bottom: 6px; }
 .changes-empty p { color: var(--text-secondary-color); font-size: var(--text-lead); line-height: var(--leading-normal); margin-bottom: 22px; }
+/* The empty-state pattern allows a second action; this one stacks under the
+   first rather than sitting beside it, because the block is 380px of prose
+   wide and two capsules do not fit in that. Quieter, too: leaving for Overview
+   is what this screen expects, and reaching for discarded work is the rare
+   errand — which is exactly the difference between a capsule and a ghost. */
+.changes-empty__actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
 .changes-layout {
   flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: var(--space-4);
-  /* Both panels open with a header strip closed by a bottom rule, and those
-     two rules have to land on the same pixel row or the pair looks skewed.
-     Their natural heights differ — the left strip's tallest child is the
-     18px round checkbox, the right's is the ~23px category badge — so equal
-     padding alone is not enough. Pinning both to one height here makes them
-     match by construction instead of by a measured padding fudge, and it
-     stays correct if either strip's content changes. Sized a hair above the
-     taller strip's natural height so it always wins. */
-  --changes-header-height: 57px;
-  /* The second paired strip, below the two headers: the file list's search
-     box on the left, the diff's view/change toolbar on the right. Same
-     contract as `--changes-header-height` — both strips wrap one control with
-     9px of breathing room above and below, so pinning the height here keeps
-     their bottom rules on one pixel row even when only one side has content
-     (a file with no hunks hides the change navigation).
+  /* Each panel opens with one strip closed by a bottom rule, and those two
+     rules have to land on the same pixel row or the pair looks skewed.
 
-     The control is the row tier from DESIGN.md § Size, not a size of this
-     toolbar's own: this variable predates the scale, sat at 34px, and the
-     History diff workspace had already overridden it to 32 — one control
-     wearing two heights two pixels apart, which is the drift the scale
-     exists to stop. The strip height is a `calc` off it rather than a second
-     number, so the +9/+9/+1 contract holds by construction if the tier moves.
+     There used to be two strips a side — a header over a toolbar — kept level
+     by two separate height contracts. They asked one question between them
+     (which file, included how, shown how), so each pair is now a single row,
+     which leaves one number to keep instead of two and hands the files and the
+     diff back the ~50px the second rule cost them.
+
+     The strip is the row control — the search box on the left, the
+     reading-mode picker on the right — plus 10px of breathing room above and
+     below. It is a `calc` off the control tier rather than a number of its
+     own, so it stays correct if that tier moves; a size written here on its
+     own is the drift task 106 fixed.
 
      Applied as a fixed `height` rather than a `min-height`: both strips are
      flex items in a column whose other child is a scroller, so a `min-height`
      let whichever side was under shrink pressure settle 1px shorter than the
      other — the two rules landing one pixel apart is precisely what a paired
-     header is supposed to prevent. `flex: 0 0 auto` below is the other half
-     of that fix. */
+     header is supposed to prevent. `flex: 0 0 auto` on each strip is the other
+     half of that fix, and everything inside them stays on one line.
+
+     The control variable keeps its name from those toolbars: it is the height
+     of the control that lives in these strips, and `DiffOptionPicker` reads it
+     with a fallback so the same picker still sizes correctly on the History
+     workspace, which is outside this layout. */
   --changes-toolbar-control-height: var(--control-height-sm);
-  --changes-toolbar-height: calc(var(--changes-toolbar-control-height) + 19px);
+  --changes-header-height: calc(var(--changes-toolbar-control-height) + 20px);
 }
 .changes-file-list {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
@@ -266,38 +362,21 @@
      insert gutters between the paired list and diff headers. */
   gap: 0;
 }
-.changes-file-list__selection {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-  /* Right inset matches where the file rows' trailing category icon actually
-     sits: the scroll viewport's own margin (`--space-2`) plus the file item's
-     own right padding (`--space-3`) — not just the viewport margin alone,
-     or the count reads closer to the edge than the icons below it. */
-  padding: var(--space-4) calc(var(--space-2) + var(--space-3)) var(--space-4) var(--space-2);
-  /* Paired with `.changes-diff__header`: same height, same bottom rule, so
-     the two panels read as one matched header band. See the note on
-     `--changes-header-height`. `min-height` (not a fixed height) because the
-     opposite strip can legitimately grow — a long wrapped path, or the
-     renamed-from line — and this one has to follow. `flex-shrink: 0` so it
-     can only ever grow: as a flex item beside a scroller it would otherwise
-     be squeezed back to the minimum while its partner kept its natural
-     height, which is the same 1px mismatch the toolbar strips had. */
-  flex-shrink: 0;
-  min-height: var(--changes-header-height);
-  color: var(--text-secondary-color); font-size: var(--text-label);
+/* Include-everything, the count it produces, and the filter over the list:
+   one strip, paired with the diff header. See the note on
+   `--changes-header-height`. */
+.changes-file-list__toolbar {
+  display: flex; align-items: center; gap: var(--space-2);
+  flex: 0 0 auto; height: var(--changes-header-height);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .changes-file-list__select-all {
   display: inline-flex;
 }
+/* The same 6px inset the rows below use, from the same 8px gutter, so this
+   checkbox stands at the head of their column rather than beside it. */
 .changes-file-list__select-all .changes-file-row__checkbox { margin: 0 0 0 6px; }
-.changes-file-list__search {
-  display: flex; align-items: center;
-  flex: 0 0 auto; height: var(--changes-toolbar-height);
-  /* Asymmetric on purpose: the strip's total height is fixed (paired with
-     the diff toolbar on the right), so this is what actually moves the
-     search box within it — less room above than below shifts it up. */
-  padding: 4px var(--space-2) 15px;
-  border-bottom: 1px solid var(--border-subtle);
-}
 .changes-search-box {
   /* Same fallback as the view picker below, for the same reason. */
   flex: 1; min-width: 0; box-sizing: border-box; height: var(--changes-toolbar-control-height, var(--control-height-sm));
@@ -403,23 +482,48 @@
 }
 .changes-diff__back svg { width: 16px; height: 16px; }
 .changes-diff__header {
-  display: flex; align-items: flex-start; gap: 10px; padding: var(--space-4);
-  /* Paired with `.changes-file-list__selection` — see the note on
-     `--changes-header-height`. `min-height` rather than `height` so a long
-     path that wraps, or the renamed-from line, can still push this taller;
-     `flex-shrink: 0` so nothing can push it shorter. */
-  flex-shrink: 0;
-  min-height: var(--changes-header-height);
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-4) 0 var(--space-3);
+  /* Paired with `.changes-file-list__toolbar` — see the note on
+     `--changes-header-height`. A fixed height, not a minimum: everything in
+     here is a single line that truncates, so nothing a path or a
+     renamed-from note can say pushes this strip out of step with the one
+     beside it. */
+  flex: 0 0 auto;
+  height: var(--changes-header-height);
   border-bottom: 1px solid var(--border-subtle);
 }
-.changes-diff__header-icon { display: grid; place-items: center; color: var(--text-secondary-color); margin-top: 2px; }
+.changes-diff__header-icon { display: grid; place-items: center; flex-shrink: 0; color: var(--text-secondary-color); }
 .changes-diff__header-icon svg { width: 16px; height: 16px; }
-.changes-diff__header-text { min-width: 0; flex: 1; }
-.changes-diff__title-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex-wrap: nowrap; }
-.changes-diff__path {
-  min-width: 0; margin: 0; font-weight: var(--weight-strong); font-size: var(--text-lead);
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  direction: rtl; unicode-bidi: plaintext; text-align: left;
+/* The file's own icon, the same one its row carries, so the open file is
+   recognizable as the one that was clicked. */
+.changes-diff__type-icon { width: 16px; height: 16px; display: block; }
+/* `overflow: hidden` is the guard, not a tidy-up: the badge beside the name
+   cannot shrink, so under enough pressure the row would keep painting it
+   straight over the controls to its right. Clipped, the narrowest pane loses
+   the end of the badge instead of overlapping two things nobody can read. */
+.changes-diff__title-row {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  min-width: 0; flex: 1; flex-wrap: nowrap; overflow: hidden;
+}
+.changes-diff__path { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; flex: 0 1 auto; margin: 0; }
+.changes-diff__name {
+  /* A floor, so the one thing this strip exists to name cannot be squeezed
+     out of it entirely: past this the name keeps a few characters and its
+     ellipsis, and the folder and the badge give way instead. */
+  min-width: 4em; flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-weight: var(--weight-strong); font-size: var(--text-lead);
+}
+.changes-diff__dir {
+  /* Both halves can shrink, but not at the same rate: the weight makes the
+     folder give up room several times faster than the name, because the name
+     is what this strip is naming and the file list is already showing the
+     folder. It truncates from the head, in the same size and with the same
+     `rtl` trick its row uses, since the folders nearest the file locate it
+     better than the root does. */
+  min-width: 0; flex: 0 8 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  color: var(--text-secondary-color); font-size: var(--text-caption);
+  direction: rtl; text-align: left;
 }
 .changes-diff__category {
   flex-shrink: 0; padding: 3px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
@@ -442,36 +546,52 @@
   color: var(--status-warning);
 }
 .changes-diff__origin {
-  min-width: 0; flex: 0 1 auto; margin: 0; font-size: var(--text-label); color: var(--text-secondary-color);
+  /* Last in the row and first to give way — hence the shrink weight, well
+     above the folder's: where a file came from is worth a strip's leftover
+     room, never the room the file's own name needs. The full value stays on
+     the tooltip. */
+  min-width: 0; flex: 0 40 auto; margin: 0; font-size: var(--text-label); color: var(--text-secondary-color);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
-.changes-diff__file-nav,
-.changes-diff__hunk-nav { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.changes-diff__file-nav { align-self: center; }
-.changes-diff__position {
-  margin-right: 4px; color: var(--text-secondary-color); font-size: var(--text-label); font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+/* The controls for reading the file, kept off the file's own name by the same
+   hairline the app divides content with. The rule is the height of the
+   controls rather than of the strip, so it reads as a divider inside a row and
+   not as a second panel edge. */
+.changes-diff__controls {
+  display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--border-divider);
 }
+/* Each pair reads as a pair: the arrows inside one sit closer to each other
+   than the two pairs do to each other, which is the only thing left telling
+   "previous/next file" from "previous/next change" now that neither carries a
+   number. */
+.changes-diff__file-nav,
+.changes-diff__hunk-nav { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .changes-diff__step {
-  width: 24px; height: 24px; display: grid; place-items: center; flex-shrink: 0;
-  border: 1px solid transparent; border-radius: var(--radius-item);
+  /* A circle, not a rounded square: an icon on its own is a round target
+     everywhere else in the app, and at this size `--radius-item` was close
+     enough to a circle to read as a failed one (DESIGN.md § Shape). Sized so
+     the 15px glyph keeps an even ring of space around it.
+
+     `padding: 0` is load-bearing. A `<button>` carries the browser's own
+     `1px 6px`, and nothing resets it globally: with the box 24px wide there
+     was less content box than glyph, so the icon was laid out from the
+     padding edge rather than centred in the button — which is why it sat
+     right of its own hover shape. */
+  width: 28px; height: 28px; padding: 0;
+  display: grid; place-items: center; flex-shrink: 0;
+  border: 1px solid transparent; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
 }
-.changes-diff__step svg { width: 15px; height: 15px; }
+.changes-diff__step svg { width: 15px; height: 15px; display: block; }
 .changes-diff__step:hover:not(:disabled) {
   background: var(--surface-hover); border-color: var(--border-subtle); color: var(--text-primary-color);
 }
 .changes-diff__step:disabled { opacity: 0.35; }
 .changes-diff__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.changes-diff__toolbar {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
-  flex: 0 0 auto; height: var(--changes-toolbar-height);
-  padding: 9px var(--space-4);
-  border-bottom: 1px solid var(--border-subtle);
-}
 .changes-diff__view { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.changes-diff__view-label { color: var(--text-secondary-color); font-size: var(--text-label); white-space: nowrap; }
 .changes-view-picker { position: relative; display: inline-flex; }
 /* Doubled up on `.version-line-selector` on purpose. The trigger wears that
    class too, and `features/version-lines` loads *after* this file, so at equal
@@ -492,7 +612,13 @@
   padding: 0 var(--space-4); gap: 7px; border-radius: var(--radius-pill);
 }
 .changes-view-picker__value { font-size: var(--text-body); font-weight: var(--weight-medium); white-space: nowrap; }
-.changes-view-picker__menu { right: auto; left: 0; min-width: 180px; }
+/* Alignment comes from `.app-menu` now, and must: this trigger sits at the
+   right edge of the header, inside a panel that clips its own overflow, so the
+   left-anchored menu this rule used to force — correct while the picker stood
+   at the left of a toolbar of its own — opened straight off the panel's edge
+   and lost half its items. Right-anchored it opens back over the diff, which
+   is what the same picker does in History. */
+.changes-view-picker__menu { min-width: 180px; }
 /* The trigger's leading glyph is wrapped in a span rather than classed on the
    SVG itself, because the same icon is reused inside the menu where a
    different rule sizes it. The 15px the shared token sets therefore has to
@@ -604,6 +730,10 @@
 .diff-line__number--empty { user-select: none; }
 @media (max-width: 1024px) {
   .changes-layout { grid-template-columns: 1fr; }
+  /* One column: the list fills the window, so its strip's trigger is at the
+     window's right edge and the menu goes back to the shared alignment. There
+     is nothing to its right to open over any more. */
+  .changes-actions-menu__popup { right: 0; left: auto; }
   .changes-layout .changes-diff { display: none; }
   .changes-layout--detail .changes-file-list { display: none; }
   .changes-layout--detail .changes-diff { display: flex; }
@@ -618,11 +748,7 @@
     gap: var(--space-2);
   }
   .changes-header-actions__buttons { width: 100%; }
-  /* Only the labelled action takes the free width. Stretching the two icon
-     buttons would turn their 50% radius into an ellipse, and neither gains
-     anything from being 200px wide. */
   .changes-header-actions__save { flex: 1 1 auto; justify-content: center; }
-  .changes-actions-menu { flex: 0 0 auto; }
 }
 
 @media (pointer: coarse) {

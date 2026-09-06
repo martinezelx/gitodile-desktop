@@ -197,8 +197,8 @@ function ready(data: string, mediaType: string, byteLength = 64): ImagePreviewSi
 }
 
 /** Stands in for a surface: it owns the picture the way ChangesPanel and
- * History do — the pickers in its own toolbar, the pictures in the diff view
- * below — so these tests exercise the wiring the app actually uses. */
+ * History do — the pickers in its own header strip, the pictures in the diff
+ * view below — so these tests exercise the wiring the app actually uses. */
 function PictureHost({
   diff,
   preview,
@@ -211,7 +211,7 @@ function PictureHost({
   const picture = usePictureDiff(diff, "test-source", preview === null ? undefined : async () => preview);
   return (
     <DiffPreferencesProvider value={DEFAULT_DIFF_PREFERENCES}>
-      <div className="changes-diff__toolbar">
+      <div className="changes-diff__controls">
         {picture && <PictureDiffControls picture={picture} t={t} />}
       </div>
       <DiffResultView diff={diff} picture={picture} viewMode={viewMode} t={t} />

@@ -18,7 +18,7 @@ use crate::{
     },
     project_settings::{self, IgnoreFile, ProjectIdentity},
     publish_domain::{self, PublishPlan, PublishResult},
-    recovery::{self, DiscardPlan, DiscardRecovery, DiscardResult},
+    recovery::{self, DiscardPlan, DiscardRecovery, DiscardRecoveryRecord, DiscardResult},
     repository::{self, RepositoryInfo},
     save_version::{self, SaveVersionPlan, SaveVersionResult},
     session,
@@ -331,6 +331,35 @@ pub(crate) fn get_discard_recovery(
         (|| {
             validate_session(&path, &session_epoch)?;
             recovery::get_discard_recovery(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn list_discard_recoveries(
+    path: String,
+    session_epoch: String,
+) -> Result<Vec<DiscardRecoveryRecord>, AppError> {
+    report_result(
+        "list_discard_recoveries",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            recovery::list_discard_recoveries(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn delete_discard_recovery(
+    path: String,
+    recovery_id: String,
+    session_epoch: String,
+) -> Result<(), AppError> {
+    report_result(
+        "delete_discard_recovery",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            recovery::delete_discard_recovery(path, recovery_id)
         })(),
     )
 }
