@@ -312,6 +312,24 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
   return [preferences, setPreferences];
 }
 
+/** The rail order that shipped before History moved up beside Changes. Every
+ * session writes the whole snapshot back, so by the time the default changed
+ * this exact list was already sitting in storage for everyone who had ever
+ * opened the app — including everyone who had never opened Navigation
+ * Settings. An order identical to a superseded default is the absence of a
+ * choice rather than one, so it adopts the new default; anything else is the
+ * user's arrangement and stands. */
+const SUPERSEDED_DESTINATION_ORDERS: readonly (readonly string[])[] = [
+  ["overview", "changes", "version-lines", "history", "recovery"],
+];
+
+function isSupersededOrder(order: readonly string[]): boolean {
+  return SUPERSEDED_DESTINATION_ORDERS.some(
+    (superseded) =>
+      superseded.length === order.length && superseded.every((id, index) => id === order[index]),
+  );
+}
+
 /** Navigation is stored as one validated snapshot: membership, order and
  * appearance describe one rail, so applying only part of a stale or malformed
  * value would produce a surprising hybrid. Unknown ids are ignored; newly
@@ -350,9 +368,9 @@ export function useStoredNavigationPreferences(
             (id): id is string => typeof id === "string" && allowed.has(id),
           )
         : [];
-      const destinationOrderIds = Array.from(
-        new Set([...storedOrder, ...defaultDestinationIds]),
-      );
+      const destinationOrderIds = isSupersededOrder(storedOrder)
+        ? [...defaultDestinationIds]
+        : Array.from(new Set([...storedOrder, ...defaultDestinationIds]));
       return { visibleDestinationIds, destinationOrderIds, displayMode };
     } catch {
       return fallback();

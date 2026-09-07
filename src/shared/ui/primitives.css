@@ -133,6 +133,34 @@
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
+/* The line a screen opens on: its own name, one line of state beside it, and
+   whatever that screen can do about it at the far end. Changes and History both
+   wrote this row by hand and had already drifted — one pinned the title's
+   leading and the other left it to the browser, so the same 22px heading did
+   not even measure the same on the two screens. One definition, so switching
+   between two screens moves nothing that is meant to be the same.
+
+   `baseline` is what lets the 22px title and the 14px caption share a row
+   without the caption reading as dropped, and the wrap is for the narrow
+   window, where the sentence returns to a line of its own rather than being
+   cut. A screen with no actions simply renders the heading; the row still
+   measures the same, which is the point. */
+.screen-header {
+  /* The row measures a labelled action whether or not this screen has one, so
+     a screen that only states its name still hands the panels below it the
+     same first pixel row as the screen next to it. Without it Changes — whose
+     header carries Save — started its panels 12px lower than History's, and
+     the whole workbench nudged on every switch between them. */
+  min-height: var(--control-height-md);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-5);
+}
+.screen-header__heading { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.screen-header__heading h1 { margin: 0; line-height: var(--leading-tight); }
+.screen-header__heading p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-lead); }
+@media (max-width: 800px) {
+  .screen-header { flex-direction: column; align-items: stretch; }
+}
+
 .empty-state {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; max-width: 380px; margin: 0 auto; padding: 40px 24px; text-align: center;

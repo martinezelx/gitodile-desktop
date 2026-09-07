@@ -529,8 +529,20 @@ describe("HistoryPanel", () => {
     }));
 
     const timelineHeader = container.querySelector(".history-timeline__toolbar");
-    const screenHeader = container.querySelector(".history-view__header");
+    const screenHeader = container.querySelector(".screen-header");
     const detailHeader = container.querySelector(".history-detail__summary");
+    // One strip on the card, the way each panel of the screen has one: the
+    // tabs and, at the end of the same band, the controls for reading what is
+    // open. The band that used to sit between them is gone, and the two facts
+    // it ran together are where each of them is true — how many files the
+    // version touched, on the line stating the version's other facts, and how
+    // many lines the open file moves, beside that file's own name.
+    expect(container.querySelector(".history-workspace__toolbar")).toBeNull();
+    expect(detailHeader?.querySelector(".history-diff-controls")).not.toBeNull();
+    expect(container.querySelector(".history-detail__files")).toHaveTextContent("1 changed file");
+    const diffPaneHeader = container.querySelector(".history-diff-pane__header");
+    expect(diffPaneHeader?.querySelector(".history-lines-added")).toHaveTextContent("+1");
+    expect(diffPaneHeader?.querySelector(".history-lines-removed")).toHaveTextContent("−1");
     expect(timelineHeader).not.toBeNull();
     expect(screenHeader).not.toBeNull();
     expect(detailHeader).not.toBeNull();

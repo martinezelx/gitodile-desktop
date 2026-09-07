@@ -90,15 +90,10 @@
 }
 
 .changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
-.changes-view__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); }
-/* The title and the state of the working tree are one line, not a heading with
-   a paragraph under it: the sentence is a caption for the word beside it, and
-   the line it used to take is a line the file list and the diff now get.
-   `baseline` is what lets a 22px heading and a 14px caption share a row without
-   the caption reading as dropped; the wrap is for the narrow window, where the
-   sentence returns to a line of its own rather than being cut. */
-.changes-view__heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); min-width: 0; }
-.changes-view__header p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-lead); }
+/* The header row itself is `.screen-header` in primitives.css: the title and
+   the state of the working tree are one line, not a heading with a paragraph
+   under it, and History opens on the same row. What stays here is what this
+   screen says inside it. */
 .changes-view__summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .changes-view__summary-separator { color: var(--text-secondary-color); opacity: 0.6; }
 .changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 10px; }
@@ -325,7 +320,13 @@
    errand — which is exactly the difference between a capsule and a ghost. */
 .changes-empty__actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
 .changes-layout {
-  flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: var(--space-4);
+  /* The column track and the strip height are `--panel-column` and
+     `--strip-height` in tokens.css. History pairs the same two panels and reads
+     the same two values, so the panel edge and the first row stay put when
+     someone switches between the screens rather than stepping ~50px sideways
+     and a few pixels up. */
+  flex: 1; min-height: 0; display: grid;
+  grid-template-columns: var(--panel-column) minmax(0, 1fr); gap: var(--space-4);
   /* Each panel opens with one strip of the same height, so their contents
      start on the same pixel row rather than a step apart.
 
@@ -342,9 +343,9 @@
 
      The strip is the row control — the search box on the left, the
      reading-mode picker on the right — plus 10px of breathing room above and
-     below. It is a `calc` off the control tier rather than a number of its
-     own, so it stays correct if that tier moves; a size written here on its
-     own is the drift task 106 fixed.
+     below. That is `--strip-height`, a `calc` off the control tier rather than
+     a number of its own, so it stays correct if that tier moves; a size
+     written here on its own is the drift task 106 fixed.
 
      Applied as a fixed `height` rather than a `min-height`: both strips are
      flex items in a column whose other child is a scroller, so a `min-height`
@@ -358,7 +359,6 @@
      with a fallback so the same picker still sizes correctly on the History
      workspace, which is outside this layout. */
   --changes-toolbar-control-height: var(--control-height-sm);
-  --changes-header-height: calc(var(--changes-toolbar-control-height) + 20px);
 }
 .changes-file-list {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
@@ -368,8 +368,7 @@
   gap: 0;
 }
 /* Include-everything, the count it produces, and the filter over the list:
-   one strip, paired with the diff header. See the note on
-   `--changes-header-height`. */
+   one strip, paired with the diff header. See the note on `.changes-layout`. */
 /* No rule under it. The search box is already a bordered capsule floating on
    the panel, and a second line right below it fenced the box off from the very
    rows it filters — two edges 10px apart saying the same thing. The strip's
@@ -378,7 +377,7 @@
    though only one of them draws a line. */
 .changes-file-list__toolbar {
   display: flex; align-items: center; gap: var(--space-2);
-  flex: 0 0 auto; height: var(--changes-header-height);
+  flex: 0 0 auto; height: var(--strip-height);
   padding: 0 var(--space-2);
 }
 .changes-file-list__select-all {
@@ -462,12 +461,12 @@
   display: flex; align-items: center; gap: var(--space-2);
   padding: 0 var(--space-4) 0 var(--space-3);
   /* Paired with `.changes-file-list__toolbar` — see the note on
-     `--changes-header-height`. A fixed height, not a minimum: everything in
+     `.changes-layout`. A fixed height, not a minimum: everything in
      here is a single line that truncates, so nothing a path or a
      renamed-from note can say pushes this strip out of step with the one
      beside it. */
   flex: 0 0 auto;
-  height: var(--changes-header-height);
+  height: var(--strip-height);
   border-bottom: 1px solid var(--border-subtle);
 }
 .changes-diff__header-icon { display: grid; place-items: center; flex-shrink: 0; color: var(--text-secondary-color); }
@@ -705,6 +704,12 @@
 .diff-split-cell--deletion .diff-line__sign, .diff-split-cell--deletion .diff-line__content { color: var(--diff-removed); }
 .diff-split-cell--empty { background: var(--surface-hover); opacity: 0.35; }
 .diff-line__number--empty { user-select: none; }
+/* The same step History takes at the same width: the list column narrows
+   before either screen gives up its second panel. */
+@media (max-width: 1200px) {
+  .changes-layout { grid-template-columns: var(--panel-column-narrow) minmax(0, 1fr); }
+}
+
 @media (max-width: 1024px) {
   .changes-layout { grid-template-columns: 1fr; }
   /* One column: the list fills the window, so its strip's trigger is at the
@@ -718,7 +723,8 @@
 }
 
 @media (max-width: 800px) {
-  .changes-view__header { flex-direction: column; align-items: stretch; }
+  /* `.screen-header` stacks itself at this width; the actions inside it are
+     this screen's own. */
   .changes-header-actions {
     flex-direction: column;
     align-items: stretch;

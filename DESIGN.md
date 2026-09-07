@@ -73,11 +73,15 @@ The main desktop window should broadly support:
    destinations and utilities alike, since a rail that labels one and not the
    other reads as an accident — and the column narrows to 56px, the icon circle
    plus its padding. The 40px pointer target and accessible name remain.
-   - Overview, Changes, Lines, History, and Recovery keep their order.
-     Navigation Settings controls which stay in the rail; deselected and
-     height-overflowed destinations remain reachable in More, in registry
-     order. Recovery stays disabled and marked "Coming soon" until its screen
-     exists;
+   - Overview, Changes, History, Lines, and Recovery keep their order.
+     History sits directly under Changes because the two are one loop — what
+     has changed, and what has been saved — and they share a shape as well as
+     a neighbour: one screen header, one strip per panel, one list column.
+     Lines follows them: switching a version line is a deliberate move between
+     pieces of work rather than a step in that loop. Navigation Settings
+     controls which stay in the rail; deselected and height-overflowed
+     destinations remain reachable in More, in registry order. Recovery stays
+     disabled and marked "Coming soon" until its screen exists;
    - "More" is always the final destination tile. As the window loses height,
      the trailing destinations move into its menu in order instead of making
      the narrow rail scroll. The menu always ends after a separator with
@@ -465,6 +469,30 @@ Three things this settles:
   what makes the concentric nesting above true for free. It is only true where
   the height is actually known, so an un-sized control quietly breaks the shape
   rules as well as the size ones.
+
+**A measure that decides whether two screens line up belongs to the scale, not
+to a screen.** Changes and History pair the same two panels — a list beside a
+detail — and the same person moves between them all day. Both used to write
+that geometry themselves, and had drifted: a 280px list column against 330px,
+one strip height derived twice from the same `calc`, one screen giving up its
+second panel 44px of window width before the other. Four values in
+`tokens.css` say it once instead:
+
+| Token | What it is |
+| --- | --- |
+| `--panel-column` | The list column's grid track, with `--panel-column-narrow` below 1200px |
+| `--strip-height` | A panel's own strip: the row control in it plus 10px of air above and below. The History card's tab band is one |
+| `--strip-height-inner` | A strip *inside* a panel — the History workspace's file and diff panes — one step quieter |
+
+The heights are a `calc` off `--control-height-sm` rather than sizes of their
+own, for the same reason a control's height is a token: a strip is the control
+that lives in it plus its air, so it cannot be right at one number and wrong at
+another. The screen header above them is one shared rule too — `.screen-header`
+in `primitives.css`, which measures a labelled action whether or not the screen
+has one. Without that the panels beneath started 12px lower on the screen whose
+header carries a button, and the same 22px title did not even measure the same
+on the two screens: one pinned its leading and the other left it to the
+browser.
 
 There are no exceptions. There was one — the History diff pane's footer ran its
 buttons at 30px, below even `sm`, on the grounds that the pane around it is a

@@ -457,8 +457,8 @@ function DiffWorkspace({
           it were a header stacked on a toolbar, which cost this panel two
           rules and ~100px before the first line of code appeared. They ask
           one question between them — which file, shown how — so they are one
-          row now, paired with the file list's. See `--changes-header-height`
-          in changes.css. */}
+          row now, paired with the file list's. See `.changes-layout` in
+          changes.css. */}
       <header className="changes-diff__header">
         <span className="changes-diff__header-icon" aria-hidden="true">
           <FileTypeIcon className="changes-diff__type-icon" />
@@ -1041,11 +1041,12 @@ export function ChangesPanel({
   return (
     <div className="changes-view" aria-busy={isCheckingChanges}>
       <ChangesStatusNotice watcherState={watcherState} error={workingTreeError} busy={isCheckingChanges} onRefresh={onRefresh} onOpenSettings={onOpenSettings} t={t} />
-      <header className="changes-view__header">
-        {/* Title and state on one line. The summary is a caption for the
-            heading beside it, not a paragraph under it, and the line it used
-            to occupy belongs to the files. */}
-        <div className="changes-view__heading">
+      {/* Title and state on one line, with the screen's own actions at the far
+          end. `.screen-header` is the shared definition of that row — History
+          opens on the same one, so the two screens' panels start on the same
+          pixel row as well as in the same shape. */}
+      <header className="screen-header">
+        <div className="screen-header__heading">
           <h1>{t.changesHeading}</h1>
           {headerMessage}
         </div>
@@ -1100,7 +1101,7 @@ export function ChangesPanel({
                 whole row of chrome for a fraction like "3/12"; beside the
                 checkbox it names it holds the same meaning in a quarter of
                 the space, and the files start ~50px higher. Paired with the
-                diff header — see `--changes-header-height` in changes.css. */}
+                diff header — see `.changes-layout` in changes.css. */}
             <div className="changes-file-list__toolbar">
               <span className="changes-file-list__select-all">
                 {canChooseFiles ? (

@@ -76,6 +76,12 @@ describe("production style composition", () => {
     expect(settings).not.toContain(".settings-layout {");
     const primitiveChrome = readSource("shared/ui/primitives.css");
     expect(primitiveChrome).toContain(".settings-layout {");
+    // The row a screen opens on — its title, its state and its own actions —
+    // is shared by Changes and History, so exactly one sheet may define it.
+    // Two hand-written copies had already drifted apart on the title's leading.
+    expect(primitiveChrome).toContain(".screen-header {");
+    expect(changes).not.toContain(".changes-view__header");
+    expect(readSource("features/history/history.css")).not.toContain(".history-view__header");
     // Stacked option cards are shared by line endings and the per-project
     // identity, so exactly one sheet may define them.
     expect(primitiveChrome).toContain(".choice-list__option {");

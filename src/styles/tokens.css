@@ -47,6 +47,31 @@
   --control-font-sm: 12px;
   --control-font-md: 13px;
 
+  /* Two screens pair a list panel with a detail panel — Changes and History —
+     and the same person switches between them all day, so the panel edge and
+     the first row have to land in the same place on either. That agreement is
+     these four values rather than four numbers written twice:
+
+       `--panel-column`        the list column's grid track, and
+       `--panel-column-narrow` the same track below 1200px;
+       `--strip-height`        a panel's own strip: the row control that lives
+                               in it plus 10px of air above and below;
+       `--strip-height-inner`  a strip *inside* a panel — the file pane and the
+                               diff pane of the History workspace — one step
+                               quieter, because a strip nested in a strip's
+                               panel should not read as loud as the one around
+                               it.
+
+     Both heights are a `calc` off the row tier rather than a size of their own,
+     so they stay correct if that tier moves. They live here rather than in
+     either feature sheet because neither owns them: a value that decides
+     whether two *screens* line up is a design-system value, not a feature one.
+     See DESIGN.md § Size. */
+  --panel-column: minmax(260px, 320px);
+  --panel-column-narrow: minmax(240px, 280px);
+  --strip-height: calc(var(--control-height-sm) + 20px);
+  --strip-height-inner: calc(var(--control-height-sm) + var(--space-3));
+
   /* Type states a role, the same way radius and control size do — see
      DESIGN.md § Typography. Pick the step by what the text *is*, never by how
      big it needs to look: that is what let one screen drift a whole step below

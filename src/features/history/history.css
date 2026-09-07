@@ -14,14 +14,8 @@
 .history-notices:empty { display: none; }
 .history-notices { display: grid; gap: 6px; }
 
-/* Title and state on one line, the shape Changes uses. `baseline` is what lets
-   a 22px heading and a 14px caption share a row without the caption reading as
-   dropped; the wrap returns the sentence to a line of its own on a narrow
-   window rather than cutting it. */
-.history-view__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); }
-.history-view__heading { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
-.history-view__heading h1 { margin: 0; line-height: var(--leading-tight); }
-.history-view__heading p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-lead); }
+/* Title and state on one line: `.screen-header` in primitives.css, the row
+   Changes opens on too. This screen adds nothing to it. */
 .history-banner {
   display: flex;
   align-items: flex-start;
@@ -46,15 +40,14 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
-  gap: 12px;
-  /* The same calc Changes writes on its own layout, for the same reason: the
-     strip is the row control plus 10px of air above and below, expressed off
-     the control tier rather than as a number of its own. It is declared here
-     rather than shared with Changes because the two layouts are separate
-     hosts — the History diff toolbar already reads Changes' variable with a
-     fallback, which is what a value crossing a feature boundary costs. */
-  --history-header-height: calc(var(--control-height-sm) + 20px);
+  /* `--panel-column` and `--strip-height` in tokens.css. Changes pairs the same
+     two panels off the same two values: the column and the strip used to be
+     written once per sheet — 330 against 280, the same calc twice — so the
+     panel edge stepped sideways on the way between two screens that are meant
+     to read as one product. Neither feature owns a measure whose whole job is
+     to hold two screens together, so both now read it from the scale. */
+  grid-template-columns: var(--panel-column) minmax(0, 1fr);
+  gap: var(--space-4);
 }
 
 /* A panel, not a bare column: the timeline is the sibling of the detail card
@@ -81,7 +74,7 @@
      strip own inset on both sides, and a width that grows with the column. */
   position: relative;
   flex: 0 0 auto;
-  height: var(--history-header-height);
+  height: var(--strip-height);
   display: flex;
   align-items: center;
   padding: 0 var(--space-2);
@@ -455,7 +448,7 @@
    to the timeline, which is a control *about* the card and does not live
    inside it. The gap only exists while that button does — a `display: none`
    child creates none. */
-.history-detail { min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.history-detail { min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); overflow: hidden; }
 /* The card. It used to be three: an identity card, a tab band, and a workspace,
    each with its own border and 12px of air between them, for one saved version
    described in one place. Three surfaces to say one thing, and the two seams
@@ -481,7 +474,12 @@
 .history-detail__loading p { margin: 0; }
 .history-detail__back { display: none; align-self: flex-start; }
 
-.history-detail__summary { flex: 0 0 auto; overflow: hidden; }
+/* No `overflow: hidden`. It is left over from when this header was a bordered,
+   rounded card of its own and had corners to clip; the card around it clips
+   now. Kept, it cut off the reading-mode menu the moment that picker moved
+   into the tab band — the menu opens downward, and this box ends right below
+   the band. */
+.history-detail__summary { flex: 0 0 auto; }
 .history-detail__summary-top { min-height: 78px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 11px 12px 10px 16px; }
 .history-detail__identity { min-width: 0; flex: 1; display: grid; gap: 7px; }
 .history-detail__identity h2 { margin: 0; line-height: var(--leading-snug); letter-spacing: var(--tracking-tight); overflow-wrap: anywhere; }
@@ -489,6 +487,11 @@
 .history-detail__meta { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); }
 .history-detail__meta strong { color: var(--text-primary-color); font-size: var(--text-label); }
 .history-detail__meta > strong + span::before, .history-detail__meta > span + code::before { content: "·"; margin-right: 8px; color: var(--text-secondary-color); }
+/* How many files this version touched, last on the line of facts about it —
+   the same place the Changes screen keeps its own count, beside the title
+   rather than in a band over the files. It follows a chip, so it brings its
+   own separator. */
+.history-detail__files::before { content: "·"; margin-right: 8px; color: var(--text-secondary-color); }
 .history-detail__meta code { color: inherit; font-size: var(--text-caption); }
 .history-author-avatar { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 26px; border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle)); border-radius: var(--radius-round); background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-raised)); color: var(--accent-primary); font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide); }
 .history-detail__truncated { margin: 6px 0 0; color: var(--status-warning); font-size: var(--text-caption); }
@@ -500,7 +503,20 @@
 .history-publication--local-only { color: var(--accent-primary); }
 .history-ref-chip { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 
-.history-tabs { height: 43px; display: flex; align-items: stretch; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--border-subtle); }
+/* The card's one strip: the tabs that cut it, and the controls for reading
+   whichever of them is open. It takes the panel strip height the two screens
+   share — it used to be 43px, a number of its own, and it now has a 32px
+   control standing in it. */
+.history-tabs { height: var(--strip-height); display: flex; align-items: stretch; gap: var(--space-3); padding: 0 var(--space-4) 0 20px; border-bottom: 1px solid var(--border-subtle); }
+.history-tabs__list { min-width: 0; display: flex; align-items: stretch; gap: 4px; }
+/* At the far edge of the band, the way the reading-mode picker takes the far
+   edge of the Changes diff strip: what selects a tab reads from the left, and
+   what acts on the open one reads from the right. Without the `auto` margin
+   these controls simply trailed the tabs and floated in the middle of a wide
+   card. Centred rather than stretched, because the tabs run the band's full
+   height so their underline can rest on its edge, and a search box that did
+   the same would be a 52px control. */
+.history-tabs .history-diff-controls { margin-inline-start: auto; align-self: center; }
 .history-tab { position: relative; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; border: 0; background: transparent; color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong); }
 .history-tab::after { content: ""; position: absolute; right: 8px; bottom: 0; left: 8px; height: 2px; border-radius: 2px 2px 0 0; background: transparent; }
 .history-tab:hover { color: var(--text-primary-color); }
@@ -510,13 +526,13 @@
 .history-tab__count { min-width: 19px; height: 19px; display: grid; place-items: center; padding: 0 5px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
 
 .history-workspace { flex: 1; min-height: 0; overflow: hidden; }
-/* The toolbar control height is the shared row tier now, which is the 32px
-   this workspace used to have to ask for by hand. */
+/* Two panes, each opening with its own strip — the shape the screen around it
+   has. The band that used to sit here, between the tabs and the panes, is the
+   tab band's trailing controls now. */
 .history-workspace--diff { display: flex; flex-direction: column; }
-.history-workspace__toolbar { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--border-divider); }
-.history-workspace__toolbar > strong, .history-change-summary strong { font-size: var(--text-label); }
-.history-workspace__toolbar > span { color: var(--status-warning); font-size: var(--text-caption); }
-.history-change-summary { display: flex; align-items: center; gap: 16px; }
+/* What the open file gains and loses, beside the open file's own name. Sized
+   like the caption it sits in; the colours are the diff's own. */
+.history-diff-pane__totals { display: inline-flex; align-items: baseline; gap: var(--space-2); flex-shrink: 0; }
 .history-lines-added { color: var(--diff-added); font-size: var(--text-label); font-weight: var(--weight-strong); font-variant-numeric: tabular-nums; }
 .history-lines-removed { color: var(--diff-removed); font-size: var(--text-label); font-weight: var(--weight-strong); font-variant-numeric: tabular-nums; }
 .history-diff-controls { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
@@ -532,7 +548,15 @@
 
 .history-diff-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(148px, 190px) minmax(0, 1fr); }
 .history-files-pane { min-height: 0; display: flex; flex-direction: column; border-inline-end: 1px solid var(--border-divider); background: color-mix(in srgb, var(--surface-raised) 55%, var(--surface-panel)); }
-.history-files-search { flex: 0 0 auto; margin: 8px; }
+/* The two panes of the workspace open the way the two panels of the screen do:
+   one strip each, at one height, so their first rows are level. Inside a panel
+   the strip is a step quieter than the panel's own — `--strip-height-inner` —
+   and only the diff side draws a rule under it, because a search box is
+   already a bordered capsule and a line 6px below it fences the box off from
+   the rows it filters. This one used to be a box with an 8px margin against a
+   42px header opposite: four pixels of step, and neither number derived. */
+.history-files-pane__toolbar { flex: 0 0 auto; height: var(--strip-height-inner); display: flex; align-items: center; padding: 0 var(--space-2); }
+.history-files-search { flex: 1; min-width: 0; }
 .history-files { flex: 1; min-height: 0; overflow-y: auto; }
 .history-files__virtual { position: relative; }
 .history-files__row { position: absolute; top: 0; left: 0; width: 100%; height: 58px; padding: 2px 6px; }
@@ -543,7 +567,9 @@
 .history-file__type img { width: 16px; height: 16px; display: block; }
 .history-file__path { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 2px; }
 .history-file__path strong, .history-file__path span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-file__path strong { font-size: var(--text-label); }
+/* The same step the Changes file rows name their files with. These two lists
+   do one job on two screens, and this one was reading a step below it. */
+.history-file__path strong { font-size: var(--text-body); }
 .history-file__path span { color: var(--text-secondary-color); font-size: var(--text-caption); }
 .history-file__category { width: 16px; height: 16px; display: grid; place-items: center; flex: 0 0 16px; color: var(--text-secondary-color); }
 .history-file__category svg { width: 12px; height: 12px; }
@@ -554,9 +580,19 @@
 .history-files__empty { margin: auto; padding: 20px; color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal); text-align: center; }
 
 .history-diff-pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--surface-code); }
-.history-diff-pane__header { min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--border-divider); color: var(--text-secondary-color); font-size: var(--text-caption); }
-.history-diff-pane__header strong { min-width: 0; overflow: hidden; color: var(--text-primary-color); font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
-.history-diff-pane__header > span:not(.history-file__type) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Paired with the file pane's strip beside it, and shaped like the Changes
+   diff strip it does the same job as: the file's own icon, its name and its
+   folder, with the arrows that step through them at the far edge. */
+.history-diff-pane__header { flex: 0 0 auto; height: var(--strip-height-inner); display: flex; align-items: center; gap: var(--space-2); padding: 0 10px 0 14px; border-bottom: 1px solid var(--border-divider); color: var(--text-secondary-color); font-size: var(--text-caption); }
+/* The name of the open file, at the step the Changes diff strip gives the same
+   text — `--text-lead`, the name of a row where the row *is* the content. It
+   sat on `--text-label` here, a step below even the file rows on its left. */
+.history-diff-pane__name { min-width: 4em; flex: 0 1 auto; overflow: hidden; color: var(--text-primary-color); font-size: var(--text-lead); font-weight: var(--weight-strong); text-overflow: ellipsis; white-space: nowrap; }
+/* Truncated from the head like its counterpart on Changes: the folders nearest
+   the file locate it better than the root does, and the folder gives up room
+   several times faster than the name it qualifies. */
+.history-diff-pane__dir { min-width: 0; flex: 0 8 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.history-diff-pane__prompt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The copy button belongs to the path it copies, so it stays beside it; the
    arrows act on the pane and take the far edge. */
 .history-diff-pane__header .history-icon-button { width: 28px; height: 28px; border-color: transparent; background: transparent; }
@@ -613,14 +649,22 @@
   .history-overview-column--technical { grid-column: auto; display: flex; }
 }
 
+/* The list column narrows before either screen gives up its second panel, at
+   the width Changes narrows on. */
+@media (max-width: 1200px) {
+  .history-layout { grid-template-columns: var(--panel-column-narrow) minmax(0, 1fr); }
+}
+
 @media (max-width: 1240px) {
-  .history-layout { grid-template-columns: minmax(250px, 290px) minmax(0, 1fr); }
   .history-detail__summary-top { padding-inline: 13px 11px; }
   .history-tabs { padding-inline: 12px; }
   .history-diff-grid { grid-template-columns: minmax(148px, 176px) minmax(0, 1fr); }
 }
 
-@media (max-width: 980px) {
+/* One column, at the width Changes drops to one. The two screens showed the
+   same pair of panels and gave the second one up 44px apart, so a window
+   between the two widths had Changes on one panel and History still on two. */
+@media (max-width: 1024px) {
   .history-layout { grid-template-columns: 1fr; }
   .history-detail { display: none; }
   .history-screen--narrow-detail .history-timeline { display: none; }
@@ -630,9 +674,13 @@
 
 @media (max-width: 700px) {
   .history-detail__summary-top { padding-inline: 11px 9px; }
-  .history-tabs { overflow-x: auto; }
-  .history-workspace__toolbar { align-items: flex-start; flex-direction: column; }
-  .history-diff-controls { width: 100%; justify-content: space-between; }
+  /* The band gives up its fixed height and wraps: the tabs keep their row and
+     the reading controls take the one under it, rather than the search box
+     shrinking past the point where anything can be typed in it. */
+  .history-tabs { height: auto; flex-wrap: wrap; align-items: center; padding-block: var(--space-2); row-gap: var(--space-2); }
+  /* The tabs keep a real target once the band stops stretching them. */
+  .history-tabs__list { overflow-x: auto; min-height: var(--control-height-md); }
+  .history-tabs .history-diff-controls { width: 100%; justify-content: space-between; }
   .history-diff-search { flex: 1; width: auto; }
   .history-diff-grid { grid-template-columns: 1fr; }
   .history-files-pane { max-height: 190px; border-inline-end: 0; border-bottom: 1px solid var(--border-divider); }
@@ -650,6 +698,11 @@
     width: 44px;
     height: 44px;
   }
+  /* The controls in these strips grow to the touch tier, so the strips they
+     stand in take the panel height rather than ending up exactly as tall as
+     their own contents. */
+  .history-files-pane__toolbar,
+  .history-diff-pane__header { height: calc(var(--strip-height) + var(--space-3)); }
 }
 
 @media (forced-colors: active) {

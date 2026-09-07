@@ -254,8 +254,17 @@ function authorInitials(version: SavedVersionSummary, fallback: string): string 
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toLocaleUpperCase();
 }
 
-function HistoryDetailHeader({ detail, formats, activeTab, onTab }: {
+function HistoryDetailHeader({ detail, formats, activeTab, fileCount, controls, onTab }: {
   detail: SavedVersionDetail; formats: LocaleFormats; activeTab: HistoryTab;
+  /** How many files this version touched, said in words because it is
+   * sometimes a floor rather than a count. It belongs on the line that states
+   * the other facts about the version — who, when, which — the way the
+   * Changes screen keeps its own count beside its title. */
+  fileCount: string;
+  /** The controls for reading whatever the open tab shows. They stand at the
+   * end of the tab band, so the card has one strip instead of a tab band with
+   * a toolbar under it. */
+  controls: React.ReactNode;
   onTab: (tab: HistoryTab) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -266,10 +275,13 @@ function HistoryDetailHeader({ detail, formats, activeTab, onTab }: {
     { id: "overview", label: t.historyOverviewTab, icon: <Info aria-hidden="true" /> },
     { id: "diff", label: t.historyDiffTab, icon: <GitCommitHorizontal aria-hidden="true" /> },
   ];
-  return <header className="history-detail__summary"><div className="history-detail__summary-top"><div className="history-detail__identity"><h2 id="history-detail-title">{title}</h2><div className="history-detail__compact-info"><p className="history-detail__meta"><span className="history-author-avatar" aria-hidden="true">{authorInitials(version, t.historyAuthorUnknown)}</span><strong>{version.author?.name || t.historyAuthorUnknown}</strong>{date && <span title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}<code>{version.shortCommit}</code><span className={`history-publication history-publication--${version.publication}`}><PublicationIcon publication={version.publication} />{publicationCopy(version.publication, t)}</span></p>
+  return <header className="history-detail__summary"><div className="history-detail__summary-top"><div className="history-detail__identity"><h2 id="history-detail-title">{title}</h2><div className="history-detail__compact-info"><p className="history-detail__meta"><span className="history-author-avatar" aria-hidden="true">{authorInitials(version, t.historyAuthorUnknown)}</span><strong>{version.author?.name || t.historyAuthorUnknown}</strong>{date && <span title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}<code>{version.shortCommit}</code><span className={`history-publication history-publication--${version.publication}`}><PublicationIcon publication={version.publication} />{publicationCopy(version.publication, t)}</span><span className="history-detail__files">{fileCount}</span></p>
     <div className="history-detail__badges">{version.isRoot && <span className="history-kind-chip">{t.historyRoot}</span>}{version.isMerge && <span className="history-kind-chip">{t.historyMerge}</span>}{version.decorations.slice(0, 3).map((decoration) => <span key={decoration.fullRef} className="history-ref-chip" title={decoration.fullRef}>{decoration.kind === "tag" && <Tag aria-hidden="true" />}{decoration.name}</span>)}</div></div>
     </div></div>
-    <div className="history-tabs" role="tablist" aria-label={t.historyTitle}>{tabs.map((tab) => <button key={tab.id} id={`history-tab-${tab.id}`} className={activeTab === tab.id ? "history-tab history-tab--active" : "history-tab"} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`history-panel-${tab.id}`} onClick={() => onTab(tab.id)}>{tab.icon}<span>{tab.label}</span>{tab.count !== undefined && <span className="history-tab__count">{formatNumber(tab.count, formats)}</span>}</button>)}</div></header>;
+    <div className="history-tabs">
+      <div className="history-tabs__list" role="tablist" aria-label={t.historyTitle}>{tabs.map((tab) => <button key={tab.id} id={`history-tab-${tab.id}`} className={activeTab === tab.id ? "history-tab history-tab--active" : "history-tab"} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`history-panel-${tab.id}`} onClick={() => onTab(tab.id)}>{tab.icon}<span>{tab.label}</span>{tab.count !== undefined && <span className="history-tab__count">{formatNumber(tab.count, formats)}</span>}</button>)}</div>
+      {controls}
+    </div></header>;
 }
 
 function OverviewMetric({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }): React.JSX.Element {
@@ -616,7 +628,23 @@ function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDif
     setActiveTab("diff");
   };
 
-  const fileSearchControl = <SearchBox className="history-files-search" value={fileSearch} onChange={setFileSearch} placeholder={t.historyFilterFilesPlaceholder} ariaLabel={t.historyFilterFilesAriaLabel} clearLabel={t.commonClearSearch} />;
+  // Everything that decides how the diff is read, in one place at the end of
+  // the tab band. It used to be a band of its own between the tabs and the
+  // panes — a third strip on a card whose two panes already open with one
+  // each, where Changes says the same things in the strip of the panel they
+  // act on. The band it replaced also mixed two different facts in one line:
+  // how many files the *version* touched, which is now on the line stating
+  // the version's other facts, and how many lines the *open file* gains and
+  // loses, which is now beside that file's own name.
+  const diffControls = <div className="history-diff-controls">
+    <SearchBox className="history-diff-search" value={diffSearch} onChange={setDiffSearch} placeholder={t.historySearchDiffPlaceholder} ariaLabel={t.historySearchDiffAriaLabel} clearLabel={t.commonClearSearch} />
+    {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
+    {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
+  </div>;
+  // A strip, not a box with a margin: the pane beside it opens with one, and
+  // two panes whose first rows start four pixels apart is the same step the
+  // outer layout spent two tasks removing.
+  const fileSearchControl = <div className="history-files-pane__toolbar"><SearchBox className="history-files-search" value={fileSearch} onChange={setFileSearch} placeholder={t.historyFilterFilesPlaceholder} ariaLabel={t.historyFilterFilesAriaLabel} clearLabel={t.commonClearSearch} /></div>;
   const fileList = visibleFiles.length ? <ChangedFiles files={visibleFiles} selectedPath={state.selectedFilePath} onSelect={onSelectFile} /> : <p className="history-files__empty">{normalizedFileSearch ? t.historyNoFileMatches : t.historyNoChangedFiles}</p>;
 
   return <section className="history-detail" aria-labelledby="history-detail-title">
@@ -625,11 +653,21 @@ function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDif
         open. The back button stays outside it — it leaves the card rather
         than acting on it. */}
     <div className="history-detail__card">
-    <HistoryDetailHeader detail={detail} formats={formats} activeTab={activeTab} onTab={setActiveTab} />
+    <HistoryDetailHeader
+      detail={detail}
+      formats={formats}
+      activeTab={activeTab}
+      fileCount={fileCount}
+      controls={activeTab === "diff" ? diffControls : null}
+      onTab={setActiveTab}
+    />
     {activeTab === "overview" && <HistoryOverview detail={detail} state={state} formats={formats} comparison={comparison} onSelectFile={openFileFromOverview} />}
     {activeTab === "diff" && <div id="history-panel-diff" className="history-workspace history-workspace--diff" role="tabpanel" aria-labelledby="history-tab-diff">
-      <header className="history-workspace__toolbar"><div className="history-change-summary"><strong>{fileCount}</strong>{totals && <><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></>}</div><div className="history-diff-controls"><SearchBox className="history-diff-search" value={diffSearch} onChange={setDiffSearch} placeholder={t.historySearchDiffPlaceholder} ariaLabel={t.historySearchDiffAriaLabel} clearLabel={t.commonClearSearch} />{picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}{showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}</div></header>
-      <div className="history-diff-grid"><aside className="history-files-pane">{fileSearchControl}{fileList}</aside><div className="history-diff-pane"><header className="history-diff-pane__header">{selectedFile ? <><span className="history-file__type" aria-hidden="true">{React.createElement(getFileTypeIcon(selectedFile.path))}</span><strong>{splitPath(selectedFile.path).name}</strong><span>{splitPath(selectedFile.path).dir}</span><button className="history-icon-button" type="button" aria-label={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} data-tooltip={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} onClick={copySelectedPath}>{copiedPath ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}</button></> : <span>{t.historySelectFilePrompt}</span>}
+      <div className="history-diff-grid"><aside className="history-files-pane">{fileSearchControl}{fileList}</aside><div className="history-diff-pane"><header className="history-diff-pane__header">{selectedFile ? <><span className="history-file__type" aria-hidden="true">{React.createElement(getFileTypeIcon(selectedFile.path))}</span>
+        {/* Name, then folder, at the sizes the Changes diff strip names its own
+            open file with: this is the one thing the pane exists to show, and
+            it was reading a step below the file rows on the left of it. */}
+        <strong className="history-diff-pane__name">{splitPath(selectedFile.path).name}</strong><span className="history-diff-pane__dir">{splitPath(selectedFile.path).dir || t.changesProjectRoot}</span>{totals && <span className="history-diff-pane__totals"><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></span>}<button className="history-icon-button" type="button" aria-label={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} data-tooltip={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} onClick={copySelectedPath}>{copiedPath ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}</button></> : <span className="history-diff-pane__prompt">{t.historySelectFilePrompt}</span>}
         {/* The same two pairs the Changes diff header carries, in the same
             place and the same shape. They used to be a footer of labelled
             buttons under the diff — a second vocabulary for one job, and the
@@ -732,11 +770,12 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
       {(warnings.includes("messagesTruncated") || warnings.includes("decorationsTruncated")) && <p className="history-meta-warning" role="status">{t.historyTruncatedMetadata}</p>}
       {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(formatNumber(MAX_HISTORY_ROWS, formats))}</p>}
     </div>
-    {/* Title and state on one line, as on Changes: the count is a caption for
-        the word beside it, and it describes the screen rather than the column
-        it used to sit inside. */}
-    <header className="history-view__header">
-      <div className="history-view__heading">
+    {/* Title and state on one line: the count is a caption for the word beside
+        it, and it describes the screen rather than the column it used to sit
+        inside. `.screen-header` is the same row Changes opens on, so the two
+        screens' panels start on the same pixel row. */}
+    <header className="screen-header">
+      <div className="screen-header__heading">
         <h1>{t.historyTitle}</h1>
         <p>{filtersActive ? t.historyFilteredCount(visibleVersions.length, state.versions.length) : t.historyLoadedCount(state.versions.length)}</p>
       </div>
