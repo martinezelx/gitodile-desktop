@@ -261,9 +261,10 @@ describe("production style composition", () => {
   // coarse-pointer size to every mouse user by writing it as a fixed
   // `min-height`. A feature may restyle a button; it may not resize one.
   it("keeps feature CSS from resizing the button primitive", () => {
-    // DESIGN.md § Size names this the one exception: the diff panes are a code
-    // surface with their own type scale, and their footer control runs at 30px.
-    const documentedExceptions = new Set([".history-diff-pane__footer .secondary-button"]);
+    // No exceptions. The one there was — the History diff pane's footer, whose
+    // buttons ran at 30px — went with the footer itself: stepping between
+    // changes is the shared arrow pair in the diff header now, the same
+    // control Changes uses, and it is not a labelled button at all.
     const offenders: string[] = [];
 
     for (const importPath of EXPECTED_IMPORTS) {
@@ -277,7 +278,6 @@ describe("production style composition", () => {
           .split(",")
           .some((one) => /(?:primary|secondary)-button[\w-]*(?::[\w-]+(?:\([^)]*\))?)*$/.test(one.trim()));
         if (!targetsButton) continue;
-        if (documentedExceptions.has(rule.selector)) continue;
         const size = rule.body.match(/(?<![\w-])(min-height|height|font-size):\s*(\d[\d.]*)px/);
         if (size) {
           offenders.push(`${relativePath}: ${rule.selector} — ${size[1]}: ${size[2]}px`);
@@ -358,8 +358,6 @@ describe("production style composition", () => {
       const relativePath = importPath.replace("./", "");
       for (const rule of readRules(relativePath)) {
         if (documentedExceptions.has(rule.selector)) continue;
-        // `font-size: 0` hides a label rather than sizing one — it is how the
-        // diff pane's footer drops its button text at narrow widths.
         const literal = rule.body.match(/(?<![\w-])font-size:\s*([\d.]+)px/);
         if (literal) offenders.push(`${relativePath}: ${rule.selector} — font-size: ${literal[1]}px`);
         // The `font:` shorthand carries the size and the weight inside itself,
@@ -565,9 +563,21 @@ describe("production style composition", () => {
       const relativePath = importPath.replace("./", "");
       for (const rule of readRules(relativePath)) {
         if (!/(?:badge|chip)/.test(rule.selector) || !/border-radius:/.test(rule.body)) continue;
-        if (!rule.body.includes("border-radius: var(--radius-pill)")) {
-          offenders.push(`${relativePath}: ${rule.selector}`);
-        }
+        if (rule.body.includes("border-radius: var(--radius-pill)")) continue;
+        // A chip may hold a control, and the control does not inherit the
+        // chip's shape just by carrying its name. DESIGN.md § Shape settles
+        // that one: a square box of 22px or under is named a circle, because
+        // at that size any radius worth seeing has already closed it into one.
+        // Anything wider than it is tall is the chip itself and still has to
+        // be a capsule.
+        const width = rule.body.match(/(?<![\w-])width:\s*(\d+)px/);
+        const height = rule.body.match(/(?<![\w-])height:\s*(\d+)px/);
+        const isSmallCircle = rule.body.includes("border-radius: var(--radius-round)")
+          && width !== undefined && height !== undefined
+          && width !== null && height !== null
+          && width[1] === height[1] && Number(width[1]) <= 22;
+        if (isSmallCircle) continue;
+        offenders.push(`${relativePath}: ${rule.selector}`);
       }
     }
 

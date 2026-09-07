@@ -577,11 +577,11 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   left: 17.5px;
   width: 1px;
   height: calc(100% + var(--space-1));
-  background: color-mix(in srgb, var(--accent-primary) 44%, var(--border-subtle));
-  transition: background-color var(--duration-normal) ease-out;
+  /* Structure, in the divider colour: the same rail the History timeline
+     draws, and for the same reason — an accent spent on every row is an accent
+     that says nothing about any of them. */
+  background: var(--border-divider);
 }
-.overview-history__list li:hover::after,
-.overview-history__list li:focus-within::after { background: color-mix(in srgb, var(--accent-primary) 78%, var(--border-subtle)); }
 .overview-history__row {
   position: relative;
   z-index: 1;
@@ -600,43 +600,25 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   text-align: left;
   transition: background var(--duration-fast);
 }
-.overview-history__row::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  top: 0;
-  left: 16.5px;
-  width: 3px;
-  height: 24px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(to bottom, transparent, var(--accent-primary) 38%, var(--accent-primary) 68%, transparent);
-  opacity: 0;
-  transform: translateY(-14px) scaleY(.45);
-  transform-origin: center;
-}
 .overview-history__row:hover,
 .overview-history__row:focus-visible { background: var(--surface-hover); }
-.overview-history__row:hover::before,
-.overview-history__row:focus-visible::before { animation: overview-history-line-arrive 420ms cubic-bezier(.16, 1, .3, 1) both; }
-.overview-history__row[data-hover-direction="up"]:hover::before,
-.overview-history__row[data-hover-direction="up"]:focus-visible::before { animation-name: overview-history-line-arrive-up; }
+/* The same node as the History timeline's, minus the selected state this
+   preview has no room for: a ring at rest, the accent under the pointer, and
+   no keyframes at all. */
 .overview-history__node {
   position: relative;
   z-index: 1;
   width: 12px;
   height: 12px;
   place-self: center;
-  border: 2px solid var(--accent-primary);
+  border: 2px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
   border-radius: var(--radius-round);
   background: var(--surface-raised);
   box-shadow: 0 0 0 3px var(--surface-raised);
-  transition: background-color var(--duration-fast) ease-out, transform var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
+  transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, transform var(--duration-fast) ease-out;
 }
 .overview-history__row:hover .overview-history__node,
-.overview-history__row:focus-visible .overview-history__node {
-  background: var(--accent-primary);
-  animation: overview-history-node-breathe 1600ms ease-in-out 300ms infinite;
-}
+.overview-history__row:focus-visible .overview-history__node { border-color: var(--accent-primary); }
 .overview-history__row:active .overview-history__node { transform: scale(.94); }
 .overview-history__body {
   min-width: 0;
@@ -960,35 +942,12 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   .empty-state__icon--loading svg,
   .welcome-action__icon--loading svg,
   .icon--spinning { animation: none; }
-  .overview-history__list li::after,
   .overview-history__node { transition: none; }
-  .overview-history__row:hover .overview-history__node,
-  .overview-history__row:focus-visible .overview-history__node { animation: none; }
-  .overview-history__row::before { display: none; animation: none; }
   .welcome-action { transition: none; }
   .welcome-action:hover:not(:disabled) { transform: none; }
   .welcome-recents__open,
   .welcome-recents__favourite,
   .welcome-recents__forget { transition: none; }
-}
-
-@keyframes overview-history-line-arrive {
-  0% { opacity: 0; transform: translateY(-14px) scaleY(.45); }
-  20% { opacity: 1; }
-  78% { opacity: 1; transform: translateY(13px) scaleY(.72); }
-  100% { opacity: 0; transform: translateY(19px) scaleY(.2); }
-}
-
-@keyframes overview-history-line-arrive-up {
-  0% { opacity: 0; transform: translateY(42px) scaleY(.45); }
-  20% { opacity: 1; }
-  78% { opacity: 1; transform: translateY(17px) scaleY(.72); }
-  100% { opacity: 0; transform: translateY(11px) scaleY(.2); }
-}
-
-@keyframes overview-history-node-breathe {
-  0%, 100% { transform: scale(1.06); box-shadow: 0 0 0 3px var(--surface-raised), 0 2px 7px color-mix(in srgb, var(--accent-primary) 12%, transparent); }
-  50% { transform: scale(1.14); box-shadow: 0 0 0 3px var(--surface-raised), 0 4px 11px color-mix(in srgb, var(--accent-primary) 24%, transparent); }
 }
 
 @media (max-width: 1100px) {

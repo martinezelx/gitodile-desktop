@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import {
   ChevronRight,
   CircleAlert,
@@ -44,15 +44,6 @@ export function HistorySummarySection({
   const versions = state.versions.slice(0, HISTORY_PREVIEW_LIMIT);
   const currentBranch = state.snapshot?.branch ?? null;
   const error = state.error ? localizeAppError(state.error, t, t.overviewHistoryError) : null;
-  const previousHoveredIndexRef = useRef(-1);
-  const [hoverTravel, setHoverTravel] = useState<{ index: number; direction: "up" | "down" }>({ index: -1, direction: "down" });
-
-  const markHoverDirection = useCallback((index: number): void => {
-    const previous = previousHoveredIndexRef.current;
-    const direction = previous >= 0 && index < previous ? "up" : "down";
-    previousHoveredIndexRef.current = index;
-    setHoverTravel({ index, direction });
-  }, []);
 
   const openVersion = (commit: string): void => {
     controller.selectVersion(query, commit);
@@ -105,7 +96,7 @@ export function HistorySummarySection({
         </div>
       ) : (
         <ol className="overview-history__list" aria-label={t.overviewHistoryListLabel}>
-          {versions.map((version, index) => {
+          {versions.map((version) => {
             const title = versionTitle(version, t.overviewHistoryUntitled);
             const author = version.author?.name.trim() || t.overviewHistoryUnknownAuthor;
             const date = formatHistoryDate(version.authoredAt, formats);
@@ -119,9 +110,6 @@ export function HistorySummarySection({
                   className="overview-history__row"
                   type="button"
                   onClick={() => openVersion(version.commit)}
-                  onPointerEnter={() => markHoverDirection(index)}
-                  onFocus={() => markHoverDirection(index)}
-                  data-hover-direction={hoverTravel.index === index ? hoverTravel.direction : undefined}
                   aria-label={decoration ? `${label} — ${decorationLabel(decoration, t)}` : label}
                 >
                   <span className="overview-history__node" aria-hidden="true" />

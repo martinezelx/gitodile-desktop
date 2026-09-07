@@ -1,23 +1,23 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  ArrowDown, ArrowLeft, ArrowUp, Check, CircleAlert, Cloud, CloudOff,
-  CalendarDays, ChevronDown, Copy, Folder, GitBranch,
-  GitCommitHorizontal, HardDrive, Info, ListFilter, Search,
-  Tag, UserRound,
+  ArrowLeft, Check, CircleAlert, Cloud, CloudOff,
+  CalendarDays, Copy, Folder, GitBranch, GitMerge,
+  GitCommitHorizontal, HardDrive, Info, ListFilter,
+  Tag, UserRound, X,
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, handlePopupMenuKeyDown, LoadingBar, useAnchoredPopup } from "../../shared/ui";
-import { ChangesContextMenu, DiffResultView, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, handlePopupMenuKeyDown, LoadingBar, SearchBox, useAnchoredPopup } from "../../shared/ui";
+import { ChangesContextMenu, DiffResultView, DiffStepNav, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
 import type { HistoryFileChange, HistoryState, PublicationState, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import { formatHistoryDate } from "./formatHistoryDate";
 import { decorationLabel, HistoryMetaDot, HistoryRefBadge, primaryDecoration } from "./HistoryRefBadge";
-import type { HistoryQuery } from "./port";
+import { countActiveFilters, NO_HISTORY_FILTERS, type HistoryFilters, type HistoryQuery } from "./port";
 
 const CATEGORY_LABEL_KEYS = {
   changed: "changesCategoryLabelChanged", new: "changesCategoryLabelNew",
@@ -26,8 +26,6 @@ const CATEGORY_LABEL_KEYS = {
 } as const satisfies Record<ChangeCategory, keyof Translations>;
 
 type HistoryTab = "overview" | "diff";
-type PublicationFilter = "all" | PublicationState;
-type HistorySort = "newest" | "oldest";
 
 function changedAreas(files: HistoryFileChange[]): Array<{ path: string; count: number }> {
   const counts = new Map<string, number>();
@@ -68,8 +66,14 @@ function HistoryWatchingNotice({ watcherState, busy, onRefresh, onOpenSettings }
   return <AutomaticUpdatesNotice title={watcherState === "off" ? t.automaticUpdatesOffTitle : t.automaticUpdatesUnavailableTitle} description={t.automaticUpdatesOutdatedDescription} updateLabel={t.automaticUpdatesUpdateNow} updateAriaLabel={t.historyRefresh} updatingLabel={t.automaticUpdatesUpdating} updatingAriaLabel={t.historyRefreshing} busy={busy} settingsLabel={t.automaticUpdatesOpenSettings} onUpdate={onRefresh} onOpenSettings={onOpenSettings} />;
 }
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, selectionDirection, hoverDirection, focusable, formats, currentBranch, onSelect, onMove, onHover, onOpenDetail }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; selectionDirection: "up" | "down"; hoverDirection: "up" | "down" | null; focusable: boolean; formats: LocaleFormats; currentBranch: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onHover: (index: number) => void; onOpenDetail: () => void;
+/** How much of this row's rail belongs to the stretch between the top of the
+ * list and the selected version: all of it, as far as this row's own node, or
+ * none. A fact about where the selection sits, and the only thing the timeline
+ * draws that is not either structure or the selection itself. */
+type RailFill = "filled" | "half" | null;
+
+const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, currentBranch, onSelect, onMove, onOpenDetail }: {
+  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; currentBranch: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
@@ -89,52 +93,52 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
     onMove(target);
   };
   return (
-    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={label} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-selection-direction={selected ? selectionDirection : undefined} data-hover-direction={hoverDirection ?? undefined} onPointerEnter={() => onHover(index)} onFocus={() => onHover(index)} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown}>
+    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={label} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown}>
       <span className="history-row__node" aria-hidden="true" />
       <span className="history-row__body"><span className="history-row__title" title={title}>{title}</span><span className="history-row__meta"><span className="history-row__author" title={author}>{author}</span><HistoryRefBadge version={version} currentBranch={currentBranch} />{date && <><HistoryMetaDot /><span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span></>}</span></span>
     </button>
   );
 });
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCount, selectedCommit, scrollOffset, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, publicationFilter, sort, onSearch, onPublicationFilter, onSort, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; loadedCount: number; selectedCommit: string | null; scrollOffset: number; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; publicationFilter: PublicationFilter; sort: HistorySort;
-  onSearch: (value: string) => void; onPublicationFilter: (value: PublicationFilter) => void; onSort: (value: HistorySort) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, filters, authorSuggestions, canFilterPublication, onSearch, onFilters, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; selectedCommit: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; filters: HistoryFilters; authorSuggestions: string[]; canFilterPublication: boolean;
+  onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
   const restoredRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const previousSelectedCommitRef = useRef(selectedCommit);
-  const previousHoveredIndexRef = useRef(-1);
-  const [hoverTravel, setHoverTravel] = useState<{ index: number; direction: "up" | "down" }>({ index: -1, direction: "down" });
   const focusCommit = versions.some((version) => version.commit === selectedCommit) ? selectedCommit : versions[0]?.commit ?? null;
   const selectedIndex = versions.findIndex((version) => version.commit === selectedCommit);
-  const previousSelectedIndex = versions.findIndex((version) => version.commit === previousSelectedCommitRef.current);
-  const selectionDirection = previousSelectedIndex >= 0 && selectedIndex >= 0 && selectedIndex < previousSelectedIndex ? "up" : "down";
+  const filtered = countActiveFilters(filters) > 0;
   const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: () => 82, overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
   const rows = virtualizer.getVirtualItems();
   const lastIndex = rows.at(-1)?.index ?? -1;
 
   useLayoutEffect(() => {
-    if (restoredRef.current || !scrollRef.current || search || publicationFilter !== "all" || sort !== "newest") return;
+    if (restoredRef.current || !scrollRef.current || search || filtered) return;
     scrollRef.current.scrollTop = scrollOffset;
     restoredRef.current = true;
-  }, [publicationFilter, scrollOffset, search, sort]);
-
-  useLayoutEffect(() => { previousSelectedCommitRef.current = selectedCommit; }, [selectedCommit]);
+  }, [filtered, scrollOffset, search]);
 
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return undefined;
     const save = (): void => { if (saveTimer.current) clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => onScrollOffset(element.scrollTop), 120); };
     element.addEventListener("scroll", save, { passive: true });
-    return () => { element.removeEventListener("scroll", save); if (saveTimer.current) clearTimeout(saveTimer.current); if (!search && publicationFilter === "all" && sort === "newest") onScrollOffset(element.scrollTop); };
-  }, [onScrollOffset, publicationFilter, search, sort]);
+    return () => { element.removeEventListener("scroll", save); if (saveTimer.current) clearTimeout(saveTimer.current); if (!search && !filtered) onScrollOffset(element.scrollTop); };
+  }, [filtered, onScrollOffset, search]);
 
   useEffect(() => {
-    const isNaturalTimeline = !search && publicationFilter === "all" && sort === "newest";
-    if (isNaturalTimeline && lastIndex >= versions.length - 18 && hasMore && !isLoadingMore) onLoadMore();
-  }, [hasMore, isLoadingMore, lastIndex, onLoadMore, publicationFilter, search, sort, versions.length]);
+    // The search box still narrows the rows on screen, so it is the one thing
+    // that can make the tail arrive early and stall paging; the filters are
+    // answered by Git and page normally underneath them.
+    //
+    // `isLoading` matters as much as `isLoadingMore`: while the first page of
+    // a new question is in flight the rows on screen still belong to the old
+    // one, and their tail says nothing about where the new history ends.
+    if (!search && !isLoading && lastIndex >= versions.length - 18 && hasMore && !isLoadingMore) onLoadMore();
+  }, [hasMore, isLoading, isLoadingMore, lastIndex, onLoadMore, search, versions.length]);
 
   const moveSelection = useCallback((target: number): void => {
     const index = Math.max(0, Math.min(target, versions.length - 1));
@@ -144,35 +148,42 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, loadedCo
     virtualizer.scrollToIndex(index, { align: "auto" });
     requestAnimationFrame(() => document.getElementById(`history-version-${version.commit}`)?.focus());
   }, [onSelect, versions, virtualizer]);
-  const markHoverDirection = useCallback((index: number): void => {
-    const previous = previousHoveredIndexRef.current;
-    const direction = previous >= 0 && index < previous ? "up" : "down";
-    previousHoveredIndexRef.current = index;
-    setHoverTravel({ index, direction });
-  }, []);
-  const filtersActive = search.trim().length > 0 || publicationFilter !== "all";
   return (
-    <section className="history-timeline" aria-label={t.historyTimelineAriaLabel}>
-      <header className="history-timeline__header">
-        <div className="history-timeline__heading"><div><h1>{t.historyTitle}</h1><p>{filtersActive ? t.historyFilteredCount(versions.length, loadedCount) : t.historyLoadedCount(loadedCount)}</p></div></div>
-        <div className="history-timeline__tools">
-          <HistoryFilterMenu label={t.historyPublicationFilterLabel} value={publicationFilter} options={[
-            { value: "all", label: t.historyFilterAll, icon: <ListFilter aria-hidden="true" /> },
-            { value: "published", label: t.historyFilterPublished, icon: <Cloud aria-hidden="true" /> },
-            { value: "local-only", label: t.historyFilterLocalOnly, icon: <HardDrive aria-hidden="true" /> },
-            { value: "unknown", label: t.historyFilterUnknown, icon: <CloudOff aria-hidden="true" /> },
-          ]} onChange={(value) => onPublicationFilter(value as PublicationFilter)} />
-          <HistoryFilterMenu label={t.historySortLabel} value={sort} options={[
-            { value: "newest", label: t.historySortNewest, icon: <ArrowDown aria-hidden="true" /> },
-            { value: "oldest", label: t.historySortOldest, icon: <ArrowUp aria-hidden="true" /> },
-          ]} onChange={(value) => onSort(value as HistorySort)} />
-        </div>
-        <label className="history-search-box"><Search aria-hidden="true" /><input type="search" value={search} onChange={(event) => onSearch(event.target.value)} placeholder={t.historySearchPlaceholder} aria-label={t.historySearchAriaLabel} /></label>
-      </header>
+    <section className="history-timeline" aria-label={t.historyTimelineAriaLabel} aria-busy={isLoading || undefined}>
+      {/* One strip, the way the Changes file list has one. Searching and
+          filtering answer the same question — which saved versions this column
+          lists — so they share a control instead of stacking two rows of chrome
+          above the panel; the title and the count they used to sit under moved
+          out to the screen header, where Changes keeps its own. That also puts
+          this panel's top edge back on the detail card's, which three rows of
+          header had pushed ~150px below it. */}
+      <div className="history-timeline__toolbar">
+        <SearchBox
+          value={search}
+          onChange={onSearch}
+          placeholder={t.historySearchPlaceholder}
+          ariaLabel={t.historySearchAriaLabel}
+          clearLabel={t.commonClearSearch}
+          trailing={<HistoryFilterPanel
+            filters={filters}
+            authorSuggestions={authorSuggestions}
+            canFilterPublication={canFilterPublication}
+            onChange={onFilters}
+          />}
+        />
+      </div>
+      <HistoryFilterChips filters={filters} onChange={onFilters} />
+      {/* A thread while Git answers, rather than an emptied list: the rows
+          below are the previous answer and the strip says they are being
+          replaced. */}
+      {isLoading && versions.length > 0 && <div className="history-timeline__progress"><LoadingBar label={t.historyLoading} /></div>}
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} selectionDirection={selectionDirection} hoverDirection={hoverTravel.index === virtualRow.index ? hoverTravel.direction : null} focusable={version.commit === focusCommit} formats={formats} currentBranch={currentBranch} onSelect={onSelect} onMove={moveSelection} onHover={markHoverDirection} onOpenDetail={onOpenDetail} /></div>; })}
-        </div> : <p className="history-timeline__empty">{t.historyNoMatches}</p>}
+          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} currentBranch={currentBranch} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} /></div>; })}
+        </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
+          <p>{t.historyNoMatches}</p>
+          {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
+        </div>}
         <div className="history-timeline__footer">
           {hasMoreError && <div className="history-inline-error" role="alert"><span>{t.historyMoreError}</span><button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyRetry}</button></div>}
           {hasMore && !clientTruncated && (isLoadingMore ? <div className="history-timeline__loading-more"><LoadingBar label={t.historyLoadingMore} showLabel /></div> : <button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyLoadMore}</button>)}
@@ -312,31 +323,224 @@ function diffTotals(diff: FileDiff | null): { added: number; removed: number } |
 
 function diffHunkCount(diff: FileDiff | null): number { return diff && "hunks" in diff ? diff.hunks.length : 0; }
 
-function HistoryFilterMenu({ label, value, options, onChange }: {
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string; icon: React.ReactNode }>;
-  onChange: (value: string) => void;
+/** Calendar day, `YYYY-MM-DD`, `days` before today — the shape Rust validates
+ * and the only date vocabulary that means the same thing tomorrow. */
+function dayBefore(days: number): string {
+  const day = new Date();
+  day.setDate(day.getDate() - days);
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+}
+
+function dateRanges(t: Translations): Array<{ label: string; since: string | null }> {
+  return [
+    { label: t.historyFilterDateAny, since: null },
+    { label: t.historyFilterDateWeek, since: dayBefore(7) },
+    { label: t.historyFilterDateMonth, since: dayBefore(30) },
+    { label: t.historyFilterDateYear, since: dayBefore(365) },
+  ];
+}
+
+/** What is currently narrowing the list, said once, in the order the panel
+ * asks for it. The chips under the search box and the panel's own footer both
+ * read this, so the two can never disagree about what "3 filters" means. */
+function activeFilters(filters: HistoryFilters, t: Translations): Array<{ key: string; label: string; cleared: Partial<HistoryFilters> }> {
+  const described: Array<{ key: string; label: string; cleared: Partial<HistoryFilters> }> = [];
+  if (filters.author) described.push({ key: "author", label: filters.author, cleared: { author: null } });
+  if (filters.since) {
+    // A range chosen yesterday is still a date today, so the name is looked up
+    // rather than assumed: an unmatched date says itself instead of nothing.
+    const named = dateRanges(t).find((range) => range.since === filters.since);
+    described.push({ key: "since", label: named?.label ?? filters.since, cleared: { since: null } });
+  }
+  // `until` has no control of its own yet, but it is part of the filter set
+  // Rust answers and `countActiveFilters` counts. Describing it here is what
+  // keeps the badge and the chips talking about the same six things — a count
+  // that says three beside two chips is worse than either alone.
+  if (filters.until) described.push({ key: "until", label: filters.until, cleared: { until: null } });
+  if (filters.path) described.push({ key: "path", label: filters.path, cleared: { path: null } });
+  if (filters.noMerges) described.push({ key: "noMerges", label: t.historyFilterHideMerges, cleared: { noMerges: false } });
+  if (filters.unpublishedOnly) described.push({ key: "unpublishedOnly", label: t.historyFilterUnpublishedOnly, cleared: { unpublishedOnly: false } });
+  return described;
+}
+
+/** The filters that are on, under the strip that set them, each removable on
+ * its own. The trigger's badge says how many; this says which — and a row of
+ * its own is what lets it, where chips inside the search pill would have taken
+ * the width from the field they sit in. */
+function HistoryFilterChips({ filters, onChange }: {
+  filters: HistoryFilters;
+  onChange: (filters: HistoryFilters) => void;
+}): React.JSX.Element | null {
+  const { t } = useLanguage();
+  const chips = activeFilters(filters, t);
+  if (chips.length === 0) return null;
+  return <div className="history-filter-chips">
+    {chips.map((chip) => <span key={chip.key} className="history-filter-chip">
+      <span className="history-filter-chip__label" title={chip.label}>{chip.label}</span>
+      <button
+        type="button"
+        className="history-filter-chip__remove"
+        aria-label={t.historyFilterRemove(chip.label)}
+        onClick={() => onChange({ ...filters, ...chip.cleared })}
+      >
+        <X aria-hidden="true" />
+      </button>
+    </span>)}
+  </div>;
+}
+
+/** The filters, behind one trigger.
+ *
+ * They used to be two menus sitting in the search box, which spent the strip's
+ * width on saying what they were set to. A sidebar column has ~300px and five
+ * filters; the trigger says *how many* are on and the panel says which, which
+ * is the only arrangement that does not grow with the number of filters.
+ *
+ * Toggles and ranges apply as they are chosen — one click, one answer. The two
+ * text fields commit on Enter or on leaving them, because every apply is a
+ * fresh read of the repository and a keystroke is not an intention. */
+function HistoryFilterPanel({ filters, authorSuggestions, canFilterPublication, onChange }: {
+  filters: HistoryFilters;
+  authorSuggestions: string[];
+  canFilterPublication: boolean;
+  onChange: (filters: HistoryFilters) => void;
 }): React.JSX.Element {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [authorDraft, setAuthorDraft] = useState(filters.author ?? "");
+  const [pathDraft, setPathDraft] = useState(filters.path ?? "");
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const closeMenu = (restoreFocus: boolean): void => {
+  const closePanel = (restoreFocus: boolean): void => {
     setIsOpen(false);
     if (restoreFocus) triggerRef.current?.focus();
   };
-  const { containerRef, popupRef: menuRef } = useAnchoredPopup(isOpen, triggerRef, closeMenu, "selected-menu-item");
-  const selected = options.find((option) => option.value === value) ?? options[0];
+  const { containerRef, popupRef } = useAnchoredPopup(isOpen, triggerRef, closePanel, "container");
 
-  return <div className="history-filter-menu" ref={containerRef}>
-    <button ref={triggerRef} className="history-filter-menu__trigger" type="button" aria-haspopup="menu" aria-expanded={isOpen} aria-label={`${label}: ${selected.label}`} data-tooltip={`${label}: ${selected.label}`} onClick={() => setIsOpen((open) => !open)}>
-      <span className="history-filter-menu__icon" aria-hidden="true">{selected.icon}</span>
-      <span className="history-filter-menu__copy"><small>{label}</small><strong>{selected.label}</strong></span>
-      <ChevronDown className="history-filter-menu__chevron" aria-hidden="true" />
+  useEffect(() => { setAuthorDraft(filters.author ?? ""); }, [filters.author]);
+  useEffect(() => { setPathDraft(filters.path ?? ""); }, [filters.path]);
+
+  const active = countActiveFilters(filters);
+  const apply = (patch: Partial<HistoryFilters>): void => onChange({ ...filters, ...patch });
+  const commitText = (key: "author" | "path", draft: string): void => {
+    const value = draft.trim();
+    apply({ [key]: value.length > 0 ? value : null });
+  };
+  const ranges = dateRanges(t);
+
+  return <div className="history-filter" ref={containerRef}>
+    <button
+      ref={triggerRef}
+      className={`history-filter__trigger${active > 0 ? " history-filter__trigger--active" : ""}`}
+      type="button"
+      aria-haspopup="dialog"
+      aria-expanded={isOpen}
+      aria-label={active > 0 ? t.historyFiltersActive(active) : t.historyFiltersLabel}
+      data-tooltip={active > 0 ? t.historyFiltersActive(active) : t.historyFiltersLabel}
+      onClick={() => setIsOpen((open) => !open)}
+    >
+      <ListFilter aria-hidden="true" />
+      {/* A count, not a dot: the trigger has to say that something is on and
+          how much of it, without the panel being open to read. */}
+      {active > 0 && <span className="history-filter__badge" aria-hidden="true">{active}</span>}
     </button>
-    {isOpen && <div ref={menuRef} className="app-menu history-filter-menu__menu" role="menu" aria-label={label} onKeyDown={(event) => handlePopupMenuKeyDown(event, menuRef.current, () => closeMenu(false))}>
-      {options.map((option) => <button key={option.value} className={`app-menu__item${option.value === value ? " app-menu__item--selected" : ""}`} type="button" role="menuitemradio" tabIndex={-1} aria-checked={option.value === value} onClick={() => { closeMenu(false); onChange(option.value); triggerRef.current?.focus(); }}>
-        {option.icon}<span>{option.label}</span>{option.value === value && <Check className="app-menu__check" aria-hidden="true" />}
-      </button>)}
+    {isOpen && <div
+      ref={popupRef}
+      className="history-filter__panel"
+      role="dialog"
+      aria-label={t.historyFiltersLabel}
+      tabIndex={-1}
+      onKeyDown={(event) => handlePopupMenuKeyDown(event, popupRef.current, () => closePanel(true))}
+    >
+      <div className="history-filter__group">
+        <label className="history-filter__label" htmlFor="history-filter-author">{t.historyFilterAuthorLabel}</label>
+        {/* The same pill the search boxes wear, with the glyph naming what goes
+            in it — a person, a folder — so the two fields are told apart before
+            their labels are read. */}
+        <div className="history-filter__field">
+          <UserRound aria-hidden="true" />
+          <input
+            id="history-filter-author"
+            type="text"
+            value={authorDraft}
+            list="history-filter-authors"
+            placeholder={t.historyFilterAuthorPlaceholder}
+            onChange={(event) => setAuthorDraft(event.target.value)}
+            onBlur={() => commitText("author", authorDraft)}
+            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitText("author", authorDraft); } }}
+          />
+        </div>
+        {/* Suggestions from the versions on screen; the filter itself still
+            asks Git about all of them, so the list is a shortcut and never a
+            limit on what can be typed. */}
+        <datalist id="history-filter-authors">
+          {authorSuggestions.map((name) => <option key={name} value={name} />)}
+        </datalist>
+      </div>
+
+      {/* Four capsules rather than four radio rows: they are one choice out of
+          a short, fixed set of the same kind of thing, which is the shape a
+          segmented choice takes. Still real radios underneath — the input is
+          hidden, not replaced, so arrow keys and assistive technology keep the
+          grouping they would otherwise lose. */}
+      <fieldset className="history-filter__group">
+        <legend className="history-filter__label">{t.historyFilterDateLabel}</legend>
+        <div className="history-filter__ranges">
+          {ranges.map((range) => <label key={range.label} className={`history-filter__range${filters.since === range.since ? " history-filter__range--active" : ""}`}>
+            <input
+              className="visually-hidden"
+              type="radio"
+              name="history-filter-date"
+              checked={filters.since === range.since}
+              onChange={() => apply({ since: range.since })}
+            />
+            <span>{range.label}</span>
+          </label>)}
+        </div>
+      </fieldset>
+
+      <div className="history-filter__group">
+        <label className="history-filter__label" htmlFor="history-filter-path">{t.historyFilterPathLabel}</label>
+        <div className="history-filter__field">
+          <Folder aria-hidden="true" />
+          <input
+            id="history-filter-path"
+            type="text"
+            value={pathDraft}
+            placeholder={t.historyFilterPathPlaceholder}
+            onChange={(event) => setPathDraft(event.target.value)}
+            onBlur={() => commitText("path", pathDraft)}
+            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitText("path", pathDraft); } }}
+          />
+        </div>
+      </div>
+
+      <div className="history-filter__group">
+        <label className="history-filter__switch">
+          <input className="app-checkbox" type="checkbox" checked={filters.noMerges} onChange={(event) => apply({ noMerges: event.target.checked })} />
+          <GitMerge aria-hidden="true" />
+          <span>{t.historyFilterHideMerges}</span>
+        </label>
+        {canFilterPublication && <label className="history-filter__switch">
+          <input className="app-checkbox" type="checkbox" checked={filters.unpublishedOnly} onChange={(event) => apply({ unpublishedOnly: event.target.checked })} />
+          <HardDrive aria-hidden="true" />
+          <span>{t.historyFilterUnpublishedOnly}</span>
+        </label>}
+      </div>
+
+      {/* What is on, and the one way to end all of it — a count beside its own
+          undo, rather than a button spanning the panel for a state that is
+          usually empty. */}
+      <footer className="history-filter__footer">
+        <span>{active > 0 ? t.historyFiltersActiveCount(active) : ""}</span>
+        <button
+          className="ghost-button"
+          type="button"
+          disabled={active === 0}
+          onClick={() => onChange(NO_HISTORY_FILTERS)}
+        >
+          {t.historyFiltersClear}
+        </button>
+      </footer>
     </div>}
   </div>;
 }
@@ -373,6 +577,14 @@ function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDif
   const totals = diffTotals(state.fileDiff.diff);
   const hunkCount = diffHunkCount(state.fileDiff.diff);
   const selectedFile = detail.files.find((file) => file.path === state.selectedFilePath) ?? null;
+  // Stepped through the list as it is filtered, not through every changed file
+  // in the version: the arrows move the same selection the pane beside them
+  // shows, and a search that narrows that pane narrows what they walk.
+  const fileIndex = visibleFiles.findIndex((file) => file.path === state.selectedFilePath);
+  const selectFileAt = (index: number): void => {
+    const file = visibleFiles[index];
+    if (file) onSelectFile(file.path);
+  };
   const goToHunk = (index: number): void => setHunkTarget((current) => ({ index, token: current.token + 1 }));
   const copySelectedPath = (): void => {
     if (!state.selectedFilePath) return;
@@ -404,20 +616,32 @@ function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDif
     setActiveTab("diff");
   };
 
-  const fileSearchControl = <label className="history-search-box history-search-box--files"><Search aria-hidden="true" /><input type="search" value={fileSearch} onChange={(event) => setFileSearch(event.target.value)} placeholder={t.historyFilterFilesPlaceholder} aria-label={t.historyFilterFilesAriaLabel} /></label>;
+  const fileSearchControl = <SearchBox className="history-files-search" value={fileSearch} onChange={setFileSearch} placeholder={t.historyFilterFilesPlaceholder} ariaLabel={t.historyFilterFilesAriaLabel} clearLabel={t.commonClearSearch} />;
   const fileList = visibleFiles.length ? <ChangedFiles files={visibleFiles} selectedPath={state.selectedFilePath} onSelect={onSelectFile} /> : <p className="history-files__empty">{normalizedFileSearch ? t.historyNoFileMatches : t.historyNoChangedFiles}</p>;
 
   return <section className="history-detail" aria-labelledby="history-detail-title">
     <button className="history-detail__back secondary-button" type="button" onClick={onBack}><ArrowLeft aria-hidden="true" />{t.historyBackToTimeline}</button>
+    {/* One card: identity, the tabs that cut it, and whichever of them is
+        open. The back button stays outside it — it leaves the card rather
+        than acting on it. */}
+    <div className="history-detail__card">
     <HistoryDetailHeader detail={detail} formats={formats} activeTab={activeTab} onTab={setActiveTab} />
     {activeTab === "overview" && <HistoryOverview detail={detail} state={state} formats={formats} comparison={comparison} onSelectFile={openFileFromOverview} />}
     {activeTab === "diff" && <div id="history-panel-diff" className="history-workspace history-workspace--diff" role="tabpanel" aria-labelledby="history-tab-diff">
-      <header className="history-workspace__toolbar"><div className="history-change-summary"><strong>{fileCount}</strong>{totals && <><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></>}</div><div className="history-diff-controls"><label className="history-search-box history-search-box--diff"><Search aria-hidden="true" /><input type="search" value={diffSearch} onChange={(event) => setDiffSearch(event.target.value)} placeholder={t.historySearchDiffPlaceholder} aria-label={t.historySearchDiffAriaLabel} /></label>{picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}{showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}</div></header>
-      <div className="history-diff-grid"><aside className="history-files-pane">{fileSearchControl}{fileList}</aside><div className="history-diff-pane"><header className="history-diff-pane__header">{selectedFile ? <><span className="history-file__type" aria-hidden="true">{React.createElement(getFileTypeIcon(selectedFile.path))}</span><strong>{splitPath(selectedFile.path).name}</strong><span>{splitPath(selectedFile.path).dir}</span><button className="history-icon-button" type="button" aria-label={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} data-tooltip={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} onClick={copySelectedPath}>{copiedPath ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}</button></> : <span>{t.historySelectFilePrompt}</span>}</header>
+      <header className="history-workspace__toolbar"><div className="history-change-summary"><strong>{fileCount}</strong>{totals && <><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></>}</div><div className="history-diff-controls"><SearchBox className="history-diff-search" value={diffSearch} onChange={setDiffSearch} placeholder={t.historySearchDiffPlaceholder} ariaLabel={t.historySearchDiffAriaLabel} clearLabel={t.commonClearSearch} />{picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}{showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}</div></header>
+      <div className="history-diff-grid"><aside className="history-files-pane">{fileSearchControl}{fileList}</aside><div className="history-diff-pane"><header className="history-diff-pane__header">{selectedFile ? <><span className="history-file__type" aria-hidden="true">{React.createElement(getFileTypeIcon(selectedFile.path))}</span><strong>{splitPath(selectedFile.path).name}</strong><span>{splitPath(selectedFile.path).dir}</span><button className="history-icon-button" type="button" aria-label={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} data-tooltip={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} onClick={copySelectedPath}>{copiedPath ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}</button></> : <span>{t.historySelectFilePrompt}</span>}
+        {/* The same two pairs the Changes diff header carries, in the same
+            place and the same shape. They used to be a footer of labelled
+            buttons under the diff — a second vocabulary for one job, and the
+            only control in the app sized below the scale. */}
+        <div className="history-diff-pane__controls">
+          {visibleFiles.length > 0 && <DiffStepNav kind="file" position={fileIndex + 1} total={visibleFiles.length} onPrevious={() => selectFileAt(fileIndex - 1)} onNext={() => selectFileAt(fileIndex + 1)} t={t} />}
+          {hunkCount > 0 && viewMode !== "accessible" && <DiffStepNav kind="hunk" position={hunkTarget.index + 1} total={hunkCount} onPrevious={() => goToHunk(hunkTarget.index - 1)} onNext={() => goToHunk(hunkTarget.index + 1)} t={t} />}
+        </div></header>
         <div className="history-detail__diff" onContextMenu={openCodeContextMenu}>{state.fileDiff.isLoading && <div className="history-diff-state" aria-busy="true"><LoadingBar label={t.historyDiffLoading} /><p>{t.historyDiffLoading}</p></div>}{state.fileDiff.error !== null && <div className="history-diff-state" role="alert"><p>{t.historyDiffError}</p><button className="secondary-button" type="button" onClick={onRetryDiff}>{t.historyRetry}</button></div>}{state.fileDiff.diff && <DiffResultView diff={state.fileDiff.diff} viewMode={viewMode} hunkTarget={hunkTarget} searchQuery={diffSearch} picture={picture} t={t} />}{!state.fileDiff.isLoading && !state.fileDiff.error && !state.fileDiff.diff && detail.files.length > 0 && <p className="history-diff-state">{t.historySelectFilePrompt}</p>}</div>
-        {hunkCount > 0 && viewMode !== "accessible" && <footer className="history-diff-pane__footer"><span>{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span><div><button className="secondary-button" type="button" disabled={hunkTarget.index <= 0} onClick={() => goToHunk(hunkTarget.index - 1)}><ArrowUp aria-hidden="true" />{t.changesPreviousHunk}</button><button className="secondary-button" type="button" disabled={hunkTarget.index >= hunkCount - 1} onClick={() => goToHunk(hunkTarget.index + 1)}>{t.changesNextHunk}<ArrowDown aria-hidden="true" /></button></div></footer>}
       </div></div>
     </div>}
+    </div>
     <span className="visually-hidden" role="status">{announcement}</span>
     <ChangesContextMenu context={contextMenu} onClose={closeContextMenu} onCopied={() => setAnnouncement(t.changesCopied)} onDiscard={() => undefined} t={t} />
   </section>;
@@ -427,18 +651,32 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
   const { t, formats } = useLanguage();
   const [showNarrowDetail, setShowNarrowDetail] = useState(false);
   const [search, setSearch] = useState("");
-  const [publicationFilter, setPublicationFilter] = useState<PublicationFilter>("all");
-  const [sort, setSort] = useState<HistorySort>("newest");
   const warnings = state.snapshot?.warnings ?? [];
+  // "Has this left my machine yet?" is only answerable against a place it
+  // could have gone. Without an upstream every version reads `unknown`, so the
+  // switch would empty the list and call it a filter; the screen already says
+  // the upstream is unknown in a banner of its own.
+  const canFilterPublication = Boolean(state.snapshot?.upstream);
+  // The filters are answered by Git over the whole history. This is the search
+  // box only, and it is deliberately a different thing: a quick find over the
+  // rows on screen, across everything a row shows rather than the message
+  // alone. The count beside the title says which of the two is narrowing.
   const visibleVersions = useMemo(() => {
     const queryText = search.trim().toLocaleLowerCase();
-    const filtered = state.versions.filter((version) => {
-      if (publicationFilter !== "all" && version.publication !== publicationFilter) return false;
-      if (!queryText) return true;
-      return [version.subject, version.description, version.author?.name ?? "", version.shortCommit, ...version.decorations.map((item) => item.name)].some((value) => value.toLocaleLowerCase().includes(queryText));
-    });
-    return sort === "newest" ? filtered : [...filtered].reverse();
-  }, [publicationFilter, search, sort, state.versions]);
+    if (!queryText) return state.versions;
+    return state.versions.filter((version) =>
+      [version.subject, version.description, version.author?.name ?? "", version.shortCommit, ...version.decorations.map((item) => item.name)].some((value) => value.toLocaleLowerCase().includes(queryText)));
+  }, [search, state.versions]);
+  // Names taken from what is loaded, offered as completions to a field that
+  // still asks Git about every version — a shortcut, never a limit.
+  const authorSuggestions = useMemo(() => {
+    const names = new Set<string>();
+    for (const version of state.versions) {
+      const name = version.author?.name.trim();
+      if (name) names.add(name);
+    }
+    return [...names].sort((left, right) => left.localeCompare(right)).slice(0, 40);
+  }, [state.versions]);
   const refreshHistory = useCallback(() => { void controller.refresh(query); }, [controller, query]);
   const loadMore = useCallback(() => { void controller.loadMore(query); }, [controller, query]);
   const selectVersion = useCallback((commit: string) => controller.selectVersion(query, commit), [controller, query]);
@@ -460,12 +698,26 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
     [controller, query, selectedCommit],
   );
   const saveScrollOffset = useCallback((offset: number) => controller.setScrollOffset(query, offset), [controller, query]);
+  const applyFilters = useCallback((filters: HistoryFilters) => { void controller.setFilters(query, filters); }, [controller, query]);
+  const filtersActive = search.trim().length > 0 || countActiveFilters(state.filters) > 0;
+
   const openNarrowDetail = useCallback(() => setShowNarrowDetail(true), []);
   const closeNarrowDetail = useCallback(() => setShowNarrowDetail(false), []);
 
   if (!state.snapshot && state.isLoading) return <div className="history-screen"><div className="empty-state" aria-busy="true"><LoadingBar label={t.historyLoading} /><h1>{t.historyTitle}</h1><p>{t.historyLoading}</p></div></div>;
   if (!state.snapshot && error) return <div className="history-screen"><div className="empty-state empty-state--error" role="alert"><div className="empty-state__icon" aria-hidden="true"><CircleAlert /></div><h1>{t.historyErrorTitle}</h1><p>{error}</p><div className="empty-state__actions"><button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button></div></div></div>;
-  if (state.snapshot && state.versions.length === 0) return <div className="history-screen"><div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div><div className="empty-state"><div className="empty-state__icon" aria-hidden="true"><GitCommitHorizontal /></div><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div></div>;
+  // "No saved versions yet" is a fact about the repository, and one this
+  // screen may only state when it is not in the middle of asking. A filter
+  // that matches nothing is a fact about the filter and belongs in the list
+  // beside the way to undo it; an empty list with a read in flight is not a
+  // fact about anything yet.
+  //
+  // Both halves were learned the hard way. Without the filter clause this
+  // swallowed the whole screen the instant a filter was applied. Without the
+  // loading clause it swallowed it again on Clear all — the filters are off by
+  // then, and the empty list still on screen is the answer to the question
+  // that was just retired.
+  if (state.snapshot && state.versions.length === 0 && !filtersActive && !state.isLoading) return <div className="history-screen"><div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div><div className="empty-state"><div className="empty-state__icon" aria-hidden="true"><GitCommitHorizontal /></div><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div></div>;
 
   return <div className={`history-screen${showNarrowDetail ? " history-screen--narrow-detail" : ""}`}>
     <div className="history-notices">
@@ -480,8 +732,17 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
       {(warnings.includes("messagesTruncated") || warnings.includes("decorationsTruncated")) && <p className="history-meta-warning" role="status">{t.historyTruncatedMetadata}</p>}
       {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(formatNumber(MAX_HISTORY_ROWS, formats))}</p>}
     </div>
+    {/* Title and state on one line, as on Changes: the count is a caption for
+        the word beside it, and it describes the screen rather than the column
+        it used to sit inside. */}
+    <header className="history-view__header">
+      <div className="history-view__heading">
+        <h1>{t.historyTitle}</h1>
+        <p>{filtersActive ? t.historyFilteredCount(visibleVersions.length, state.versions.length) : t.historyLoadedCount(state.versions.length)}</p>
+      </div>
+    </header>
     <div className="history-layout">
-      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} loadedCount={state.versions.length} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} publicationFilter={publicationFilter} sort={sort} onSearch={setSearch} onPublicationFilter={setPublicationFilter} onSort={setSort} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
+      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} authorSuggestions={authorSuggestions} canFilterPublication={canFilterPublication} onSearch={setSearch} onFilters={applyFilters} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
       <HistoryDetail state={state} formats={formats} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
     </div>
   </div>;

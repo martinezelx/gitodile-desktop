@@ -466,11 +466,13 @@ Three things this settles:
   the height is actually known, so an un-sized control quietly breaks the shape
   rules as well as the size ones.
 
-A control that genuinely belongs to a denser context may sit outside the scale —
-the diff pane's footer runs at 30px, below even `sm`, because the pane around it
-is a code surface with its own measure. That is an exception, it is written down
-here, and it is the only one. Its *type* is not an exception: it takes
-`--text-caption` like any other chip-sized label.
+There are no exceptions. There was one — the History diff pane's footer ran its
+buttons at 30px, below even `sm`, on the grounds that the pane around it is a
+code surface with its own measure. It went with the footer: stepping between
+changes is now the same arrow pair the Changes diff header carries, in the same
+place, and an icon-only stepper is not a labelled button at all. A control that
+seems to need a size of its own is usually a control that has been given the
+wrong shape.
 
 A guard in `styleComposition.test.ts` fails the build on any feature rule that
 gives a `.primary-button` or `.secondary-button` its own height, font size or

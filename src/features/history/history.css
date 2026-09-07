@@ -5,10 +5,23 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  /* The gap replaces the margin the notices used to carry: an empty notice
+     block collapses to nothing, and a screen whose spacing lives in one
+     property is a screen whose header can be added without re-deriving it. */
+  gap: var(--space-4);
 }
 
 .history-notices:empty { display: none; }
-.history-notices { display: grid; gap: 6px; margin-bottom: 8px; }
+.history-notices { display: grid; gap: 6px; }
+
+/* Title and state on one line, the shape Changes uses. `baseline` is what lets
+   a 22px heading and a 14px caption share a row without the caption reading as
+   dropped; the wrap returns the sentence to a line of its own on a narrow
+   window rather than cutting it. */
+.history-view__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); }
+.history-view__heading { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.history-view__heading h1 { margin: 0; line-height: var(--leading-tight); }
+.history-view__heading p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-lead); }
 .history-banner {
   display: flex;
   align-items: flex-start;
@@ -35,42 +48,232 @@
   display: grid;
   grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
   gap: 12px;
+  /* The same calc Changes writes on its own layout, for the same reason: the
+     strip is the row control plus 10px of air above and below, expressed off
+     the control tier rather than as a number of its own. It is declared here
+     rather than shared with Changes because the two layouts are separate
+     hosts — the History diff toolbar already reads Changes' variable with a
+     fallback, which is what a value crossing a feature boundary costs. */
+  --history-header-height: calc(var(--control-height-sm) + 20px);
 }
 
-.history-timeline { min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.history-timeline__header { flex: 0 0 auto; display: grid; gap: 8px; padding: 6px 0 12px; }
-.history-timeline__heading { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.history-timeline__heading h1 { margin: 0 0 3px; line-height: var(--leading-tight); }
-.history-timeline__heading p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
-.history-timeline__tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-.history-filter-menu { position: relative; min-width: 0; }
-.history-filter-menu__trigger {
-  width: 100%;
-  min-height: 42px;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 14px;
+/* A panel, not a bare column: the timeline is the sibling of the detail card
+   beside it and of the Changes file list, and all three carry their own
+   surface with one strip at the top holding the row's controls. */
+.history-timeline {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+}
+/* No rule under it. The search box is already a bordered capsule floating on
+   the panel, and a second line right below it fenced the box off from the very
+   rows it filters — two edges 10px apart saying the same thing. The strip's
+   height is what separates them now. */
+.history-timeline__toolbar {
+  /* The positioning context for the filter panel below. The panel used to hang
+     off the trigger, which is 24px wide and sits at the right end of the search
+     box: right-anchored there it stopped 12px short of the panel edge on one
+     side and ran past it on the other. Spanning the strip instead gives it the
+     strip own inset on both sides, and a width that grows with the column. */
+  position: relative;
+  flex: 0 0 auto;
+  height: var(--history-header-height);
+  display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px var(--space-3);
+  padding: 0 var(--space-2);
+}
+.history-timeline__toolbar .search-box { flex: 1; }
+
+.history-filter { display: inline-flex; }
+/* One trigger for every filter, and it never grows. Filters used to be menus
+   that printed their current value into the strip, which cost width in
+   proportion to how many there were — a sidebar column of ~300px cannot pay
+   that for five of them. The count is the whole message: something is on, and
+   this much of it. An affordance attached to the search box, so it stays
+   rectangular rather than joining the circle family (DESIGN.md § Shape) and
+   takes the tier below its side: 10 over 24 is 0.42, inside the band that
+   reads as clearly rounded and clearly not a circle. */
+.history-filter__trigger {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  transition: background-color var(--duration-fast) ease-out, color var(--duration-fast) ease-out;
+}
+.history-filter__trigger:hover { background: var(--surface-raised); color: var(--text-primary-color); }
+.history-filter__trigger[aria-expanded="true"] { background: var(--surface-active); color: var(--text-primary-color); }
+.history-filter__trigger--active { background: var(--surface-active); color: var(--accent-primary); }
+.history-filter__trigger svg { width: 14px; height: 14px; }
+/* A filled count, not a bare tint: a filter that is narrowing what the user is
+   looking at must not be distinguishable by colour alone. */
+.history-filter__badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-primary);
+  color: var(--accent-primary-contrast);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-none);
+}
+/* A form, not a menu, so it takes the surface an `.app-menu` takes but lays
+   its own contents out. It spans the strip that opens it — both insets equal,
+   no width of its own — so it is centred on the column at every width and can
+   never be clipped by the panel that holds it. */
+.history-filter__panel {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: var(--space-2);
+  right: var(--space-2);
+  z-index: 5;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+.history-filter__panel:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.history-filter__group { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.history-filter__label { color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); padding: 0; }
+/* The same box as `.search-box`, one glyph in: a single-line field is a
+   capsule at the row tier, and these two are the same control the strip above
+   them carries. The wrapper holds the border so the input inside can be bare,
+   which is also what lets the glyph sit inside the pill rather than beside it. */
+.history-filter__field {
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--control-height-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
-  color: var(--text-primary-color);
-  text-align: left;
-  transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out;
+  background: var(--surface-hover);
+  transition: border-color var(--duration-fast), background var(--duration-fast);
 }
-.history-filter-menu__trigger:hover { border-color: var(--border-strong); background: var(--surface-hover); }
-.history-filter-menu__trigger[aria-expanded="true"] { border-color: var(--accent-primary); background: var(--surface-active); }
-.history-filter-menu__icon { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-raised); color: var(--accent-primary); }
-.history-filter-menu__icon svg { width: 13px; height: 13px; }
-.history-filter-menu__copy { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.history-filter-menu__copy small, .history-filter-menu__copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-filter-menu__copy small { color: var(--text-secondary-color); font-size: var(--text-micro); line-height: var(--leading-tight); }
-.history-filter-menu__copy strong { font-size: var(--text-caption); line-height: var(--leading-tight); }
-.history-filter-menu__chevron { width: 13px; height: 13px; color: var(--text-secondary-color); transition: transform var(--duration-fast) ease-out; }
-.history-filter-menu__trigger[aria-expanded="true"] .history-filter-menu__chevron { transform: rotate(180deg); }
-.history-filter-menu__menu { min-width: 205px; }
-.history-filter-menu:first-child .history-filter-menu__menu { right: auto; left: 0; }
+.history-filter__field:focus-within { border-color: var(--focus-ring); background: var(--surface-panel); }
+.history-filter__field > svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.history-filter__field input {
+  min-width: 0; flex: 1; padding: 0; border: 0; outline: none;
+  background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--control-font-sm);
+}
+.history-filter__field input::placeholder { color: var(--text-secondary-color); }
+/* One choice out of a short fixed set, so it reads as a segmented row of
+   capsules rather than a column of dots — and one row, which is what the four
+   names are kept short enough to allow. `wrap` stays as the way out: a
+   translation longer than these drops to a second line rather than being cut,
+   and a capsule that wraps is still a capsule where a segmented control with
+   hard borders would not be. */
+.history-filter__ranges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.history-filter__range {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.history-filter__range:hover { border-color: var(--border-divider); background: var(--surface-hover); color: var(--text-primary-color); }
+/* The input is hidden, not removed, so the ring has to be drawn on the capsule
+   the eye actually sees. */
+.history-filter__range:has(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.history-filter__range--active {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  background: var(--surface-active);
+  color: var(--accent-primary);
+}
+.history-filter__switch {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 6px;
+  border-radius: var(--radius-item);
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+  transition: background var(--duration-fast);
+}
+.history-filter__switch:hover { background: var(--surface-hover); }
+.history-filter__switch svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.history-filter__switch span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-filter__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-divider);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+
+/* What is on, under the strip that set it. The trigger's badge counts them;
+   these name them, and each ends on its own — which is the part a count can
+   never offer. Their own row, because chips inside the search pill take the
+   width from the field they sit in. Present only while something is on, so
+   the list keeps its full height the rest of the time. */
+.history-filter-chips {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2);
+}
+.history-filter-chip {
+  max-width: 100%;
+  min-width: 0;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-active);
+  color: var(--accent-primary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+}
+.history-filter-chip__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-filter-chip__remove {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: inherit;
+  transition: background var(--duration-fast);
+}
+.history-filter-chip__remove:hover { background: color-mix(in srgb, var(--accent-primary) 18%, transparent); }
+.history-filter-chip__remove svg { width: 12px; height: 12px; }
 
 .history-icon-button {
   width: 34px;
@@ -85,33 +288,18 @@
   color: var(--text-secondary-color);
 }
 .history-icon-button:hover { border-color: var(--border-strong); background: var(--surface-hover); color: var(--text-primary-color); }
-.history-icon-button--active { border-color: color-mix(in srgb, var(--accent-primary) 65%, var(--border-subtle)); color: var(--accent-primary); }
 .history-icon-button svg { width: 15px; height: 15px; }
 
-.history-search-box {
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
-  color: var(--text-secondary-color);
-}
-.history-search-box:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
-.history-search-box > svg { width: 15px; height: 15px; flex: 0 0 auto; }
-.history-search-box input { min-width: 0; width: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--text-label); }
-.history-search-box input::placeholder { color: var(--text-secondary-color); }
-
+/* Two pixels under the strip, over the rows it is about to replace. It sits in
+   the flow rather than over the list so it never covers a row, and the list
+   below it dims instead of blanking. */
+.history-timeline__progress { flex: 0 0 auto; height: 2px; margin: 0 var(--space-2); }
+.history-timeline__progress .loading-state { gap: 0; }
 .history-timeline__scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
 }
 .history-timeline__virtual { position: relative; width: 100%; }
 .history-timeline__virtual-row { position: absolute; top: 0; left: 0; width: 100%; height: 82px; padding: 0 5px; contain: layout paint style; }
@@ -119,7 +307,8 @@
 .history-timeline__loading-more { width: min(220px, 100%); padding: 4px 0; }
 .history-timeline__loading-more .loading-state { gap: 7px; }
 .history-timeline__loading-more .loading-state__message { padding: 0; font-size: var(--text-caption); }
-.history-timeline__empty { margin: 0; padding: 26px 18px; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-align: center; }
+.history-timeline__empty { display: grid; justify-items: center; gap: var(--space-3); padding: 26px 18px; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-align: center; }
+.history-timeline__empty p { margin: 0; }
 .history-inline-error { display: grid; gap: 8px; padding: 8px; color: var(--status-danger); font-size: var(--text-label); text-align: center; }
 
 .history-row {
@@ -135,11 +324,19 @@
   background: transparent;
   color: var(--text-primary-color);
   text-align: left;
-  transition: background-color var(--duration-fast) ease-out, border-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
+  transition: background-color var(--duration-fast) ease-out, border-color var(--duration-fast) ease-out;
 }
 .history-row:hover { background: var(--surface-hover); }
-.history-row--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 18%, transparent); }
+/* One border and one tint. The selected row used to carry a third signal — an
+   inset ring a pixel inside its own border — on top of a node that arrived,
+   a halo that expanded and a rail that changed colour underneath it. Four ways
+   of saying "this one" is three more than the row needs. */
+.history-row--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); }
 .history-row--selected:hover { background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-panel)); }
+
+/* The rail is structure, so it is drawn in the divider colour and never moves.
+   It used to be tinted with the accent on every row, which spent the accent on
+   the whole column and left it nothing to say about the one row that matters. */
 .history-row::after {
   content: "";
   position: absolute;
@@ -148,34 +345,43 @@
   bottom: -1px;
   left: 17.5px;
   width: 1px;
-  background: color-mix(in srgb, var(--accent-primary) 44%, var(--border-divider));
-  transition: background-color var(--duration-normal) ease-out;
+  background: var(--border-divider);
 }
 .history-row[data-first]::after { top: 41px; }
 .history-row[data-last]::after { bottom: calc(100% - 41px); }
-.history-row--selected::after { background: color-mix(in srgb, var(--accent-primary) 78%, var(--border-divider)); }
+
+/* The stretch of rail between the top of the list and the selected node, laid
+   over the neutral one. It is the timeline saying how far in the selection
+   sits — a fact, held still, where the previous effect ran a 420ms comet down
+   the rail on every hover and said nothing at all. `half` is the selected row
+   itself: filled as far as its own node, neutral below it.
+
+   Only the colour transitions. `bottom` is a layout property and animating it
+   is what `styleComposition.test.ts` fails the build over. */
 .history-row::before {
   content: "";
   position: absolute;
   z-index: 1;
-  top: 9px;
-  left: 16.5px;
-  width: 3px;
-  height: 24px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(to bottom, transparent, var(--accent-primary) 38%, var(--accent-primary) 68%, transparent);
-  opacity: 0;
-  transform: translateY(-18px) scaleY(.45);
-  transform-origin: center;
+  top: -1px;
+  bottom: -1px;
+  left: 17.5px;
+  width: 1px;
+  background: transparent;
+  transition: background-color var(--duration-normal) ease-out;
 }
-.history-row:hover::before,
-.history-row:focus-visible::before,
-.history-row--selected::before {
-  animation: history-line-arrive-down 420ms cubic-bezier(.16, 1, .3, 1) both;
-}
-.history-row[data-hover-direction="up"]:hover::before,
-.history-row[data-hover-direction="up"]:focus-visible::before { animation-name: history-line-arrive-up; }
-.history-row--selected[data-selection-direction="up"]::before { animation-name: history-line-arrive-up; }
+.history-row[data-rail="filled"]::before,
+.history-row[data-rail="half"]::before { background: color-mix(in srgb, var(--accent-primary) 62%, var(--border-divider)); }
+.history-row[data-rail="half"]::before { bottom: calc(100% - 41px); }
+.history-row[data-first]::before { top: 41px; }
+
+/* The node carries the state, and it carries all of it: a ring at rest, the
+   accent under the pointer, a filled dot with a soft halo when selected. No
+   keyframes — DESIGN.md § Motion asks motion to communicate a state change,
+   and an `infinite` pulse under the pointer is the definition of decoration.
+
+   The resting ring is mixed off the secondary text colour rather than taking a
+   border token: it has to sit a clear step above the rail it stands on, and
+   `--border-divider` *is* that rail. */
 .history-row__node {
   position: absolute;
   z-index: 2;
@@ -183,26 +389,19 @@
   left: 12px;
   width: 12px;
   height: 12px;
-  border: 2px solid var(--accent-primary);
+  border: 2px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
   border-radius: var(--radius-round);
   background: var(--surface-panel);
   box-shadow: 0 0 0 3px var(--surface-panel);
-  transition: transform var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
+  transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
 }
-.history-row__node::before {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 68%, transparent);
-  border-radius: inherit;
-  opacity: 0;
-  transform: scale(.5);
+.history-row:hover .history-row__node,
+.history-row:focus-visible .history-row__node { border-color: var(--accent-primary); }
+.history-row--selected .history-row__node {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--surface-panel), 0 0 0 5px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
-.history-row:hover .history-row__node, .history-row:focus-visible .history-row__node { transform: scale(1.12); box-shadow: 0 0 0 3px var(--surface-panel), 0 3px 9px color-mix(in srgb, var(--accent-primary) 18%, transparent); }
-.history-row:not(.history-row--selected):hover .history-row__node,
-.history-row:not(.history-row--selected):focus-visible .history-row__node { animation: history-node-breathe 1600ms ease-in-out 180ms infinite; }
-.history-row--selected .history-row__node { background: var(--accent-primary); box-shadow: 0 0 0 3px var(--surface-panel), 0 4px 12px color-mix(in srgb, var(--accent-primary) 24%, transparent); animation: history-node-arrive 280ms cubic-bezier(.16, 1, .3, 1) 210ms both; }
-.history-row--selected .history-row__node::before { animation: history-node-halo 360ms cubic-bezier(.16, 1, .3, 1) 270ms both; }
 .history-row__body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
 .history-row__title { display: -webkit-box; overflow: hidden; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-heading); line-height: var(--leading-snug); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 /* Author, then the reference, then when — one sentence packed from the left,
@@ -252,7 +451,26 @@
   background: var(--surface-active); color: var(--accent-primary);
 }
 
+/* The column, not the card: on a narrow window it also carries the button back
+   to the timeline, which is a control *about* the card and does not live
+   inside it. The gap only exists while that button does — a `display: none`
+   child creates none. */
 .history-detail { min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+/* The card. It used to be three: an identity card, a tab band, and a workspace,
+   each with its own border and 12px of air between them, for one saved version
+   described in one place. Three surfaces to say one thing, and the two seams
+   ate ~26px of the diff underneath. Now the borders are gone, the tab band is
+   the seam, and the workspace is simply the rest of the card. */
+.history-detail__card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+}
 .history-detail--state, .history-detail--loading { gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); }
 .history-detail--state { align-items: center; justify-content: center; padding: 28px; color: var(--text-secondary-color); text-align: center; }
 .history-detail--state > svg { width: 25px; height: 25px; margin-bottom: 10px; color: var(--status-danger); }
@@ -263,13 +481,7 @@
 .history-detail__loading p { margin: 0; }
 .history-detail__back { display: none; align-self: flex-start; }
 
-.history-detail__summary {
-  flex: 0 0 auto;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
-}
+.history-detail__summary { flex: 0 0 auto; overflow: hidden; }
 .history-detail__summary-top { min-height: 78px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 11px 12px 10px 16px; }
 .history-detail__identity { min-width: 0; flex: 1; display: grid; gap: 7px; }
 .history-detail__identity h2 { margin: 0; line-height: var(--leading-snug); letter-spacing: var(--tracking-tight); overflow-wrap: anywhere; }
@@ -281,7 +493,6 @@
 .history-author-avatar { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 26px; border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle)); border-radius: var(--radius-round); background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-raised)); color: var(--accent-primary); font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide); }
 .history-detail__truncated { margin: 6px 0 0; color: var(--status-warning); font-size: var(--text-caption); }
 .history-detail__badges { display: flex; flex-wrap: wrap; gap: 5px; }
-.history-refresh-button { flex: 0 0 auto; }
 
 .history-publication, .history-kind-chip, .history-ref-chip { min-width: 0; height: 23px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); white-space: nowrap; }
 .history-publication svg, .history-ref-chip svg { width: 11px; height: 11px; }
@@ -289,7 +500,7 @@
 .history-publication--local-only { color: var(--accent-primary); }
 .history-ref-chip { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 
-.history-tabs { height: 43px; display: flex; align-items: stretch; gap: 4px; padding: 0 20px; }
+.history-tabs { height: 43px; display: flex; align-items: stretch; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--border-subtle); }
 .history-tab { position: relative; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; border: 0; background: transparent; color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong); }
 .history-tab::after { content: ""; position: absolute; right: 8px; bottom: 0; left: 8px; height: 2px; border-radius: 2px 2px 0 0; background: transparent; }
 .history-tab:hover { color: var(--text-primary-color); }
@@ -298,7 +509,7 @@
 .history-tab > svg { width: 14px; height: 14px; }
 .history-tab__count { min-width: 19px; height: 19px; display: grid; place-items: center; padding: 0 5px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
 
-.history-workspace { flex: 1; min-height: 0; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); }
+.history-workspace { flex: 1; min-height: 0; overflow: hidden; }
 /* The toolbar control height is the shared row tier now, which is the 32px
    this workspace used to have to ask for by hand. */
 .history-workspace--diff { display: flex; flex-direction: column; }
@@ -310,16 +521,18 @@
 .history-lines-removed { color: var(--diff-removed); font-size: var(--text-label); font-weight: var(--weight-strong); font-variant-numeric: tabular-nums; }
 .history-diff-controls { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 /* The search box and the view picker sit side by side in this toolbar and have
-   to be the same height. Both read the row tier rather than each carrying its
-   own number, so "the same" is structural instead of two literals that happen
-   to agree — which is exactly what stopped agreeing when the picker lost its
-   height and collapsed to its text. */
-.history-search-box--diff { width: clamp(160px, 24vw, 280px); height: var(--control-height-sm); }
+   to be the same height. Neither carries a number: the box is the shared
+   `.search-box`, which is the row tier, and the picker reads that same tier
+   through Changes' variable with a fallback. "The same" is structural instead
+   of two literals that happen to agree — which is exactly what stopped
+   agreeing when the picker lost its height and collapsed to its text. Only the
+   width is this host's business. */
+.history-diff-search { width: clamp(160px, 24vw, 280px); }
 .history-diff-controls .changes-view-picker__value { font-size: var(--text-label); }
 
 .history-diff-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(148px, 190px) minmax(0, 1fr); }
 .history-files-pane { min-height: 0; display: flex; flex-direction: column; border-inline-end: 1px solid var(--border-divider); background: color-mix(in srgb, var(--surface-raised) 55%, var(--surface-panel)); }
-.history-search-box--files { height: 34px; flex: 0 0 auto; margin: 8px; }
+.history-files-search { flex: 0 0 auto; margin: 8px; }
 .history-files { flex: 1; min-height: 0; overflow-y: auto; }
 .history-files__virtual { position: relative; }
 .history-files__row { position: absolute; top: 0; left: 0; width: 100%; height: 58px; padding: 2px 6px; }
@@ -344,7 +557,10 @@
 .history-diff-pane__header { min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--border-divider); color: var(--text-secondary-color); font-size: var(--text-caption); }
 .history-diff-pane__header strong { min-width: 0; overflow: hidden; color: var(--text-primary-color); font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
 .history-diff-pane__header > span:not(.history-file__type) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-diff-pane__header .history-icon-button { width: 28px; height: 28px; margin-left: auto; border-color: transparent; background: transparent; }
+/* The copy button belongs to the path it copies, so it stays beside it; the
+   arrows act on the pane and take the far edge. */
+.history-diff-pane__header .history-icon-button { width: 28px; height: 28px; border-color: transparent; background: transparent; }
+.history-diff-pane__controls { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 .history-detail__diff { flex: 1; min-height: 120px; display: flex; flex-direction: column; overflow: hidden; }
 .history-detail__diff .diff-code { flex: 1; min-height: 0; margin: 0; border-radius: 0; }
 .history-detail__diff .changes-diff__note { flex: 1; }
@@ -354,10 +570,6 @@
 .history-detail__diff .image-diff { flex: 1; min-height: 0; overflow: auto; }
 .history-diff-state { flex: 1; display: grid; place-items: center; align-content: center; gap: 12px; padding: 20px; color: var(--text-secondary-color); text-align: center; }
 .history-diff-state p { margin: 0; }
-.history-diff-pane__footer { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 9px 5px 14px; border-top: 1px solid var(--border-divider); color: var(--text-secondary-color); font-size: var(--text-caption); }
-.history-diff-pane__footer > div { display: flex; gap: 6px; }
-.history-diff-pane__footer .secondary-button { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px; font-size: var(--text-caption); }
-.history-diff-pane__footer svg { width: 12px; height: 12px; }
 .diff-search-match { border-radius: 2px; background: color-mix(in srgb, var(--status-warning) 55%, transparent); color: inherit; }
 
 .history-workspace--overview { display: flex; flex-direction: column; }
@@ -421,18 +633,15 @@
   .history-tabs { overflow-x: auto; }
   .history-workspace__toolbar { align-items: flex-start; flex-direction: column; }
   .history-diff-controls { width: 100%; justify-content: space-between; }
-  .history-search-box--diff { flex: 1; width: auto; }
+  .history-diff-search { flex: 1; width: auto; }
   .history-diff-grid { grid-template-columns: 1fr; }
   .history-files-pane { max-height: 190px; border-inline-end: 0; border-bottom: 1px solid var(--border-divider); }
-  .history-diff-pane__footer .secondary-button { font-size: 0; }
 }
 
+/* Nothing on the timeline animates any more, so this is the whole of it: the
+   states themselves stay, they simply arrive at once. */
 @media (prefers-reduced-motion: reduce) {
-  .history-row, .history-row::after, .history-row__node, .history-file { transition: none; }
-  .history-row:not(.history-row--selected):hover .history-row__node,
-  .history-row:not(.history-row--selected):focus-visible .history-row__node,
-  .history-row::before, .history-row--selected .history-row__node, .history-row--selected .history-row__node::before { animation: none; }
-  .history-row::before, .history-row--selected .history-row__node::before { display: none; }
+  .history-row, .history-row::before, .history-row__node, .history-file { transition: none; }
 }
 
 @media (pointer: coarse) {
@@ -448,36 +657,8 @@
   .history-row--selected, .history-file--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .history-row__node { border-color: ButtonText; }
   .history-row--selected .history-row__node { background: Highlight; }
+  /* `color-mix` does not survive a forced palette, so the walked rail names a
+     system colour instead of losing its fill entirely. */
+  .history-row[data-rail="filled"]::before, .history-row[data-rail="half"]::before { background: Highlight; }
   .history-publication, .history-kind-chip, .history-ref-chip, .history-ref-badge { border: 1px solid CanvasText; }
-}
-
-@keyframes history-line-arrive-down {
-  0% { opacity: 0; transform: translateY(-18px) scaleY(.45); }
-  20% { opacity: 1; }
-  78% { opacity: 1; transform: translateY(19px) scaleY(.72); }
-  100% { opacity: 0; transform: translateY(25px) scaleY(.2); }
-}
-
-@keyframes history-line-arrive-up {
-  0% { opacity: 0; transform: translateY(48px) scaleY(.45); }
-  20% { opacity: 1; }
-  78% { opacity: 1; transform: translateY(23px) scaleY(.72); }
-  100% { opacity: 0; transform: translateY(17px) scaleY(.2); }
-}
-
-@keyframes history-node-arrive {
-  0% { transform: scale(.86); box-shadow: 0 0 0 3px var(--surface-panel), 0 1px 3px transparent; }
-  62% { transform: scale(1.1); }
-  100% { transform: scale(1); box-shadow: 0 0 0 3px var(--surface-panel), 0 4px 12px color-mix(in srgb, var(--accent-primary) 24%, transparent); }
-}
-
-@keyframes history-node-halo {
-  0% { opacity: 0; transform: scale(.5); }
-  28% { opacity: .72; }
-  100% { opacity: 0; transform: scale(1.45); }
-}
-
-@keyframes history-node-breathe {
-  0%, 100% { transform: scale(1.06); box-shadow: 0 0 0 3px var(--surface-panel), 0 2px 7px color-mix(in srgb, var(--accent-primary) 12%, transparent); }
-  50% { transform: scale(1.14); box-shadow: 0 0 0 3px var(--surface-panel), 0 4px 11px color-mix(in srgb, var(--accent-primary) 24%, transparent); }
 }

@@ -792,13 +792,14 @@ pub(crate) fn read_history_page(
     path: String,
     cursor: Option<String>,
     page_size: Option<usize>,
+    filters: Option<history::HistoryFilters>,
     session_epoch: String,
 ) -> Result<HistoryPage, AppError> {
     report_result(
         "read_history_page",
         (|| {
             validate_session(&path, &session_epoch)?;
-            history::read_history_page_cached(&cache, path, cursor, page_size)
+            history::read_history_page_cached(&cache, path, cursor, page_size, filters)
         })(),
     )
 }

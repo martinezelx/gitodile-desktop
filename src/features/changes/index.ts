@@ -4,6 +4,7 @@ export * from "./controller";
 export { changesPort } from "./tauriAdapter";
 export { DiffResultView, type DiffViewMode } from "./DiffResultView";
 export { DiffViewSelector } from "./DiffViewSelector";
+export { DiffStepNav } from "./DiffStepNav";
 export {
   PictureDiffBody,
   PictureDiffControls,

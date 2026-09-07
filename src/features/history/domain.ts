@@ -1,6 +1,7 @@
 import type { FileDiff } from "../changes";
 import type { HeadState } from "../repository";
 import type { ChangeCategory } from "../status";
+import type { HistoryFilters } from "./port";
 
 export type HistoryTimestamp = { unixSeconds: number; offsetMinutes: number };
 export type SavedVersionAuthor = { name: string; email: string };
@@ -95,6 +96,10 @@ export type HistoryDiffView = {
 export type HistoryState = {
   projectId: string;
   sessionEpoch: string;
+  /** What the loaded versions were asked to be narrowed to. Part of the state
+   * rather than of the screen because it decides which history the pages
+   * describe: changing it invalidates every page already held. */
+  filters: HistoryFilters;
   snapshot: Omit<HistoryPage, "versions"> | null;
   versions: SavedVersionSummary[];
   isLoading: boolean;

@@ -12,7 +12,6 @@ import {
   Ellipsis,
   RotateCcw,
   Save,
-  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -21,13 +20,14 @@ import { localizeAppError } from "../../shared/i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { AutomaticUpdatesNotice, autoHideScrollbarProps } from "../../shared/ui";
 import { SaveVersionDialog } from "../save-version";
-import { LoadingBar } from "../../shared/ui";
+import { LoadingBar, SearchBox } from "../../shared/ui";
 import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
 import { CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
 import { DiffViewSelector } from "./DiffViewSelector";
+import { DiffStepNav } from "./DiffStepNav";
 import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
 import type { DiscardRecovery, FileDiff } from "./domain";
 import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
@@ -489,65 +489,24 @@ function DiffWorkspace({
         </div>
         <div className="changes-diff__controls">
           {fileTotal > 0 && (
-            <div className="changes-diff__file-nav">
-              {/* The position is read, not shown: two counters beside four
-                  arrows made this strip a row of numbers, and the list on the
-                  left already says which file is open and where it sits. It
-                  stays in the accessibility tree for anyone who cannot see
-                  that list, and `0` still means the open file is not in it —
-                  a search can narrow the list without changing the selection,
-                  and "File 0 of 3" is not a position. The arrows stay
-                  (disabled) so the control does not jump in and out while
-                  someone types. */}
-              {filePosition > 0 && (
-                <span className="visually-hidden">{t.changesFilePosition(filePosition, fileTotal)}</span>
-              )}
-              <button
-                type="button"
-                className="changes-diff__step"
-                aria-label={t.changesPreviousFile}
-                data-tooltip={t.changesPreviousFile}
-                disabled={filePosition <= 1}
-                onClick={onSelectPreviousFile}
-              >
-                <ChevronLeft aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="changes-diff__step"
-                aria-label={t.changesNextFile}
-                data-tooltip={t.changesNextFile}
-                disabled={filePosition === 0 || filePosition >= fileTotal}
-                onClick={onSelectNextFile}
-              >
-                <ChevronRight aria-hidden="true" />
-              </button>
-            </div>
+            <DiffStepNav
+              kind="file"
+              position={filePosition}
+              total={fileTotal}
+              onPrevious={onSelectPreviousFile}
+              onNext={onSelectNextFile}
+              t={t}
+            />
           )}
           {hunkCount > 0 && viewMode !== "accessible" && (
-            <div className="changes-diff__hunk-nav">
-              <span className="visually-hidden">{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span>
-              <button
-                type="button"
-                className="changes-diff__step"
-                aria-label={t.changesPreviousHunk}
-                data-tooltip={t.changesPreviousHunk}
-                disabled={hunkTarget.index <= 0}
-                onClick={() => goToHunk(hunkTarget.index - 1)}
-              >
-                <ArrowUp aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="changes-diff__step"
-                aria-label={t.changesNextHunk}
-                data-tooltip={t.changesNextHunk}
-                disabled={hunkTarget.index >= hunkCount - 1}
-                onClick={() => goToHunk(hunkTarget.index + 1)}
-              >
-                <ArrowDown aria-hidden="true" />
-              </button>
-            </div>
+            <DiffStepNav
+              kind="hunk"
+              position={hunkTarget.index + 1}
+              total={hunkCount}
+              onPrevious={() => goToHunk(hunkTarget.index - 1)}
+              onNext={() => goToHunk(hunkTarget.index + 1)}
+              t={t}
+            />
           )}
           {/* Last, at the far edge: the arrows move within this file, and the
               picker changes the file's whole shape. A picture answers the same
@@ -647,7 +606,7 @@ function FileListItem({
       style={virtualPosition === undefined ? undefined : { transform: `translateY(${virtualPosition}px)` }}
     >
       <input
-        className="changes-file-row__checkbox"
+        className="app-checkbox changes-file-row__checkbox"
         type="checkbox"
         checked={isIncluded}
         disabled={!canChoose}
@@ -1147,7 +1106,7 @@ export function ChangesPanel({
                 {canChooseFiles ? (
                   <input
                     ref={selectAllRef}
-                    className="changes-file-row__checkbox"
+                    className="app-checkbox changes-file-row__checkbox"
                     type="checkbox"
                     checked={allSelected}
                     aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
@@ -1159,7 +1118,7 @@ export function ChangesPanel({
                   />
                 ) : (
                   <input
-                    className="changes-file-row__checkbox"
+                    className="app-checkbox changes-file-row__checkbox"
                     type="checkbox"
                     checked
                     disabled
@@ -1169,16 +1128,13 @@ export function ChangesPanel({
                   />
                 )}
               </span>
-              <label className="changes-search-box">
-                <Search aria-hidden="true" />
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder={t.changesSearchPlaceholder}
-                  aria-label={t.changesSearchAriaLabel}
-                />
-              </label>
+              <SearchBox
+                value={search}
+                onChange={setSearch}
+                placeholder={t.changesSearchPlaceholder}
+                ariaLabel={t.changesSearchAriaLabel}
+                clearLabel={t.commonClearSearch}
+              />
               <ChangesActionsMenu
                 controller={controller}
                 projectPath={projectPath}

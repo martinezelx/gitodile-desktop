@@ -36,6 +36,8 @@ const MAX_CACHED_HISTORY_SNAPSHOTS: usize = 4;
 const MAX_CACHED_HISTORY_COMMITS: usize = 1_000;
 const MAX_CACHED_HISTORY_DETAILS: usize = 8;
 const MAX_CACHED_HISTORY_DETAIL_BYTES: usize = 512 * 1024;
+const MAX_FILTER_AUTHOR_CHARS: usize = 200;
+const MAX_FILTER_PATH_CHARS: usize = 1_024;
 
 type PageObjects = (
     HashMap<String, Vec<u8>>,
@@ -665,27 +667,210 @@ fn parse_graph_rows(output: &[u8]) -> Result<Vec<CommitGraphRow>, AppError> {
     Ok(rows)
 }
 
+/// What the caller asked the timeline to be narrowed to.
+///
+/// Every field becomes an argument to the same `rev-list` that pages the
+/// timeline, so a filter applies to the whole reachable history rather than to
+/// the rows the client happens to be holding. That distinction is the reason
+/// the old client-side ordering control was withdrawn: a control that operates
+/// on the loaded page stops telling the truth the moment the history is longer
+/// than the page, and it does so silently.
+#[derive(serde::Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub(crate) struct HistoryFilters {
+    pub(crate) author: Option<String>,
+    pub(crate) since: Option<String>,
+    pub(crate) until: Option<String>,
+    pub(crate) path: Option<String>,
+    pub(crate) no_merges: bool,
+    pub(crate) unpublished_only: bool,
+}
+
+/// Validated filters, each already shaped as the argument it will be passed as
+/// — one owned `String` per flag, so building the argv is a borrow rather than
+/// a second round of formatting.
+#[derive(Debug, Clone, Default)]
+struct PreparedFilters {
+    author: Option<String>,
+    since: Option<String>,
+    until: Option<String>,
+    path: Option<String>,
+    no_merges: bool,
+    unpublished_only: bool,
+}
+
+impl PreparedFilters {
+    /// Whether anything was actually asked for. Publication is classified by a
+    /// cheaper windowed walk while this holds; see `read_history_page_impl`.
+    fn is_inert(&self) -> bool {
+        self.author.is_none()
+            && self.since.is_none()
+            && self.until.is_none()
+            && self.path.is_none()
+            && !self.no_merges
+            && !self.unpublished_only
+    }
+}
+
+fn invalid_filter(message: &str) -> AppError {
+    AppError::new(AppErrorCode::InvalidSelection, message)
+        .with_remediation("Change the filters and try again.")
+}
+
+/// Trims, bounds, and rejects control characters. A value reaches Git as one
+/// argv element after `=`, never through a shell, so the danger is not quoting
+/// but an unbounded or unprintable string reaching a subprocess.
+fn text_filter(
+    value: Option<&str>,
+    limit: usize,
+    message: &str,
+) -> Result<Option<String>, AppError> {
+    let Some(value) = value else { return Ok(None) };
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    if trimmed.chars().count() > limit || trimmed.chars().any(char::is_control) {
+        return Err(invalid_filter(message));
+    }
+    Ok(Some(trimmed.to_string()))
+}
+
+/// `YYYY-MM-DD` and nothing else. Git's date parser accepts a great deal more,
+/// including relative phrasing that would make the filter mean different things
+/// on different days; the interface only ever sends a calendar day.
+fn date_filter(value: Option<&str>, flag: &str) -> Result<Option<String>, AppError> {
+    let Some(value) = text_filter(value, 10, "That date isn't a valid filter.")? else {
+        return Ok(None);
+    };
+    let bytes = value.as_bytes();
+    let shaped = bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && [0, 1, 2, 3, 5, 6, 8, 9]
+            .iter()
+            .all(|index| bytes[*index].is_ascii_digit());
+    if !shaped {
+        return Err(invalid_filter("That date isn't a valid filter."));
+    }
+    Ok(Some(format!("{flag}={value}")))
+}
+
+fn prepare_filters(filters: Option<HistoryFilters>) -> Result<PreparedFilters, AppError> {
+    let filters = filters.unwrap_or_default();
+    let path = text_filter(
+        filters.path.as_deref(),
+        MAX_FILTER_PATH_CHARS,
+        "That file or folder isn't a valid filter.",
+    )?;
+    if let Some(path) = path.as_deref() {
+        validate_repo_relative_path(path)?;
+    }
+    Ok(PreparedFilters {
+        author: text_filter(
+            filters.author.as_deref(),
+            MAX_FILTER_AUTHOR_CHARS,
+            "That author isn't a valid filter.",
+        )?
+        .map(|value| format!("--author={value}")),
+        since: date_filter(filters.since.as_deref(), "--since")?,
+        until: date_filter(filters.until.as_deref(), "--until")?,
+        path,
+        no_merges: filters.no_merges,
+        unpublished_only: filters.unpublished_only,
+    })
+}
+
+/// Which of `commits` are not reachable from the upstream tip.
+///
+/// `--no-walk` keeps the answer bounded by the page rather than by the length
+/// of the branch, which is what lets publication stay correct once a filter
+/// makes the page a non-contiguous slice of history: the windowed walk in
+/// `read_local_only_commits` assumes the page is the next `limit` commits, and
+/// a filtered page is not.
+fn classify_local_only(
+    path: &str,
+    commits: &[String],
+    upstream: &str,
+) -> Result<HashSet<String>, AppError> {
+    if commits.is_empty() {
+        return Ok(HashSet::new());
+    }
+    let mut args = vec!["rev-list", "--no-walk"];
+    args.extend(commits.iter().map(String::as_str));
+    args.push("--not");
+    args.push(upstream);
+    let output = run_git_capped(path, &args, commits.len() * 80 + 1024)?;
+    if !output.status.success() || output.limit_exceeded {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't classify saved versions against the configured upstream.",
+        ));
+    }
+    Ok(git_stdout(&std::process::Output {
+        status: output.status,
+        stdout: output.stdout,
+        stderr: Vec::new(),
+    })
+    .lines()
+    .filter(|commit| is_valid_oid(commit))
+    .map(str::to_string)
+    .collect())
+}
+
 fn read_graph_page(
     path: &str,
     head: &str,
     offset: usize,
     limit: usize,
+    filters: &PreparedFilters,
+    unpublished_upstream: Option<&str>,
 ) -> Result<(Vec<CommitGraphRow>, bool), AppError> {
     let max_count = format!("--max-count={}", limit + 1);
     let skip = format!("--skip={offset}");
-    let output = run_git_capped(
-        path,
-        &[
-            "rev-list",
-            "--topo-order",
-            "--date-order",
-            "--parents",
-            &max_count,
-            &skip,
-            head,
-        ],
-        256 * 1024,
-    )?;
+    let mut args = vec![
+        "rev-list",
+        "--topo-order",
+        "--date-order",
+        "--parents",
+        max_count.as_str(),
+        skip.as_str(),
+    ];
+    if let Some(author) = filters.author.as_deref() {
+        // A name is text, not a pattern. Git reads `--author` as a regular
+        // expression by default, so a bracket typed into the name field —
+        // `a[` — is an invalid expression and fails the whole read with exit
+        // 128, which the screen can only report as an error. `--fixed-strings`
+        // makes it the substring match the field looks like it is, and
+        // `--regexp-ignore-case` makes "ada" find "Ada Lovelace", which is
+        // what someone who does not know Git will expect of a name box.
+        args.push("--fixed-strings");
+        args.push("--regexp-ignore-case");
+        args.push(author);
+    }
+    if let Some(since) = filters.since.as_deref() {
+        args.push(since);
+    }
+    if let Some(until) = filters.until.as_deref() {
+        args.push(until);
+    }
+    if filters.no_merges {
+        args.push("--no-merges");
+    }
+    args.push(head);
+    // "Not published yet" is an exclusion of everything the upstream already
+    // has, which is the same question `--not` answers — so it is a filter over
+    // the whole history like the others, not a predicate over loaded rows.
+    if let Some(upstream) = unpublished_upstream {
+        args.push("--not");
+        args.push(upstream);
+    }
+    // Last, and behind `--`: a pathspec, never an option, whatever it contains.
+    if let Some(path_spec) = filters.path.as_deref() {
+        args.push("--");
+        args.push(path_spec);
+    }
+    let output = run_git_capped(path, &args, 256 * 1024)?;
     if !output.status.success() || output.limit_exceeded {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
@@ -1054,8 +1239,9 @@ pub(crate) fn read_history_page(
     path: String,
     cursor: Option<String>,
     page_size: Option<usize>,
+    filters: Option<HistoryFilters>,
 ) -> Result<HistoryPage, AppError> {
-    read_history_page_impl(path, cursor, page_size, None)
+    read_history_page_impl(path, cursor, page_size, filters, None)
 }
 
 pub(crate) fn read_history_page_cached(
@@ -1063,18 +1249,21 @@ pub(crate) fn read_history_page_cached(
     path: String,
     cursor: Option<String>,
     page_size: Option<usize>,
+    filters: Option<HistoryFilters>,
 ) -> Result<HistoryPage, AppError> {
-    read_history_page_impl(path, cursor, page_size, Some(cache))
+    read_history_page_impl(path, cursor, page_size, filters, Some(cache))
 }
 
 fn read_history_page_impl(
     path: String,
     cursor: Option<String>,
     page_size: Option<usize>,
+    filters: Option<HistoryFilters>,
     cache: Option<&HistoryReadCache>,
 ) -> Result<HistoryPage, AppError> {
     let (repository, _access) =
         application::authorize_repository(&path, "read_history_page", None)?;
+    let filters = prepare_filters(filters)?;
     let repository_id = repository.worktree_root.match_key().to_string();
     let (snapshot, upstream_unavailable) = read_snapshot(&path, &repository_id)?;
     let cursor = cursor.as_deref().map(decode_cursor).transpose()?;
@@ -1111,7 +1300,27 @@ fn read_history_page_impl(
             warnings,
         });
     };
-    let (rows, has_more) = read_graph_page(&path, head, offset, page_size)?;
+    // Asked for but unanswerable: without an upstream there is nothing to
+    // compare against, every version below reads `Unknown`, and the screen
+    // says so in a notice of its own. Narrowing to an empty list would be a
+    // worse answer than not narrowing.
+    let unpublished_upstream = filters
+        .unpublished_only
+        .then(|| {
+            snapshot
+                .upstream
+                .as_ref()
+                .map(|value| value.commit.as_str())
+        })
+        .flatten();
+    let (rows, has_more) = read_graph_page(
+        &path,
+        head,
+        offset,
+        page_size,
+        &filters,
+        unpublished_upstream,
+    )?;
     let (objects, unavailable) = read_page_objects(&path, &rows)?;
     if !unavailable.is_empty() {
         warnings.push(HistoryWarningCode::MessagesTruncated);
@@ -1128,10 +1337,21 @@ fn read_history_page_impl(
     if unreadable_refs {
         warnings.push(HistoryWarningCode::UnreadableMetadata);
     }
-    let local_only = if let Some(upstream) = snapshot.upstream.as_ref() {
-        read_local_only_commits(&path, head, &upstream.commit, local_only_seen, page_size)?
-    } else {
-        HashSet::new()
+    let local_only = match snapshot.upstream.as_ref() {
+        None => HashSet::new(),
+        // The windowed walk only lines up with a page that is the next
+        // `page_size` commits in order. That is exactly what an unfiltered page
+        // is, and exactly what a filtered one is not.
+        Some(upstream) if filters.is_inert() => {
+            read_local_only_commits(&path, head, &upstream.commit, local_only_seen, page_size)?
+        }
+        Some(upstream) => {
+            let commits = rows
+                .iter()
+                .map(|row| row.commit.clone())
+                .collect::<Vec<_>>();
+            classify_local_only(&path, &commits, &upstream.commit)?
+        }
     };
     let page_local_only = rows
         .iter()

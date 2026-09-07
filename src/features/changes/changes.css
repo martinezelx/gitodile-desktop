@@ -326,14 +326,19 @@
 .changes-empty__actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
 .changes-layout {
   flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: var(--space-4);
-  /* Each panel opens with one strip closed by a bottom rule, and those two
-     rules have to land on the same pixel row or the pair looks skewed.
+  /* Each panel opens with one strip of the same height, so their contents
+     start on the same pixel row rather than a step apart.
 
      There used to be two strips a side — a header over a toolbar — kept level
      by two separate height contracts. They asked one question between them
      (which file, included how, shown how), so each pair is now a single row,
      which leaves one number to keep instead of two and hands the files and the
      diff back the ~50px the second rule cost them.
+
+     Only the diff side draws a rule now: the file list's search box carries a
+     border of its own, and a second line under it fenced the box off from the
+     rows it filters. The height contract still holds both strips level, which
+     is what the pairing was ever about.
 
      The strip is the row control — the search box on the left, the
      reading-mode picker on the right — plus 10px of breathing room above and
@@ -365,11 +370,16 @@
 /* Include-everything, the count it produces, and the filter over the list:
    one strip, paired with the diff header. See the note on
    `--changes-header-height`. */
+/* No rule under it. The search box is already a bordered capsule floating on
+   the panel, and a second line right below it fenced the box off from the very
+   rows it filters — two edges 10px apart saying the same thing. The strip's
+   height is what separates them now, and it is still the height the diff
+   header opposite pairs with, so the two panels' contents start level even
+   though only one of them draws a line. */
 .changes-file-list__toolbar {
   display: flex; align-items: center; gap: var(--space-2);
   flex: 0 0 auto; height: var(--changes-header-height);
   padding: 0 var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
 }
 .changes-file-list__select-all {
   display: inline-flex;
@@ -377,18 +387,12 @@
 /* The same 6px inset the rows below use, from the same 8px gutter, so this
    checkbox stands at the head of their column rather than beside it. */
 .changes-file-list__select-all .changes-file-row__checkbox { margin: 0 0 0 6px; }
-.changes-search-box {
-  /* Same fallback as the view picker below, for the same reason. */
-  flex: 1; min-width: 0; box-sizing: border-box; height: var(--changes-toolbar-control-height, var(--control-height-sm));
-  display: flex; align-items: center; gap: 8px; padding: 0 var(--space-4);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); transition: border-color var(--duration-fast), background var(--duration-fast);
-}
-.changes-search-box:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
-.changes-search-box svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
-.changes-search-box input {
-  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text-primary-color);
-  font: inherit; font-size: var(--text-body); outline: none;
+/* The box itself is `.search-box` in primitives.css now. What stays here is
+   what this strip asks of it: the free width, and the height contract the
+   picker beside it reads — the two have to agree or the strip looks stepped. */
+.changes-file-list__toolbar .search-box {
+  flex: 1;
+  height: var(--changes-toolbar-control-height, var(--control-height-sm));
 }
 .changes-file-list__empty {
   margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-secondary-color); font-size: var(--text-body); text-align: center;
@@ -404,35 +408,9 @@
 .changes-file-row--virtual {
   position: absolute; top: 0; left: 0; width: 100%; padding-bottom: 2px;
 }
-.changes-file-row__checkbox {
-  appearance: none; display: grid; place-content: center; flex: 0 0 auto;
-  width: 18px; height: 18px; margin: 0 2px 0 6px;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
-  background: var(--surface-raised);
-  transition: border-color var(--duration-fast), background var(--duration-fast);
-}
-.changes-file-row__checkbox::before {
-  content: ""; width: 8px; height: 4px;
-  border-inline-start: 2px solid var(--accent-primary-contrast);
-  border-bottom: 2px solid var(--accent-primary-contrast);
-  transform: translate(0.25px, -1px) rotate(-45deg) scale(0);
-  transform-origin: center;
-  transition: transform var(--duration-fast);
-}
-.changes-file-row__checkbox:hover { border-color: var(--accent-primary); }
-.changes-file-row__checkbox:checked {
-  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
-}
-.changes-file-row__checkbox:checked::before { transform: translate(0.25px, -1px) rotate(-45deg) scale(1); }
-.changes-file-row__checkbox:indeterminate {
-  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
-}
-.changes-file-row__checkbox:indeterminate::before {
-  width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary-contrast);
-  transform: translate(0, 0) rotate(0deg) scale(1);
-}
-.changes-file-row__checkbox:disabled { opacity: 0.55; }
-.changes-file-row__checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* The control itself is `.app-checkbox` in primitives.css. All this list adds
+   is where it stands in the row. */
+.changes-file-row__checkbox { margin: 0 2px 0 6px; }
 .changes-file-row .changes-file-item { flex: 1; width: auto; }
 .changes-file-list__truncated {
   margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-item); background: var(--surface-hover);
@@ -465,7 +443,6 @@
 }
 @media (forced-colors: active) {
   .changes-notice, .changes-status-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
-  .changes-file-row__checkbox { appearance: auto; }
 }
 .changes-file-item__origin {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--text-secondary-color);

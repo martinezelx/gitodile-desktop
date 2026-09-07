@@ -10,14 +10,22 @@ export interface HistoryTranslations {
   historyTimelineAriaLabel: string;
   historySearchPlaceholder: string;
   historySearchAriaLabel: string;
-  historyPublicationFilterLabel: string;
-  historySortLabel: string;
-  historyFilterAll: string;
-  historyFilterPublished: string;
-  historyFilterLocalOnly: string;
-  historyFilterUnknown: string;
-  historySortNewest: string;
-  historySortOldest: string;
+  historyFiltersLabel: string;
+  historyFiltersActive: (count: number) => string;
+  historyFiltersClear: string;
+  historyFiltersActiveCount: (count: number) => string;
+  historyFilterRemove: (label: string) => string;
+  historyFilterAuthorLabel: string;
+  historyFilterAuthorPlaceholder: string;
+  historyFilterDateLabel: string;
+  historyFilterDateAny: string;
+  historyFilterDateWeek: string;
+  historyFilterDateMonth: string;
+  historyFilterDateYear: string;
+  historyFilterPathLabel: string;
+  historyFilterPathPlaceholder: string;
+  historyFilterHideMerges: string;
+  historyFilterUnpublishedOnly: string;
   historyNoMatches: string;
   historyLoadedCount: (count: number) => string;
   historyFilteredCount: (shown: number, loaded: number) => string;
@@ -111,14 +119,22 @@ const en: HistoryTranslations = {
   historyTimelineAriaLabel: "Saved-version timeline",
   historySearchPlaceholder: "Search saved versions",
   historySearchAriaLabel: "Search saved versions",
-  historyPublicationFilterLabel: "Publication",
-  historySortLabel: "Order",
-  historyFilterAll: "All",
-  historyFilterPublished: "Published",
-  historyFilterLocalOnly: "Local only",
-  historyFilterUnknown: "Unknown",
-  historySortNewest: "Newest first",
-  historySortOldest: "Oldest first",
+  historyFiltersLabel: "Filters",
+  historyFiltersActive: (count) => `Filters (${count} on)`,
+  historyFiltersClear: "Clear all",
+  historyFiltersActiveCount: (count) => `${count} filter${count === 1 ? "" : "s"} active`,
+  historyFilterRemove: (label) => `Remove the ${label} filter`,
+  historyFilterAuthorLabel: "Author",
+  historyFilterAuthorPlaceholder: "Any name or email",
+  historyFilterDateLabel: "Saved",
+  historyFilterDateAny: "Any",
+  historyFilterDateWeek: "7 days",
+  historyFilterDateMonth: "30 days",
+  historyFilterDateYear: "1 year",
+  historyFilterPathLabel: "File or folder",
+  historyFilterPathPlaceholder: "For example src/app",
+  historyFilterHideMerges: "Hide branch merges",
+  historyFilterUnpublishedOnly: "Not published yet",
   historyNoMatches: "No saved versions match these filters.",
   historyLoadedCount: (count) => `${count} saved ${count === 1 ? "version" : "versions"} loaded`,
   historyFilteredCount: (shown, loaded) => `${shown} of ${loaded} loaded ${loaded === 1 ? "version" : "versions"} shown`,
@@ -210,14 +226,22 @@ const es: HistoryTranslations = {
   historyTimelineAriaLabel: "Cronología de versiones guardadas",
   historySearchPlaceholder: "Buscar versiones guardadas",
   historySearchAriaLabel: "Buscar versiones guardadas",
-  historyPublicationFilterLabel: "Publicación",
-  historySortLabel: "Orden",
-  historyFilterAll: "Todas",
-  historyFilterPublished: "Publicadas",
-  historyFilterLocalOnly: "Solo locales",
-  historyFilterUnknown: "Desconocida",
-  historySortNewest: "Más recientes primero",
-  historySortOldest: "Más antiguas primero",
+  historyFiltersLabel: "Filtros",
+  historyFiltersActive: (count) => `Filtros (${count} activo${count === 1 ? "" : "s"})`,
+  historyFiltersClear: "Quitar todos",
+  historyFiltersActiveCount: (count) => `${count} filtro${count === 1 ? "" : "s"} activo${count === 1 ? "" : "s"}`,
+  historyFilterRemove: (label) => `Quitar el filtro ${label}`,
+  historyFilterAuthorLabel: "Autor",
+  historyFilterAuthorPlaceholder: "Cualquier nombre o correo",
+  historyFilterDateLabel: "Guardadas",
+  historyFilterDateAny: "Cualquiera",
+  historyFilterDateWeek: "7 días",
+  historyFilterDateMonth: "30 días",
+  historyFilterDateYear: "1 año",
+  historyFilterPathLabel: "Archivo o carpeta",
+  historyFilterPathPlaceholder: "Por ejemplo src/app",
+  historyFilterHideMerges: "Ocultar uniones de ramas",
+  historyFilterUnpublishedOnly: "Sin publicar",
   historyNoMatches: "Ninguna versión guardada coincide con estos filtros.",
   historyLoadedCount: (count) => `${count} ${count === 1 ? "versión guardada cargada" : "versiones guardadas cargadas"}`,
   historyFilteredCount: (shown, loaded) => `Mostrando ${shown} de ${loaded} ${loaded === 1 ? "versión cargada" : "versiones cargadas"}`,

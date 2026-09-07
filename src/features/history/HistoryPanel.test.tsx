@@ -7,6 +7,7 @@ import { LanguageProvider } from "../../i18n";
 import { createHistoryController } from "./controller";
 import type { HistoryPage, HistoryState, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import { HistoryPanel } from "./HistoryPanel";
+import { NO_HISTORY_FILTERS } from "./port";
 import { formatHistoryDate } from "./formatHistoryDate";
 import type { HistoryPort } from "./port";
 
@@ -60,6 +61,7 @@ function state(count: number, overrides: Partial<HistoryState> = {}): HistorySta
   return {
     projectId: "/repo",
     sessionEpoch: "epoch-1",
+    filters: NO_HISTORY_FILTERS,
     snapshot,
     versions,
     isLoading: false,
@@ -181,7 +183,10 @@ describe("HistoryPanel", () => {
     );
   });
 
-  it("marks whether timeline selection moved up or down", () => {
+  // The rail between the top of the list and the selected node is the only
+  // thing the timeline draws beyond structure and the selection itself, so it
+  // has to follow the selection rather than the pointer.
+  it("fills the rail down to the selected version and no further", () => {
     const initial = state(4);
     const { container, historyController, rerender } = renderPanel(initial);
     const panel = (historyState: HistoryState) => (
@@ -197,22 +202,19 @@ describe("HistoryPanel", () => {
       </LanguageProvider>
     );
 
+    const rail = (): Array<string | null> =>
+      [...container.querySelectorAll<HTMLElement>(".history-row")].map((row) => row.getAttribute("data-rail"));
+
     rerender(panel({ ...initial, selectedCommit: initial.versions[2]?.commit ?? null }));
-    expect(container.querySelector(".history-row--selected")).toHaveAttribute("data-selection-direction", "down");
+    expect(rail()).toEqual(["filled", "filled", "half", null]);
 
     rerender(panel({ ...initial, selectedCommit: initial.versions[1]?.commit ?? null }));
-    expect(container.querySelector(".history-row--selected")).toHaveAttribute("data-selection-direction", "up");
-  });
+    expect(rail()).toEqual(["filled", "half", null, null]);
 
-  it("marks hover travel from the order the pointer crosses timeline rows", () => {
-    renderPanel(state(4));
-    const rows = within(screen.getByRole("listbox", { name: "Saved-version timeline" })).getAllByRole("option");
-
-    fireEvent.pointerEnter(rows[2]);
-    expect(rows[2]).toHaveAttribute("data-hover-direction", "down");
-
-    fireEvent.pointerEnter(rows[1]);
-    expect(rows[1]).toHaveAttribute("data-hover-direction", "up");
+    // Nothing is selected: the rail is structure again, with no stretch of it
+    // claimed by anything.
+    rerender(panel({ ...initial, selectedCommit: null }));
+    expect(rail()).toEqual([null, null, null, null]);
   });
 
   it("keeps the selected version identity visible while its files are loading", () => {
@@ -320,7 +322,7 @@ describe("HistoryPanel", () => {
     ]);
   });
 
-  it("searches, filters, and sorts the visible timeline without changing repository history", async () => {
+  it("searches and narrows the visible timeline without changing repository history", async () => {
     const user = userEvent.setup();
     const historyState = state(6);
     renderPanel(historyState);
@@ -329,15 +331,161 @@ describe("HistoryPanel", () => {
     expect(screen.getByRole("option", { name: "Saved version 2" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Saved version 5/ })).not.toBeInTheDocument();
 
-    await user.clear(screen.getByPlaceholderText("Search saved versions"));
-    await user.click(screen.getByRole("button", { name: "Publication: All" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "Published" }));
-    expect(within(screen.getByRole("listbox", { name: "Saved-version timeline" })).getAllByRole("option")).toHaveLength(3);
-    expect(screen.getByText("3 of 6 loaded versions shown")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(screen.getByPlaceholderText("Search saved versions")).toHaveValue("");
 
-    await user.click(screen.getByRole("button", { name: "Order: Newest first" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "Oldest first" }));
-    expect(screen.getByRole("button", { name: "Order: Oldest first" })).toBeInTheDocument();
+  });
+
+  // The trigger counts what is on and the chips name it. They read one
+  // description of the filter set for exactly this reason: a badge saying
+  // three beside two chips is worse than either signal on its own.
+  it("counts on the trigger exactly what the chips name", () => {
+    const every = {
+      author: "Ada",
+      since: "2026-01-01",
+      until: "2026-06-30",
+      path: "src/app",
+      noMerges: true,
+      unpublishedOnly: true,
+    };
+    const { container } = renderPanel(state(4, { filters: every }));
+
+    const chips = container.querySelectorAll(".history-filter-chip");
+    expect(chips).toHaveLength(6);
+    expect(container.querySelector(".history-filter__badge")).toHaveTextContent(String(chips.length));
+    expect(screen.getByRole("button", { name: "Filters (6 on)" })).toBeInTheDocument();
+  });
+
+  // Both halves of the screen-level empty state, which is about the repository
+  // and nothing else. It swallowed the whole screen twice: once the moment a
+  // filter was applied, and once on Clear all — where the filters are already
+  // off and the empty list on screen is still the retired question's answer.
+  it("never mistakes an empty filtered list for an empty repository", () => {
+    const emptied = state(2, { versions: [] });
+
+    const filtering = renderPanel({ ...emptied, filters: { ...NO_HISTORY_FILTERS, unpublishedOnly: true } });
+    expect(screen.queryByText("No saved versions yet")).not.toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Saved-version timeline" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear all" })).toBeInTheDocument();
+    filtering.unmount();
+
+    // Clear all: the filters are off, the rows are still the old answer, and a
+    // read is in flight. Nothing here is a statement about the repository.
+    const clearing = renderPanel({ ...emptied, isLoading: true });
+    expect(screen.queryByText("No saved versions yet")).not.toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Saved-version timeline" })).toBeInTheDocument();
+    clearing.unmount();
+
+    // Settled, unfiltered and genuinely empty: now it is a statement.
+    renderPanel(emptied);
+    expect(screen.getByText("No saved versions yet")).toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: "Saved-version timeline" })).not.toBeInTheDocument();
+  });
+
+  // The filters are answered by Git over the whole history, so the panel's job
+  // is to hand the controller a filter set — not to hide rows itself.
+  it("sends every chosen filter to the controller rather than hiding loaded rows", async () => {
+    const user = userEvent.setup();
+    const { historyController } = renderPanel(state(6));
+    const setFilters = vi.spyOn(historyController, "setFilters").mockResolvedValue(undefined);
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("checkbox", { name: "Hide branch merges" }));
+    expect(setFilters).toHaveBeenLastCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      expect.objectContaining({ noMerges: true }),
+    );
+
+    await user.click(screen.getByRole("radio", { name: "7 days" }));
+    expect(setFilters.mock.calls.at(-1)?.[1].since).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    await user.type(screen.getByLabelText("Author"), "Ada{Enter}");
+    expect(setFilters).toHaveBeenLastCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      expect.objectContaining({ author: "Ada" }),
+    );
+
+    // Every row stays on screen: nothing here narrows the list on the client.
+    expect(within(screen.getByRole("listbox", { name: "Saved-version timeline" })).getAllByRole("option"))
+      .toHaveLength(6);
+  });
+
+  // Publication is a comparison against an upstream. Without one every version
+  // reads `unknown`, so the switch could only ever empty the list — it is not
+  // offered rather than offered and useless.
+  it("offers the unpublished filter only where publication can be determined", async () => {
+    const user = userEvent.setup();
+    const withUpstream = state(4);
+    const first = renderPanel(withUpstream);
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByRole("checkbox", { name: "Not published yet" })).toBeInTheDocument();
+    first.unmount();
+
+    renderPanel({ ...withUpstream, snapshot: { ...withUpstream.snapshot!, upstream: null } });
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.queryByRole("checkbox", { name: "Not published yet" })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Hide branch merges" })).toBeInTheDocument();
+  });
+
+  // The same two arrow pairs the Changes diff header carries. They replaced a
+  // footer of labelled buttons that could only step changes, never files.
+  it("steps between changed files and between changes with the shared diff controls", async () => {
+    const user = userEvent.setup();
+    const historyState = state(2);
+    const selected = historyState.versions[0];
+    const detail: SavedVersionDetail = {
+      version: selected,
+      comparisonBase: selected.parents[0] ?? "empty",
+      comparisonIsEmptyTree: false,
+      comparisonIsFirstParent: false,
+      files: [
+        { path: "src/first.tsx", originalPath: null, category: "changed" },
+        { path: "src/second.tsx", originalPath: null, category: "new" },
+      ],
+      fileCounts: { changed: 1, new: 1, deleted: 0, renamed: 0, total: 2 },
+      filesTruncated: false,
+      countsAreMinimum: false,
+    };
+    const hunk = (start: number) => ({
+      header: `@@ -${start} +${start} @@`,
+      oldStart: start,
+      oldLines: 1,
+      newStart: start,
+      newLines: 1,
+      lines: [{ kind: "addition" as const, content: `line ${start}`, oldLineNumber: null, newLineNumber: start }],
+    });
+    const { selectFile } = renderPanel(state(2, {
+      detail: { detail, isLoading: false, error: null },
+      selectedFilePath: "src/first.tsx",
+      fileDiff: {
+        diff: { kind: "text", path: "src/first.tsx", originalPath: null, change: "changed", truncated: false, hunks: [hunk(1), hunk(9)] },
+        isLoading: false,
+        error: null,
+      },
+    }));
+
+    // The open file is the first of two, so only one direction is available.
+    expect(screen.getByRole("button", { name: "Previous file" })).toBeDisabled();
+    const nextFile = screen.getByRole("button", { name: "Next file" });
+    expect(nextFile).toBeEnabled();
+    await user.click(nextFile);
+    expect(selectFile).toHaveBeenCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      "src/second.tsx",
+    );
+
+    // The position is spoken, not printed: the file list beside it already
+    // says where the open file sits.
+    expect(screen.getByText("File 1 of 2")).toHaveClass("visually-hidden");
+    expect(screen.getByText("Change 1 of 2")).toHaveClass("visually-hidden");
+
+    expect(screen.getByRole("button", { name: "Previous change" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Next change" }));
+    expect(screen.getByRole("button", { name: "Next change" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Previous change" })).toBeEnabled();
+
+    // The footer those buttons used to live in is gone with them.
+    expect(document.querySelector(".history-diff-pane__footer")).toBeNull();
   });
 
   it("provides a complete overview and the shared diff-view controls", async () => {
@@ -380,10 +528,14 @@ describe("HistoryPanel", () => {
       fileDiff: { diff, isLoading: false, error: null },
     }));
 
-    const timelineHeader = container.querySelector(".history-timeline__header");
+    const timelineHeader = container.querySelector(".history-timeline__toolbar");
+    const screenHeader = container.querySelector(".history-view__header");
     const detailHeader = container.querySelector(".history-detail__summary");
     expect(timelineHeader).not.toBeNull();
+    expect(screenHeader).not.toBeNull();
     expect(detailHeader).not.toBeNull();
+    expect(within(screenHeader as HTMLElement).queryByRole("button", { name: "Refresh" }))
+      .not.toBeInTheDocument();
     expect(within(timelineHeader as HTMLElement).queryByRole("button", { name: "Refresh" }))
       .not.toBeInTheDocument();
     expect(within(detailHeader as HTMLElement).queryByRole("button", { name: "Refresh" }))

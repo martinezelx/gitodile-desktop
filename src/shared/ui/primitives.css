@@ -226,6 +226,105 @@
 .text-field input[aria-invalid="true"],
 .text-field textarea[aria-invalid="true"] { border-color: var(--status-danger); }
 
+/* The other single-line field: the one that narrows a list rather than
+   collecting a value. Same box as `.text-field input` a tier down, because it
+   lives inside a panel's strip and must not out-weigh the rows under it —
+   DESIGN.md § Size, which is also where the type size comes from.
+
+   Four features had written this pill by hand at 32, 34 and 36px over three
+   different backgrounds, and the History timeline's had drifted furthest from
+   the Changes file list it is meant to read as a sibling of. */
+.search-box {
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--control-height-sm);
+  display: flex;
+  align-items: center;
+  /* The trailing inset is the small one because something always stands
+     there: the clear button holds its 24px whether or not there is anything
+     to clear, so the text can never run to the border. */
+  padding: 0 var(--space-1) 0 var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+/* The input, not `:focus-within`: a trailing filter is a control of its own
+   with its own focus ring, and lighting the whole pill for it says the user is
+   about to type when they are not. */
+.search-box:has(.search-box__field input:focus) { border-color: var(--focus-ring); background: var(--surface-raised); }
+/* The label is the field, not the pill: it forwards a click to the input, and
+   wrapped around the whole box it would answer for the trailing controls too. */
+.search-box__field { min-width: 0; flex: 1; display: flex; align-items: center; gap: var(--space-2); }
+.search-box__field > svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.search-box__field input {
+  min-width: 0; flex: 1; padding: 0; border: 0; outline: none;
+  background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--control-font-sm);
+}
+.search-box__field input::placeholder { color: var(--text-secondary-color); }
+/* WebKit draws its own clear control inside a search input — a blue-grey glyph
+   at a size and colour this app never chose, and one that cannot be restyled
+   past its own shape. Turned off; `.search-box__clear` is ours. */
+.search-box__field input::-webkit-search-cancel-button,
+.search-box__field input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+/* Same box as the controls a host may put in the trailing slot, so everything
+   standing at that end of the pill reads as one family. An affordance attached
+   to the input, so it is rectangular rather than a circle — DESIGN.md § Shape. */
+.search-box__clear {
+  width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 auto;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background-color var(--duration-fast), color var(--duration-fast);
+}
+.search-box__clear:hover { background: var(--surface-raised); color: var(--text-primary-color); }
+.search-box__clear[data-empty] { visibility: hidden; }
+.search-box__clear svg { width: 14px; height: 14px; }
+.search-box__trailing { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; padding-inline-start: var(--space-2); }
+/* A rule rather than a gap: what follows it acts on the list, not on what is
+   typed, and the pill has to say so without growing a second border. */
+/* The app's checkbox: a filled circle with a tick, not the platform's square.
+   DESIGN.md § Shape puts a checkbox with the avatars and the timeline nodes —
+   an atomic thing with no reading direction — and this is the one definition
+   of it. Carries no margin: where it sits is the host's business.
+
+   The Changes file list had it to itself until the History filter panel needed
+   the same control, which is ADR 0003's bar. */
+.app-checkbox {
+  appearance: none; display: grid; place-content: center; flex: 0 0 auto;
+  width: 18px; height: 18px; margin: 0;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
+  background: var(--surface-raised);
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.app-checkbox::before {
+  content: ""; width: 8px; height: 4px;
+  border-inline-start: 2px solid var(--accent-primary-contrast);
+  border-bottom: 2px solid var(--accent-primary-contrast);
+  transform: translate(0.25px, -1px) rotate(-45deg) scale(0);
+  transform-origin: center;
+  transition: transform var(--duration-fast);
+}
+.app-checkbox:hover { border-color: var(--accent-primary); }
+.app-checkbox:checked, .app-checkbox:indeterminate {
+  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
+}
+.app-checkbox:checked::before { transform: translate(0.25px, -1px) rotate(-45deg) scale(1); }
+/* A dash, not a tick: some of the set, not all of it. */
+.app-checkbox:indeterminate::before {
+  width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary-contrast);
+  transform: translate(0, 0) rotate(0deg) scale(1);
+}
+.app-checkbox:disabled { opacity: 0.55; }
+.app-checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (forced-colors: active) {
+  .app-checkbox { appearance: auto; }
+}
+
+.search-box__trailing::before {
+  content: ""; align-self: center; flex: 0 0 auto;
+  width: 1px; height: 16px; margin-inline-end: var(--space-1);
+  background: var(--border-divider);
+}
+
 /* The app-owned replacement for the browser's native validation bubble: it
    stays put while the user fixes the field, follows the theme, and is read
    out through the control's own `aria-describedby`. */

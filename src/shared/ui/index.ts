@@ -17,6 +17,7 @@
 export { autoHideScrollbarProps } from "./autoHideScrollbar";
 export { useModalFocus } from "./modalFocus";
 export { LoadingBar } from "./loadingBar";
+export { SearchBox } from "./searchBox";
 export { RefreshIconButton } from "./refreshIconButton";
 export { DialogCloseButton } from "./dialogCloseButton";
 export { moveFocusWithinRadioGroup } from "./radioGroup";
