@@ -158,6 +158,14 @@
      clears 3:1 on its own in both themes (measured 4.79:1 light, 6.79:1 dark). */
   --surface-control: #f4f2ef;
   --border-control: #dcd9d4;
+  /* The fill of a card sitting *inside* a panel: a section of the History
+     overview, a fact card on the version-lines detail. A step off the panel it
+     rests on rather than a colour of its own, so it holds in either theme
+     without a second value — the mix resolves against whichever
+     `--surface-raised`/`--surface-panel` the active theme has set. Written
+     once here because two features now say it, and a recipe copied a third
+     time is a recipe that drifts. */
+  --surface-card: color-mix(in srgb, var(--surface-raised) 48%, var(--surface-panel));
   /* Two-tone green: --accent-brand is the vivid crocodile lima, reserved for
      punctual brand moments (mark, primary CTA). --accent-primary is the
      everyday tone used for nav/focus/status so the UI isn't awash in green. */

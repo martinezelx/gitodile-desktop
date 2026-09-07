@@ -25,12 +25,18 @@ function snapshot(name: string): VersionLinesSnapshot {
       upstreamAhead: null,
       upstreamBehind: null,
       upstreamGone: false,
+      isDefault: false,
     }],
     totalCount: 1,
     isTruncated: false,
     unreadableCount: 0,
   };
 }
+
+/** The detail's on-demand read. It is the selected line's own data rather
+ * than the inventory, so it is stubbed rather than asserted on here — the
+ * lifecycle these tests cover is the inventory's. */
+const emptyHistory = { name: "main", totalCount: 0, versions: [], hasMore: false };
 
 afterEach(cleanup);
 
@@ -40,7 +46,7 @@ describe("VersionLinesScreen lifecycle", () => {
     const read = vi.fn(() => new Promise<VersionLinesSnapshot>((resolve) => { resolveRead = resolve; }));
     const port = {
       read,
-      planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(),
+      readHistory: vi.fn(async () => emptyHistory), planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(), planRename: vi.fn(), rename: vi.fn(),
     } satisfies VersionLinesPort;
     const controller = createVersionLinesController(port);
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
@@ -78,7 +84,7 @@ describe("VersionLinesScreen lifecycle", () => {
     const read = vi.fn(async () => snapshot("unexpected"));
     const port = {
       read,
-      planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(),
+      readHistory: vi.fn(async () => emptyHistory), planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(), planRename: vi.fn(), rename: vi.fn(),
     } satisfies VersionLinesPort;
     const controller = createVersionLinesController(port);
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };

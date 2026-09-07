@@ -100,6 +100,7 @@ pub(crate) enum AppErrorCode {
     VersionLineNameCollides,
     VersionLineCheckedOutElsewhere,
     VersionLineIsActive,
+    VersionLineIsDefault,
     VersionLineUniqueWork,
     VersionLineSwitchObstructed,
     StaleVersionLinePlan,

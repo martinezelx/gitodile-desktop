@@ -25,6 +25,11 @@ export { AutomaticUpdatesNotice } from "./automaticUpdatesNotice";
 export { useFieldErrors, FieldError } from "./fieldErrors";
 export type { FieldCheck, FieldErrorMap, FieldErrorState } from "./fieldErrors";
 export { useAnchoredPopup, usePortalFlyout, handlePopupMenuKeyDown } from "./popupMenu";
+/* ADR 0003's two-consumer bar, passed twice: the Changes file list and its
+   diff shared one right-click menu, History borrowed the whole component to
+   get its behaviour, and the version-lines list needed the same mechanics for
+   entirely different items. The surface is shared; the items never were. */
+export { ContextMenuSurface, contextMenuAnchorFrom, type ContextMenuAnchor } from "./contextMenu";
 export { copyTextToClipboard } from "./clipboard";
 export { isReducedMotionRequested } from "./motionPreference";
 /* ADR 0003's two-consumer bar: the project switcher had this to itself until

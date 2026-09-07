@@ -326,6 +326,7 @@ Colors should be defined semantically rather than by component:
 - `--overlay` (modal/backdrop scrim)
 - `--surface-hover` / `--surface-active` (neutral interactive-state tints, used for any hover/pressed/selected state instead of one-off `rgba(...)` values)
 - `--surface-control` / `--border-control` (the fill and edge of a control that sits *on* a raised card — see Shape below; never use `--surface-panel` for this, it is the same white as `--surface-raised` in light mode and leaves the control with no step of its own)
+- `--surface-card` (the fill of a card sitting *inside* a panel — a section of the History overview, a fact card on the Lines detail. A mix of `--surface-raised` into `--surface-panel`, so it resolves per theme from one definition)
 - `--focus-ring` (the visible keyboard focus color, distinct enough against every focusable surface)
 - `--shadow-sm` / `--shadow-md` / `--shadow-lg` (elevation; theme-aware, see below)
 

@@ -1932,7 +1932,7 @@ export function App(): React.JSX.Element {
       </header>
 
       <main
-        className={`app-shell${view === "changes" || view === "history" ? " app-shell--internal-scroll" : ""}`}
+        className={`app-shell${view === "changes" || view === "history" || view === "version-lines" ? " app-shell--internal-scroll" : ""}`}
       >
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}
@@ -2013,7 +2013,7 @@ export function App(): React.JSX.Element {
 
         <section
           {...autoHideScrollbarProps<HTMLElement>()}
-          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}${view === "history" ? " workspace--history" : ""}`}
+          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}${view === "history" ? " workspace--history" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}`}
         >
           <div className="compact-nav-row">
             <ProjectSwitcherCompact
@@ -2255,6 +2255,7 @@ export function App(): React.JSX.Element {
                             navigateToView("changes");
                           }}
                           onOpenChanges={() => navigateToView("changes")}
+                          onOpenHistory={() => navigateToView("history")}
                           autoOpenCreate={versionLinesAutoOpenCreate}
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
                         />

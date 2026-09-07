@@ -173,13 +173,8 @@
 .changes-actions-menu .app-menu__item--danger { color: var(--status-danger); }
 .changes-actions-menu .app-menu__item--danger svg { color: currentColor; }
 .changes-actions-menu .app-menu__item:disabled { opacity: 0.42; }
-.changes-context-menu {
-  position: fixed; right: auto; bottom: auto; z-index: 30;
-  min-width: 148px; max-width: min(320px, calc(100vw - 16px));
-}
-.changes-context-menu .app-menu__item--danger,
-.changes-context-menu .app-menu__item--danger svg { color: var(--status-danger); }
-.changes-context-menu .app-menu__item:disabled { opacity: 0.42; cursor: default; }
+/* The surface itself is `.context-menu` in primitives.css now. What is left
+   here is the one thing only this menu shows: why a copy did not happen. */
 .changes-context-menu__error {
   max-width: 280px; margin: 4px 8px 6px; color: var(--status-danger);
   font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere;

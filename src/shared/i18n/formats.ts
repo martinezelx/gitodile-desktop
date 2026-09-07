@@ -70,6 +70,30 @@ export function formatDate(date: Date, formats: LocaleFormats, style: DateStyle 
   return style === "date-time" ? `${calendarDay} ${explicitTime(date)}` : calendarDay;
 }
 
+/** "3 hours ago", in the reader's language. Deliberately not routed through the
+ * date-format preference: a relative phrase has no separators to choose
+ * between, and it is the language that decides how it is worded.
+ *
+ * ADR 0003's two-consumer bar: History's timeline had this to itself until the
+ * version-lines detail needed the same "last updated" phrasing for the same
+ * kind of fact. `formatHistoryDate` now delegates here rather than keeping a
+ * second unit ladder that could drift from this one. */
+export function formatRelativeTime(date: Date, formats: LocaleFormats, now = Date.now()): string {
+  if (Number.isNaN(date.getTime())) return "";
+  const deltaSeconds = Math.round((date.getTime() - now) / 1_000);
+  const formatter = new Intl.RelativeTimeFormat(formats.language, { numeric: "auto" });
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ["year", 365 * 24 * 60 * 60],
+    ["month", 30 * 24 * 60 * 60],
+    ["week", 7 * 24 * 60 * 60],
+    ["day", 24 * 60 * 60],
+    ["hour", 60 * 60],
+    ["minute", 60],
+  ];
+  const [unit, seconds] = units.find(([, size]) => Math.abs(deltaSeconds) >= size) ?? ["second", 1];
+  return formatter.format(Math.round(deltaSeconds / seconds), unit);
+}
+
 /** Named rather than typed: an ordinary space would let a grouped number wrap
  * across two lines, and the character that would not is invisible in a diff. */
 const NARROW_NO_BREAK_SPACE = String.fromCharCode(0x202f);

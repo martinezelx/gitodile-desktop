@@ -1,4 +1,4 @@
-import { formatDate, type LocaleFormats } from "../../shared/i18n";
+import { formatDate, formatRelativeTime, type LocaleFormats } from "../../shared/i18n";
 
 import type { HistoryTimestamp } from "./domain";
 
@@ -18,20 +18,8 @@ export function formatHistoryDate(
 ): { relative: string; absolute: string } | null {
   const date = dateFromTimestamp(timestamp);
   if (!date) return null;
-  const deltaSeconds = Math.round((date.getTime() - now) / 1_000);
-  /* Only the absolute date follows the format preference. "3 days ago" has no
-     separators to choose between, and it is the language — not the date
-     format — that decides how it is worded. */
-  const absolute = formatDate(date, formats, "date-time");
-  const relativeFormatter = new Intl.RelativeTimeFormat(formats.language, { numeric: "auto" });
-  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-    ["year", 365 * 24 * 60 * 60],
-    ["month", 30 * 24 * 60 * 60],
-    ["week", 7 * 24 * 60 * 60],
-    ["day", 24 * 60 * 60],
-    ["hour", 60 * 60],
-    ["minute", 60],
-  ];
-  const [unit, seconds] = units.find(([, size]) => Math.abs(deltaSeconds) >= size) ?? ["second", 1];
-  return { relative: relativeFormatter.format(Math.round(deltaSeconds / seconds), unit), absolute };
+  /* Only the absolute date follows the format preference; the relative phrase
+     is `formatRelativeTime` in `shared/i18n`, which the version-lines detail
+     reads for the same kind of fact. */
+  return { relative: formatRelativeTime(date, formats, now), absolute: formatDate(date, formats, "date-time") };
 }

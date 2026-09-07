@@ -86,6 +86,7 @@ export interface SharedTranslations {
   errorVersionLineNameCollides: string;
   errorVersionLineCheckedOutElsewhere: string;
   errorVersionLineIsActive: string;
+  errorVersionLineIsDefault: string;
   errorVersionLineUniqueWork: string;
   errorVersionLineSwitchObstructed: string;
   errorStaleVersionLinePlan: string;
@@ -208,6 +209,8 @@ const en: SharedTranslations = {
     "That name only differs by letter case from an existing version line, which some file systems can't tell apart. Choose a different name.",
   errorVersionLineCheckedOutElsewhere: "That version line is open in another workspace.",
   errorVersionLineIsActive: "The active version line can't be deleted. Switch to a different one first.",
+  errorVersionLineIsDefault:
+    "This is the project's main version line, so GitOdile keeps it as it is.",
   errorVersionLineUniqueWork:
     "This version line has saved work that isn't reachable from any other version line or remote yet.",
   errorVersionLineSwitchObstructed:
@@ -340,6 +343,8 @@ const es: SharedTranslations = {
     "Ese nombre solo se diferencia por mayúsculas o minúsculas de una línea de versión existente, algo que algunos sistemas de archivos no distinguen. Elige otro nombre.",
   errorVersionLineCheckedOutElsewhere: "Esa línea de versión está abierta en otro espacio de trabajo.",
   errorVersionLineIsActive: "La línea de versión activa no se puede eliminar. Cambia primero a otra distinta.",
+  errorVersionLineIsDefault:
+    "Es la línea de versión principal del proyecto, así que GitOdile la deja como está.",
   errorVersionLineUniqueWork:
     "Esta línea de versión tiene trabajo guardado que todavía no es accesible desde ninguna otra línea de versión ni remoto.",
   errorVersionLineSwitchObstructed:

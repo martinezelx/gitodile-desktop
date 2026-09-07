@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CircleAlert, GitBranch, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
+import { CircleAlert, GitBranch, LoaderCircle, PenLine, Trash2, TriangleAlert } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
@@ -7,6 +7,8 @@ import { autoHideScrollbarProps } from "../../shared/ui";
 import type {
   CreateVersionLinePlan,
   DeleteVersionLinePlan,
+  DeleteVersionLineResult,
+  RenameVersionLinePlan,
   SwitchVersionLinePlan,
   VersionLinesSnapshot,
 } from "./domain";
@@ -522,6 +524,189 @@ export function SwitchVersionLineDialog({
 }
 
 // ---------------------------------------------------------------------------
+// Rename a version line
+// ---------------------------------------------------------------------------
+
+type RenameState =
+  | { status: "editing" }
+  | { status: "planning" }
+  | { status: "plan-error"; error: unknown }
+  | { status: "renaming" }
+  | { status: "error"; error: unknown };
+
+/** Renaming is a local mutation and the only one on this screen that cannot
+ * lose anything: the saved versions keep their commits and only the name over
+ * them moves. So there is no plan-then-confirm step to read — the field is the
+ * dialog, and the plan is fetched and executed by the same click.
+ *
+ * The published copy is the one consequence worth stating, because Git does
+ * not rename it and the line goes on tracking its old remote name. */
+export function RenameVersionLineDialog({
+  isOpen,
+  projectPath,
+  sessionEpoch,
+  target,
+  upstream,
+  onClose,
+  onRenamed,
+  onPhaseChange,
+}: {
+  isOpen: boolean;
+  projectPath: string;
+  sessionEpoch: string;
+  target: string;
+  /** What the line tracks, from the list's own snapshot. Shown as the note
+   * under the field so the consequence is readable before the click, not
+   * after it. */
+  upstream: string | null;
+  onClose: () => void;
+  /** The snapshot the rename returned, and the name it was given — the
+   * caller uses it to keep the selection on this line. */
+  onRenamed: (snapshot: VersionLinesSnapshot, newName: string) => void;
+  onPhaseChange?: (phase: VersionLineOperationPhase) => void;
+}): React.JSX.Element | null {
+  const { t } = useLanguage();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState(target);
+  const [state, setState] = useState<RenameState>({ status: "editing" });
+  const onPhaseChangeRef = useRef(onPhaseChange);
+  onPhaseChangeRef.current = onPhaseChange;
+
+  const onCloseRef = useRef(onClose);
+  const isBusyRef = useRef(false);
+  onCloseRef.current = onClose;
+  const setOpenState = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((next) => {
+    const value = typeof next === "function" ? (next as (previous: boolean) => boolean)(true) : next;
+    if (!value && !isBusyRef.current) {
+      onCloseRef.current();
+    }
+  }, []);
+  useModalFocus(isOpen, dialogRef, setOpenState);
+
+  const selectedOnceRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setName(target);
+    setState({ status: "editing" });
+    selectedOnceRef.current = false;
+  }, [isOpen, target]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const isBusy = state.status === "planning" || state.status === "renaming";
+  isBusyRef.current = isBusy;
+  const trimmed = name.trim();
+  const unchanged = trimmed === target;
+  const canSubmit = trimmed.length > 0 && !unchanged && !isBusy;
+
+  function requestClose(): void {
+    if (!isBusy) onClose();
+  }
+
+  function handleSubmit(event: React.FormEvent): void {
+    event.preventDefault();
+    if (!canSubmit) return;
+    const newName = trimmed;
+    setState({ status: "planning" });
+    onPhaseChangeRef.current?.("planning");
+    versionLinesPort
+      .planRename({ projectId: projectPath, sessionEpoch, name: target, newName })
+      .then((plan: RenameVersionLinePlan) => {
+        setState({ status: "renaming" });
+        onPhaseChangeRef.current?.("executing");
+        return versionLinesPort.rename({
+          projectId: projectPath,
+          sessionEpoch,
+          name: target,
+          newName,
+          stateToken: plan.stateToken,
+        });
+      })
+      .then((snapshot) => {
+        onPhaseChangeRef.current?.("success");
+        // No success screen: the list behind this dialog is the confirmation,
+        // and it already shows the new name.
+        onRenamed(snapshot, newName);
+      })
+      .catch((error: unknown) => {
+        setState({ status: "plan-error", error });
+        onPhaseChangeRef.current?.("error");
+      });
+  }
+
+  const error = "error" in state ? state.error : null;
+
+  return (
+    <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
+      <div
+        {...autoHideScrollbarProps<HTMLDivElement>()}
+        ref={dialogRef}
+        className="save-version-dialog auto-hide-scrollbar"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rename-version-line-title"
+        tabIndex={-1}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h2 id="rename-version-line-title">{t.renameVersionLineTitle(target)}</h2>
+        <form onSubmit={handleSubmit}>
+          <label className="text-field">
+            <span>{t.renameVersionLineNameLabel}</span>
+            {/* `data-autofocus` is how a dialog names its landing point — the
+                shared modal focus would otherwise land on Cancel. The whole
+                name is selected the first time it lands, and only then:
+                renaming is usually replacing, but a click into the middle of
+                the field later is a caret, not a request to start over. */}
+            <input
+              ref={inputRef}
+              data-autofocus
+              type="text"
+              value={name}
+              spellCheck={false}
+              autoComplete="off"
+              disabled={isBusy}
+              onFocus={(event) => {
+                if (selectedOnceRef.current) return;
+                selectedOnceRef.current = true;
+                event.currentTarget.select();
+              }}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          <p className="save-version-note">{t.renameVersionLineNote}</p>
+          {upstream && <p className="save-version-note">{t.renameVersionLineUpstreamNote(upstream)}</p>}
+
+          {error !== null && <ErrorBanner error={error} t={t} />}
+
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
+              {t.commonCancel}
+            </button>
+            <button className="primary-button" type="submit" disabled={!canSubmit}>
+              {isBusy ? (
+                <>
+                  <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                  {t.renameVersionLineRenaming}
+                </>
+              ) : (
+                <>
+                  <PenLine aria-hidden="true" />
+                  {t.renameVersionLineConfirm}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Safely delete a local version line
 // ---------------------------------------------------------------------------
 
@@ -531,7 +716,7 @@ type DeleteState =
   | { status: "ready"; plan: DeleteVersionLinePlan }
   | { status: "deleting"; plan: DeleteVersionLinePlan }
   | { status: "delete-error"; plan: DeleteVersionLinePlan; error: unknown }
-  | { status: "success"; snapshot: VersionLinesSnapshot };
+  | { status: "success"; result: DeleteVersionLineResult };
 
 export function DeleteVersionLineDialog({
   isOpen,
@@ -564,6 +749,11 @@ export function DeleteVersionLineDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [state, setState] = useState<DeleteState>({ status: "loading" });
+  /* On by default when there is a published copy: leaving the remote branch
+     behind is what makes "delete this line" only half true, and it is the
+     tidying the user came here for. Still a visible, single-click opt-out —
+     removing a shared branch is not something to do silently. */
+  const [deleteRemote, setDeleteRemote] = useState(true);
   const onPhaseChangeRef = useRef(onPhaseChange);
   onPhaseChangeRef.current = onPhaseChange;
 
@@ -584,6 +774,7 @@ export function DeleteVersionLineDialog({
     }
     let cancelled = false;
     setState({ status: "loading" });
+    setDeleteRemote(true);
     onPhaseChangeRef.current?.("planning");
     versionLinesPort.planDelete({ projectId: projectPath, sessionEpoch, name: target })
       .then((plan) => {
@@ -626,12 +817,13 @@ export function DeleteVersionLineDialog({
       projectId: projectPath,
       sessionEpoch,
       name: plan.name,
+      deleteRemote: plan.published !== null && deleteRemote,
       stateToken: plan.stateToken,
     })
-      .then((snapshot) => {
-        setState({ status: "success", snapshot });
+      .then((result) => {
+        setState({ status: "success", result });
         onPhaseChangeRef.current?.("success");
-        onDeleted(snapshot);
+        onDeleted(result.snapshot);
       })
       .catch((error: unknown) => {
         setState({ status: "delete-error", plan, error });
@@ -650,6 +842,7 @@ export function DeleteVersionLineDialog({
     blockedReason === "version_line_unique_work" ||
     blockedReason === "version_line_checked_out_elsewhere" ||
     blockedReason === "version_line_is_active" ||
+    blockedReason === "version_line_is_default" ||
     blockedReason === "git_operation_in_progress";
 
   return (
@@ -689,7 +882,9 @@ export function DeleteVersionLineDialog({
                     ? t.deleteVersionLineBlockedElsewhereLead
                     : blockedReason === "git_operation_in_progress"
                       ? t.deleteVersionLineBlockedOperationLead
-                      : t.deleteVersionLineBlockedActiveLead}
+                      : blockedReason === "version_line_is_default"
+                        ? t.deleteVersionLineBlockedDefaultLead
+                        : t.deleteVersionLineBlockedActiveLead}
               </p>
               {blockedReason === "git_operation_in_progress" && (
                 <p className="save-version-note">{t.deleteVersionLineBlockedOperationNote}</p>
@@ -757,6 +952,29 @@ export function DeleteVersionLineDialog({
                   <li key={ref}>{ref}</li>
                 ))}
               </ul>
+              {/* The published copy, and the one decision this dialog asks for.
+                  A line deleted only here is still on everyone else's screen,
+                  which is why it is on by default; it is a checkbox and not a
+                  silent side effect because it changes what the team sees. */}
+              {plan.published && (
+                <label className="version-lines-checkbox">
+                  <input
+                    className="app-checkbox"
+                    type="checkbox"
+                    checked={deleteRemote}
+                    disabled={isBusy}
+                    onChange={(event) => setDeleteRemote(event.target.checked)}
+                  />
+                  <span>
+                    <strong>{t.deleteVersionLineRemoteLabel(plan.published.shortName)}</strong>
+                    <span className="save-version-note">
+                      {deleteRemote
+                        ? t.deleteVersionLineRemoteOnNote
+                        : t.deleteVersionLineRemoteOffNote(plan.published.shortName)}
+                    </span>
+                  </span>
+                </label>
+              )}
               <p className="save-version-note">{t.deleteVersionLineWarning}</p>
             </div>
 
@@ -784,11 +1002,30 @@ export function DeleteVersionLineDialog({
         )}
 
         {state.status === "success" && (
-          <div className="dialog-actions">
-            <button className="primary-button" type="button" onClick={onClose}>
-              {t.deleteVersionLineDone}
-            </button>
-          </div>
+          <>
+            {/* The local line is gone whatever the remote said, so a refusal
+                out there is reported as a fact about the remote rather than as
+                a failure of the whole operation. */}
+            {state.result.remoteError ? (
+              <div className="save-version-summary" role="status">
+                <p>{t.deleteVersionLineRemoteFailedLead}</p>
+                <p className="save-version-note">
+                  {localizeAppError(state.result.remoteError, t, t.deleteVersionLineRemoteFailedLead)}
+                </p>
+              </div>
+            ) : (
+              state.result.remoteDeleted === true && (
+                <div className="save-version-summary" role="status">
+                  <p>{t.deleteVersionLineRemoteDoneLead}</p>
+                </div>
+              )
+            )}
+            <div className="dialog-actions">
+              <button className="primary-button" type="button" onClick={onClose}>
+                {t.deleteVersionLineDone}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

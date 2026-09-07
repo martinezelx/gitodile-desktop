@@ -414,6 +414,16 @@
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .app-menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* An `.app-menu` pinned to the pointer instead of to a trigger. `fixed`, and
+   the four inset properties reset, because `.app-menu` positions itself off a
+   trigger's box — a context menu has no trigger, only a point. */
+.context-menu {
+  position: fixed; right: auto; bottom: auto; z-index: 30;
+  min-width: 148px; max-width: min(320px, calc(100vw - 16px));
+}
+.context-menu .app-menu__item--danger,
+.context-menu .app-menu__item--danger svg { color: var(--status-danger); }
+.context-menu .app-menu__item:disabled { opacity: 0.42; cursor: default; }
 .app-menu__item {
   display: flex; align-items: center; gap: 8px;
   text-align: left; padding: 8px 10px; border-radius: var(--radius-item); background: transparent; border: 0;

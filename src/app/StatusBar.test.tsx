@@ -44,6 +44,7 @@ const versionLines: VersionLinesSnapshot = {
       upstreamAhead: 0,
       upstreamBehind: 0,
       upstreamGone: false,
+      isDefault: false,
     },
     {
       name: "feature/other",
@@ -61,6 +62,7 @@ const versionLines: VersionLinesSnapshot = {
       upstreamAhead: null,
       upstreamBehind: null,
       upstreamGone: false,
+      isDefault: false,
     },
   ],
   totalCount: 2,

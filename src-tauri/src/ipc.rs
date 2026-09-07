@@ -32,8 +32,8 @@ use crate::{
         GitUpdateLaunchResult, GitUpdateStatus,
     },
     version_lines::{
-        self, CreateVersionLinePlan, DeleteVersionLinePlan, SwitchVersionLinePlan,
-        VersionLinesSnapshot,
+        self, CreateVersionLinePlan, DeleteVersionLinePlan, DeleteVersionLineResult,
+        RenameVersionLinePlan, SwitchVersionLinePlan, VersionLineHistory, VersionLinesSnapshot,
     },
     watch,
 };
@@ -894,6 +894,21 @@ pub(crate) fn get_version_lines(
 }
 
 #[tauri::command(async)]
+pub(crate) fn get_version_line_history(
+    path: String,
+    name: String,
+    session_epoch: String,
+) -> Result<VersionLineHistory, AppError> {
+    report_result(
+        "get_version_line_history",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::get_version_line_history(path, name)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
 pub(crate) fn plan_create_version_line(
     path: String,
     name: String,
@@ -976,14 +991,48 @@ pub(crate) fn plan_delete_version_line(
 pub(crate) fn delete_version_line(
     path: String,
     name: String,
+    delete_remote: bool,
     state_token: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<DeleteVersionLineResult, AppError> {
     report_result(
         "delete_version_line",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::delete_version_line(path, name, state_token)
+            version_lines::delete_version_line(path, name, delete_remote, state_token)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn plan_rename_version_line(
+    path: String,
+    name: String,
+    new_name: String,
+    session_epoch: String,
+) -> Result<RenameVersionLinePlan, AppError> {
+    report_result(
+        "plan_rename_version_line",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::plan_rename_version_line(path, name, new_name)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn rename_version_line(
+    path: String,
+    name: String,
+    new_name: String,
+    state_token: String,
+    session_epoch: String,
+) -> Result<VersionLinesSnapshot, AppError> {
+    report_result(
+        "rename_version_line",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::rename_version_line(path, name, new_name, state_token)
         })(),
     )
 }
@@ -1339,6 +1388,7 @@ mod contract_tests {
             AppErrorCode::VersionLineNameCollides,
             AppErrorCode::VersionLineCheckedOutElsewhere,
             AppErrorCode::VersionLineIsActive,
+            AppErrorCode::VersionLineIsDefault,
             AppErrorCode::VersionLineUniqueWork,
             AppErrorCode::VersionLineSwitchObstructed,
             AppErrorCode::StaleVersionLinePlan,

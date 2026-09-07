@@ -31,12 +31,6 @@
   transition: transform var(--duration-fast);
 }
 .version-line-selector[aria-expanded="true"] .version-line-selector__chevron { transform: rotate(180deg); }
-.version-lines-view { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--space-4); }
-.version-lines-view__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.version-lines-view__header h1 { margin: 0; }
-.version-lines-view__header p { margin: 4px 0 0; max-width: 76ch; color: var(--text-secondary-color); font-size: var(--text-lead); line-height: var(--leading-normal); }
-.version-lines-view__header .primary-button { flex-shrink: 0; }
-.version-lines-view__header .primary-button svg { width: 16px; height: 16px; }
 
 .version-lines-banner {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2);
@@ -59,161 +53,676 @@
 }
 .version-lines-refresh-error > span { min-width: 0; }
 .version-lines-refresh-error .secondary-button { flex: 0 0 auto; }
-.version-lines-stats {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  margin: 8px 0 0; color: var(--text-secondary-color); font-size: var(--text-body);
-}
-.version-lines-stats svg { width: 15px; height: 15px; }
-.version-lines-stats__item { display: inline-flex; align-items: center; gap: 6px; }
-.version-lines-stats__separator { color: var(--border-strong, var(--border-subtle)); }
-.version-lines-stats__dot {
-  width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--text-tertiary, var(--text-secondary-color)); opacity: 0.5;
-}
-.version-lines-stats__dot--active { background: var(--accent-primary); opacity: 1; }
-.version-lines-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
-.version-lines-toolbar .version-lines-search-box__input { flex: 1 1 260px; min-width: 0; }
-.version-lines-search-box__input {
-  display: flex; align-items: center; gap: 8px; padding: 8px var(--space-4);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); transition: border-color var(--duration-fast), background var(--duration-fast);
-}
-.version-lines-search-box__input:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
-.version-lines-search-box__input svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
-.version-lines-search-box__input input {
-  flex: 1; border: 0; background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); outline: none;
-}
-.version-lines-select {
-  position: relative; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
-  padding: 8px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-panel); color: var(--text-primary-color); font-size: var(--text-body);
-  transition: border-color var(--duration-fast), color var(--duration-fast);
-}
-.version-lines-select:hover { border-color: var(--border-strong, var(--focus-ring)); }
-.version-lines-select--active { border-color: var(--accent-primary); color: var(--accent-primary); }
-.version-lines-select svg { width: 15px; height: 15px; flex-shrink: 0; }
-.version-lines-select__chevron { color: var(--text-secondary-color); }
-.version-lines-select[aria-expanded="true"] { border-color: var(--accent-primary); color: var(--accent-primary); }
-.version-lines-select[aria-expanded="true"] .version-lines-select__chevron { transform: rotate(180deg); }
-.version-lines-select__chevron { transition: transform var(--duration-fast); }
-.version-lines-sort { position: relative; display: inline-flex; }
-.version-lines-sort__menu { min-width: 200px; }
 
-.version-lines-filter { position: relative; display: inline-flex; }
-.version-lines-filter__popup {
-  position: absolute; z-index: 20; top: calc(100% + var(--space-2)); right: 0; min-width: 240px;
-  max-height: min(420px, calc(100vh - 300px)); padding: 8px; display: flex; flex-direction: column; overflow: hidden;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
-  background: var(--surface-raised); box-shadow: var(--shadow-md);
-}
-.version-lines-filter__options { min-height: 0; overflow-y: auto; }
-.version-lines-filter__group-label {
-  margin: 6px 8px 4px; color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-heading);
-  text-transform: uppercase; letter-spacing: var(--tracking-caps);
-}
-.version-lines-filter__option {
-  display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--radius-item);
-  font-size: var(--text-body);
-}
-.version-lines-filter__option:hover { background: var(--surface-hover); }
-.version-lines-filter__option > span:first-of-type { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.version-lines-filter__count { color: var(--text-secondary-color); font-size: var(--text-label); font-variant-numeric: tabular-nums; }
-.version-lines-filter__clear {
-  flex-shrink: 0; width: 100%; margin-top: 6px; min-height: 36px; padding: 7px 8px;
-  border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--accent-primary); font: inherit; font-size: var(--text-body); text-align: left;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.version-lines-filter__clear:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+/* Lines is the third of the three panelled screens, and it is deliberately
+   built out of the same pieces as the other two: `.screen-header` above,
+   `--panel-column` and `--strip-height` from tokens.css inside, and one list
+   panel paired with one detail card. Nothing here invents a measure the other
+   two do not already keep — see the notes on `.history-layout` and
+   `.changes-layout`. */
+.workspace--version-lines { overflow-y: hidden; }
 
-.version-lines-empty-note { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
+.version-lines-screen {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.version-lines-notices:empty { display: none; }
+.version-lines-notices { display: grid; gap: 6px; }
+.version-lines-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--panel-column) minmax(0, 1fr);
+  gap: var(--space-4);
+}
 
-.version-lines-section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.version-lines-section__title {
-  display: flex; align-items: center; gap: 8px; margin: 0;
-  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-heading);
-  text-transform: uppercase; letter-spacing: var(--tracking-caps);
+/* A panel, not a bare column: the sibling of the History timeline and of the
+   Changes file list, carrying its own surface with one strip at the top. */
+.version-lines-list-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
 }
-.version-lines-section__title--active::before {
-  content: ""; width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--accent-primary);
+/* The positioning context for the filter panel below, which spans the strip
+   rather than hanging off a 24px trigger at its right end. */
+.version-lines-list-panel__toolbar {
+  position: relative;
+  flex: 0 0 auto;
+  height: var(--strip-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
 }
+.version-lines-list-panel__toolbar .search-box { flex: 1; }
+/* Two pixels under the strip, in the flow rather than over the rows: the list
+   below dims instead of blanking while Git answers. */
+.version-lines-list-panel__progress { flex: 0 0 auto; height: 2px; margin: 0 var(--space-2); }
+.version-lines-list-panel__progress .loading-state { gap: 0; }
+.version-lines-list-panel__footer {
+  flex: 0 0 auto;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+}
+.version-lines-list-panel__footer p { margin: 0; }
+
 .version-lines-list {
-  margin: 0; padding: 0; list-style: none; overflow: visible;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) 5px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
-.version-lines-list > li + li { border-top: 1px solid var(--border-subtle); }
-.version-lines-list--active { border-color: var(--accent-primary); background: var(--surface-active); }
+.version-lines-list__empty {
+  flex: 0 0 auto;
+  margin: auto;
+  padding: 20px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+  text-align: center;
+}
 
-.version-line-row { display: flex; flex-direction: column; }
-.version-line-row__main {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: 12px 14px;
+/* The row. The same box as a History timeline row a tier shorter: this one
+   carries a name, where the line lives, and the states worth flagging — never
+   the actions, which belong to the one line the reader has actually chosen. */
+.version-line-row {
+  position: relative;
+  width: 100%;
+  min-height: 66px;
+  /* Never shrink. These rows vary in height — a line can carry one chip or
+     three — and in a column flex container an overflowing list is resolved by
+     squashing its items down to their `min-height`, which leaves the box 66px
+     tall with 86px of content spilling out of it and over the row below.
+     `flex: 0 0 auto` is what makes the scroller scroll instead. */
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-primary-color);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease-out, border-color var(--duration-fast) ease-out;
 }
-.version-line-row--active .version-line-row__main { padding: 16px; }
+.version-line-row:hover { background: var(--surface-hover); }
+/* One border and one tint, the same pair the History row and the Changes file
+   row wear. The `ACTIVE` chip is what says which line the project is on; the
+   selection says which one this column is describing, and the two are
+   different questions. */
+.version-line-row--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); }
+.version-line-row--selected:hover { background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-panel)); }
 .version-line-row__icon {
-  flex-shrink: 0; display: grid; place-items: center; width: 32px; height: 32px;
-  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  margin-top: 1px;
+  color: var(--text-secondary-color);
 }
-.version-line-row__icon svg { width: 16px; height: 16px; }
-.version-line-row__body { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.version-line-row__name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.version-line-row__name { font-weight: var(--weight-strong); font-size: var(--text-lead); overflow-wrap: anywhere; }
-.version-line-row__badge {
-  /* `--accent-primary` and `--accent-primary-fill` are the same green in
-     dark mode (see `:root[data-theme="dark"]`), so pairing the fill with
-     `--accent-primary` as text made this badge invisible there.
-     `--accent-primary-contrast` is the color this fill is actually designed
-     to pair with (same pairing the checkbox/radio checked state uses). */
-  flex-shrink: 0; padding: 2px 8px; border-radius: var(--radius-pill); background: var(--accent-primary-fill);
-  color: var(--accent-primary-contrast); font-size: var(--text-caption); font-weight: var(--weight-heading); text-transform: uppercase; letter-spacing: var(--tracking-wide);
+.version-line-row__icon svg { width: 14px; height: 14px; }
+.version-line-row--selected .version-line-row__icon { color: var(--accent-primary); }
+.version-line-row__body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.version-line-row__name-row { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.version-line-row__name {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  font-weight: var(--weight-heading);
+  line-height: var(--leading-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.version-line-row__meta { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); overflow-wrap: anywhere; }
-.version-lines-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.version-line-row__pill--deletable {
-  border-color: color-mix(in srgb, var(--status-success) 45%, transparent); color: var(--status-success);
+.version-line-row__meta:empty { display: none; }
+.version-line-row__meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
 }
-.version-line-row__pill--blocked {
-  border-color: color-mix(in srgb, var(--status-warning) 45%, transparent); color: var(--status-warning);
+.version-line-row__meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The upstream is the one that may give up width: it is the longer of the two
+   and the more repetitive down the column. */
+.version-line-row__upstream { flex: 0 1 auto; }
+.version-line-row__date { flex: 0 0 auto; }
+.version-line-row__upstream + .version-line-row__date::before {
+  content: "·";
+  margin-inline-end: 5px;
+  color: var(--border-divider);
 }
-.version-line-row__pill--warning {
-  border-color: color-mix(in srgb, var(--status-warning) 45%, transparent); color: var(--status-warning);
+.version-line-row__chips:empty { display: none; }
+.version-line-row__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* The row-scale chip: the same box as a History reference chip, so a state on
+   this screen weighs exactly what a state on that one weighs. */
+.version-line-chip {
+  min-width: 0;
+  max-width: 100%;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.version-line-row__pill--upstream {
-  max-width: 32ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block;
+.version-line-chip--positive {
+  border-color: color-mix(in srgb, var(--status-success) 45%, transparent);
+  background: color-mix(in srgb, var(--status-success) 12%, var(--surface-raised));
+  color: var(--status-success);
 }
+.version-line-chip--warning {
+  border-color: color-mix(in srgb, var(--status-warning) 45%, transparent);
+  color: var(--status-warning);
+}
+/* `--accent-primary` and `--accent-primary-fill` are the same green in dark
+   mode, so pairing the fill with `--accent-primary` as text would make this
+   chip invisible there. `--accent-primary-contrast` is the colour this fill is
+   designed to pair with — the same pairing the checkbox's checked state uses. */
+.version-line-chip--active {
+  flex: 0 0 auto;
+  border-color: transparent;
+  background: var(--accent-primary-fill);
+  color: var(--accent-primary-contrast);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+/* One trigger for every filter, and it never grows: the count says that
+   something is on and how much of it, which is the only arrangement that
+   survives a ~300px column. The same box as the History timeline's. */
+.version-lines-filter { display: inline-flex; }
+.version-lines-filter__trigger {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  transition: background-color var(--duration-fast) ease-out, color var(--duration-fast) ease-out;
+}
+.version-lines-filter__trigger:hover { background: var(--surface-raised); color: var(--text-primary-color); }
+.version-lines-filter__trigger[aria-expanded="true"] { background: var(--surface-active); color: var(--text-primary-color); }
+.version-lines-filter__trigger--active { background: var(--surface-active); color: var(--accent-primary); }
+.version-lines-filter__trigger svg { width: 14px; height: 14px; }
+/* A filled count, not a bare tint: narrowing must not be distinguishable by
+   colour alone. */
+.version-lines-filter__badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-primary);
+  color: var(--accent-primary-contrast);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-none);
+}
+/* A form, not a menu, so it takes an `.app-menu`'s surface and lays its own
+   groups out inside it. It spans the strip rather than the trigger, which is
+   what keeps it inside the panel's edges on both sides. */
+.version-lines-filter__panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% - var(--space-2));
+  right: var(--space-2);
+  left: var(--space-2);
+  display: grid;
+  gap: var(--space-3);
+  max-height: min(460px, calc(100vh - 220px));
+  padding: var(--space-3);
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+.version-lines-filter__panel:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.version-lines-filter__group { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.version-lines-filter__label {
+  margin: 0;
+  padding: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+}
+.version-lines-filter__ranges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.version-lines-filter__range {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+}
+.version-lines-filter__range:hover { border-color: var(--border-divider); color: var(--text-primary-color); }
+.version-lines-filter__range:has(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.version-lines-filter__range--active {
+  border-color: var(--accent-primary);
+  background: var(--surface-active);
+  color: var(--accent-primary);
+}
+.version-lines-filter__switch {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  padding: 0 6px;
+  border-radius: var(--radius-item);
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+}
+.version-lines-filter__switch:hover { background: var(--surface-hover); }
+.version-lines-filter__switch > span:first-of-type { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-filter__count { flex: 0 0 auto; color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
+.version-lines-filter__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+
+/* The detail column. The same shape as the History saved-version card: one
+   surface, a summary band at the top, the body scrolling under it, and a quiet
+   footer at the bottom. */
+.version-lines-detail { min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); overflow: hidden; }
+.version-lines-detail__back { display: none; align-self: flex-start; }
+.version-lines-detail__card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+}
+.version-lines-detail--empty {
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+  color: var(--text-secondary-color);
+  text-align: center;
+}
+.version-lines-detail--empty p { margin: 0; }
+.version-lines-detail__summary {
+  flex: 0 0 auto;
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px 12px 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.version-lines-detail__icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-round);
+  background: var(--surface-card);
+  color: var(--text-secondary-color);
+}
+.version-lines-detail__icon svg { width: 16px; height: 16px; }
+.version-lines-detail__identity { min-width: 0; flex: 1; display: grid; gap: 5px; }
+.version-lines-detail__identity h2 {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+}
+.version-lines-detail__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-detail__identity p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.version-lines-detail__actions { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-2); }
+.version-lines-detail__actions .secondary-button { white-space: nowrap; }
+.version-lines-detail__actions .secondary-button svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* The right-click menu's surface is `.context-menu` in primitives.css. What is
+   this feature's is the one line only this menu shows. */
+.version-lines-context-menu__error {
+  max-width: 280px;
+  margin: 4px 8px 6px;
+  color: var(--status-danger);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+
+/* Delete stands on the same row as Switch and Rename, in the same box, and is
+   told apart by colour rather than by being hidden: it takes the danger tint
+   only under the pointer, so the row reads as three ordinary actions at rest
+   and says which one is destructive the moment it is reached for. */
+.version-lines-detail__delete { color: var(--status-danger); }
+.version-lines-detail__delete svg { color: var(--status-danger); }
+.version-lines-detail__delete:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--status-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+}
+
+.version-lines-detail__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+/* Where this line stands, and deliberately not a graph: the snapshot knows how
+   many versions sit either side of the upstream and nothing about the ones
+   before them, so the rail draws exactly that and no more. Discreet by
+   construction — a caption with a diagram in it, not a panel of its own. */
+.version-lines-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+.version-lines-strip__rail { min-width: 0; display: grid; gap: 6px; }
+.version-lines-strip__track { display: flex; align-items: center; }
+.version-lines-strip__node {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-round);
+  background: var(--border-divider);
+}
+/* The connector is drawn by the node that follows it rather than as an element
+   of its own, so the rail is exactly as long as it has nodes. */
+.version-lines-strip__node + .version-lines-strip__node { margin-inline-start: 14px; }
+.version-lines-strip__node + .version-lines-strip__node::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 100%;
+  width: 14px;
+  height: 1px;
+  background: var(--border-divider);
+}
+/* The versions before the ones the read returned. Hollow, because it stands
+   for versions this rail is not drawing rather than for one of them. */
+.version-lines-strip__node--older { background: transparent; box-shadow: inset 0 0 0 1.5px var(--border-divider); }
+.version-lines-strip__node--tip {
+  width: 12px;
+  height: 12px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+.version-lines-strip__ends {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-micro);
+}
+.version-lines-strip__facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-4); margin: 0; }
+.version-lines-strip__facts > div { min-width: 0; display: flex; align-items: baseline; gap: 6px; }
+.version-lines-strip__facts dt { margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); }
+.version-lines-strip__facts dd { margin: 0; color: var(--text-primary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); }
+
+/* The fact cards, on the same surface as a History overview section and at the
+   same tier, so a card on either screen reads as the same kind of object. */
+.version-lines-detail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.version-lines-card {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+.version-lines-card h3 { margin: 0 0 12px; font-size: var(--text-body); }
+.version-lines-card__subject {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0 0 10px;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-snug);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.version-lines-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.version-lines-card code {
+  padding: 2px 6px;
+  border: 1px solid var(--border-divider);
+  border-radius: var(--radius-item);
+  background: var(--surface-code);
+  font-size: var(--text-micro);
+  user-select: text;
+}
+/* Who saved it, on the line under what was saved — the same avatar-then-name
+   order the History saved-version card states it in. */
+.version-lines-card__author {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 10px 0 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.version-lines-card__author strong { color: var(--text-primary-color); font-size: var(--text-label); }
+.version-lines-card__author > span:last-child::before { content: "·"; margin-inline-end: var(--space-2); }
+.version-lines-avatar {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle));
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-raised));
+  color: var(--accent-primary);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-wide);
+}
+
+/* A few of this line's saved versions, at the tier the History timeline lists
+   them: the subject is the row, and when it happened is the caption beside it. */
+.version-lines-recent { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.version-lines-recent li {
+  min-width: 0;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.version-lines-recent__subject {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.version-lines-recent__date { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.version-lines-card > .ghost-button { margin: var(--space-2) 0 0 -6px; }
+
+.version-lines-relations { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.version-lines-relations li { display: flex; align-items: flex-start; gap: var(--space-2); }
+.version-lines-relations svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; color: var(--text-secondary-color); }
+.version-lines-relations__item--positive svg { color: var(--status-success); }
+.version-lines-relations__item--warning svg { color: var(--status-warning); }
+.version-lines-relations__item--protected svg { color: var(--accent-primary); }
+.version-lines-relations span { min-width: 0; color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal); }
+.version-lines-relations strong { display: block; color: var(--text-primary-color); font-size: var(--text-label); }
+
+/* The card whose facts are a table rather than a sentence takes the row to
+   itself and spreads them, the way the History overview's technical card does
+   — four label/value pairs stacked down one half of a wide panel would leave
+   the other half empty for no reason. */
+.version-lines-card--wide { grid-column: 1 / -1; }
+.version-lines-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 9px var(--space-5); margin: 0; }
+.version-lines-status > div { min-width: 0; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-2); align-items: baseline; }
+.version-lines-status dt { margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); }
+.version-lines-status dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The way on from this screen, at the quiet end of the card. */
+.version-lines-detail__history {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-divider);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.version-lines-detail__history > svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.version-lines-detail__history > div { min-width: 0; flex: 1; }
+.version-lines-detail__history strong { display: block; color: var(--text-primary-color); font-size: var(--text-label); }
+.version-lines-detail__history p { margin: 2px 0 0; line-height: var(--leading-normal); }
+.version-lines-detail__history .secondary-button { flex: 0 0 auto; white-space: nowrap; }
+.version-lines-detail__history .secondary-button svg { width: 14px; height: 14px; }
+
+/* The list column narrows before the screen gives up its second panel, at the
+   width Changes and History narrow on. */
+@media (max-width: 1200px) {
+  .version-lines-layout { grid-template-columns: var(--panel-column-narrow) minmax(0, 1fr); }
+}
+
+@media (max-width: 1240px) {
+  .version-lines-detail__grid { grid-template-columns: minmax(0, 1fr); }
+  .version-lines-detail__summary { flex-wrap: wrap; padding-inline: 13px 11px; }
+}
+
+/* One column, at the width the other two drop to one. */
+@media (max-width: 1024px) {
+  .version-lines-layout { grid-template-columns: 1fr; }
+  .version-lines-detail { display: none; }
+  .version-lines-screen--narrow-detail .version-lines-list-panel { display: none; }
+  .version-lines-screen--narrow-detail .version-lines-detail { display: flex; }
+  .version-lines-detail__back { display: inline-flex; }
+}
+
+@media (max-width: 700px) {
+  .version-lines-detail__actions { width: 100%; justify-content: flex-end; }
+  .version-lines-strip { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .version-line-row, .version-lines-filter__trigger { transition: none; }
+}
+
+
+@media (forced-colors: active) {
+  .version-line-row--selected { outline: 2px solid Highlight; outline-offset: -2px; }
+  .version-line-chip { border: 1px solid CanvasText; }
+  .version-lines-strip__node { background: CanvasText; }
+  .version-lines-strip__node--older { box-shadow: inset 0 0 0 1.5px CanvasText; }
+  .version-lines-strip__node--tip { background: Highlight; }
+}
+
 .delete-version-line-options {
   display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 18px;
   color: var(--text-secondary-color); font-size: var(--text-body); overflow-wrap: anywhere;
 }
-.version-line-row__details-toggle {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  min-height: 32px; padding: 6px 12px; border: 0; border-radius: var(--radius-pill);
-  background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--text-body);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.version-line-row__details-toggle:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.version-line-row__chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform var(--duration-fast); }
-.version-line-row__chevron--open { transform: rotate(180deg); }
-.version-line-row__details-panel {
-  display: flex; flex-wrap: wrap; column-gap: 22px; row-gap: 8px;
-  margin: 0 14px 12px 58px; padding: 10px 12px;
-  border-radius: var(--radius-surface); background: var(--surface-hover); font-size: var(--text-label);
-}
-.version-line-row__details-panel > div { display: flex; align-items: baseline; gap: 6px; min-width: 0; max-width: 100%; }
-.version-line-row__details-panel dt { margin: 0; color: var(--text-secondary-color); white-space: nowrap; }
-.version-line-row__details-panel dd {
-  margin: 0; overflow-wrap: anywhere; color: var(--text-primary-color);
-  font-family: var(--font-mono); font-size: var(--text-caption);
-}
-.version-line-row__details-panel-prose { font-family: inherit; font-size: var(--text-label); }
-.version-line-row__actions { flex-shrink: 0; display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.version-line-row__actions-divider { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--border-subtle); }
-/* Row-scale: these live inside a version-line row and must not out-weigh the
-   line's own name. The size comes from the shared `--sm` modifier on the
-   buttons themselves; only the no-wrap is this row's own. */
-.version-line-row__actions .secondary-button { white-space: nowrap; }
-.version-line-row__actions .secondary-button svg { width: 15px; height: 15px; flex-shrink: 0; }
-.version-line-row__delete { padding: 6px 9px; color: var(--status-danger); }
 
-.version-lines-checkbox { display: flex; align-items: center; gap: 8px; font-size: var(--text-body); margin: 4px 0; }
+/* A choice with a consequence under it, so the row is aligned to the top of
+   the label rather than centred on a block of two lines. */
+.version-lines-checkbox {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  margin: var(--space-3) 0; font-size: var(--text-body);
+}
+.version-lines-checkbox > span { min-width: 0; display: grid; gap: 2px; }
+.version-lines-checkbox strong { font-weight: var(--weight-strong); }
+.version-lines-checkbox .save-version-note { margin: 0; }
 
 .version-lines-quick-switch { position: relative; display: inline-flex; gap: 8px; }
 /* A circle at row scale. `min-height` as well as `height`, because the shared
@@ -327,7 +836,6 @@
 @media (max-width: 800px) {
   .overview-meta .version-lines-quick-switch { flex: 1 1 auto; }
   .overview-meta .version-line-selector { flex: 1 1 auto; justify-content: space-between; }
-  .version-lines-view__header { flex-direction: column; align-items: stretch; }
 }
 
 @media (forced-colors: active) {
@@ -340,7 +848,5 @@
   .version-lines-quick-switch__filter,
   .version-lines-quick-switch__favourite { width: 44px; height: 44px; }
   .version-lines-quick-switch__choose,
-  .version-lines-filter__clear,
-  .version-lines-quick-switch__see-all,
-  .version-line-row__details-toggle { min-height: 44px; }
+  .version-lines-quick-switch__see-all { min-height: 44px; }
 }

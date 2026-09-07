@@ -23,6 +23,7 @@ function line(name: string, options: Partial<VersionLine> = {}): VersionLine {
     upstreamAhead: null,
     upstreamBehind: null,
     upstreamGone: false,
+    isDefault: false,
     ...options,
   };
 }

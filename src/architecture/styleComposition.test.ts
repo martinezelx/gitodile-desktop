@@ -65,8 +65,13 @@ describe("production style composition", () => {
     expect(changes).toContain("@media (max-width: 1024px)");
 
     const versionLines = readSource("features/version-lines/version-lines.css");
-    expect(versionLines).toContain(".version-lines-filter__popup");
-    expect(versionLines).toContain("max-height: min(420px, calc(100vh - 300px))");
+    expect(versionLines).toContain(".version-lines-filter__panel");
+    expect(versionLines).toContain("max-height: min(460px, calc(100vh - 220px))");
+    // Lines pairs the same two panels Changes and History do, off the same two
+    // tokens and at the same width the other two narrow on.
+    expect(versionLines).toContain("grid-template-columns: var(--panel-column) minmax(0, 1fr)");
+    expect(versionLines).toContain("height: var(--strip-height)");
+    expect(versionLines).toContain("@media (max-width: 1024px)");
 
     const settings = readSource("features/settings/settings.css");
     expect(settings).toContain(".git-install__status");
@@ -550,16 +555,14 @@ describe("production style composition", () => {
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
       ["features/sync/sync.css", ".team-changes__endpoint > svg", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
-      ["features/version-lines/version-lines.css", ".version-line-row__details-toggle", "border-radius: var(--radius-pill)"],
-      ["features/version-lines/version-lines.css", ".version-lines-filter__clear", "border-radius: var(--radius-item)"],
+      ["features/version-lines/version-lines.css", ".version-lines-avatar", "border-radius: var(--radius-round)"],
+      ["features/version-lines/version-lines.css", ".version-lines-filter__trigger", "border-radius: var(--radius-item)"],
       ["features/version-lines/version-lines.css", ".version-lines-quick-switch__see-all", "border-radius: var(--radius-item)"],
     ] as const;
 
     for (const [file, selector, declaration] of expectedDeclarations) {
       expect(ruleBody(file, selector), `${file}: ${selector}`).toContain(declaration);
     }
-    expect(ruleBody("features/version-lines/version-lines.css", ".version-lines-filter__clear"))
-      .not.toContain("border-top");
   });
 
   it("keeps badges and chips capsule-shaped", () => {

@@ -5,7 +5,7 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(67);
+    expect(contract.commands).toHaveLength(70);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "open_repository", "plan_clone", "clone_repository",
       "cancel_clone", "cleanup_clone", "plan_initialize_project", "initialize_project",
@@ -24,9 +24,10 @@ describe("IPC contract snapshot", () => {
       "check_team_changes", "plan_get_team_changes", "get_team_changes", "list_unpublished_versions",
       "read_commit_file_changes", "read_commit_file_diff", "read_history_page",
       "read_saved_version_detail", "read_saved_version_file_diff", "plan_publish", "publish",
-      "get_version_lines", "plan_create_version_line", "create_version_line",
+      "get_version_lines", "get_version_line_history", "plan_create_version_line", "create_version_line",
       "plan_switch_version_line", "switch_version_line", "plan_delete_version_line",
-      "delete_version_line", "watch_repository", "unwatch_repository", "close_project_session",
+      "delete_version_line", "plan_rename_version_line", "rename_version_line",
+      "watch_repository", "unwatch_repository", "close_project_session",
     ]);
     expect(contract.commands.find((command) => command.name === "save_version")).toEqual({
       name: "save_version",
@@ -37,7 +38,8 @@ describe("IPC contract snapshot", () => {
       "read_working_tree_status", "read_file_diff", "read_file_image_preview", "read_file_lines",
       "read_working_tree_diffs",
       "discover_remotes", "list_unpublished_versions", "read_commit_file_changes",
-      "read_commit_file_diff", "get_version_lines", "watch_repository", "unwatch_repository",
+      "read_commit_file_diff", "get_version_lines", "get_version_line_history",
+      "watch_repository", "unwatch_repository",
       "close_project_session",
       "plan_save_version", "save_version", "read_team_sync_status", "check_team_changes",
       "plan_connect_remote", "connect_remote",
@@ -47,6 +49,7 @@ describe("IPC contract snapshot", () => {
       "plan_publish", "publish",
       "plan_create_version_line", "create_version_line", "plan_switch_version_line",
       "switch_version_line", "plan_delete_version_line", "delete_version_line",
+      "plan_rename_version_line", "rename_version_line",
       "plan_discard_changes", "discard_changes", "get_discard_recovery", "list_discard_recoveries",
       "restore_discarded_changes", "delete_discard_recovery",
       "read_history_page", "read_saved_version_detail", "read_saved_version_file_diff",

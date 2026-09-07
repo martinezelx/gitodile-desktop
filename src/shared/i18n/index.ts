@@ -16,6 +16,7 @@ export {
   FORMAT_SAMPLE_NUMBER,
   formatDate,
   formatNumber,
+  formatRelativeTime,
   isDateFormatPreference,
   isNumberFormatPreference,
   type DateFormatPreference,

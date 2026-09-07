@@ -6,6 +6,8 @@ import type { VersionLinesPort } from "./port";
 export const versionLinesPort: VersionLinesPort = {
   read: ({ projectId: path, sessionEpoch }) =>
     invoke("get_version_lines", { path, sessionEpoch }),
+  readHistory: ({ projectId: path, sessionEpoch, name }) =>
+    invoke("get_version_line_history", { path, sessionEpoch, name }),
   planCreate: ({ projectId: path, sessionEpoch, name, switchToNew }) =>
     invoke("plan_create_version_line", { path, sessionEpoch, name, switch: switchToNew }),
   create: ({ projectId: path, sessionEpoch, name, switchToNew, stateToken }) =>
@@ -16,6 +18,10 @@ export const versionLinesPort: VersionLinesPort = {
     invoke("switch_version_line", { path, sessionEpoch, target, stateToken }),
   planDelete: ({ projectId: path, sessionEpoch, name }) =>
     invoke("plan_delete_version_line", { path, sessionEpoch, name }),
-  delete: ({ projectId: path, sessionEpoch, name, stateToken }) =>
-    invoke("delete_version_line", { path, sessionEpoch, name, stateToken }),
+  delete: ({ projectId: path, sessionEpoch, name, deleteRemote, stateToken }) =>
+    invoke("delete_version_line", { path, sessionEpoch, name, deleteRemote, stateToken }),
+  planRename: ({ projectId: path, sessionEpoch, name, newName }) =>
+    invoke("plan_rename_version_line", { path, sessionEpoch, name, newName }),
+  rename: ({ projectId: path, sessionEpoch, name, newName, stateToken }) =>
+    invoke("rename_version_line", { path, sessionEpoch, name, newName, stateToken }),
 };

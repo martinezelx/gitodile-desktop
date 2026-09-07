@@ -68,8 +68,15 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   fast-forward-only update. GitOdile blocks local work and path collisions,
   creates a verified durable recovery point first, and reports uncertain local
   outcomes without attempting an automatic repair.
-- List, create, switch, and safely delete version lines (local branches), with
-  dirty-worktree checks and recovery references where required.
+- List, create, switch, rename, and safely delete version lines (local
+  branches), with dirty-worktree checks and recovery references where required.
+  A line is only called safe to delete when another local or remote-tracking
+  reference already holds its saved work; a published line can have its remote
+  copy removed with it, and the two halves are reported separately. The remote's
+  own default line is never renamed or deleted.
+- See one version line's recent saved versions, its saved-version count and
+  where it stands against its remote, read on demand for the line you select
+  rather than for every branch on every refresh.
 - Browse the active version line as a bounded, read-only saved-version
   timeline. Inspect author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
