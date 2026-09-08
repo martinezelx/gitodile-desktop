@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  ArrowLeft, Check, CircleAlert, Cloud, CloudOff,
+  ArrowLeft, Check, ChevronDown, CircleAlert, Cloud, CloudOff,
   CalendarDays, Copy, Folder, GitBranch, GitMerge,
   GitCommitHorizontal, HardDrive, Info, ListFilter,
   Tag, UserRound, X,
@@ -392,12 +392,17 @@ function HistoryDetailHeader({ detail, formats, activeTab, fileCount, controls, 
         becomes a control. A tag and a remote-only ref stay text, because
         neither is a line this project can view or switch to. */}
     <div className="history-detail__badges">{version.isRoot && <span className="history-kind-chip">{t.historyRoot}</span>}{version.isMerge && <span className="history-kind-chip">{t.historyMerge}</span>}{version.decorations.slice(0, 3).map((decoration) => decoration.kind === "localBranch" && canActOnLines
-      ? <button key={decoration.fullRef} className="history-ref-chip history-ref-chip--actionable" type="button" aria-haspopup="menu" aria-label={t.historyLineActions(decoration.name)} title={decoration.fullRef} onClick={(event) => openMenu(event, decoration)}>
+      ? <button key={decoration.fullRef} className="history-ref-chip history-ref-chip--actionable" type="button" aria-haspopup="menu" aria-expanded={menu?.line?.fullRef === decoration.fullRef} aria-label={t.historyLineActions(decoration.name)} title={decoration.fullRef} onClick={(event) => openMenu(event, decoration)}>
           <GitBranch aria-hidden="true" />{decoration.name}
         </button>
       : <span key={decoration.fullRef} className="history-ref-chip" title={decoration.fullRef}>{decoration.kind === "tag" && <Tag aria-hidden="true" />}{decoration.name}</span>)}
-      {actions.onCreateLineFromVersion && <button className="history-ref-chip history-ref-chip--actionable" type="button" aria-haspopup="menu" aria-label={t.historyVersionActionsLabel} onClick={(event) => openMenu(event)}>
-        <GitCommitHorizontal aria-hidden="true" />{t.historyVersionActions}
+      {/* Outlined and carrying a chevron, where every chip beside it is filled
+          and carries none: the row is a run of facts about this version, and
+          this is the one thing in it that does something. It keeps the chips'
+          height rather than taking a control's, because a 32px button standing
+          in a 23px row is a control that has been given the wrong shape. */}
+      {actions.onCreateLineFromVersion && <button className="history-actions-chip" type="button" aria-haspopup="menu" aria-expanded={menu !== null && menu.line === undefined} aria-label={t.historyVersionActionsLabel} onClick={(event) => openMenu(event)}>
+        {t.historyVersionActions}<ChevronDown aria-hidden="true" />
       </button>}
     </div></div>
     </div>
@@ -599,7 +604,12 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
         <span>{option.label}</span>
       </label>)}
     </div>
-    <div className="history-filter__field">
+    {/* The third state, and it has to look like one: an empty field and a field
+        holding the line the timeline is reading are not the same thing, and the
+        two capsules above cannot show which. It carries its own way out, so a
+        chosen line is undone here rather than only from the chip under the
+        strip. */}
+    <div className={`history-filter__field${named ? " history-filter__field--selected" : ""}`}>
       <GitBranch aria-hidden="true" />
       <input
         id="history-scope-line"
@@ -613,6 +623,14 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
         onBlur={commit}
         onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); } }}
       />
+      {named && <button
+        type="button"
+        className="history-filter__field-clear"
+        aria-label={t.historyScopeClear}
+        onClick={() => { setDraft(""); setUnknown(false); onChange(CURRENT_LINE_SCOPE); }}
+      >
+        <X aria-hidden="true" />
+      </button>}
     </div>
     <datalist id="history-scope-lines">
       {lines.map((name) => <option key={name} value={name} />)}
@@ -1006,7 +1024,23 @@ export function HistoryPanel({ controller, query, state, watcherState, actions =
     <header className="screen-header">
       <div className="screen-header__heading">
         <h1>{t.historyTitle}</h1>
-        <p>{filtersActive ? t.historyFilteredCount(visibleVersions.length, state.versions.length) : t.historyLoadedCount(state.versions.length)}</p>
+        {/* The caption says how much is loaded, and — only when it is not the
+            line the status bar already names — which history that is. Working
+            context and viewing context can differ now, and the reader should
+            not have to open the filters to find out that they do. It informs
+            and nothing more: the scope is still chosen in the filter panel. */}
+        <p>
+          {filtersActive ? t.historyFilteredCount(visibleVersions.length, state.versions.length) : t.historyLoadedCount(state.versions.length)}
+          {/* A plain separator rather than the timeline's dot element: that one
+              takes its spacing from the flex gap of the meta row it belongs to,
+              and inside a paragraph it would sit flush against both neighbours. */}
+          {state.scope.kind !== "currentLine" && <>
+            {" · "}
+            <span className="history-header-scope">
+              {state.scope.kind === "allLines" ? t.historyScopeAllLines : t.historyScopeLineChip(state.scope.name)}
+            </span>
+          </>}
+        </p>
       </div>
     </header>
     <div className="history-layout">

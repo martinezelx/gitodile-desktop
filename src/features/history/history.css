@@ -166,6 +166,25 @@
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
 .history-filter__field:focus-within { border-color: var(--focus-ring); background: var(--surface-panel); }
+/* A line is chosen: the field is holding an answer, not waiting for one. The
+   accent border and the heavier value say so on their own — the clear control
+   beside them is the second, non-colour signal. */
+.history-filter__field--selected {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-hover));
+}
+.history-filter__field--selected > svg { color: var(--accent-primary); }
+.history-filter__field--selected input { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.history-filter__field-clear {
+  width: 20px; height: 20px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  margin-right: -4px; padding: 0; border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.history-filter__field-clear:hover { background: var(--surface-active); color: var(--text-primary-color); }
+.history-filter__field-clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.history-filter__field-clear svg { width: 12px; height: 12px; }
 .history-filter__field > svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--text-secondary-color); }
 .history-filter__field input {
   min-width: 0; flex: 1; padding: 0; border: 0; outline: none;
@@ -237,6 +256,21 @@
   gap: var(--space-1);
   padding: 0 var(--space-2) var(--space-2);
 }
+/* Which history is being read, in the caption that already says how much of it
+   is loaded. Same tier as the count beside it — a fact about the screen, not a
+   badge — and carried by its own element so a long line name truncates instead
+   of pushing the count out of the row. */
+.history-header-scope {
+  display: inline-block;
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  color: var(--text-primary-color);
+  font-weight: var(--weight-strong);
+}
+
 /* The scope leads the row and is marked as a different kind of thing: it says
    which history is being read, not how much of one is shown. */
 .history-filter-chip--scope {
@@ -294,7 +328,7 @@
   background: var(--surface-panel);
   color: var(--text-secondary-color);
 }
-.history-icon-button:hover { border-color: var(--border-strong); background: var(--surface-hover); color: var(--text-primary-color); }
+.history-icon-button:hover { border-color: var(--border-control); background: var(--surface-hover); color: var(--text-primary-color); }
 .history-icon-button svg { width: 15px; height: 15px; }
 
 /* Two pixels under the strip, over the rows it is about to replace. It sits in
@@ -511,7 +545,7 @@
 .history-detail__truncated { margin: 6px 0 0; color: var(--status-warning); font-size: var(--text-caption); }
 .history-detail__badges { display: flex; flex-wrap: wrap; gap: 5px; }
 
-.history-publication, .history-kind-chip, .history-ref-chip { min-width: 0; height: 23px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); white-space: nowrap; }
+.history-publication, .history-kind-chip, .history-ref-chip, .history-actions-chip { min-width: 0; height: 23px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); white-space: nowrap; }
 .history-publication svg, .history-ref-chip svg { width: 11px; height: 11px; }
 .history-publication--published { background: color-mix(in srgb, var(--status-success) 12%, var(--surface-raised)); color: var(--status-success); }
 .history-publication--local-only { color: var(--accent-primary); }
@@ -520,16 +554,34 @@
    — a card full of buttons reads as a toolbar — and answers on approach the way
    every other quiet control here does. */
 .history-ref-chip--actionable {
+  /* At rest it is the chip it was: this row is metadata, and a run of
+     bordered controls would turn it into a toolbar. The affordance is on
+     approach, which is enough for something the reader finds by hovering the
+     name they were already reading. */
   border: 1px solid transparent;
   transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
 }
 .history-ref-chip--actionable:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-subtle);
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
   color: var(--text-primary-color);
 }
 .history-ref-chip--actionable:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.history-ref-chip--actionable[aria-expanded="true"] { background: var(--surface-active); border-color: var(--accent-primary); }
+.history-ref-chip--actionable[aria-expanded="true"] { background: var(--surface-active); border-color: var(--accent-primary); color: var(--text-primary-color); }
+
+/* Outlined where the chips beside it are filled, and the only one carrying a
+   chevron: that pair is what separates the row's one control from the facts
+   around it without giving it a size or a colour of its own. */
+.history-actions-chip {
+  padding-right: 5px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.history-actions-chip svg { width: 12px; height: 12px; }
+.history-actions-chip:hover { background: var(--surface-hover); border-color: var(--border-strong); color: var(--text-primary-color); }
+.history-actions-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.history-actions-chip[aria-expanded="true"] { background: var(--surface-active); border-color: var(--accent-primary); color: var(--text-primary-color); }
 
 /* The card's one strip: the tabs that cut it, and the controls for reading
    whichever of them is open. It takes the panel strip height the two screens

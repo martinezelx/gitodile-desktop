@@ -246,12 +246,12 @@ describe("VersionLineQuickSwitch", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
-    await userEvent.click(screen.getByRole("button", { name: "New version line" }));
+    await userEvent.click(screen.getByRole("button", { name: "New line" }));
     expect(onCreate).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
-    await userEvent.click(screen.getByRole("button", { name: "Manage version lines" }));
+    await userEvent.click(screen.getByRole("button", { name: "Manage lines" }));
     expect(onSeeAll).toHaveBeenCalledOnce();
   });
 
@@ -272,14 +272,14 @@ describe("VersionLineQuickSwitch", () => {
         <VersionLineQuickSwitch {...props} variant="status" />
       </LanguageProvider>,
     );
-    expect(screen.queryByRole("button", { name: "New version line" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New line" })).not.toBeInTheDocument();
 
     view.rerender(
       <LanguageProvider>
         <VersionLineQuickSwitch {...props} variant="control" />
       </LanguageProvider>,
     );
-    expect(screen.getByRole("button", { name: "New version line" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New line" })).toBeInTheDocument();
   });
 
   it("says nothing selectable when there is no line to be on", () => {

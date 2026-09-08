@@ -557,7 +557,10 @@ describe("production style composition", () => {
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
       ["features/version-lines/version-lines.css", ".version-lines-avatar", "border-radius: var(--radius-round)"],
       ["features/version-lines/version-lines.css", ".version-lines-filter__trigger", "border-radius: var(--radius-item)"],
-      ["features/version-lines/version-lines.css", ".version-lines-quick-switch__see-all", "border-radius: var(--radius-item)"],
+      // The quick switch's two footer actions were rows in the menu and carried
+      // the item radius. They are `.ghost-button`s now — they leave the control
+      // rather than choose inside it — so their shape comes from the primitive
+      // and stating it again here would be the drift this audit exists to stop.
     ] as const;
 
     for (const [file, selector, declaration] of expectedDeclarations) {

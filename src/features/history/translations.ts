@@ -160,8 +160,8 @@ const en: HistoryTranslations = {
   historyScopeLineChip: (name) => `Line: ${name}`,
   historyScopeLineHint: (name) =>
     `Saved versions reachable from “${name}”. This project stays where it is.`,
-  historyScopeLineLabel: "Another version line",
-  historyScopeLinePlaceholder: "Another line…",
+  historyScopeLineLabel: "Specific version line",
+  historyScopeLinePlaceholder: "Specific line…",
   historyScopeUnknownLine: "This project doesn’t have a version line with that name.",
   historyScopeClear: "Show the current line again",
   historyScopeShowCurrentLine: "Show the current line",
@@ -286,8 +286,8 @@ const es: HistoryTranslations = {
   historyScopeLineChip: (name) => `Línea: ${name}`,
   historyScopeLineHint: (name) =>
     `Versiones guardadas alcanzables desde «${name}». El proyecto se queda donde está.`,
-  historyScopeLineLabel: "Otra línea de versión",
-  historyScopeLinePlaceholder: "Otra línea…",
+  historyScopeLineLabel: "Una línea de versión concreta",
+  historyScopeLinePlaceholder: "Una línea concreta…",
   historyScopeUnknownLine: "Este proyecto no tiene ninguna línea de versión con ese nombre.",
   historyScopeClear: "Volver a la línea actual",
   historyScopeShowCurrentLine: "Ver la línea actual",

@@ -243,11 +243,16 @@ export function VersionLineQuickSwitch({
               about a line that is not "which one am I on". Both hand off to the
               flow that owns them — there is no second way to create a line and
               no second Lines screen. */}
+          {/* One row, not two: these are the two things choosing from the list
+              above cannot answer, and a popup that spends two full rows on them
+              is a popup with less room for the lines it exists to show. Ghost
+              buttons rather than menu rows — they leave this control instead of
+              choosing inside it. */}
           <div className="version-lines-quick-switch__footer">
             {onCreate && (
               <button
                 type="button"
-                className="app-menu__item version-lines-quick-switch__new"
+                className="ghost-button version-lines-quick-switch__new"
                 onClick={() => {
                   close(false);
                   onCreate();
@@ -259,7 +264,7 @@ export function VersionLineQuickSwitch({
             )}
             <button
               type="button"
-              className="app-menu__item version-lines-quick-switch__see-all"
+              className="ghost-button version-lines-quick-switch__see-all"
               onClick={() => {
                 close(false);
                 onSeeAll();

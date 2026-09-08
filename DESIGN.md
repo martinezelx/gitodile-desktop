@@ -133,7 +133,13 @@ The main desktop window should broadly support:
 3. **Status bar** — a 34px strip along the bottom of the content column,
    spanning from the rail's edge to the window's, on every screen including
    Overview. It reports what is true of the project right now: branch, unsaved
-   work, sync state and when that was last learned, and the app version.
+   work, sync state and when that was last learned, and the app version. The
+   branch is also the app's one global version-line control — it states the
+   working context ("Working on", at the secondary tier, with the line's name
+   carrying the weight) and its dropdown switches, creates and hands off to the
+   Lines screen. No screen adds a second selector to its own header: two
+   controls answering one question in one window is how a reader stops trusting
+   either.
    - it is chrome, not content: no fill, no radius, no shadow. Shadow signals
      stacking order, and this strip is the floor of the window rather than
      something resting on it; at 30px tall it could not carry the 14–18px card

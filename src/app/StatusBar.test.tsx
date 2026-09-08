@@ -243,4 +243,63 @@ describe("formatRelativeCheckTime", () => {
     expect(formatRelativeCheckTime(now - 2 * 60 * 60_000, now, "en", "just now")).toMatch(/2 hr/);
     expect(formatRelativeCheckTime(now - 2 * 24 * 60 * 60_000, now, "es", "ahora mismo")).toMatch(/hace 2 d/);
   });
+
+  it("states the working context in front of the line, and keeps the strip's height", () => {
+    const { container } = renderBar();
+
+    const label = screen.getByText("Working on");
+    expect(label).toBeInTheDocument();
+    // The value is the fact and stays the heavier of the two; the words around
+    // it are not announced a second time, because the trigger's own name
+    // already says what pressing it does.
+    expect(label).toHaveAttribute("aria-hidden", "true");
+    expect(label).toHaveClass("version-lines-quick-switch__context-label");
+    expect(
+      screen.getByRole("button", { name: "Change version line (feature/a-very-long-version-line-name)" }),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".status-bar")).not.toBeNull();
+  });
+
+  it("puts creating a line and managing them on one row, and hands each to its own flow", async () => {
+    const onCreateVersionLine = vi.fn();
+    const onSeeAllVersionLines = vi.fn();
+    renderBar({ onCreateVersionLine, onSeeAllVersionLines });
+
+    const trigger = screen.getByRole("button", {
+      name: "Change version line (feature/a-very-long-version-line-name)",
+    });
+    await userEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Switch version line" });
+    const footer = dialog.querySelector(".version-lines-quick-switch__footer");
+    const newLine = screen.getByRole("button", { name: "New line" });
+    const manage = screen.getByRole("button", { name: "Manage lines" });
+
+    // One row, both actions in it, in reading order.
+    expect(footer).not.toBeNull();
+    expect(footer).toContainElement(newLine);
+    expect(footer).toContainElement(manage);
+    expect(newLine.compareDocumentPosition(manage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await userEvent.click(newLine);
+    expect(onCreateVersionLine).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await userEvent.click(trigger);
+    await userEvent.click(screen.getByRole("button", { name: "Manage lines" }));
+    expect(onSeeAllVersionLines).toHaveBeenCalledOnce();
+  });
+
+  it("closes the quick switch on Escape and gives focus back to the strip", async () => {
+    renderBar();
+    const trigger = screen.getByRole("button", {
+      name: "Change version line (feature/a-very-long-version-line-name)",
+    });
+
+    await userEvent.click(trigger);
+    expect(screen.getByRole("dialog", { name: "Switch version line" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
 });

@@ -742,14 +742,17 @@
 .version-lines-quick-switch__menu {
   box-sizing: border-box;
   width: min(400px, calc(100vw - 2 * var(--space-4)));
-  height: min(380px, calc(100vh - 2 * var(--space-4)));
+  /* Down 42px with the footer's two rows: the box is fixed, so the row the
+     actions gave back has to come off the box or it becomes empty space under
+     the results. */
+  height: min(338px, calc(100vh - 2 * var(--space-4)));
   min-width: 0;
   max-width: none;
   overflow: hidden;
 }
 .version-lines-quick-switch__menu--status {
   width: min(320px, calc(100vw - 2 * var(--space-2)));
-  height: min(292px, calc(100vh - 56px));
+  height: min(250px, calc(100vh - 56px));
 }
 .version-lines-quick-switch__menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .version-lines-quick-switch__search {
@@ -820,35 +823,30 @@
 .version-lines-quick-switch__menu--status .version-lines-quick-switch__favourite {
   width: 32px; height: 32px;
 }
-/* The two hand-offs at the end of the list: a line that does not exist yet,
-   and everything about a line that is not "which one am I on". Separated from
-   the results by a rule, because they act rather than choose. */
+/* The two hand-offs at the end of the list, on one row: a line that does not
+   exist yet, and everything about a line that is not "which one am I on". A
+   rule separates them from the results, because they act rather than choose.
+   They are ghost buttons, so they take the shared control height and the shared
+   quiet treatment rather than a size of their own. */
 .version-lines-quick-switch__footer {
-  flex-shrink: 0; display: flex; flex-direction: column; gap: 2px;
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
   margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle);
 }
-.version-lines-quick-switch__new {
-  flex-shrink: 0; display: flex; align-items: center; gap: var(--space-2);
-  min-height: 36px; padding: 8px 10px; border-radius: var(--radius-item); border: 0;
-  background: transparent; color: var(--accent-primary); font-size: var(--text-label); text-align: left;
-  transition: background var(--duration-fast), color var(--duration-fast);
+/* Only child, and it still belongs at the right-hand end. */
+.version-lines-quick-switch__footer > .version-lines-quick-switch__see-all:only-child { margin-left: auto; }
+.version-lines-quick-switch__new,
+.version-lines-quick-switch__see-all { min-width: 0; padding-inline: var(--space-2); }
+.version-lines-quick-switch__new span,
+.version-lines-quick-switch__see-all span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.version-lines-quick-switch__see-all {
-  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-  min-height: 36px; padding: 8px 10px; border-radius: var(--radius-item); border: 0;
-  background: transparent; color: var(--accent-primary); font-size: var(--text-label); text-align: left;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.version-lines-quick-switch__new svg,
-.version-lines-quick-switch__see-all svg { width: 14px; height: 14px; flex-shrink: 0; }
-.version-lines-quick-switch__new:hover,
-.version-lines-quick-switch__see-all:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 
-/* "Working on", in front of the value. Muted and unselectable-looking, because
-   it is the sentence around the control rather than part of it. */
+/* "Working on", in front of the value. The words are the sentence around the
+   control; the line's name is the fact, and stays the heavier of the two. */
 .version-lines-quick-switch__context-label {
   flex-shrink: 0; color: var(--text-secondary-color); font-size: var(--text-label); white-space: nowrap;
 }
+
 .version-lines-quick-switch__empty {
   display: grid; place-items: center; min-height: 100%; margin: 0; padding: var(--space-4);
   color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-align: center;
@@ -870,7 +868,8 @@
 @media (pointer: coarse) {
   .version-lines-quick-switch__filter,
   .version-lines-quick-switch__favourite { width: 44px; height: 44px; }
-  .version-lines-quick-switch__choose,
-  .version-lines-quick-switch__new,
-  .version-lines-quick-switch__see-all { min-height: 44px; }
+  /* The two footer actions are `.ghost-button`s, which primitives.css already
+     raises to `--control-height-lg` here; restating it would be a second copy
+     of the same accommodation. */
+  .version-lines-quick-switch__choose { min-height: 44px; }
 }

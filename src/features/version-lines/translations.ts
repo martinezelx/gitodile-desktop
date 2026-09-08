@@ -209,8 +209,8 @@ const en: VersionLinesTranslations = {
   versionLinesQuickSwitchFavouritesOnlyOff: "Show all version lines",
   versionLinesQuickSwitchFavouritesEmpty: "No favourites yet. Star a version line to keep it here.",
   versionLinesQuickSwitchEmpty: "There are no other version lines yet.",
-  versionLinesQuickSwitchSeeAll: "Manage version lines",
-  versionLinesQuickSwitchNew: "New version line",
+  versionLinesQuickSwitchSeeAll: "Manage lines",
+  versionLinesQuickSwitchNew: "New line",
   versionLinesDetachedTitle: "This project isn't on a version line right now",
   versionLinesDetachedDescription:
     "You're looking at one specific saved version. Create a named version line here to keep this work easy to find.",
@@ -424,8 +424,8 @@ const es: VersionLinesTranslations = {
   versionLinesQuickSwitchFavouritesEmpty:
     "Todavía no hay favoritos. Marca una línea de versión para guardarla aquí.",
   versionLinesQuickSwitchEmpty: "Todavía no hay otras líneas de versión.",
-  versionLinesQuickSwitchSeeAll: "Gestionar líneas de versión",
-  versionLinesQuickSwitchNew: "Nueva línea de versión",
+  versionLinesQuickSwitchSeeAll: "Gestionar líneas",
+  versionLinesQuickSwitchNew: "Nueva línea",
   versionLinesDetachedTitle: "Este proyecto no está en una línea de versión ahora mismo",
   versionLinesDetachedDescription:
     "Estás viendo una versión guardada concreta. Crea aquí una línea de versión con nombre para que este trabajo sea fácil de encontrar.",

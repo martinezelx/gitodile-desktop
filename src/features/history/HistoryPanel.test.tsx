@@ -643,7 +643,7 @@ describe("HistoryPanel", () => {
     const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main", "feature/foo"] });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    const scopeField = screen.getByLabelText("Another version line");
+    const scopeField = screen.getByLabelText("Specific version line");
     await user.type(scopeField, "feature/foo{Enter}");
 
     expect(setScope).toHaveBeenCalledWith(
@@ -655,7 +655,7 @@ describe("HistoryPanel", () => {
     // clearing the filters must not silently change the line.
     cleanup();
     renderPanel(state(3, { scope: { kind: "line", name: "feature/foo" } }));
-    expect(screen.getByText("Line: feature/foo")).toBeInTheDocument();
+    expect(screen.getAllByText("Line: feature/foo")).toHaveLength(2);
   });
 
   it("refuses a line this project does not have rather than asking Git about it", async () => {
@@ -663,7 +663,7 @@ describe("HistoryPanel", () => {
     const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main"] });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    await user.type(screen.getByLabelText("Another version line"), "feature/typo{Enter}");
+    await user.type(screen.getByLabelText("Specific version line"), "feature/typo{Enter}");
 
     expect(setScope).not.toHaveBeenCalled();
     expect(screen.getByText("This project doesn’t have a version line with that name.")).toBeInTheDocument();
@@ -701,7 +701,7 @@ describe("HistoryPanel", () => {
     await user.click(screen.getByRole("button", { name: "Clear all" }));
 
     expect(setScope).not.toHaveBeenCalled();
-    expect(screen.getByText("Line: feature/foo")).toBeInTheDocument();
+    expect(screen.getAllByText("Line: feature/foo").length).toBeGreaterThan(0);
   });
 
   it("offers a local line's own actions from the row that names it", async () => {
@@ -754,5 +754,130 @@ describe("HistoryPanel", () => {
     fireEvent.contextMenu(screen.getAllByRole("option")[0]);
     expect(screen.queryByRole("button", { name: /in Lines/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Switch this project/ })).not.toBeInTheDocument();
+  });
+
+  it("names the history it is reading in the header, and only when that is not the current line", () => {
+    // The status bar already says which line is being worked on. Repeating it
+    // here would be noise; saying nothing when the two differ would be worse.
+    const current = renderPanel(state(3));
+    expect(current.container.querySelector(".history-header-scope")).toBeNull();
+    cleanup();
+
+    const all = renderPanel(state(3, { scope: { kind: "allLines" } }));
+    expect(all.container.querySelector(".screen-header__heading p")).toHaveTextContent(
+      "3 saved versions loaded · All lines",
+    );
+    cleanup();
+
+    const named = renderPanel(state(3, { scope: { kind: "line", name: "main" } }));
+    expect(named.container.querySelector(".history-header-scope")).toHaveTextContent("Line: main");
+    // Informing, not offering: the scope is still chosen in the filter panel.
+    expect(within(screen.getByRole("banner")).queryByRole("button")).toBeNull();
+  });
+
+  it("shows a chosen line as a chosen line, and lets it be undone from the field itself", async () => {
+    const user = userEvent.setup();
+    const { setScope, container } = renderPanel(
+      state(3, { scope: { kind: "line", name: "feature/foo" } }),
+      null,
+      "watching",
+      { lines: ["main", "feature/foo"] },
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    const field = screen.getByLabelText("Specific version line");
+    // An empty field and a field holding the line being read are not the same
+    // thing, and the state does not rest on colour alone: the value is there,
+    // and so is its own way out.
+    expect(field).toHaveValue("feature/foo");
+    expect(container.querySelector(".history-filter__field--selected")).not.toBeNull();
+
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    await user.click(within(panel).getByRole("button", { name: "Show the current line again" }));
+    expect(setScope).toHaveBeenCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      { kind: "currentLine" },
+    );
+  });
+
+  it("offers no clear control while no line is chosen", async () => {
+    const user = userEvent.setup();
+    renderPanel(state(3), null, "watching", { lines: ["main"] });
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    expect(screen.getByLabelText("Specific version line")).toHaveValue("");
+    expect(within(panel).queryByRole("button", { name: "Show the current line again" })).toBeNull();
+  });
+
+  it("keeps the version's own actions reachable, and says when they are open", async () => {
+    const user = userEvent.setup();
+    const onCreateLineFromVersion = vi.fn();
+    const detail: SavedVersionDetail = {
+      version: version(0),
+      comparisonBase: "empty-tree",
+      comparisonIsEmptyTree: true,
+      comparisonIsFirstParent: false,
+      files: [],
+      fileCounts: { changed: 0, new: 0, deleted: 0, renamed: 0, total: 0 },
+      filesTruncated: false,
+      countsAreMinimum: false,
+    };
+    renderPanel(
+      state(1, { detail: { detail, isLoading: false, error: null } }),
+      null,
+      "watching",
+      { onCreateLineFromVersion },
+    );
+
+    const trigger = screen.getByRole("button", { name: "What this saved version can do" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(screen.getByRole("button", { name: "Create a new version line from this version" }));
+    expect(onCreateLineFromVersion).toHaveBeenCalledOnce();
+    // Focus goes back to the control that opened the menu, not to the document.
+    expect(trigger).toHaveFocus();
+  });
+
+  it("makes a local line in the detail a control and leaves a tag a fact", async () => {
+    const user = userEvent.setup();
+    const onViewLine = vi.fn();
+    const withRefs: SavedVersionSummary = {
+      ...version(0),
+      decorations: [
+        { kind: "head", name: "HEAD", fullRef: "HEAD" },
+        { kind: "localBranch", name: "main", fullRef: "refs/heads/main" },
+        { kind: "tag", name: "v1.0", fullRef: "refs/tags/v1.0" },
+      ],
+    };
+    const detail: SavedVersionDetail = {
+      version: withRefs,
+      comparisonBase: "empty-tree",
+      comparisonIsEmptyTree: true,
+      comparisonIsFirstParent: false,
+      files: [],
+      fileCounts: { changed: 0, new: 0, deleted: 0, renamed: 0, total: 0 },
+      filesTruncated: false,
+      countsAreMinimum: false,
+    };
+    renderPanel(
+      state(1, { detail: { detail, isLoading: false, error: null } }),
+      null,
+      "watching",
+      { onViewLine },
+    );
+
+    // A tag and HEAD are facts about this version; neither is a line this
+    // project can view or switch to, so neither becomes a control.
+    expect(screen.queryByRole("button", { name: /v1\.0/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /HEAD/ })).toBeNull();
+
+    const chip = screen.getByRole("button", { name: "What the version line main can do" });
+    await user.click(chip);
+    await user.click(screen.getByRole("button", { name: "View “main” in Lines" }));
+    expect(onViewLine).toHaveBeenCalledWith("main");
+    expect(chip).toHaveFocus();
   });
 });
