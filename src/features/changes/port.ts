@@ -21,6 +21,12 @@ export type ImagePreviewQuery = FileDiffQuery & {
 export type FileLinesQuery = FileDiffQuery & { startLine: number; endLine: number };
 export interface ChangesPort {
   readFileDiff(query: FileDiffQuery): Promise<FileDiff>;
+  /** Opens the operating system's file manager with this file selected.
+   *
+   * Rust takes the repository-relative path and resolves it against the open
+   * project itself, so nothing on this side can name a place on the disk — see
+   * `desktop::reveal_project_file`. */
+  revealFile(query: FileDiffQuery): Promise<void>;
   readWorkingTreeDiffs(query: ChangesQuery): Promise<WorkingTreeDiffBatch>;
   readFileLines(query: FileLinesQuery): Promise<FileLines>;
   readFileImagePreview(query: ImagePreviewQuery): Promise<ImagePreview>;

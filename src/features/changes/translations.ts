@@ -68,6 +68,26 @@ export interface ChangesTranslations {
   changesSearchPlaceholder: string;
   changesSearchAriaLabel: string;
   changesNoSearchMatches: string;
+  changesNoFilterMatches: string;
+  changesFiltersLabel: string;
+  changesFiltersActive: (count: number) => string;
+  changesFiltersActiveCount: (count: number) => string;
+  changesFiltersClear: string;
+  changesFilterRemove: (label: string) => string;
+  changesFilterKindLabel: string;
+  changesFilterTypeLabel: string;
+  changesFilterTypeNone: string;
+  changesFilterModeLabel: (group: string) => string;
+  changesFilterModeOnly: string;
+  changesFilterModeHide: string;
+  changesFilterHiddenChip: (label: string) => string;
+  changesFilterShowAgain: (label: string) => string;
+  changesFilterInclusionLabel: string;
+  changesFilterInclusionAll: string;
+  changesFilterInclusionIncluded: string;
+  changesFilterInclusionExcluded: string;
+  changesFilterInclusionIncludedChip: string;
+  changesFilterInclusionExcludedChip: string;
   changesFilePosition: (position: number, total: number) => string;
   changesPreviousFile: string;
   changesNextFile: string;
@@ -95,6 +115,9 @@ export interface ChangesTranslations {
   changesMoreActions: string;
   changesContextMenuLabel: string;
   changesCopy: string;
+  changesCopyPath: string;
+  changesRevealInFolder: string;
+  changesRevealFailed: string;
   changesCopied: string;
   changesCopyFailed: string;
   changesDiscardFileContext: string;
@@ -219,6 +242,31 @@ const en: ChangesTranslations = {
   changesSearchPlaceholder: "Search files…",
   changesSearchAriaLabel: "Search changed files",
   changesNoSearchMatches: "No changed file matches your search.",
+  changesNoFilterMatches: "No changed file matches what you are looking for.",
+  changesFiltersLabel: "Filters",
+  changesFiltersActive: (count) => `Filters (${count} on)`,
+  changesFiltersActiveCount: (count) => `${count} filter${count === 1 ? "" : "s"} active`,
+  changesFiltersClear: "Clear all",
+  changesFilterRemove: (label) => `Remove the ${label} filter`,
+  changesFilterKindLabel: "Kind of change",
+  changesFilterTypeLabel: "File type",
+  changesFilterTypeNone: "No extension",
+  changesFilterModeLabel: (group) => `Show or hide the chosen ${group.toLocaleLowerCase()}`,
+  changesFilterModeOnly: "Show only",
+  changesFilterModeHide: "Hide",
+  changesFilterHiddenChip: (label) => `Hiding ${label}`,
+  changesFilterShowAgain: (label) => `Show ${label} again`,
+  // The checkbox on every row, asked as the question it answers. "In the next
+  // version" named the subject and left the reader to guess the predicate; this
+  // states it, and the two answers are the checkbox's own.
+  changesFilterInclusionLabel: "Will be saved",
+  changesFilterInclusionAll: "Any",
+  changesFilterInclusionIncluded: "Yes",
+  changesFilterInclusionExcluded: "No",
+  // A chip stands alone in a row of chips, with no group label above it, so it
+  // says the whole thing rather than the answer on its own.
+  changesFilterInclusionIncludedChip: "Will be saved",
+  changesFilterInclusionExcludedChip: "Won't be saved",
   changesFilePosition: (position, total) => `File ${position} of ${total}`,
   changesPreviousFile: "Previous file",
   changesNextFile: "Next file",
@@ -247,6 +295,11 @@ const en: ChangesTranslations = {
   changesMoreActions: "Discard or restore changes",
   changesContextMenuLabel: "Context actions",
   changesCopy: "Copy",
+  changesCopyPath: "Copy path",
+  // "Folder", not "File Explorer" or "Finder": one wording for three operating
+  // systems, in the word this app already uses for where a project lives.
+  changesRevealInFolder: "Show in folder",
+  changesRevealFailed: "That file couldn't be shown.",
   changesCopied: "Selected text copied.",
   changesCopyFailed: "Couldn’t copy the selected text. Use Ctrl+C or Cmd+C instead.",
   changesDiscardFileContext: "Discard changes…",
@@ -377,6 +430,26 @@ const es: ChangesTranslations = {
   changesSearchPlaceholder: "Buscar archivos…",
   changesSearchAriaLabel: "Buscar archivos con cambios",
   changesNoSearchMatches: "Ningún archivo con cambios coincide con tu búsqueda.",
+  changesNoFilterMatches: "Ningún archivo con cambios coincide con lo que buscas.",
+  changesFiltersLabel: "Filtros",
+  changesFiltersActive: (count) => `Filtros (${count} activo${count === 1 ? "" : "s"})`,
+  changesFiltersActiveCount: (count) => `${count} filtro${count === 1 ? "" : "s"} activo${count === 1 ? "" : "s"}`,
+  changesFiltersClear: "Quitar todos",
+  changesFilterRemove: (label) => `Quitar el filtro ${label}`,
+  changesFilterKindLabel: "Tipo de cambio",
+  changesFilterTypeLabel: "Tipo de archivo",
+  changesFilterTypeNone: "Sin extensión",
+  changesFilterModeLabel: (group) => `Mostrar u ocultar lo elegido en ${group.toLocaleLowerCase()}`,
+  changesFilterModeOnly: "Mostrar solo",
+  changesFilterModeHide: "Ocultar",
+  changesFilterHiddenChip: (label) => `Ocultando ${label}`,
+  changesFilterShowAgain: (label) => `Volver a mostrar ${label}`,
+  changesFilterInclusionLabel: "Se guardará",
+  changesFilterInclusionAll: "Cualquiera",
+  changesFilterInclusionIncluded: "Sí",
+  changesFilterInclusionExcluded: "No",
+  changesFilterInclusionIncludedChip: "Se guardará",
+  changesFilterInclusionExcludedChip: "No se guardará",
   changesFilePosition: (position, total) => `Archivo ${position} de ${total}`,
   changesPreviousFile: "Archivo anterior",
   changesNextFile: "Archivo siguiente",
@@ -406,6 +479,9 @@ const es: ChangesTranslations = {
   changesMoreActions: "Descartar o restaurar cambios",
   changesContextMenuLabel: "Acciones contextuales",
   changesCopy: "Copiar",
+  changesCopyPath: "Copiar ruta",
+  changesRevealInFolder: "Mostrar en la carpeta",
+  changesRevealFailed: "No se pudo mostrar el archivo.",
   changesCopied: "Texto seleccionado copiado.",
   changesCopyFailed: "No se pudo copiar el texto seleccionado. Usa Ctrl+C o Cmd+C en su lugar.",
   changesDiscardFileContext: "Descartar cambios…",

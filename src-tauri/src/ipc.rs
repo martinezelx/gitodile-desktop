@@ -71,6 +71,21 @@ pub(crate) fn show_main_window(window: tauri::Window) {
 }
 
 #[tauri::command(async)]
+pub(crate) fn reveal_project_file(
+    path: String,
+    file_path: String,
+    session_epoch: String,
+) -> Result<(), AppError> {
+    report_result(
+        "reveal_project_file",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            desktop::reveal_project_file(path, file_path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
 pub(crate) fn open_repository(
     path: String,
     session_epoch: Option<String>,

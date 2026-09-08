@@ -39,6 +39,16 @@ export { ContextMenuSurface, contextMenuAnchorFrom, type ContextMenuAnchor } fro
    and writes the date in the operating system's format while everything else
    writes it in the one the reader chose. */
 export { Calendar, DateField, placePopup, toCalendarDay, toDate, type CalendarDay, type DateFieldLabels } from "./datePicker";
+/* ADR 0003's two-consumer bar (task 121): History built the whole visual
+   vocabulary of a filter — the trigger with its count, the anchored panel, the
+   capsule groups, the switches, the footer and the chips — and the Changes file
+   list needs exactly that vocabulary to ask an entirely different question of
+   its own list. What is shared is the surface; what is filtered stays with the
+   screen that knows what its rows are. */
+export {
+  FilterPanel, FilterGroup, FilterCapsules, FilterCapsule, FilterSwitch, FilterChips,
+  type FilterPanelLabels, type FilterChip,
+} from "./filterPanel";
 export { copyTextToClipboard } from "./clipboard";
 export { isReducedMotionRequested } from "./motionPreference";
 /* ADR 0003's two-consumer bar: the project switcher had this to itself until

@@ -73,6 +73,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ipc::app_status,
             ipc::show_main_window,
+            ipc::reveal_project_file,
             ipc::open_repository,
             ipc::plan_clone,
             ipc::clone_repository,

@@ -1315,3 +1315,69 @@ fn svg_sniffing_accepts_a_lowercase_doctype() {
     // Still not every file that happens to mention the tag somewhere.
     assert_eq!(sniff_image_media_type(b"a note about <svg> tags"), None);
 }
+
+/// Revealing a file in the OS file manager takes a repository-relative path and
+/// resolves it against the open project, so the frontend can never name a place
+/// on the disk. Only the refusals are exercised: the success path would open a
+/// real file manager window on the machine running the tests.
+#[test]
+fn reveal_project_file_refuses_a_path_outside_the_project() {
+    let path = unique_temp_dir("reveal-reject");
+    git_init(&path);
+    write_file(&path, "file.txt", "one\n");
+
+    assert_eq!(
+        desktop::reveal_project_file(path.clone(), "../outside.txt".to_string())
+            .unwrap_err()
+            .code,
+        AppErrorCode::PathInvalid
+    );
+    assert_eq!(
+        desktop::reveal_project_file(path.clone(), "/etc/passwd".to_string())
+            .unwrap_err()
+            .code,
+        AppErrorCode::PathInvalid
+    );
+    // A path this project simply does not have says so, rather than being
+    // handed to the file manager to fail there.
+    assert_eq!(
+        desktop::reveal_project_file(path.clone(), "missing.txt".to_string())
+            .unwrap_err()
+            .code,
+        AppErrorCode::PathMissing
+    );
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+/// The string check alone cannot see through a symlink committed inside the
+/// repository, so containment is confirmed against the canonicalized root — the
+/// same check `read_file_lines` makes, and for the same reason.
+#[test]
+fn reveal_project_file_refuses_a_symlink_that_escapes_the_project() {
+    let outside = unique_temp_dir("reveal-outside");
+    write_file(&outside, "secret.txt", "not yours\n");
+    let path = unique_temp_dir("reveal-symlink");
+    git_init(&path);
+
+    let link = Path::new(&path).join("innocent.txt");
+    let target = Path::new(&outside).join("secret.txt");
+    #[cfg(windows)]
+    let linked = std::os::windows::fs::symlink_file(&target, &link).is_ok();
+    #[cfg(not(windows))]
+    let linked = std::os::unix::fs::symlink(&target, &link).is_ok();
+
+    // Creating a symlink needs a privilege Windows does not grant by default;
+    // skip rather than fail when the platform said no.
+    if linked {
+        assert_eq!(
+            desktop::reveal_project_file(path.clone(), "innocent.txt".to_string())
+                .unwrap_err()
+                .code,
+            AppErrorCode::PathInvalid
+        );
+    }
+
+    let _ = fs::remove_dir_all(&path);
+    let _ = fs::remove_dir_all(&outside);
+}

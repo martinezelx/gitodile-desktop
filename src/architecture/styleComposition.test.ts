@@ -105,6 +105,27 @@ describe("production style composition", () => {
     expect(history).toContain(".history-ref-badge {");
     expect(overview).not.toContain(".history-ref-badge {");
 
+    // The filter surface — the trigger with its count, the panel, the capsule
+    // groups, the switches, the footer and the chips — is shared by Changes and
+    // History (task 121), so exactly one sheet may define it. A private copy in
+    // either feature is the drift this audit exists to stop; what stays with
+    // History is only what History alone asks for.
+    expect(primitiveChrome).toContain(".filter-panel {");
+    expect(primitiveChrome).toContain(".filter-panel__capsule {");
+    expect(primitiveChrome).toContain(".filter-chip {");
+    expect(history).not.toContain(".history-filter__panel");
+    expect(history).not.toContain(".history-filter__range");
+    expect(history).not.toContain(".history-filter-chip");
+    expect(changes).not.toContain(".changes-filter__panel");
+    expect(changes).not.toContain(".changes-filter__trigger");
+    expect(changes).not.toContain(".changes-filter__capsule");
+    expect(changes).not.toContain(".changes-filter-chip");
+    // What each feature is still allowed to own: the parts of its own panel
+    // that only it has. History's version-line picker, and the one group in
+    // Changes that grows with the repository and therefore scrolls.
+    expect(history).toContain(".history-scope-picker {");
+    expect(changes).toContain(".changes-filter__types {");
+
     const appShell = readSource("app/app-shell.css");
     expect(appShell).toContain(".settings-dialog");
     expect(appShell).not.toContain(".settings-layout");
@@ -557,6 +578,10 @@ describe("production style composition", () => {
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
       ["features/version-lines/version-lines.css", ".version-lines-avatar", "border-radius: var(--radius-round)"],
       ["features/version-lines/version-lines.css", ".version-lines-filter__trigger", "border-radius: var(--radius-item)"],
+      // The shared filter trigger, which Changes and History both wear in the
+      // trailing slot of their search box: an affordance attached to the box
+      // rather than a control of its own, so it stays rectangular.
+      ["shared/ui/primitives.css", ".filter-control__trigger", "border-radius: var(--radius-item)"],
       // The quick switch's two footer actions were rows in the menu and carried
       // the item radius. They are `.ghost-button`s now — they leave the control
       // rather than choose inside it — so their shape comes from the primitive

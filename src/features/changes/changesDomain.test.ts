@@ -10,11 +10,18 @@ import {
   measureDiffRowHeight,
 } from "./DiffResultView";
 import {
+  applyChangesFilters,
+  changeKindsPresent,
+  countActiveChangesFilters,
+  fileTypeKey,
+  fileTypesPresent,
   countDiffLines,
   filterEntriesBySearch,
   getOrderedChangeEntries,
+  NO_CHANGES_FILTERS,
   resolveSelectedPath,
   sumCachedDiffLines,
+  type ChangesFilters,
 } from "./ChangesPanel";
 import type { DiffHunk, DiffLine, FileDiff } from "./index";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
@@ -183,6 +190,99 @@ describe("filterEntriesBySearch", () => {
 
   it("returns nothing when no path matches", () => {
     expect(filterEntriesBySearch(entries, "nothing-here")).toEqual([]);
+  });
+});
+
+describe("changes filters", () => {
+  const entries = [
+    entry("conflict.txt", "conflicted"),
+    entry("src/main.tsx", "changed"),
+    entry("src/extra.tsx", "changed"),
+    entry("asset.png", "new"),
+    entry("gone.txt", "deleted"),
+  ];
+  const excluded = new Set(["src/extra.tsx", "asset.png"]);
+  const on = (patch: Partial<ChangesFilters>): ChangesFilters => ({ ...NO_CHANGES_FILTERS, ...patch });
+  const paths = (filters: Partial<ChangesFilters>): string[] =>
+    applyChangesFilters(entries, on(filters), excluded).map((item) => item.path);
+
+  it("counts each chosen kind and type on its own and the inclusion question once", () => {
+    expect(countActiveChangesFilters(NO_CHANGES_FILTERS)).toBe(0);
+    expect(countActiveChangesFilters(on({ categories: ["new", "changed"] }))).toBe(2);
+    expect(countActiveChangesFilters(on({ inclusion: "excluded" }))).toBe(1);
+    expect(countActiveChangesFilters(on({ categories: ["new"], inclusion: "included" }))).toBe(2);
+    expect(countActiveChangesFilters(on({ extensions: ["png", "tsx"] }))).toBe(2);
+  });
+
+  it("does not count a mode: it changes what an answer means rather than adding one", () => {
+    expect(countActiveChangesFilters(on({ categoryMode: "hide", extensionMode: "hide" }))).toBe(0);
+    expect(countActiveChangesFilters(on({ categories: ["new"], categoryMode: "hide" }))).toBe(1);
+  });
+
+  it("returns the list untouched when nothing is on, in either mode", () => {
+    expect(applyChangesFilters(entries, NO_CHANGES_FILTERS, excluded)).toEqual(entries);
+    // "Hide none of them" is the same empty question as "show only all of them".
+    expect(applyChangesFilters(entries, on({ categoryMode: "hide" }), excluded)).toEqual(entries);
+  });
+
+  it("narrows by several kinds at once, and hides them in the other mode", () => {
+    expect(paths({ categories: ["conflicted", "deleted"] })).toEqual(["conflict.txt", "gone.txt"]);
+    expect(paths({ categories: ["conflicted", "deleted"], categoryMode: "hide" }))
+      .toEqual(["src/main.tsx", "src/extra.tsx", "asset.png"]);
+  });
+
+  it("narrows by file type, and hides one type without naming the others", () => {
+    expect(paths({ extensions: ["tsx"] })).toEqual(["src/main.tsx", "src/extra.tsx"]);
+    // The Sublime Merge complaint: one click puts the pictures away.
+    expect(paths({ extensions: ["png"], extensionMode: "hide" }))
+      .toEqual(["conflict.txt", "src/main.tsx", "src/extra.tsx", "gone.txt"]);
+  });
+
+  it("narrows to what the next version takes, and to what it leaves out", () => {
+    expect(paths({ inclusion: "included" })).toEqual(["conflict.txt", "src/main.tsx", "gone.txt"]);
+    expect(paths({ inclusion: "excluded" })).toEqual(["src/extra.tsx", "asset.png"]);
+  });
+
+  it("applies every question together, each in its own direction", () => {
+    expect(paths({ categories: ["changed"], inclusion: "excluded" })).toEqual(["src/extra.tsx"]);
+    expect(paths({ categories: ["new"], categoryMode: "hide", extensions: ["txt"], extensionMode: "hide" }))
+      .toEqual(["src/main.tsx", "src/extra.tsx"]);
+  });
+
+  it("offers only the kinds the list actually holds, in the order the list sorts by", () => {
+    expect(changeKindsPresent(entries)).toEqual([
+      { category: "conflicted", count: 1 },
+      { category: "changed", count: 2 },
+      { category: "new", count: 1 },
+      { category: "deleted", count: 1 },
+    ]);
+    expect(changeKindsPresent([])).toEqual([]);
+  });
+
+  it("reads a file type the way the icon set does", () => {
+    expect(fileTypeKey("src/main.TSX")).toBe("tsx");
+    expect(fileTypeKey("a/b.tar.gz")).toBe("gz");
+    // No extension is a bucket, not a type: whole-name files and dotfiles land
+    // where the default icon does.
+    expect(fileTypeKey("Dockerfile")).toBe("");
+    expect(fileTypeKey("LICENSE")).toBe("");
+    expect(fileTypeKey(".gitignore")).toBe("");
+  });
+
+  it("offers the types most of the list first, with the leftover bucket last", () => {
+    const tree = [
+      entry("a.png", "new"), entry("b.png", "new"), entry("c.png", "new"),
+      entry("Dockerfile", "new"), entry("LICENSE", "new"),
+      entry("z.ts", "changed"), entry("y.ts", "changed"),
+      entry("m.md", "changed"),
+    ];
+    expect(fileTypesPresent(tree)).toEqual([
+      { key: "png", count: 3 },
+      { key: "ts", count: 2 },
+      { key: "md", count: 1 },
+      { key: "", count: 2 },
+    ]);
+    expect(fileTypesPresent([])).toEqual([]);
   });
 });
 

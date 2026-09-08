@@ -174,10 +174,14 @@
 .changes-actions-menu .app-menu__item--danger svg { color: currentColor; }
 .changes-actions-menu .app-menu__item:disabled { opacity: 0.42; }
 /* The surface itself is `.context-menu` in primitives.css now. What is left
-   here is the one thing only this menu shows: why a copy did not happen. */
+   here is what only this menu shows: why an action did not happen, and the
+   rule that fences the destructive item off from the harmless ones above it. */
 .changes-context-menu__error {
   max-width: 280px; margin: 4px 8px 6px; color: var(--status-danger);
   font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere;
+}
+.changes-context-menu__divider {
+  height: 1px; margin: 4px 8px; background: var(--border-divider);
 }
 .changes-diff-context-scope { display: contents; }
 
@@ -371,6 +375,12 @@
    header opposite pairs with, so the two panels' contents start level even
    though only one of them draws a line. */
 .changes-file-list__toolbar {
+  /* The containing block for `.filter-panel` — the shared surface in
+     `shared/ui/primitives.css`, which spans the strip that opens it rather than
+     hanging off a 24px trigger at one end of the search box. The History
+     timeline's strip does the same, so the two panels land on the same inset
+     over the same column width. */
+  position: relative;
   display: flex; align-items: center; gap: var(--space-2);
   flex: 0 0 auto; height: var(--strip-height);
   padding: 0 var(--space-2);
@@ -388,9 +398,50 @@
   flex: 1;
   height: var(--changes-toolbar-control-height, var(--control-height-sm));
 }
-.changes-file-list__empty {
-  margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-secondary-color); font-size: var(--text-body); text-align: center;
+/* The shared `.filter-panel` deliberately carries no overflow of its own —
+   History nests absolutely positioned lists inside it, and a scroll container
+   there would clip them. This panel nests none, and it asks three questions
+   where History asks four in less height, so it takes the cap History cannot.
+
+   Measured against the smallest window the app allows (620px tall, see
+   `tauri.conf.json`): the panel's top edge sits ~104px down, so this leaves it
+   the rest of that window with room to breathe underneath. The ceiling stops it
+   growing past what is comfortable to read on a tall screen. */
+.changes-file-list__toolbar .filter-panel {
+  max-height: min(560px, calc(100vh - 128px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+
+/* The only part of the filter panel that grows with the repository: a tree can
+   hold thirty file types where it holds five kinds of change. It scrolls on its
+   own rather than the panel scrolling, because `.filter-panel` deliberately has
+   no overflow — History nests popups inside it — and because a group that keeps
+   its heading in place while its options move is easier to read than a panel
+   that slides everything.
+
+   Six rows of headroom: enough that the common tree needs no scrolling at all,
+   short enough that the two groups below it stay on screen. */
+.changes-filter__types {
+  max-height: 172px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+/* Vendor artwork at the same size the switch's own lucide glyphs take, so a
+   row of file types and a row of change kinds measure alike. */
+.changes-filter__type-icon { width: 14px; height: 14px; flex: 0 0 auto; }
+
+/* Says why the list is empty, and — where a filter is what emptied it — offers
+   the way back, since the filters keep no clear control in the strip the way
+   the search box does. */
+.changes-file-list__empty {
+  display: grid; justify-items: center; gap: var(--space-3);
+  padding: var(--space-4) var(--space-3); color: var(--text-secondary-color); font-size: var(--text-body); text-align: center;
+}
+.changes-file-list__empty p { margin: 0; }
 .changes-file-list__scroll {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: var(--space-2);
 }

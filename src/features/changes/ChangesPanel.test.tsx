@@ -1193,3 +1193,342 @@ describe("ChangesPanel review controls", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 });
+
+describe("ChangesPanel filters", () => {
+  class NoopResizeObserver implements ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+
+  const mixedTree: WorkingTreeStatus = {
+    isClean: false,
+    counts: { changed: 2, new: 1, deleted: 1, renamed: 0, conflicted: 1, total: 5 },
+    entries: [
+      { path: "conflict.txt", originalPath: null, category: "conflicted", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "edited.txt", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "also-edited.txt", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "asset.png", originalPath: null, category: "new", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "gone.txt", originalPath: null, category: "deleted", isPrepared: false, hasUnpreparedChanges: true },
+    ],
+    truncated: false,
+    hasPreparedChanges: false,
+    hasUnpreparedChanges: true,
+    upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
+  };
+
+  beforeEach(() => {
+    globalThis.ResizeObserver = NoopResizeObserver;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "conflict.txt" });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+  });
+
+  function renderMixed(): ReturnType<typeof render> {
+    return render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={mixedTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+  }
+
+  function listedFiles(container: HTMLElement): string[] {
+    return [...container.querySelectorAll(".changes-file-list__scroll .changes-file-item__name")]
+      .map((node) => node.textContent ?? "");
+  }
+
+  it("offers only the kinds this working tree holds, and narrows by several at once", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    // Five kinds exist; this tree has four of them, and "Renamed" is not an
+    // answer that could narrow anything here.
+    expect(within(panel).getByRole("checkbox", { name: /Needs attention/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole("checkbox", { name: /Renamed/ })).not.toBeInTheDocument();
+
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /Needs attention/ }));
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /Deleted/ }));
+    expect(listedFiles(container)).toEqual(["conflict.txt", "gone.txt"]);
+
+    // Two kinds, two chips, and a trigger that counts exactly what they name.
+    const chips = container.querySelectorAll(".filter-chip");
+    expect(chips).toHaveLength(2);
+    expect(container.querySelector(".filter-control__badge")).toHaveTextContent("2");
+  });
+
+  it("narrows to what the next version leaves out without changing what it saves", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Include asset.png in this version" }));
+    expect(screen.getByText("4 of 5 selected")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("radio", { name: "No" }));
+
+    expect(listedFiles(container)).toEqual(["asset.png"]);
+    // Filtering changed only what is listed: the count and the select-all
+    // checkbox still answer for the whole working tree.
+    expect(screen.getByText("4 of 5 selected")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Select all" })).toBeInTheDocument();
+  });
+
+  it("offers copy, reveal and discard on a file row, with the destructive one fenced off", async () => {
+    const clipboard = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: clipboard } });
+    const { container } = renderMixed();
+    const row = await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    fireEvent.contextMenu(row);
+    const menu = await screen.findByRole("menu", { name: "Context actions" });
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent))
+      .toEqual(["Copy path", "Show in folder", "Discard changes…"]);
+    expect(menu.querySelector('[role="separator"]')).not.toBeNull();
+
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Copy path" }));
+    expect(clipboard).toHaveBeenCalledWith("conflict.txt");
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("cannot show a deleted file in a folder it is no longer in", async () => {
+    renderMixed();
+    const row = await screen.findByRole("button", { name: /gone\.txt/ });
+
+    fireEvent.contextMenu(row);
+    const menu = await screen.findByRole("menu", { name: "Context actions" });
+    expect(within(menu).getByRole("menuitem", { name: "Show in folder" })).toBeDisabled();
+    // The row already says "Deleted", so the item owes no second explanation.
+    expect(within(menu).getByRole("menuitem", { name: "Copy path" })).toBeEnabled();
+  });
+
+  it("closes the menu the moment reveal is pressed rather than waiting on the file manager", async () => {
+    // The real call ends in a synchronous Windows shell call that can take a
+    // moment while Explorer starts. A menu held open and disabled across that
+    // reads as a freeze, so the press closes it and the wait is invisible.
+    let settle: (() => void) | undefined;
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "reveal_project_file") return new Promise<void>((resolve) => { settle = resolve; });
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "conflict.txt" });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const { container } = renderMixed();
+    const row = await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    fireEvent.contextMenu(row);
+    const menu = await screen.findByRole("menu", { name: "Context actions" });
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Show in folder" }));
+
+    // Gone while the reveal is still in flight, and nothing left greyed behind.
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+    // The frontend never names a place on the disk: Rust resolves the
+    // repository-relative path against the open project itself.
+    expect(mockedInvoke).toHaveBeenCalledWith("reveal_project_file", {
+      path: "/repo",
+      sessionEpoch: "test-epoch",
+      filePath: "conflict.txt",
+    });
+    settle?.();
+  });
+
+  it("says so on the screen when the file manager never appears", async () => {
+    renderMixed();
+    const row = await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    fireEvent.contextMenu(row);
+    const menu = await screen.findByRole("menu", { name: "Context actions" });
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Show in folder" }));
+
+    // The stub rejects everything but `read_file_diff`. The menu that asked is
+    // already gone, so the message needs a surface that outlives it.
+    const notice = await screen.findByText("That file couldn't be shown.");
+    expect(notice.closest(".changes-notice--error")).not.toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByText("That file couldn't be shown.")).not.toBeInTheDocument();
+  });
+
+  it("offers the file types most of the list first and narrows by one", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    // Four .txt against one .png, so the type burying the list leads.
+    const typeNames = [...panel.querySelectorAll(".changes-filter__types .filter-panel__switch-label")]
+      .map((node) => node.textContent);
+    expect(typeNames).toEqual([".txt", ".png"]);
+
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /\.png/ }));
+    expect(listedFiles(container)).toEqual(["asset.png"]);
+  });
+
+  it("hides a type instead of naming every other one", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    const types = within(panel).getByRole("group", { name: "Show or hide the chosen file type" });
+    await userEvent.click(within(types).getByRole("radio", { name: "Hide" }));
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /\.png/ }));
+    await userEvent.keyboard("{Escape}");
+
+    // One click puts the pictures away; the four other files stay.
+    expect(listedFiles(container)).toEqual(["conflict.txt", "edited.txt", "also-edited.txt", "gone.txt"]);
+    // The chip says what it is doing, not just what it names, and its remove
+    // button says putting them back.
+    expect(screen.getByText("Hiding .png")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show .png again" }));
+    expect(listedFiles(container)).toHaveLength(5);
+  });
+
+  it("keeps each group pointing its own way", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    // Only the edited ones, and not the .png among them: one group showing,
+    // one hiding, in the same panel.
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /Edited/ }));
+    const types = within(panel).getByRole("group", { name: "Show or hide the chosen file type" });
+    await userEvent.click(within(types).getByRole("radio", { name: "Hide" }));
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /\.png/ }));
+
+    expect(listedFiles(container)).toEqual(["edited.txt", "also-edited.txt"]);
+    // The badge counts the answers, never the modes.
+    expect(container.querySelector(".filter-control__badge")).toHaveTextContent("2");
+  });
+
+  it("does not ask about file type when there is only one to tell apart", async () => {
+    const oneType = {
+      ...mixedTree,
+      entries: mixedTree.entries.filter((entry) => entry.path.endsWith(".txt")),
+    };
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={oneType}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    expect(within(panel).queryByRole("group", { name: "Show or hide the chosen file type" })).not.toBeInTheDocument();
+    // The kinds are still worth asking about, so the panel is not empty.
+    expect(within(panel).getByRole("checkbox", { name: /Edited/ })).toBeInTheDocument();
+  });
+
+  it("drops a type filter the tree no longer has anything to tell apart", async () => {
+    const { rerender, container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("checkbox", { name: /\.png/ }));
+    await userEvent.keyboard("{Escape}");
+    expect(container.querySelector(".filter-control__badge")).toHaveTextContent("1");
+
+    // The picture is saved; only `.txt` is left. The panel stops offering the
+    // question, so a filter counted on the trigger would have nowhere to be
+    // undone — it goes with it.
+    rerender(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={{ ...mixedTree, entries: mixedTree.entries.filter((entry) => entry.path.endsWith(".txt")) }}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(container.querySelector(".filter-control__badge")).toBeNull();
+    expect(container.querySelectorAll(".filter-chip")).toHaveLength(0);
+  });
+
+  it("does not ask what the next version takes when no file can be left out", async () => {
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={{ ...mixedTree, truncated: true }}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    // Past the cap the checkboxes are disabled and the next version takes
+    // everything, so the question has one true answer and is not asked.
+    expect(within(panel).getByRole("checkbox", { name: /Edited/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole("radio", { name: "Any" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("radio", { name: "Yes" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("radio", { name: "No" })).not.toBeInTheDocument();
+  });
+
+  it("says why a filtered list is empty and offers the way back", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /Deleted/ }));
+    await userEvent.click(within(panel).getByRole("radio", { name: "Yes" }));
+    await userEvent.click(within(panel).getByRole("radio", { name: "Any" }));
+    // Nothing is excluded, so "left out" can only be empty.
+    await userEvent.click(within(panel).getByRole("radio", { name: "No" }));
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.getByText("No changed file matches what you are looking for.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+
+    expect(listedFiles(container)).toHaveLength(5);
+    expect(container.querySelectorAll(".filter-chip")).toHaveLength(0);
+  });
+
+  it("removes one filter from its chip and walks the narrowed list file to file", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: /^edited\.txt/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("checkbox", { name: /Edited/ }));
+    await userEvent.keyboard("{Escape}");
+
+    expect(listedFiles(container)).toEqual(["edited.txt", "also-edited.txt"]);
+    // The arrows walk what is shown, not what is loaded — the same rule the
+    // search box already established.
+    expect(screen.getByText("File 1 of 2")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Remove the Edited filter" }));
+    expect(listedFiles(container)).toHaveLength(5);
+  });
+});

@@ -368,9 +368,9 @@ describe("HistoryPanel", () => {
     };
     const { container } = renderPanel(state(4, { filters: every }));
 
-    const chips = container.querySelectorAll(".history-filter-chip");
+    const chips = container.querySelectorAll(".filter-chip");
     expect(chips).toHaveLength(6);
-    expect(container.querySelector(".history-filter__badge")).toHaveTextContent(String(chips.length));
+    expect(container.querySelector(".filter-control__badge")).toHaveTextContent(String(chips.length));
     expect(screen.getByRole("button", { name: "Filters (6 on)" })).toBeInTheDocument();
   });
 

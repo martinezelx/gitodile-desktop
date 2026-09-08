@@ -3,14 +3,14 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowLeft, Check, ChevronDown, CircleAlert, Cloud, CloudOff,
   CalendarDays, Copy, Folder, GitBranch, GitMerge,
-  GitCommitHorizontal, HardDrive, Info, ListFilter,
+  GitCommitHorizontal, HardDrive, Info,
   Search, Tag, UserRound, X,
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, handlePopupMenuKeyDown, LoadingBar, SearchBox, toDate, useAnchoredPopup, type ContextMenuAnchor } from "../../shared/ui";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, SearchBox, toDate, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
 import { ChangesContextMenu, DiffResultView, DiffStepNav, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -543,9 +543,8 @@ function activeFilters(filters: HistoryFilters, t: Translations, formats: Locale
 }
 
 /** The filters that are on, under the strip that set them, each removable on
- * its own. The trigger's badge says how many; this says which — and a row of
- * its own is what lets it, where chips inside the search pill would have taken
- * the width from the field they sit in. */
+ * its own. `shared/ui` draws the row; what belongs to History is which chips
+ * are in it and what removing one means. */
 function HistoryFilterChips({ filters, scope, onChange, onScope }: {
   filters: HistoryFilters;
   scope: HistoryScope;
@@ -553,41 +552,30 @@ function HistoryFilterChips({ filters, scope, onChange, onScope }: {
   onScope: (scope: HistoryScope) => void;
 }): React.JSX.Element | null {
   const { t, formats } = useLanguage();
-  const chips = activeFilters(filters, t, formats);
   // The scope leads, and is removed the same way a filter is — but it is
   // labelled as the line rather than as a filter, because it says which history
-  // is being read rather than how much of one is shown.
-  const scopeChip = scope.kind === "currentLine"
+  // is being read rather than how much of one is shown. `quiet` is the surface's
+  // name for exactly that: a chip stating context.
+  const scopeChip: FilterChip | null = scope.kind === "currentLine"
     ? null
-    : scope.kind === "allLines"
-      ? { label: t.historyScopeAllLines, title: t.historyScopeAllLinesHint }
-      : { label: t.historyScopeLineChip(scope.name), title: t.historyScopeLineHint(scope.name) };
-  if (chips.length === 0 && !scopeChip) return null;
-  return <div className="history-filter-chips">
-    {scopeChip && <span className="history-filter-chip history-filter-chip--scope">
-      <GitBranch aria-hidden="true" />
-      <span className="history-filter-chip__label" title={scopeChip.title}>{scopeChip.label}</span>
-      <button
-        type="button"
-        className="history-filter-chip__remove"
-        aria-label={t.historyScopeClear}
-        onClick={() => onScope(CURRENT_LINE_SCOPE)}
-      >
-        <X aria-hidden="true" />
-      </button>
-    </span>}
-    {chips.map((chip) => <span key={chip.key} className="history-filter-chip">
-      <span className="history-filter-chip__label" title={chip.label}>{chip.label}</span>
-      <button
-        type="button"
-        className="history-filter-chip__remove"
-        aria-label={t.historyFilterRemove(chip.label)}
-        onClick={() => onChange({ ...filters, ...chip.cleared })}
-      >
-        <X aria-hidden="true" />
-      </button>
-    </span>)}
-  </div>;
+    : {
+      key: "scope",
+      label: scope.kind === "allLines" ? t.historyScopeAllLines : t.historyScopeLineChip(scope.name),
+      title: scope.kind === "allLines" ? t.historyScopeAllLinesHint : t.historyScopeLineHint(scope.name),
+      icon: <GitBranch aria-hidden="true" />,
+      removeLabel: t.historyScopeClear,
+      quiet: true,
+      onRemove: () => onScope(CURRENT_LINE_SCOPE),
+    };
+  const chips: FilterChip[] = activeFilters(filters, t, formats).map((chip) => ({
+    key: chip.key,
+    label: chip.label,
+    onRemove: () => onChange({ ...filters, ...chip.cleared }),
+  }));
+  return <FilterChips
+    chips={scopeChip ? [scopeChip, ...chips] : chips}
+    removeLabel={t.historyFilterRemove}
+  />;
 }
 
 /** Which history the timeline is reading, inside the panel the filters share.
@@ -862,23 +850,20 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
 }): React.JSX.Element {
   const { t } = useLanguage();
   const named = scopeLineName(scope);
-  return <fieldset className="history-filter__group">
-    <legend className="history-filter__label">{t.historyScopeLabel}</legend>
-    <div className="history-filter__ranges">
+  return <FilterGroup label={t.historyScopeLabel}>
+    <FilterCapsules>
       {[
         { scope: CURRENT_LINE_SCOPE, label: t.historyScopeCurrentLine },
         { scope: ALL_LINES_SCOPE, label: t.historyScopeAllLines },
-      ].map((option) => <label key={option.label} className={`history-filter__range${sameHistoryScope(scope, option.scope) ? " history-filter__range--active" : ""}`}>
-        <input
-          className="visually-hidden"
-          type="radio"
-          name="history-scope"
-          checked={sameHistoryScope(scope, option.scope)}
-          onChange={() => onChange(option.scope)}
-        />
-        <span>{option.label}</span>
-      </label>)}
-    </div>
+      ].map((option) => <FilterCapsule
+        key={option.label}
+        name="history-scope"
+        checked={sameHistoryScope(scope, option.scope)}
+        onChange={() => onChange(option.scope)}
+      >
+        {option.label}
+      </FilterCapsule>)}
+    </FilterCapsules>
     {/* The third state, and it has to look like one: a picker showing the line
         the timeline is reading and a picker waiting to be opened are not the
         same thing. It keeps its own way out beside it, so a chosen line is
@@ -898,7 +883,7 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
         <X aria-hidden="true" />
       </button>}
     </div>
-  </fieldset>;
+  </FilterGroup>;
 }
 
 /** The filters, behind one trigger.
@@ -922,15 +907,8 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSugg
   onScope: (scope: HistoryScope) => void;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
   const [authorDraft, setAuthorDraft] = useState(filters.author ?? "");
   const [pathDraft, setPathDraft] = useState(filters.path ?? "");
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const closePanel = (restoreFocus: boolean): void => {
-    setIsOpen(false);
-    if (restoreFocus) triggerRef.current?.focus();
-  };
-  const { containerRef, popupRef } = useAnchoredPopup(isOpen, triggerRef, closePanel, "container");
 
   useEffect(() => { setAuthorDraft(filters.author ?? ""); }, [filters.author]);
   useEffect(() => { setPathDraft(filters.path ?? ""); }, [filters.path]);
@@ -949,34 +927,19 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSugg
   };
   const ranges = dateRanges(t);
 
-  return <div className="history-filter" ref={containerRef}>
-    <button
-      ref={triggerRef}
-      className={`history-filter__trigger${active > 0 ? " history-filter__trigger--active" : ""}`}
-      type="button"
-      aria-haspopup="dialog"
-      aria-expanded={isOpen}
-      aria-label={active > 0 ? t.historyFiltersActive(active) : t.historyFiltersLabel}
-      data-tooltip={active > 0 ? t.historyFiltersActive(active) : t.historyFiltersLabel}
-      onClick={() => setIsOpen((open) => !open)}
-    >
-      <ListFilter aria-hidden="true" />
-      {/* A count, not a dot: the trigger has to say that something is on and
-          how much of it, without the panel being open to read. */}
-      {active > 0 && <span className="history-filter__badge" aria-hidden="true">{active}</span>}
-    </button>
-    {isOpen && <div
-      ref={popupRef}
-      className="history-filter__panel"
-      role="dialog"
-      aria-label={t.historyFiltersLabel}
-      tabIndex={-1}
-      onKeyDown={(event) => handlePopupMenuKeyDown(event, popupRef.current, () => closePanel(true))}
-    >
+  return <FilterPanel
+    activeCount={active}
+    labels={{
+      open: t.historyFiltersLabel,
+      active: t.historyFiltersActive,
+      activeCount: t.historyFiltersActiveCount,
+      clear: t.historyFiltersClear,
+    }}
+    onClear={() => onChange(NO_HISTORY_FILTERS)}
+  >
       <HistoryScopeGroup scope={scope} lines={lines} onChange={onScope} />
 
-      <div className="history-filter__group">
-        <label className="history-filter__label" htmlFor="history-filter-author">{t.historyFilterAuthorLabel}</label>
+      <FilterGroup label={t.historyFilterAuthorLabel} labelFor="history-filter-author">
         {/* The same pill the search boxes wear, with the glyph naming what goes
             in it — a person, a folder — so the two fields are told apart before
             their labels are read. */}
@@ -1002,7 +965,7 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSugg
             onPick={(name) => { setAuthorDraft(name); apply({ author: name }); }}
           />
         </div>
-      </div>
+      </FilterGroup>
 
       {/* Four capsules rather than four radio rows: they are one choice out of
           a short, fixed set of the same kind of thing, which is the shape a
@@ -1013,38 +976,32 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSugg
           validated `since` and `until` as calendar days since they were built;
           only the interface had never offered the second one, so a reader who
           wanted "that week in March" had no way to ask. */}
-      <fieldset className="history-filter__group">
-        <legend className="history-filter__label">{t.historyFilterDateLabel}</legend>
-        <div className="history-filter__ranges history-filter__ranges--dense">
+      <FilterGroup label={t.historyFilterDateLabel}>
+        <FilterCapsules dense>
           {ranges.map((range) => {
             const active = !isCustomRange && (range.since === null
               ? filters.since === null && filters.until === null
               : filters.since === range.since && filters.until === null);
-            return <label key={range.label} className={`history-filter__range${active ? " history-filter__range--active" : ""}`}>
-              <input
-                className="visually-hidden"
-                type="radio"
-                name="history-filter-date"
-                checked={active}
-                onChange={() => { setIsCustomRange(false); apply({ since: range.since, until: null }); }}
-              />
-              <span>{range.label}</span>
-            </label>;
+            return <FilterCapsule
+              key={range.label}
+              name="history-filter-date"
+              checked={active}
+              onChange={() => { setIsCustomRange(false); apply({ since: range.since, until: null }); }}
+            >
+              {range.label}
+            </FilterCapsule>;
           })}
           {/* The fifth answer, on the same line as the other four: one radio
               group, one row. It narrows nothing on its own — it opens the two
               ends. */}
-          <label className={`history-filter__range${isCustomRange ? " history-filter__range--active" : ""}`}>
-            <input
-              className="visually-hidden"
-              type="radio"
-              name="history-filter-date"
-              checked={isCustomRange}
-              onChange={() => setIsCustomRange(true)}
-            />
-            <span>{t.historyFilterDateCustom}</span>
-          </label>
-        </div>
+          <FilterCapsule
+            name="history-filter-date"
+            checked={isCustomRange}
+            onChange={() => setIsCustomRange(true)}
+          >
+            {t.historyFilterDateCustom}
+          </FilterCapsule>
+        </FilterCapsules>
         {isCustomRange && <div className="history-filter__dates">
           {/* Two ends and the dash between them. The calendar each opens is the
               app's own — see `shared/ui/datePicker.tsx` — so a day is picked and
@@ -1082,10 +1039,9 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSugg
             onChange={(until) => apply({ until })}
           />
         </div>}
-      </fieldset>
+      </FilterGroup>
 
-      <div className="history-filter__group">
-        <label className="history-filter__label" htmlFor="history-filter-path">{t.historyFilterPathLabel}</label>
+      <FilterGroup label={t.historyFilterPathLabel} labelFor="history-filter-path">
         {/* No list of every path in the project: nothing here knows one, and
             inventing a read to build it would make opening the filters cost a
             walk of the tree. What this screen does know is the version it has
@@ -1108,37 +1064,23 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSugg
             onPick={(value) => { setPathDraft(value); apply({ path: value }); }}
           />
         </div>
-      </div>
+      </FilterGroup>
 
-      <div className="history-filter__group">
-        <label className="history-filter__switch">
-          <input className="app-checkbox" type="checkbox" checked={filters.noMerges} onChange={(event) => apply({ noMerges: event.target.checked })} />
-          <GitMerge aria-hidden="true" />
-          <span>{t.historyFilterHideMerges}</span>
-        </label>
-        {canFilterPublication && <label className="history-filter__switch">
-          <input className="app-checkbox" type="checkbox" checked={filters.unpublishedOnly} onChange={(event) => apply({ unpublishedOnly: event.target.checked })} />
-          <HardDrive aria-hidden="true" />
-          <span>{t.historyFilterUnpublishedOnly}</span>
-        </label>}
-      </div>
-
-      {/* What is on, and the one way to end all of it — a count beside its own
-          undo, rather than a button spanning the panel for a state that is
-          usually empty. */}
-      <footer className="history-filter__footer">
-        <span>{active > 0 ? t.historyFiltersActiveCount(active) : ""}</span>
-        <button
-          className="ghost-button"
-          type="button"
-          disabled={active === 0}
-          onClick={() => onChange(NO_HISTORY_FILTERS)}
-        >
-          {t.historyFiltersClear}
-        </button>
-      </footer>
-    </div>}
-  </div>;
+      <FilterGroup>
+        <FilterSwitch
+          checked={filters.noMerges}
+          icon={<GitMerge aria-hidden="true" />}
+          label={t.historyFilterHideMerges}
+          onChange={(noMerges) => apply({ noMerges })}
+        />
+        {canFilterPublication && <FilterSwitch
+          checked={filters.unpublishedOnly}
+          icon={<HardDrive aria-hidden="true" />}
+          label={t.historyFilterUnpublishedOnly}
+          onChange={(unpublishedOnly) => apply({ unpublishedOnly })}
+        />}
+      </FilterGroup>
+  </FilterPanel>;
 }
 
 function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, onRetryDiff, onBack, readImagePreview, sourceKey }: {

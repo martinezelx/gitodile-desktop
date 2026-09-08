@@ -15,6 +15,7 @@ const batch = (diffs: FileDiff[], outcome: DiffWarmOutcome = "completed"): Worki
 });
 const port = (overrides: Partial<ChangesPort> = {}): ChangesPort => ({
   readFileDiff: async ({ filePath }) => diff(filePath),
+  revealFile: async () => { throw new Error("unused"); },
   readWorkingTreeDiffs: async () => batch([]),
   readFileLines: async () => ({ startLine: 1, lines: [], truncated: false }),
   readFileImagePreview: async () => ({ before: null, after: null }),

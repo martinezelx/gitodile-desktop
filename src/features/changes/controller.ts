@@ -107,6 +107,9 @@ export function createChangesController(port: ChangesPort) {
     readFileLines(projectId: string, sessionEpoch: string, filePath: string, startLine: number, endLine: number) {
       return port.readFileLines({ projectId, sessionEpoch, filePath, startLine, endLine });
     },
+    revealFile(projectId: string, sessionEpoch: string, filePath: string) {
+      return port.revealFile({ projectId, sessionEpoch, filePath });
+    },
     readFileImagePreview(
       projectId: string,
       sessionEpoch: string,

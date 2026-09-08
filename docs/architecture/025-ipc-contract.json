@@ -4,6 +4,7 @@
     { "name": "app_status", "arguments": [], "response": "string" },
     { "name": "show_main_window", "arguments": [], "response": "void" },
     { "name": "open_repository", "arguments": ["path", "sessionEpoch?"], "response": "RepositoryInfo" },
+    { "name": "reveal_project_file", "arguments": ["path", "filePath", "sessionEpoch"], "response": "void" },
     { "name": "plan_clone", "arguments": ["source", "destinationParent", "destinationName"], "response": "ClonePlan" },
     { "name": "clone_repository", "arguments": ["source", "destinationParent", "destinationName", "operationId", "stateToken", "onProgress"], "response": "CloneResult" },
     { "name": "cancel_clone", "arguments": ["operationId"], "response": "void" },
