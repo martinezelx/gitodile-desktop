@@ -72,6 +72,10 @@ export function CreateVersionLineDialog({
   /** Detached `HEAD`, or explicitly invoked to carry unsaved work: the
    * switch choice is locked on and explained rather than offered. */
   forceSwitch,
+  /** A saved version the line should start at, chosen from History. Absent
+   * means the project's current commit, which is what this dialog has always
+   * meant. */
+  startVersion,
   onClose,
   onCreated,
   onPhaseChange,
@@ -80,6 +84,7 @@ export function CreateVersionLineDialog({
   projectPath: string;
   sessionEpoch: string;
   forceSwitch?: boolean;
+  startVersion?: { commit: string; shortCommit: string; subject: string } | null;
   onClose: () => void;
   onCreated: (snapshot: VersionLinesSnapshot) => void;
   onPhaseChange?: (phase: VersionLineOperationPhase) => void;
@@ -107,11 +112,14 @@ export function CreateVersionLineDialog({
   useEffect(() => {
     if (isOpen) {
       setName("");
-      setSwitchChoice(true);
+      // A line created from a version somewhere back in the history is a place
+      // to go later, not a move the reader asked for by picking the version.
+      // Starting where you are still offers to take you there.
+      setSwitchChoice(!startVersion);
       setState({ status: "form" });
       window.requestAnimationFrame(() => nameRef.current?.focus());
     }
-  }, [isOpen]);
+  }, [isOpen, startVersion]);
 
   if (!isOpen) {
     return null;
@@ -142,6 +150,7 @@ export function CreateVersionLineDialog({
         sessionEpoch,
         name: trimmed,
         switchToNew: effectiveSwitch,
+        startCommit: startVersion?.commit ?? null,
       });
       if (!plan.requiresConfirmation) {
         await execute(plan);
@@ -163,6 +172,7 @@ export function CreateVersionLineDialog({
         sessionEpoch,
         name: plan.name,
         switchToNew: plan.willSwitch,
+        startCommit: plan.fromSavedVersion ? plan.startingCommit : null,
         stateToken: plan.stateToken,
       });
       setState({ status: "success", snapshot, name: plan.name, switched: plan.willSwitch });
@@ -240,6 +250,13 @@ export function CreateVersionLineDialog({
           </>
         ) : (
           <form onSubmit={(event) => void handleSubmit(event)}>
+            {/* Said before the name is typed, because it is the fact that makes
+                this creation different from every other one. */}
+            {startVersion && (
+              <p className="save-version-note">
+                {t.createVersionLineStartsAt(startVersion.shortCommit, startVersion.subject)}
+              </p>
+            )}
             <label className="text-field save-version-title">
               <span>{t.createVersionLineNameLabel}</span>
               <input

@@ -26,6 +26,24 @@ export interface HistoryTranslations {
   historyFilterPathPlaceholder: string;
   historyFilterHideMerges: string;
   historyFilterUnpublishedOnly: string;
+  historyScopeLabel: string;
+  historyScopeCurrentLine: string;
+  historyScopeAllLines: string;
+  historyScopeAllLinesHint: string;
+  historyScopeLineChip: (name: string) => string;
+  historyScopeLineHint: (name: string) => string;
+  historyScopeLineLabel: string;
+  historyScopeLinePlaceholder: string;
+  historyScopeUnknownLine: string;
+  historyScopeClear: string;
+  historyScopeShowCurrentLine: string;
+  historyLinesTruncated: string;
+  historyVersionActions: string;
+  historyVersionActionsLabel: string;
+  historyLineActions: (name: string) => string;
+  historyViewLine: (name: string) => string;
+  historySwitchToLine: (name: string) => string;
+  historyCreateLineFromVersion: string;
   historyNoMatches: string;
   historyLoadedCount: (count: number) => string;
   historyFilteredCount: (shown: number, loaded: number) => string;
@@ -135,6 +153,25 @@ const en: HistoryTranslations = {
   historyFilterPathPlaceholder: "For example src/app",
   historyFilterHideMerges: "Hide branch merges",
   historyFilterUnpublishedOnly: "Not published yet",
+  historyScopeLabel: "Version line",
+  historyScopeCurrentLine: "Current line",
+  historyScopeAllLines: "All lines",
+  historyScopeAllLinesHint: "Saved versions reachable from every version line in this project.",
+  historyScopeLineChip: (name) => `Line: ${name}`,
+  historyScopeLineHint: (name) =>
+    `Saved versions reachable from “${name}”. This project stays where it is.`,
+  historyScopeLineLabel: "Another version line",
+  historyScopeLinePlaceholder: "Another line…",
+  historyScopeUnknownLine: "This project doesn’t have a version line with that name.",
+  historyScopeClear: "Show the current line again",
+  historyScopeShowCurrentLine: "Show the current line",
+  historyLinesTruncated: "This project has more version lines than History can read at once; some are not included.",
+  historyVersionActions: "Actions",
+  historyVersionActionsLabel: "What this saved version can do",
+  historyLineActions: (name) => `What the version line ${name} can do`,
+  historyViewLine: (name) => `View “${name}” in Lines`,
+  historySwitchToLine: (name) => `Switch this project to “${name}”`,
+  historyCreateLineFromVersion: "Create a new version line from this version",
   historyNoMatches: "No saved versions match these filters.",
   historyLoadedCount: (count) => `${count} saved ${count === 1 ? "version" : "versions"} loaded`,
   historyFilteredCount: (shown, loaded) => `${shown} of ${loaded} loaded ${loaded === 1 ? "version" : "versions"} shown`,
@@ -242,6 +279,25 @@ const es: HistoryTranslations = {
   historyFilterPathPlaceholder: "Por ejemplo src/app",
   historyFilterHideMerges: "Ocultar uniones de ramas",
   historyFilterUnpublishedOnly: "Sin publicar",
+  historyScopeLabel: "Línea de versión",
+  historyScopeCurrentLine: "Línea actual",
+  historyScopeAllLines: "Todas las líneas",
+  historyScopeAllLinesHint: "Versiones guardadas alcanzables desde todas las líneas de versión del proyecto.",
+  historyScopeLineChip: (name) => `Línea: ${name}`,
+  historyScopeLineHint: (name) =>
+    `Versiones guardadas alcanzables desde «${name}». El proyecto se queda donde está.`,
+  historyScopeLineLabel: "Otra línea de versión",
+  historyScopeLinePlaceholder: "Otra línea…",
+  historyScopeUnknownLine: "Este proyecto no tiene ninguna línea de versión con ese nombre.",
+  historyScopeClear: "Volver a la línea actual",
+  historyScopeShowCurrentLine: "Ver la línea actual",
+  historyLinesTruncated: "Este proyecto tiene más líneas de versión de las que el historial puede leer a la vez; algunas no se incluyen.",
+  historyVersionActions: "Acciones",
+  historyVersionActionsLabel: "Qué se puede hacer con esta versión guardada",
+  historyLineActions: (name) => `Qué se puede hacer con la línea de versión ${name}`,
+  historyViewLine: (name) => `Ver «${name}» en Líneas`,
+  historySwitchToLine: (name) => `Cambiar este proyecto a «${name}»`,
+  historyCreateLineFromVersion: "Crear una línea de versión desde esta versión",
   historyNoMatches: "Ninguna versión guardada coincide con estos filtros.",
   historyLoadedCount: (count) => `${count} ${count === 1 ? "versión guardada cargada" : "versiones guardadas cargadas"}`,
   historyFilteredCount: (shown, loaded) => `Mostrando ${shown} de ${loaded} ${loaded === 1 ? "versión cargada" : "versiones cargadas"}`,

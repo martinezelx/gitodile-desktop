@@ -46,6 +46,7 @@ export interface VersionLinesTranslations {
   createVersionLineSwitchLabel: string;
   createVersionLineWithoutSwitchLabel: string;
   createVersionLineDetachedNote: string;
+  createVersionLineStartsAt: (shortCommit: string, subject: string) => string;
   createVersionLineUnsavedNote: string;
   createVersionLineUnbornBlocked: string;
   createVersionLineConfirm: string;
@@ -133,7 +134,7 @@ export interface VersionLinesTranslations {
   versionLinesLineTypeElsewhere: string;
   versionLinesHistoryTitle: string;
   versionLinesHistoryDescription: string;
-  versionLinesHistoryInactiveDescription: string;
+  versionLinesHistoryScopedDescription: (name: string) => string;
   versionLinesHistoryAction: string;
   deleteVersionLineTitle: (name: string) => string;
   deleteVersionLineBlockedTitle: (name: string) => string;
@@ -208,7 +209,7 @@ const en: VersionLinesTranslations = {
   versionLinesQuickSwitchFavouritesOnlyOff: "Show all version lines",
   versionLinesQuickSwitchFavouritesEmpty: "No favourites yet. Star a version line to keep it here.",
   versionLinesQuickSwitchEmpty: "There are no other version lines yet.",
-  versionLinesQuickSwitchSeeAll: "See all version lines",
+  versionLinesQuickSwitchSeeAll: "Manage version lines",
   versionLinesQuickSwitchNew: "New version line",
   versionLinesDetachedTitle: "This project isn't on a version line right now",
   versionLinesDetachedDescription:
@@ -231,6 +232,8 @@ const en: VersionLinesTranslations = {
   createVersionLineWithoutSwitchLabel: "Create without switching",
   createVersionLineDetachedNote:
     "This project isn't on a version line right now, so GitOdile will switch to the new one to keep this commit easy to find.",
+  createVersionLineStartsAt: (shortCommit, subject) =>
+    `Starts at the saved version ${shortCommit} — “${subject}”.`,
   createVersionLineUnsavedNote:
     "Your unsaved files and prepared changes stay exactly as they are. Future saved versions will belong to the new version line.",
   createVersionLineUnbornBlocked: "Save the first version before creating another version line.",
@@ -332,8 +335,8 @@ const en: VersionLinesTranslations = {
   versionLinesLineTypeElsewhere: "Open in another workspace",
   versionLinesHistoryTitle: "Explore the full history of this line",
   versionLinesHistoryDescription: "View all versions, compare changes, and restore previous states.",
-  versionLinesHistoryInactiveDescription:
-    "History follows the line you're on. Switch to this line to explore its own versions.",
+  versionLinesHistoryScopedDescription: (name) =>
+    `Opens History reading “${name}”. Nothing is checked out, so this project stays where it is.`,
   versionLinesHistoryAction: "Open in History",
   deleteVersionLineTitle: (name) => `Delete “${name}”?`,
   deleteVersionLineBlockedTitle: (name) => `“${name}” can't be deleted yet`,
@@ -421,7 +424,7 @@ const es: VersionLinesTranslations = {
   versionLinesQuickSwitchFavouritesEmpty:
     "Todavía no hay favoritos. Marca una línea de versión para guardarla aquí.",
   versionLinesQuickSwitchEmpty: "Todavía no hay otras líneas de versión.",
-  versionLinesQuickSwitchSeeAll: "Ver todas las líneas de versión",
+  versionLinesQuickSwitchSeeAll: "Gestionar líneas de versión",
   versionLinesQuickSwitchNew: "Nueva línea de versión",
   versionLinesDetachedTitle: "Este proyecto no está en una línea de versión ahora mismo",
   versionLinesDetachedDescription:
@@ -444,6 +447,8 @@ const es: VersionLinesTranslations = {
   createVersionLineWithoutSwitchLabel: "Crear sin cambiar",
   createVersionLineDetachedNote:
     "Este proyecto no está en una línea de versión ahora mismo, así que GitOdile cambiará a la nueva para que este commit sea fácil de encontrar.",
+  createVersionLineStartsAt: (shortCommit, subject) =>
+    `Empieza en la versión guardada ${shortCommit}: «${subject}».`,
   createVersionLineUnsavedNote:
     "Tus archivos sin guardar y los cambios preparados permanecen exactamente igual. Las próximas versiones guardadas pertenecerán a la nueva línea de versión.",
   createVersionLineUnbornBlocked: "Guarda la primera versión antes de crear otra línea de versión.",
@@ -549,8 +554,8 @@ const es: VersionLinesTranslations = {
   versionLinesHistoryTitle: "Explora el historial completo de esta línea",
   versionLinesHistoryDescription:
     "Ve todas las versiones, compara cambios y restaura estados anteriores.",
-  versionLinesHistoryInactiveDescription:
-    "El historial sigue a la línea en la que estás. Cámbiate a esta línea para ver sus versiones.",
+  versionLinesHistoryScopedDescription: (name) =>
+    `Abre el historial leyendo «${name}». No se cambia de línea: el proyecto se queda donde está.`,
   versionLinesHistoryAction: "Abrir en Historial",
   deleteVersionLineTitle: (name) => `¿Eliminar «${name}»?`,
   deleteVersionLineBlockedTitle: (name) => `«${name}» todavía no se puede eliminar`,

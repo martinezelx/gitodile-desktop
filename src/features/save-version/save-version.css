@@ -11,6 +11,18 @@
 .save-version-summary { display: flex; flex-direction: column; gap: var(--space-2); }
 .save-version-summary > p:first-child { margin: 0; font-weight: var(--weight-strong); }
 .save-version-note { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
+/* Where this version lands. Stated at full strength rather than as a note,
+   because it is the one fact in this dialog the reader may need to act on
+   before writing anything. */
+.save-version-destination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
 .save-version-success { display: grid; gap: var(--space-2); }
 .save-version-success > p { margin: 0; }
 .save-version-success-details {

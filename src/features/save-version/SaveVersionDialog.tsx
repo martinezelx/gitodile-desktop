@@ -35,6 +35,12 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): R
   const breakdown = getSaveVersionBreakdown(plan.counts);
   return (
     <div className="save-version-summary">
+      {/* Where this version lands, from the plan that will write it — the same
+          read that produced the state token, so the sentence and the save
+          cannot disagree. A plan with no line to name says nothing here rather
+          than guessing one: a detached `HEAD` is not a line, and inventing a
+          name would be the one thing a destination must never do. */}
+      {plan.branch && <p className="save-version-destination">{t.saveVersionDestination(plan.branch)}</p>}
       <p>{t.saveVersionFilesSummary(plan.totalFiles)}</p>
       {breakdown.length > 0 && (
         <ul className="status-breakdown" aria-label={t.statusBreakdownLabel}>
@@ -50,7 +56,10 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): R
       )}
       {plan.remainingFiles > 0 && <p className="save-version-note">{t.saveVersionRemainingNote(plan.remainingFiles)}</p>}
       {plan.hasPreparedChanges && <p className="save-version-note">{t.saveVersionPreparedNote}</p>}
-      {plan.isFirstVersion && <p className="save-version-note">{t.saveVersionFirstVersionNote}</p>}
+      {plan.isFirstVersion && <p className="save-version-note">{plan.branch ? t.saveVersionFirstVersionOnLineNote(plan.branch) : t.saveVersionFirstVersionNote}</p>}
+      {/* Detached `HEAD`: there is a commit to make and no line to make it on,
+          which is exactly what the reader needs told before they make it. */}
+      {!plan.branch && <p className="save-version-note">{t.saveVersionNoDestinationNote}</p>}
       <p className="save-version-note">{t.saveVersionLocalOnlyNote}</p>
     </div>
   );

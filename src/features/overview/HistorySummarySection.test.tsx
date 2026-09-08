@@ -34,6 +34,7 @@ function page(versions: SavedVersionSummary[]): HistoryPage {
   return {
     repositoryId: query.projectId,
     snapshotToken: "snapshot-1",
+    scope: { kind: "currentLine" } as const,
     branch: "main",
     headState: "branch",
     headCommit: versions[0]?.commit ?? null,

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { FileDiff } from "../changes";
 import { createHistoryController, HISTORY_INITIAL_PAGE_SIZE, HISTORY_PAGE_SIZE, MAX_HISTORY_SESSION_CACHES } from "./controller";
 import type { HistoryPage, SavedVersionDetail, SavedVersionSummary } from "./domain";
-import { NO_HISTORY_FILTERS, type HistoryPort, type HistoryQuery } from "./port";
+import { CURRENT_LINE_SCOPE, NO_HISTORY_FILTERS, type HistoryPort, type HistoryQuery } from "./port";
 
 const query: HistoryQuery = { projectId: "/repo", sessionEpoch: "epoch-1" };
 
@@ -33,6 +33,7 @@ function page(items: SavedVersionSummary[], overrides: Partial<HistoryPage> = {}
   return {
     repositoryId: "/repo",
     snapshotToken: "snapshot-1",
+    scope: CURRENT_LINE_SCOPE,
     branch: "main",
     headState: "branch",
     headCommit: items[0]?.commit ?? null,
@@ -90,7 +91,7 @@ describe("HistoryController", () => {
     expect(controller.refresh(query)).toBe(first);
     expect(HISTORY_INITIAL_PAGE_SIZE).toBe(50);
     expect(HISTORY_PAGE_SIZE).toBe(100);
-    expect(readPage).toHaveBeenCalledWith({ ...query, pageSize: HISTORY_INITIAL_PAGE_SIZE, filters: NO_HISTORY_FILTERS });
+    expect(readPage).toHaveBeenCalledWith({ ...query, pageSize: HISTORY_INITIAL_PAGE_SIZE, filters: NO_HISTORY_FILTERS, scope: CURRENT_LINE_SCOPE });
     pending.resolve(page([version(1), version(0)]));
     await first;
     expect(controller.getSnapshot(query).versions).toHaveLength(2);
@@ -108,7 +109,7 @@ describe("HistoryController", () => {
       "Version 3", "Version 2", "Version 1", "Version 0",
     ]);
     expect(controller.getSnapshot(query).snapshot?.hasMore).toBe(false);
-    expect(readPage).toHaveBeenLastCalledWith({ ...query, cursor: "cursor-2", pageSize: HISTORY_PAGE_SIZE, filters: NO_HISTORY_FILTERS });
+    expect(readPage).toHaveBeenLastCalledWith({ ...query, cursor: "cursor-2", pageSize: HISTORY_PAGE_SIZE, filters: NO_HISTORY_FILTERS, scope: CURRENT_LINE_SCOPE });
   });
 
   it("re-reads from Rust when the filters change and replaces the pages that answered the old question", async () => {
@@ -122,7 +123,7 @@ describe("HistoryController", () => {
     const filters = { ...NO_HISTORY_FILTERS, author: "Ada", noMerges: true };
     await controller.setFilters(query, filters);
 
-    expect(readPage).toHaveBeenLastCalledWith({ ...query, pageSize: HISTORY_INITIAL_PAGE_SIZE, filters });
+    expect(readPage).toHaveBeenLastCalledWith({ ...query, pageSize: HISTORY_INITIAL_PAGE_SIZE, filters, scope: CURRENT_LINE_SCOPE });
     const snapshot = controller.getSnapshot(query);
     expect(snapshot.filters).toEqual(filters);
     // A fresh answer, not the old rows with some hidden: nothing from the
@@ -168,7 +169,7 @@ describe("HistoryController", () => {
     await reading;
     expect(controller.getSnapshot(query).snapshot?.nextCursor).toBe("cursor-filtered");
     await controller.loadMore(query);
-    expect(readPage).toHaveBeenLastCalledWith({ ...query, cursor: "cursor-filtered", pageSize: HISTORY_PAGE_SIZE, filters });
+    expect(readPage).toHaveBeenLastCalledWith({ ...query, cursor: "cursor-filtered", pageSize: HISTORY_PAGE_SIZE, filters, scope: CURRENT_LINE_SCOPE });
   });
 
   // The list is what a filter narrows. The card beside it describes one saved
@@ -327,5 +328,88 @@ describe("HistoryController", () => {
       controller.getSnapshot({ projectId: `/repo-${index}`, sessionEpoch: `epoch-${index}` });
     }
     expect(controller.size()).toBeLessThanOrEqual(MAX_HISTORY_SESSION_CACHES);
+  });
+
+  it("reads a different history when the scope changes, and retires the cursor that paged the old one", async () => {
+    const readPage = vi.fn(async () => page([version(2), version(1)], { nextCursor: "cursor-2", hasMore: true }));
+    const controller = createHistoryController(port({ readPage }));
+    await controller.refresh(query);
+    readPage.mockClear();
+
+    await controller.setScope(query, { kind: "line", name: "feature/foo" });
+
+    expect(readPage).toHaveBeenCalledTimes(1);
+    // The scope is an argument to the same read the filters are arguments to,
+    // never a predicate over the rows already loaded.
+    expect(readPage).toHaveBeenLastCalledWith({
+      ...query,
+      pageSize: HISTORY_INITIAL_PAGE_SIZE,
+      filters: NO_HISTORY_FILTERS,
+      scope: { kind: "line", name: "feature/foo" },
+    });
+    expect(controller.getSnapshot(query).scope).toEqual({ kind: "line", name: "feature/foo" });
+    // The assertion above is an exact match, so it is also the proof that no
+    // cursor went with the read: an offset counted through one history must
+    // never be applied to another.
+  });
+
+  it("cannot page through the old history while the new scope is still being read", async () => {
+    const first = page([version(2), version(1)], { nextCursor: "cursor-2", hasMore: true });
+    const pending = deferred<HistoryPage>();
+    const readPage = vi.fn(async () => first);
+    const controller = createHistoryController(port({ readPage }));
+    await controller.refresh(query);
+    expect(controller.getSnapshot(query).snapshot?.nextCursor).toBe("cursor-2");
+
+    readPage.mockImplementation(() => pending.promise);
+    const scoping = controller.setScope(query, { kind: "allLines" });
+    // The rows are still the previous answer and stay on screen, but the
+    // pointers that paged them are gone: the timeline's "near the end, fetch
+    // more" rule can no longer fire the old cursor at the new question.
+    expect(controller.getSnapshot(query).versions).toHaveLength(2);
+    expect(controller.getSnapshot(query).snapshot?.nextCursor).toBeNull();
+    expect(controller.getSnapshot(query).snapshot?.hasMore).toBe(false);
+    expect(controller.getSnapshot(query).isLoading).toBe(true);
+    readPage.mockClear();
+    await controller.loadMore(query);
+    expect(readPage).not.toHaveBeenCalled();
+
+    pending.resolve(page([version(3)], { scope: { kind: "allLines" }, snapshotToken: "snapshot-2" }));
+    await scoping;
+    expect(controller.getSnapshot(query).versions).toHaveLength(1);
+  });
+
+  it("keeps the filters when the scope changes, and the scope when the filters do", async () => {
+    const readPage = vi.fn(async () => page([version(1)]));
+    const controller = createHistoryController(port({ readPage }));
+    await controller.refresh(query);
+
+    const filters = { ...NO_HISTORY_FILTERS, noMerges: true };
+    await controller.setFilters(query, filters);
+    await controller.setScope(query, { kind: "allLines" });
+    expect(controller.getSnapshot(query).filters).toEqual(filters);
+    expect(readPage).toHaveBeenLastCalledWith({
+      ...query,
+      pageSize: HISTORY_INITIAL_PAGE_SIZE,
+      filters,
+      scope: { kind: "allLines" },
+    });
+
+    // Clearing every filter is not a way back to the current line.
+    await controller.setFilters(query, NO_HISTORY_FILTERS);
+    expect(controller.getSnapshot(query).scope).toEqual({ kind: "allLines" });
+  });
+
+  it("does not re-read when the scope it is asked for is the one it already has", async () => {
+    const readPage = vi.fn(async () => page([version(1)]));
+    const controller = createHistoryController(port({ readPage }));
+    await controller.refresh(query);
+    readPage.mockClear();
+
+    await controller.setScope(query, CURRENT_LINE_SCOPE);
+    await controller.setScope(query, { kind: "line", name: "feature/foo" });
+    await controller.setScope(query, { kind: "line", name: "feature/foo" });
+
+    expect(readPage).toHaveBeenCalledTimes(1);
   });
 });

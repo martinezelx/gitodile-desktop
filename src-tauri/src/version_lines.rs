@@ -925,6 +925,11 @@ pub(crate) struct CreateVersionLinePlan {
     pub(crate) name: String,
     pub(crate) head_state: HeadState,
     pub(crate) starting_commit: Option<String>,
+    /// Whether `starting_commit` is a saved version the user picked rather than
+    /// wherever the project happens to be standing. The preview says different
+    /// things about the two, and only the first can be true while `HEAD` is
+    /// somewhere else entirely.
+    pub(crate) from_saved_version: bool,
     pub(crate) will_switch: bool,
     pub(crate) has_unsaved_work: bool,
 }
@@ -933,15 +938,45 @@ pub(crate) struct ValidatedCreate {
     pub(crate) name: String,
     pub(crate) head_state: HeadState,
     pub(crate) starting_commit: Option<String>,
+    pub(crate) from_saved_version: bool,
     pub(crate) will_switch: bool,
     pub(crate) has_unsaved_work: bool,
     pub(crate) state_token: String,
+}
+
+/// A starting point chosen from History, resolved to the exact commit it names.
+///
+/// Only a full object id is accepted, and it is verified to be a commit that
+/// exists: a revision expression would let a name, a tag, or `@{upstream}` in
+/// as a starting point, and the interface only ever sends what a saved version
+/// row already holds.
+fn resolve_start_commit(path: &str, value: &str) -> Result<String, AppError> {
+    let shaped = (value.len() == 40 || value.len() == 64)
+        && value.bytes().all(|byte| byte.is_ascii_hexdigit());
+    if !shaped {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version couldn't be identified.",
+        )
+        .with_remediation("Choose a saved version from History and try again."));
+    }
+    let revision = format!("{value}^{{commit}}");
+    let output = run_git(path, &["rev-parse", "--verify", "--quiet", &revision])?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version isn't in this project any more.",
+        )
+        .with_remediation("Refresh History and choose a saved version that is still listed."));
+    }
+    Ok(git_stdout(&output))
 }
 
 pub(crate) fn validate_and_prepare_create(
     path: &str,
     name: &str,
     switch: bool,
+    start_commit: Option<&str>,
 ) -> Result<ValidatedCreate, AppError> {
     require_git_switch_support(path)?;
 
@@ -960,7 +995,13 @@ pub(crate) fn validate_and_prepare_create(
         .then(|| git_stdout(&symbolic_head));
     let (head_state, head_sha) = resolve_head_state(path, branch.clone())?;
 
-    if head_state == HeadState::Unborn {
+    // A chosen saved version is a commit of its own, so it answers the
+    // question an unborn `HEAD` cannot: there is something to start from even
+    // when the current line has nothing on it yet.
+    let start_commit = start_commit
+        .map(|value| resolve_start_commit(path, value))
+        .transpose()?;
+    if head_state == HeadState::Unborn && start_commit.is_none() {
         return Err(AppError::new(
             AppErrorCode::UnbornBranchNoVersion,
             "Save the first version before creating another version line.",
@@ -1000,20 +1041,31 @@ pub(crate) fn validate_and_prepare_create(
         .with_remediation("Resolve the overlapping changes, then try again."));
     }
     let has_unsaved_work = !status.is_clean;
-    let will_switch = switch || head_state == HeadState::Detached;
+    // A detached `HEAD` is recovered by switching onto the line being created
+    // at the commit it is standing on — but only when that is where the line
+    // starts. Creating a line at a saved version somewhere else is not a
+    // recovery, and switching to it would move the working tree away from the
+    // commit the reader was on without being asked.
+    let from_saved_version = start_commit.is_some();
+    let will_switch = switch || (head_state == HeadState::Detached && !from_saved_version);
+    let starting_commit = start_commit.or(head_sha.clone());
 
     let mutable_state = create_version_line_state_fingerprint(path, &head_state, &status)?;
     let state_token = compute_version_line_state_token(
         head_sha.as_deref(),
         branch.as_deref(),
         &mutable_state,
-        &format!("create:{name}:{will_switch}"),
+        &format!(
+            "create:{name}:{will_switch}:{}",
+            starting_commit.as_deref().unwrap_or("")
+        ),
     );
 
     Ok(ValidatedCreate {
         name: name.to_string(),
         head_state,
-        starting_commit: head_sha,
+        starting_commit,
+        from_saved_version,
         will_switch,
         has_unsaved_work,
         state_token,
@@ -1024,14 +1076,22 @@ pub(crate) fn plan_create_version_line(
     path: String,
     name: String,
     switch: bool,
+    start_commit: Option<String>,
 ) -> Result<CreateVersionLinePlan, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "plan_create_version_line", None)?;
-    let validated = validate_and_prepare_create(&path, &name, switch)?;
-    let mut steps = vec![format!(
-        "Create the version line \"{}\" at the current commit.",
-        validated.name
-    )];
+    let validated = validate_and_prepare_create(&path, &name, switch, start_commit.as_deref())?;
+    let mut steps = vec![if validated.from_saved_version {
+        format!(
+            "Create the version line \"{}\" at the chosen saved version.",
+            validated.name
+        )
+    } else {
+        format!(
+            "Create the version line \"{}\" at the current commit.",
+            validated.name
+        )
+    }];
     if validated.will_switch {
         steps.push(format!("Switch this project to \"{}\".", validated.name));
     }
@@ -1042,9 +1102,15 @@ pub(crate) fn plan_create_version_line(
                 .to_string(),
         );
     }
-    if validated.head_state == HeadState::Detached {
+    if validated.head_state == HeadState::Detached && !validated.from_saved_version {
         risks.push(
             "This project isn't on a version line right now; creating one here keeps the current commit reachable by name."
+                .to_string(),
+        );
+    }
+    if validated.from_saved_version && !validated.will_switch {
+        risks.push(
+            "This project stays where it is; the new version line starts at the chosen saved version."
                 .to_string(),
         );
     }
@@ -1067,6 +1133,7 @@ pub(crate) fn plan_create_version_line(
         name: validated.name,
         head_state: validated.head_state,
         starting_commit: validated.starting_commit,
+        from_saved_version: validated.from_saved_version,
         will_switch: validated.will_switch,
         has_unsaved_work: validated.has_unsaved_work,
     })
@@ -1098,11 +1165,12 @@ pub(crate) fn create_version_line(
     path: String,
     name: String,
     switch: bool,
+    start_commit: Option<String>,
     state_token: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "create_version_line", None)?;
-    let validated = validate_and_prepare_create(&path, &name, switch)?;
+    let validated = validate_and_prepare_create(&path, &name, switch, start_commit.as_deref())?;
     if validated.state_token != state_token {
         return Err(AppError::new(
             AppErrorCode::StaleVersionLinePlan,
@@ -1111,10 +1179,12 @@ pub(crate) fn create_version_line(
         .with_remediation("Refresh and try again."));
     }
 
+    let starting = validated.starting_commit.as_deref().unwrap_or("HEAD");
     let output = if validated.will_switch {
-        run_git(&path, &["switch", "-c", &validated.name])?
+        // `switch -c <name> <start>` is one operation: the line is created at
+        // the chosen version and checked out, or neither happens.
+        run_git(&path, &["switch", "-c", &validated.name, starting])?
     } else {
-        let starting = validated.starting_commit.as_deref().unwrap_or("HEAD");
         run_git(&path, &["branch", "--", &validated.name, starting])?
     };
     if !output.status.success() {
@@ -1588,7 +1658,7 @@ mod tests {
         write_and_commit(&path, "a.txt", "one\n", "first");
         let original_head = git_stdout(&test_git(&path, &["rev-parse", "HEAD"]).unwrap());
 
-        let plan = plan_create_version_line(path.clone(), "feature-x".to_string(), true)
+        let plan = plan_create_version_line(path.clone(), "feature-x".to_string(), true, None)
             .expect("plan should succeed");
         assert!(plan.will_switch);
         assert!(plan.requires_confirmation);
@@ -1598,6 +1668,7 @@ mod tests {
             path.clone(),
             "feature-x".to_string(),
             true,
+            None,
             plan.state_token,
         )
         .expect("create should succeed");
@@ -1618,7 +1689,7 @@ mod tests {
         write_and_commit(&path, "a.txt", "one\n", "first");
         let original_branch = current_branch(&path);
 
-        let plan = plan_create_version_line(path.clone(), "feature-y".to_string(), false)
+        let plan = plan_create_version_line(path.clone(), "feature-y".to_string(), false, None)
             .expect("plan should succeed");
         assert!(!plan.will_switch);
 
@@ -1626,6 +1697,7 @@ mod tests {
             path.clone(),
             "feature-y".to_string(),
             false,
+            None,
             plan.state_token,
         )
         .expect("create should succeed");
@@ -1644,7 +1716,7 @@ mod tests {
         write_file(&path, "a.txt", "one\nmodified\n");
         write_file(&path, "new.txt", "untracked\n");
 
-        let plan = plan_create_version_line(path.clone(), "carrying-work".to_string(), true)
+        let plan = plan_create_version_line(path.clone(), "carrying-work".to_string(), true, None)
             .expect("plan should succeed");
         assert!(plan.has_unsaved_work);
 
@@ -1652,6 +1724,7 @@ mod tests {
             path.clone(),
             "carrying-work".to_string(),
             true,
+            None,
             plan.state_token,
         )
         .expect("create should succeed");
@@ -1682,7 +1755,7 @@ mod tests {
             .expect("detach HEAD");
         assert!(status.success());
 
-        let plan = plan_create_version_line(path.clone(), "recovered".to_string(), false)
+        let plan = plan_create_version_line(path.clone(), "recovered".to_string(), false, None)
             .expect("plan should succeed even without an explicit switch request");
         assert!(
             plan.will_switch,
@@ -1693,6 +1766,7 @@ mod tests {
             path.clone(),
             "recovered".to_string(),
             false,
+            None,
             plan.state_token,
         )
         .expect("create should succeed");
@@ -1710,7 +1784,7 @@ mod tests {
         let path = unique_temp_dir("vl-create-unborn");
         git_init(&path);
 
-        let error = plan_create_version_line(path.clone(), "too-soon".to_string(), true)
+        let error = plan_create_version_line(path.clone(), "too-soon".to_string(), true, None)
             .expect_err("an unborn branch has nothing to branch from yet");
         assert_eq!(error.code, AppErrorCode::UnbornBranchNoVersion);
 
@@ -1724,7 +1798,7 @@ mod tests {
         write_and_commit(&path, "a.txt", "one\n", "first");
         let branch = current_branch(&path);
 
-        let error = plan_create_version_line(path.clone(), branch, true)
+        let error = plan_create_version_line(path.clone(), branch, true, None)
             .expect_err("the current branch's own name must be rejected as a duplicate");
         assert_eq!(error.code, AppErrorCode::VersionLineNameTaken);
 
@@ -1742,7 +1816,7 @@ mod tests {
             .expect("run git branch");
         assert!(status.success());
 
-        let error = plan_create_version_line(path.clone(), "feature-z".to_string(), false)
+        let error = plan_create_version_line(path.clone(), "feature-z".to_string(), false, None)
             .expect_err("a case-only collision must be rejected before mutation");
         assert_eq!(error.code, AppErrorCode::VersionLineNameCollides);
 
@@ -1755,7 +1829,7 @@ mod tests {
         git_init(&path);
         write_and_commit(&path, "a.txt", "one\n", "first");
 
-        let plan = plan_create_version_line(path.clone(), "feature-stale".to_string(), false)
+        let plan = plan_create_version_line(path.clone(), "feature-stale".to_string(), false, None)
             .expect("plan should succeed");
         write_file(&path, "b.txt", "changed after preview\n");
 
@@ -1763,6 +1837,7 @@ mod tests {
             path.clone(),
             "feature-stale".to_string(),
             false,
+            None,
             plan.state_token,
         )
         .expect_err("a state change after preview must stop execution");
@@ -1781,9 +1856,13 @@ mod tests {
         write_and_commit(&path, "a.txt", "one\n", "first");
         write_file(&path, "pending.txt", "before preview\n");
 
-        let plan =
-            plan_create_version_line(path.clone(), "feature-stale-content".to_string(), true)
-                .expect("plan should succeed with ordinary unsaved work");
+        let plan = plan_create_version_line(
+            path.clone(),
+            "feature-stale-content".to_string(),
+            true,
+            None,
+        )
+        .expect("plan should succeed with ordinary unsaved work");
         // The file remains untracked before and after, so the old status-only
         // token was identical even though the confirmed bytes had changed.
         write_file(&path, "pending.txt", "after preview\n");
@@ -1792,6 +1871,7 @@ mod tests {
             path.clone(),
             "feature-stale-content".to_string(),
             true,
+            None,
             plan.state_token,
         )
         .expect_err("content drift after preview must stop execution");
@@ -1812,8 +1892,9 @@ mod tests {
         git_add(&path, "a.txt");
         write_file(&path, "a.txt", "same final worktree\n");
 
-        let plan = plan_create_version_line(path.clone(), "feature-stale-index".to_string(), true)
-            .expect("plan should capture both index and worktree content");
+        let plan =
+            plan_create_version_line(path.clone(), "feature-stale-index".to_string(), true, None)
+                .expect("plan should capture both index and worktree content");
         write_file(&path, "a.txt", "different staged content\n");
         git_add(&path, "a.txt");
         write_file(&path, "a.txt", "same final worktree\n");
@@ -1822,6 +1903,7 @@ mod tests {
             path.clone(),
             "feature-stale-index".to_string(),
             true,
+            None,
             plan.state_token,
         )
         .expect_err("staged-content drift must stop execution even when the worktree matches");
@@ -2054,6 +2136,175 @@ mod tests {
         assert!(in_test_frame(|| list_branch_names(&path))
             .unwrap()
             .contains(&"goes-away".to_string()));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    fn commit_at(path: &str, revision: &str) -> String {
+        git_stdout(
+            &git_command(path)
+                .args(["rev-parse", "--verify", revision])
+                .output()
+                .expect("run git rev-parse"),
+        )
+    }
+
+    #[test]
+    fn create_version_line_can_start_at_a_chosen_saved_version() {
+        let path = unique_temp_dir("vl-create-from-version");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let first = commit_at(&path, "HEAD");
+        write_and_commit(&path, "a.txt", "one\ntwo\n", "second");
+        let second = commit_at(&path, "HEAD");
+        let original_branch = current_branch(&path);
+
+        let plan = plan_create_version_line(
+            path.clone(),
+            "from-first".to_string(),
+            false,
+            Some(first.clone()),
+        )
+        .expect("plan should succeed");
+        assert!(plan.from_saved_version);
+        assert_eq!(plan.starting_commit.as_deref(), Some(first.as_str()));
+        assert!(!plan.will_switch);
+
+        create_version_line(
+            path.clone(),
+            "from-first".to_string(),
+            false,
+            Some(first.clone()),
+            plan.state_token,
+        )
+        .expect("create should succeed");
+
+        // The line starts where it was told to, and the project has not moved.
+        assert_eq!(commit_at(&path, "refs/heads/from-first"), first);
+        assert_eq!(current_branch(&path), original_branch);
+        assert_eq!(commit_at(&path, "HEAD"), second);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn create_version_line_from_a_version_switches_only_when_asked() {
+        let path = unique_temp_dir("vl-create-from-version-switch");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let first = commit_at(&path, "HEAD");
+        write_and_commit(&path, "a.txt", "one\ntwo\n", "second");
+
+        let plan = plan_create_version_line(
+            path.clone(),
+            "moved-back".to_string(),
+            true,
+            Some(first.clone()),
+        )
+        .expect("plan should succeed");
+        assert!(plan.will_switch);
+
+        create_version_line(
+            path.clone(),
+            "moved-back".to_string(),
+            true,
+            Some(first.clone()),
+            plan.state_token,
+        )
+        .expect("create should succeed");
+        assert_eq!(current_branch(&path), "moved-back");
+        assert_eq!(commit_at(&path, "HEAD"), first);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn a_detached_head_is_not_recovered_by_a_line_starting_somewhere_else() {
+        let path = unique_temp_dir("vl-create-from-version-detached");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let first = commit_at(&path, "HEAD");
+        write_and_commit(&path, "a.txt", "one\ntwo\n", "second");
+        let second = commit_at(&path, "HEAD");
+        assert!(git_command(&path)
+            .args(["switch", "-q", "--detach", &second])
+            .status()
+            .unwrap()
+            .success());
+
+        // Creating a line at the current commit still recovers the detached
+        // HEAD by switching onto it...
+        let here = plan_create_version_line(path.clone(), "recovered".to_string(), false, None)
+            .expect("plan should succeed");
+        assert!(here.will_switch);
+
+        // ...but a line rooted at an older version is not a recovery, and
+        // switching to it would move the working tree away unasked.
+        let elsewhere = plan_create_version_line(
+            path.clone(),
+            "elsewhere".to_string(),
+            false,
+            Some(first.clone()),
+        )
+        .expect("plan should succeed");
+        assert!(!elsewhere.will_switch);
+        assert_eq!(elsewhere.starting_commit.as_deref(), Some(first.as_str()));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn create_version_line_refuses_a_starting_point_it_cannot_verify() {
+        let path = unique_temp_dir("vl-create-from-bad-version");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+
+        // A revision expression is not a saved version: only a full object id
+        // this project actually holds is accepted.
+        for candidate in ["HEAD~1", "main", "not-a-commit"] {
+            let error = plan_create_version_line(
+                path.clone(),
+                "nope".to_string(),
+                false,
+                Some(candidate.to_string()),
+            )
+            .expect_err("an unverifiable starting point should be refused");
+            assert_eq!(error.code, AppErrorCode::InvalidSelection);
+        }
+
+        let missing = "0".repeat(40);
+        let error =
+            plan_create_version_line(path.clone(), "nope".to_string(), false, Some(missing))
+                .expect_err("a commit this project does not have should be refused");
+        assert_eq!(error.code, AppErrorCode::InvalidSelection);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn creating_from_a_version_rejects_a_state_token_from_another_starting_point() {
+        let path = unique_temp_dir("vl-create-from-version-stale");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let first = commit_at(&path, "HEAD");
+        write_and_commit(&path, "a.txt", "one\ntwo\n", "second");
+        let second = commit_at(&path, "HEAD");
+
+        let plan =
+            plan_create_version_line(path.clone(), "swapped".to_string(), false, Some(first))
+                .expect("plan should succeed");
+
+        // The token covers the starting point, so a preview of one version
+        // cannot be executed against another.
+        let error = create_version_line(
+            path.clone(),
+            "swapped".to_string(),
+            false,
+            Some(second),
+            plan.state_token,
+        )
+        .expect_err("a plan for another starting point should be refused");
+        assert_eq!(error.code, AppErrorCode::StaleVersionLinePlan);
 
         let _ = fs::remove_dir_all(&path);
     }

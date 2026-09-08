@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n";
 import { createHistoryController } from "./controller";
 import type { HistoryPage, HistoryState, SavedVersionDetail, SavedVersionSummary } from "./domain";
-import { HistoryPanel } from "./HistoryPanel";
-import { NO_HISTORY_FILTERS } from "./port";
+import { HistoryPanel, type HistoryLineActions } from "./HistoryPanel";
+import { CURRENT_LINE_SCOPE, NO_HISTORY_FILTERS } from "./port";
 import { formatHistoryDate } from "./formatHistoryDate";
 import type { HistoryPort } from "./port";
 
@@ -42,6 +42,7 @@ function page(count: number, overrides: Partial<HistoryPage> = {}): HistoryPage 
   return {
     repositoryId: "/repo",
     snapshotToken: "snapshot-1",
+    scope: CURRENT_LINE_SCOPE,
     branch: "main",
     headState: "branch",
     headCommit: versions[0]?.commit ?? null,
@@ -62,6 +63,7 @@ function state(count: number, overrides: Partial<HistoryState> = {}): HistorySta
     projectId: "/repo",
     sessionEpoch: "epoch-1",
     filters: NO_HISTORY_FILTERS,
+    scope: CURRENT_LINE_SCOPE,
     snapshot,
     versions,
     isLoading: false,
@@ -91,10 +93,16 @@ function controller() {
   return createHistoryController(port);
 }
 
-function renderPanel(historyState: HistoryState, error: string | null = null, watcherState: "starting" | "watching" | "off" | "unavailable" = "watching") {
+function renderPanel(
+  historyState: HistoryState,
+  error: string | null = null,
+  watcherState: "starting" | "watching" | "off" | "unavailable" = "watching",
+  actions: HistoryLineActions = {},
+) {
   const historyController = controller();
   const select = vi.spyOn(historyController, "selectVersion");
   const selectFile = vi.spyOn(historyController, "selectFile");
+  const setScope = vi.spyOn(historyController, "setScope");
   const utils = render(
     <LanguageProvider>
       <HistoryPanel
@@ -102,12 +110,22 @@ function renderPanel(historyState: HistoryState, error: string | null = null, wa
         query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
         state={historyState}
         watcherState={watcherState}
+        actions={actions}
         onOpenSettings={() => {}}
         error={error}
       />
     </LanguageProvider>,
   );
-  return { historyController, select, selectFile, ...utils };
+  return { historyController, select, selectFile, setScope, ...utils };
+}
+
+/** A version carrying a real local line, which is the only decoration this
+ *  screen can also act on. */
+function versionOnLine(index: number, name: string): SavedVersionSummary {
+  return {
+    ...version(index),
+    decorations: [{ kind: "localBranch", name, fullRef: `refs/heads/${name}` }],
+  };
 }
 
 afterEach(cleanup);
@@ -618,5 +636,123 @@ describe("HistoryPanel", () => {
     expect(formatHistoryDate(timestamp, { language: "en", dateFormat: "system", numberFormat: "system" }, now)?.relative).toMatch(/yesterday|1 day ago/i);
     expect(formatHistoryDate(timestamp, { language: "es", dateFormat: "system", numberFormat: "system" }, now)?.relative).toMatch(/ayer|hace 1 día/i);
     expect(formatHistoryDate(timestamp, { language: "es", dateFormat: "system", numberFormat: "system" }, now)?.absolute).toMatch(/2026/);
+  });
+
+  it("reads a named version line from the strip's filter panel, and says which one in a chip", async () => {
+    const user = userEvent.setup();
+    const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main", "feature/foo"] });
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    const scopeField = screen.getByLabelText("Another version line");
+    await user.type(scopeField, "feature/foo{Enter}");
+
+    expect(setScope).toHaveBeenCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      { kind: "line", name: "feature/foo" },
+    );
+
+    // The chip states which history is being read, and is not a filter chip:
+    // clearing the filters must not silently change the line.
+    cleanup();
+    renderPanel(state(3, { scope: { kind: "line", name: "feature/foo" } }));
+    expect(screen.getByText("Line: feature/foo")).toBeInTheDocument();
+  });
+
+  it("refuses a line this project does not have rather than asking Git about it", async () => {
+    const user = userEvent.setup();
+    const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main"] });
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.type(screen.getByLabelText("Another version line"), "feature/typo{Enter}");
+
+    expect(setScope).not.toHaveBeenCalled();
+    expect(screen.getByText("This project doesn’t have a version line with that name.")).toBeInTheDocument();
+  });
+
+  it("offers every local line at once, and a way back to the current one", async () => {
+    const user = userEvent.setup();
+    const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main"] });
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("radio", { name: "All lines" }));
+    expect(setScope).toHaveBeenCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      { kind: "allLines" },
+    );
+
+    cleanup();
+    const scoped = renderPanel(state(3, { scope: { kind: "allLines" } }));
+    await user.click(screen.getByRole("button", { name: "Show the current line again" }));
+    expect(scoped.setScope).toHaveBeenCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      { kind: "currentLine" },
+    );
+  });
+
+  it("keeps the scope when the filters are cleared", async () => {
+    const user = userEvent.setup();
+    const scoped = state(3, {
+      scope: { kind: "line", name: "feature/foo" },
+      filters: { ...NO_HISTORY_FILTERS, noMerges: true },
+    });
+    const { setScope } = renderPanel(scoped);
+
+    await user.click(screen.getByRole("button", { name: "Filters (1 on)" }));
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+
+    expect(setScope).not.toHaveBeenCalled();
+    expect(screen.getByText("Line: feature/foo")).toBeInTheDocument();
+  });
+
+  it("offers a local line's own actions from the row that names it", async () => {
+    const user = userEvent.setup();
+    const onViewLine = vi.fn();
+    const onSwitchLine = vi.fn();
+    const onCreateLineFromVersion = vi.fn();
+    const rows = state(1);
+    const scoped: HistoryState = {
+      ...rows,
+      versions: [versionOnLine(0, "feature/foo")],
+      selectedCommit: versionOnLine(0, "feature/foo").commit,
+    };
+    renderPanel(scoped, null, "watching", { onViewLine, onSwitchLine, onCreateLineFromVersion });
+
+    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
+    await user.click(screen.getByRole("button", { name: "View “feature/foo” in Lines" }));
+    expect(onViewLine).toHaveBeenCalledWith("feature/foo");
+
+    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
+    await user.click(screen.getByRole("button", { name: "Switch this project to “feature/foo”" }));
+    expect(onSwitchLine).toHaveBeenCalledWith("feature/foo");
+
+    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
+    await user.click(screen.getByRole("button", { name: "Create a new version line from this version" }));
+    expect(onCreateLineFromVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ commit: versionOnLine(0, "feature/foo").commit }),
+    );
+  });
+
+  it("does not offer to switch to the line the project is already on", async () => {
+    const rows = state(1);
+    const scoped: HistoryState = {
+      ...rows,
+      versions: [versionOnLine(0, "main")],
+      selectedCommit: versionOnLine(0, "main").commit,
+    };
+    renderPanel(scoped, null, "watching", { onViewLine: vi.fn(), onSwitchLine: vi.fn() });
+
+    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
+    expect(screen.getByRole("button", { name: "View “main” in Lines" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Switch this project/ })).not.toBeInTheDocument();
+  });
+
+  it("offers no line actions on a row that names only a tag", async () => {
+    // A tag is a fact about a version, not a line this project can view or
+    // switch to, so it never becomes a control.
+    renderPanel(state(1), null, "watching", { onViewLine: vi.fn(), onSwitchLine: vi.fn() });
+
+    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
+    expect(screen.queryByRole("button", { name: /in Lines/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Switch this project/ })).not.toBeInTheDocument();
   });
 });

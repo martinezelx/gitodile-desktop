@@ -139,7 +139,28 @@ describe("SaveVersionDialog", () => {
     mockedInvoke.mockResolvedValueOnce(plan({ isFirstVersion: true }));
     renderDialog();
 
-    expect(await screen.findByText("This will be this project's first saved version.")).toBeInTheDocument();
+    expect(await screen.findByText("This will be the first saved version on main.")).toBeInTheDocument();
+  });
+
+  it("names the version line this version will be saved to, from the plan", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan({ branch: "0.2.0-preview.1" }));
+    renderDialog();
+
+    expect(await screen.findByText("This version will be saved to 0.2.0-preview.1.")).toBeInTheDocument();
+  });
+
+  it("names no destination when the plan has no version line to name", async () => {
+    // A detached `HEAD`: there is a commit to make and no line to make it on.
+    // Inventing a name here would be the one thing a destination must not do.
+    mockedInvoke.mockResolvedValueOnce(plan({ branch: null }));
+    renderDialog();
+
+    expect(
+      await screen.findByText(
+        "This project isn't on a version line right now, so this version won't belong to one. Create a version line here to keep it easy to find.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/This version will be saved to/)).not.toBeInTheDocument();
   });
 
   it("shows a localized blocker and offers to try again when planning fails", async () => {

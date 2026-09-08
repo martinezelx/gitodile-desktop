@@ -237,6 +237,20 @@
   gap: var(--space-1);
   padding: 0 var(--space-2) var(--space-2);
 }
+/* The scope leads the row and is marked as a different kind of thing: it says
+   which history is being read, not how much of one is shown. */
+.history-filter-chip--scope {
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-raised));
+  color: var(--text-primary-color);
+}
+.history-filter-chip--scope svg { width: 12px; height: 12px; flex-shrink: 0; }
+.history-filter__hint {
+  margin: 4px 0 0;
+  color: var(--status-warning);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+}
+
 .history-filter-chip {
   max-width: 100%;
   min-width: 0;
@@ -502,6 +516,20 @@
 .history-publication--published { background: color-mix(in srgb, var(--status-success) 12%, var(--surface-raised)); color: var(--status-success); }
 .history-publication--local-only { color: var(--accent-primary); }
 .history-ref-chip { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+/* A chip that acts, rather than one that only states. It stays a chip at rest
+   — a card full of buttons reads as a toolbar — and answers on approach the way
+   every other quiet control here does. */
+.history-ref-chip--actionable {
+  border: 1px solid transparent;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.history-ref-chip--actionable:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-subtle);
+  color: var(--text-primary-color);
+}
+.history-ref-chip--actionable:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.history-ref-chip--actionable[aria-expanded="true"] { background: var(--surface-active); border-color: var(--accent-primary); }
 
 /* The card's one strip: the tabs that cut it, and the controls for reading
    whichever of them is open. It takes the panel strip height the two screens

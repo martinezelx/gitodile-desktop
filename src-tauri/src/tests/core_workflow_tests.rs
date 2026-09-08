@@ -251,12 +251,14 @@ fn discard_and_version_line_journey_undoes_then_creates_switches_and_deletes() {
         repo.clone(),
         "audit-line".to_string(),
         false,
+        None,
     )
     .expect("plan a version line without switching");
     crate::version_lines::create_version_line(
         repo.clone(),
         "audit-line".to_string(),
         false,
+        None,
         create_plan.state_token,
     )
     .expect("create a version line");
@@ -342,12 +344,14 @@ fn version_line_history_reports_recent_versions_the_count_and_the_overflow() {
         repo.clone(),
         "short-line".to_string(),
         true,
+        None,
     )
     .expect("plan a second line");
     crate::version_lines::create_version_line(
         repo.clone(),
         "short-line".to_string(),
         true,
+        None,
         create_plan.state_token,
     )
     .expect("create and switch to a second line");

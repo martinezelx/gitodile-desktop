@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -404,8 +404,18 @@ export function App(): React.JSX.Element {
   // inside that screen's React subtree. All use the feature-owned dialogs and
   // port, so the safety plan stays identical whichever shortcut was used.
   const [versionLineSwitchTarget, setVersionLineSwitchTarget] = useState<string | null>(null);
-  const [overviewCreateRequest, setOverviewCreateRequest] = useState<{ forceSwitch: boolean } | null>(null);
+  const [createLineRequest, setCreateLineRequest] = useState<
+    { forceSwitch: boolean; startVersion?: { commit: string; shortCommit: string; subject: string } | null } | null
+  >(null);
   const [versionLinesAutoOpenCreate, setVersionLinesAutoOpenCreate] = useState(false);
+  /* Where one screen asked another to look. Both are consumed once and cleared
+     by the screen that takes them: `KeepAliveScreens` holds every visited
+     screen mounted for the session, so a target left standing would re-apply on
+     the next render here and quietly undo whatever the reader chose after
+     arriving. Neither is persisted — where someone was heading is not durable
+     project state. */
+  const [historyScopeLineIntent, setHistoryScopeLineIntent] = useState<string | null>(null);
+  const [linesSelectIntent, setLinesSelectIntent] = useState<string | null>(null);
   const publishDialogSession = publishDialogSessionId
     ? sessionsState.byId[publishDialogSessionId] ?? null
     : null;
@@ -986,6 +996,53 @@ export function App(): React.JSX.Element {
       unlisten?.();
     };
   }, []);
+
+  /* What History may ask of a version line, and the flow each request is
+     handed to. History never mutates a repository itself: switching runs the
+     same previewed dialog the status bar and the Lines screen run, creating
+     runs the same create dialog, and viewing is navigation. Stable identities,
+     because the timeline is memoized and a new object every render would
+     re-render every row. */
+  const versionLineNames = useMemo(
+    () => activeVersionLines.snapshot?.lines.map((line) => line.name) ?? [],
+    [activeVersionLines.snapshot],
+  );
+  /* Latest-value refs so the callbacks below can be identity-stable without
+     closing over a stale project or a stale navigator. */
+  const navigateToViewRef = useRef(navigateToView);
+  navigateToViewRef.current = navigateToView;
+  const projectPathRef = useRef(projectPath);
+  projectPathRef.current = projectPath;
+  const startVersionLineOperationRef = useRef(startVersionLineOperation);
+  startVersionLineOperationRef.current = startVersionLineOperation;
+  const viewVersionLine = useCallback((name: string) => {
+    setLinesSelectIntent(name);
+    navigateToViewRef.current("version-lines");
+  }, []);
+  const switchToVersionLine = useCallback((name: string) => {
+    const path = projectPathRef.current;
+    if (path && startVersionLineOperationRef.current(path)) {
+      setVersionLineSwitchTarget(name);
+    }
+  }, []);
+  const createVersionLineFromVersion = useCallback(
+    (version: { commit: string; shortCommit: string; subject: string }) => {
+      const path = projectPathRef.current;
+      if (path && startVersionLineOperationRef.current(path)) {
+        setCreateLineRequest({
+          forceSwitch: false,
+          startVersion: {
+            commit: version.commit,
+            shortCommit: version.shortCommit,
+            subject: version.subject,
+          },
+        });
+      }
+    },
+    [],
+  );
+  const clearHistoryScopeLineIntent = useCallback(() => setHistoryScopeLineIntent(null), []);
+  const clearLinesSelectIntent = useCallback(() => setLinesSelectIntent(null), []);
 
   // Dropping a folder on the window opens it. Session lifecycle wiring, like
   // the watcher above, so it lives here rather than in a feature: it ends in
@@ -2152,7 +2209,7 @@ export function App(): React.JSX.Element {
                   }}
                   onQuickCreateVersionLine={(forceSwitch) => {
                     if (projectPath && startVersionLineOperation(projectPath)) {
-                      setOverviewCreateRequest({ forceSwitch });
+                      setCreateLineRequest({ forceSwitch });
                     }
                   }}
                   onOpenProjectSettings={() => openProjectSettings()}
@@ -2255,9 +2312,14 @@ export function App(): React.JSX.Element {
                             navigateToView("changes");
                           }}
                           onOpenChanges={() => navigateToView("changes")}
-                          onOpenHistory={() => navigateToView("history")}
+                          onOpenHistory={(name) => {
+                            setHistoryScopeLineIntent(name);
+                            navigateToView("history");
+                          }}
                           autoOpenCreate={versionLinesAutoOpenCreate}
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
+                          selectLineIntent={linesSelectIntent}
+                          onSelectLineIntentHandled={clearLinesSelectIntent}
                         />
                       </Suspense>
                     ),
@@ -2268,6 +2330,12 @@ export function App(): React.JSX.Element {
                           projectPath={project.path}
                           sessionEpoch={activeSession?.epoch ?? ""}
                           watcherState={activeWatcherState}
+                          lines={versionLineNames}
+                          scopeLineIntent={historyScopeLineIntent}
+                          onScopeLineIntentHandled={clearHistoryScopeLineIntent}
+                          onViewLine={viewVersionLine}
+                          onSwitchLine={switchToVersionLine}
+                          onCreateLineFromVersion={createVersionLineFromVersion}
                           onOpenSettings={() => openSettings("general")}
                         />
                       </Suspense>
@@ -2295,6 +2363,11 @@ export function App(): React.JSX.Element {
           onSwitchVersionLine={(target) => {
             if (projectPath && startVersionLineOperation(projectPath)) {
               setVersionLineSwitchTarget(target);
+            }
+          }}
+          onCreateVersionLine={() => {
+            if (projectPath && startVersionLineOperation(projectPath)) {
+              setCreateLineRequest({ forceSwitch: false });
             }
           }}
           onSeeAllVersionLines={() => navigateToView("version-lines")}
@@ -2468,7 +2541,7 @@ export function App(): React.JSX.Element {
             }}
             onCreateWithWork={() => {
               if (startVersionLineOperation(project.path)) {
-                setOverviewCreateRequest({ forceSwitch: false });
+                setCreateLineRequest({ forceSwitch: false });
               }
             }}
             onPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
@@ -2476,20 +2549,21 @@ export function App(): React.JSX.Element {
         </Suspense>
       )}
 
-      {project && overviewCreateRequest && (
+      {project && createLineRequest && (
         <Suspense fallback={null}>
           <CreateVersionLineDialog
             isOpen
             projectPath={project.path}
             sessionEpoch={activeSession?.epoch ?? ""}
-            forceSwitch={overviewCreateRequest.forceSwitch}
+            forceSwitch={createLineRequest.forceSwitch}
+            startVersion={createLineRequest.startVersion ?? null}
             onClose={() => {
-              setOverviewCreateRequest(null);
+              setCreateLineRequest(null);
               finishSessionOperation(project.path);
             }}
             onCreated={(snapshot) => {
               versionLinesController.commit(activeVersionLinesQuery, snapshot);
-              setOverviewCreateRequest(null);
+              setCreateLineRequest(null);
               void handleVersionLineChanged(project.path);
               finishSessionOperation(project.path);
             }}

@@ -60,6 +60,25 @@ export function primaryDecoration(version: SavedVersionSummary, currentBranch: s
   return best;
 }
 
+/** The local version line this row names, or `null` if it names none.
+ *
+ * The badge and the row's actions have to agree about which line a row is
+ * about, so both ask this. It is still "a ref that points at this commit" and
+ * never "the line this commit is on": a tag may outrank the line in the badge,
+ * and the line is still the one the actions act on. */
+export function localLineFor(
+  version: SavedVersionSummary,
+  currentBranch: string | null,
+): HistoryDecoration | null {
+  const primary = primaryDecoration(version, currentBranch);
+  if (primary?.kind === "localBranch") return primary;
+  return (
+    version.decorations.find(
+      (decoration) => decoration.kind === "localBranch" && decoration.name === currentBranch,
+    ) ?? version.decorations.find((decoration) => decoration.kind === "localBranch") ?? null
+  );
+}
+
 /** Spoken form of a reference. Both rows are buttons with an explicit
     `aria-label`, which replaces their whole subtree, so the badge stays silent
     unless the row folds this into its own name. */

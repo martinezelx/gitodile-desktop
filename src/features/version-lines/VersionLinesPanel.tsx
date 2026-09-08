@@ -667,7 +667,7 @@ function VersionLineDetail({
   onRename: () => void;
   onDelete: () => void;
   onNewFromLine: () => void;
-  onOpenHistory?: () => void;
+  onOpenHistory?: (name: string) => void;
   onBack: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -785,10 +785,11 @@ function VersionLineDetail({
                     );
                   })}
                 </ol>
-                {/* Only where it would be true: History follows the active
-                    line, so "View all" is an answer only that line has. */}
-                {line.isActive && onOpenHistory && history?.hasMore && (
-                  <button className="ghost-button" type="button" onClick={onOpenHistory}>
+                {/* True for any line now: History can be pointed at this one
+                    without checking it out, so "View all" is an answer every
+                    line has. */}
+                {onOpenHistory && history?.hasMore && (
+                  <button className="ghost-button" type="button" onClick={() => onOpenHistory(line.name)}>
                     {t.versionLinesRecentViewAll}
                   </button>
                 )}
@@ -841,11 +842,14 @@ function VersionLineDetail({
             <BookOpen aria-hidden="true" />
             <div>
               <strong>{t.versionLinesHistoryTitle}</strong>
+              {/* The line the reader is looking at, opened as the line the
+                  reader is looking at — no checkout, and no landing on
+                  whichever line happens to be active. */}
               <p>
-                {line.isActive ? t.versionLinesHistoryDescription : t.versionLinesHistoryInactiveDescription}
+                {line.isActive ? t.versionLinesHistoryDescription : t.versionLinesHistoryScopedDescription(line.name)}
               </p>
             </div>
-            <button className="secondary-button secondary-button--sm" type="button" onClick={onOpenHistory}>
+            <button className="secondary-button secondary-button--sm" type="button" onClick={() => onOpenHistory(line.name)}>
               {t.versionLinesHistoryAction}
               <ArrowRight aria-hidden="true" />
             </button>
@@ -879,6 +883,8 @@ export function VersionLinesPanel({
   onOperationPhaseChange,
   autoOpenCreate,
   onAutoOpenCreateHandled,
+  selectLineIntent,
+  onSelectLineIntentHandled,
 }: {
   projectPath: string;
   sessionEpoch: string;
@@ -915,10 +921,9 @@ export function VersionLinesPanel({
   /** Navigates to the Changes screen — the only place conflicted files are
    * listed, which is where a blocked "unfinished Git operation" points. */
   onOpenChanges?: () => void;
-  /** Navigates to the History screen. History follows the active line, so the
-   * detail's own copy says so rather than promising a per-line view this app
-   * does not have. */
-  onOpenHistory?: () => void;
+  /** Opens the History screen reading the named line, whether or not it is the
+   * active one. Nothing is checked out to get there. */
+  onOpenHistory?: (name: string) => void;
   /** Registers the dialog as a path-scoped mutation before it opens. Returns
    * false when another session sharing this Git directory owns a mutation. */
   onOperationStart: () => boolean;
@@ -929,6 +934,13 @@ export function VersionLinesPanel({
    * mounts instead of only reacting to its own "New line" button. */
   autoOpenCreate?: boolean;
   onAutoOpenCreateHandled?: () => void;
+  /** A line another screen asked this one to select — History's "View line".
+   *
+   * One-shot, like `autoOpenCreate` and for the same reason: this screen stays
+   * mounted for the session, so a standing prop would re-select on every render
+   * of the composition root and undo a selection the reader has since made. */
+  selectLineIntent?: string | null;
+  onSelectLineIntentHandled?: () => void;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
   const [search, setSearch] = useState("");
@@ -977,6 +989,16 @@ export function VersionLinesPanel({
     // Deliberately fires once per truthy transition of `autoOpenCreate`
     // (the parent flips it back to false right after), not on every render.
   }, [autoOpenCreate]);
+
+  useEffect(() => {
+    if (!selectLineIntent) return;
+    setSelectedName(selectLineIntent);
+    setShowNarrowDetail(true);
+    onSelectLineIntentHandled?.();
+    // Same one-shot shape as `autoOpenCreate`: applied once per truthy
+    // transition, then handed back. Anything else would re-select on every
+    // render of the composition root.
+  }, [selectLineIntent]);
 
   // Derived from whatever names this project actually uses (`feature/`,
   // `bugfix/`, `claude/`, a team's own convention…) rather than a hardcoded

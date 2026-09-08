@@ -99,6 +99,7 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
     isLoadingVersionLines: false,
     teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus() },
     onSwitchVersionLine: vi.fn(),
+    onCreateVersionLine: vi.fn(),
     onSeeAllVersionLines: vi.fn(),
     onCheckTeamChanges: vi.fn(),
     onOpenChangelog: vi.fn(),
@@ -187,6 +188,7 @@ describe("StatusBar", () => {
           isLoadingVersionLines={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: cached }}
           onSwitchVersionLine={vi.fn()}
+          onCreateVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
           onOpenChangelog={vi.fn()}
@@ -206,6 +208,7 @@ describe("StatusBar", () => {
           isLoadingVersionLines={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(), isStale: true }}
           onSwitchVersionLine={vi.fn()}
+          onCreateVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
           onOpenChangelog={vi.fn()}

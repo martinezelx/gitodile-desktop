@@ -8,10 +8,10 @@ export const versionLinesPort: VersionLinesPort = {
     invoke("get_version_lines", { path, sessionEpoch }),
   readHistory: ({ projectId: path, sessionEpoch, name }) =>
     invoke("get_version_line_history", { path, sessionEpoch, name }),
-  planCreate: ({ projectId: path, sessionEpoch, name, switchToNew }) =>
-    invoke("plan_create_version_line", { path, sessionEpoch, name, switch: switchToNew }),
-  create: ({ projectId: path, sessionEpoch, name, switchToNew, stateToken }) =>
-    invoke("create_version_line", { path, sessionEpoch, name, switch: switchToNew, stateToken }),
+  planCreate: ({ projectId: path, sessionEpoch, name, switchToNew, startCommit }) =>
+    invoke("plan_create_version_line", { path, sessionEpoch, name, switch: switchToNew, startCommit }),
+  create: ({ projectId: path, sessionEpoch, name, switchToNew, startCommit, stateToken }) =>
+    invoke("create_version_line", { path, sessionEpoch, name, switch: switchToNew, startCommit, stateToken }),
   planSwitch: ({ projectId: path, sessionEpoch, target }) =>
     invoke("plan_switch_version_line", { path, sessionEpoch, target }),
   switch: ({ projectId: path, sessionEpoch, target, stateToken }) =>

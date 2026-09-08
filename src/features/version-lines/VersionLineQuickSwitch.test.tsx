@@ -200,4 +200,108 @@ describe("VersionLineQuickSwitch", () => {
     expect(screen.queryByRole("button", { name: "main" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "feature/1" })).not.toBeInTheDocument();
   });
+
+  it("states the context in front of the value, without repeating it to a screen reader", () => {
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="0.2.0-preview.1"
+          contextLabel="Working on"
+          canSwitch
+          variant="status"
+          onSwitch={vi.fn()}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByText("Working on")).toBeInTheDocument();
+    // The words are the sentence around the control, and the trigger's own
+    // name already says what pressing it does, so they are not announced twice.
+    expect(screen.getByText("Working on")).toHaveAttribute("aria-hidden", "true");
+    expect(
+      screen.getByRole("button", { name: "Change version line (0.2.0-preview.1)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hands creating a line and managing them to the flows that own them", async () => {
+    const onCreate = vi.fn();
+    const onSeeAll = vi.fn();
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          contextLabel="Working on"
+          canSwitch
+          variant="status"
+          onSwitch={vi.fn()}
+          onCreate={onCreate}
+          onSeeAll={onSeeAll}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    await userEvent.click(screen.getByRole("button", { name: "New version line" }));
+    expect(onCreate).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Manage version lines" }));
+    expect(onSeeAll).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the status strip free of a second creation control", async () => {
+    // 34px of chrome across the whole window: the dropdown carries the action,
+    // and only the roomier control beside Overview's cards shows a button too.
+    const props = {
+      snapshot,
+      isLoadingSnapshot: false,
+      currentValue: "main",
+      canSwitch: true,
+      onSwitch: vi.fn(),
+      onCreate: vi.fn(),
+      onSeeAll: vi.fn(),
+    } as const;
+    const view = render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch {...props} variant="status" />
+      </LanguageProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "New version line" })).not.toBeInTheDocument();
+
+    view.rerender(
+      <LanguageProvider>
+        <VersionLineQuickSwitch {...props} variant="control" />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole("button", { name: "New version line" })).toBeInTheDocument();
+  });
+
+  it("says nothing selectable when there is no line to be on", () => {
+    // Detached, unborn and unavailable are facts, not lines: the value is
+    // static and the words in front of it still read correctly.
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="Specific saved version"
+          contextLabel="Working on"
+          canSwitch={false}
+          variant="status"
+          onSwitch={vi.fn()}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByText("Working on")).toBeInTheDocument();
+    expect(screen.getByText("Specific saved version")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Change version line/ })).not.toBeInTheDocument();
+  });
 });

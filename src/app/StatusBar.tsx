@@ -29,6 +29,7 @@ export type StatusBarProps = {
   onToggleFavouriteVersionLine?: (name: string) => void;
   teamSync: TeamSyncViewState;
   onSwitchVersionLine: (target: string) => void;
+  onCreateVersionLine: () => void;
   onSeeAllVersionLines: () => void;
   onCheckTeamChanges: () => void;
   onOpenChangelog: () => void;
@@ -139,6 +140,7 @@ export function StatusBar({
   onToggleFavouriteVersionLine,
   teamSync,
   onSwitchVersionLine,
+  onCreateVersionLine,
   onSeeAllVersionLines,
   onCheckTeamChanges,
   onOpenChangelog,
@@ -168,15 +170,21 @@ export function StatusBar({
     <footer className="status-bar" aria-label={t.statusBarAriaLabel} aria-busy={isBusy}>
       {project ? (
         <div className="status-bar__group status-bar__group--project">
+          {/* The one persistent statement of what is being worked on, and the
+              one global way to change it. No screen adds a second selector to
+              its own header: two controls answering the same question in one
+              window is how the reader stops trusting either. */}
           <VersionLineQuickSwitch
             snapshot={versionLines}
             isLoadingSnapshot={isLoadingVersionLines}
             currentValue={versionLineLabel(project, t)}
+            contextLabel={t.statusBarWorkingOn}
             canSwitch={project.headState === "branch" && Boolean(project.branch)}
             variant="status"
             favouriteLines={favouriteVersionLines}
             onToggleFavourite={onToggleFavouriteVersionLine}
             onSwitch={onSwitchVersionLine}
+            onCreate={onCreateVersionLine}
             onSeeAll={onSeeAllVersionLines}
           />
           <span className="status-bar__item">

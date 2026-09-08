@@ -16,6 +16,11 @@ export type VersionLinesQuery = {
 export type CreateVersionLineRequest = VersionLinesQuery & {
   name: string;
   switchToNew: boolean;
+  /** A saved version to start the line at, chosen from History. Absent means
+   * wherever the project is standing, which is what creating a line has always
+   * meant. Always a full commit id: Rust refuses anything else rather than
+   * resolving a revision expression. */
+  startCommit?: string | null;
 };
 
 export type ExecuteCreateVersionLineRequest = CreateVersionLineRequest & {

@@ -3,6 +3,33 @@ import type { HistoryPage, SavedVersionDetail } from "./domain";
 
 export type HistoryQuery = { projectId: string; sessionEpoch: string };
 
+/** Which history is being read.
+ *
+ * Deliberately not a `HistoryFilters` field. The scope chooses the graph and a
+ * filter narrows it, and the two are cleared by different gestures: clearing
+ * every filter must not quietly walk the reader back to the current line.
+ *
+ * `line` means "the history reachable from that line's tip", never "the commits
+ * that belong to that line". A commit reachable from five lines belongs to all
+ * of them, so nothing downstream may stamp the chosen name onto a row. */
+export type HistoryScope =
+  | { kind: "currentLine" }
+  | { kind: "line"; name: string }
+  | { kind: "allLines" };
+
+export const CURRENT_LINE_SCOPE: HistoryScope = { kind: "currentLine" };
+export const ALL_LINES_SCOPE: HistoryScope = { kind: "allLines" };
+
+export function sameHistoryScope(left: HistoryScope, right: HistoryScope): boolean {
+  if (left.kind !== right.kind) return false;
+  return left.kind !== "line" || left.name === (right as { name: string }).name;
+}
+
+/** The line a scope names, or `null` when it names none. */
+export function scopeLineName(scope: HistoryScope): string | null {
+  return scope.kind === "line" ? scope.name : null;
+}
+
 /** What the timeline has been narrowed to.
  *
  * Every field is answered by Rust as an argument to the same `git log` that
@@ -48,7 +75,12 @@ export function sameHistoryFilters(left: HistoryFilters, right: HistoryFilters):
     && left.unpublishedOnly === right.unpublishedOnly;
 }
 
-export type HistoryPageRequest = HistoryQuery & { cursor?: string; pageSize?: number; filters?: HistoryFilters };
+export type HistoryPageRequest = HistoryQuery & {
+  cursor?: string;
+  pageSize?: number;
+  filters?: HistoryFilters;
+  scope?: HistoryScope;
+};
 export type SavedVersionRequest = HistoryQuery & { snapshotToken: string; commit: string };
 export type SavedVersionFileRequest = SavedVersionRequest & { filePath: string };
 /** No snapshot token: a picture is read straight from the two commits, and

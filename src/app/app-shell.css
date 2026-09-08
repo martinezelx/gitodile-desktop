@@ -360,9 +360,19 @@
   letter-spacing: var(--tracking-wide);
 }
 .status-bar .version-lines-quick-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: min(24vw, 260px);
+  /* Wider than before by the width of the words in front of it: the value
+     itself keeps the room it had, and the strip keeps its 34px. */
+  max-width: min(32vw, 340px);
+}
+/* The label is the first thing to go when the window narrows — the value is
+   the fact, the label is the sentence around it. */
+@media (max-width: 900px) {
+  .status-bar .version-lines-quick-switch__context-label { display: none; }
 }
 .status-bar .version-line-selector {
   width: 100%;

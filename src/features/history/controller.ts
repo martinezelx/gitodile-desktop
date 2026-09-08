@@ -8,7 +8,16 @@ import type {
   HistoryState,
   SavedVersionDetail,
 } from "./domain";
-import { NO_HISTORY_FILTERS, sameHistoryFilters, type HistoryFilters, type HistoryPort, type HistoryQuery } from "./port";
+import {
+  CURRENT_LINE_SCOPE,
+  NO_HISTORY_FILTERS,
+  sameHistoryFilters,
+  sameHistoryScope,
+  type HistoryFilters,
+  type HistoryPort,
+  type HistoryQuery,
+  type HistoryScope,
+} from "./port";
 
 type Listener = () => void;
 type InFlight = { generation: number; promise: Promise<void> };
@@ -47,6 +56,7 @@ function emptyState(query: HistoryQuery): HistoryState {
   return {
     ...query,
     filters: NO_HISTORY_FILTERS,
+    scope: CURRENT_LINE_SCOPE,
     snapshot: null,
     versions: [],
     isLoading: false,
@@ -332,7 +342,12 @@ export function createHistoryController(port: HistoryPort) {
     const previousSnapshotToken = entry.state.snapshot?.snapshotToken;
     const previousSelection = entry.state.selectedCommit;
     const promise = port
-      .readPage({ ...query, pageSize: HISTORY_INITIAL_PAGE_SIZE, filters: entry.state.filters })
+      .readPage({
+        ...query,
+        pageSize: HISTORY_INITIAL_PAGE_SIZE,
+        filters: entry.state.filters,
+        scope: entry.state.scope,
+      })
       .then((page) => {
         if (entry.state.generation !== generation) return;
         if (previousSnapshotToken !== page.snapshotToken) clearContentCaches(entry);
@@ -383,7 +398,13 @@ export function createHistoryController(port: HistoryPort) {
     const generation = entry.state.generation;
     publish(entry, { ...entry.state, isLoadingMore: true, moreError: null });
     const promise = port
-      .readPage({ ...query, cursor, pageSize: HISTORY_PAGE_SIZE, filters: entry.state.filters })
+      .readPage({
+        ...query,
+        cursor,
+        pageSize: HISTORY_PAGE_SIZE,
+        filters: entry.state.filters,
+        scope: entry.state.scope,
+      })
       .then((page) => {
         if (entry.state.generation !== generation) return;
         const snapshot = entry.state.snapshot;
@@ -423,6 +444,44 @@ export function createHistoryController(port: HistoryPort) {
     return promise;
   };
 
+  /** Ask a different question of the same history cache.
+   *
+   * The rows on screen stay until the new answer lands. They belong to the
+   * previous question and `isLoading` says so, but blanking the list meant a
+   * flash on every click, and — because an empty list has no last row — it also
+   * tripped the timeline's "near the end, fetch more" rule the instant it
+   * emptied. That fired a page request carrying the *old* cursor against the
+   * *new* question: an offset counted through one history applied to another.
+   * Nulling the pagination pointers here is what makes that impossible; the
+   * fresh page brings its own.
+   *
+   * `isLoading` is set here rather than left to `refreshInternal` a line later:
+   * between the two publishes the question is already the new one while the
+   * rows are still the old answer, and a screen reading those together has to
+   * be told a read is in flight. React coalesces the pair today; the state
+   * should be truthful without depending on it. */
+  const restartTimeline = (
+    query: HistoryQuery,
+    entry: Entry,
+    question: Partial<Pick<HistoryState, "filters" | "scope">>,
+  ): Promise<void> => {
+    entry.firstPageRequest = null;
+    entry.moreRequest = null;
+    publish(entry, {
+      ...entry.state,
+      ...question,
+      snapshot: entry.state.snapshot
+        ? { ...entry.state.snapshot, nextCursor: null, hasMore: false }
+        : null,
+      isLoading: true,
+      scrollOffset: 0,
+      clientTruncated: false,
+      moreError: null,
+      generation: entry.state.generation + 1,
+    });
+    return refreshInternal(query, false);
+  };
+
   return {
     port,
     getSnapshot(query: HistoryQuery): HistoryState {
@@ -453,26 +512,23 @@ export function createHistoryController(port: HistoryPort) {
     setFilters(query: HistoryQuery, filters: HistoryFilters): Promise<void> {
       const entry = entryFor(query);
       if (sameHistoryFilters(entry.state.filters, filters)) return Promise.resolve();
-      entry.firstPageRequest = null;
-      entry.moreRequest = null;
-      publish(entry, {
-        ...entry.state,
-        filters,
-        snapshot: entry.state.snapshot
-          ? { ...entry.state.snapshot, nextCursor: null, hasMore: false }
-          : null,
-        // Set here rather than left to `refreshInternal` a line later: between
-        // the two publishes the filters are already the new ones while the
-        // rows are still the old answer, and a screen that reads those two
-        // together has to be told a read is in flight. React coalesces the
-        // pair today; the state should be truthful without depending on it.
-        isLoading: true,
-        scrollOffset: 0,
-        clientTruncated: false,
-        moreError: null,
-        generation: entry.state.generation + 1,
-      });
-      return refreshInternal(query, false);
+      return restartTimeline(query, entry, { filters });
+    },
+    /** Read a different history: the current line, one named line, or all of
+     * them.
+     *
+     * Same restart as a filter change — the pagination pointers are the
+     * question's, not the list's — and for the same reason the rows stay put
+     * until the new answer lands.
+     *
+     * The selection stays too, and is validated rather than assumed: a commit
+     * chosen under one scope may be unreachable from another, and the detail
+     * read already knows how to fall back when the version it was asked for is
+     * no longer listed. */
+    setScope(query: HistoryQuery, scope: HistoryScope): Promise<void> {
+      const entry = entryFor(query);
+      if (sameHistoryScope(entry.state.scope, scope)) return Promise.resolve();
+      return restartTimeline(query, entry, { scope });
     },
     loadMore,
     selectVersion(query: HistoryQuery, commit: string): void {

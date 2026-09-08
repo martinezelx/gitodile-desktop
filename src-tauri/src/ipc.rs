@@ -793,13 +793,14 @@ pub(crate) fn read_history_page(
     cursor: Option<String>,
     page_size: Option<usize>,
     filters: Option<history::HistoryFilters>,
+    scope: Option<history::HistoryScope>,
     session_epoch: String,
 ) -> Result<HistoryPage, AppError> {
     report_result(
         "read_history_page",
         (|| {
             validate_session(&path, &session_epoch)?;
-            history::read_history_page_cached(&cache, path, cursor, page_size, filters)
+            history::read_history_page_cached(&cache, path, cursor, page_size, filters, scope)
         })(),
     )
 }
@@ -913,13 +914,14 @@ pub(crate) fn plan_create_version_line(
     path: String,
     name: String,
     switch: bool,
+    start_commit: Option<String>,
     session_epoch: String,
 ) -> Result<CreateVersionLinePlan, AppError> {
     report_result(
         "plan_create_version_line",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_create_version_line(path, name, switch)
+            version_lines::plan_create_version_line(path, name, switch, start_commit)
         })(),
     )
 }
@@ -929,6 +931,7 @@ pub(crate) fn create_version_line(
     path: String,
     name: String,
     switch: bool,
+    start_commit: Option<String>,
     state_token: String,
     session_epoch: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
@@ -936,7 +939,7 @@ pub(crate) fn create_version_line(
         "create_version_line",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::create_version_line(path, name, switch, state_token)
+            version_lines::create_version_line(path, name, switch, start_commit, state_token)
         })(),
     )
 }
@@ -1389,6 +1392,7 @@ mod contract_tests {
             AppErrorCode::VersionLineCheckedOutElsewhere,
             AppErrorCode::VersionLineIsActive,
             AppErrorCode::VersionLineIsDefault,
+            AppErrorCode::VersionLineMissing,
             AppErrorCode::VersionLineUniqueWork,
             AppErrorCode::VersionLineSwitchObstructed,
             AppErrorCode::StaleVersionLinePlan,

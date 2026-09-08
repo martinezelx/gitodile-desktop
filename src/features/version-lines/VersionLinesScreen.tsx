@@ -15,12 +15,16 @@ export type VersionLinesScreenProps = {
   onChanged: () => void;
   onSaveVersion: () => void;
   onOpenChanges?: () => void;
-  onOpenHistory?: () => void;
+  /** Opens History reading the named line, without checking it out. */
+  onOpenHistory?: (name: string) => void;
   onOperationStart: () => boolean;
   onOperationFinish: () => void;
   onOperationPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
   autoOpenCreate?: boolean;
   onAutoOpenCreateHandled?: () => void;
+  /** A line History asked this screen to select. One-shot; see the panel. */
+  selectLineIntent?: string | null;
+  onSelectLineIntentHandled?: () => void;
 };
 
 export function VersionLinesScreen({

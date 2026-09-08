@@ -745,7 +745,7 @@ describe("VersionLinesPanel", () => {
     expect(within(detail).getByText("2 versions not on the active line")).toBeInTheDocument();
   });
 
-  it("offers a way through to History, and says History follows the active line", async () => {
+  it("offers a way through to History, scoped to the line being looked at", async () => {
     const user = userEvent.setup();
     const onOpenHistory = vi.fn();
     renderPanel({ onOpenHistory });
@@ -757,11 +757,14 @@ describe("VersionLinesPanel", () => {
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
     expect(
-      within(detail).getByText("History follows the line you're on. Switch to this line to explore its own versions."),
+      within(detail).getByText(
+        "Opens History reading “feature/new-thing”. Nothing is checked out, so this project stays where it is.",
+      ),
     ).toBeInTheDocument();
 
+    // The line being looked at, not the line that happens to be active.
     await user.click(within(detail).getByRole("button", { name: "Open in History" }));
-    expect(onOpenHistory).toHaveBeenCalledOnce();
+    expect(onOpenHistory).toHaveBeenCalledWith("feature/new-thing");
   });
 
   it("reads the selected line's saved versions and shows them beside its author and count", async () => {
@@ -801,19 +804,22 @@ describe("VersionLinesPanel", () => {
     expect(within(detail).queryByText("Recent versions")).not.toBeInTheDocument();
   });
 
-  it("offers View all only on the line History actually follows", async () => {
+  it("offers View all on any line, scoped to that line", async () => {
     const user = userEvent.setup();
     const onOpenHistory = vi.fn();
     renderPanel({ readHistory: async (name: string) => history(name), onOpenHistory });
 
     await within(detailPanel("main")).findByRole("button", { name: "View all" });
     await user.click(within(detailPanel("main")).getByRole("button", { name: "View all" }));
-    expect(onOpenHistory).toHaveBeenCalledOnce();
+    expect(onOpenHistory).toHaveBeenCalledWith("main");
 
+    // Every line can answer it now: History reads the line it is pointed at
+    // without anything being checked out.
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
     const other = detailPanel("feature/new-thing");
     await within(other).findByText("Recent versions");
-    expect(within(other).queryByRole("button", { name: "View all" })).not.toBeInTheDocument();
+    await user.click(within(other).getByRole("button", { name: "View all" }));
+    expect(onOpenHistory).toHaveBeenLastCalledWith("feature/new-thing");
   });
 
   it("says nothing about a version count a shallow clone cannot state", async () => {
@@ -978,5 +984,48 @@ describe("VersionLinesPanel", () => {
 
     expect(onOperationStart).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("selects the line History asked for, once, without holding on to the request", async () => {
+    const user = userEvent.setup();
+    const onSelectLineIntentHandled = vi.fn();
+    const view = renderPanel({
+      selectLineIntent: "feature/new-thing",
+      onSelectLineIntentHandled,
+    });
+
+    // Arrived on the line History named, not on the active one.
+    expect(detailPanel("feature/new-thing")).toBeInTheDocument();
+    expect(onSelectLineIntentHandled).toHaveBeenCalledOnce();
+
+    // The composition root clears the request as soon as it is taken, and from
+    // here on the reader owns the selection: this screen stays mounted for the
+    // session, so a re-render must not put the earlier line back.
+    await user.click(screen.getByRole("option", { name: "main — Active" }));
+    expect(detailPanel("main")).toBeInTheDocument();
+
+    view.rerender(
+      <LanguageProvider>
+        <VersionLinesPanel
+          projectPath="/repo"
+          sessionEpoch="epoch-1"
+          snapshot={snapshot()}
+          error={null}
+          isLoading={false}
+          watcherState="watching"
+          onOpenSettings={vi.fn()}
+          onRefresh={vi.fn()}
+          onSnapshot={vi.fn()}
+          onChanged={vi.fn()}
+          onSaveVersion={vi.fn()}
+          onOperationStart={() => true}
+          onOperationFinish={vi.fn()}
+          onOperationPhaseChange={vi.fn()}
+          selectLineIntent={null}
+          onSelectLineIntentHandled={onSelectLineIntentHandled}
+        />
+      </LanguageProvider>,
+    );
+    expect(detailPanel("main")).toBeInTheDocument();
   });
 });

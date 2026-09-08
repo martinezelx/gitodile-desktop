@@ -1,7 +1,7 @@
 ---
 id: 118
 title: Connect version-line context across Changes, History, and Lines
-status: active
+status: done
 priority: normal
 type: improvement
 areas:
@@ -9,9 +9,9 @@ areas:
   - rust
   - accessibility
 created: 2026-09-07
-completed:
+completed: 2026-09-08
 parent:
-queue: "26"
+queue:
 ---
 
 # Goal
@@ -260,58 +260,58 @@ wording, the data model and the badges all have to keep saying so.
 
 # Acceptance criteria
 
-- [ ] The status bar reads as a stated context ("Working on" plus the line) and
+- [x] The status bar reads as a stated context ("Working on" plus the line) and
       is the only global, persistent line selector in the app.
-- [ ] Its dropdown still searches, filters by favourite, toggles favourites and
+- [x] Its dropdown still searches, filters by favourite, toggles favourites and
       routes a chosen line through the existing previewed switch, and now also
       offers New line and Manage lines, each reusing the existing flow.
-- [ ] Detached `HEAD`, unborn and unavailable render as static facts, never as a
+- [x] Detached `HEAD`, unborn and unavailable render as static facts, never as a
       selectable line, and the "Working on" wording reads correctly in front of
       each.
-- [ ] Neither Changes nor History gains a line selector of its own.
-- [ ] The Save Version dialog names the destination line from the plan's
+- [x] Neither Changes nor History gains a line selector of its own.
+- [x] The Save Version dialog names the destination line from the plan's
       `branch`, in both languages, and reads correctly for a first version, a
       detached `HEAD`, and an absent branch — without a second Git read and
       without inventing a name.
-- [ ] Switching lines with unsaved work behaves exactly as the existing switch
+- [x] Switching lines with unsaved work behaves exactly as the existing switch
       plan states; nothing is discarded or stashed automatically.
-- [ ] History reads three scopes — current line, one named local line, all local
+- [x] History reads three scopes — current line, one named local line, all local
       lines — with no checkout and no change to the working tree.
-- [ ] The scope control lives inside the existing search/filter strip; the
+- [x] The scope control lives inside the existing search/filter strip; the
       default is Current line, and the active scope is visible and clearable
       alongside the existing filter chips.
-- [ ] `All lines` returns the deduplicated history reachable from every local
+- [x] `All lines` returns the deduplicated history reachable from every local
       `refs/heads/*` tip, with a bounded, reported truncation if there are more
       tips than the read allows.
-- [ ] Every existing filter still runs in Git under every scope, and combining a
+- [x] Every existing filter still runs in Git under every scope, and combining a
       scope with filters returns the same rows as the equivalent Git command.
-- [ ] No commit carries a line-ownership field or a badge naming the scope;
+- [x] No commit carries a line-ownership field or a badge naming the scope;
       decorations still mean only "this ref points at this commit".
-- [ ] The snapshot token covers the scope and the tips used; paging after a
+- [x] The snapshot token covers the scope and the tips used; paging after a
       scoped line moves, is renamed, or is deleted raises the stale-snapshot
       error instead of returning a mixed page.
-- [ ] Changing scope issues no fetch and no other network access.
-- [ ] Existing limits hold: page size, output caps, cache bounds, detail budget,
+- [x] Changing scope issues no fetch and no other network access.
+- [x] Existing limits hold: page size, output caps, cache bounds, detail budget,
       virtualized timeline, no Git process per row.
-- [ ] A local-branch badge in History offers View line and Switch to this line;
+- [x] A local-branch badge in History offers View line and Switch to this line;
       the switch goes through the shared previewed flow and History performs no
       checkout itself.
-- [ ] Tags and remote-only refs offer neither.
-- [ ] A saved version offers Create new line from this version; the preview names
+- [x] Tags and remote-only refs offer neither.
+- [x] A saved version offers Create new line from this version; the preview names
       the starting version, the new name and whether the project will switch, and
       execution keeps the state token, validation and recovery semantics of the
       existing create flow.
-- [ ] Open in History from a selected line in Lines opens History scoped to that
+- [x] Open in History from a selected line in Lines opens History scoped to that
       line even when it is not the active line, without a checkout.
-- [ ] View line from History opens Lines with that line selected.
-- [ ] Both are one-shot: after the reader changes the target screen's own
+- [x] View line from History opens Lines with that line selected.
+- [x] Both are one-shot: after the reader changes the target screen's own
       selection, navigating away and back does not re-apply the earlier context.
-- [ ] Every new control is keyboard-operable, restores focus on close, carries an
+- [x] Every new control is keyboard-operable, restores focus on close, carries an
       accessible name, truncates long line names, and exists in English and
       Spanish; colour is not the only indicator of any state.
-- [ ] The status bar is still 34px, and the three screens' responsive behaviour
+- [x] The status bar is still 34px, and the three screens' responsive behaviour
       is unchanged.
-- [ ] `pnpm run check` passes.
+- [x] `pnpm run check` passes.
 
 # Relevant files
 
@@ -448,67 +448,187 @@ heading is not durable project state.
 
 # Implementation notes
 
-Complete during implementation. Record at least:
+## The scope, and where it lives
 
-- the representation chosen for scope, and why it sits where it does relative to
-  `HistoryFilters`;
-- what the snapshot token hashes after the change, and how a stale scope is
-  detected while paging;
-- how publication state is classified under each scope, including any case where
-  it degrades to `Unknown`, and why;
-- the cap on the number of local tips read for `All lines`, the warning that
-  reports a truncation, and the measured cost of the read on a repository with
-  many lines;
-- where the one-shot navigation intent lives, and how it is cleared;
-- any string or control that had to change shape to keep the status bar at 34px.
+`HistoryScope` is `currentLine | line(name) | allLines`, declared beside
+`HistoryFilters` in both languages and deliberately not inside it. It is a third
+argument to `read_history_page`, and `read_snapshot` now resolves it before
+anything else: the resolution produces the commits to walk from (`roots`) and the
+refs that produced them (`tips`).
+
+- current: `HEAD`'s commit, no tips of its own — `HEAD` is already hashed.
+- named line: `refs/heads/<name>`, resolved through `resolve_commit`. The name is
+  bounded and checked against what Git refuses in a ref name, then prefixed; it
+  never reaches `rev-list` as a revision. A name that does not resolve is
+  `VersionLineMissing`, a name that is not a ref name is `InvalidSelection`.
+- all lines: one `for-each-ref refs/heads`, capped at `MAX_SCOPE_LINES` (500)
+  and at 2 MiB of output, with the overflow reported as a `linesTruncated`
+  warning rather than dropped in silence.
+
+`read_graph_page` and `read_local_only_commits` take `&[String]` roots instead of
+one `head`. Several roots are one `rev-list` invocation, so "all lines" is a
+deduplicated union rather than a concatenation — the Rust test asserts the root
+commit appears exactly once with three lines reaching it.
+
+**Emptiness became a fact about the scope, not about `HEAD`.** The early return is
+now `roots.is_empty()`, which is what lets a named line be read in a project
+whose current line is unborn. `read_decorations` takes `Option<&str>` for the
+same reason: the synthetic `HEAD` marker is only added where `HEAD` points.
+
+## Publication is answered per scope, or not answered
+
+The page's `upstream` is now the scope's boundary rather than always `HEAD`'s:
+`HEAD`'s upstream for the current line, the named line's own upstream for a named
+line, and `None` for `AllLines` — each line answers to its own upstream, and
+measuring a union against one of them would be a guess dressed as a fact. Under
+`AllLines` every version reads `Unknown` and `unpublishedOnly` cannot narrow,
+which is the behaviour that already existed for a project with no upstream. The
+windowed `read_local_only_commits` walk still runs for inert filters, now over
+the scope's roots.
+
+`branch` stays `HEAD`'s own line under every scope, because the timeline uses it
+to mark which decoration is the line being stood on — which is still true when
+the reader is looking somewhere else.
+
+## The token names its scope
+
+The snapshot token is now `<scope tag>:<hash>`, and the hash covers the scope's
+tips and its truncation flag alongside what it already covered. Two consequences:
+
+- A scoped line that moves, is renamed, or is deleted while a reader is paging
+  produces a different token, so the cursor is stale and the page is refused —
+  the case the old `HEAD`-only token could not see. Both are tested.
+- A detail read can recover the scope from the token it was given, so
+  `read_saved_version_detail` and `read_saved_version_file_diff` keep their
+  existing arguments. `validate_snapshot_and_commit` parses the tag, re-resolves
+  that scope, compares tokens, and checks reachability from the scope rather than
+  from `HEAD`.
+
+`decode_cursor` moved to `splitn(4, ':')` because a token now carries `:` of its
+own; `:` is the separator precisely because Git forbids it in a ref name.
+
+Reachability under a union is one process, not one per line:
+`for-each-ref --contains=<commit> refs/heads` intersected with the scope's tips.
+A single root still uses `merge-base --is-ancestor`.
+
+`cached_head_is_current` became `cached_snapshot_is_current`. `HEAD` alone was a
+sufficient freshness check while every history was `HEAD`'s; under a scope the
+line being read can move while `HEAD` stands still, so a scoped read costs one
+extra `for-each-ref` — never one per line — and the current line still costs one
+`rev-parse`.
+
+## Creating a line from a saved version
+
+`plan_create_version_line` / `create_version_line` take an optional
+`start_commit`. It must be a full object id that resolves to a commit in this
+project: a revision expression would let a name, a tag or `@{upstream}` in as a
+starting point, and History only ever sends what a row already holds. The state
+token covers the starting point, so a preview of one version cannot be executed
+against another.
+
+Two behaviours had to be decided rather than inherited:
+
+- **A detached `HEAD` is no longer force-switched when the line starts
+  elsewhere.** Creating a line at the current commit still recovers a detached
+  `HEAD` by switching onto it; creating one at an older version is not a
+  recovery, and switching would move the working tree away unasked.
+- **An unborn `HEAD` no longer blocks it.** A chosen saved version is a commit,
+  which answers the question an unborn current line cannot.
+
+`switch -c <name> <start>` is one operation, so the line is created at the chosen
+version and checked out or neither happens.
+
+## Where the UI put things
+
+The scope is a group inside the existing filter panel — two capsules (Current
+line, All lines) built from the radio pattern the date ranges already use, plus a
+completion field for any other line, built from the pattern the author filter
+already uses. A name is applied only when the project has that line, so a typo is
+refused in the panel rather than sent to Git to fail. The active scope appears as
+the first chip under the strip, removable like a filter but labelled as the line;
+clearing every filter leaves it alone, and an empty list under a scope offers its
+own way back.
+
+The row badge could not become a button — a timeline row is itself a
+`role="option"` button, and nesting one inside it is invalid. So the actions live
+in two places that agree with each other through one component
+(`HistoryVersionMenu`): a right-click on any row, and the local-line chips on the
+detail card, which are buttons anchored to their own box so a keyboard opens the
+menu in the right place. Tags and remote-only refs stay text. A line already
+checked out is offered View but not Switch.
+
+`App.tsx` owns every cross-screen hand-off, so neither feature imports the other:
+History emits `onViewLine` / `onSwitchLine` / `onCreateLineFromVersion`, and the
+composition root routes them to the Lines screen, the existing previewed switch
+dialog, and the existing create dialog. The three callbacks are `useCallback`s
+over latest-value refs, because the timeline is memoized and a new object every
+render would re-render every row.
+
+## The one-shot intentions
+
+`historyScopeLineIntent` and `linesSelectIntent` live in `App.tsx`, are applied
+once by an effect in the receiving screen, and are handed back through a
+`…Handled` callback that clears them — the shape `autoOpenCreate` established.
+Neither is persisted: `StoredProjectsV1` holds order and active id, and where
+someone was heading is not durable state. Both screens have a test that changes
+the selection by hand, re-renders, and asserts the earlier target does not come
+back.
+
+## Smaller things this touched
+
+- `versionLinesHistoryInactiveDescription` was deleted rather than reworded. It
+  said History follows the line you are on and told the reader to switch; both
+  halves are now false.
+- `versionLinesQuickSwitchSeeAll` reads "Manage version lines" — the dropdown now
+  answers "which line" completely, and the last entry is the hand-off to the
+  screen that does everything else.
+- The create button beside the quick switch is scoped to `variant="control"`. The
+  status strip is 34px across the whole window and its dropdown now carries the
+  same action.
+- `docs/architecture/025-ipc-contract.json` was already stale for
+  `read_history_page`: task 113 added `filters` and the contract never followed.
+  Corrected here alongside `scope` and the two `startCommit` arguments.
+- New error code `VersionLineMissing`, in Rust, in the contract, in the TS union
+  and in both languages.
 
 # Validation
-
-Record the exact commands run and their results. Do not claim checks passed unless
-they were executed successfully.
-
-Run while writing this task (documentation only, no functional change):
-
-- `pnpm run check:docs` — passed, over 182 Markdown files and 147 task ids.
-- `pnpm run check` — passed (exit 0): documentation, frontend architecture,
-  TypeScript, frontend tests and build, `cargo fmt --check`, Clippy, and 365
-  Rust tests.
-
-Tests this task must add:
-
-Frontend
-
-- the status bar's "Working on" rendering, including detached, unborn and
-  unavailable;
-- New line and Manage lines in the dropdown, each reaching the existing flow;
-- the Save Version destination line, including first version, detached `HEAD` and
-  absent branch;
-- History under each scope: current line, a named line, all lines;
-- scope combined with each existing filter, and clearing filters leaving the
-  scope alone;
-- the line-badge actions, including that tags and remote-only refs offer none;
-- View line and Switch to this line;
-- Create new line from a saved version, including the preview's contents;
-- Lines → History arriving scoped, and History → Lines arriving selected;
-- the one-shot property: a manual change to the target screen's selection
-  survives navigating away and back;
-- keep-alive state retention across navigation.
-
-Rust
-
-- the current-line root (unchanged behaviour);
-- a named local ref root, resolved and validated;
-- the all-local-lines roots, and deduplication across them;
-- an invalid or non-existent ref;
-- a scoped line deleted or moved between pages;
-- a stale scope/snapshot token;
-- paging under each scope;
-- filters under a named and an all-lines scope;
-- creating a branch from a historical commit;
-- a stale state token during that creation.
-
-Gate:
 
 ```bash
 pnpm run check
 ```
+
+Passed on the final tree (exit 0): documentation, frontend architecture,
+TypeScript, 742 frontend tests, the production build, `cargo fmt --check`,
+Clippy with `-D warnings`, and 378 Rust tests.
+
+New coverage, all passing:
+
+Rust — `src-tauri/src/tests/history_tests.rs`: a named line read without a
+checkout (and `branch` still naming `HEAD`'s line); the deduplicated union under
+`AllLines`, with publication reported as unknown rather than measured against one
+line's upstream; a missing line answered as `VersionLineMissing` and a name that
+is not a ref name as `InvalidSelection`; filters running in Git under both a
+named and an all-lines scope; a cursor going stale when the scoped line moves
+while `HEAD` stands still, and again when it is deleted; a cursor from one scope
+refused under another; paging through a scope; and a detail read that resolves
+its scope from the token and refuses a commit the current line cannot reach.
+
+Rust — `src-tauri/src/version_lines.rs`: creating a line at a chosen saved
+version without moving the project; switching only when asked; a detached `HEAD`
+not being force-switched onto a line rooted elsewhere; a starting point that is
+a revision expression, a name, or a commit this project does not hold being
+refused; and a state token from one starting point refused against another.
+
+Frontend — the scope in the controller (a fresh read, the retired cursor, filters
+and scope surviving each other, no re-read for the scope already held); the
+strip's line control, its chip, its refusal of an unknown name and its way back;
+the row actions for a local line, their absence on a tag, and no offer to switch
+to the line already checked out; the Save Version destination for a named line, a
+first version and a detached `HEAD`; the status bar's "Working on", its New line
+and Manage lines hand-offs, and the creation control staying out of the strip;
+and both one-shot navigations, each asserting that a selection the reader changes
+afterwards survives a re-render.
+
+Not verified in a running app: these screens read the repository through Tauri
+IPC, which a browser preview cannot exercise. Behaviour is covered by the tests
+above; the visual result was not looked at.

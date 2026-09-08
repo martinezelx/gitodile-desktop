@@ -93,6 +93,10 @@ export type CreateVersionLinePlan = {
   name: string;
   headState: HeadState;
   startingCommit: string | null;
+  /** Whether `startingCommit` is a saved version the user chose rather than
+   * wherever the project is standing. The two are previewed differently, and
+   * only the first can be somewhere other than `HEAD`. */
+  fromSavedVersion: boolean;
   willSwitch: boolean;
   hasUnsavedWork: boolean;
 };

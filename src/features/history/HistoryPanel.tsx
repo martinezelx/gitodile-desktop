@@ -10,14 +10,38 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, handlePopupMenuKeyDown, LoadingBar, SearchBox, useAnchoredPopup } from "../../shared/ui";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, handlePopupMenuKeyDown, LoadingBar, SearchBox, useAnchoredPopup, type ContextMenuAnchor } from "../../shared/ui";
 import { ChangesContextMenu, DiffResultView, DiffStepNav, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
-import type { HistoryFileChange, HistoryState, PublicationState, SavedVersionDetail, SavedVersionSummary } from "./domain";
+import type { HistoryDecoration, HistoryFileChange, HistoryState, PublicationState, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import { formatHistoryDate } from "./formatHistoryDate";
-import { decorationLabel, HistoryMetaDot, HistoryRefBadge, primaryDecoration } from "./HistoryRefBadge";
-import { countActiveFilters, NO_HISTORY_FILTERS, type HistoryFilters, type HistoryQuery } from "./port";
+import { decorationLabel, HistoryMetaDot, HistoryRefBadge, localLineFor, primaryDecoration } from "./HistoryRefBadge";
+import {
+  ALL_LINES_SCOPE,
+  countActiveFilters,
+  CURRENT_LINE_SCOPE,
+  NO_HISTORY_FILTERS,
+  sameHistoryScope,
+  scopeLineName,
+  type HistoryFilters,
+  type HistoryQuery,
+  type HistoryScope,
+} from "./port";
+
+/** What a version line can be asked to do from inside History.
+ *
+ * Every one of them is performed by the flow that owns it — the previewed
+ * switch, the create dialog, the Lines screen — and reaches this screen as a
+ * callback. History never checks anything out itself. */
+export type HistoryLineActions = {
+  /** Local version lines, so the scope control can offer them and refuse a
+   * name this project does not have. */
+  lines?: string[];
+  onViewLine?: (name: string) => void;
+  onSwitchLine?: (name: string) => void;
+  onCreateLineFromVersion?: (version: SavedVersionSummary) => void;
+};
 
 const CATEGORY_LABEL_KEYS = {
   changed: "changesCategoryLabelChanged", new: "changesCategoryLabelNew",
@@ -66,14 +90,56 @@ function HistoryWatchingNotice({ watcherState, busy, onRefresh, onOpenSettings }
   return <AutomaticUpdatesNotice title={watcherState === "off" ? t.automaticUpdatesOffTitle : t.automaticUpdatesUnavailableTitle} description={t.automaticUpdatesOutdatedDescription} updateLabel={t.automaticUpdatesUpdateNow} updateAriaLabel={t.historyRefresh} updatingLabel={t.automaticUpdatesUpdating} updatingAriaLabel={t.historyRefreshing} busy={busy} settingsLabel={t.automaticUpdatesOpenSettings} onUpdate={onRefresh} onOpenSettings={onOpenSettings} />;
 }
 
+/** What a saved version offers, wherever it is asked from.
+ *
+ * The same three items behind a right-click on a row and behind a line chip on
+ * the detail card, so the two surfaces cannot drift the way the version-lines
+ * row and its menu once did. Two of them act on a version line and appear only
+ * when the row genuinely names one; the third acts on the saved version and is
+ * always there.
+ *
+ * Switching runs the previewed, state-checked flow that the status bar and the
+ * Lines screen run. Nothing here checks anything out. */
+function HistoryVersionMenu({ anchor, version, currentBranch, actions, line, onClose }: {
+  anchor: ContextMenuAnchor;
+  version: SavedVersionSummary;
+  currentBranch: string | null;
+  actions: HistoryLineActions;
+  /** The line to act on, when the caller already knows which chip was pressed.
+   * The row menu leaves it out and takes the line the row names. */
+  line?: HistoryDecoration | null;
+  onClose: (restoreFocus: boolean) => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const decoration = line !== undefined ? line : localLineFor(version, currentBranch);
+  const isCurrent = decoration !== null && decoration.name === currentBranch;
+  const run = (action: () => void): void => { onClose(true); action(); };
+  return <ContextMenuSurface anchor={anchor} ariaLabel={t.historyVersionActionsLabel} onClose={onClose}>
+    {decoration && actions.onViewLine && <button className="app-menu__item" type="button" onClick={() => run(() => actions.onViewLine?.(decoration.name))}>
+      <GitBranch aria-hidden="true" />
+      <span>{t.historyViewLine(decoration.name)}</span>
+    </button>}
+    {/* A line already checked out is not offered: switching to where you are
+        would run a preview for a change that is not one. */}
+    {decoration && !isCurrent && actions.onSwitchLine && <button className="app-menu__item" type="button" onClick={() => run(() => actions.onSwitchLine?.(decoration.name))}>
+      <ArrowLeft aria-hidden="true" />
+      <span>{t.historySwitchToLine(decoration.name)}</span>
+    </button>}
+    {actions.onCreateLineFromVersion && <button className="app-menu__item" type="button" onClick={() => run(() => actions.onCreateLineFromVersion?.(version))}>
+      <GitCommitHorizontal aria-hidden="true" />
+      <span>{t.historyCreateLineFromVersion}</span>
+    </button>}
+  </ContextMenuSurface>;
+}
+
 /** How much of this row's rail belongs to the stretch between the top of the
  * list and the selected version: all of it, as far as this row's own node, or
  * none. A fact about where the selection sits, and the only thing the timeline
  * draws that is not either structure or the selection itself. */
 type RailFill = "filled" | "half" | null;
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, currentBranch, onSelect, onMove, onOpenDetail }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; currentBranch: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void;
+const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, currentBranch, onSelect, onMove, onOpenDetail, onContextMenu }: {
+  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; currentBranch: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
@@ -93,18 +159,30 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
     onMove(target);
   };
   return (
-    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={label} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown}>
+    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={label} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown} onContextMenu={onContextMenu ? (event) => { onSelect(version.commit); onContextMenu(event, version); } : undefined}>
       <span className="history-row__node" aria-hidden="true" />
       <span className="history-row__body"><span className="history-row__title" title={title}>{title}</span><span className="history-row__meta"><span className="history-row__author" title={author}>{author}</span><HistoryRefBadge version={version} currentBranch={currentBranch} />{date && <><HistoryMetaDot /><span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span></>}</span></span>
     </button>
   );
 });
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, filters, authorSuggestions, canFilterPublication, onSearch, onFilters, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; selectedCommit: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; filters: HistoryFilters; authorSuggestions: string[]; canFilterPublication: boolean;
-  onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, filters, scope, authorSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; selectedCommit: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
+  onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onScope: (scope: HistoryScope) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
+  const [rowMenu, setRowMenu] = useState<{ anchor: ContextMenuAnchor; version: SavedVersionSummary } | null>(null);
+  const closeRowMenu = useCallback((restoreFocus: boolean) => {
+    setRowMenu((open) => {
+      if (restoreFocus) open?.anchor.focusTarget?.focus();
+      return null;
+    });
+  }, []);
+  const hasRowActions = Boolean(actions.onViewLine || actions.onSwitchLine || actions.onCreateLineFromVersion);
+  const openRowMenu = useCallback((event: React.MouseEvent, version: SavedVersionSummary) => {
+    event.preventDefault();
+    setRowMenu({ anchor: contextMenuAnchorFrom(event), version });
+  }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
   const restoredRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -166,24 +244,37 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
           clearLabel={t.commonClearSearch}
           trailing={<HistoryFilterPanel
             filters={filters}
+            scope={scope}
+            lines={actions.lines ?? []}
             authorSuggestions={authorSuggestions}
             canFilterPublication={canFilterPublication}
             onChange={onFilters}
+            onScope={onScope}
           />}
         />
       </div>
-      <HistoryFilterChips filters={filters} onChange={onFilters} />
+      <HistoryFilterChips filters={filters} scope={scope} onChange={onFilters} onScope={onScope} />
       {/* A thread while Git answers, rather than an emptied list: the rows
           below are the previous answer and the strip says they are being
           replaced. */}
       {isLoading && versions.length > 0 && <div className="history-timeline__progress"><LoadingBar label={t.historyLoading} /></div>}
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} currentBranch={currentBranch} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} /></div>; })}
+          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} currentBranch={currentBranch} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
         </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
+          {/* A scope is not cleared by "clear filters", so an empty list under
+              one has to offer its own way back. */}
+          {scope.kind !== "currentLine" && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onScope(CURRENT_LINE_SCOPE)}>{t.historyScopeShowCurrentLine}</button>}
         </div>}
+        {rowMenu && <HistoryVersionMenu
+          anchor={rowMenu.anchor}
+          version={rowMenu.version}
+          currentBranch={currentBranch}
+          actions={actions}
+          onClose={closeRowMenu}
+        />}
         <div className="history-timeline__footer">
           {hasMoreError && <div className="history-inline-error" role="alert"><span>{t.historyMoreError}</span><button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyRetry}</button></div>}
           {hasMore && !clientTruncated && (isLoadingMore ? <div className="history-timeline__loading-more"><LoadingBar label={t.historyLoadingMore} showLabel /></div> : <button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyLoadMore}</button>)}
@@ -254,8 +345,12 @@ function authorInitials(version: SavedVersionSummary, fallback: string): string 
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toLocaleUpperCase();
 }
 
-function HistoryDetailHeader({ detail, formats, activeTab, fileCount, controls, onTab }: {
+function HistoryDetailHeader({ detail, formats, activeTab, fileCount, controls, currentBranch, actions, onTab }: {
   detail: SavedVersionDetail; formats: LocaleFormats; activeTab: HistoryTab;
+  /** `HEAD`'s own line, so a chip naming it can say so instead of offering to
+   * switch to where the project already is. */
+  currentBranch: string | null;
+  actions: HistoryLineActions;
   /** How many files this version touched, said in words because it is
    * sometimes a floor rather than a count. It belongs on the line that states
    * the other facts about the version — who, when, which — the way the
@@ -271,13 +366,43 @@ function HistoryDetailHeader({ detail, formats, activeTab, fileCount, controls, 
   const version = detail.version;
   const title = versionTitle(version, t);
   const date = formatHistoryDate(version.authoredAt, formats);
+  // `line` absent means "whichever line this version names", which is what the
+  // version's own actions chip asks for; a chip for one line names that one.
+  const [menu, setMenu] = useState<{ anchor: ContextMenuAnchor; line?: HistoryDecoration } | null>(null);
+  const closeMenu = (restoreFocus: boolean): void => {
+    setMenu((open) => {
+      if (restoreFocus) open?.anchor.focusTarget?.focus();
+      return null;
+    });
+  };
+  // Anchored to the chip's own box rather than to the pointer: this menu is
+  // opened by activating a control, which a keyboard does without coordinates.
+  const openMenu = (event: React.MouseEvent<HTMLButtonElement>, line?: HistoryDecoration): void => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenu({ anchor: { x: rect.left, y: rect.bottom + 4, focusTarget: event.currentTarget }, line });
+  };
+  const canActOnLines = Boolean(actions.onViewLine || actions.onSwitchLine);
   const tabs: Array<{ id: HistoryTab; label: string; icon: React.ReactNode; count?: number }> = [
     { id: "overview", label: t.historyOverviewTab, icon: <Info aria-hidden="true" /> },
     { id: "diff", label: t.historyDiffTab, icon: <GitCommitHorizontal aria-hidden="true" /> },
   ];
   return <header className="history-detail__summary"><div className="history-detail__summary-top"><div className="history-detail__identity"><h2 id="history-detail-title">{title}</h2><div className="history-detail__compact-info"><p className="history-detail__meta"><span className="history-author-avatar" aria-hidden="true">{authorInitials(version, t.historyAuthorUnknown)}</span><strong>{version.author?.name || t.historyAuthorUnknown}</strong>{date && <span title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}<code>{version.shortCommit}</code><span className={`history-publication history-publication--${version.publication}`}><PublicationIcon publication={version.publication} />{publicationCopy(version.publication, t)}</span><span className="history-detail__files">{fileCount}</span></p>
-    <div className="history-detail__badges">{version.isRoot && <span className="history-kind-chip">{t.historyRoot}</span>}{version.isMerge && <span className="history-kind-chip">{t.historyMerge}</span>}{version.decorations.slice(0, 3).map((decoration) => <span key={decoration.fullRef} className="history-ref-chip" title={decoration.fullRef}>{decoration.kind === "tag" && <Tag aria-hidden="true" />}{decoration.name}</span>)}</div></div>
+    {/* A chip is a fact — this ref points at this version — and a local line
+        is the one kind of ref this app can also act on, so only that kind
+        becomes a control. A tag and a remote-only ref stay text, because
+        neither is a line this project can view or switch to. */}
+    <div className="history-detail__badges">{version.isRoot && <span className="history-kind-chip">{t.historyRoot}</span>}{version.isMerge && <span className="history-kind-chip">{t.historyMerge}</span>}{version.decorations.slice(0, 3).map((decoration) => decoration.kind === "localBranch" && canActOnLines
+      ? <button key={decoration.fullRef} className="history-ref-chip history-ref-chip--actionable" type="button" aria-haspopup="menu" aria-label={t.historyLineActions(decoration.name)} title={decoration.fullRef} onClick={(event) => openMenu(event, decoration)}>
+          <GitBranch aria-hidden="true" />{decoration.name}
+        </button>
+      : <span key={decoration.fullRef} className="history-ref-chip" title={decoration.fullRef}>{decoration.kind === "tag" && <Tag aria-hidden="true" />}{decoration.name}</span>)}
+      {actions.onCreateLineFromVersion && <button className="history-ref-chip history-ref-chip--actionable" type="button" aria-haspopup="menu" aria-label={t.historyVersionActionsLabel} onClick={(event) => openMenu(event)}>
+        <GitCommitHorizontal aria-hidden="true" />{t.historyVersionActions}
+      </button>}
     </div></div>
+    </div>
+    {menu && <HistoryVersionMenu anchor={menu.anchor} version={version} currentBranch={currentBranch} actions={actions} line={menu.line} onClose={closeMenu} />}
+    </div>
     <div className="history-tabs">
       <div className="history-tabs__list" role="tablist" aria-label={t.historyTitle}>{tabs.map((tab) => <button key={tab.id} id={`history-tab-${tab.id}`} className={activeTab === tab.id ? "history-tab history-tab--active" : "history-tab"} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`history-panel-${tab.id}`} onClick={() => onTab(tab.id)}>{tab.icon}<span>{tab.label}</span>{tab.count !== undefined && <span className="history-tab__count">{formatNumber(tab.count, formats)}</span>}</button>)}</div>
       {controls}
@@ -379,14 +504,36 @@ function activeFilters(filters: HistoryFilters, t: Translations): Array<{ key: s
  * its own. The trigger's badge says how many; this says which — and a row of
  * its own is what lets it, where chips inside the search pill would have taken
  * the width from the field they sit in. */
-function HistoryFilterChips({ filters, onChange }: {
+function HistoryFilterChips({ filters, scope, onChange, onScope }: {
   filters: HistoryFilters;
+  scope: HistoryScope;
   onChange: (filters: HistoryFilters) => void;
+  onScope: (scope: HistoryScope) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const chips = activeFilters(filters, t);
-  if (chips.length === 0) return null;
+  // The scope leads, and is removed the same way a filter is — but it is
+  // labelled as the line rather than as a filter, because it says which history
+  // is being read rather than how much of one is shown.
+  const scopeChip = scope.kind === "currentLine"
+    ? null
+    : scope.kind === "allLines"
+      ? { label: t.historyScopeAllLines, title: t.historyScopeAllLinesHint }
+      : { label: t.historyScopeLineChip(scope.name), title: t.historyScopeLineHint(scope.name) };
+  if (chips.length === 0 && !scopeChip) return null;
   return <div className="history-filter-chips">
+    {scopeChip && <span className="history-filter-chip history-filter-chip--scope">
+      <GitBranch aria-hidden="true" />
+      <span className="history-filter-chip__label" title={scopeChip.title}>{scopeChip.label}</span>
+      <button
+        type="button"
+        className="history-filter-chip__remove"
+        aria-label={t.historyScopeClear}
+        onClick={() => onScope(CURRENT_LINE_SCOPE)}
+      >
+        <X aria-hidden="true" />
+      </button>
+    </span>}
     {chips.map((chip) => <span key={chip.key} className="history-filter-chip">
       <span className="history-filter-chip__label" title={chip.label}>{chip.label}</span>
       <button
@@ -401,6 +548,79 @@ function HistoryFilterChips({ filters, onChange }: {
   </div>;
 }
 
+/** Which history the timeline is reading, inside the panel the filters share.
+ *
+ * A scope is not a filter — it chooses the graph the filters then narrow — but
+ * it is the same question the reader is already in this panel to answer, and
+ * giving it a bar of its own above the list would spend a second row of chrome
+ * on a control that is set once and then left alone.
+ *
+ * Two capsules and a name field rather than a list of every line: the two
+ * common answers are one click each, and the third reuses the completion field
+ * the author filter above it already established. A name is applied only when
+ * this project actually has that line, so a typo is refused here rather than
+ * sent to Git to fail. */
+function HistoryScopeGroup({ scope, lines, onChange }: {
+  scope: HistoryScope;
+  lines: string[];
+  onChange: (scope: HistoryScope) => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const named = scopeLineName(scope);
+  const [draft, setDraft] = useState(named ?? "");
+  const [unknown, setUnknown] = useState(false);
+  useEffect(() => { setDraft(named ?? ""); setUnknown(false); }, [named]);
+  const commit = (): void => {
+    const value = draft.trim();
+    if (!value) {
+      setUnknown(false);
+      if (named) onChange(CURRENT_LINE_SCOPE);
+      return;
+    }
+    if (value === named) { setUnknown(false); return; }
+    if (!lines.includes(value)) { setUnknown(true); return; }
+    setUnknown(false);
+    onChange({ kind: "line", name: value });
+  };
+  return <fieldset className="history-filter__group">
+    <legend className="history-filter__label">{t.historyScopeLabel}</legend>
+    <div className="history-filter__ranges">
+      {[
+        { scope: CURRENT_LINE_SCOPE, label: t.historyScopeCurrentLine },
+        { scope: ALL_LINES_SCOPE, label: t.historyScopeAllLines },
+      ].map((option) => <label key={option.label} className={`history-filter__range${sameHistoryScope(scope, option.scope) ? " history-filter__range--active" : ""}`}>
+        <input
+          className="visually-hidden"
+          type="radio"
+          name="history-scope"
+          checked={sameHistoryScope(scope, option.scope)}
+          onChange={() => onChange(option.scope)}
+        />
+        <span>{option.label}</span>
+      </label>)}
+    </div>
+    <div className="history-filter__field">
+      <GitBranch aria-hidden="true" />
+      <input
+        id="history-scope-line"
+        type="text"
+        value={draft}
+        list="history-scope-lines"
+        placeholder={t.historyScopeLinePlaceholder}
+        aria-label={t.historyScopeLineLabel}
+        aria-invalid={unknown || undefined}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); } }}
+      />
+    </div>
+    <datalist id="history-scope-lines">
+      {lines.map((name) => <option key={name} value={name} />)}
+    </datalist>
+    {unknown && <p className="history-filter__hint" role="status">{t.historyScopeUnknownLine}</p>}
+  </fieldset>;
+}
+
 /** The filters, behind one trigger.
  *
  * They used to be two menus sitting in the search box, which spent the strip's
@@ -411,11 +631,14 @@ function HistoryFilterChips({ filters, onChange }: {
  * Toggles and ranges apply as they are chosen — one click, one answer. The two
  * text fields commit on Enter or on leaving them, because every apply is a
  * fresh read of the repository and a keystroke is not an intention. */
-function HistoryFilterPanel({ filters, authorSuggestions, canFilterPublication, onChange }: {
+function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, canFilterPublication, onChange, onScope }: {
   filters: HistoryFilters;
+  scope: HistoryScope;
+  lines: string[];
   authorSuggestions: string[];
   canFilterPublication: boolean;
   onChange: (filters: HistoryFilters) => void;
+  onScope: (scope: HistoryScope) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -463,6 +686,8 @@ function HistoryFilterPanel({ filters, authorSuggestions, canFilterPublication, 
       tabIndex={-1}
       onKeyDown={(event) => handlePopupMenuKeyDown(event, popupRef.current, () => closePanel(true))}
     >
+      <HistoryScopeGroup scope={scope} lines={lines} onChange={onScope} />
+
       <div className="history-filter__group">
         <label className="history-filter__label" htmlFor="history-filter-author">{t.historyFilterAuthorLabel}</label>
         {/* The same pill the search boxes wear, with the glyph naming what goes
@@ -557,8 +782,8 @@ function HistoryFilterPanel({ filters, authorSuggestions, canFilterPublication, 
   </div>;
 }
 
-function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDiff, onBack, readImagePreview, sourceKey }: {
-  state: HistoryState; formats: LocaleFormats; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void; readImagePreview: ImagePreviewLoader; sourceKey: string;
+function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, onRetryDiff, onBack, readImagePreview, sourceKey }: {
+  state: HistoryState; formats: LocaleFormats; actions: HistoryLineActions; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void; readImagePreview: ImagePreviewLoader; sourceKey: string;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<HistoryTab>("diff");
@@ -659,6 +884,8 @@ function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDif
       activeTab={activeTab}
       fileCount={fileCount}
       controls={activeTab === "diff" ? diffControls : null}
+      currentBranch={state.snapshot?.branch ?? null}
+      actions={actions}
       onTab={setActiveTab}
     />
     {activeTab === "overview" && <HistoryOverview detail={detail} state={state} formats={formats} comparison={comparison} onSelectFile={openFileFromOverview} />}
@@ -685,7 +912,7 @@ function HistoryDetail({ state, formats, onSelectFile, onRetryDetail, onRetryDif
   </section>;
 }
 
-export function HistoryPanel({ controller, query, state, watcherState, onOpenSettings, error }: { controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; onOpenSettings: () => void; error: string | null }): React.JSX.Element {
+export function HistoryPanel({ controller, query, state, watcherState, actions = {}, onOpenSettings, error }: { controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; actions?: HistoryLineActions; onOpenSettings: () => void; error: string | null }): React.JSX.Element {
   const { t, formats } = useLanguage();
   const [showNarrowDetail, setShowNarrowDetail] = useState(false);
   const [search, setSearch] = useState("");
@@ -737,6 +964,7 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
   );
   const saveScrollOffset = useCallback((offset: number) => controller.setScrollOffset(query, offset), [controller, query]);
   const applyFilters = useCallback((filters: HistoryFilters) => { void controller.setFilters(query, filters); }, [controller, query]);
+  const applyScope = useCallback((scope: HistoryScope) => { void controller.setScope(query, scope); }, [controller, query]);
   const filtersActive = search.trim().length > 0 || countActiveFilters(state.filters) > 0;
 
   const openNarrowDetail = useCallback(() => setShowNarrowDetail(true), []);
@@ -755,7 +983,7 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
   // loading clause it swallowed it again on Clear all — the filters are off by
   // then, and the empty list still on screen is the answer to the question
   // that was just retired.
-  if (state.snapshot && state.versions.length === 0 && !filtersActive && !state.isLoading) return <div className="history-screen"><div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div><div className="empty-state"><div className="empty-state__icon" aria-hidden="true"><GitCommitHorizontal /></div><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div></div>;
+  if (state.snapshot && state.versions.length === 0 && !filtersActive && state.scope.kind === "currentLine" && !state.isLoading) return <div className="history-screen"><div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div><div className="empty-state"><div className="empty-state__icon" aria-hidden="true"><GitCommitHorizontal /></div><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div></div>;
 
   return <div className={`history-screen${showNarrowDetail ? " history-screen--narrow-detail" : ""}`}>
     <div className="history-notices">
@@ -766,6 +994,7 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
       {state.snapshot?.shallow && <HistoryBanner tone="warning" title={t.historyShallowTitle}>{t.historyShallowDescription}</HistoryBanner>}
       {state.snapshot?.headState === "detached" && <HistoryBanner tone="warning" title={t.historyDetachedTitle}>{t.historyDetachedDescription}</HistoryBanner>}
       {!state.snapshot?.upstream && state.snapshot?.headState === "branch" && <HistoryBanner tone="neutral" title={t.historyUnknownUpstreamTitle}>{t.historyUnknownUpstreamDescription}</HistoryBanner>}
+      {warnings.includes("linesTruncated") && <p className="history-meta-warning" role="status">{t.historyLinesTruncated}</p>}
       {warnings.includes("unreadableMetadata") && <p className="history-meta-warning" role="status">{t.historyUnreadableMetadata}</p>}
       {(warnings.includes("messagesTruncated") || warnings.includes("decorationsTruncated")) && <p className="history-meta-warning" role="status">{t.historyTruncatedMetadata}</p>}
       {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(formatNumber(MAX_HISTORY_ROWS, formats))}</p>}
@@ -781,8 +1010,8 @@ export function HistoryPanel({ controller, query, state, watcherState, onOpenSet
       </div>
     </header>
     <div className="history-layout">
-      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} authorSuggestions={authorSuggestions} canFilterPublication={canFilterPublication} onSearch={setSearch} onFilters={applyFilters} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
-      <HistoryDetail state={state} formats={formats} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
+      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
+      <HistoryDetail state={state} formats={formats} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
     </div>
   </div>;
 }
