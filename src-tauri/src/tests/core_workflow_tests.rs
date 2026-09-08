@@ -308,7 +308,7 @@ fn discard_and_version_line_journey_undoes_then_creates_switches_and_deletes() {
 fn version_line_history_reports_recent_versions_the_count_and_the_overflow() {
     let repo = unique_temp_dir("version-line-history");
     git_init(&repo);
-    for index in 0..6 {
+    for index in 0..10 {
         write_file(
             &repo,
             "tracked.txt",
@@ -331,13 +331,13 @@ fn version_line_history_reports_recent_versions_the_count_and_the_overflow() {
         crate::version_lines::VERSION_LINE_HISTORY_LIMIT
     );
     assert!(history.has_more);
-    assert_eq!(history.versions[0].subject, "Version 5");
-    assert_eq!(history.versions[3].subject, "Version 2");
+    assert_eq!(history.versions[0].subject, "Version 9");
+    assert_eq!(history.versions[7].subject, "Version 2");
     assert!(!history.versions[0].author_name.is_empty());
     assert!(!history.versions[0].committed_at.is_empty());
     assert_ne!(history.versions[0].short_commit, history.versions[0].commit);
     // Every saved version on the line, not just the ones listed.
-    assert_eq!(history.total_count, Some(6));
+    assert_eq!(history.total_count, Some(10));
 
     // A line with fewer versions than the limit says so instead of padding.
     let create_plan = crate::version_lines::plan_create_version_line(
@@ -358,7 +358,7 @@ fn version_line_history_reports_recent_versions_the_count_and_the_overflow() {
     let short =
         crate::version_lines::get_version_line_history(repo.clone(), "short-line".to_string())
             .expect("read the second line's saved versions");
-    assert_eq!(short.total_count, Some(6));
+    assert_eq!(short.total_count, Some(10));
     assert!(short.has_more);
 
     // A name that no local branch carries is refused rather than answered

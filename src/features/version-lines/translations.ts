@@ -1,10 +1,8 @@
 export interface VersionLinesTranslations {
   versionLinesTitle: string;
+  versionLinesExplanation: string;
   versionLinesSearchPlaceholder: string;
   versionLinesSearchAriaLabel: string;
-  versionLinesFilterAriaLabel: string;
-  versionLinesNoProjectTitle: string;
-  versionLinesNoProjectDescription: string;
   versionLinesLoading: string;
   versionLinesErrorLoading: string;
   versionLinesRetry: string;
@@ -37,18 +35,13 @@ export interface VersionLinesTranslations {
   versionLinesNoUpstreamLabel: string;
   versionLinesCheckedOutElsewhere: (path: string) => string;
   versionLinesUniqueCommits: (count: number) => string;
-  versionLinesRefNameLabel: string;
-  versionLinesTipCommitLabel: string;
   versionLinesSavedLabel: (date: string) => string;
   createVersionLineTitle: string;
   createVersionLineNameLabel: string;
   createVersionLineNamePlaceholder: string;
   createVersionLineSwitchLabel: string;
-  createVersionLineWithoutSwitchLabel: string;
   createVersionLineDetachedNote: string;
   createVersionLineStartsAt: (shortCommit: string, subject: string) => string;
-  createVersionLineUnsavedNote: string;
-  createVersionLineUnbornBlocked: string;
   createVersionLineConfirm: string;
   createVersionLineCreating: string;
   createVersionLineSuccessTitle: string;
@@ -57,7 +50,6 @@ export interface VersionLinesTranslations {
   switchVersionLineLoading: string;
   switchVersionLineChangedFiles: (count: number) => string;
   switchVersionLineChangedFilesTruncated: (visible: number, total: number) => string;
-  switchVersionLineDirtyTitle: string;
   switchVersionLineDirtyDescription: string;
   switchVersionLineSaveVersionAction: string;
   switchVersionLineNewLineAction: string;
@@ -65,10 +57,6 @@ export interface VersionLinesTranslations {
   switchVersionLineSwitching: string;
   switchVersionLineSuccessTitle: string;
   switchVersionLineDone: string;
-  versionLinesStatsLines: (count: number) => string;
-  versionLinesStatsActive: (count: number) => string;
-  versionLinesStatsLocalOnly: (count: number) => string;
-  versionLinesLatestLabel: (subject: string) => string;
   versionLinesFilterStateGroup: string;
   versionLinesFilterPrefixGroup: string;
   versionLinesFilterClear: string;
@@ -84,9 +72,6 @@ export interface VersionLinesTranslations {
   versionLinesSyncAhead: (count: number) => string;
   versionLinesSyncBehind: (count: number) => string;
   versionLinesSyncAheadBehind: (ahead: number, behind: number) => string;
-  versionLinesDetailsUpstreamLabel: string;
-  versionLinesDetailsUpstreamNone: string;
-  versionLinesDetailsSyncLabel: string;
   versionLinesDeletablePill: string;
   versionLinesNotDeletablePill: string;
   versionLinesDeleteReadyTooltip: (name: string) => string;
@@ -100,17 +85,9 @@ export interface VersionLinesTranslations {
   versionLinesFiltersActiveCount: (count: number) => string;
   versionLinesFilterSortGroup: string;
   versionLinesStateTracking: string;
-  versionLinesMoreActions: (name: string) => string;
-  versionLinesStripAriaLabel: string;
-  versionLinesStripOlder: string;
-  versionLinesStripNewer: string;
-  versionLinesStripCountLabel: string;
-  versionLinesStripLatestLabel: string;
-  versionLinesSavedVersionCount: (count: number) => string;
-  versionLinesRecentTitle: string;
-  versionLinesRecentViewAll: string;
-  versionLinesStatusLocalVersions: string;
-  versionLinesLatestTitle: string;
+  versionLinesLatestSavedLabel: string;
+  versionLinesVersionsTitle: string;
+  versionLinesOpenVersionLabel: (subject: string) => string;
   versionLinesPublishedPill: string;
   versionLinesUnpublishedPill: string;
   versionLinesRelationshipTitle: string;
@@ -126,12 +103,6 @@ export interface VersionLinesTranslations {
   versionLinesRelationshipMergedTitle: string;
   versionLinesRelationshipMergedDetail: string;
   versionLinesRelationshipElsewhereTitle: string;
-  versionLinesStatusTitle: string;
-  versionLinesStatusRemoteTracking: string;
-  versionLinesStatusLastUpdated: string;
-  versionLinesStatusLineType: string;
-  versionLinesLineTypeTracking: string;
-  versionLinesLineTypeElsewhere: string;
   versionLinesHistoryTitle: string;
   versionLinesHistoryDescription: string;
   versionLinesHistoryScopedDescription: (name: string) => string;
@@ -149,7 +120,6 @@ export interface VersionLinesTranslations {
   deleteVersionLineBlockedOperationNote: string;
   deleteVersionLineOpenChangesAction: string;
   deleteVersionLineSwitchAction: string;
-  deleteVersionLineRetainedBy: (refs: string) => string;
   deleteVersionLineSafeLead: string;
   deleteVersionLineWarning: string;
   deleteVersionLineConfirm: string;
@@ -180,11 +150,10 @@ export interface VersionLinesTranslations {
 
 const en: VersionLinesTranslations = {
   versionLinesTitle: "Lines",
+  versionLinesExplanation:
+    "Separate tracks for your saved versions. Switch lines to work in a different one.",
   versionLinesSearchPlaceholder: "Search version lines…",
   versionLinesSearchAriaLabel: "Search version lines",
-  versionLinesFilterAriaLabel: "Filter version lines",
-  versionLinesNoProjectTitle: "No project open",
-  versionLinesNoProjectDescription: "Open a project to see and manage its version lines.",
   versionLinesLoading: "Loading version lines…",
   versionLinesErrorLoading: "GitOdile couldn't load this project's version lines.",
   versionLinesRetry: "Try again",
@@ -222,21 +191,15 @@ const en: VersionLinesTranslations = {
   versionLinesCheckedOutElsewhere: (path) => `Open in another workspace at ${path}. Switch to it from there.`,
   versionLinesUniqueCommits: (count) =>
     count === 1 ? "1 version not on the active line" : `${count} versions not on the active line`,
-  versionLinesRefNameLabel: "Branch name",
-  versionLinesTipCommitLabel: "Latest commit",
   versionLinesSavedLabel: (date) => `Saved ${date}`,
   createVersionLineTitle: "New version line",
   createVersionLineNameLabel: "Name",
   createVersionLineNamePlaceholder: "e.g. feature/new-onboarding",
   createVersionLineSwitchLabel: "Create and switch to it",
-  createVersionLineWithoutSwitchLabel: "Create without switching",
   createVersionLineDetachedNote:
     "This project isn't on a version line right now, so GitOdile will switch to the new one to keep this commit easy to find.",
   createVersionLineStartsAt: (shortCommit, subject) =>
     `Starts at the saved version ${shortCommit} — “${subject}”.`,
-  createVersionLineUnsavedNote:
-    "Your unsaved files and prepared changes stay exactly as they are. Future saved versions will belong to the new version line.",
-  createVersionLineUnbornBlocked: "Save the first version before creating another version line.",
   createVersionLineConfirm: "Create",
   createVersionLineCreating: "Creating…",
   createVersionLineSuccessTitle: "Version line created",
@@ -246,7 +209,6 @@ const en: VersionLinesTranslations = {
   switchVersionLineChangedFiles: (count) =>
     count === 1 ? "1 file will change." : `${count} files will change.`,
   switchVersionLineChangedFilesTruncated: (visible, total) => `Showing ${visible} of ${total} changed files.`,
-  switchVersionLineDirtyTitle: "This project has unsaved changes",
   switchVersionLineDirtyDescription:
     "GitOdile can't switch version lines with unsaved work in the way. Save a version, or start a new version line with this work instead.",
   switchVersionLineSaveVersionAction: "Save version",
@@ -255,16 +217,12 @@ const en: VersionLinesTranslations = {
   switchVersionLineSwitching: "Switching…",
   switchVersionLineSuccessTitle: "Switched version lines",
   switchVersionLineDone: "Done",
-  versionLinesStatsLines: (count) => (count === 1 ? "1 version line" : `${count} version lines`),
-  versionLinesStatsActive: (count) => `${count} active`,
-  versionLinesStatsLocalOnly: (count) => `${count} local only`,
-  versionLinesLatestLabel: (subject) => `Latest: ${subject}`,
   versionLinesFilterStateGroup: "State",
   versionLinesFilterPrefixGroup: "Name prefix",
   versionLinesFilterClear: "Clear filters",
-  versionLinesSortRecent: "Recently updated",
-  versionLinesSortName: "Name (A–Z)",
-  versionLinesSortUnpublished: "Local-only first",
+  versionLinesSortRecent: "Recent",
+  versionLinesSortName: "Name",
+  versionLinesSortUnpublished: "Local first",
   versionLinesSwitchShort: "Switch",
   versionLinesSwitchToLineLabel: (name) => `Switch to “${name}”`,
   versionLinesNewFromLine: "New version from this line",
@@ -274,9 +232,6 @@ const en: VersionLinesTranslations = {
   versionLinesSyncAhead: (count) => (count === 1 ? "1 not pushed" : `${count} not pushed`),
   versionLinesSyncBehind: (count) => (count === 1 ? "1 not pulled" : `${count} not pulled`),
   versionLinesSyncAheadBehind: (ahead, behind) => `${ahead} not pushed, ${behind} not pulled`,
-  versionLinesDetailsUpstreamLabel: "Upstream",
-  versionLinesDetailsUpstreamNone: "None",
-  versionLinesDetailsSyncLabel: "Remote status",
   versionLinesDeletablePill: "Safe to delete",
   versionLinesNotDeletablePill: "Can't be deleted yet",
   versionLinesDeleteReadyTooltip: (name) =>
@@ -294,18 +249,9 @@ const en: VersionLinesTranslations = {
   versionLinesFiltersActiveCount: (count) => (count === 1 ? "1 filter on" : `${count} filters on`),
   versionLinesFilterSortGroup: "Sort by",
   versionLinesStateTracking: "Tracking a remote",
-  versionLinesMoreActions: (name) => `More actions for “${name}”`,
-  versionLinesStripAriaLabel: "Where this line stands",
-  versionLinesStripOlder: "Older versions",
-  versionLinesStripNewer: "Newer versions",
-  versionLinesStripCountLabel: "This line",
-  versionLinesStripLatestLabel: "Latest saved",
-  versionLinesSavedVersionCount: (count) =>
-    count === 1 ? "1 saved version" : `${count} saved versions`,
-  versionLinesRecentTitle: "Recent versions",
-  versionLinesRecentViewAll: "View all",
-  versionLinesStatusLocalVersions: "Saved versions",
-  versionLinesLatestTitle: "Latest saved version",
+  versionLinesLatestSavedLabel: "Latest saved",
+  versionLinesVersionsTitle: "Saved versions",
+  versionLinesOpenVersionLabel: (subject) => `Open “${subject}” in History`,
   versionLinesPublishedPill: "Published",
   versionLinesUnpublishedPill: "Not published yet",
   versionLinesRelationshipTitle: "Relationship",
@@ -327,12 +273,6 @@ const en: VersionLinesTranslations = {
   versionLinesRelationshipMergedTitle: "Already on the active line",
   versionLinesRelationshipMergedDetail: "Everything saved here is also reachable from the line you're on.",
   versionLinesRelationshipElsewhereTitle: "Open in another workspace",
-  versionLinesStatusTitle: "Status",
-  versionLinesStatusRemoteTracking: "Remote tracking",
-  versionLinesStatusLastUpdated: "Last updated",
-  versionLinesStatusLineType: "Line type",
-  versionLinesLineTypeTracking: "Tracking remote",
-  versionLinesLineTypeElsewhere: "Open in another workspace",
   versionLinesHistoryTitle: "Explore the full history of this line",
   versionLinesHistoryDescription: "View all versions, compare changes, and restore previous states.",
   versionLinesHistoryScopedDescription: (name) =>
@@ -359,7 +299,6 @@ const en: VersionLinesTranslations = {
     "GitOdile can show you which files are in conflict, but resolving them isn't supported here yet — finish or abort the operation in your Git tool, then come back.",
   deleteVersionLineOpenChangesAction: "See the files in conflict",
   deleteVersionLineSwitchAction: "Switch to this line",
-  deleteVersionLineRetainedBy: (refs) => `Its saved work stays reachable from: ${refs}.`,
   deleteVersionLineSafeLead:
     "Only the local name is removed. The saved work itself is already kept elsewhere:",
   deleteVersionLineWarning: "This can't be undone from GitOdile.",
@@ -394,11 +333,10 @@ const en: VersionLinesTranslations = {
 
 const es: VersionLinesTranslations = {
   versionLinesTitle: "Líneas",
+  versionLinesExplanation:
+    "Vías independientes para tus versiones guardadas. Cambia de línea para trabajar en otra.",
   versionLinesSearchPlaceholder: "Buscar líneas de versión…",
   versionLinesSearchAriaLabel: "Buscar líneas de versión",
-  versionLinesFilterAriaLabel: "Filtrar las líneas de versión",
-  versionLinesNoProjectTitle: "No hay ningún proyecto abierto",
-  versionLinesNoProjectDescription: "Abre un proyecto para ver y gestionar sus líneas de versión.",
   versionLinesLoading: "Cargando líneas de versión…",
   versionLinesErrorLoading: "GitOdile no pudo cargar las líneas de versión de este proyecto.",
   versionLinesRetry: "Intentar de nuevo",
@@ -437,21 +375,15 @@ const es: VersionLinesTranslations = {
   versionLinesCheckedOutElsewhere: (path) => `Abierta en otro espacio de trabajo en ${path}. Cámbiate a ella desde ahí.`,
   versionLinesUniqueCommits: (count) =>
     count === 1 ? "1 versión fuera de la línea activa" : `${count} versiones fuera de la línea activa`,
-  versionLinesRefNameLabel: "Nombre de la rama",
-  versionLinesTipCommitLabel: "Último commit",
   versionLinesSavedLabel: (date) => `Guardada el ${date}`,
   createVersionLineTitle: "Nueva línea de versión",
   createVersionLineNameLabel: "Nombre",
   createVersionLineNamePlaceholder: "p. ej. feature/nueva-bienvenida",
   createVersionLineSwitchLabel: "Crear y cambiar a ella",
-  createVersionLineWithoutSwitchLabel: "Crear sin cambiar",
   createVersionLineDetachedNote:
     "Este proyecto no está en una línea de versión ahora mismo, así que GitOdile cambiará a la nueva para que este commit sea fácil de encontrar.",
   createVersionLineStartsAt: (shortCommit, subject) =>
     `Empieza en la versión guardada ${shortCommit}: «${subject}».`,
-  createVersionLineUnsavedNote:
-    "Tus archivos sin guardar y los cambios preparados permanecen exactamente igual. Las próximas versiones guardadas pertenecerán a la nueva línea de versión.",
-  createVersionLineUnbornBlocked: "Guarda la primera versión antes de crear otra línea de versión.",
   createVersionLineConfirm: "Crear",
   createVersionLineCreating: "Creando…",
   createVersionLineSuccessTitle: "Línea de versión creada",
@@ -461,7 +393,6 @@ const es: VersionLinesTranslations = {
   switchVersionLineChangedFiles: (count) =>
     count === 1 ? "1 archivo cambiará." : `${count} archivos cambiarán.`,
   switchVersionLineChangedFilesTruncated: (visible, total) => `Se muestran ${visible} de ${total} archivos cambiados.`,
-  switchVersionLineDirtyTitle: "Este proyecto tiene cambios sin guardar",
   switchVersionLineDirtyDescription:
     "GitOdile no puede cambiar de línea de versión con trabajo sin guardar de por medio. Guarda una versión, o inicia una nueva línea de versión con este trabajo.",
   switchVersionLineSaveVersionAction: "Guardar versión",
@@ -470,17 +401,12 @@ const es: VersionLinesTranslations = {
   switchVersionLineSwitching: "Cambiando…",
   switchVersionLineSuccessTitle: "Línea de versión cambiada",
   switchVersionLineDone: "Listo",
-  versionLinesStatsLines: (count) =>
-    count === 1 ? "1 línea de versión" : `${count} líneas de versión`,
-  versionLinesStatsActive: (count) => `${count} activa`,
-  versionLinesStatsLocalOnly: (count) => `${count} solo local`,
-  versionLinesLatestLabel: (subject) => `Última: ${subject}`,
   versionLinesFilterStateGroup: "Estado",
   versionLinesFilterPrefixGroup: "Prefijo del nombre",
   versionLinesFilterClear: "Quitar filtros",
-  versionLinesSortRecent: "Actualizadas recientemente",
-  versionLinesSortName: "Nombre (A–Z)",
-  versionLinesSortUnpublished: "Solo locales primero",
+  versionLinesSortRecent: "Recientes",
+  versionLinesSortName: "Nombre",
+  versionLinesSortUnpublished: "Locales antes",
   versionLinesSwitchShort: "Cambiar",
   versionLinesSwitchToLineLabel: (name) => `Cambiar a «${name}»`,
   versionLinesNewFromLine: "Nueva versión desde esta línea",
@@ -490,9 +416,6 @@ const es: VersionLinesTranslations = {
   versionLinesSyncAhead: (count) => (count === 1 ? "1 sin subir" : `${count} sin subir`),
   versionLinesSyncBehind: (count) => (count === 1 ? "1 sin bajar" : `${count} sin bajar`),
   versionLinesSyncAheadBehind: (ahead, behind) => `${ahead} sin subir, ${behind} sin bajar`,
-  versionLinesDetailsUpstreamLabel: "Remoto",
-  versionLinesDetailsUpstreamNone: "Ninguno",
-  versionLinesDetailsSyncLabel: "Estado con el remoto",
   versionLinesDeletablePill: "Se puede eliminar",
   versionLinesNotDeletablePill: "Todavía no se puede eliminar",
   versionLinesDeleteReadyTooltip: (name) =>
@@ -511,18 +434,9 @@ const es: VersionLinesTranslations = {
     count === 1 ? "1 filtro activo" : `${count} filtros activos`,
   versionLinesFilterSortGroup: "Ordenar por",
   versionLinesStateTracking: "Sigue a un remoto",
-  versionLinesMoreActions: (name) => `Más acciones para «${name}»`,
-  versionLinesStripAriaLabel: "Situación de esta línea",
-  versionLinesStripOlder: "Versiones anteriores",
-  versionLinesStripNewer: "Versiones recientes",
-  versionLinesStripCountLabel: "Esta línea",
-  versionLinesStripLatestLabel: "Última guardada",
-  versionLinesSavedVersionCount: (count) =>
-    count === 1 ? "1 versión guardada" : `${count} versiones guardadas`,
-  versionLinesRecentTitle: "Versiones recientes",
-  versionLinesRecentViewAll: "Ver todas",
-  versionLinesStatusLocalVersions: "Versiones guardadas",
-  versionLinesLatestTitle: "Última versión guardada",
+  versionLinesLatestSavedLabel: "Última guardada",
+  versionLinesVersionsTitle: "Versiones guardadas",
+  versionLinesOpenVersionLabel: (subject) => `Abrir «${subject}» en Historial`,
   versionLinesPublishedPill: "Publicada",
   versionLinesUnpublishedPill: "Todavía sin publicar",
   versionLinesRelationshipTitle: "Relación",
@@ -545,12 +459,6 @@ const es: VersionLinesTranslations = {
   versionLinesRelationshipMergedDetail:
     "Todo lo guardado aquí también es accesible desde la línea en la que estás.",
   versionLinesRelationshipElsewhereTitle: "Abierta en otro espacio de trabajo",
-  versionLinesStatusTitle: "Estado",
-  versionLinesStatusRemoteTracking: "Remoto que sigue",
-  versionLinesStatusLastUpdated: "Última actualización",
-  versionLinesStatusLineType: "Tipo de línea",
-  versionLinesLineTypeTracking: "Sigue a un remoto",
-  versionLinesLineTypeElsewhere: "Abierta en otro espacio de trabajo",
   versionLinesHistoryTitle: "Explora el historial completo de esta línea",
   versionLinesHistoryDescription:
     "Ve todas las versiones, compara cambios y restaura estados anteriores.",
@@ -579,7 +487,6 @@ const es: VersionLinesTranslations = {
     "GitOdile puede enseñarte qué archivos están en conflicto, pero resolverlos todavía no se puede hacer aquí: termina o cancela la operación en tu herramienta de Git y vuelve.",
   deleteVersionLineOpenChangesAction: "Ver los archivos en conflicto",
   deleteVersionLineSwitchAction: "Cambiar a esta línea",
-  deleteVersionLineRetainedBy: (refs) => `Su trabajo guardado sigue siendo accesible desde: ${refs}.`,
   deleteVersionLineSafeLead:
     "Solo se elimina el nombre local. El trabajo guardado ya se conserva en otro sitio:",
   deleteVersionLineWarning: "Esto no se puede deshacer desde GitOdile.",

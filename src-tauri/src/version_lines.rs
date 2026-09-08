@@ -776,10 +776,12 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
 // exactly one line — the one the user has selected — so the cost is two
 // processes per selection rather than two per branch.
 
-/// How many recent versions one call reports. The detail panel shows a short
-/// list and hands the rest to History; a longer list here would be paging,
-/// which is History's job and not this screen's.
-pub(crate) const VERSION_LINE_HISTORY_LIMIT: usize = 4;
+/// How many recent versions one call reports. The detail panel shows the tip
+/// in full and the ones before it as a list, then hands the rest to History; a
+/// longer list here would be paging, which is History's job and not this
+/// screen's. Four left that list three rows long under a panel with room for
+/// twice that, which is a preview too short to be worth the section.
+pub(crate) const VERSION_LINE_HISTORY_LIMIT: usize = 8;
 
 /// `%s` is the subject — the first line of the message by definition — so a
 /// record can be newline-delimited with NUL between its fields, the same

@@ -13,6 +13,8 @@ export function HistoryScreen({
   lines,
   scopeLineIntent = null,
   onScopeLineIntentHandled,
+  selectCommitIntent = null,
+  onSelectCommitIntentHandled,
   onViewLine,
   onSwitchLine,
   onCreateLineFromVersion,
@@ -32,6 +34,11 @@ export function HistoryScreen({
    * revert a scope the reader has since chosen by hand. */
   scopeLineIntent?: string | null;
   onScopeLineIntentHandled?: () => void;
+  /** A saved version another screen asked this one to open. One-shot, for the
+   * same reason the scope above is: a target that survived would re-select
+   * itself over whatever the reader has since clicked. */
+  selectCommitIntent?: string | null;
+  onSelectCommitIntentHandled?: () => void;
   onViewLine?: (name: string) => void;
   onSwitchLine?: (name: string) => void;
   onCreateLineFromVersion?: HistoryLineActions["onCreateLineFromVersion"];
@@ -41,10 +48,28 @@ export function HistoryScreen({
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
   const state = useActiveHistoryState(controller, query);
   useEffect(() => {
-    if (!scopeLineIntent) return;
-    void controller.setScope(query, { kind: "line", name: scopeLineIntent });
-    onScopeLineIntentHandled?.();
-  }, [controller, onScopeLineIntentHandled, query, scopeLineIntent]);
+    if (!scopeLineIntent && !selectCommitIntent) return;
+    const commit = selectCommitIntent;
+    // The scope first, then the version in it: setting the scope restarts the
+    // timeline, and a timeline that restarts picks its own selection when the
+    // first page lands. `setScope` resolves once that page is in, so chaining
+    // is what makes the asked-for version the one that stays selected.
+    const scoped = scopeLineIntent
+      ? controller.setScope(query, { kind: "line", name: scopeLineIntent })
+      : Promise.resolve();
+    void scoped.then(() => {
+      if (commit) controller.selectVersion(query, commit);
+    });
+    if (scopeLineIntent) onScopeLineIntentHandled?.();
+    if (commit) onSelectCommitIntentHandled?.();
+  }, [
+    controller,
+    onScopeLineIntentHandled,
+    onSelectCommitIntentHandled,
+    query,
+    scopeLineIntent,
+    selectCommitIntent,
+  ]);
   const actions = useMemo<HistoryLineActions>(
     () => ({ lines, onViewLine, onSwitchLine, onCreateLineFromVersion }),
     [lines, onCreateLineFromVersion, onSwitchLine, onViewLine],

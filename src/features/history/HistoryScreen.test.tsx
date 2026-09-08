@@ -1,5 +1,5 @@
 import React from "react";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
@@ -91,5 +91,53 @@ describe("HistoryScreen lifecycle", () => {
     view.rerender(<Screen intent={null} />);
     view.rerender(<Screen intent={null} />);
     expect(setScope).not.toHaveBeenCalled();
+  });
+
+  it("selects the version another screen asked for, after the scope it asked for is in", async () => {
+    const port: HistoryPort = {
+      readPage: vi.fn(async () => emptyPage("token-1")),
+      readDetail: vi.fn(),
+      readFileDiff: vi.fn(),
+      readImagePreview: vi.fn(),
+    };
+    const controller = createHistoryController(port);
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    const order: string[] = [];
+    const setScope = vi.spyOn(controller, "setScope").mockImplementation(async () => {
+      order.push("scope");
+    });
+    const selectVersion = vi.spyOn(controller, "selectVersion").mockImplementation(() => {
+      order.push("select");
+    });
+    const scopeHandled = vi.fn();
+    const commitHandled = vi.fn();
+    const lifecycle = createScreenLifecycleController("active");
+
+    render(
+      <LanguageProvider>
+        <ScreenLifecycleProvider controller={lifecycle}>
+          <HistoryScreen
+            controller={controller}
+            projectPath="/repo"
+            sessionEpoch="epoch-1"
+            watcherState="watching"
+            scopeLineIntent="feature/foo"
+            onScopeLineIntentHandled={scopeHandled}
+            selectCommitIntent="abc123"
+            onSelectCommitIntentHandled={commitHandled}
+            onOpenSettings={() => {}}
+          />
+        </ScreenLifecycleProvider>
+      </LanguageProvider>,
+    );
+
+    expect(setScope).toHaveBeenCalledWith(query, { kind: "line", name: "feature/foo" });
+    // Setting the scope restarts the timeline, and a restarted timeline picks
+    // its own selection when the first page lands. The asked-for version is
+    // only the one that stays selected if it is chosen after that.
+    await waitFor(() => expect(selectVersion).toHaveBeenCalledWith(query, "abc123"));
+    expect(order).toEqual(["scope", "select"]);
+    expect(scopeHandled).toHaveBeenCalledOnce();
+    expect(commitHandled).toHaveBeenCalledOnce();
   });
 });

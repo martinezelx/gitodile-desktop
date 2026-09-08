@@ -415,6 +415,8 @@ export function App(): React.JSX.Element {
      arriving. Neither is persisted — where someone was heading is not durable
      project state. */
   const [historyScopeLineIntent, setHistoryScopeLineIntent] = useState<string | null>(null);
+  /** A saved version Lines asked History to open, alongside the line it is on. */
+  const [historySelectCommitIntent, setHistorySelectCommitIntent] = useState<string | null>(null);
   const [linesSelectIntent, setLinesSelectIntent] = useState<string | null>(null);
   const publishDialogSession = publishDialogSessionId
     ? sessionsState.byId[publishDialogSessionId] ?? null
@@ -1042,6 +1044,7 @@ export function App(): React.JSX.Element {
     [],
   );
   const clearHistoryScopeLineIntent = useCallback(() => setHistoryScopeLineIntent(null), []);
+  const clearHistorySelectCommitIntent = useCallback(() => setHistorySelectCommitIntent(null), []);
   const clearLinesSelectIntent = useCallback(() => setLinesSelectIntent(null), []);
 
   // Dropping a folder on the window opens it. Session lifecycle wiring, like
@@ -2312,8 +2315,9 @@ export function App(): React.JSX.Element {
                             navigateToView("changes");
                           }}
                           onOpenChanges={() => navigateToView("changes")}
-                          onOpenHistory={(name) => {
+                          onOpenHistory={(name, commit) => {
                             setHistoryScopeLineIntent(name);
+                            setHistorySelectCommitIntent(commit ?? null);
                             navigateToView("history");
                           }}
                           autoOpenCreate={versionLinesAutoOpenCreate}
@@ -2332,6 +2336,8 @@ export function App(): React.JSX.Element {
                           watcherState={activeWatcherState}
                           lines={versionLineNames}
                           scopeLineIntent={historyScopeLineIntent}
+                          selectCommitIntent={historySelectCommitIntent}
+                          onSelectCommitIntentHandled={clearHistorySelectCommitIntent}
                           onScopeLineIntentHandled={clearHistoryScopeLineIntent}
                           onViewLine={viewVersionLine}
                           onSwitchLine={switchToVersionLine}

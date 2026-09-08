@@ -491,6 +491,69 @@ second panel 44px of window width before the other. Four values in
 | `--strip-height` | A panel's own strip: the row control in it plus 10px of air above and below. The History card's tab band is one |
 | `--strip-height-inner` | A strip *inside* a panel — the History workspace's file and diff panes — one step quieter |
 
+Lines pairs those two panels too, and reads at the same density as the screens
+either side of it. Its rows are two lines and one height: the name with when
+the line last moved at the trailing end, then the states worth flagging under
+it. The date sits up there rather than beside the chips because at 272px
+`last month · Local only · Can't be deleted yet` is 250px of content in 240px
+of row, and every crowded line then wrapped to a third one — a row that grows
+when it has more to say is a list that never scans the same way twice.
+
+Its detail panel is one surface divided by rules, not a tray of cards: an
+identity header — the name and its actions on one row, where the line lives and
+who last saved to it on the row under them — then two sections separated by a
+hairline, where the line stands and the versions on it, and a footer leading to
+History. A card inside a card is two borders describing one thing.
+
+**The panel does not scroll; the section that can outgrow it does.** Where a
+line stands is three lines that never grow, and a panel that scrolls as a whole
+carries them off the top to reach the list underneath — the answer leaving to
+show the question. The body divides its height between the sections instead,
+and the list of versions takes what is left and scrolls inside itself, which
+also keeps the way through to History against the bottom edge where a way out
+belongs.
+
+**Each fact is stated once on a panel, in the place that says it best.** This
+panel used to close with a Status table whose five pairs were all answered
+above it — the upstream by the header, the count by the strip, the date and the
+hash by the latest-version section — which in turn described in full the same
+saved version the list under it opened with. A screen that repeats itself is
+not thorough; it is a screen where the reader has to check whether the second
+statement means something new. The upstream is named in the header, who last
+saved and when in the byline, and every saved version exactly once in the list,
+the newest carrying the two things only it can say: whether it is published,
+and its hash. The list is eight deep rather than four, which is what makes it a
+preview worth the section rather than three rows under half a panel of nothing,
+and every row opens that version in History — the screen that draws the same
+sequence in full.
+
+**A third screen asking the same question uses the same surface.** Lines
+filters a list the way Changes and History do — a trigger with a count, a
+panel, groups of capsules and switches, a footer that clears them — and had a
+private copy of every rule for it. The copy is what a private copy always
+becomes: it had never picked up the shared sheet's fix for a `<legend>` not
+being a grid item, so `Sort by` sat flush against the capsules under it where
+the other two screens give it 6px. What a feature may still own is the part
+only it has — here, the group listing name prefixes, which grows with the
+repository and therefore scrolls, the way the file-type group in Changes does.
+
+**A drawing has to say more than its caption does.** The strip opened with a
+rail of dots — one per version the read returned, hollow at the left for the
+ones behind them, `Older versions` and `Newer versions` written under its two
+ends. Every line that had filled the read drew the identical picture, so the
+only thing the rail could tell you was "there are more than eight", and the
+count standing beside it said that in words. A diagram that needs a legend to
+explain what it is, and then encodes one bit, is decoration with a caption on
+it; the pixels went to who saved the last version and when.
+
+**A state and the sentence explaining it are one line, not two.** Given the
+whole measure of a panel, `Up to date with the remote — Your local line is in
+sync with origin/…` reads as what it is. Stacked, it spent two lines and a gap
+per state to fill a third of the width, which is how the panel ended up wanting
+two columns it did not need: three short sections beside each other, and a list
+of subjects truncated at half measure. The sections take the full width and the
+grid is one column again.
+
 The heights are a `calc` off `--control-height-sm` rather than sizes of their
 own, for the same reason a control's height is a token: a strip is the control
 that lives in it plus its air, so it cannot be right at one number and wrong at

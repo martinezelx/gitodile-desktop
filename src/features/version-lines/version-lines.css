@@ -137,23 +137,35 @@
   text-align: center;
 }
 
-/* The row. The same box as a History timeline row a tier shorter: this one
-   carries a name, where the line lives, and the states worth flagging — never
-   the actions, which belong to the one line the reader has actually chosen. */
+/* The row. Two lines and one height, the way a History timeline row and a
+   Changes file row are: what the line is called and when it last moved, then —
+   quieter, under it — the states worth flagging. Never the actions, which
+   belong to the one line the reader has actually chosen.
+
+   It used to be three lines and a glyph. The glyph was a branch icon repeated
+   down a list of branches, which is a column of pixels spent saying what the
+   panel's own title says once; and the middle line spelled the upstream out,
+   which in a 300px column is `Tracks origin/0.2.0-previe…` — the row repeating
+   its own name, badly, in the width the name needed. Both are gone. The
+   upstream is stated in full in the header of the panel beside this one, and
+   `Local only` is still here for the lines that have none. */
 .version-line-row {
   position: relative;
   width: 100%;
-  min-height: 66px;
-  /* Never shrink. These rows vary in height — a line can carry one chip or
-     three — and in a column flex container an overflowing list is resolved by
-     squashing its items down to their `min-height`, which leaves the box 66px
-     tall with 86px of content spilling out of it and over the row below.
+  min-height: 56px;
+  /* Never shrink. In a column flex container an overflowing list is resolved
+     by squashing its items down to their content, which leaves a row shorter
+     than its own two lines with the second one spilling over the row below.
      `flex: 0 0 auto` is what makes the scroller scroll instead. */
   flex: 0 0 auto;
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: 10px;
+  flex-direction: column;
+  /* Centred, not stacked from the top: a line that is in sync with its remote
+     has no state to flag, so its row is one line and the air belongs on both
+     sides of it rather than all below. */
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-item);
   background: transparent;
@@ -168,18 +180,6 @@
    different questions. */
 .version-line-row--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); }
 .version-line-row--selected:hover { background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-panel)); }
-.version-line-row__icon {
-  width: 20px;
-  height: 20px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 20px;
-  margin-top: 1px;
-  color: var(--text-secondary-color);
-}
-.version-line-row__icon svg { width: 14px; height: 14px; }
-.version-line-row--selected .version-line-row__icon { color: var(--accent-primary); }
-.version-line-row__body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
 .version-line-row__name-row { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
 .version-line-row__name {
   min-width: 0;
@@ -192,27 +192,29 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.version-line-row__meta:empty { display: none; }
-.version-line-row__meta {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+/* When it last moved, at the trailing end of the line that names the line —
+   the place a list of dated things keeps its date. It shared the second line
+   with the chips at first, and in a 272px column `last month · Local only ·
+   Can't be deleted yet` is 250px of content in 240px of row: every crowded
+   line wrapped to a third row, which is the height this row was rebuilt to
+   stop spending. The second line is the states and nothing else now, and two
+   of them always fit. */
+.version-line-row__date {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding-inline-start: var(--space-2);
   color: var(--text-secondary-color);
   font-size: var(--text-caption);
+  white-space: nowrap;
 }
-.version-line-row__meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The upstream is the one that may give up width: it is the longer of the two
-   and the more repetitive down the column. */
-.version-line-row__upstream { flex: 0 1 auto; }
-.version-line-row__date { flex: 0 0 auto; }
-.version-line-row__upstream + .version-line-row__date::before {
-  content: "·";
-  margin-inline-end: 5px;
-  color: var(--border-divider);
+.version-line-row__states:empty { display: none; }
+.version-line-row__states {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
 }
-.version-line-row__chips:empty { display: none; }
-.version-line-row__chips { display: flex; flex-wrap: wrap; gap: 4px; }
 
 /* The row-scale chip: the same box as a History reference chip, so a state on
    this screen weighs exactly what a state on that one weighs. */
@@ -243,138 +245,47 @@
   border-color: color-mix(in srgb, var(--status-warning) 45%, transparent);
   color: var(--status-warning);
 }
-/* `--accent-primary` and `--accent-primary-fill` are the same green in dark
-   mode, so pairing the fill with `--accent-primary` as text would make this
-   chip invisible there. `--accent-primary-contrast` is the colour this fill is
-   designed to pair with — the same pairing the checkbox's checked state uses. */
+/* The line the project is standing on. It used to be a filled accent capsule
+   in uppercase with its own weight and tracking — three louder settings than
+   any other chip, on the row that is already first in the list and already
+   marked by the detail beside it. It is a chip like the rest now, tinted the
+   way `--positive` and `--warning` are, and it stops shouting over the name it
+   sits next to. */
 .version-line-chip--active {
   flex: 0 0 auto;
-  border-color: transparent;
-  background: var(--accent-primary-fill);
-  color: var(--accent-primary-contrast);
-  font-weight: var(--weight-heading);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-}
-
-/* One trigger for every filter, and it never grows: the count says that
-   something is on and how much of it, which is the only arrangement that
-   survives a ~300px column. The same box as the History timeline's. */
-.version-lines-filter { display: inline-flex; }
-.version-lines-filter__trigger {
-  position: relative;
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-item);
-  background: transparent;
-  color: var(--text-secondary-color);
-  transition: background-color var(--duration-fast) ease-out, color var(--duration-fast) ease-out;
-}
-.version-lines-filter__trigger:hover { background: var(--surface-raised); color: var(--text-primary-color); }
-.version-lines-filter__trigger[aria-expanded="true"] { background: var(--surface-active); color: var(--text-primary-color); }
-.version-lines-filter__trigger--active { background: var(--surface-active); color: var(--accent-primary); }
-.version-lines-filter__trigger svg { width: 14px; height: 14px; }
-/* A filled count, not a bare tint: narrowing must not be distinguishable by
-   colour alone. */
-.version-lines-filter__badge {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  min-width: 13px;
-  height: 13px;
-  display: grid;
-  place-items: center;
-  padding: 0 3px;
-  border-radius: var(--radius-pill);
-  background: var(--accent-primary);
-  color: var(--accent-primary-contrast);
-  font-size: var(--text-micro);
-  font-weight: var(--weight-title);
-  font-variant-numeric: tabular-nums;
-  line-height: var(--leading-none);
-}
-/* A form, not a menu, so it takes an `.app-menu`'s surface and lays its own
-   groups out inside it. It spans the strip rather than the trigger, which is
-   what keeps it inside the panel's edges on both sides. */
-.version-lines-filter__panel {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% - var(--space-2));
-  right: var(--space-2);
-  left: var(--space-2);
-  display: grid;
-  gap: var(--space-3);
-  max-height: min(460px, calc(100vh - 220px));
-  padding: var(--space-3);
-  overflow-y: auto;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-lg);
-}
-.version-lines-filter__panel:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.version-lines-filter__group { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
-.version-lines-filter__label {
-  margin: 0;
-  padding: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-strong);
-}
-.version-lines-filter__ranges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.version-lines-filter__range {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-strong);
-}
-.version-lines-filter__range:hover { border-color: var(--border-divider); color: var(--text-primary-color); }
-.version-lines-filter__range:has(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.version-lines-filter__range--active {
-  border-color: var(--accent-primary);
-  background: var(--surface-active);
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-raised));
   color: var(--accent-primary);
 }
-.version-lines-filter__switch {
+
+/* What is left of this screen's filters after the surface moved to `shared/ui`
+   (task 121): the trigger, the panel, the groups, the capsules, the switches
+   and the footer are `.filter-control` and `.filter-panel` there, the same
+   boxes Changes and History wear. Lines had a private copy of all of it — and
+   the copy had never picked up the fix for a `<legend>` not being a grid item,
+   so `Sort by` sat flush against the capsules under it where the shared panel
+   gives it 6px.
+
+   This is the one part only Lines has: the group that lists name prefixes
+   grows with the repository, so it scrolls on its own — the way the file-type
+   group in Changes does, and for the same reason. `.filter-panel` deliberately
+   has no overflow of its own.
+
+   Five rows of headroom: enough that an ordinary project needs no scrolling at
+   all, short enough that the footer under it stays on screen. */
+.version-lines-filter__prefixes {
+  max-height: 148px;
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 28px;
-  padding: 0 6px;
-  border-radius: var(--radius-item);
-  color: var(--text-primary-color);
-  font-size: var(--text-label);
-}
-.version-lines-filter__switch:hover { background: var(--surface-hover); }
-.version-lines-filter__switch > span:first-of-type { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.version-lines-filter__count { flex: 0 0 auto; color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
-.version-lines-filter__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border-subtle);
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
+  display: grid;
+  gap: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* The detail column. The same shape as the History saved-version card: one
    surface, a summary band at the top, the body scrolling under it, and a quiet
    footer at the bottom. */
-.version-lines-detail { min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); overflow: hidden; }
+.version-lines-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); overflow: hidden; }
 .version-lines-detail__back { display: none; align-self: flex-start; }
 .version-lines-detail__card {
   flex: 1;
@@ -397,15 +308,48 @@
   text-align: center;
 }
 .version-lines-detail--empty p { margin: 0; }
+/* The identity block: one row for the name and its actions, one line under it
+   for everything else known about the line. It carries the rule that used to
+   belong to the byline band below it — one block of chrome, one edge. */
 .version-lines-detail__summary {
   flex: 0 0 auto;
-  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 11px 12px 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.version-lines-detail__summary-top {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 14px 12px 14px 16px;
-  border-bottom: 1px solid var(--border-subtle);
 }
+/* Where the line lives, then who last saved to it — one line, packed from the
+   left, wrapping rather than truncating on a narrow panel. */
+.version-lines-detail__meta {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--space-3);
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.version-lines-detail__upstream { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-detail__byline { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.version-lines-detail__byline-label { flex: 0 0 auto; }
+.version-lines-detail__byline strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.version-lines-detail__byline > span:last-child { flex: 0 0 auto; }
+.version-lines-detail__byline > strong + span::before { content: "·"; margin-inline-end: 6px; }
 .version-lines-detail__icon {
   width: 34px;
   height: 34px;
@@ -418,26 +362,20 @@
   color: var(--text-secondary-color);
 }
 .version-lines-detail__icon svg { width: 16px; height: 16px; }
-.version-lines-detail__identity { min-width: 0; flex: 1; display: grid; gap: 5px; }
+.version-lines-detail__identity { min-width: 0; flex: 1; }
 .version-lines-detail__identity h2 {
   min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
   line-height: var(--leading-snug);
   letter-spacing: var(--tracking-tight);
 }
 .version-lines-detail__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.version-lines-detail__identity p {
-  margin: 0;
-  overflow: hidden;
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.version-lines-detail__actions { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-2); }
+.version-lines-detail__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .version-lines-detail__actions .secondary-button { white-space: nowrap; }
 .version-lines-detail__actions .secondary-button svg { width: 14px; height: 14px; flex-shrink: 0; }
 
@@ -463,130 +401,47 @@
   background: color-mix(in srgb, var(--status-danger) 12%, transparent);
 }
 
+/* Not a scroller: the sections divide the panel's remaining height between
+   them, and the one that can outgrow it scrolls inside itself. */
 .version-lines-detail__body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px;
-  overflow-y: auto;
+  overflow: hidden;
 }
-
-/* Where this line stands, and deliberately not a graph: the snapshot knows how
-   many versions sit either side of the upstream and nothing about the ones
-   before them, so the rail draws exactly that and no more. Discreet by
-   construction — a caption with a diagram in it, not a panel of its own. */
-.version-lines-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-5);
-  padding: 10px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-card);
-}
-.version-lines-strip__rail { min-width: 0; display: grid; gap: 6px; }
-.version-lines-strip__track { display: flex; align-items: center; }
-.version-lines-strip__node {
-  position: relative;
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  border-radius: var(--radius-round);
-  background: var(--border-divider);
-}
-/* The connector is drawn by the node that follows it rather than as an element
-   of its own, so the rail is exactly as long as it has nodes. */
-.version-lines-strip__node + .version-lines-strip__node { margin-inline-start: 14px; }
-.version-lines-strip__node + .version-lines-strip__node::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  inset-inline-end: 100%;
-  width: 14px;
-  height: 1px;
-  background: var(--border-divider);
-}
-/* The versions before the ones the read returned. Hollow, because it stands
-   for versions this rail is not drawing rather than for one of them. */
-.version-lines-strip__node--older { background: transparent; box-shadow: inset 0 0 0 1.5px var(--border-divider); }
-.version-lines-strip__node--tip {
-  width: 12px;
-  height: 12px;
-  background: var(--accent-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 22%, transparent);
-}
-.version-lines-strip__ends {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-micro);
-}
-.version-lines-strip__facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-4); margin: 0; }
-.version-lines-strip__facts > div { min-width: 0; display: flex; align-items: baseline; gap: 6px; }
-.version-lines-strip__facts dt { margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); }
-.version-lines-strip__facts dd { margin: 0; color: var(--text-primary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); }
-
-/* The fact cards, on the same surface as a History overview section and at the
-   same tier, so a card on either screen reads as the same kind of object. */
 .version-lines-detail__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .version-lines-card {
   min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-card);
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-4);
+  border-block-start: 1px solid var(--border-divider);
 }
-.version-lines-card h3 { margin: 0 0 12px; font-size: var(--text-body); }
-.version-lines-card__subject {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 0 0 10px;
-  color: var(--text-primary-color);
-  font-size: var(--text-body);
-  font-weight: var(--weight-strong);
-  line-height: var(--leading-snug);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-.version-lines-card__meta {
+/* The section that takes whatever height the ones above it leave, and scrolls
+   inside itself rather than pushing them off the top of the panel. */
+.version-lines-card--fill {
+  min-height: 0;
+  flex: 1;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
+  flex-direction: column;
+  padding-bottom: var(--space-2);
+}
+/* The first section opens against the strip, which already draws the rule
+   above it. */
+.version-lines-card:first-child { border-block-start: 0; }
+/* A section label, not a card title: the rule above it is what says a new
+   section has started, so the heading only has to name it. */
+.version-lines-card h3 {
+  margin: 0 0 var(--space-2);
   color: var(--text-secondary-color);
-  font-size: var(--text-caption);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
 }
-.version-lines-card code {
-  padding: 2px 6px;
-  border: 1px solid var(--border-divider);
-  border-radius: var(--radius-item);
-  background: var(--surface-code);
-  font-size: var(--text-micro);
-  user-select: text;
-}
-/* Who saved it, on the line under what was saved — the same avatar-then-name
-   order the History saved-version card states it in. */
-.version-lines-card__author {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 10px 0 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-}
-.version-lines-card__author strong { color: var(--text-primary-color); font-size: var(--text-label); }
-.version-lines-card__author > span:last-child::before { content: "·"; margin-inline-end: var(--space-2); }
 .version-lines-avatar {
   width: 24px;
   height: 24px;
@@ -604,54 +459,74 @@
 
 /* A few of this line's saved versions, at the tier the History timeline lists
    them: the subject is the row, and when it happened is the caption beside it. */
-.version-lines-recent { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.version-lines-recent { min-height: 0; display: grid; align-content: start; gap: 1px; margin: 0 -6px; padding: 0; list-style: none; }
+.version-lines-card--fill .version-lines-recent { flex: 1; overflow-y: auto; }
 .version-lines-recent li {
   min-width: 0;
-  height: 26px;
+  min-height: 30px;
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  padding: 0 6px;
   color: var(--text-secondary-color);
   font-size: var(--text-caption);
+}
+/* The row is the control: it opens this version in History, so it answers on
+   approach the way a row in the list column does, with the same tint and the
+   same item radius. It takes the row's own padding with it — the `li` keeps
+   it only for a host that offers nowhere to open, where the row is a line of
+   text rather than a button. */
+.version-lines-recent li:has(.version-lines-recent__open) { padding: 0; }
+.version-lines-recent__open {
+  min-width: 0;
+  flex: 1;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-caption);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease-out;
+}
+.version-lines-recent__open:hover { background: var(--surface-hover); }
+.version-lines-recent__open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.version-lines-recent .version-line-chip { flex: 0 0 auto; }
+.version-lines-recent code {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border-divider);
+  border-radius: var(--radius-item);
+  background: var(--surface-code);
+  font-size: var(--text-micro);
 }
 .version-lines-recent__subject {
   min-width: 0;
   flex: 1;
   overflow: hidden;
   color: var(--text-primary-color);
+  font-size: var(--text-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .version-lines-recent__date { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
-.version-lines-card > .ghost-button { margin: var(--space-2) 0 0 -6px; }
 
-.version-lines-relations { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.version-lines-relations { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .version-lines-relations li { display: flex; align-items: flex-start; gap: var(--space-2); }
 .version-lines-relations svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; color: var(--text-secondary-color); }
 .version-lines-relations__item--positive svg { color: var(--status-success); }
 .version-lines-relations__item--warning svg { color: var(--status-warning); }
 .version-lines-relations__item--protected svg { color: var(--accent-primary); }
-.version-lines-relations span { min-width: 0; color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal); }
-.version-lines-relations strong { display: block; color: var(--text-primary-color); font-size: var(--text-label); }
-
-/* The card whose facts are a table rather than a sentence takes the row to
-   itself and spreads them, the way the History overview's technical card does
-   — four label/value pairs stacked down one half of a wide panel would leave
-   the other half empty for no reason. */
-.version-lines-card--wide { grid-column: 1 / -1; }
-.version-lines-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 9px var(--space-5); margin: 0; }
-.version-lines-status > div { min-width: 0; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-2); align-items: baseline; }
-.version-lines-status dt { margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); }
-.version-lines-status dd {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: var(--text-primary-color);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-strong);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.version-lines-relations span { min-width: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere; }
+/* The state and the sentence that explains it on one line, not stacked. Given
+   the whole measure of the panel, the pair reads as a sentence — and stacked
+   it spent two lines and a 4px gap per state to fill a third of the width. */
+.version-lines-relations strong { margin-inline-end: 6px; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-strong); }
 
 /* The way on from this screen, at the quiet end of the card. */
 .version-lines-detail__history {
@@ -678,8 +553,12 @@
 }
 
 @media (max-width: 1240px) {
-  .version-lines-detail__grid { grid-template-columns: minmax(0, 1fr); }
-  .version-lines-detail__summary { flex-wrap: wrap; padding-inline: 13px 11px; }
+  /* The wrap belongs to the row, which is the box that can run out of width:
+     the summary itself is a column now, and `flex-wrap` on a column is a rule
+     that reads as if it did something. Without it here the actions' 100% below
+     had nothing to wrap onto and simply crushed the name beside them. */
+  .version-lines-detail__summary { padding-inline: 13px 11px; }
+  .version-lines-detail__summary-top { flex-wrap: wrap; }
 }
 
 /* One column, at the width the other two drop to one. */
@@ -693,20 +572,18 @@
 
 @media (max-width: 700px) {
   .version-lines-detail__actions { width: 100%; justify-content: flex-end; }
-  .version-lines-strip { justify-content: flex-start; }
+  .version-lines-detail__history { flex-wrap: wrap; }
+  .version-lines-detail__history .secondary-button { margin-inline-start: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .version-line-row, .version-lines-filter__trigger { transition: none; }
+  .version-line-row { transition: none; }
 }
 
 
 @media (forced-colors: active) {
   .version-line-row--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .version-line-chip { border: 1px solid CanvasText; }
-  .version-lines-strip__node { background: CanvasText; }
-  .version-lines-strip__node--older { box-shadow: inset 0 0 0 1.5px CanvasText; }
-  .version-lines-strip__node--tip { background: Highlight; }
 }
 
 .delete-version-line-options {

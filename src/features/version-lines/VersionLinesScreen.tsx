@@ -15,8 +15,10 @@ export type VersionLinesScreenProps = {
   onChanged: () => void;
   onSaveVersion: () => void;
   onOpenChanges?: () => void;
-  /** Opens History reading the named line, without checking it out. */
-  onOpenHistory?: (name: string) => void;
+  /** Open History reading this line, and — when a version is named — with that
+   * version selected. Lines' own list of saved versions is a preview of the
+   * one History draws in full. */
+  onOpenHistory?: (name: string, commit?: string) => void;
   onOperationStart: () => boolean;
   onOperationFinish: () => void;
   onOperationPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;

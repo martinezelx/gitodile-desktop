@@ -111,18 +111,21 @@ function renderPanel(props: Partial<React.ComponentProps<typeof VersionLinesPane
 /** What the on-demand per-line read answers. Only the selected line's history
  * is ever asked for, so a stub keyed by name is all the panel can observe. */
 function history(name: string, overrides: Partial<VersionLineHistory> = {}): VersionLineHistory {
+  // Newest first, and the newest is this line's own tip: the read is asked for
+  // by tip commit, so a stub whose first record belongs to a different line
+  // describes a state the app cannot be in.
+  const tip = snapshot().lines.find((line) => line.name === name)?.tip ?? {
+    commit: `${name}-tip`,
+    shortCommit: `${name}-tipa`,
+    subject: `latest on ${name}`,
+    committedAt: "2026-07-02T00:00:00Z",
+  };
   return {
     name,
     totalCount: 12,
     hasMore: true,
     versions: [
-      {
-        commit: "def456",
-        shortCommit: "def456a",
-        subject: "in progress",
-        authorName: "Ada Lovelace",
-        committedAt: "2026-07-02T00:00:00Z",
-      },
+      { ...tip, authorName: "Ada Lovelace" },
       {
         commit: "ccc333",
         shortCommit: "ccc333a",
@@ -179,7 +182,7 @@ describe("VersionLinesPanel", () => {
     // The detail column describes it without anything being clicked.
     const detail = detailPanel("main");
     expect(within(detail).getByRole("heading", { level: 2 })).toHaveTextContent("main");
-    expect(within(detail).getByText("Latest saved version")).toBeInTheDocument();
+    expect(within(detail).getByText("Saved versions")).toBeInTheDocument();
     expect(within(detail).getByText("first version")).toBeInTheDocument();
 
     // Reading is the caller's job, so the screen never spawns Git work just by
@@ -353,12 +356,12 @@ describe("VersionLinesPanel", () => {
     expect(listedNames()).toEqual(["main", "zeta/newest", "alpha/oldest"]);
 
     await user.click(screen.getByRole("button", { name: "Filter and sort" }));
-    await user.click(screen.getByRole("radio", { name: "Name (A–Z)" }));
+    await user.click(screen.getByRole("radio", { name: "Name" }));
     expect(listedNames()).toEqual(["main", "alpha/oldest", "zeta/newest"]);
 
-    // "Local-only first" is deliberately narrower than "not pushed": the
+    // "Local first" is deliberately narrower than "not pushed": the
     // tracked zeta line is ahead, but the no-upstream alpha line comes first.
-    await user.click(screen.getByRole("radio", { name: "Local-only first" }));
+    await user.click(screen.getByRole("radio", { name: "Local first" }));
     expect(listedNames()).toEqual(["main", "alpha/oldest", "zeta/newest"]);
   });
 
@@ -726,9 +729,10 @@ describe("VersionLinesPanel", () => {
     expect(
       within(detail).getByText("Your local line is in sync with origin/feature/synced."),
     ).toBeInTheDocument();
-    expect(within(detail).getAllByText("origin/feature/synced").length).toBeGreaterThan(0);
+    // The upstream is named once, in the header, rather than repeated as a
+    // labelled pair further down the panel.
+    expect(within(detail).getByText("Tracks origin/feature/synced")).toBeInTheDocument();
     expect(within(detail).getByText("Published")).toBeInTheDocument();
-    expect(within(detail).getByText("Tracking remote")).toBeInTheDocument();
   });
 
   it("says a local-only line has never been published, and never calls its tip published", async () => {
@@ -777,12 +781,13 @@ describe("VersionLinesPanel", () => {
     expect(readHistory).toHaveBeenCalledOnce();
 
     const detail = detailPanel("main");
-    await within(detail).findByText("Recent versions");
+    await within(detail).findByText("Saved versions");
+    // The tip from the inventory, then the versions behind it from the read.
+    expect(within(detail).getByText("first version")).toBeInTheDocument();
     expect(within(detail).getByText("an earlier step")).toBeInTheDocument();
     // The tip's author comes from the same read — the inventory has no author
-    // field, so without this call the card states the rest and no name.
+    // field, so without this call the byline states the date and no name.
     expect(within(detail).getAllByText("Ada Lovelace").length).toBeGreaterThan(0);
-    expect(within(detail).getAllByText("12 saved versions").length).toBeGreaterThan(0);
 
     // Selecting another line asks for that line's history, keyed by its tip.
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
@@ -798,39 +803,66 @@ describe("VersionLinesPanel", () => {
 
     const detail = detailPanel("main");
     await waitFor(() => expect(readHistory).toHaveBeenCalled());
-    expect(within(detail).getByText("Latest saved version")).toBeInTheDocument();
+    expect(within(detail).getByText("Saved versions")).toBeInTheDocument();
+    // The tip is the inventory's, so the list stands at one row; the versions
+    // behind it are the ones the failed read would have added.
     expect(within(detail).getByText("first version")).toBeInTheDocument();
+    expect(within(detail).queryByText("an earlier step")).not.toBeInTheDocument();
     expect(within(detail).getByText("Relationship")).toBeInTheDocument();
-    expect(within(detail).queryByText("Recent versions")).not.toBeInTheDocument();
   });
 
-  it("offers View all on any line, scoped to that line", async () => {
+  it("keeps a version the inventory has not caught up with, rather than dropping it", async () => {
+    // The two answers come from two Git calls: the inventory names the tip, the
+    // read lists the versions. A save landing between them leaves the read one
+    // version ahead — and taking its first record *as* the tip would drop that
+    // version from the list and put its author's name against the tip.
+    renderPanel({
+      readHistory: async (name: string) => ({
+        ...history(name),
+        versions: [
+          {
+            commit: "zzz999",
+            shortCommit: "zzz999a",
+            subject: "saved a moment ago",
+            authorName: "Grace Hopper",
+            committedAt: "2026-07-03T00:00:00Z",
+          },
+          ...history(name).versions,
+        ],
+      }),
+    });
+
+    const detail = detailPanel("main");
+    await within(detail).findByText("saved a moment ago");
+    expect(within(detail).getByText("first version")).toBeInTheDocument();
+    expect(within(detail).getByText("an earlier step")).toBeInTheDocument();
+    // The tip is not that version, so its author is not the tip's author.
+    expect(within(detail).queryByText("Grace Hopper")).not.toBeInTheDocument();
+  });
+
+  it("opens a saved version in History from the list, not just the line", async () => {
     const user = userEvent.setup();
     const onOpenHistory = vi.fn();
     renderPanel({ readHistory: async (name: string) => history(name), onOpenHistory });
 
-    await within(detailPanel("main")).findByRole("button", { name: "View all" });
-    await user.click(within(detailPanel("main")).getByRole("button", { name: "View all" }));
-    expect(onOpenHistory).toHaveBeenCalledWith("main");
-
-    // Every line can answer it now: History reads the line it is pointed at
-    // without anything being checked out.
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
-    const other = detailPanel("feature/new-thing");
-    await within(other).findByText("Recent versions");
-    await user.click(within(other).getByRole("button", { name: "View all" }));
-    expect(onOpenHistory).toHaveBeenLastCalledWith("feature/new-thing");
+    const detail = detailPanel("main");
+    await within(detail).findByText("an earlier step");
+    await user.click(within(detail).getByRole("button", { name: "Open “an earlier step” in History" }));
+    // The line it is on and the version itself: History needs both to land on
+    // the version the reader clicked.
+    expect(onOpenHistory).toHaveBeenCalledWith("main", "ccc333");
   });
 
-  it("says nothing about a version count a shallow clone cannot state", async () => {
+  it("reads a history a shallow clone cannot count, and shows it anyway", async () => {
     renderPanel({
       readHistory: async (name: string) => history(name, { totalCount: null }),
     });
 
+    // Nothing on this screen states a total any more, so a read that cannot
+    // count has nothing to withhold — it just has to render.
     const detail = detailPanel("main");
-    await within(detail).findByText("Recent versions");
-    expect(within(detail).queryByText(/saved versions/)).not.toBeInTheDocument();
-    expect(within(detail).queryByText("Saved versions")).not.toBeInTheDocument();
+    await within(detail).findByText("Saved versions");
+    expect(within(detail).getByText("an earlier step")).toBeInTheDocument();
   });
 
   it("offers copy, switch, rename and delete on a right-clicked line", async () => {

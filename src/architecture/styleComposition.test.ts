@@ -65,8 +65,6 @@ describe("production style composition", () => {
     expect(changes).toContain("@media (max-width: 1024px)");
 
     const versionLines = readSource("features/version-lines/version-lines.css");
-    expect(versionLines).toContain(".version-lines-filter__panel");
-    expect(versionLines).toContain("max-height: min(460px, calc(100vh - 220px))");
     // Lines pairs the same two panels Changes and History do, off the same two
     // tokens and at the same width the other two narrow on.
     expect(versionLines).toContain("grid-template-columns: var(--panel-column) minmax(0, 1fr)");
@@ -120,11 +118,19 @@ describe("production style composition", () => {
     expect(changes).not.toContain(".changes-filter__trigger");
     expect(changes).not.toContain(".changes-filter__capsule");
     expect(changes).not.toContain(".changes-filter-chip");
+    // Lines asks the same question of a third list, and had kept a private
+    // copy of the whole surface — down to a `Sort by` legend that had never
+    // picked up the shared sheet's fix for a legend not being a grid item.
+    expect(versionLines).not.toContain(".version-lines-filter__panel");
+    expect(versionLines).not.toContain(".version-lines-filter__trigger");
+    expect(versionLines).not.toContain(".version-lines-filter__range");
+    expect(versionLines).not.toContain(".version-lines-filter__switch");
     // What each feature is still allowed to own: the parts of its own panel
     // that only it has. History's version-line picker, and the one group in
     // Changes that grows with the repository and therefore scrolls.
     expect(history).toContain(".history-scope-picker {");
     expect(changes).toContain(".changes-filter__types {");
+    expect(versionLines).toContain(".version-lines-filter__prefixes {");
 
     const appShell = readSource("app/app-shell.css");
     expect(appShell).toContain(".settings-dialog");
@@ -577,7 +583,6 @@ describe("production style composition", () => {
       ["features/sync/sync.css", ".team-changes__endpoint > svg", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
       ["features/version-lines/version-lines.css", ".version-lines-avatar", "border-radius: var(--radius-round)"],
-      ["features/version-lines/version-lines.css", ".version-lines-filter__trigger", "border-radius: var(--radius-item)"],
       // The shared filter trigger, which Changes and History both wear in the
       // trailing slot of their search box: an affordance attached to the box
       // rather than a control of its own, so it stays rectangular.

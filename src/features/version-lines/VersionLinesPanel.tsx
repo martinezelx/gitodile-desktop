@@ -7,7 +7,6 @@ import {
   CircleCheck,
   GitBranch,
   Info,
-  ListFilter,
   PenLine,
   Plus,
   ShieldCheck,
@@ -20,11 +19,14 @@ import {
   AutomaticUpdatesNotice,
   avatarInitials,
   contextMenuAnchorFrom,
-  handlePopupMenuKeyDown,
+  FilterCapsule,
+  FilterCapsules,
+  FilterGroup,
+  FilterPanel,
+  FilterSwitch,
   LoadingBar,
   SearchBox,
   autoHideScrollbarProps,
-  useAnchoredPopup,
 } from "../../shared/ui";
 import type { VersionLine, VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, versionLineActions } from "./lineActions";
@@ -205,53 +207,42 @@ const VersionLineRow = React.memo(function VersionLineRow({
       }}
       onKeyDown={handleKeyDown}
     >
-      <span className="version-line-row__icon" aria-hidden="true">
-        <GitBranch />
+      <span className="version-line-row__name-row">
+        <span className="version-line-row__name" title={line.name}>
+          {line.name}
+        </span>
+        {line.isActive && (
+          <span className="version-line-chip version-line-chip--active">{t.versionLinesActiveLabel}</span>
+        )}
+        {relative && <span className="version-line-row__date">{relative}</span>}
       </span>
-      <span className="version-line-row__body">
-        <span className="version-line-row__name-row">
-          <span className="version-line-row__name" title={line.name}>
-            {line.name}
+      {/* At most two chips, and always the same two questions: where this line
+          stands against its remote, and whether it can be cleared away. A row
+          that answers more than that stops being a list of names — the rest is
+          one click away in the detail, which has room for a sentence about it.
+          The upstream is one of the answers that moved there: spelled out here
+          it was the row's own name truncated. */}
+      <span className="version-line-row__states">
+        {sync.kind === "gone" ? (
+          <span className="version-line-chip version-line-chip--warning">{syncText(sync, t)}</span>
+        ) : sync.kind === "ahead" || sync.kind === "behind" || sync.kind === "diverged" ? (
+          <span className="version-line-chip">{syncText(sync, t)}</span>
+        ) : sync.kind === "none" ? (
+          <span className="version-line-chip">{t.versionLinesNoUpstreamLabel}</span>
+        ) : null}
+        {/* The active line is never a deletion candidate, and a line checked
+            out elsewhere is refused for a reason the detail states in full. */}
+        {deletability === "protected" ? (
+          <span className="version-line-chip">{t.versionLinesDefaultLineChip}</span>
+        ) : line.isActive ? null : deletability === "ready" ? (
+          <span className="version-line-chip version-line-chip--positive">
+            {t.versionLinesDeletablePill}
           </span>
-          {line.isActive && (
-            <span className="version-line-chip version-line-chip--active">{t.versionLinesActiveLabel}</span>
-          )}
-        </span>
-        <span className="version-line-row__meta">
-          {line.upstream && (
-            <span className="version-line-row__upstream" title={t.versionLinesUpstreamLabel(line.upstream)}>
-              {t.versionLinesUpstreamLabel(line.upstream)}
-            </span>
-          )}
-          {relative && <span className="version-line-row__date">{relative}</span>}
-        </span>
-        {/* At most two chips, and always the same two questions: where this
-            line stands against its remote, and whether it can be cleared away.
-            A row that answers more than that grows a second and third line of
-            chips, and the column stops being a list of names — the rest is one
-            click away in the detail, which has room for a sentence about it. */}
-        <span className="version-line-row__chips">
-          {sync.kind === "gone" ? (
-            <span className="version-line-chip version-line-chip--warning">{syncText(sync, t)}</span>
-          ) : sync.kind === "ahead" || sync.kind === "behind" || sync.kind === "diverged" ? (
-            <span className="version-line-chip">{syncText(sync, t)}</span>
-          ) : sync.kind === "none" ? (
-            <span className="version-line-chip">{t.versionLinesNoUpstreamLabel}</span>
-          ) : null}
-          {/* The active line is never a deletion candidate, and a line checked
-              out elsewhere is refused for a reason the detail states in full. */}
-          {deletability === "protected" ? (
-            <span className="version-line-chip">{t.versionLinesDefaultLineChip}</span>
-          ) : line.isActive ? null : deletability === "ready" ? (
-            <span className="version-line-chip version-line-chip--positive">
-              {t.versionLinesDeletablePill}
-            </span>
-          ) : deletability === "unique-work" ? (
-            <span className="version-line-chip version-line-chip--warning">
-              {t.versionLinesNotDeletablePill}
-            </span>
-          ) : null}
-        </span>
+        ) : deletability === "unique-work" ? (
+          <span className="version-line-chip version-line-chip--warning">
+            {t.versionLinesNotDeletablePill}
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -284,113 +275,77 @@ function VersionLinesFilterPanel({
   onClear: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const closePanel = (restoreFocus: boolean): void => {
-    setIsOpen(false);
-    if (restoreFocus) triggerRef.current?.focus();
-  };
-  const { containerRef, popupRef } = useAnchoredPopup(isOpen, triggerRef, closePanel, "container");
   const active = selectedPrefixes.length + selectedStates.length;
-  const label = active > 0 ? t.versionLinesFiltersActive(active) : t.versionLinesFiltersLabel;
 
   return (
-    <div className="version-lines-filter" ref={containerRef}>
-      <button
-        ref={triggerRef}
-        className={`version-lines-filter__trigger${active > 0 ? " version-lines-filter__trigger--active" : ""}`}
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-        aria-label={label}
-        data-tooltip={label}
-        onClick={() => setIsOpen((open) => !open)}
-      >
-        <ListFilter aria-hidden="true" />
-        {/* A count, not a dot: the trigger has to say that something is on and
-            how much of it, without the panel being open to read. */}
-        {active > 0 && (
-          <span className="version-lines-filter__badge" aria-hidden="true">
-            {active}
-          </span>
-        )}
-      </button>
-      {isOpen && (
-        <div
-          ref={popupRef}
-          className="version-lines-filter__panel"
-          role="dialog"
-          aria-label={t.versionLinesFiltersLabel}
-          tabIndex={-1}
-          onKeyDown={(event) => handlePopupMenuKeyDown(event, popupRef.current, () => closePanel(true))}
-        >
-          {/* Capsules rather than radio rows: one choice out of a short, fixed
-              set of the same kind of thing. Still real radios underneath, so
-              arrow keys and assistive technology keep the grouping. */}
-          <fieldset className="version-lines-filter__group">
-            <legend className="version-lines-filter__label">{t.versionLinesFilterSortGroup}</legend>
-            <div className="version-lines-filter__ranges">
-              {SORT_KEYS.map((key) => (
-                <label
-                  key={key}
-                  className={`version-lines-filter__range${sort === key ? " version-lines-filter__range--active" : ""}`}
-                >
-                  <input
-                    className="visually-hidden"
-                    type="radio"
-                    name="version-lines-sort"
-                    checked={sort === key}
-                    onChange={() => onSort(key)}
-                  />
-                  <span>{t[SORT_LABEL_KEYS[key]]}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+    <FilterPanel
+      activeCount={active}
+      labels={{
+        open: t.versionLinesFiltersLabel,
+        active: t.versionLinesFiltersActive,
+        activeCount: t.versionLinesFiltersActiveCount,
+        clear: t.versionLinesFilterClear,
+      }}
+      onClear={onClear}
+    >
+      {/* Capsules rather than radio rows: one choice out of a short, fixed set
+          of the same kind of thing — and one row, which is what `dense` and
+          three one-or-two-word answers are for. They used to be sentences:
+          `Recently updated`, `Name (A–Z)` and `Local-only first` come to 321px
+          in a panel group that is 238px wide, so the row this control is
+          supposed to be wrapped onto a second line and then a third. The
+          legend above them already says these are sorts. */}
+      <FilterGroup label={t.versionLinesFilterSortGroup}>
+        <FilterCapsules dense>
+          {SORT_KEYS.map((key) => (
+            <FilterCapsule
+              key={key}
+              name="version-lines-sort"
+              checked={sort === key}
+              onChange={() => onSort(key)}
+            >
+              {t[SORT_LABEL_KEYS[key]]}
+            </FilterCapsule>
+          ))}
+        </FilterCapsules>
+      </FilterGroup>
 
-          <div className="version-lines-filter__group">
-            <p className="version-lines-filter__label">{t.versionLinesFilterStateGroup}</p>
-            {STATE_KEYS.map((state) => (
-              <label key={state} className="version-lines-filter__switch">
-                <input
-                  className="app-checkbox"
-                  type="checkbox"
-                  checked={selectedStates.includes(state)}
-                  onChange={() => onToggleState(state)}
-                />
-                <span>{t[STATE_LABEL_KEYS[state]]}</span>
-                <span className="version-lines-filter__count">{stateCounts[state]}</span>
-              </label>
+      <FilterGroup label={t.versionLinesFilterStateGroup}>
+        {STATE_KEYS.map((state) => (
+          <FilterSwitch
+            key={state}
+            checked={selectedStates.includes(state)}
+            label={t[STATE_LABEL_KEYS[state]]}
+            count={stateCounts[state]}
+            onChange={() => onToggleState(state)}
+          />
+        ))}
+      </FilterGroup>
+
+      {prefixCounts.length > 0 && (
+        <FilterGroup label={t.versionLinesFilterPrefixGroup}>
+          {/* The one part of this panel that grows with the repository — a row
+              per name prefix — so it is the one part that scrolls. The panel
+              itself must not: `.filter-panel` deliberately has no overflow, and
+              a group that keeps its heading in place while its options move is
+              easier to read than a panel that slides everything. */}
+          <div
+            {...autoHideScrollbarProps<HTMLDivElement>()}
+            className="version-lines-filter__prefixes auto-hide-scrollbar"
+          >
+            {prefixCounts.map(([prefix, count]) => (
+              <FilterSwitch
+                key={prefix}
+                checked={selectedPrefixes.includes(prefix)}
+                label={prefix}
+                count={count}
+                onChange={() => onTogglePrefix(prefix)}
+              />
             ))}
           </div>
-
-          {prefixCounts.length > 0 && (
-            <div className="version-lines-filter__group">
-              <p className="version-lines-filter__label">{t.versionLinesFilterPrefixGroup}</p>
-              {prefixCounts.map(([prefix, count]) => (
-                <label key={prefix} className="version-lines-filter__switch">
-                  <input
-                    className="app-checkbox"
-                    type="checkbox"
-                    checked={selectedPrefixes.includes(prefix)}
-                    onChange={() => onTogglePrefix(prefix)}
-                  />
-                  <span>{prefix}</span>
-                  <span className="version-lines-filter__count">{count}</span>
-                </label>
-              ))}
-            </div>
-          )}
-
-          <footer className="version-lines-filter__footer">
-            <span>{active > 0 ? t.versionLinesFiltersActiveCount(active) : ""}</span>
-            <button className="ghost-button" type="button" disabled={active === 0} onClick={onClear}>
-              {t.versionLinesFilterClear}
-            </button>
-          </footer>
-        </div>
+        </FilterGroup>
       )}
-    </div>
+    </FilterPanel>
   );
 }
 
@@ -476,68 +431,6 @@ function VersionLineActions({
         </button>
       )}
     </div>
-  );
-}
-
-/** A discreet picture of the line's saved versions, and deliberately not a
- * graph. One node per version the history call actually returned, oldest at
- * the left, this line's latest at the right — plus a faded node standing for
- * "and older ones" when there are more. Nothing is inferred: with no history
- * loaded there is no rail, because a lone dot would stand for a sequence this
- * screen cannot see. */
-function VersionLineStrip({
-  line,
-  history,
-  formats,
-}: {
-  line: VersionLine;
-  history: VersionLineHistory | null;
-  formats: LocaleFormats;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-  const sync = syncStatusOf(line);
-  const date = tipDate(line);
-  // Oldest first, so the rail runs the way a timeline reads.
-  const nodes = history ? [...history.versions].reverse() : [];
-
-  return (
-    <section className="version-lines-strip" aria-label={t.versionLinesStripAriaLabel}>
-      {nodes.length > 0 && (
-        <div className="version-lines-strip__rail">
-          <div className="version-lines-strip__track" aria-hidden="true">
-            {history?.hasMore && <span className="version-lines-strip__node version-lines-strip__node--older" />}
-            {nodes.map((version, index) => (
-              <span
-                key={version.commit}
-                className={`version-lines-strip__node${
-                  index === nodes.length - 1 ? " version-lines-strip__node--tip" : ""
-                }`}
-              />
-            ))}
-          </div>
-          <p className="version-lines-strip__ends" aria-hidden="true">
-            <span>{t.versionLinesStripOlder}</span>
-            <span>{t.versionLinesStripNewer}</span>
-          </p>
-        </div>
-      )}
-      <dl className="version-lines-strip__facts">
-        <div>
-          <dt>{t.versionLinesStripCountLabel}</dt>
-          <dd>
-            {history?.totalCount != null
-              ? t.versionLinesSavedVersionCount(history.totalCount)
-              : syncText(sync, t)}
-          </dd>
-        </div>
-        {date && (
-          <div>
-            <dt>{t.versionLinesStripLatestLabel}</dt>
-            <dd>{formatDate(date, formats)}</dd>
-          </div>
-        )}
-      </dl>
-    </section>
   );
 }
 
@@ -643,8 +536,9 @@ function relationEntries(
 }
 
 /** The detail column: the selected line named once at the top with whatever
- * can be done to it, then the facts about it as cards. The sibling of the
- * History saved-version card, and it takes the same surface. */
+ * can be done to it, then where it stands and the versions on it. One surface
+ * divided by rules — the sibling of the History saved-version card, and it
+ * takes the same one. */
 function VersionLineDetail({
   line,
   history,
@@ -667,23 +561,32 @@ function VersionLineDetail({
   onRename: () => void;
   onDelete: () => void;
   onNewFromLine: () => void;
-  onOpenHistory?: (name: string) => void;
+  /** Open History reading this line, and — when a version is named — with that
+   * version selected. Lines' own list of saved versions is a preview of the
+   * one History draws in full. */
+  onOpenHistory?: (name: string, commit?: string) => void;
   onBack: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
-  const isCheckedOutElsewhere = line.worktreePath !== null;
-  const date = tipDate(line);
   const published = isTipPublished(line);
-  // The tip is the first record the history returns, so its author comes from
-  // there; without the history there is no author to state, and the card says
-  // the rest rather than inventing one.
-  const author = history?.versions[0]?.authorName ?? "";
-  const recent = history?.versions ?? [];
-  const lineType = isCheckedOutElsewhere
-    ? t.versionLinesLineTypeElsewhere
-    : line.upstream !== null
-      ? t.versionLinesLineTypeTracking
-      : t.versionLinesNoUpstreamLabel;
+  const date = tipDate(line);
+  /* The tip's own record in the read, matched by commit rather than taken as
+   * the first one. The two answers come from two Git calls: the inventory
+   * knows the tip, the history read lists the versions, and a save that lands
+   * between them leaves the read one version ahead. Positionally, that read
+   * puts a version the panel has never seen where the tip should be — and the
+   * name beside `Latest saved` would then be whoever saved *that* one. */
+  const tipRecord = history?.versions.find((version) => version.commit === line.tip.commit) ?? null;
+  const author = tipRecord?.authorName ?? "";
+  /* The tip first, then the versions behind it. The tip comes from the
+   * inventory rather than from the history read, so the list stands at one row
+   * on a host that does not offer the read at all — and the rest is the read
+   * minus that same commit, which is what keeps a version out of the list when
+   * the two calls disagree about which one is newest. */
+  const versions = [
+    { ...line.tip, authorName: author },
+    ...(history?.versions ?? []).filter((version) => version.commit !== line.tip.commit),
+  ];
 
   return (
     <section className="version-lines-detail" aria-label={t.versionLinesDetailAriaLabel(line.name)}>
@@ -692,66 +595,71 @@ function VersionLineDetail({
         {t.versionLinesBackToList}
       </button>
       <div className="version-lines-detail__card">
+        {/* The name and its actions on one row, then everything else known
+            about the line on the row under them — where it lives, and who
+            saved the last version to it, when.
+
+            The byline used to be a band of its own below this header: a rule
+            across the panel, 44px tall, holding one right-aligned line with
+            the width of the panel empty beside it. Two blocks of chrome for
+            the identity of one line. */}
         <header className="version-lines-detail__summary">
-          <span className="version-lines-detail__icon" aria-hidden="true">
-            <GitBranch />
-          </span>
-          <div className="version-lines-detail__identity">
-            <h2>
-              <span className="version-lines-detail__name">{line.name}</span>
-              {line.isActive && (
-                <span className="version-line-chip version-line-chip--active">{t.versionLinesActiveLabel}</span>
-              )}
-            </h2>
-            <p>
+          <div className="version-lines-detail__summary-top">
+            <span className="version-lines-detail__icon" aria-hidden="true">
+              <GitBranch />
+            </span>
+            <div className="version-lines-detail__identity">
+              <h2>
+                <span className="version-lines-detail__name">{line.name}</span>
+                {line.isActive && (
+                  <span className="version-line-chip version-line-chip--active">{t.versionLinesActiveLabel}</span>
+                )}
+              </h2>
+            </div>
+            <VersionLineActions
+              line={line}
+              onSwitch={onSwitch}
+              onRename={onRename}
+              onDelete={onDelete}
+              onNewFromLine={onNewFromLine}
+            />
+          </div>
+          <p className="version-lines-detail__meta">
+            <span className="version-lines-detail__upstream">
               {line.upstream
                 ? t.versionLinesUpstreamLabel(line.upstream)
                 : t.versionLinesRelationshipLocalOnlyDetail}
-            </p>
-          </div>
-          <VersionLineActions
-            line={line}
-            onSwitch={onSwitch}
-            onRename={onRename}
-            onDelete={onDelete}
-            onNewFromLine={onNewFromLine}
-          />
+            </span>
+            {(author || date) && (
+              <span className="version-lines-detail__byline">
+                <span className="version-lines-detail__byline-label">{t.versionLinesLatestSavedLabel}</span>
+                {author && (
+                  <span className="version-lines-avatar" aria-hidden="true">
+                    {avatarInitials(author)}
+                  </span>
+                )}
+                {author && <strong>{author}</strong>}
+                {date && <span>{formatDate(date, formats)}</span>}
+              </span>
+            )}
+          </p>
         </header>
 
-        <div {...autoHideScrollbarProps<HTMLDivElement>()} className="version-lines-detail__body auto-hide-scrollbar">
-          <VersionLineStrip line={line} history={history} formats={formats} />
-
+        {/* The panel does not scroll; the list inside it does. Where this line
+            stands is three lines that never grow, and scrolling them out of
+            reach to read the versions below was the panel moving the answer
+            rather than the question. */}
+        <div className="version-lines-detail__body">
           <div className="version-lines-detail__grid">
-            <section className="version-lines-card">
-              <h3>{t.versionLinesLatestTitle}</h3>
-              <p className="version-lines-card__subject">{line.tip.subject}</p>
-              <p className="version-lines-card__meta">
-                <span
-                  className={`version-line-chip${published ? " version-line-chip--positive" : ""}`}
-                >
-                  {published ? t.versionLinesPublishedPill : t.versionLinesUnpublishedPill}
-                </span>
-                <code>{line.tip.shortCommit}</code>
-              </p>
-              {(author || date) && (
-                <p className="version-lines-card__author">
-                  {author && (
-                    <span className="version-lines-avatar" aria-hidden="true">
-                      {avatarInitials(author)}
-                    </span>
-                  )}
-                  {author && <strong>{author}</strong>}
-                  {date && <span>{t.versionLinesSavedLabel(formatDate(date, formats))}</span>}
-                </p>
-              )}
-            </section>
-
             <section className="version-lines-card">
               <h3>{t.versionLinesRelationshipTitle}</h3>
               <ul className="version-lines-relations">
                 {relationEntries(line, t).map((entry) => (
                   <li key={entry.key} className={`version-lines-relations__item--${entry.tone}`}>
                     <RelationIcon tone={entry.tone} />
+                    {/* One line each: the state and the sentence that explains
+                        it, side by side. Stacked, three states filled half the
+                        panel to say what fits across a third of it. */}
                     <span>
                       <strong>{entry.title}</strong>
                       {entry.detail}
@@ -761,78 +669,65 @@ function VersionLineDetail({
               </ul>
             </section>
 
-            {recent.length > 0 && (
-              <section className="version-lines-card">
-                <h3>{t.versionLinesRecentTitle}</h3>
-                <ol className="version-lines-recent">
-                  {recent.map((version) => {
-                    const savedAt = new Date(version.committedAt);
-                    const valid = !Number.isNaN(savedAt.getTime());
-                    return (
-                      <li key={version.commit}>
-                        <span className="version-lines-recent__subject" title={version.subject}>
-                          {version.subject}
+            {/* One list, not a card for the latest version and a list of the
+                rest under it. They are the same sequence, and the split cost a
+                heading and a rule to separate a row from the row below it. The
+                newest carries what only it can say — whether it is published,
+                and its hash — and the others carry when they landed. */}
+            <section className="version-lines-card version-lines-card--fill">
+              <h3>{t.versionLinesVersionsTitle}</h3>
+              <ol
+                {...autoHideScrollbarProps<HTMLOListElement>()}
+                className="version-lines-recent auto-hide-scrollbar"
+              >
+                {versions.map((version, index) => {
+                  const savedAt = version.committedAt ? new Date(version.committedAt) : null;
+                  const valid = savedAt !== null && !Number.isNaN(savedAt.getTime());
+                  const body = (
+                    <>
+                      <span className="version-lines-recent__subject" title={version.subject}>
+                        {version.subject}
+                      </span>
+                      {index === 0 && (
+                        <span
+                          className={`version-line-chip${published ? " version-line-chip--positive" : ""}`}
+                        >
+                          {published ? t.versionLinesPublishedPill : t.versionLinesUnpublishedPill}
                         </span>
-                        {valid && (
-                          <span
-                            className="version-lines-recent__date"
-                            title={t.versionLinesSavedLabel(formatDate(savedAt, formats))}
-                          >
-                            {formatDate(savedAt, formats)}
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
-                {/* True for any line now: History can be pointed at this one
-                    without checking it out, so "View all" is an answer every
-                    line has. */}
-                {onOpenHistory && history?.hasMore && (
-                  <button className="ghost-button" type="button" onClick={() => onOpenHistory(line.name)}>
-                    {t.versionLinesRecentViewAll}
-                  </button>
-                )}
-              </section>
-            )}
-
-            {/* Status pairs with Recent versions when there is one, and takes
-                the row to itself when there is not — a half-width card beside
-                an empty cell is the one arrangement that reads as a mistake. */}
-            <section className={`version-lines-card${recent.length > 0 ? "" : " version-lines-card--wide"}`}>
-              <h3>{t.versionLinesStatusTitle}</h3>
-              {/* Only facts this app actually holds. A branch's creation date
-                  is not one of them — Git keeps no such field, and the reflog
-                  that hints at it is local and prunable, so it is absent
-                  rather than estimated. */}
-              <dl className="version-lines-status">
-                <div>
-                  <dt>{t.versionLinesStatusRemoteTracking}</dt>
-                  <dd>{line.upstream ?? t.versionLinesDetailsUpstreamNone}</dd>
-                </div>
-                {history?.totalCount != null && (
-                  <div>
-                    <dt>{t.versionLinesStatusLocalVersions}</dt>
-                    <dd>{formatNumber(history.totalCount, formats)}</dd>
-                  </div>
-                )}
-                {date && (
-                  <div>
-                    <dt>{t.versionLinesStatusLastUpdated}</dt>
-                    <dd>{formatRelativeTime(date, formats)}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt>{t.versionLinesStatusLineType}</dt>
-                  <dd>{lineType}</dd>
-                </div>
-                <div>
-                  <dt>{t.versionLinesTipCommitLabel}</dt>
-                  <dd>
-                    <code>{line.tip.shortCommit}</code>
-                  </dd>
-                </div>
-              </dl>
+                      )}
+                      {index === 0 && <code>{version.shortCommit}</code>}
+                      {valid && (
+                        <span
+                          className="version-lines-recent__date"
+                          title={t.versionLinesSavedLabel(formatDate(savedAt, formats))}
+                        >
+                          {formatDate(savedAt, formats)}
+                        </span>
+                      )}
+                    </>
+                  );
+                  return (
+                    <li key={version.commit}>
+                      {/* A row opens this version in History, the way a row in
+                          any of the three lists opens what it names. Without a
+                          host to open it the row states the version and stays
+                          a row rather than pretending to be a control. */}
+                      {onOpenHistory ? (
+                        <button
+                          className="version-lines-recent__open"
+                          type="button"
+                          aria-label={t.versionLinesOpenVersionLabel(version.subject)}
+                          onClick={() => onOpenHistory(line.name, version.commit)}
+                        >
+                          {body}
+                        </button>
+                      ) : (
+                        body
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
             </section>
           </div>
         </div>
@@ -923,7 +818,10 @@ export function VersionLinesPanel({
   onOpenChanges?: () => void;
   /** Opens the History screen reading the named line, whether or not it is the
    * active one. Nothing is checked out to get there. */
-  onOpenHistory?: (name: string) => void;
+  /** Open History reading this line, and — when a version is named — with that
+   * version selected. Lines' own list of saved versions is a preview of the
+   * one History draws in full. */
+  onOpenHistory?: (name: string, commit?: string) => void;
   /** Registers the dialog as a path-scoped mutation before it opens. Returns
    * false when another session sharing this Git directory owns a mutation. */
   onOperationStart: () => boolean;
@@ -1311,11 +1209,6 @@ export function VersionLinesPanel({
     );
   }
 
-  const stats = [
-    t.versionLinesStatsLines(snapshot.totalCount),
-    ...(active ? [t.versionLinesStatsActive(1)] : []),
-    ...(stateCounts["local-only"] > 0 ? [t.versionLinesStatsLocalOnly(stateCounts["local-only"])] : []),
-  ].join(" · ");
 
   return (
     <div className={`version-lines-screen${showNarrowDetail ? " version-lines-screen--narrow-detail" : ""}`}>
@@ -1330,7 +1223,15 @@ export function VersionLinesPanel({
       <header className="screen-header">
         <div className="screen-header__heading">
           <h1>{t.versionLinesTitle}</h1>
-          <p>{stats}</p>
+          {/* One sentence saying what a version line is and what you do with
+              one — the caption Changes and History both carry, spent here on
+              the idea rather than on a tally. It used to count: lines, then
+              how many were active, then how many were local only. Exactly one
+              line is active at any moment and the list says which by putting
+              it first, "local only" is a filter offered in the strip below,
+              and the total is the list itself. Three numbers, none of them a
+              fact the reader could not already see. */}
+          <p>{t.versionLinesExplanation}</p>
         </div>
         {snapshot.headState !== "unborn" && (
           <button
