@@ -520,7 +520,152 @@
      row and their own tighter gap. */
 }
 
+/* A day, and the calendar it is chosen from.
+ *
+ * Drawn here rather than left to `<input type="date">`, whose popup takes none
+ * of these tokens, changes with the WebView under the app, and writes the date
+ * in the operating system's format while the rest of the product writes it in
+ * the one the reader picked. See `datePicker.tsx` for the rest of that
+ * reasoning. */
+.date-field { position: relative; display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.date-field__trigger {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--control-height-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+  font: inherit;
+  font-size: var(--control-font-sm);
+  text-align: left;
+  transition: border-color var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
+}
+.date-field__trigger:hover { border-color: var(--border-control); }
+.date-field__trigger:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.date-field__trigger[aria-expanded="true"] { border-color: var(--accent-primary); background: var(--surface-panel); }
+/* A field holding a day and a field waiting for one are not the same thing, and
+   the difference cannot rest on colour: the value is there, in the weight the
+   rest of the app gives a fact. */
+.date-field__trigger--set { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.date-field__trigger > svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.date-field__value {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.date-field__clear {
+  width: 24px; height: 24px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.date-field__clear:hover { background: var(--surface-active); color: var(--text-primary-color); }
+.date-field__clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.date-field__clear svg { width: 12px; height: 12px; }
+.date-field__popup {
+  /* Fixed and on `document.body`: the panels this is opened from sit inside
+     columns that clip their overflow, so an absolutely positioned calendar is
+     cut at the column's edge. `datePicker.tsx` places it. */
+  position: fixed;
+  z-index: 60;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.date-calendar { display: grid; gap: var(--space-2); }
+.date-calendar__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.date-calendar__month {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-strong);
+  /* The month name is the one thing here that changes length between locales,
+     so it gets the room and the day cells keep their column. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.date-calendar__step {
+  width: 24px; height: 24px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.date-calendar__step:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.date-calendar__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* A month entirely outside `min`/`max` has nothing to step to, and a button that
+   answers nothing when pressed is worse than one that says it cannot. */
+.date-calendar__step:disabled { opacity: 0.42; cursor: default; }
+.date-calendar__step svg { width: 14px; height: 14px; }
+.date-calendar__grid { display: grid; gap: 2px; }
+.date-calendar__week { display: grid; grid-template-columns: repeat(7, 28px); gap: 2px; }
+/* A hairline under the initials, so the week's header reads as the header of
+   the columns below it rather than as a first, oddly quiet row of days. */
+.date-calendar__week:first-child {
+  margin-bottom: 2px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.date-calendar__weekday {
+  display: grid; place-items: center;
+  height: 18px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+}
+.date-calendar__day {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  padding: 0; border: 1px solid transparent; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-primary-color);
+  font: inherit; font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+.date-calendar__day:hover { background: var(--surface-hover); }
+.date-calendar__day:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+/* The days either side of this month are shown, not hidden: a grid that jumps
+   its shape every month is harder to read than one with quiet edges. */
+.date-calendar__day--outside { color: var(--text-secondary-color); opacity: 0.55; }
+/* Today is marked by a ring and the chosen day by a fill, so the two are told
+   apart without either depending on colour alone. The ring is the accent rather
+   than a neutral border: at 28px, a hairline in `--border-control` is invisible
+   against the surface it sits on, which makes "today" a mark nobody sees. */
+.date-calendar__day--today { border-color: var(--accent-primary); }
+/* The pair every checked control in this file uses: the light-green fill, which
+   is the same green in both themes, under the dark ink meant to sit on it.
+   `--accent-primary` is not that pair — on light it is a dark green, and white
+   ink on it in one theme and dark in the other is two decisions where there
+   should be none. */
+.date-calendar__day--selected {
+  background: var(--accent-primary-fill);
+  border-color: var(--accent-primary-fill);
+  color: var(--accent-primary-contrast);
+  font-weight: var(--weight-strong);
+}
+.date-calendar__day--selected:hover { background: var(--accent-primary-fill); }
+/* Both at once — today, chosen — reads as chosen: the fill is the stronger
+   statement and the ring would only muddy its edge. */
+.date-calendar__day--today.date-calendar__day--selected { border-color: var(--accent-primary-fill); }
+.date-calendar__day[aria-disabled="true"] { opacity: 0.35; }
+.date-calendar__day[aria-disabled="true"]:hover { background: transparent; }
+
 @media (pointer: coarse) {
+  .date-calendar__day { width: 34px; height: 34px; }
+  .date-calendar__week { grid-template-columns: repeat(7, 34px); }
   .primary-button,
   .secondary-button,
   .ghost-button,

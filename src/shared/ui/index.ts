@@ -30,6 +30,15 @@ export { useAnchoredPopup, usePortalFlyout, handlePopupMenuKeyDown } from "./pop
    get its behaviour, and the version-lines list needed the same mechanics for
    entirely different items. The surface is shared; the items never were. */
 export { ContextMenuSurface, contextMenuAnchorFrom, type ContextMenuAnchor } from "./contextMenu";
+/* Admitted with one consumer rather than ADR 0003's two, deliberately and on
+   the record (task 120). The bar exists to stop a speculative API being fixed
+   by a single caller; the argument accepted here is that a calendar's API is
+   not speculative, and that what a native `<input type="date">` costs is not a
+   second screen's tidiness but consistency across machines — its popup takes
+   none of this app's tokens, changes with the WebView version underneath it,
+   and writes the date in the operating system's format while everything else
+   writes it in the one the reader chose. */
+export { Calendar, DateField, placePopup, toCalendarDay, toDate, type CalendarDay, type DateFieldLabels } from "./datePicker";
 export { copyTextToClipboard } from "./clipboard";
 export { isReducedMotionRequested } from "./motionPreference";
 /* ADR 0003's two-consumer bar: the project switcher had this to itself until

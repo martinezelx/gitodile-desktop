@@ -643,8 +643,8 @@ describe("HistoryPanel", () => {
     const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main", "feature/foo"] });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    const scopeField = screen.getByLabelText("Specific version line");
-    await user.type(scopeField, "feature/foo{Enter}");
+    await user.click(screen.getByRole("button", { name: "Specific version line" }));
+    await user.click(screen.getByRole("option", { name: "feature/foo" }));
 
     expect(setScope).toHaveBeenCalledWith(
       { projectId: "/repo", sessionEpoch: "epoch-1" },
@@ -658,15 +658,68 @@ describe("HistoryPanel", () => {
     expect(screen.getAllByText("Line: feature/foo")).toHaveLength(2);
   });
 
-  it("refuses a line this project does not have rather than asking Git about it", async () => {
+  it("offers the project's own version lines, so an unknown name cannot be asked for", async () => {
     const user = userEvent.setup();
-    const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main"] });
+    // The inventory the status bar already holds, listed rather than typed:
+    // there is no longer a way to name a line this project does not have.
+    renderPanel(state(3), null, "watching", { lines: ["main", "feature/foo", "release/1.0"] });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    await user.type(screen.getByLabelText("Specific version line"), "feature/typo{Enter}");
+    await user.click(screen.getByRole("button", { name: "Specific version line" }));
 
-    expect(setScope).not.toHaveBeenCalled();
-    expect(screen.getByText("This project doesn’t have a version line with that name.")).toBeInTheDocument();
+    const options = within(screen.getByRole("listbox", { name: "Specific version line" })).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual(["main", "feature/foo", "release/1.0"]);
+  });
+
+  it("filters a long list of lines and closes on Escape without closing the filters", async () => {
+    const user = userEvent.setup();
+    const lines = Array.from({ length: 12 }, (_, index) => `feature/${index}`);
+    renderPanel(state(3), null, "watching", { lines });
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    const trigger = screen.getByRole("button", { name: "Specific version line" });
+    await user.click(trigger);
+
+    await user.type(screen.getByRole("searchbox", { name: "Search version lines…" }), "feature/1");
+    const options = within(screen.getByRole("listbox", { name: "Specific version line" })).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual(["feature/1", "feature/10", "feature/11"]);
+
+    // Escape belongs to the innermost thing that is open.
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox", { name: "Specific version line" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Filters" })).toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("closes a list inside the panel when the press lands elsewhere in it", async () => {
+    const user = userEvent.setup();
+    renderPanel(state(3), null, "watching", { lines: ["main", "feature/foo"] });
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: "Specific version line" }));
+    expect(screen.getByRole("listbox", { name: "Specific version line" })).toBeInTheDocument();
+
+    // The panel's own dismissal only covers presses outside the panel, so
+    // without this the list stayed open under whatever was reached for next —
+    // and two of them could be open at once, overlapping.
+    await user.click(screen.getByRole("radio", { name: "Any" }));
+    expect(screen.queryByRole("listbox", { name: "Specific version line" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Filters" })).toBeInTheDocument();
+  });
+
+  it("names both ends of an explicit range rather than a preset it outgrew", () => {
+    // A preset is shorthand for a `since` with no `until`. Once the other end
+    // is set, "7 days" beside "To 5 Mar" describes a filter nobody asked for.
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    const day = `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, "0")}-${String(since.getDate()).padStart(2, "0")}`;
+    renderPanel(state(3, { filters: { ...NO_HISTORY_FILTERS, since: day, until: "2026-03-05" } }));
+
+    expect(screen.queryByText("7 days")).toBeNull();
+    expect(screen.getByText(/^From /)).toBeInTheDocument();
+    expect(screen.getByText(/^To /)).toBeInTheDocument();
+    // Two chips, and a count that agrees with them.
+    expect(screen.getByRole("button", { name: "Filters (2 on)" })).toBeInTheDocument();
   });
 
   it("offers every local line at once, and a way back to the current one", async () => {
@@ -785,11 +838,10 @@ describe("HistoryPanel", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    const field = screen.getByLabelText("Specific version line");
-    // An empty field and a field holding the line being read are not the same
-    // thing, and the state does not rest on colour alone: the value is there,
-    // and so is its own way out.
-    expect(field).toHaveValue("feature/foo");
+    // A picker waiting to be opened and one holding the line being read are not
+    // the same thing, and the state does not rest on colour alone: the name is
+    // in the trigger, and its own way out is beside it.
+    expect(screen.getByRole("button", { name: "Specific version line" })).toHaveTextContent("feature/foo");
     expect(container.querySelector(".history-filter__field--selected")).not.toBeNull();
 
     const panel = screen.getByRole("dialog", { name: "Filters" });
@@ -806,7 +858,7 @@ describe("HistoryPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
     const panel = screen.getByRole("dialog", { name: "Filters" });
-    expect(screen.getByLabelText("Specific version line")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Specific version line" })).toHaveTextContent("Choose a specific line…");
     expect(within(panel).queryByRole("button", { name: "Show the current line again" })).toBeNull();
   });
 
@@ -879,5 +931,140 @@ describe("HistoryPanel", () => {
     await user.click(screen.getByRole("button", { name: "View “main” in Lines" }));
     expect(onViewLine).toHaveBeenCalledWith("main");
     expect(chip).toHaveFocus();
+  });
+
+  it("asks Git for a date range the presets cannot express", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(2026, 2, 10));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const onFilters = vi.fn();
+    const { historyController } = renderPanel(state(3));
+    const setFilters = vi.spyOn(historyController, "setFilters").mockImplementation(async (_query, filters) => {
+      onFilters(filters);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    // The two ends are the fifth state of the same control, so they are opened
+    // rather than always standing there.
+    expect(screen.queryByRole("button", { name: /^From/ })).toBeNull();
+    await user.click(screen.getByRole("radio", { name: "Range" }));
+    // Opening them narrows nothing on its own.
+    expect(setFilters).not.toHaveBeenCalled();
+
+    // `until` has been validated in Rust since the filters were built; only the
+    // interface had never offered it, so "that week in March" could not be
+    // asked for.
+    await user.click(screen.getByRole("button", { name: "From" }));
+    const calendar = screen.getByRole("dialog", { name: "Choose the first day" });
+    // By position in the month rather than by name: the day's accessible name
+    // is the date written the reader's way, which is the point of the control
+    // and a poor handle for a test.
+    const second = within(calendar)
+      .getAllByRole("button")
+      .find((day) => day.textContent === "2" && !day.className.includes("outside"));
+    await user.click(second!);
+
+    expect(setFilters).toHaveBeenCalledTimes(1);
+    expect(onFilters).toHaveBeenLastCalledWith(expect.objectContaining({ since: "2026-03-02" }));
+    vi.useRealTimers();
+  });
+
+  it("keeps a preset and a range from claiming each other's state", async () => {
+    const user = userEvent.setup();
+    const ranged = state(3, {
+      filters: { ...NO_HISTORY_FILTERS, since: "2026-03-02", until: "2026-03-08" },
+    });
+    const { historyController } = renderPanel(ranged);
+    const setFilters = vi.spyOn(historyController, "setFilters");
+
+    await user.click(screen.getByRole("button", { name: "Filters (2 on)" }));
+    // A range restored from state opens its own control: "Custom" is the
+    // answer, "Any" is not, and choosing a preset ends the range rather than
+    // leaving half of it behind.
+    expect(screen.getByRole("radio", { name: "Range" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Any" })).not.toBeChecked();
+    await user.click(screen.getByRole("radio", { name: "7 days" }));
+    expect(setFilters).toHaveBeenLastCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      expect.objectContaining({ until: null }),
+    );
+  });
+
+  it("offers the authors it has loaded as a shortcut, and says that is what they are", async () => {
+    const user = userEvent.setup();
+    const { historyController } = renderPanel(state(3));
+    const setFilters = vi.spyOn(historyController, "setFilters");
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: "Authors of the versions loaded" }));
+
+    await user.click(screen.getByRole("option", { name: "Ada Lovelace" }));
+    expect(setFilters).toHaveBeenLastCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      expect.objectContaining({ author: "Ada Lovelace" }),
+    );
+
+    // The box stays the filter — Git matches it over every version — so the
+    // list has to say it is only what this screen happens to hold.
+    await user.click(screen.getByRole("button", { name: "Authors of the versions loaded" }));
+    expect(screen.getByText("Only the versions loaded")).toBeInTheDocument();
+  });
+
+  it("offers the open version's folders and files, and forgives how a path is written", async () => {
+    const user = userEvent.setup();
+    const detail: SavedVersionDetail = {
+      version: version(0),
+      comparisonBase: "empty-tree",
+      comparisonIsEmptyTree: true,
+      comparisonIsFirstParent: false,
+      files: [
+        { path: "src/app/main.ts", originalPath: null, category: "changed" },
+        { path: "docs/guide.md", originalPath: null, category: "new" },
+      ],
+      fileCounts: { changed: 1, new: 1, deleted: 0, renamed: 0, total: 2 },
+      filesTruncated: false,
+      countsAreMinimum: false,
+    };
+    const { historyController } = renderPanel(state(1, { detail: { detail, isLoading: false, error: null } }));
+    const setFilters = vi.spyOn(historyController, "setFilters");
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: "Folders and files of the open version" }));
+    const options = within(
+      screen.getByRole("listbox", { name: "Folders and files of the open version" }),
+    ).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "docs",
+      "src",
+      "src/app",
+      "src/app/main.ts",
+      "docs/guide.md",
+    ]);
+
+    await user.click(screen.getByRole("option", { name: "src/app" }));
+    expect(setFilters).toHaveBeenLastCalledWith(
+      { projectId: "/repo", sessionEpoch: "epoch-1" },
+      expect.objectContaining({ path: "src/app" }),
+    );
+  });
+
+  it("accepts the four ways a folder gets written", async () => {
+    const user = userEvent.setup();
+    const { historyController } = renderPanel(state(3));
+    const setFilters = vi.spyOn(historyController, "setFilters");
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    const field = screen.getByLabelText("File or folder");
+
+    // Each of these used to fail the whole read as an invalid path, for a
+    // folder that is perfectly valid.
+    for (const written of ["/src/app", "src/app/", "./src/app", "src\\app"]) {
+      await user.clear(field);
+      await user.type(field, `${written}{Enter}`);
+      expect(setFilters).toHaveBeenLastCalledWith(
+        { projectId: "/repo", sessionEpoch: "epoch-1" },
+        expect.objectContaining({ path: "src/app" }),
+      );
+    }
   });
 });

@@ -146,7 +146,21 @@
   box-shadow: var(--shadow-lg);
 }
 .history-filter__panel:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.history-filter__group { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.history-filter__group {
+  /* Named so the legend rule below cannot drift from it. */
+  --filter-group-gap: 6px;
+  display: grid;
+  gap: var(--filter-group-gap);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+/* A `<legend>` is not a grid item — Chromium lays it out above the fieldset's
+   box, outside the `gap` — so the two groups labelled by one sat flush against
+   their capsules while the two labelled by a `<label>` kept their 6px. Measured
+   at 0px against 6px before this. */
+.history-filter__group > legend { margin-bottom: var(--filter-group-gap); }
 .history-filter__label { color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); padding: 0; }
 /* The same box as `.search-box`, one glyph in: a single-line field is a
    capsule at the row tier, and these two are the same control the strip above
@@ -154,6 +168,8 @@
    which is also what lets the glyph sit inside the pill rather than beside it. */
 .history-filter__field {
   box-sizing: border-box;
+  /* The origin for the suggestion list some of these fields carry. */
+  position: relative;
   min-width: 0;
   height: var(--control-height-sm);
   display: flex;
@@ -175,6 +191,124 @@
 }
 .history-filter__field--selected > svg { color: var(--accent-primary); }
 .history-filter__field--selected input { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+/* The picker wears the field's own pill, so the third state of this group
+   measures the same as the two capsules above it. Its list is absolutely
+   positioned inside the panel rather than portalled: the panel dismisses on a
+   click outside its container, and a portalled list would be outside it. */
+.history-scope-picker { position: relative; min-width: 0; flex: 1 1 auto; }
+.history-scope-picker__row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.history-scope-picker__trigger {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-label);
+  text-align: left;
+  color: var(--text-secondary-color);
+}
+.history-scope-picker__trigger:hover { border-color: var(--border-control); }
+.history-scope-picker__trigger:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.history-scope-picker__trigger[aria-expanded="true"] { border-color: var(--accent-primary); background: var(--surface-panel); }
+.history-scope-picker__value {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.history-filter__field--selected .history-scope-picker__value {
+  color: var(--text-primary-color);
+  font-weight: var(--weight-strong);
+}
+.history-scope-picker__chevron { width: 13px; height: 13px; flex: 0 0 auto; }
+.history-scope-picker__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 216px;
+  padding: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+.history-scope-picker__search {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  height: 28px; padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  color: var(--text-secondary-color);
+}
+.history-scope-picker__search:focus-within { border-color: var(--focus-ring); }
+.history-scope-picker__search > svg { width: 13px; height: 13px; flex-shrink: 0; }
+.history-scope-picker__search input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-label);
+}
+.history-scope-picker__search input::-webkit-search-cancel-button { display: none; }
+.history-scope-picker__options { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.history-scope-picker__option {
+  display: flex; align-items: center; gap: var(--space-2);
+  min-width: 0; min-height: 28px; padding: 0 var(--space-2);
+  border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-primary-color);
+  font: inherit; font-size: var(--text-label); text-align: left;
+  transition: background var(--duration-fast);
+}
+.history-scope-picker__option > span {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.history-scope-picker__option svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.history-scope-picker__option:hover { background: var(--surface-hover); }
+.history-scope-picker__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* The tick, not the fill: a highlighted row and a hovered row would be the same
+   thing to look at, and the chosen line has to stay legible under the pointer. */
+.history-scope-picker__option--selected { font-weight: var(--weight-strong); }
+.history-scope-picker__tick { color: var(--accent-primary); }
+.history-scope-picker__empty {
+  margin: 0; padding: var(--space-3) var(--space-2);
+  color: var(--text-secondary-color); font-size: var(--text-label); text-align: center;
+}
+
+/* The shortcut beside a field that is still typed into: it opens what this
+   screen happens to know, and the field keeps asking Git about everything. */
+.history-filter__field-more {
+  width: 20px; height: 20px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  margin-right: -2px; padding: 0; border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.history-filter__field-more:hover { background: var(--surface-active); color: var(--text-primary-color); }
+.history-filter__field-more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.history-filter__field-more[aria-expanded="true"] { background: var(--surface-active); color: var(--text-primary-color); }
+.history-filter__field-more svg { width: 13px; height: 13px; }
+/* What the list is drawn from, said under it. A shortcut that looks exhaustive
+   is worse than no shortcut, so the sentence is part of the surface. */
+.history-scope-picker__note {
+  flex-shrink: 0;
+  margin: 2px 0 0;
+  padding: 4px var(--space-2) 2px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+}
+
+/* The two ends of the range the fifth capsule opens. The control inside each is
+   `shared/ui`'s own date field, so what is left here is how the two share the
+   row — and the capsule-tier height, which keeps this row reading as more of
+   the segmented control above it rather than a heavier one below. */
+.history-filter__dates { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.history-filter__dates-dash { flex: 0 0 auto; color: var(--text-secondary-color); }
+.history-filter__date { flex: 1 1 0; min-width: 0; }
+.history-filter__date .date-field__trigger {
+  height: 26px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-caption);
+}
+.history-filter__date .date-field__trigger > svg { width: 13px; height: 13px; }
+
 .history-filter__field-clear {
   width: 20px; height: 20px; flex: 0 0 auto;
   display: grid; place-items: center;
@@ -198,6 +332,14 @@
    and a capsule that wraps is still a capsule where a segmented control with
    hard borders would not be. */
 .history-filter__ranges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* Five answers on one line, at a panel that gives its groups 276px.
+   Measured, because it is decided in pixels and in two languages: at the row's
+   ordinary 8px padding the five come to 260px in English and 318px in Spanish,
+   where "Personalizado" alone is 87px. Shortening that one word and taking 2px
+   off each side brings them to 233px and 261px — fitting both, with room left
+   for a font that renders a little wider. Wrapping is still allowed: a language
+   longer than Spanish should break the row rather than the words. */
+.history-filter__ranges--dense .history-filter__range { padding: 0 6px; }
 .history-filter__range {
   min-height: 26px;
   display: inline-flex;
@@ -278,12 +420,6 @@
   color: var(--text-primary-color);
 }
 .history-filter-chip--scope svg { width: 12px; height: 12px; flex-shrink: 0; }
-.history-filter__hint {
-  margin: 4px 0 0;
-  color: var(--status-warning);
-  font-size: var(--text-caption);
-  line-height: var(--leading-normal);
-}
 
 .history-filter-chip {
   max-width: 100%;
@@ -783,6 +919,11 @@
      their own contents. */
   .history-files-pane__toolbar,
   .history-diff-pane__header { height: calc(var(--strip-height) + var(--space-3)); }
+  /* The two small round controls that sit inside a filter field. 28px is what
+     a 32px field can hold; the touch tier would burst it. They grow together —
+     one of a pair growing is how a pair stops looking like one. */
+  .history-filter__field-more,
+  .history-filter__field-clear { width: 28px; height: 28px; }
 }
 
 @media (forced-colors: active) {

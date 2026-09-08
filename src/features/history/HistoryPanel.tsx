@@ -4,13 +4,13 @@ import {
   ArrowLeft, Check, ChevronDown, CircleAlert, Cloud, CloudOff,
   CalendarDays, Copy, Folder, GitBranch, GitMerge,
   GitCommitHorizontal, HardDrive, Info, ListFilter,
-  Tag, UserRound, X,
+  Search, Tag, UserRound, X,
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
-import { formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, handlePopupMenuKeyDown, LoadingBar, SearchBox, useAnchoredPopup, type ContextMenuAnchor } from "../../shared/ui";
+import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, handlePopupMenuKeyDown, LoadingBar, SearchBox, toDate, useAnchoredPopup, type ContextMenuAnchor } from "../../shared/ui";
 import { ChangesContextMenu, DiffResultView, DiffStepNav, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -50,6 +50,16 @@ const CATEGORY_LABEL_KEYS = {
 } as const satisfies Record<ChangeCategory, keyof Translations>;
 
 type HistoryTab = "overview" | "diff";
+
+/** How many paths the file/folder shortcut offers, and how much of that the
+ * folders may take. The rest is left for files, so a version spread across many
+ * folders still offers one. */
+const PATH_SUGGESTIONS = 40;
+const PATH_SUGGESTION_FOLDERS = 15;
+
+/** Above this many version lines the picker grows a search field. Below it the
+ * list is already scannable and a box to type in is one control too many. */
+const SCOPE_PICKER_SEARCH_THRESHOLD = 8;
 
 function changedAreas(files: HistoryFileChange[]): Array<{ path: string; count: number }> {
   const counts = new Map<string, number>();
@@ -166,8 +176,8 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
   );
 });
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, filters, scope, authorSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; selectedCommit: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; selectedCommit: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
   onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onScope: (scope: HistoryScope) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -247,6 +257,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
             scope={scope}
             lines={actions.lines ?? []}
             authorSuggestions={authorSuggestions}
+            pathSuggestions={pathSuggestions}
             canFilterPublication={canFilterPublication}
             onChange={onFilters}
             onScope={onScope}
@@ -482,23 +493,49 @@ function dateRanges(t: Translations): Array<{ label: string; since: string | nul
   ];
 }
 
+/** A calendar day as the reader writes it.
+ *
+ * Read through `shared/ui`'s own `toDate` rather than `new Date(day)`: that one
+ * is UTC midnight and renders as the day before anywhere west of Greenwich, and
+ * a chip naming the wrong day is worse than one naming a raw one. The trap is
+ * solved once, where the picker that produces these days already solves it. */
+function formatCalendarDay(day: string, formats: LocaleFormats): string {
+  const parsed = toDate(day);
+  return parsed ? formatDate(parsed, formats, "date") : day;
+}
+
 /** What is currently narrowing the list, said once, in the order the panel
  * asks for it. The chips under the search box and the panel's own footer both
  * read this, so the two can never disagree about what "3 filters" means. */
-function activeFilters(filters: HistoryFilters, t: Translations): Array<{ key: string; label: string; cleared: Partial<HistoryFilters> }> {
+function activeFilters(filters: HistoryFilters, t: Translations, formats: LocaleFormats): Array<{ key: string; label: string; cleared: Partial<HistoryFilters> }> {
   const described: Array<{ key: string; label: string; cleared: Partial<HistoryFilters> }> = [];
   if (filters.author) described.push({ key: "author", label: filters.author, cleared: { author: null } });
   if (filters.since) {
     // A range chosen yesterday is still a date today, so the name is looked up
     // rather than assumed: an unmatched date says itself instead of nothing.
-    const named = dateRanges(t).find((range) => range.since === filters.since);
-    described.push({ key: "since", label: named?.label ?? filters.since, cleared: { since: null } });
+    // A preset is shorthand for a `since` with no `until`, so once the other end
+    // is set the name no longer describes the filter: "7 days" beside "To 5 Sep"
+    // says the last seven, which is not what is being read. An explicit range
+    // names both of its ends.
+    const named = filters.until === null
+      ? dateRanges(t).find((range) => range.since === filters.since)
+      : undefined;
+    described.push({
+      key: "since",
+      label: named?.label ?? t.historyFilterDateSinceChip(formatCalendarDay(filters.since, formats)),
+      cleared: { since: null },
+    });
   }
-  // `until` has no control of its own yet, but it is part of the filter set
-  // Rust answers and `countActiveFilters` counts. Describing it here is what
-  // keeps the badge and the chips talking about the same six things — a count
-  // that says three beside two chips is worse than either alone.
-  if (filters.until) described.push({ key: "until", label: filters.until, cleared: { until: null } });
+  // Part of the same filter set Rust answers and `countActiveFilters` counts,
+  // so the badge and the chips talk about the same six things — a count that
+  // says three beside two chips is worse than either alone.
+  if (filters.until) {
+    described.push({
+      key: "until",
+      label: t.historyFilterDateUntilChip(formatCalendarDay(filters.until, formats)),
+      cleared: { until: null },
+    });
+  }
   if (filters.path) described.push({ key: "path", label: filters.path, cleared: { path: null } });
   if (filters.noMerges) described.push({ key: "noMerges", label: t.historyFilterHideMerges, cleared: { noMerges: false } });
   if (filters.unpublishedOnly) described.push({ key: "unpublishedOnly", label: t.historyFilterUnpublishedOnly, cleared: { unpublishedOnly: false } });
@@ -515,8 +552,8 @@ function HistoryFilterChips({ filters, scope, onChange, onScope }: {
   onChange: (filters: HistoryFilters) => void;
   onScope: (scope: HistoryScope) => void;
 }): React.JSX.Element | null {
-  const { t } = useLanguage();
-  const chips = activeFilters(filters, t);
+  const { t, formats } = useLanguage();
+  const chips = activeFilters(filters, t, formats);
   // The scope leads, and is removed the same way a filter is — but it is
   // labelled as the line rather than as a filter, because it says which history
   // is being read rather than how much of one is shown.
@@ -565,6 +602,259 @@ function HistoryFilterChips({ filters, scope, onChange, onScope }: {
  * the author filter above it already established. A name is applied only when
  * this project actually has that line, so a typo is refused here rather than
  * sent to Git to fail. */
+/** What someone types when they mean a folder in this project.
+ *
+ * Git wants a repository-relative path and Rust refuses anything else, so
+ * `/src`, `src/`, `./src` and a Windows `src\app` all used to fail the whole
+ * read with "that file path isn't valid" — for four spellings of a path that is
+ * perfectly valid. An absolute path still fails, because that one is a
+ * different place rather than a different spelling of this one. */
+function normalizeRepoPath(value: string): string {
+  return value
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .replace(/\/{2,}/g, "/");
+}
+
+/** Dismissal for a list that lives *inside* the filter panel.
+ *
+ * The panel's own `useAnchoredPopup` only closes what is pressed outside the
+ * panel, so a list opened within it stayed open under whatever the reader
+ * reached for next — and the scope picker and the two field shortcuts could all
+ * be open at once, overlapping each other. The parts are passed rather than one
+ * container because a shortcut is a trigger and a list with no wrapper between
+ * them.
+ *
+ * Focus is not restored: the press is already putting it where the reader
+ * meant it to go. */
+function useDismissOnOutsidePress(
+  isOpen: boolean,
+  parts: Array<React.RefObject<HTMLElement | null>>,
+  close: () => void,
+): void {
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  const partsRef = useRef(parts);
+  partsRef.current = parts;
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const handlePointerDown = (event: MouseEvent): void => {
+      const target = event.target as Node;
+      if (partsRef.current.some((part) => part.current?.contains(target))) return;
+      closeRef.current();
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isOpen]);
+}
+
+/** Arrow keys, Home/End and Escape inside a list that lives in the filter
+ * panel, kept off the panel around it.
+ *
+ * The panel runs its own menu keyboard handling and closes on Escape, so an
+ * unstopped key here would move focus twice or close both surfaces at once —
+ * Escape belongs to the innermost thing that is open. */
+function handleFilterListKeyDown(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  list: HTMLDivElement | null,
+  close: () => void,
+): void {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    close();
+    return;
+  }
+  const options = [...(list?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [])];
+  if (options.length === 0) return;
+  const current = options.indexOf(document.activeElement as HTMLButtonElement);
+  const next = event.key === "ArrowDown"
+    ? Math.min(current + 1, options.length - 1)
+    : event.key === "ArrowUp"
+      ? (current <= 0 ? 0 : current - 1)
+      : event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? options.length - 1
+          : null;
+  if (next === null) return;
+  event.preventDefault();
+  event.stopPropagation();
+  options[next]?.focus();
+}
+
+/** The names a text filter already knows about, offered beside the field.
+ *
+ * Never a closed list, unlike the version lines: these come from the versions
+ * this screen happens to have loaded, while the filter itself asks Git about
+ * every version there is. The note under the list says so, because a shortcut
+ * that looks exhaustive is worse than no shortcut at all. */
+function HistoryFilterSuggestions({ label, note, options, onPick }: {
+  label: string;
+  note: string;
+  options: string[];
+  onPick: (value: string) => void;
+}): React.JSX.Element | null {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const close = (restoreFocus: boolean): void => {
+    setIsOpen(false);
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+
+  useDismissOnOutsidePress(isOpen, [triggerRef, listRef], () => close(false));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    listRef.current?.querySelector<HTMLElement>('[role="option"]')?.focus();
+  }, [isOpen]);
+
+  if (options.length === 0) return null;
+  return <>
+    <button
+      ref={triggerRef}
+      type="button"
+      className="history-filter__field-more"
+      aria-haspopup="listbox"
+      aria-expanded={isOpen}
+      aria-label={label}
+      onClick={() => setIsOpen((open) => !open)}
+    >
+      <ChevronDown aria-hidden="true" />
+    </button>
+    {isOpen && <div
+      ref={listRef}
+      className="history-scope-picker__list"
+      onKeyDown={(event) => handleFilterListKeyDown(event, listRef.current, () => close(true))}
+    >
+      <div
+        {...autoHideScrollbarProps<HTMLDivElement>()}
+        className="history-scope-picker__options auto-hide-scrollbar"
+        role="listbox"
+        aria-label={label}
+      >
+        {options.map((option) => <button
+          key={option}
+          type="button"
+          role="option"
+          aria-selected={false}
+          className="history-scope-picker__option"
+          title={option}
+          onClick={() => { close(true); onPick(option); }}
+        >
+          <span>{option}</span>
+        </button>)}
+      </div>
+      <p className="history-scope-picker__note">{note}</p>
+    </div>}
+  </>;
+}
+
+/** Every version line this project has, as a list rather than a name to type.
+ *
+ * The inventory is already in memory — the status bar's own switcher renders it
+ * on every screen — so offering it here costs no read. It also retires the last
+ * way to get this wrong: a typed name could miss, which meant a field that could
+ * be wrong and a message explaining that it was.
+ *
+ * The list lives inside the filter panel rather than in a portal. The panel
+ * dismisses on a click outside *its* container, so a portalled menu would be
+ * outside it and choosing a line would close the panel that asked the question. */
+function HistoryScopePicker({ lines, selected, onSelect }: {
+  lines: string[];
+  selected: string | null;
+  onSelect: (name: string) => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const searchable = lines.length > SCOPE_PICKER_SEARCH_THRESHOLD;
+  const needle = query.trim().toLocaleLowerCase();
+  const matches = needle ? lines.filter((name) => name.toLocaleLowerCase().includes(needle)) : lines;
+
+  const close = (restoreFocus: boolean): void => {
+    setIsOpen(false);
+    setQuery("");
+    if (restoreFocus) triggerRef.current?.focus();
+  };
+
+  useDismissOnOutsidePress(isOpen, [containerRef, listRef], () => close(false));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const list = listRef.current;
+    if (!list) return;
+    const target = searchable
+      ? list.querySelector<HTMLElement>("input")
+      : list.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')
+        ?? list.querySelector<HTMLElement>('[role="option"]');
+    target?.focus();
+  }, [isOpen, searchable]);
+
+  return <div className="history-scope-picker" ref={containerRef}>
+    <button
+      ref={triggerRef}
+      type="button"
+      className={`history-filter__field history-scope-picker__trigger${selected ? " history-filter__field--selected" : ""}`}
+      aria-haspopup="listbox"
+      aria-expanded={isOpen}
+      aria-label={t.historyScopeLineLabel}
+      onClick={() => setIsOpen((open) => !open)}
+    >
+      <GitBranch aria-hidden="true" />
+      <span className="history-scope-picker__value" title={selected ?? undefined}>
+        {selected ?? t.historyScopeLinePlaceholder}
+      </span>
+      <ChevronDown aria-hidden="true" className="history-scope-picker__chevron" />
+    </button>
+    {isOpen && <div
+      ref={listRef}
+      className="history-scope-picker__list"
+      onKeyDown={(event) => handleFilterListKeyDown(event, listRef.current, () => close(true))}
+    >
+      {searchable && <div className="history-scope-picker__search">
+        <Search aria-hidden="true" />
+        <input
+          type="search"
+          value={query}
+          placeholder={t.historyScopeSearchPlaceholder}
+          aria-label={t.historyScopeSearchPlaceholder}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </div>}
+      <div
+        {...autoHideScrollbarProps<HTMLDivElement>()}
+        className="history-scope-picker__options auto-hide-scrollbar"
+        role="listbox"
+        aria-label={t.historyScopeLineLabel}
+      >
+        {matches.length === 0
+          ? <p className="history-scope-picker__empty">{t.historyScopeNoLines}</p>
+          : matches.map((name) => <button
+            key={name}
+            type="button"
+            role="option"
+            aria-selected={name === selected}
+            className={`history-scope-picker__option${name === selected ? " history-scope-picker__option--selected" : ""}`}
+            title={name}
+            onClick={() => { close(true); onSelect(name); }}
+          >
+            <GitBranch aria-hidden="true" />
+            <span>{name}</span>
+            {name === selected && <Check aria-hidden="true" className="history-scope-picker__tick" />}
+          </button>)}
+      </div>
+    </div>}
+  </div>;
+}
+
 function HistoryScopeGroup({ scope, lines, onChange }: {
   scope: HistoryScope;
   lines: string[];
@@ -572,21 +862,6 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
 }): React.JSX.Element {
   const { t } = useLanguage();
   const named = scopeLineName(scope);
-  const [draft, setDraft] = useState(named ?? "");
-  const [unknown, setUnknown] = useState(false);
-  useEffect(() => { setDraft(named ?? ""); setUnknown(false); }, [named]);
-  const commit = (): void => {
-    const value = draft.trim();
-    if (!value) {
-      setUnknown(false);
-      if (named) onChange(CURRENT_LINE_SCOPE);
-      return;
-    }
-    if (value === named) { setUnknown(false); return; }
-    if (!lines.includes(value)) { setUnknown(true); return; }
-    setUnknown(false);
-    onChange({ kind: "line", name: value });
-  };
   return <fieldset className="history-filter__group">
     <legend className="history-filter__label">{t.historyScopeLabel}</legend>
     <div className="history-filter__ranges">
@@ -604,38 +879,25 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
         <span>{option.label}</span>
       </label>)}
     </div>
-    {/* The third state, and it has to look like one: an empty field and a field
-        holding the line the timeline is reading are not the same thing, and the
-        two capsules above cannot show which. It carries its own way out, so a
-        chosen line is undone here rather than only from the chip under the
-        strip. */}
-    <div className={`history-filter__field${named ? " history-filter__field--selected" : ""}`}>
-      <GitBranch aria-hidden="true" />
-      <input
-        id="history-scope-line"
-        type="text"
-        value={draft}
-        list="history-scope-lines"
-        placeholder={t.historyScopeLinePlaceholder}
-        aria-label={t.historyScopeLineLabel}
-        aria-invalid={unknown || undefined}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); } }}
+    {/* The third state, and it has to look like one: a picker showing the line
+        the timeline is reading and a picker waiting to be opened are not the
+        same thing. It keeps its own way out beside it, so a chosen line is
+        undone here as well as from the chip under the strip. */}
+    <div className="history-scope-picker__row">
+      <HistoryScopePicker
+        lines={lines}
+        selected={named}
+        onSelect={(name) => onChange({ kind: "line", name })}
       />
       {named && <button
         type="button"
         className="history-filter__field-clear"
         aria-label={t.historyScopeClear}
-        onClick={() => { setDraft(""); setUnknown(false); onChange(CURRENT_LINE_SCOPE); }}
+        onClick={() => onChange(CURRENT_LINE_SCOPE)}
       >
         <X aria-hidden="true" />
       </button>}
     </div>
-    <datalist id="history-scope-lines">
-      {lines.map((name) => <option key={name} value={name} />)}
-    </datalist>
-    {unknown && <p className="history-filter__hint" role="status">{t.historyScopeUnknownLine}</p>}
   </fieldset>;
 }
 
@@ -649,16 +911,17 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
  * Toggles and ranges apply as they are chosen — one click, one answer. The two
  * text fields commit on Enter or on leaving them, because every apply is a
  * fresh read of the repository and a keystroke is not an intention. */
-function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, canFilterPublication, onChange, onScope }: {
+function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSuggestions, canFilterPublication, onChange, onScope }: {
   filters: HistoryFilters;
   scope: HistoryScope;
   lines: string[];
   authorSuggestions: string[];
+  pathSuggestions: string[];
   canFilterPublication: boolean;
   onChange: (filters: HistoryFilters) => void;
   onScope: (scope: HistoryScope) => void;
 }): React.JSX.Element {
-  const { t } = useLanguage();
+  const { t, formats } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [authorDraft, setAuthorDraft] = useState(filters.author ?? "");
   const [pathDraft, setPathDraft] = useState(filters.path ?? "");
@@ -674,8 +937,14 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, canFilte
 
   const active = countActiveFilters(filters);
   const apply = (patch: Partial<HistoryFilters>): void => onChange({ ...filters, ...patch });
+  // A range the presets cannot express is a custom one whoever set it: an
+  // `until`, or a `since` that is not one of the four days they stand for.
+  const rangeIsUnnameable = filters.until !== null
+    || (filters.since !== null && !dateRanges(t).some((range) => range.since === filters.since));
+  const [isCustomRange, setIsCustomRange] = useState(rangeIsUnnameable);
+  useEffect(() => { if (rangeIsUnnameable) setIsCustomRange(true); }, [rangeIsUnnameable]);
   const commitText = (key: "author" | "path", draft: string): void => {
-    const value = draft.trim();
+    const value = key === "path" ? normalizeRepoPath(draft) : draft.trim();
     apply({ [key]: value.length > 0 ? value : null });
   };
   const ranges = dateRanges(t);
@@ -711,50 +980,116 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, canFilte
         {/* The same pill the search boxes wear, with the glyph naming what goes
             in it — a person, a folder — so the two fields are told apart before
             their labels are read. */}
+        {/* A field, not a picker: Git matches this as a substring over every
+            version there is, and the names below are only those of the versions
+            this screen has loaded. The list is a shortcut; the box is the
+            filter. */}
         <div className="history-filter__field">
           <UserRound aria-hidden="true" />
           <input
             id="history-filter-author"
             type="text"
             value={authorDraft}
-            list="history-filter-authors"
             placeholder={t.historyFilterAuthorPlaceholder}
             onChange={(event) => setAuthorDraft(event.target.value)}
             onBlur={() => commitText("author", authorDraft)}
             onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitText("author", authorDraft); } }}
           />
+          <HistoryFilterSuggestions
+            label={t.historyFilterAuthorSuggestions}
+            note={t.historyFilterFromLoaded}
+            options={authorSuggestions}
+            onPick={(name) => { setAuthorDraft(name); apply({ author: name }); }}
+          />
         </div>
-        {/* Suggestions from the versions on screen; the filter itself still
-            asks Git about all of them, so the list is a shortcut and never a
-            limit on what can be typed. */}
-        <datalist id="history-filter-authors">
-          {authorSuggestions.map((name) => <option key={name} value={name} />)}
-        </datalist>
       </div>
 
       {/* Four capsules rather than four radio rows: they are one choice out of
           a short, fixed set of the same kind of thing, which is the shape a
           segmented choice takes. Still real radios underneath — the input is
           hidden, not replaced, so arrow keys and assistive technology keep the
-          grouping they would otherwise lose. */}
+          grouping they would otherwise lose.
+          Under them, the two ends the presets are shorthand for. Rust has
+          validated `since` and `until` as calendar days since they were built;
+          only the interface had never offered the second one, so a reader who
+          wanted "that week in March" had no way to ask. */}
       <fieldset className="history-filter__group">
         <legend className="history-filter__label">{t.historyFilterDateLabel}</legend>
-        <div className="history-filter__ranges">
-          {ranges.map((range) => <label key={range.label} className={`history-filter__range${filters.since === range.since ? " history-filter__range--active" : ""}`}>
+        <div className="history-filter__ranges history-filter__ranges--dense">
+          {ranges.map((range) => {
+            const active = !isCustomRange && (range.since === null
+              ? filters.since === null && filters.until === null
+              : filters.since === range.since && filters.until === null);
+            return <label key={range.label} className={`history-filter__range${active ? " history-filter__range--active" : ""}`}>
+              <input
+                className="visually-hidden"
+                type="radio"
+                name="history-filter-date"
+                checked={active}
+                onChange={() => { setIsCustomRange(false); apply({ since: range.since, until: null }); }}
+              />
+              <span>{range.label}</span>
+            </label>;
+          })}
+          {/* The fifth answer, on the same line as the other four: one radio
+              group, one row. It narrows nothing on its own — it opens the two
+              ends. */}
+          <label className={`history-filter__range${isCustomRange ? " history-filter__range--active" : ""}`}>
             <input
               className="visually-hidden"
               type="radio"
               name="history-filter-date"
-              checked={filters.since === range.since}
-              onChange={() => apply({ since: range.since })}
+              checked={isCustomRange}
+              onChange={() => setIsCustomRange(true)}
             />
-            <span>{range.label}</span>
-          </label>)}
+            <span>{t.historyFilterDateCustom}</span>
+          </label>
         </div>
+        {isCustomRange && <div className="history-filter__dates">
+          {/* Two ends and the dash between them. The calendar each opens is the
+              app's own — see `shared/ui/datePicker.tsx` — so a day is picked and
+              written the way the reader set it in Settings, and the control does
+              not change shape with the WebView under the app. The words naming
+              each end are read rather than drawn: at this width they would take
+              the room the date needs. */}
+          <DateField
+            className="history-filter__date"
+            value={filters.since}
+            formats={formats}
+            max={filters.until}
+            labels={{
+              field: t.historyFilterDateFrom,
+              placeholder: t.historyFilterDateFrom,
+              calendar: t.historyFilterDateFromCalendar,
+              previousMonth: t.historyFilterDatePreviousMonth,
+              nextMonth: t.historyFilterDateNextMonth,
+            }}
+            onChange={(since) => apply({ since })}
+          />
+          <span className="history-filter__dates-dash" aria-hidden="true">–</span>
+          <DateField
+            className="history-filter__date"
+            value={filters.until}
+            formats={formats}
+            min={filters.since}
+            labels={{
+              field: t.historyFilterDateTo,
+              placeholder: t.historyFilterDateTo,
+              calendar: t.historyFilterDateToCalendar,
+              previousMonth: t.historyFilterDatePreviousMonth,
+              nextMonth: t.historyFilterDateNextMonth,
+            }}
+            onChange={(until) => apply({ until })}
+          />
+        </div>}
       </fieldset>
 
       <div className="history-filter__group">
         <label className="history-filter__label" htmlFor="history-filter-path">{t.historyFilterPathLabel}</label>
+        {/* No list of every path in the project: nothing here knows one, and
+            inventing a read to build it would make opening the filters cost a
+            walk of the tree. What this screen does know is the version it has
+            open, so its folders and files are offered as a shortcut. */}
         <div className="history-filter__field">
           <Folder aria-hidden="true" />
           <input
@@ -765,6 +1100,12 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, canFilte
             onChange={(event) => setPathDraft(event.target.value)}
             onBlur={() => commitText("path", pathDraft)}
             onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitText("path", pathDraft); } }}
+          />
+          <HistoryFilterSuggestions
+            label={t.historyFilterPathSuggestions}
+            note={t.historyFilterFromOpenVersion}
+            options={pathSuggestions}
+            onPick={(value) => { setPathDraft(value); apply({ path: value }); }}
           />
         </div>
       </div>
@@ -950,8 +1291,8 @@ export function HistoryPanel({ controller, query, state, watcherState, actions =
     return state.versions.filter((version) =>
       [version.subject, version.description, version.author?.name ?? "", version.shortCommit, ...version.decorations.map((item) => item.name)].some((value) => value.toLocaleLowerCase().includes(queryText)));
   }, [search, state.versions]);
-  // Names taken from what is loaded, offered as completions to a field that
-  // still asks Git about every version — a shortcut, never a limit.
+  // Names taken from what is loaded, offered beside a field that still asks Git
+  // about every version — a shortcut, never a limit on what can be typed.
   const authorSuggestions = useMemo(() => {
     const names = new Set<string>();
     for (const version of state.versions) {
@@ -960,6 +1301,26 @@ export function HistoryPanel({ controller, query, state, watcherState, actions =
     }
     return [...names].sort((left, right) => left.localeCompare(right)).slice(0, 40);
   }, [state.versions]);
+  // The folders and files of the version whose card is open — the one set of
+  // real repository paths this screen holds without asking Git for another.
+  // Folders first, because narrowing to one is the commoner intent, but each
+  // kind gets its own share of the budget: one list cut at 40 leaves a version
+  // spread across many folders offering no file at all.
+  const pathSuggestions = useMemo(() => {
+    const files = state.detail.detail?.files ?? [];
+    const folders = new Set<string>();
+    for (const file of files) {
+      const parts = file.path.split("/");
+      for (let depth = 1; depth < Math.min(parts.length, 3); depth += 1) {
+        folders.add(parts.slice(0, depth).join("/"));
+      }
+    }
+    const named = [...folders].sort().slice(0, PATH_SUGGESTION_FOLDERS);
+    return [
+      ...named,
+      ...files.map((file) => file.path).slice(0, PATH_SUGGESTIONS - named.length),
+    ];
+  }, [state.detail.detail]);
   const refreshHistory = useCallback(() => { void controller.refresh(query); }, [controller, query]);
   const loadMore = useCallback(() => { void controller.loadMore(query); }, [controller, query]);
   const selectVersion = useCallback((commit: string) => controller.selectVersion(query, commit), [controller, query]);
@@ -1044,7 +1405,7 @@ export function HistoryPanel({ controller, query, state, watcherState, actions =
       </div>
     </header>
     <div className="history-layout">
-      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
+      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
       <HistoryDetail state={state} formats={formats} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
     </div>
   </div>;

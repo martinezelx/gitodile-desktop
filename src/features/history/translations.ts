@@ -22,6 +22,19 @@ export interface HistoryTranslations {
   historyFilterDateWeek: string;
   historyFilterDateMonth: string;
   historyFilterDateYear: string;
+  historyFilterDateCustom: string;
+  historyFilterDateSinceChip: (day: string) => string;
+  historyFilterDateUntilChip: (day: string) => string;
+  historyFilterDateFrom: string;
+  historyFilterDateTo: string;
+  historyFilterDateFromCalendar: string;
+  historyFilterDateToCalendar: string;
+  historyFilterDatePreviousMonth: string;
+  historyFilterDateNextMonth: string;
+  historyFilterAuthorSuggestions: string;
+  historyFilterPathSuggestions: string;
+  historyFilterFromLoaded: string;
+  historyFilterFromOpenVersion: string;
   historyFilterPathLabel: string;
   historyFilterPathPlaceholder: string;
   historyFilterHideMerges: string;
@@ -34,7 +47,8 @@ export interface HistoryTranslations {
   historyScopeLineHint: (name: string) => string;
   historyScopeLineLabel: string;
   historyScopeLinePlaceholder: string;
-  historyScopeUnknownLine: string;
+  historyScopeSearchPlaceholder: string;
+  historyScopeNoLines: string;
   historyScopeClear: string;
   historyScopeShowCurrentLine: string;
   historyLinesTruncated: string;
@@ -144,11 +158,24 @@ const en: HistoryTranslations = {
   historyFilterRemove: (label) => `Remove the ${label} filter`,
   historyFilterAuthorLabel: "Author",
   historyFilterAuthorPlaceholder: "Any name or email",
-  historyFilterDateLabel: "Saved",
+  historyFilterDateLabel: "Date",
   historyFilterDateAny: "Any",
   historyFilterDateWeek: "7 days",
   historyFilterDateMonth: "30 days",
   historyFilterDateYear: "1 year",
+  historyFilterDateCustom: "Range",
+  historyFilterDateSinceChip: (day) => `From ${day}`,
+  historyFilterDateUntilChip: (day) => `To ${day}`,
+  historyFilterDateFrom: "From",
+  historyFilterDateTo: "To",
+  historyFilterDateFromCalendar: "Choose the first day",
+  historyFilterDateToCalendar: "Choose the last day",
+  historyFilterDatePreviousMonth: "Previous month",
+  historyFilterDateNextMonth: "Next month",
+  historyFilterAuthorSuggestions: "Authors of the versions loaded",
+  historyFilterPathSuggestions: "Folders and files of the open version",
+  historyFilterFromLoaded: "Only the versions loaded",
+  historyFilterFromOpenVersion: "Only the open version",
   historyFilterPathLabel: "File or folder",
   historyFilterPathPlaceholder: "For example src/app",
   historyFilterHideMerges: "Hide branch merges",
@@ -161,8 +188,9 @@ const en: HistoryTranslations = {
   historyScopeLineHint: (name) =>
     `Saved versions reachable from “${name}”. This project stays where it is.`,
   historyScopeLineLabel: "Specific version line",
-  historyScopeLinePlaceholder: "Specific line…",
-  historyScopeUnknownLine: "This project doesn’t have a version line with that name.",
+  historyScopeLinePlaceholder: "Choose a specific line…",
+  historyScopeSearchPlaceholder: "Search version lines…",
+  historyScopeNoLines: "No version line matches that.",
   historyScopeClear: "Show the current line again",
   historyScopeShowCurrentLine: "Show the current line",
   historyLinesTruncated: "This project has more version lines than History can read at once; some are not included.",
@@ -270,11 +298,24 @@ const es: HistoryTranslations = {
   historyFilterRemove: (label) => `Quitar el filtro ${label}`,
   historyFilterAuthorLabel: "Autor",
   historyFilterAuthorPlaceholder: "Cualquier nombre o correo",
-  historyFilterDateLabel: "Guardadas",
+  historyFilterDateLabel: "Fecha",
   historyFilterDateAny: "Cualquiera",
   historyFilterDateWeek: "7 días",
   historyFilterDateMonth: "30 días",
   historyFilterDateYear: "1 año",
+  historyFilterDateCustom: "Rango",
+  historyFilterDateSinceChip: (day) => `Desde ${day}`,
+  historyFilterDateUntilChip: (day) => `Hasta ${day}`,
+  historyFilterDateFrom: "Desde",
+  historyFilterDateTo: "Hasta",
+  historyFilterDateFromCalendar: "Elige el primer día",
+  historyFilterDateToCalendar: "Elige el último día",
+  historyFilterDatePreviousMonth: "Mes anterior",
+  historyFilterDateNextMonth: "Mes siguiente",
+  historyFilterAuthorSuggestions: "Autores de las versiones cargadas",
+  historyFilterPathSuggestions: "Carpetas y archivos de la versión abierta",
+  historyFilterFromLoaded: "Solo las versiones cargadas",
+  historyFilterFromOpenVersion: "Solo la versión abierta",
   historyFilterPathLabel: "Archivo o carpeta",
   historyFilterPathPlaceholder: "Por ejemplo src/app",
   historyFilterHideMerges: "Ocultar uniones de ramas",
@@ -287,8 +328,9 @@ const es: HistoryTranslations = {
   historyScopeLineHint: (name) =>
     `Versiones guardadas alcanzables desde «${name}». El proyecto se queda donde está.`,
   historyScopeLineLabel: "Una línea de versión concreta",
-  historyScopeLinePlaceholder: "Una línea concreta…",
-  historyScopeUnknownLine: "Este proyecto no tiene ninguna línea de versión con ese nombre.",
+  historyScopeLinePlaceholder: "Elegir una línea concreta…",
+  historyScopeSearchPlaceholder: "Buscar líneas de versión…",
+  historyScopeNoLines: "Ninguna línea de versión coincide.",
   historyScopeClear: "Volver a la línea actual",
   historyScopeShowCurrentLine: "Ver la línea actual",
   historyLinesTruncated: "Este proyecto tiene más líneas de versión de las que el historial puede leer a la vez; algunas no se incluyen.",
