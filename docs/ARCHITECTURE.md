@@ -534,6 +534,19 @@ Never silently resolve conflicts, discard untracked files, bypass hooks or
 signing, force-push, run `reset --hard`, clean files, or delete a branch without
 the confirmation and recovery rules in `AGENTS.md`.
 
+## Application update boundary
+
+[ADR 0010](adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+owns the signed public-release design. The version/channel grammar, candidate
+targets, installation-mode fallbacks, native states and errors, immutable
+candidate identity, payload limits, credential readiness, and A-to-B
+qualification pair are fixed in the
+[application update contracts](architecture/app-update-contracts.md). No target
+is advertised as automatically supported until its real signed A-to-B evidence
+exists. The renderer may request native lifecycle actions using opaque IDs; it
+never supplies a feed/channel, URL, public key, installer path, target, or
+request headers.
+
 ## Enforced checks
 
 `pnpm run check` is the repository gate:

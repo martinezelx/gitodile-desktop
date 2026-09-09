@@ -27,8 +27,11 @@ export type AppReleaseEntry = {
  * second handwritten channel beside it would allow the updater feed, status
  * bar and changelog to disagree about the same build. */
 export function appReleaseChannel(version: string): AppReleaseChannel {
-  if (/^\d+\.\d+\.\d+$/.test(version)) return "stable";
-  if (/^\d+\.\d+\.\d+-preview\.[1-9]\d*$/.test(version)) return "preview";
+  const number = "(?:0|[1-9]\\d*)";
+  if (new RegExp(`^${number}\\.${number}\\.${number}$`).test(version)) return "stable";
+  if (new RegExp(`^${number}\\.${number}\\.${number}-preview\\.[1-9]\\d*$`).test(version)) {
+    return "preview";
+  }
   throw new Error(`Unsupported GitOdile release version: ${version}`);
 }
 

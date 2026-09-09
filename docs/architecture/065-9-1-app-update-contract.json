@@ -1,0 +1,254 @@
+{
+  "schemaVersion": 1,
+  "channels": ["stable", "preview"],
+  "version": {
+    "stablePattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+    "previewPattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-preview\\.([1-9][0-9]*)$",
+    "tagPrefix": "v",
+    "metadataFiles": [
+      "package.json",
+      "src-tauri/Cargo.toml",
+      "src-tauri/Cargo.lock",
+      "src-tauri/tauri.conf.json"
+    ]
+  },
+  "feeds": {
+    "stable": "https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/stable.json",
+    "preview": "https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/preview.json"
+  },
+  "targets": [
+    {
+      "key": "windows-x86_64",
+      "rustTarget": "x86_64-pc-windows-msvc",
+      "installation": "windows_nsis_per_user",
+      "firstInstallArtifact": "nsis-setup.exe",
+      "updateArtifact": "nsis-setup.exe",
+      "installMode": "passive",
+      "automaticEligibility": "qualification_required"
+    },
+    {
+      "key": "darwin-aarch64",
+      "rustTarget": "aarch64-apple-darwin",
+      "installation": "macos_app_bundle",
+      "firstInstallArtifact": "dmg",
+      "updateArtifact": "app.tar.gz",
+      "installMode": "replace_app_bundle",
+      "automaticEligibility": "qualification_required"
+    },
+    {
+      "key": "darwin-x86_64",
+      "rustTarget": "x86_64-apple-darwin",
+      "installation": "macos_app_bundle",
+      "firstInstallArtifact": "dmg",
+      "updateArtifact": "app.tar.gz",
+      "installMode": "replace_app_bundle",
+      "automaticEligibility": "qualification_required"
+    },
+    {
+      "key": "linux-x86_64",
+      "rustTarget": "x86_64-unknown-linux-gnu",
+      "installation": "linux_appimage",
+      "firstInstallArtifact": "AppImage",
+      "updateArtifact": "AppImage",
+      "installMode": "replace_writable_appimage",
+      "automaticEligibility": "qualification_required"
+    }
+  ],
+  "manualOnlyInstallations": [
+    "linux_deb",
+    "linux_rpm",
+    "managed_package",
+    "mounted_image",
+    "read_only_installation",
+    "windows_msi",
+    "windows_machine_wide",
+    "mac_app_store",
+    "microsoft_store",
+    "snap",
+    "flatpak",
+    "aur",
+    "unknown_or_unsupported"
+  ],
+  "states": [
+    "idle",
+    "checking",
+    "current",
+    "available",
+    "downloading",
+    "verifying",
+    "ready",
+    "blocked",
+    "installing",
+    "cancelled",
+    "unavailable",
+    "failed"
+  ],
+  "errors": [
+    "offline",
+    "timeout",
+    "http_status",
+    "feed_unavailable",
+    "invalid_manifest",
+    "invalid_version",
+    "channel_mismatch",
+    "target_unavailable",
+    "unsupported_installation",
+    "read_only_installation",
+    "notes_too_large",
+    "payload_too_large",
+    "truncated_download",
+    "signature_invalid",
+    "insufficient_space",
+    "install_blocked",
+    "install_handoff_failed",
+    "post_install_unconfirmed",
+    "internal"
+  ],
+  "bounds": {
+    "manifestBytes": 262144,
+    "remoteNotesBytes": 16384,
+    "platformEntries": 8,
+    "signatureBytes": 4096,
+    "artifactBytes": 536870912,
+    "checkTimeoutSeconds": 15,
+    "downloadIdleTimeoutSeconds": 30,
+    "downloadTotalTimeoutSeconds": 1800,
+    "redirects": 5,
+    "retainedCandidates": 1
+  },
+  "validationBuilds": ["0.2.0-preview.2", "0.2.0-preview.3"],
+  "versionCases": [
+    {
+      "name": "same stable version",
+      "installedVersion": "0.2.0",
+      "installedChannel": "stable",
+      "candidateVersion": "0.2.0",
+      "feedChannel": "stable",
+      "targetPresent": true,
+      "expected": "current"
+    },
+    {
+      "name": "older stable candidate",
+      "installedVersion": "0.2.1",
+      "installedChannel": "stable",
+      "candidateVersion": "0.2.0",
+      "feedChannel": "stable",
+      "targetPresent": true,
+      "expected": "current"
+    },
+    {
+      "name": "preview sequence advances",
+      "installedVersion": "0.2.0-preview.2",
+      "installedChannel": "preview",
+      "candidateVersion": "0.2.0-preview.3",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "available"
+    },
+    {
+      "name": "preview sequence cannot regress",
+      "installedVersion": "0.2.0-preview.3",
+      "installedChannel": "preview",
+      "candidateVersion": "0.2.0-preview.2",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "current"
+    },
+    {
+      "name": "preview accepts its stable successor",
+      "installedVersion": "0.2.0-preview.3",
+      "installedChannel": "preview",
+      "candidateVersion": "0.2.0",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "available"
+    },
+    {
+      "name": "stable rejects a preview candidate",
+      "installedVersion": "0.2.0",
+      "installedChannel": "stable",
+      "candidateVersion": "0.3.0-preview.1",
+      "feedChannel": "stable",
+      "targetPresent": true,
+      "expected": "channel_mismatch"
+    },
+    {
+      "name": "missing target is not current",
+      "installedVersion": "0.2.0-preview.2",
+      "installedChannel": "preview",
+      "candidateVersion": "0.2.0-preview.3",
+      "feedChannel": "preview",
+      "targetPresent": false,
+      "expected": "target_unavailable"
+    },
+    {
+      "name": "alpha suffix is unsupported",
+      "installedVersion": "0.2.0-preview.2",
+      "installedChannel": "preview",
+      "candidateVersion": "0.3.0-alpha.1",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "invalid_version"
+    },
+    {
+      "name": "preview zero is unsupported",
+      "installedVersion": "0.2.0-preview.2",
+      "installedChannel": "preview",
+      "candidateVersion": "0.3.0-preview.0",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "invalid_version"
+    },
+    {
+      "name": "build metadata is unsupported",
+      "installedVersion": "0.2.0-preview.2",
+      "installedChannel": "preview",
+      "candidateVersion": "0.3.0-preview.1+build.7",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "invalid_version"
+    }
+  ],
+  "metadataCases": [
+    {
+      "name": "preview metadata agrees",
+      "versions": ["0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2"],
+      "tag": "v0.2.0-preview.2",
+      "feedVersion": "0.2.0-preview.2",
+      "githubPrerelease": true,
+      "expected": "valid"
+    },
+    {
+      "name": "stable metadata agrees",
+      "versions": ["0.2.0", "0.2.0", "0.2.0", "0.2.0"],
+      "tag": "v0.2.0",
+      "feedVersion": "0.2.0",
+      "githubPrerelease": false,
+      "expected": "valid"
+    },
+    {
+      "name": "npm and Cargo mismatch",
+      "versions": ["0.2.0-preview.2", "0.2.0-preview.3", "0.2.0-preview.2", "0.2.0-preview.2"],
+      "tag": "v0.2.0-preview.2",
+      "feedVersion": "0.2.0-preview.2",
+      "githubPrerelease": true,
+      "expected": "metadata_mismatch"
+    },
+    {
+      "name": "tag mismatch",
+      "versions": ["0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2"],
+      "tag": "v0.2.0-preview.3",
+      "feedVersion": "0.2.0-preview.2",
+      "githubPrerelease": true,
+      "expected": "metadata_mismatch"
+    },
+    {
+      "name": "preview flag mismatch",
+      "versions": ["0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2"],
+      "tag": "v0.2.0-preview.2",
+      "feedVersion": "0.2.0-preview.2",
+      "githubPrerelease": false,
+      "expected": "metadata_mismatch"
+    }
+  ]
+}

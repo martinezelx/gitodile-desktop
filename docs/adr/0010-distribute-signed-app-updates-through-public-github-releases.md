@@ -3,6 +3,11 @@
 - Status: accepted
 - Date: 2026-09-03
 
+Implementation contracts fixed on 2026-09-09 are recorded in the
+[application update contracts](../architecture/app-update-contracts.md) and
+their executable fixture. They refine this decision without changing its two
+channels, hosting, signing, or publication architecture.
+
 ## Context
 
 GitOdile needs to update its installed desktop application without interrupting
@@ -231,6 +236,10 @@ emits download-finished before verifying its signature and buffers the download
 in memory. Mark ready only after successful verification, retain at most one
 candidate, and measure peak memory with representative bundled-runtime size.
 Do not promise resumable or cross-launch downloads in the first version.
+Cancellation is a distinct normal terminal state for a check or download, not
+a generic failure and never an installable result. The native service keeps at
+most one immutable candidate; renderer commands can refer to its opaque ID but
+cannot replace any of its validated release fields.
 
 Before invoking the installer:
 
@@ -263,6 +272,14 @@ Initial candidate matrix, subject to actual artifact validation:
 | macOS Apple Silicon / Intel | Signed/notarized app; DMG for first install and signed `.app.tar.gz` for updating |
 | Linux x64 AppImage | Signed AppImage replacement, after checking the actual writable installed file |
 | Linux `.deb` / `.rpm`, managed or read-only installs | Explain manual/package-manager update; do not overwrite them with an AppImage |
+
+All rows are candidates, not current support claims. Each exact target remains
+disabled for production automatic updates until two real consecutive signed
+packages pass the installation evidence required by task 065-9-7. In
+particular, the official Tauri updater repository had an open macOS
+[replacement-safety report](https://github.com/tauri-apps/plugins-workspace/issues/3505)
+when contracts were fixed on 2026-09-09; macOS cannot be enabled without a
+reviewed fix or independently tested mitigation.
 
 Support detection includes the packaging/installation mode, not just OS/CPU.
 Keep downloads for documented Linux package formats available alongside

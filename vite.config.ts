@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
+import { configDefaults } from "vitest/config";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
@@ -80,5 +81,9 @@ export default defineConfig({
     // under jsdom, so one shared environment keeps this config simple.
     environment: "jsdom",
     setupFiles: ["./src/test-fixtures/testSetup.ts"],
+    // Tool-created sibling checkouts can live below this repository while an
+    // agent is active. They are separate worktrees, not part of this tree's
+    // test inventory, and may target an older application version.
+    exclude: [...configDefaults.exclude, "**/.claude/worktrees/**"],
   },
 });

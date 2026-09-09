@@ -37,6 +37,10 @@ describe("Changelog dialog", () => {
     expect(appReleaseChannel("0.1.0")).toBe("stable");
     expect(appReleaseChannel("0.2.0-preview.1")).toBe("preview");
     expect(() => appReleaseChannel("0.2.0-alpha.1")).toThrow(/Unsupported GitOdile release version/);
+    expect(() => appReleaseChannel("0.2.0-preview.0")).toThrow(/Unsupported GitOdile release version/);
+    expect(() => appReleaseChannel("0.2.0-preview.01")).toThrow(/Unsupported GitOdile release version/);
+    expect(() => appReleaseChannel("01.2.0")).toThrow(/Unsupported GitOdile release version/);
+    expect(() => appReleaseChannel("0.2.0+build.7")).toThrow(/Unsupported GitOdile release version/);
   });
   it("renders nothing while closed", () => {
     render(
