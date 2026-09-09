@@ -6,6 +6,7 @@ import {
   type ProjectSessionsAction,
   type ProjectSessionsState,
 } from "./sessions";
+import { registerInstallParticipant } from "../install";
 
 export type ProjectRuntimeSnapshot = ProjectSessionsState;
 export type ProjectRuntimeSelector<T> = (snapshot: ProjectRuntimeSnapshot) => T;
@@ -13,6 +14,7 @@ export type ProjectCacheWarmReason = "project-activation" | "repository-invalida
 
 type Listener = () => void;
 type IdleScheduler = (task: () => void) => () => void;
+let nextRuntimeInstallParticipant = 0;
 
 export type ProjectRuntime = {
   readonly dispatch: (action: ProjectSessionsAction) => void;
@@ -47,8 +49,21 @@ export function createProjectRuntime(
 ): ProjectRuntime {
   let snapshot = initialState;
   let disposed = false;
+  let installSuspended = false;
   const listeners = new Set<Listener>();
   const scheduledWarmers = new Map<string, () => void>();
+  nextRuntimeInstallParticipant += 1;
+  const unregisterInstallParticipant = registerInstallParticipant({
+    id: `project-runtime:${nextRuntimeInstallParticipant}`,
+    label: "project cache warming",
+    suspend() {
+      installSuspended = true;
+      for (const cancel of [...scheduledWarmers.values()]) cancel();
+      return () => {
+        installSuspended = false;
+      };
+    },
+  });
 
   const runtime: ProjectRuntime = {
     dispatch(action) {
@@ -75,7 +90,7 @@ export function createProjectRuntime(
       return () => listeners.delete(listener);
     },
     scheduleCacheWarm({ key, run }) {
-      if (disposed || scheduledWarmers.has(key)) {
+      if (disposed || installSuspended || scheduledWarmers.has(key)) {
         return () => {};
       }
       let cancelled = false;
@@ -101,6 +116,7 @@ export function createProjectRuntime(
         return;
       }
       disposed = true;
+      unregisterInstallParticipant();
       for (const cancel of [...scheduledWarmers.values()]) {
         cancel();
       }

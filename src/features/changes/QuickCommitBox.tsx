@@ -3,6 +3,7 @@ import { CheckCircle2, CircleAlert, LoaderCircle, Save, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useScrollAnchoredResize } from "../../shared/ui";
+import { usePersistedInstallDraft } from "../../runtime/drafts";
 import {
   createSaveVersionController,
   PUBLISH_AFTER_SAVE_STORAGE_KEY,
@@ -11,6 +12,16 @@ import {
 } from "../save-version";
 
 const defaultController = createSaveVersionController(saveVersionPort);
+
+type QuickVersionMessage = { title: string; description: string };
+const EMPTY_QUICK_MESSAGE: QuickVersionMessage = { title: "", description: "" };
+const isEmptyQuickMessage = (draft: QuickVersionMessage): boolean =>
+  draft.title === "" && draft.description === "";
+const isQuickMessage = (value: unknown): value is QuickVersionMessage =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as Partial<QuickVersionMessage>).title === "string" &&
+  typeof (value as Partial<QuickVersionMessage>).description === "string";
 
 type QuickCommitStatus =
   | { kind: "idle" }
@@ -67,8 +78,18 @@ export function QuickCommitBox({
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [messageDraft, setMessageDraft, clearMessageDraft] = usePersistedInstallDraft(
+    `quick-save-version:${projectPath}`,
+    "quick version message",
+    EMPTY_QUICK_MESSAGE,
+    isEmptyQuickMessage,
+    isQuickMessage,
+  );
+  const { title, description } = messageDraft;
+  const setTitle = (value: string): void =>
+    setMessageDraft((current) => ({ ...current, title: value }));
+  const setDescription = (value: string): void =>
+    setMessageDraft((current) => ({ ...current, description: value }));
   const [publishToo, setPublishToo] = useState<boolean>(
     () => localStorage.getItem(PUBLISH_AFTER_SAVE_STORAGE_KEY) === "1",
   );
@@ -114,8 +135,7 @@ export function QuickCommitBox({
    * confusing to watch. */
   function handleDismiss(): void {
     if (isBusy) return;
-    setTitle("");
-    setDescription("");
+    clearMessageDraft();
     collapse();
   }
 
@@ -137,8 +157,7 @@ export function QuickCommitBox({
         selectedPaths,
         runHooks: attemptHooks,
       });
-      setTitle("");
-      setDescription("");
+      clearMessageDraft();
       setStatus({ kind: "success", title: result.title, shortCommit: result.shortCommit });
       onSaveCompleted();
       if (publishToo) {

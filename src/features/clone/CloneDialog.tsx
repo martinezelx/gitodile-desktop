@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { isAppError, localizeAppError } from "../../shared/i18n";
 import { DialogCloseButton, FieldError, LoadingBar, useFieldErrors, useModalFocus } from "../../shared/ui";
 import type { CloneAttempt, CloneController } from "./controller";
@@ -59,6 +60,7 @@ export function CloneDialog({
   const closeAfterCancelRef = useRef(false);
   const [source, setSource] = useState("");
   const [destinationParent, setDestinationParent] = useState(readLastCloneParent);
+  const initialDestinationParent = useRef(destinationParent);
   const [destinationName, setDestinationName] = useState("");
   const [step, setStep] = useState<DialogStep>("input");
   const [attempt, setAttempt] = useState<CloneAttempt | null>(null);
@@ -68,6 +70,14 @@ export function CloneDialog({
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const { errors, formProps, fieldProps, validate, reset: resetFieldErrors } = useFieldErrors();
+  useInstallDraftBlocker(
+    "clone-project-dialog",
+    "clone project details",
+    isOpen &&
+      (source.trim() !== "" ||
+        destinationName.trim() !== "" ||
+        destinationParent !== initialDestinationParent.current),
+  );
 
   const resetTransientState = (): void => {
     setStep("input");

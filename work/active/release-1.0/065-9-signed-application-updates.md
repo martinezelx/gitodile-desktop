@@ -54,12 +54,12 @@ own executable work; this epic has no queue position.
 | Queue | Child | Acceptance coverage |
 | --- | --- | --- |
 | Done | [065-9-1 — Define updater contracts and supported installations](../../done/065-9-1-contracts-and-targets.md) | Versions, channels, target/install matrix and key prerequisites |
-| Q02 | [065-9-2 — Protect operations and drafts before app installation](../app-updates/065-9-2-install-admission-and-drafts.md) | Native admission, operations, helpers and draft preservation |
-| Q03 | [065-9-3 — Implement the native signed updater lifecycle](../app-updates/065-9-3-native-updater.md) | Checks, verified downloads, install handoff and startup truth |
-| Q04 | [065-9-4 — Integrate update controls and preferences](../app-updates/065-9-4-updater-interface.md) | Entry points, consent, preferences, privacy and accessibility |
-| Q05 | [065-9-5 — Build signed release artifacts in private CI](../app-updates/065-9-5-signed-builds.md) | Private CI, signing, provenance and source-tag gates |
-| Q06 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
-| Q07 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
+| Done | [065-9-2 — Protect operations and drafts before app installation](../../done/065-9-2-install-admission-and-drafts.md) | Native admission, operations, helpers and draft preservation |
+| Q01 | [065-9-3 — Implement the native signed updater lifecycle](../app-updates/065-9-3-native-updater.md) | Checks, verified downloads, install handoff and startup truth |
+| Q02 | [065-9-4 — Integrate update controls and preferences](../app-updates/065-9-4-updater-interface.md) | Entry points, consent, preferences, privacy and accessibility |
+| Q03 | [065-9-5 — Build signed release artifacts in private CI](../app-updates/065-9-5-signed-builds.md) | Private CI, signing, provenance and source-tag gates |
+| Q04 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
+| Q05 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
 
 All criteria below remain the epic completion gate. Each child records its own
 evidence; 065-9-7 checks the combined coverage before this epic can be closed.

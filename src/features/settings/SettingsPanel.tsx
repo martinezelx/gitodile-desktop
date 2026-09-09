@@ -34,6 +34,7 @@ import {
   type NumberFormatPreference,
 } from "../../shared/i18n";
 import { autoHideScrollbarProps, moveFocusWithinRadioGroup } from "../../shared/ui";
+import { useInstallDraftBlocker } from "../../runtime/drafts";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
   DIFF_CODE_FONTS,
@@ -498,6 +499,16 @@ export function SettingsPanel({
   const hasEmailFormatError = trimmedEmail !== "" && !EMAIL_PATTERN.test(trimmedEmail);
   const canSaveIdentity =
     isIdentityDirty && trimmedName !== "" && trimmedEmail !== "" && !hasEmailFormatError;
+  const parsedCadence = Number(cadenceInput.trim());
+  const cadenceDraftMinutes =
+    cadenceInput.trim() !== "" && Number.isInteger(parsedCadence)
+      ? combineRemoteCheckInterval(parsedCadence, cadenceUnit)
+      : null;
+  const hasSettingsDraft =
+    isIdentityDirty ||
+    (showsCustomBranch && branchInput.trim() !== (savedDefaultBranch ?? "")) ||
+    (isCustomCadenceOpen && cadenceDraftMinutes !== remoteCheckInterval);
+  useInstallDraftBlocker("application-settings", "application settings", hasSettingsDraft);
 
   const saveIdentity = identity.save;
   const commitIdentity = useCallback(async (): Promise<boolean> => {

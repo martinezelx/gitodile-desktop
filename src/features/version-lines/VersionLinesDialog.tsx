@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CircleAlert, GitBranch, LoaderCircle, PenLine, Trash2, TriangleAlert } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
+import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui";
@@ -93,6 +94,11 @@ export function CreateVersionLineDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
+  useInstallDraftBlocker(
+    `create-version-line:${projectPath}`,
+    "new version line name",
+    isOpen && name.trim() !== "",
+  );
   const [switchChoice, setSwitchChoice] = useState(true);
   const [state, setState] = useState<CreateState>({ status: "form" });
   const onPhaseChangeRef = useRef(onPhaseChange);
@@ -586,6 +592,11 @@ export function RenameVersionLineDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(target);
+  useInstallDraftBlocker(
+    `rename-version-line:${projectPath}:${target}`,
+    "renamed version line name",
+    isOpen && name.trim() !== target,
+  );
   const [state, setState] = useState<RenameState>({ status: "editing" });
   const onPhaseChangeRef = useRef(onPhaseChange);
   onPhaseChangeRef.current = onPhaseChange;

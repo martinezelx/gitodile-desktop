@@ -547,6 +547,13 @@ exists. The renderer may request native lifecycle actions using opaque IDs; it
 never supplies a feed/channel, URL, public key, installer path, target, or
 request headers.
 
+The process-wide operation gate, watcher/background suspension, current command
+and draft inventories, rollback order, and extension requirements are defined
+in the
+[install-admission and draft contract](architecture/install-admission-and-drafts.md).
+Every later conflict, integration, stash, helper, timer, or editor owner must
+join that contract before it can ship.
+
 ## Enforced checks
 
 `pnpm run check` is the repository gate:

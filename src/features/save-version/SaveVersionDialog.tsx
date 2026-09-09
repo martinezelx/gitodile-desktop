@@ -4,6 +4,7 @@ import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui";
+import { usePersistedInstallDraft } from "../../runtime/drafts";
 import {
   getSaveVersionBreakdown,
   PUBLISH_AFTER_SAVE_STORAGE_KEY,
@@ -16,6 +17,16 @@ import { createSaveVersionController } from "./controller";
 import { saveVersionPort } from "./tauriAdapter";
 
 const defaultController = createSaveVersionController(saveVersionPort);
+
+type VersionMessageDraft = { title: string; details: string };
+const EMPTY_VERSION_MESSAGE: VersionMessageDraft = { title: "", details: "" };
+const isEmptyVersionMessage = (draft: VersionMessageDraft): boolean =>
+  draft.title === "" && draft.details === "";
+const isVersionMessage = (value: unknown): value is VersionMessageDraft =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as Partial<VersionMessageDraft>).title === "string" &&
+  typeof (value as Partial<VersionMessageDraft>).details === "string";
 
 const BREAKDOWN_LABEL_KEYS = {
   changed: "statusCategoryChanged",
@@ -153,8 +164,18 @@ export function SaveVersionDialog({
     selectedPathsRef.current = selectedPaths;
   }
   previousIsOpenRef.current = isOpen;
-  const [title, setTitle] = useState("");
-  const [details, setDetails] = useState("");
+  const [messageDraft, setMessageDraft, clearMessageDraft] = usePersistedInstallDraft(
+    `save-version-dialog:${projectPath}`,
+    "version message",
+    EMPTY_VERSION_MESSAGE,
+    isEmptyVersionMessage,
+    isVersionMessage,
+  );
+  const { title, details } = messageDraft;
+  const setTitle = (value: string): void =>
+    setMessageDraft((current) => ({ ...current, title: value }));
+  const setDetails = (value: string): void =>
+    setMessageDraft((current) => ({ ...current, details: value }));
   const [showTitleError, setShowTitleError] = useState(false);
   const [state, setState] = useState<DialogState>({ status: "loading" });
   /* Deliberately not reset by the open-effect below, unlike title/details:
@@ -300,8 +321,7 @@ export function SaveVersionDialog({
         // The draft this saved, cleared now that it's the version's own
         // record rather than still-editable text — see the open-effect above
         // for why it otherwise survives a close.
-        setTitle("");
-        setDetails("");
+        clearMessageDraft();
         onPhaseChangeRef.current?.("success");
         onSaved();
         // Same handoff as clicking "Publish now" on the success screen below,

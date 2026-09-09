@@ -113,11 +113,19 @@ impl RepositoryContext {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn discover(path: &Path) -> Result<Self, AppError> {
+        Self::discover_with_cancellation(path, None)
+    }
+
+    pub(crate) fn discover_with_cancellation(
+        path: &Path,
+        cancellation: Option<&CancellationToken>,
+    ) -> Result<Self, AppError> {
         let policy = ExecutionPolicy::repository_read("repository_context");
         let run = |args: &[&str]| -> Result<String, AppError> {
             let started = Instant::now();
-            let result = git::run(Some(path), args, policy, None);
+            let result = git::run(Some(path), args, policy, cancellation);
             let subcommand =
                 diagnostics::safe_git_subcommand(args.first().map(std::ffi::OsStr::new));
             match &result {
@@ -328,7 +336,16 @@ impl RepositoryAccessCoordinator {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn context(&self, path: &Path) -> Result<RepositoryContext, AppError> {
+        self.context_with_cancellation(path, None)
+    }
+
+    pub(crate) fn context_with_cancellation(
+        &self,
+        path: &Path,
+        cancellation: Option<&CancellationToken>,
+    ) -> Result<RepositoryContext, AppError> {
         let identity = PathIdentity::new(path)?;
         if let Some(context) = self
             .contexts
@@ -339,7 +356,7 @@ impl RepositoryAccessCoordinator {
         {
             return Ok(context);
         }
-        let context = RepositoryContext::discover(path)?;
+        let context = RepositoryContext::discover_with_cancellation(path, cancellation)?;
         self.register(context.clone(), &[path]);
         Ok(context)
     }

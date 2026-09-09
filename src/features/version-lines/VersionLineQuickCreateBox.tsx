@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle2, CircleAlert, GitBranch, GitBranchPlus, LoaderCircle, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
+import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
 import { moveFocusWithinRadioGroup, useScrollAnchoredResize } from "../../shared/ui";
 import type { VersionLine, VersionLinesSnapshot } from "./domain";
@@ -83,6 +84,11 @@ export function VersionLineQuickCreateBox({
   const [switchChoice, setSwitchChoice] = useState(true);
   const [source, setSource] = useState<"main" | "active">("active");
   const [status, setStatus] = useState<QuickCreateStatus>({ kind: "idle" });
+  useInstallDraftBlocker(
+    `quick-version-line:${projectPath}`,
+    "new version line name",
+    name.trim() !== "",
+  );
 
   /* A choice worth showing only when it changes the answer: two different
    * lines standing at the same commit would offer "main" and "active" as if

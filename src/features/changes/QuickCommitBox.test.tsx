@@ -75,6 +75,7 @@ afterEach(() => {
   // checkbox — a test that checks the toggle must not leak that choice into
   // the next one.
   localStorage.removeItem(PUBLISH_AFTER_SAVE_STORAGE_KEY);
+  localStorage.clear();
 });
 
 describe("QuickCommitBox", () => {

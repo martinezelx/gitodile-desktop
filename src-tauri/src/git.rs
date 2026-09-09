@@ -46,6 +46,23 @@ pub(crate) enum CancellationPolicy {
     NotSupported,
 }
 
+/// Required relationship between one application operation and installer
+/// handoff. This deliberately lives on every execution policy: a future Git
+/// command, helper, conflict workflow or stash path cannot compile a policy
+/// without deciding how installation treats it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum InstallAdmissionPolicy {
+    /// Safe read/background work. Installation asks it to cancel through its
+    /// normal token when possible, then waits for its guard to drain.
+    Drain,
+    /// Work that may mutate files, Git state, a remote, platform state, run a
+    /// hook or interact with credentials. Installation never cancels it.
+    Block,
+    /// Lifecycle/control work needed while admission is closed. This is a
+    /// narrow exception, not a default for commands that merely run quickly.
+    Allow,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ExecutionPolicy {
     pub(crate) command: &'static str,
@@ -56,6 +73,7 @@ pub(crate) struct ExecutionPolicy {
     pub(crate) cancellation: CancellationPolicy,
     pub(crate) prompt: PromptPolicy,
     pub(crate) concurrency: ConcurrencyClass,
+    pub(crate) install_admission: InstallAdmissionPolicy,
 }
 
 impl ExecutionPolicy {
@@ -69,6 +87,7 @@ impl ExecutionPolicy {
             cancellation: CancellationPolicy::KillProcess,
             prompt: PromptPolicy::Disabled,
             concurrency: ConcurrencyClass::RepositoryRead,
+            install_admission: InstallAdmissionPolicy::Drain,
         }
     }
 
@@ -82,6 +101,7 @@ impl ExecutionPolicy {
             cancellation: CancellationPolicy::KillProcess,
             prompt: PromptPolicy::PreserveGitBehavior,
             concurrency: ConcurrencyClass::RepositoryWrite,
+            install_admission: InstallAdmissionPolicy::Block,
         }
     }
 }

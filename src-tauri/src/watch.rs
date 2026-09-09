@@ -151,6 +151,7 @@ struct RepositoryWatch {
     _watcher: RecommendedWatcher,
     epoch: String,
     common_key: String,
+    paths: WatchPaths,
     generation: u64,
     sequence: u64,
     callback: Callback,
@@ -193,6 +194,23 @@ impl WatcherRegistry {
     where
         F: Fn(RepositoryInvalidation) + Send + Sync + 'static,
     {
+        self.watch_with_callback(
+            project_id,
+            session_epoch,
+            common_key,
+            paths,
+            Arc::new(on_change),
+        )
+    }
+
+    fn watch_with_callback(
+        &self,
+        project_id: &str,
+        session_epoch: &str,
+        common_key: &str,
+        paths: WatchPaths,
+        callback: Callback,
+    ) -> bool {
         self.remove_watch(project_id, None);
         let generation = self.next_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let (sender, receiver) = channel::<RepositoryInvalidationKind>();
@@ -229,7 +247,6 @@ impl WatcherRegistry {
             }
         }
 
-        let callback: Callback = Arc::new(on_change);
         self.state
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -240,6 +257,7 @@ impl WatcherRegistry {
                     _watcher: watcher,
                     epoch: session_epoch.to_string(),
                     common_key: common_key.to_string(),
+                    paths,
                     generation,
                     sequence: 0,
                     callback,
@@ -268,6 +286,44 @@ impl WatcherRegistry {
             }
         });
         true
+    }
+
+    /// Stops every app-owned filesystem watcher by dropping its native
+    /// backend. The returned guard recreates the exact registrations on drop,
+    /// so failed or postponed installation preparation restores normal
+    /// invalidation without asking mounted screens to register again.
+    pub(crate) fn suspend_all(&self) -> WatcherSuspension {
+        let removed = {
+            let mut state = self
+                .state
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            state.last_shared_report.clear();
+            std::mem::take(&mut state.watches)
+        };
+        let registrations = removed
+            .into_iter()
+            .map(|(project_id, watch)| WatchRegistration {
+                project_id,
+                epoch: watch.epoch,
+                common_key: watch.common_key,
+                paths: watch.paths,
+                callback: watch.callback,
+            })
+            .collect();
+        WatcherSuspension {
+            registry: self.clone(),
+            registrations,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn watch_count(&self) -> usize {
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .watches
+            .len()
     }
 
     fn dispatch(&self, owner: &str, generation: u64, kinds: &BTreeSet<RepositoryInvalidationKind>) {
@@ -377,6 +433,33 @@ impl WatcherRegistry {
     #[cfg(test)]
     fn inject(&self, owner: &str, generation: u64, kinds: &[RepositoryInvalidationKind]) {
         self.dispatch(owner, generation, &kinds.iter().copied().collect());
+    }
+}
+
+struct WatchRegistration {
+    project_id: String,
+    epoch: String,
+    common_key: String,
+    paths: WatchPaths,
+    callback: Callback,
+}
+
+pub(crate) struct WatcherSuspension {
+    registry: WatcherRegistry,
+    registrations: Vec<WatchRegistration>,
+}
+
+impl Drop for WatcherSuspension {
+    fn drop(&mut self) {
+        for registration in self.registrations.drain(..) {
+            self.registry.watch_with_callback(
+                &registration.project_id,
+                &registration.epoch,
+                &registration.common_key,
+                registration.paths,
+                registration.callback,
+            );
+        }
     }
 }
 

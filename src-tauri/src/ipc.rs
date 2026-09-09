@@ -433,6 +433,7 @@ pub(crate) fn render_diagnostic_report(
 
 #[tauri::command(async)]
 pub(crate) fn save_diagnostic_report(path: String, report: String) -> Result<(), AppError> {
+    let _command = application::enter("save_diagnostic_report");
     report_result(
         "save_diagnostic_report",
         diagnostics::save_report(path, report),
@@ -1091,6 +1092,7 @@ pub(crate) fn close_project_session(
     path: String,
     session_epoch: String,
 ) -> Result<(), AppError> {
+    let _command = application::enter("close_project_session");
     registry.unwatch(&path, &session_epoch);
     report_result(
         "close_project_session",
@@ -1424,6 +1426,7 @@ mod contract_tests {
             AppErrorCode::IgnoreFileNotText,
             AppErrorCode::StaleIgnoreFile,
             AppErrorCode::IgnoreFileWriteFailed,
+            AppErrorCode::InstallBlocked,
         ];
         let serialized = codes
             .iter()

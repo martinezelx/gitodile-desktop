@@ -66,6 +66,7 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         .collect::<BTreeSet<_>>();
     for required in [
         "application",
+        "app_updates",
         "changes",
         "desktop",
         "diagnostics",

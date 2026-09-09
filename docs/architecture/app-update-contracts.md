@@ -10,6 +10,12 @@ Nothing in this document claims that the updater is currently installed or that
 any platform is qualified. As of 2026-09-09, every automatic target remains
 `qualification_required`.
 
+Task 065-9-2's implemented process-wide gate, complete current operation/draft
+inventory, and mandatory extension rules live in
+[`install-admission-and-drafts.md`](install-admission-and-drafts.md). Later
+updater work must consume that boundary rather than introducing a second busy
+flag or screen-local draft check.
+
 ## Observed baseline
 
 The repository was inspected rather than treating the planning documents as

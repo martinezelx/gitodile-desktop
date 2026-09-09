@@ -63,6 +63,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof SaveVersionDial
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 describe("SaveVersionDialog", () => {

@@ -1,5 +1,6 @@
 #![allow(linker_messages)]
 
+mod app_updates;
 mod application;
 #[cfg(test)]
 mod architecture;

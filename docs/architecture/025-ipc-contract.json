@@ -103,7 +103,8 @@
     "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
     "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
     "recovery_unavailable", "recovery_conflict", "recovery_failed",
-    "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed"
+    "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed",
+    "install_blocked"
   ],
   "watchEvent": {
     "name": "repository-changed",

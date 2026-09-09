@@ -118,6 +118,7 @@ pub(crate) enum AppErrorCode {
     IgnoreFileNotText,
     StaleIgnoreFile,
     IgnoreFileWriteFailed,
+    InstallBlocked,
 }
 
 impl AppError {
