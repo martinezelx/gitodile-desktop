@@ -46,6 +46,23 @@ export interface VersionLinesTranslations {
   createVersionLineCreating: string;
   createVersionLineSuccessTitle: string;
   createVersionLineDone: string;
+  /** The quick create box docked under the Lines list — the fast path, next
+   * to "New line" (`versionLinesNewButton`) rather than instead of it. Its
+   * own strings for the name field, the switch checkbox and the confirm
+   * button, distinct from `createVersionLine*`'s: the box and the full
+   * dialog can be on screen together, and sharing an accessible name across
+   * two live controls would be as ambiguous to a screen reader as it is to
+   * an automated query. */
+  versionLinesQuickCreateNameLabel: string;
+  versionLinesQuickCreateNamePlaceholder: string;
+  /** The label before the main/selected capsules — shown only when the
+   * default line and the one highlighted in the list actually differ, so
+   * there is a real choice to name. */
+  versionLinesQuickCreateSourceLabel: string;
+  versionLinesQuickCreateSwitchLabel: string;
+  versionLinesQuickCreateConfirmLabel: string;
+  versionLinesQuickCreateDismiss: string;
+  versionLinesQuickCreateSuccess: (name: string, switched: boolean) => string;
   switchVersionLineTitle: (to: string) => string;
   switchVersionLineLoading: string;
   switchVersionLineChangedFiles: (count: number) => string;
@@ -204,6 +221,14 @@ const en: VersionLinesTranslations = {
   createVersionLineCreating: "Creating…",
   createVersionLineSuccessTitle: "Version line created",
   createVersionLineDone: "Done",
+  versionLinesQuickCreateNameLabel: "New line name",
+  versionLinesQuickCreateNamePlaceholder: "feature/new-feature",
+  versionLinesQuickCreateSourceLabel: "Create from",
+  versionLinesQuickCreateSwitchLabel: "Switch to it",
+  versionLinesQuickCreateConfirmLabel: "Create line",
+  versionLinesQuickCreateDismiss: "Discard draft",
+  versionLinesQuickCreateSuccess: (name, switched) =>
+    switched ? `Created “${name}” and switched to it.` : `Created “${name}”.`,
   switchVersionLineTitle: (to) => `Switch to “${to}”`,
   switchVersionLineLoading: "Comparing version lines…",
   switchVersionLineChangedFiles: (count) =>
@@ -388,6 +413,14 @@ const es: VersionLinesTranslations = {
   createVersionLineCreating: "Creando…",
   createVersionLineSuccessTitle: "Línea de versión creada",
   createVersionLineDone: "Listo",
+  versionLinesQuickCreateNameLabel: "Nombre de la nueva línea",
+  versionLinesQuickCreateNamePlaceholder: "feature/nueva-funcionalidad",
+  versionLinesQuickCreateSourceLabel: "Crear desde",
+  versionLinesQuickCreateSwitchLabel: "Cambiar a ella",
+  versionLinesQuickCreateConfirmLabel: "Crear línea",
+  versionLinesQuickCreateDismiss: "Descartar borrador",
+  versionLinesQuickCreateSuccess: (name, switched) =>
+    switched ? `Se creó «${name}» y se cambió a ella.` : `Se creó «${name}».`,
   switchVersionLineTitle: (to) => `Cambiar a «${to}»`,
   switchVersionLineLoading: "Comparando líneas de versión…",
   switchVersionLineChangedFiles: (count) =>

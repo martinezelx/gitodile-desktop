@@ -1,7 +1,8 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import { CheckCircle2, CircleAlert, LoaderCircle, Save, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
+import { useScrollAnchoredResize } from "../../shared/ui";
 import {
   createSaveVersionController,
   PUBLISH_AFTER_SAVE_STORAGE_KEY,
@@ -65,7 +66,6 @@ export function QuickCommitBox({
   onPublishNow: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
-  const containerRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -76,49 +76,13 @@ export function QuickCommitBox({
 
   // Keeps the file list's own scroll position anchored to this box's bottom
   // edge across every open/close, not just the lucky case where the list was
-  // already scrolled to its end. See the `fileListRef` prop doc for why.
-  //
-  // Two things this needs to get right, both found by testing at several
-  // scroll positions rather than trusting the arithmetic:
-  //
-  // First, tied to `expanded` itself rather than a `ResizeObserver` on the
-  // box — a first version used one, and it drifted unpredictably. Second,
-  // and the one that actually explained the drift: scrolled near the end of
-  // the list, shrinking this box grows the scroll container back, but
-  // *growing* it (opening) shrinks that container — and the moment
-  // `getBoundingClientRect()` below forces the browser to lay the new size
-  // out, the browser has already clamped `scrollTop` down to whatever the
-  // new (smaller) range allows, before this code gets to read it. Reading
-  // "current `scrollTop`" after that point and adding a delta to it
-  // double-applies the browser's own correction. The fix is to never read
-  // `scrollTop` after the resize: `beginExpandedChange` snapshots it (and
-  // this box's own height) synchronously, in the same event handler that
-  // requests the change and therefore strictly before React re-renders, and
-  // this effect computes the new position from that untouched snapshot
-  // instead of from whatever `scrollTop` has drifted to by the time it runs.
-  const scrollAnchorRef = useRef<{ scrollTop: number; boxHeight: number } | null>(null);
+  // already scrolled to its end. See the `fileListRef` prop doc, and
+  // `useScrollAnchoredResize`'s own doc, for why and how.
+  const { containerRef, snapshot } = useScrollAnchoredResize(fileListRef, expanded);
   function beginExpandedChange(next: boolean): void {
-    const box = containerRef.current;
-    const scrollElement = fileListRef.current;
-    if (box && scrollElement) {
-      scrollAnchorRef.current = { scrollTop: scrollElement.scrollTop, boxHeight: box.getBoundingClientRect().height };
-    }
+    snapshot();
     setExpanded(next);
   }
-  useLayoutEffect(() => {
-    const box = containerRef.current;
-    const scrollElement = fileListRef.current;
-    const anchor = scrollAnchorRef.current;
-    scrollAnchorRef.current = null;
-    if (!box || !scrollElement || !anchor) {
-      return;
-    }
-    const nextHeight = box.getBoundingClientRect().height;
-    const delta = nextHeight - anchor.boxHeight;
-    if (delta !== 0) {
-      scrollElement.scrollTop = anchor.scrollTop + delta;
-    }
-  }, [expanded, fileListRef]);
 
   const togglePublishToo = (): void => {
     setPublishToo((current) => {

@@ -50,6 +50,12 @@ export {
   type FilterPanelLabels, type FilterChip,
 } from "./filterPanel";
 export { copyTextToClipboard } from "./clipboard";
+/* ADR 0003's two-consumer bar (task 124): the Changes quick commit box and
+   the Lines quick create box both dock a closed-until-used compose box under
+   a scrollable list that is their flex sibling, and both need the same
+   scroll-position correction when the box's own size changes. What is
+   shared is the correction; the fields either box holds never were. */
+export { useScrollAnchoredResize, type ScrollAnchor } from "./scrollAnchoredResize";
 export { isReducedMotionRequested } from "./motionPreference";
 /* ADR 0003's two-consumer bar: the project switcher had this to itself until
    the welcome screen's recent-projects list needed the same identity — same

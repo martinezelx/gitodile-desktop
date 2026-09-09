@@ -31,6 +31,7 @@ import {
 import type { VersionLine, VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, versionLineActions } from "./lineActions";
 import { VersionLineContextMenu, type VersionLineContextMenuState } from "./VersionLineContextMenu";
+import { VersionLineQuickCreateBox } from "./VersionLineQuickCreateBox";
 import {
   CreateVersionLineDialog,
   DeleteVersionLineDialog,
@@ -851,6 +852,10 @@ export function VersionLinesPanel({
      the data, so it survives every refresh underneath it. */
   const [showNarrowDetail, setShowNarrowDetail] = useState(false);
   const [contextMenu, setContextMenu] = useState<VersionLineContextMenuState | null>(null);
+  /* The list's own scroll container, shared with `VersionLineQuickCreateBox`
+   * so opening or closing it can keep the list's scroll position anchored to
+   * its own foot — see `useScrollAnchoredResize`. */
+  const listScrollRef = useRef<HTMLDivElement>(null);
   /* Announced rather than shown: a copy leaves no mark on screen, so the one
      confirmation a screen reader gets is this. Cleared on the next open so the
      same word is announced again the second time. */
@@ -998,6 +1003,9 @@ export function VersionLinesPanel({
   }, [snapshot, search, prefixFilters, stateFilters, sort]);
 
   const active = snapshot?.lines.find((line) => line.isActive) ?? null;
+  /* The repository's default line — what `VersionLineQuickCreateBox` offers
+     as the alternative starting point to `active` when the two differ. */
+  const defaultLine = snapshot?.lines.find((line) => line.isDefault) ?? null;
   /* The active line heads the list and is exempt from search and filters: it
      is where the project *is*, and a screen that can hide it leaves the reader
      without the one row that answers "where am I". */
@@ -1297,6 +1305,7 @@ export function VersionLinesPanel({
 
           <div
             {...autoHideScrollbarProps<HTMLDivElement>()}
+            ref={listScrollRef}
             className="version-lines-list auto-hide-scrollbar"
             role="listbox"
             aria-label={t.versionLinesListAriaLabel}
@@ -1335,6 +1344,25 @@ export function VersionLinesPanel({
                 <p role="status">{t.versionLinesUnreadableNote(snapshot.unreadableCount)}</p>
               )}
             </footer>
+          )}
+
+          {/* The fast path, next to "New line" above rather than instead of
+              it — see `VersionLineQuickCreateBox`'s own doc. Absent on an
+              unborn `HEAD`, the same case that already hides the header
+              button: there is no commit yet for a line to point at. */}
+          {snapshot.headState !== "unborn" && (
+            <VersionLineQuickCreateBox
+              projectPath={projectPath}
+              sessionEpoch={sessionEpoch}
+              forceSwitch={snapshot.headState === "detached"}
+              mainLine={defaultLine}
+              activeLine={active}
+              listRef={listScrollRef}
+              onOperationStart={onOperationStart}
+              onOperationFinish={onOperationFinish}
+              onOperationPhaseChange={onOperationPhaseChange}
+              onCreated={handleMutated}
+            />
           )}
         </section>
 

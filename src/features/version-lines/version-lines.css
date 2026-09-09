@@ -137,6 +137,120 @@
   text-align: center;
 }
 
+/* Docked at the foot of the list, the same pattern `.changes-quick-commit`
+   established: a pill that reads as a sibling of the search box above it at
+   rest, and a small raised card once it holds more than one row. See that
+   selector's own comment for the shape rationale (DESIGN.md § Shape) and
+   `useScrollAnchoredResize` for why opening or closing it must not just push
+   rows out of view. This block deliberately mirrors `.changes-quick-commit`
+   rule for rule rather than reusing it: the CSS lives with the feature that
+   draws it, same as every other pair of screen styles in this app, and only
+   the two field-count differs enough that a shared class would carry unused
+   selectors on one side or the other. */
+.version-lines-quick-create {
+  flex: 0 0 auto; display: flex; flex-direction: column;
+  margin: 0 var(--space-2) var(--space-2);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  transition: border-color var(--duration-normal), background var(--duration-fast);
+}
+.version-lines-quick-create--expanded {
+  padding: 6px; border-radius: var(--radius-surface);
+  background: var(--surface-raised); box-shadow: var(--shadow-sm);
+}
+.version-lines-quick-create:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
+.version-lines-quick-create__field { display: flex; flex-direction: column; gap: 6px; }
+.version-lines-quick-create__name-wrap {
+  display: flex; align-items: center; gap: 8px; min-height: var(--control-height-sm);
+  padding: 0 var(--space-3); border-radius: var(--radius-item);
+  cursor: text;
+}
+.version-lines-quick-create--expanded .version-lines-quick-create__name-wrap { background: var(--surface-hover); }
+.version-lines-quick-create__name-wrap > svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+.version-lines-quick-create__name-wrap input.version-lines-quick-create__name {
+  flex: 1; min-width: 0; height: 100%; padding: 6px 0; border: 0; background: transparent;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); font-family: var(--font-mono); outline: none;
+}
+.version-lines-quick-create__name::placeholder { color: var(--text-secondary-color); font-family: inherit; }
+.version-lines-quick-create__name:disabled { opacity: 0.6; }
+.version-lines-quick-create__dismiss {
+  width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 auto;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  visibility: hidden; transition: background-color var(--duration-fast), color var(--duration-fast);
+}
+.version-lines-quick-create--expanded .version-lines-quick-create__dismiss { visibility: visible; }
+.version-lines-quick-create__dismiss:hover:not(:disabled) { background: var(--surface-raised); color: var(--text-primary-color); }
+.version-lines-quick-create__dismiss:disabled { opacity: 0.4; }
+.version-lines-quick-create__dismiss svg { width: 14px; height: 14px; }
+.version-lines-quick-create__extra {
+  display: grid; grid-template-rows: 0fr;
+}
+.version-lines-quick-create--expanded .version-lines-quick-create__extra { grid-template-rows: 1fr; margin-top: var(--space-2); }
+.version-lines-quick-create__extra > div {
+  overflow: hidden; display: flex; flex-direction: column; gap: var(--space-2);
+  opacity: 0; transform: scaleY(0.96); transform-origin: top;
+  transition: opacity var(--duration-fast), transform var(--duration-normal) ease-out;
+}
+.version-lines-quick-create--expanded .version-lines-quick-create__extra > div { opacity: 1; transform: scaleY(1); }
+@media (prefers-reduced-motion: reduce) {
+  .version-lines-quick-create, .version-lines-quick-create__extra > div { transition: none; }
+}
+/* Only rendered when the default line and the active one actually differ —
+   see `showSourceChoice`'s own doc — so this group costs nothing in the
+   common case where this box behaves exactly as it always did. A flex item
+   inside `.version-lines-quick-create__foot` rather than a row of its own —
+   the same tier as `.version-lines-quick-create__switch` beside it, and
+   `flex-wrap` on that shared parent is what lets it drop to a line of its
+   own when the row runs out of width, rather than every combination of
+   fields reserving a fixed line whether or not it is present. */
+.version-lines-quick-create__source {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
+}
+/* `.segmented-control` at its own default size is Settings-scale — 8px/14px
+   option padding and `--text-lead` — sized for a whole panel row, not a
+   single line inside a compose box already tight on height. Scaled down to
+   this box's own control tier (`--text-label`, the same size the switch
+   toggle's label beside it uses) rather than growing the row to fit the
+   control at full size, the same "smaller box, not a quieter colour" reading
+   DESIGN.md gives `.primary-button--sm`. A line's own name has no natural
+   length limit; capped and ellipsised rather than left to push the row wide
+   or wrap mid-name, with the full name still reachable as a title tooltip. */
+/* Overrides the global `@media (max-width: 800px) { .segmented-control {
+   flex-direction: column } }` rule primitives.css sets for Settings' own,
+   much wider rows. Two options already capped at 130px each fit side by
+   side even in this screen's narrowest supported list column; stacking them
+   would only add a second row's height to a box built to stay short. */
+.version-lines-quick-create__source .segmented-control {
+  flex-direction: row; padding: 2px; gap: 2px; border-radius: var(--radius-item);
+}
+.version-lines-quick-create__source .segmented-control__option {
+  max-width: 130px; padding: 3px 10px; border-radius: var(--radius-item);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-label); font-weight: var(--weight-medium);
+}
+.version-lines-quick-create__source .segmented-control__option:disabled { opacity: 0.5; }
+.version-lines-quick-create__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.version-lines-quick-create__switch {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
+}
+.version-lines-quick-create__action { flex: 1 1 auto; min-width: 0; }
+.version-lines-quick-create__action svg { width: 15px; height: 15px; }
+.version-lines-quick-create__error {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger);
+  font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.version-lines-quick-create__error svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+.version-lines-quick-create__success {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-success) 12%, transparent); color: var(--status-success);
+  font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.version-lines-quick-create__success svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+
 /* The row. Two lines and one height, the way a History timeline row and a
    Changes file row are: what the line is called and when it last moved, then —
    quieter, under it — the states worth flagging. Never the actions, which
