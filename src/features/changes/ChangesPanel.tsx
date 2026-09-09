@@ -24,6 +24,7 @@ import {
   useAnchoredPopup, type FilterChip,
 } from "../../shared/ui";
 import { SaveVersionDialog } from "../save-version";
+import { QuickCommitBox } from "./QuickCommitBox";
 import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";
@@ -1632,6 +1633,17 @@ export function ChangesPanel({
                 t={t}
               />
             </div>
+            <QuickCommitBox
+              projectPath={projectPath}
+              sessionEpoch={sessionEpoch}
+              selectedPaths={selectedPathsForSave}
+              canSave={canSaveSelection}
+              runHooks={runGitHooks}
+              remoteLabel={workingTree.upstream.upstream}
+              fileListRef={fileListScrollRef}
+              onSaveCompleted={onSaveCompleted}
+              onPublishNow={onPublishNow}
+            />
           </nav>
           <DiffWorkspace
             projectPath={projectPath}

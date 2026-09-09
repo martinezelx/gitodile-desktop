@@ -106,6 +106,7 @@ export interface ChangesTranslations {
   changesSaveVersion: string;
   changesSaveVersionDisabledHint: string;
   changesSaveVersionNoSelectionHint: string;
+  changesQuickCommitDismiss: string;
   changesSelectionSummary: (selected: number, total: number) => string;
   changesSelectAll: string;
   changesSelectNone: string;
@@ -285,6 +286,7 @@ const en: ChangesTranslations = {
   changesSaveVersion: "Save version",
   changesSaveVersionDisabledHint: "Make some changes first, then come back to save a version.",
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
+  changesQuickCommitDismiss: "Discard draft",
   changesSelectionSummary: (selected, total) => `${selected} of ${total} selected`,
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
@@ -468,6 +470,7 @@ const es: ChangesTranslations = {
   changesSaveVersion: "Guardar versión",
   changesSaveVersionDisabledHint: "Haz algún cambio primero y vuelve para guardar una versión.",
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
+  changesQuickCommitDismiss: "Descartar borrador",
   changesSelectionSummary: (selected, total) =>
     selected === 1 ? `${selected} de ${total} seleccionado` : `${selected} de ${total} seleccionados`,
   changesSelectAll: "Seleccionar todo",

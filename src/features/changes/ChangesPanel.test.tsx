@@ -158,7 +158,7 @@ describe("ChangesPanel save selection", () => {
     // Nothing selected is not a selection to name, so the button reads as the
     // plain action it always was — and is disabled.
     await userEvent.click(screen.getByRole("checkbox", { name: "Select none" }));
-    expect(screen.getByRole("button", { name: "Save version" })).toBeDisabled();
+    expect(within(screen.getByRole("group", { name: "Changes" })).getByRole("button", { name: "Save version" })).toBeDisabled();
 
     await userEvent.click(edited);
     await userEvent.click(screen.getByRole("button", { name: "Save selected" }));
@@ -171,6 +171,65 @@ describe("ChangesPanel save selection", () => {
       }),
     );
     expect(await screen.findByText("1 other file will remain as a pending change.")).toBeInTheDocument();
+  });
+
+  it("saves through the quick commit box docked under the file list, without opening Save Version", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") {
+        return Promise.resolve({ kind: "unchanged", path: "edited.txt" });
+      }
+      if (command === "plan_save_version") {
+        return Promise.resolve({
+          operationKind: "history-mutation",
+          requiresConfirmation: true,
+          stateToken: "quick-token",
+          branch: "main",
+          isFirstVersion: false,
+          totalFiles: 2,
+          remainingFiles: 0,
+          isPartial: false,
+          hasPreparedChanges: false,
+          counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+        });
+      }
+      if (command === "save_version") {
+        return Promise.resolve({
+          commit: "abc123abc123abc123abc123abc123abc123ab",
+          shortCommit: "abc123a",
+          title: "quick fix",
+          description: null,
+          branch: "main",
+          savedFiles: 2,
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={workingTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.type(screen.getByLabelText("Version name"), "quick fix");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText('Saved "quick fix" as abc123a.')).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
+      path: "/repo",
+      sessionEpoch: "test-epoch",
+      selectedPaths: ["edited.txt", "new.txt"],
+    });
+    // The full dialog, with its own plan preview, never opened for this.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("reuses a cached diff until the working-tree snapshot changes", async () => {
@@ -1273,7 +1332,7 @@ describe("ChangesPanel filters", () => {
     await screen.findByRole("button", { name: /conflict\.txt/ });
 
     await userEvent.click(screen.getByRole("checkbox", { name: "Include asset.png in this version" }));
-    expect(screen.getByText("4 of 5 selected")).toBeInTheDocument();
+    expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
 
     await userEvent.click(screen.getByRole("button", { name: "Filters" }));
     await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("radio", { name: "No" }));
@@ -1281,7 +1340,7 @@ describe("ChangesPanel filters", () => {
     expect(listedFiles(container)).toEqual(["asset.png"]);
     // Filtering changed only what is listed: the count and the select-all
     // checkbox still answer for the whole working tree.
-    expect(screen.getByText("4 of 5 selected")).toBeInTheDocument();
+    expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
     expect(screen.getByRole("checkbox", { name: "Select all" })).toBeInTheDocument();
   });
 

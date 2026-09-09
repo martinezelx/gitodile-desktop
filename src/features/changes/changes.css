@@ -493,6 +493,134 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--text-secondary-color);
 }
 
+/* The fast path for the common case, docked at the foot of the file list
+   rather than behind the header's "Save version" button. Closed, it reads as
+   a sibling of the search box above it, not a card of its own: the same
+   pill shape, the same flat tinted fill, no border of its own beyond the
+   one shape they already share. It only becomes a raised card — a surface
+   worth a shadow, and `--radius-surface` rather than the pill — once it
+   actually holds more than one row, which is also when the dismiss control
+   and the rest of the form appear. `--radius-surface` and not
+   `--radius-control`: once expanded this is "a container with its own
+   background," same as `.changes-file-list` around it and
+   `.save-version-dialog` beside it, not a multiline control like the
+   textarea it holds — see DESIGN.md § Shape and the concentric chain in
+   tokens.css. */
+.changes-quick-commit {
+  flex: 0 0 auto; display: flex; flex-direction: column;
+  margin: 0 var(--space-2) var(--space-2);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  transition: border-color var(--duration-normal), background var(--duration-fast);
+}
+/* The radius and the padding step change size on open, which is exactly the
+   kind of layout-property motion this app's own architecture check forbids
+   animating (see styleComposition.test.ts) — so they snap instantly, same as
+   the border and background here, which are cheap enough to leave unanimated
+   rather than reach for a compositor-only stand-in. Only the content fades
+   in — see `.changes-quick-commit__extra` below. */
+.changes-quick-commit--expanded {
+  padding: 6px; border-radius: var(--radius-surface);
+  background: var(--surface-raised); box-shadow: var(--shadow-sm);
+}
+.changes-quick-commit:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
+.changes-quick-commit__field { display: flex; flex-direction: column; gap: 6px; }
+/* Flush with the pill at rest — no fill or radius of its own, so the icon,
+   the input and the outer shape read as the one control search's is. Once
+   expanded it is a field sitting *on* the card instead of *as* it, which is
+   what gives it a fill of its own back. */
+.changes-quick-commit__summary-wrap {
+  display: flex; align-items: center; gap: 8px; min-height: var(--control-height-sm);
+  padding: 0 var(--space-3); border-radius: var(--radius-item);
+  cursor: text;
+}
+.changes-quick-commit--expanded .changes-quick-commit__summary-wrap { background: var(--surface-hover); }
+/* `>`, not a bare descendant selector: the dismiss button below carries its
+   own icon, and reaching past it here would fix that icon's colour in place
+   over its own `:hover`. */
+.changes-quick-commit__summary-wrap > svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+/* `input` in the selector, not just the class: `input:focus-visible` in
+   base.css carries the same (0,1,1) specificity, and without the type here
+   that rule's own outline was winning over this one's `none` regardless of
+   cascade order — the wrap around it already says "focused". */
+.changes-quick-commit__summary-wrap input.changes-quick-commit__summary {
+  flex: 1; min-width: 0; height: 100%; padding: 6px 0; border: 0; background: transparent;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); outline: none;
+}
+.changes-quick-commit__summary::placeholder { color: var(--text-secondary-color); }
+.changes-quick-commit__summary:disabled { opacity: 0.6; }
+/* The escape hatch for "opened this by accident" (Escape does the same).
+   Same box and shape as `.search-box__clear` above it in this exact panel —
+   a rectangle, since it's attached to a field rather than standing alone —
+   and the same `visibility` trick to leave it out of tab order at rest
+   instead of mounting and unmounting it. */
+.changes-quick-commit__dismiss {
+  width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 auto;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  visibility: hidden; transition: background-color var(--duration-fast), color var(--duration-fast);
+}
+.changes-quick-commit--expanded .changes-quick-commit__dismiss { visibility: visible; }
+.changes-quick-commit__dismiss:hover:not(:disabled) { background: var(--surface-raised); color: var(--text-primary-color); }
+.changes-quick-commit__dismiss:disabled { opacity: 0.4; }
+.changes-quick-commit__dismiss svg { width: 14px; height: 14px; }
+/* Grid rows collapse the panel to zero height when closed, same as a
+   `.filter-panel` disclosure — snapped, not eased: `grid-template-rows` is
+   layout motion, which this app's own architecture check forbids animating
+   (see styleComposition.test.ts). The soften-on-open feel instead comes from
+   the child below, on properties the compositor can animate for free. */
+.changes-quick-commit__extra {
+  display: grid; grid-template-rows: 0fr;
+}
+.changes-quick-commit--expanded .changes-quick-commit__extra { grid-template-rows: 1fr; margin-top: var(--space-2); }
+/* Opacity and a barely-there scale, both composited — no reflow, so this
+   costs nothing the row-snap above doesn't already pay. `transform-origin:
+   top` reads as the panel settling in from the row it grows out of, not a
+   generic fade. Kept subtle (0.96, not 0) since this box also holds text:
+   a bigger scale would visibly squash it for a frame. */
+.changes-quick-commit__extra > div {
+  overflow: hidden; display: flex; flex-direction: column; gap: var(--space-2);
+  opacity: 0; transform: scaleY(0.96); transform-origin: top;
+  transition: opacity var(--duration-fast), transform var(--duration-normal) ease-out;
+}
+.changes-quick-commit--expanded .changes-quick-commit__extra > div { opacity: 1; transform: scaleY(1); }
+@media (prefers-reduced-motion: reduce) {
+  .changes-quick-commit, .changes-quick-commit__extra > div { transition: none; }
+}
+.changes-quick-commit__desc {
+  width: 100%; resize: none; min-height: 52px; padding: 6px var(--space-3);
+  border: 1px solid transparent; border-radius: var(--radius-item); background: var(--surface-hover);
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-body); line-height: var(--leading-normal); outline: none;
+}
+.changes-quick-commit__desc::placeholder { color: var(--text-secondary-color); }
+.changes-quick-commit__desc:disabled { opacity: 0.6; }
+/* What the header summary already says ("N of M selected") is not repeated
+   here — this row is only the two things it alone controls, the publish
+   toggle and the save action. They share one line only at the panel column's
+   own wide end; short of that — most of its 260–320px range, and all of the
+   240–280px narrow track below 1200px — `flex-wrap` drops the button to a
+   full-width line of its own rather than clipping either. */
+.changes-quick-commit__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.changes-quick-commit__publish {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
+}
+.changes-quick-commit__action { flex: 1 1 auto; min-width: 0; }
+.changes-quick-commit__action svg { width: 15px; height: 15px; }
+.changes-quick-commit__error {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger);
+  font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.changes-quick-commit__error svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+.changes-quick-commit__hook-escape { align-self: flex-start; }
+.changes-quick-commit__success {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-success) 12%, transparent); color: var(--status-success);
+  font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.changes-quick-commit__success svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+
 .changes-diff {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface); background: var(--surface-panel); overflow: hidden;

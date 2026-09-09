@@ -16,6 +16,9 @@ export interface SaveVersionTranslations {
   saveVersionNoDestinationNote: string;
   saveVersionLocalOnlyNote: string;
   saveVersionConfirm: string;
+  saveVersionConfirmAndPublish: string;
+  saveVersionPublishToggleLabel: string;
+  saveVersionPublishToggleHint: string;
   saveVersionSaving: string;
   saveVersionRetry: string;
   saveVersionSkipHooks: string;
@@ -51,7 +54,10 @@ const en: SaveVersionTranslations = {
   saveVersionNoDestinationNote:
     "This project isn't on a version line right now, so this version won't belong to one. Create a version line here to keep it easy to find.",
   saveVersionLocalOnlyNote: "This creates a saved version on this computer only. Nothing is sent anywhere yet.",
-  saveVersionConfirm: "Save version",
+  saveVersionConfirm: "Save",
+  saveVersionConfirmAndPublish: "Save and publish",
+  saveVersionPublishToggleLabel: "Also publish",
+  saveVersionPublishToggleHint: "After saving, opens Publish so you can send it to the remote.",
   saveVersionSaving: "Saving your version…",
   saveVersionRetry: "Try again",
   saveVersionSkipHooks: "Save without running the hooks",
@@ -91,7 +97,10 @@ const es: SaveVersionTranslations = {
   saveVersionNoDestinationNote:
     "Este proyecto no está en una línea de versión ahora mismo, así que esta versión no pertenecerá a ninguna. Crea una línea de versión aquí para que sea fácil de encontrar.",
   saveVersionLocalOnlyNote: "Esto crea una versión guardada solo en este equipo. Todavía no se envía nada a ningún sitio.",
-  saveVersionConfirm: "Guardar versión",
+  saveVersionConfirm: "Guardar",
+  saveVersionConfirmAndPublish: "Guardar y publicar",
+  saveVersionPublishToggleLabel: "Publicar también",
+  saveVersionPublishToggleHint: "Al guardar, abre Publicar para que puedas enviarla al remoto.",
   saveVersionSaving: "Guardando tu versión…",
   saveVersionRetry: "Reintentar",
   saveVersionSkipHooks: "Guardar sin ejecutar los hooks",
