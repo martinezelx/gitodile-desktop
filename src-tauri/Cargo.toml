@@ -17,8 +17,15 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-os = "2"
+tauri-plugin-updater = "=2.11.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+semver = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["macros", "sync", "time"] }
+reqwest = { version = "0.13", default-features = false }
+futures-util = "0.3"
+time = { version = "0.3", features = ["formatting"] }
 # Filesystem watching for live working-tree updates (task 020). Default
 # features off: only the platform backends are wanted, not `serde` (events are
 # never serialized — the frontend gets a single coalesced signal, not raw
@@ -32,6 +39,8 @@ notify = { version = "8.2.0", default-features = false, features = ["macos_fseve
 # Repository-owned module-direction guard from ADR 0003. Development-only;
 # production artifacts keep no parser dependency.
 syn = { version = "2", features = ["full"] }
+base64 = "0.22"
+minisign-verify = "0.2"
 
 # Smaller binary loads (and pages in from disk) faster on launch; this app is
 # I/O-bound (spawning git, not number-crunching), so trading opt-level 3 for

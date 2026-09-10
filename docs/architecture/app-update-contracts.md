@@ -6,9 +6,9 @@ owns the durable decision; this document fixes the values and bounded types that
 tasks 065-9-2 through 065-9-7 must implement and qualify. The executable cases
 live in [`065-9-1-app-update-contract.json`](065-9-1-app-update-contract.json).
 
-Nothing in this document claims that the updater is currently installed or that
-any platform is qualified. As of 2026-09-09, every automatic target remains
-`qualification_required`.
+Task 065-9-3 implemented the native lifecycle on 2026-09-10. Nothing in this
+document claims that any platform is qualified: every automatic target remains
+`qualification_required` until task 065-9-7 records real signed A-to-B evidence.
 
 Task 065-9-2's implemented process-wide gate, complete current operation/draft
 inventory, and mandatory extension rules live in
@@ -16,7 +16,7 @@ inventory, and mandatory extension rules live in
 updater work must consume that boundary rather than introducing a second busy
 flag or screen-local draft check.
 
-## Observed baseline
+## Observed planning baseline
 
 The repository was inspected rather than treating the planning documents as
 runtime evidence:
@@ -27,8 +27,8 @@ runtime evidence:
   `bundle.targets` is `all`; that last value requests each host's normal bundle
   set but does not select an updater installer family or prove a package works;
 - resolved Tauri runtime / CLI versions are `2.11.5` / `2.11.4`;
-- neither the Rust nor JavaScript updater plugin is installed, updater artifacts
-  are disabled, no public key or endpoint is embedded, and the WebView has no
+- at that baseline neither updater plugin was installed, updater artifacts were
+  disabled, no public key or endpoint was embedded, and the WebView had no
   updater or process capability;
 - current CI runs tests on Windows, macOS, and Linux and release-compiles an
   executable on macOS/Linux with `--no-bundle`. It does not package, sign,
@@ -39,16 +39,42 @@ runtime evidence:
 - the private source repository exposed no Actions secret names, variables, or
   environments to the authenticated maintainer query on 2026-09-09.
 
-The native implementation will pin `tauri-plugin-updater` exactly at `2.11.0`
-and use only its Rust API. No `@tauri-apps/plugin-updater` or process guest
-binding belongs in the renderer. The pin is intentional because the plugin's
+The native implementation pins `tauri-plugin-updater` exactly at `2.11.0`
+and uses only its Rust API. No `@tauri-apps/plugin-updater` or process guest
+binding exists in the renderer. The pin is intentional because the plugin's
 official source warns that its HTTP dependency may change in minor releases
-when configuring the client. Task 065-9-3 must re-review that exact source and
-upgrade deliberately if a newer version is needed before implementation.
+when configuring the client. Task 065-9-3 re-reviewed that exact source; any
+future upgrade remains deliberate.
 
 Evidence: the current [Tauri updater guide](https://v2.tauri.app/plugin/updater/),
 the official [`updater-v2.11.0` source](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.11.0/plugins/updater/src/updater.rs),
 and the repository lockfiles.
+
+## Delivered native lifecycle
+
+`src-tauri/src/app_updates.rs` owns one process-wide snapshot, exact-operation
+cancellation, check coalescence, the single pending candidate, its verified
+bytes, native install-mode detection and bounded startup handoff state. A
+bounded Rust preflight preserves distinct offline/timeout/HTTP/feed/schema
+errors; the exact updater plugin then performs the authoritative manifest
+interpretation, download, Minisign verification, and platform installation.
+The two responses must be JSON-identical, so a changed feed cannot silently
+retarget the candidate between those steps.
+
+The production feeds are fixed constants. The public key and key ID are build-
+time values (`GITODILE_UPDATER_PUBLIC_KEY` and
+`GITODILE_UPDATER_PUBLIC_KEY_ID`); when absent, checking is truthfully
+unavailable rather than accepting a placeholder. Automatic installation is a
+second compile-time deny-by-default gate,
+`GITODILE_QUALIFIED_UPDATE_TARGETS`. It must remain empty in ordinary builds
+until task 065-9-7 qualifies an exact target/mode with real signed packages.
+
+The renderer-facing feature exposes only typed GitOdile commands and opaque
+candidate/operation IDs. There is no JavaScript updater dependency and the
+Tauri capability contains neither updater nor process permissions. Renderer
+install preparation protects drafts and suspends background participants before
+native admission drains reads, blocks every mutation without cancelling it,
+suspends watchers, revalidates the candidate and path, and invokes handoff.
 
 ## Version and release identity
 
@@ -242,7 +268,7 @@ native handoff. Late events for a cancelled/superseded operation are inert.
 | Remote notes within that response | 16 KiB UTF-8 |
 | Platform entries | 8 |
 | Signature text | 4 KiB |
-| Artifact, known or streamed length | 512 MiB |
+| Artifact, known or streamed length | 256 MiB |
 | Metadata check | 15 seconds total |
 | Download | 30 seconds without progress; 30 minutes total |
 | Redirects | 5 |
@@ -260,10 +286,27 @@ Content-Length is advisory: reject a known oversize response before buffering,
 enforce the same limit while streaming when length is absent or false, and
 require the final observed length to agree when the server supplied one. A
 finished transfer enters `verifying`, not `ready`. Signature failure or any
-truncation releases the bytes. Task 065-9-3 must measure actual artifact size
-and peak memory—including a representative future bundled Git—and lower the cap
-or change the transport if 512 MiB is not safe. Raising it requires recorded
+truncation releases the bytes. Raising the artifact cap requires new recorded
 measurements and review.
+
+The 2026-09-10 Windows release-profile measurement used the locally generated
+unsigned NSIS payload plus a gzip-compressed copy of the installed Git for
+Windows tree as a conservative future bundled-Git proxy. This was a local
+resource measurement only, not signature, publication, or installation proof:
+
+| Input / observation | Bytes |
+| --- | ---: |
+| Current unsigned NSIS installer | 2,660,544 |
+| Installed Git for Windows tree before compression | 423,147,090 |
+| Representative compressed Git payload | 134,164,849 |
+| Combined bytes retained by the measurement buffer | 136,825,393 |
+| `Vec` capacity | 268,435,456 |
+| Observed process peak working set | 273,412,096 |
+
+The result leaves about 125 MiB of payload headroom under the lowered 256 MiB
+limit while bounding the plugin's one-buffer design. The repeatable harness is
+`src-tauri/examples/measure_update_buffer.rs`; the representative archive was
+deleted after measurement and is not a release artifact.
 
 ## Signing, publishing, and ownership readiness
 

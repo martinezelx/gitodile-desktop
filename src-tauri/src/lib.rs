@@ -1,5 +1,7 @@
 #![allow(linker_messages)]
 
+use tauri::Manager;
+
 mod app_updates;
 mod application;
 #[cfg(test)]
@@ -71,9 +73,20 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            app.manage(app_updates::AppUpdateService::new(app.handle()));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             ipc::app_status,
             ipc::show_main_window,
+            ipc::get_app_update_state,
+            ipc::get_startup_update_confirmation,
+            ipc::check_app_update,
+            ipc::download_app_update,
+            ipc::cancel_app_update,
+            ipc::install_app_update,
             ipc::reveal_project_file,
             ipc::open_repository,
             ipc::plan_clone,

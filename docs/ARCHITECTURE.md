@@ -221,6 +221,7 @@ src-tauri/src/
   index.rs                # collision-safe temporary-index preparation
   session.rs              # opaque project epochs
   watch.rs                # filtered/debounced typed invalidation
+  app_updates.rs          # bounded signed-update lifecycle and install handoff
   desktop.rs              # desktop-shell services
   tooling.rs              # Git diagnostics, install/update, identity, line endings
   project_settings.rs     # one project's own identity and ignore files
@@ -553,6 +554,25 @@ in the
 [install-admission and draft contract](architecture/install-admission-and-drafts.md).
 Every later conflict, integration, stash, helper, timer, or editor owner must
 join that contract before it can ship.
+
+`app_updates.rs` is the one process-wide native owner. It compiles the build's
+channel, fixed feed and updater public-key identity; detects the native target
+and installation mode; and retains at most one immutable candidate and one
+verified payload. Its bounded preflight distinguishes transport/status/schema
+failures before the exact `tauri-plugin-updater = 2.11.0` Rust API performs the
+authoritative check, download, signature verification and platform handoff.
+The WebView reaches only six GitOdile commands described by the IPC contract;
+no updater/process guest permission or JavaScript updater package is exposed.
+
+Install preparation is ordered across the renderer and native process:
+synchronously protect drafts, suspend renderer participants, acquire/drain the
+global admission gate, suspend native watchers, revalidate the exact candidate
+and installation path, persist a bounded one-shot handoff record, then invoke
+the installer. A failure unwinds those owners in reverse order. Windows exits
+inside the accepted updater handoff; macOS/Linux restart after replacement.
+The next launch reports success only when its compiled running version equals
+the recorded expected version. Qualification remains a compile-time deny-by-
+default target allowlist, so mocks or compilation cannot advertise a platform.
 
 ## Enforced checks
 

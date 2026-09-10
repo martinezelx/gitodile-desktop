@@ -5,6 +5,10 @@
 //! behind the application boundary.
 
 use crate::{
+    app_updates::{
+        AppUpdateService, InstallUpdateRequest, StartupUpdateConfirmation, UpdateAction,
+        UpdateCheckSource, UpdateState,
+    },
     application,
     changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
     clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
@@ -37,6 +41,59 @@ use crate::{
     },
     watch,
 };
+
+#[tauri::command]
+pub(crate) fn get_app_update_state(service: tauri::State<'_, AppUpdateService>) -> UpdateState {
+    report_value("get_app_update_state", service.snapshot())
+}
+
+#[tauri::command]
+pub(crate) fn get_startup_update_confirmation(
+    service: tauri::State<'_, AppUpdateService>,
+) -> StartupUpdateConfirmation {
+    report_value(
+        "get_startup_update_confirmation",
+        service.startup_confirmation(),
+    )
+}
+
+#[tauri::command]
+pub(crate) fn check_app_update(
+    app: tauri::AppHandle,
+    service: tauri::State<'_, AppUpdateService>,
+    source: UpdateCheckSource,
+) -> UpdateAction {
+    report_value("check_app_update", service.start_check(app, source))
+}
+
+#[tauri::command]
+pub(crate) fn download_app_update(
+    service: tauri::State<'_, AppUpdateService>,
+    candidate_id: String,
+) -> UpdateAction {
+    report_value("download_app_update", service.start_download(&candidate_id))
+}
+
+#[tauri::command]
+pub(crate) fn cancel_app_update(
+    service: tauri::State<'_, AppUpdateService>,
+    operation_id: String,
+) -> UpdateState {
+    report_value("cancel_app_update", service.cancel(&operation_id))
+}
+
+#[tauri::command(async)]
+pub(crate) fn install_app_update(
+    app: tauri::AppHandle,
+    service: tauri::State<'_, AppUpdateService>,
+    watchers: tauri::State<'_, watch::WatcherRegistry>,
+    request: InstallUpdateRequest,
+) -> UpdateState {
+    report_value(
+        "install_app_update",
+        service.install(&app, &watchers, request),
+    )
+}
 
 fn report_result<T>(operation: &'static str, result: Result<T, AppError>) -> Result<T, AppError> {
     diagnostics::record_command(

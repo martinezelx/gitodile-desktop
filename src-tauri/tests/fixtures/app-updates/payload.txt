@@ -1,0 +1,2 @@
+GitOdile updater verification fixture v1.
+This is public test data and is not an installable application.

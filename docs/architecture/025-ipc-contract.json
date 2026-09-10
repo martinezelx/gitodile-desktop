@@ -3,6 +3,12 @@
   "commands": [
     { "name": "app_status", "arguments": [], "response": "string" },
     { "name": "show_main_window", "arguments": [], "response": "void" },
+    { "name": "get_app_update_state", "arguments": [], "response": "UpdateState" },
+    { "name": "get_startup_update_confirmation", "arguments": [], "response": "StartupUpdateConfirmation" },
+    { "name": "check_app_update", "arguments": ["source"], "response": "UpdateAction" },
+    { "name": "download_app_update", "arguments": ["candidateId"], "response": "UpdateAction" },
+    { "name": "cancel_app_update", "arguments": ["operationId"], "response": "UpdateState" },
+    { "name": "install_app_update", "arguments": ["request"], "response": "UpdateState" },
     { "name": "open_repository", "arguments": ["path", "sessionEpoch?"], "response": "RepositoryInfo" },
     { "name": "reveal_project_file", "arguments": ["path", "filePath", "sessionEpoch"], "response": "void" },
     { "name": "plan_clone", "arguments": ["source", "destinationParent", "destinationName"], "response": "ClonePlan" },

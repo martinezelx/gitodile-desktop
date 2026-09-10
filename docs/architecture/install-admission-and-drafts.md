@@ -1,8 +1,8 @@
 # Install admission and draft protection
 
-This is the durable implementation contract delivered by task 065-9-2. It
-prepares GitOdile for installer handoff; it does not add an updater, download
-transport, installer invocation, or update UI.
+This is the durable implementation contract delivered by task 065-9-2 and
+consumed by the native lifecycle in task 065-9-3. It still does not define the
+update UI or publish releases.
 
 ## Native admission boundary
 
@@ -26,7 +26,7 @@ Every `ExecutionPolicy` must select one `InstallAdmissionPolicy`:
 
 `InstallPreparation` owns both the admission guard and suspended native watch
 registrations. Any error or dropped preparation restores watchers before
-reopening admission. The future native updater must hold it continuously until
+reopening admission. The native updater holds it continuously until
 the installer accepts handoff; failed revalidation or handoff drops it.
 
 ### Current operation inventory
@@ -36,9 +36,9 @@ current commands have these policies:
 
 | Policy | Current commands | Reason |
 | --- | --- | --- |
-| `Allow` | `app_status`, `show_main_window`, `render_diagnostic_report` | In-memory/window control only; no Git or external process starts. |
-| `Drain` | `open_repository`, `reveal_project_file`, `plan_clone`, `plan_initialize_project`, `read_working_tree_status`, `read_file_diff`, `read_file_image_preview`, `read_file_lines`, `read_working_tree_diffs`, `plan_discard_changes`, `get_discard_recovery`, `list_discard_recoveries`, `git_diagnostics`, `check_git_update`, `get_git_identity`, `get_line_endings`, `get_default_branch`, `plan_save_version`, `discover_remotes`, `plan_connect_remote`, `read_project_remotes`, `read_project_identity`, `read_ignore_file`, `read_team_sync_status`, `list_unpublished_versions`, `read_commit_file_changes`, `read_commit_file_diff`, `read_history_page`, `read_saved_version_detail`, `read_saved_version_file_diff`, `get_version_lines`, `get_version_line_history`, `plan_create_version_line`, `plan_switch_version_line`, `plan_delete_version_line`, `plan_rename_version_line`, `watch_repository` | Read-only work may stop through its existing token. Persistent watch registrations are additionally suspended as described below. |
-| `Block` | `clone_repository`, `cancel_clone`, `cleanup_clone`, `initialize_project`, `cleanup_initialize_project`, `discard_changes`, `restore_discarded_changes`, `delete_discard_recovery`, `install_git`, `update_git`, `save_diagnostic_report`, `set_git_identity`, `set_line_endings`, `set_default_branch`, `save_version`, `connect_remote`, `set_remote_url`, `set_project_identity`, `clear_project_identity`, `write_ignore_file`, `check_team_changes`, `plan_get_team_changes`, `get_team_changes`, `plan_publish`, `publish`, `create_version_line`, `switch_version_line`, `delete_version_line`, `rename_version_line`, `unwatch_repository`, `close_project_session` | These change repository, remote, platform, persisted application state, or owned operation state. Planning sync/publish commands may fetch, invoke credentials, or update refs, so they are mutations despite their names. Watch/session teardown waits so suspended registrations cannot be resurrected after their session closes. |
+| `Allow` | `app_status`, `show_main_window`, `get_app_update_state`, `get_startup_update_confirmation`, `cancel_app_update`, `render_diagnostic_report` | In-memory/window control only; no Git or external process starts. Exact cancellation only signals the owned check/download. |
+| `Drain` | `check_app_update`, `open_repository`, `reveal_project_file`, `plan_clone`, `plan_initialize_project`, `read_working_tree_status`, `read_file_diff`, `read_file_image_preview`, `read_file_lines`, `read_working_tree_diffs`, `plan_discard_changes`, `get_discard_recovery`, `list_discard_recoveries`, `git_diagnostics`, `check_git_update`, `get_git_identity`, `get_line_endings`, `get_default_branch`, `plan_save_version`, `discover_remotes`, `plan_connect_remote`, `read_project_remotes`, `read_project_identity`, `read_ignore_file`, `read_team_sync_status`, `list_unpublished_versions`, `read_commit_file_changes`, `read_commit_file_diff`, `read_history_page`, `read_saved_version_detail`, `read_saved_version_file_diff`, `get_version_lines`, `get_version_line_history`, `plan_create_version_line`, `plan_switch_version_line`, `plan_delete_version_line`, `plan_rename_version_line`, `watch_repository` | Read-only work may stop through its existing token. Persistent watch registrations are additionally suspended as described below. |
+| `Block` | `download_app_update`, `install_app_update`, `clone_repository`, `cancel_clone`, `cleanup_clone`, `initialize_project`, `cleanup_initialize_project`, `discard_changes`, `restore_discarded_changes`, `delete_discard_recovery`, `install_git`, `update_git`, `save_diagnostic_report`, `set_git_identity`, `set_line_endings`, `set_default_branch`, `save_version`, `connect_remote`, `set_remote_url`, `set_project_identity`, `clear_project_identity`, `write_ignore_file`, `check_team_changes`, `plan_get_team_changes`, `get_team_changes`, `plan_publish`, `publish`, `create_version_line`, `switch_version_line`, `delete_version_line`, `rename_version_line`, `unwatch_repository`, `close_project_session` | These change repository, remote, platform, persisted application state, retained update bytes, or owned operation state. Planning sync/publish commands may fetch, invoke credentials, or update refs, so they are mutations despite their names. Watch/session teardown waits so suspended registrations cannot be resurrected after their session closes. `install_app_update` is the gate owner: it invokes `begin_install_admission` instead of registering itself as a blocker. |
 
 Repository authorization registers admission before repository discovery, so a
 discovery Git process cannot race installation. All production Git processes
@@ -78,7 +78,7 @@ A new native command cannot omit `ExecutionPolicy.install_admission`.
 4. Long-lived native watchers and renderer timers that can initiate work must
    implement suspend/restore ownership. `Allow` is restricted to controls that
    cannot reach Git, credentials, user files, or an external process.
-5. The updater order is: synchronously prepare renderer drafts; suspend
+5. The implemented updater order is: synchronously prepare renderer drafts; suspend
    renderer participants; acquire native admission and drain reads; suspend
    native watchers; revalidate the candidate; hand off. Any failure releases
    the completed steps in reverse order.
@@ -93,7 +93,7 @@ blocker. The registry never writes a tracked or untracked project file, Git
 index, ref, history or Git configuration.
 
 Owner IDs remain renderer-local because their storage keys may contain project
-paths. The future adapter forwards only a protected-owner count and bounded safe
+paths. The updater adapter forwards only a protected-owner count and bounded safe
 blocker labels to native `DraftPreparation`; malformed records use a generic
 label rather than reflecting their key.
 
@@ -107,7 +107,7 @@ label rather than reflecting their key.
 | Publish/Get Changes/Discard dialogs | No unsubmitted free-text content; selection is a transient confirmation of a freshly planned operation. | Replan after restart; no user-authored draft is lost. |
 | History/change/version-line filters, searches, selected tabs/rows, scroll offsets, notices and menus | Navigation/view state, not authored project work. Durable preferences and existing scroll state keep their current owners. | Disposable; never delays install. |
 
-The updater controller must call renderer preparation before it closes or
+The updater controller calls renderer preparation before it closes or
 replaces any overlay. Thus a blocker cannot disappear merely because updater UI
 unmounted its owner. Persisted version messages are proven independently of a
 mounted component. Later conflict editors must persist a bounded draft together

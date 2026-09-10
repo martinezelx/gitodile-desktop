@@ -89,6 +89,16 @@ const fn read(command: &'static str) -> ExecutionPolicy {
 pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     control("app_status"),
     control("show_main_window"),
+    control("get_app_update_state"),
+    control("get_startup_update_confirmation"),
+    global_process("check_app_update", OperationClass::ReadOnly, 15),
+    global_process(
+        "download_app_update",
+        OperationClass::LocalMutation,
+        30 * 60,
+    ),
+    control("cancel_app_update"),
+    no_process_with_class("install_app_update", OperationClass::PlatformMutation),
     read("open_repository"),
     read("reveal_project_file"),
     no_process("plan_clone"),
@@ -357,10 +367,17 @@ pub(crate) fn begin_install_admission(
 /// it. The returned guard is moved into the helper's reaper thread, closing the
 /// gap between spawn and process exit without manufacturing a command frame on
 /// the wrong thread.
-#[cfg(target_os = "windows")]
 pub(crate) fn begin_background_activity(command: &'static str) -> OperationActivity {
     let policy = *policy(command);
     admission().start_operation(command, policy.install_admission, None)
+}
+
+pub(crate) fn begin_background_activity_with_cancellation(
+    command: &'static str,
+    cancellation: CancellationToken,
+) -> OperationActivity {
+    let policy = *policy(command);
+    admission().start_operation(command, policy.install_admission, Some(cancellation))
 }
 
 pub(crate) fn policy(command: &str) -> &'static ExecutionPolicy {
@@ -625,6 +642,12 @@ mod tests {
     const REGISTERED: &[&str] = &[
         "app_status",
         "show_main_window",
+        "get_app_update_state",
+        "get_startup_update_confirmation",
+        "check_app_update",
+        "download_app_update",
+        "cancel_app_update",
+        "install_app_update",
         "open_repository",
         "reveal_project_file",
         "plan_clone",
