@@ -113,9 +113,11 @@ function ReleaseNotes({
 export function ChangelogDialog({
   isOpen,
   setOpen,
+  onCheckForUpdates,
 }: {
   isOpen: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
+  onCheckForUpdates?: () => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -146,6 +148,11 @@ export function ChangelogDialog({
         <p className="eyebrow">{t.changelogEyebrow}</p>
         <h2 id="changelog-title">{t.changelogTitle}</h2>
         <p>{t.changelogDescription}</p>
+        {onCheckForUpdates && (
+          <button className="secondary-button changelog-dialog__update" type="button" onClick={onCheckForUpdates}>
+            {t.commandCheckAppUpdates}
+          </button>
+        )}
         {/* `role="list"` because both lists drop `list-style`, and WebKit —
             the engine behind the macOS build — removes list semantics along
             with the marker. The count is the point here: "six changes in this

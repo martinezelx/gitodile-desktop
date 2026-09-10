@@ -89,6 +89,7 @@ import {
   versionLinesPort,
 } from "../features/version-lines";
 import { createHistoryController, historyPort } from "../features/history";
+import { appUpdatesPort, createAppUpdatesController, useAppUpdatesController } from "../features/app-updates";
 import { TooltipHost } from "../shared/ui/tooltip";
 import { LoadingBar } from "../shared/ui/loadingBar";
 import { AppOverlays } from "./AppOverlays";
@@ -110,6 +111,8 @@ import {
   SIDEBAR_HIDDEN_STORAGE_KEY,
   WATCH_PROJECTS_DEFAULT,
   WATCH_PROJECTS_STORAGE_KEY,
+  APP_UPDATE_AUTOMATIC_DEFAULT,
+  APP_UPDATE_AUTOMATIC_STORAGE_KEY,
   applyTheme,
   resolveEffectiveTheme,
   useStoredBoolean,
@@ -210,6 +213,7 @@ export function App(): React.JSX.Element {
   const { t } = useLanguage();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  const [isAppUpdateOpen, setIsAppUpdateOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   /* Declared beside the Settings flag because `hasBlockingDialog` below reads
      both, and a `const` cannot be read before it exists. */
@@ -576,6 +580,20 @@ export function App(): React.JSX.Element {
     WATCH_PROJECTS_DEFAULT,
   );
   const [remoteCheckInterval, setRemoteCheckInterval] = useStoredRemoteCheckInterval();
+  const [automaticAppUpdates, setAutomaticAppUpdates] = useStoredBoolean(
+    APP_UPDATE_AUTOMATIC_STORAGE_KEY,
+    APP_UPDATE_AUTOMATIC_DEFAULT,
+  );
+  const [appUpdatesController] = useState(() => createAppUpdatesController(appUpdatesPort, {
+    automaticEnabled: automaticAppUpdates,
+  }));
+  const appUpdates = useAppUpdatesController(appUpdatesController, automaticAppUpdates);
+  const presentedStartupUpdateRef = useRef(false);
+  useEffect(() => {
+    if (presentedStartupUpdateRef.current || appUpdates.startupConfirmation.kind === "none") return;
+    presentedStartupUpdateRef.current = true;
+    setIsAppUpdateOpen(true);
+  }, [appUpdates.startupConfirmation]);
   const activeWatcherRegistration = activeSession ? watcherRegistrations[activeSession.id] : undefined;
   const activeWatcherState: "starting" | "watching" | "off" | "unavailable" =
     !watchProjects
@@ -1365,6 +1383,7 @@ export function App(): React.JSX.Element {
     hasBlockingDialog ||
     isAboutOpen ||
     isChangelogOpen ||
+    isAppUpdateOpen ||
     isShortcutsOpen ||
     isCloseConfirmOpen ||
     isOpenErrorDialogOpen ||
@@ -1558,6 +1577,14 @@ export function App(): React.JSX.Element {
         ]
       : []),
     { id: "changelog", label: t.changelogTitle, action: () => setIsChangelogOpen(true) },
+    {
+      id: "check-app-updates",
+      label: t.commandCheckAppUpdates,
+      action: () => {
+        setIsAppUpdateOpen(true);
+        void appUpdatesController.check();
+      },
+    },
     { id: "about", label: t.aboutGitOdile, action: () => setIsAboutOpen(true) },
   ];
 
@@ -1712,6 +1739,10 @@ export function App(): React.JSX.Element {
           <TitlebarMenu
             onOpenAbout={() => setIsAboutOpen(true)}
             onOpenChangelog={() => setIsChangelogOpen(true)}
+            onCheckAppUpdates={() => {
+              setIsAppUpdateOpen(true);
+              void appUpdatesController.check();
+            }}
             onOpenProject={() => void handleOpenProject()}
             onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
             onCloneProject={() => setIsCloneOpen(true)}
@@ -2609,6 +2640,10 @@ export function App(): React.JSX.Element {
           setWatchProjects,
           remoteCheckInterval,
           setRemoteCheckInterval,
+          automaticAppUpdates,
+          setAutomaticAppUpdates,
+          appUpdates,
+          appUpdatesController,
           confirmDiscard,
           setConfirmDiscard,
           notificationsEnabled,
@@ -2630,6 +2665,7 @@ export function App(): React.JSX.Element {
         }}
         about={{ isOpen: isAboutOpen, setOpen: setIsAboutOpen }}
         changelog={{ isOpen: isChangelogOpen, setOpen: setIsChangelogOpen }}
+        appUpdate={{ isOpen: isAppUpdateOpen, setOpen: setIsAppUpdateOpen }}
         shortcuts={{ isOpen: isShortcutsOpen, setOpen: setIsShortcutsOpen }}
         closeConfirmation={{
           isOpen: isCloseConfirmOpen,

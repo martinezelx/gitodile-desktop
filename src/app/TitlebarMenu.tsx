@@ -5,6 +5,7 @@ import { useLanguage } from "../i18n";
 export function TitlebarMenu({
   onOpenAbout,
   onOpenChangelog,
+  onCheckAppUpdates = () => undefined,
   onOpenProject,
   onCreateProject,
   onCloneProject,
@@ -19,6 +20,7 @@ export function TitlebarMenu({
 }: {
   onOpenAbout: () => void;
   onOpenChangelog: () => void;
+  onCheckAppUpdates?: () => void;
   onOpenProject: () => void;
   onCreateProject: () => void;
   onCloneProject: () => void;
@@ -174,6 +176,10 @@ export function TitlebarMenu({
             <span>{t.titlebarReportIssue}</span>
           </button>
           <span id="issue-report-hint" className="visually-hidden">{t.issueReportHint}</span>
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onCheckAppUpdates)}>
+            <CloudDownload aria-hidden="true" />
+            <span>{t.commandCheckAppUpdates}</span>
+          </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenChangelog)}>
             <Sparkles aria-hidden="true" />
             <span>{t.changelogTitle}</span>

@@ -23,6 +23,7 @@ const EXPECTED_IMPORTS = [
   "./features/settings/settings.css",
   "./features/project-settings/project-settings.css",
   "./features/notifications/notifications.css",
+  "./features/app-updates/app-updates.css",
 ] as const;
 
 function readSource(relativePath: string): string {
@@ -58,6 +59,7 @@ describe("production style composition", () => {
     expect(readSource("features/initialize-project/initialize-project.css")).toContain(".initialize-dialog");
     expect(readSource("features/status/status.css")).toContain(".status-breakdown");
     expect(readSource("features/sync/sync.css")).toContain(".team-changes");
+    expect(readSource("features/app-updates/app-updates.css")).toContain(".app-update-dialog");
     const changes = readSource("features/changes/changes.css");
     expect(changes).toContain(".changes-file-item__type-icon");
     expect(changes).toContain(".diff-code--accessible");

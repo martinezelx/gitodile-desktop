@@ -23,6 +23,7 @@ export const RUN_GIT_HOOKS_STORAGE_KEY = "gitodile-run-git-hooks";
 export const CONFIRM_DISCARD_STORAGE_KEY = "gitodile-confirm-discard";
 export const NOTIFICATIONS_STORAGE_KEY = "gitodile-notifications";
 export const REDUCE_MOTION_STORAGE_KEY = "gitodile-reduce-motion";
+export const APP_UPDATE_AUTOMATIC_STORAGE_KEY = "gitodile-app-update-automatic";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodile-diff-preferences";
 export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodile-navigation-preferences";
@@ -56,6 +57,8 @@ export const NOTIFICATIONS_DEFAULT = true;
  * is still respected independently, whether or not this app-specific choice
  * has ever been made. */
 export const REDUCE_MOTION_DEFAULT = false;
+/** Network contact for application updates is an explicit opt-in. */
+export const APP_UPDATE_AUTOMATIC_DEFAULT = false;
 /** On, because a hook is the project's own rule and skipping it by default
  * would make GitOdile produce commits the same repository would have rejected
  * from a terminal — the same action giving a different result depending on

@@ -345,6 +345,16 @@ describe("TitlebarMenu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("starts the shared application-update flow from More actions", async () => {
+    const user = userEvent.setup();
+    const onCheckAppUpdates = vi.fn();
+    renderMenu({ onCheckAppUpdates });
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Check for GitOdile updates" }));
+    expect(onCheckAppUpdates).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("keeps reload focusable but unavailable while an operation is unsettled", async () => {
     const user = userEvent.setup();
     renderMenu({ canReloadWindow: false });
@@ -465,6 +475,9 @@ describe("App project restoration", () => {
     const palette = screen.getByRole("dialog", { name: "Command palette" });
     expect(within(palette).getByText("Check local changes")).toBeInTheDocument();
     expect(within(palette).getByText("Check remote project changes")).toBeInTheDocument();
+    expect(within(palette).getByText("Check for GitOdile updates")).toBeInTheDocument();
+    await userEvent.click(within(palette).getByText("Check for GitOdile updates"));
+    expect(screen.getByRole("dialog", { name: "GitOdile updates" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
     // The version tag is the changelog's entry point; About moved to the mark.

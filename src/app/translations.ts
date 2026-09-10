@@ -78,6 +78,7 @@ export interface AppTranslations {
   commandCheckRemoteChanges: string;
   commandRefreshHistory: string;
   commandRefreshVersionLines: string;
+  commandCheckAppUpdates: string;
   commandGoSettings: string;
   commandGoSettingsSection: (section: string) => string;
   automaticUpdatesUpdateNow: string;
@@ -266,6 +267,7 @@ const en: AppTranslations = {
   commandCheckRemoteChanges: "Check remote project changes",
   commandRefreshHistory: "Update history",
   commandRefreshVersionLines: "Update version lines",
+  commandCheckAppUpdates: "Check for GitOdile updates",
   commandGoSettings: "Go to Settings",
   commandGoSettingsSection: (section) => `Settings: ${section}`,
   automaticUpdatesUpdateNow: "Update now",
@@ -462,6 +464,7 @@ const es: AppTranslations = {
   commandCheckRemoteChanges: "Comprobar cambios del proyecto remoto",
   commandRefreshHistory: "Actualizar historial",
   commandRefreshVersionLines: "Actualizar líneas de versión",
+  commandCheckAppUpdates: "Buscar actualizaciones de GitOdile",
   commandGoSettings: "Ir a Ajustes",
   commandGoSettingsSection: (section) => `Ajustes: ${section}`,
   automaticUpdatesUpdateNow: "Actualizar ahora",

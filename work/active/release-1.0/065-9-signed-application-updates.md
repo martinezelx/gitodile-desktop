@@ -56,10 +56,10 @@ own executable work; this epic has no queue position.
 | Done | [065-9-1 — Define updater contracts and supported installations](../../done/065-9-1-contracts-and-targets.md) | Versions, channels, target/install matrix and key prerequisites |
 | Done | [065-9-2 — Protect operations and drafts before app installation](../../done/065-9-2-install-admission-and-drafts.md) | Native admission, operations, helpers and draft preservation |
 | Done | [065-9-3 — Implement the native signed updater lifecycle](../../done/065-9-3-native-updater.md) | Checks, verified downloads, install handoff and startup truth |
-| Q01 | [065-9-4 — Integrate update controls and preferences](../app-updates/065-9-4-updater-interface.md) | Entry points, consent, preferences, privacy and accessibility |
-| Q02 | [065-9-5 — Build signed release artifacts in private CI](../app-updates/065-9-5-signed-builds.md) | Private CI, signing, provenance and source-tag gates |
-| Q03 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
-| Q04 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
+| Done | [065-9-4 — Integrate update controls and preferences](../../done/065-9-4-updater-interface.md) | Entry points, consent, preferences, privacy and accessibility |
+| Q01 | [065-9-5 — Build signed release artifacts in private CI](../app-updates/065-9-5-signed-builds.md) | Private CI, signing, provenance and source-tag gates |
+| Q02 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
+| Q03 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
 
 All criteria below remain the epic completion gate. Each child records its own
 evidence; 065-9-7 checks the combined coverage before this epic can be closed.
@@ -239,6 +239,12 @@ coalesced checks, one verified candidate/download, typed IPC, exact
 cancellation, install admission and forward-only observed-version handoff are
 implemented behind a deny-by-default target qualification gate. Its local
 signature fixtures, resource measurement and focused tests are recorded in the
-completed child and the application-update contract. This completes only the
-native lifecycle slice; UI, signed packages, publication and real A-to-B target
-qualification remain with 065-9-4 through 065-9-7.
+completed child and the application-update contract. This completed only the
+native lifecycle slice; the UI followed in 065-9-4, while signed packages,
+publication and real A-to-B target qualification remain later work.
+
+Task 065-9-4 completed the feature-owned frontend controller and the eager,
+accessible update interface on 2026-09-10. Changelog, More actions, the command
+palette and General Settings share one native lifecycle; background checks are
+an off-by-default, disclosed 24-hour opt-in. Signed CI, feed publication and
+real A-to-B qualification remain with 065-9-5 through 065-9-7.

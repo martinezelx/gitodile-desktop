@@ -291,6 +291,7 @@ export function SettingsPanel({
   identity,
   defaultBranch,
   lineEndingsState,
+  applicationUpdates,
   onClose,
   onRegisterCloseGuard,
   port = settingsPort,
@@ -335,6 +336,8 @@ export function SettingsPanel({
   identity: GitIdentityState;
   defaultBranch: DefaultBranchState;
   lineEndingsState: LineEndingsState;
+  /** Feature-owned application update controls composed into General. */
+  applicationUpdates?: React.ReactNode;
   onClose?: () => void;
   /** The panel holds the identity draft, so it is the only place that can know
    * whether dismissing the dialog would throw typed input away. It hands the
@@ -798,6 +801,7 @@ export function SettingsPanel({
       >
         {activeSection === "general" && (
           <div className="settings-groups">
+            {applicationUpdates}
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsStartupTitle}</h3>

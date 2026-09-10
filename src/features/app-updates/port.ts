@@ -12,4 +12,5 @@ export interface AppUpdatesPort {
   download(candidateId: string): Promise<UpdateAction>;
   cancel(operationId: string): Promise<UpdateState>;
   install(candidateId: string, drafts: NativeDraftPreparation): Promise<UpdateState>;
+  openManualDownload(): Promise<void>;
 }

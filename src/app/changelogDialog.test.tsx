@@ -52,6 +52,14 @@ describe("Changelog dialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("keeps bundled notes offline and checks remotely only after the explicit action", async () => {
+    const onCheckForUpdates = vi.fn();
+    render(<LanguageProvider><ChangelogDialog isOpen setOpen={vi.fn()} onCheckForUpdates={onCheckForUpdates} /></LanguageProvider>);
+    expect(onCheckForUpdates).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Check for GitOdile updates" }));
+    expect(onCheckForUpdates).toHaveBeenCalledOnce();
+  });
+
   it("lists every bundled release with its channel, date, and notes", async () => {
     renderDialog();
 

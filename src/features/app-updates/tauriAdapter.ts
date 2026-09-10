@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 import type { AppUpdatesPort } from "./port";
 
@@ -13,4 +14,5 @@ export const appUpdatesPort: AppUpdatesPort = {
   install: (candidateId, drafts) => invoke("install_app_update", {
     request: { candidateId, consent: true, drafts },
   }),
+  openManualDownload: () => openUrl("https://github.com/martinezelx/gitodile-feedback/releases"),
 };

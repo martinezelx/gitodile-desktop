@@ -184,9 +184,11 @@ The main desktop window should broadly support:
      disclosure: its identity stays visible while its notes remain collapsed
      until requested, keeping current and historical releases equally scannable.
      Unpublished candidates omit the date.
-     Notes are bundled and open without a
-     network request; a future application updater may report through this
-     surface but must keep its remote state separate from the local notes. The
+     Notes are bundled and open without a network request. A separate explicit
+     action opens the application-update dialog and starts its shared remote
+     check; mounting or expanding the Changelog never does. Remote update notes
+     remain bounded plain text inside that dialog, separate from the local
+     notes, and cannot load markup, links or images. The
      titlebar stays reserved for global actions and window controls; no product
      name is repeated because the window is already the product;
    - the current version line is the strip's one navigation shortcut. Its
@@ -226,6 +228,16 @@ The main desktop window should broadly support:
      offers manual-only, 15-minute, 30-minute, and hourly cadences; one timer
      follows the active project session, skips states without a usable upstream,
      and shares the same deduplicated check path as the status-bar action;
+   - application-update checks are a separate global concern. What's new, More
+     actions, the command palette and General settings all enter one eager
+     dialog backed by one feature-owned controller, including when no project
+     is open. Settings defaults background checks to off and discloses the
+     GitHub contact, 24-hour maximum cadence and transmitted-data boundary
+     before the switch. Checking never downloads; downloading never installs;
+     and installation adds a final focused confirmation that explains the
+     close/restart consequence. Determinate and indeterminate progress use the
+     same stable region, dynamic state changes are announced, and reduced
+     motion replaces the moving indeterminate bar with a static fill;
    - interactive chrome raised the text to 13px, inline icons to 14px, and the
      remote-check target to 28px. Coarse pointers receive the standard 44px
      target and a correspondingly taller strip;

@@ -83,12 +83,13 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Review a bounded, redacted record of this session's app commands, Git
   operations, and failures before reporting an issue; copy it, save it locally to attach, or
   continue to the public GitHub form. Nothing is retained between sessions.
-- Use the native, Rust-owned update lifecycle through its typed application
-  boundary: coalesced checks, bounded download progress, updater-signature
-  verification, explicit install admission, and observed-version confirmation
-  are implemented. The visual controls, production signing/publishing, and
-  real target qualification remain intentionally disabled and belong to the
-  next updater tasks.
+- Check for GitOdile updates without opening a project from What's new, More
+  actions, the command palette, or Settings. One shared controller mirrors the
+  native lifecycle through download, signature verification, explicit
+  install/restart consent, draft or active-work blockers, cancellation and
+  observed-version confirmation. Background checks are off by default; the
+  opt-in contacts GitHub at most once every 24 hours while the app is open and
+  never downloads or installs automatically.
 - Configure light/dark/system themes, reduced motion, English/Spanish copy,
   date and number formats, Git identity, installation diagnostics, supported
   Git update guidance, how diffs are read, and whether projects are watched
@@ -131,10 +132,10 @@ from tagged commits on `main`. Short-lived version branches prepare releases;
 the version/tag selects the channel. See
 [ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
-The native updater lifecycle is implemented, but production keys are not
-configured and no target is enabled for automatic installation until its real
-signed A-to-B qualification succeeds. The visual controls and publishing
-pipeline are still pending.
+The native updater lifecycle and its visual controls are implemented, but
+production keys are not configured and no target is enabled for automatic
+installation until its real signed A-to-B qualification succeeds. Signed build
+and publishing pipelines are still pending.
 
 Before publishing a desktop build, run `pnpm run check:publication`. It runs
 the complete local gate plus `check:feedback`, which checks the live public

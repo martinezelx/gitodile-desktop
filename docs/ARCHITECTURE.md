@@ -564,6 +564,16 @@ authoritative check, download, signature verification and platform handoff.
 The WebView reaches only six GitOdile commands described by the IPC contract;
 no updater/process guest permission or JavaScript updater package is exposed.
 
+`features/app-updates` owns the renderer controller and eager update dialog.
+The controller reads and mirrors the process-wide native snapshot, coalesces
+every shell entry point, and polls only while a native check, download, or
+verification is active; it never infers a second lifecycle or retains payload
+bytes. Changelog mounting remains local-only. General Settings stores the
+off-by-default consent switch, while the controller owns the settled-startup
+timer and its fixed once-per-24-hours in-process cadence. That timer is an
+install participant, so preparation suspends it with the other background
+owners. The renderer supplies no project identity or stable installation ID.
+
 Install preparation is ordered across the renderer and native process:
 synchronously protect drafts, suspend renderer participants, acquire/drain the
 global admission gate, suspend native watchers, revalidate the exact candidate

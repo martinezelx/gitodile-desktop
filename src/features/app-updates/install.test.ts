@@ -12,6 +12,7 @@ function port(install: AppUpdatesPort["install"]): AppUpdatesPort {
     download: vi.fn(),
     cancel: vi.fn(),
     install,
+    openManualDownload: vi.fn(),
   };
 }
 

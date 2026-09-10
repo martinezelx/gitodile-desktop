@@ -30,6 +30,8 @@ import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
+import type { AppUpdatesController, AppUpdatesSnapshot } from "../features/app-updates";
+import { AppUpdateDialog, AppUpdateSettingsControl } from "../features/app-updates";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
 import { describeStack, describeStackHost } from "./stack";
 import { OperatingSystemMark, StackMark } from "./vendorMarks";
@@ -73,6 +75,10 @@ export type AppOverlaysProps = {
     identity: GitIdentityState;
     defaultBranch: DefaultBranchState;
     lineEndings: LineEndingsState;
+    automaticAppUpdates?: boolean;
+    setAutomaticAppUpdates?: BooleanSetter;
+    appUpdates?: AppUpdatesSnapshot;
+    appUpdatesController?: AppUpdatesController;
   };
   /** The per-project panel. `project` is null exactly when no project is open,
    * which is also when nothing can open this dialog: every read behind it is
@@ -90,6 +96,7 @@ export type AppOverlaysProps = {
   };
   about: { isOpen: boolean; setOpen: BooleanSetter };
   changelog: { isOpen: boolean; setOpen: BooleanSetter };
+  appUpdate?: { isOpen: boolean; setOpen: BooleanSetter };
   shortcuts: { isOpen: boolean; setOpen: BooleanSetter };
   closeConfirmation: {
     isOpen: boolean;
@@ -116,6 +123,7 @@ export function AppOverlays({
   projectSettings,
   about,
   changelog,
+  appUpdate,
   shortcuts,
   closeConfirmation,
   error,
@@ -283,6 +291,15 @@ export function AppOverlays({
               identity={settings.identity}
               defaultBranch={settings.defaultBranch}
               lineEndingsState={settings.lineEndings}
+              applicationUpdates={settings.appUpdates && settings.appUpdatesController && settings.setAutomaticAppUpdates ? (
+                <AppUpdateSettingsControl
+                  snapshot={settings.appUpdates}
+                  controller={settings.appUpdatesController}
+                  enabled={settings.automaticAppUpdates ?? false}
+                  setEnabled={settings.setAutomaticAppUpdates}
+                  onOpenDialog={appUpdate ? () => appUpdate.setOpen(true) : undefined}
+                />
+              ) : null}
               onClose={closeSettings}
               onRegisterCloseGuard={registerSettingsCloseGuard}
             />
@@ -423,7 +440,18 @@ export function AppOverlays({
         </div>
       )}
 
-      <ChangelogDialog isOpen={changelog.isOpen} setOpen={changelog.setOpen} />
+      <ChangelogDialog
+        isOpen={changelog.isOpen}
+        setOpen={changelog.setOpen}
+        onCheckForUpdates={appUpdate && settings.appUpdatesController ? () => {
+          changelog.setOpen(false);
+          appUpdate.setOpen(true);
+          void settings.appUpdatesController?.check();
+        } : undefined}
+      />
+      {appUpdate && settings.appUpdates && settings.appUpdatesController && (
+        <AppUpdateDialog isOpen={appUpdate.isOpen} setOpen={appUpdate.setOpen} snapshot={settings.appUpdates} controller={settings.appUpdatesController} />
+      )}
 
       {shortcuts.isOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
