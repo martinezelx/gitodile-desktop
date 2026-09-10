@@ -294,6 +294,200 @@ while iterating, but the aggregate command is the completion gate.
 
 If a command is not available yet, document that honestly rather than claiming it passed.
 
+## Hermes Agent Workflow
+
+This section applies when the repository is being operated through Hermes Agent.
+It supplements the general agent workflow and does not weaken any GitOdile
+architecture, testing, documentation, release, or safety rule elsewhere in this
+file. Hermes model and provider selection is controlled by the user's Hermes
+configuration; never hardcode provider credentials or API configuration here.
+
+### Model roles
+
+The default split, in priority order, is:
+
+- **Strong orchestrator and reviewer:** GPT-5.6 Sol with high reasoning
+  (`model.default` + `agent.reasoning_effort: high`).
+- **Cheap implementer:** DeepSeek V4.1 Flash, used for all delegated workers
+  (`delegation.model` + `delegation.provider`).
+- **Independent review:** also GPT-5.6 Sol with high reasoning, pinned separately
+  in `auxiliary.review.model` + `auxiliary.review.provider` so the reviewer stays
+  on the strong model even when the session itself runs something cheaper.
+
+These are current configuration values, not permanent repository dependencies.
+Keep the roles separate: the orchestrator plans, decides, and reviews; workers
+implement. A worker must never be the reviewer of its own work, and no review
+pass may be delegated to the cheap implementer model.
+
+If the session model is switched away from the strong model with `/model`, the
+orchestrator and reviewer roles are no longer satisfied. Restore the strong
+model before planning, delegating, or reviewing — or hand that work to a user
+who is on it. Do not silently orchestrate or review from a cheap model.
+
+### Main agent role
+
+The Hermes main agent acts as technical lead, planner, orchestrator, and final
+reviewer.
+
+The main agent should primarily:
+
+- Understand the user's request and the relevant GitOdile architecture.
+- Inspect existing code before deciding how to change it.
+- Make architectural and high-level implementation decisions.
+- Break larger work into narrowly scoped delegated tasks.
+- Delegate routine implementation whenever practical.
+- Review delegated work before accepting or integrating it.
+- Handle difficult debugging, ambiguous behavior, architectural problems, and
+  cases where delegated workers fail.
+- Perform the final technical review.
+
+Avoid doing large amounts of routine implementation in the main agent when that
+work can reasonably be delegated.
+
+### Delegated worker role
+
+Hermes delegation is configured to use a cheaper worker model, currently
+DeepSeek V4.1 Flash (`delegation.model: deepseek/deepseek-v4.1-flash` with
+`delegation.provider: nous`). Treat that model name as current configuration, not
+a permanent repository dependency.
+
+Delegated workers should normally handle:
+
+- Implementation and focused refactors.
+- Test creation and updates.
+- Lint, typecheck, build, and straightforward compilation fixes.
+- Repository inspection, routine debugging, and repetitive or mechanical
+  changes.
+- Starting the GitOdile development application.
+- Routine UI validation through Hermes Computer Use.
+- Straightforward fixes discovered during validation.
+
+Workers must verify their own work before returning results to the main agent.
+Worker self-verification is not a review: report what was run and what it
+returned, so the main agent can judge it. A worker must not approve, accept, or
+sign off on its own change, and must not spawn a review of its own work.
+
+### Configuration map
+
+Set these with `hermes config set <key> <value>`; never hand-edit the YAML and
+never place credentials in this file.
+
+- `model.default`, `model.provider` — the orchestrator model.
+- `agent.reasoning_effort` — reasoning level for the main agent and the default
+  inherited by children.
+- `delegation.model`, `delegation.provider` — the implementer model.
+- `delegation.reasoning_effort` — reasoning level for *every* child, including
+  the reviewer. Leave it empty to inherit the main agent's level; setting it low
+  to cheapen implementers also lowers the review pass.
+- `delegation.max_concurrent_children` — parallel worker cap. Keep it at the
+  smallest number that keeps the pipeline busy.
+- `delegation.worktree_isolation` — whether workers run in separate worktrees.
+- `auxiliary.review.model`, `auxiliary.review.provider` — the independent
+  reviewer route used by `/review`.
+
+### Desktop application validation
+
+GitOdile is a Tauri desktop application. For changes that affect user-facing
+behavior or UI, the normal Hermes workflow includes validation against the real
+running application. The delegated worker should normally:
+
+1. Determine and use the project's documented development command.
+2. Start GitOdile in Tauri development mode.
+3. Keep the development process running while validation continues.
+4. Use Hermes Computer Use to interact with the running GitOdile application.
+5. Prefer accessibility or UI-tree elements over raw screen coordinates when
+   available.
+6. Exercise the user flow affected by the change.
+7. Verify the resulting application state after interactions.
+8. Check relevant normal, empty, loading, disabled, and error states when
+   applicable.
+9. Fix straightforward visual or functional issues it discovers.
+10. Repeat the validation after a fix.
+11. Cleanly stop temporary development processes when validation is finished,
+    if appropriate.
+12. Report the validation results to the main agent.
+
+A UI-affecting task should not normally be considered complete merely because
+tests pass when the changed behavior can reasonably be validated in the running
+GitOdile application. The main agent should normally delegate routine Computer
+Use validation rather than spend frontier-model inference on repetitive UI
+interaction.
+
+The main agent may use Computer Use directly when delegated validation fails,
+behavior is ambiguous, a difficult visual or functional problem needs stronger
+reasoning, the worker cannot reliably interpret application state, or an
+independent final verification is especially valuable.
+
+### Review workflow
+
+After delegated implementation:
+
+1. The main agent inspects the resulting changes.
+2. Review the relevant diff and affected files rather than relying only on the
+   worker summary.
+3. Run or request appropriate checks when necessary, including the completion
+   gate required by the general agent workflow.
+4. Check that the implementation follows existing GitOdile architecture and
+   conventions.
+5. Delegate straightforward corrections back to a worker when practical.
+6. Handle complex corrections directly when stronger reasoning is justified.
+7. Accept the implementation only after review.
+
+Review is a strong-model activity. Use `/review` for an independent pass when the
+change is non-trivial: it runs as a separate reviewer subagent on the
+`auxiliary.review` route, which is pinned to GPT-5.6 Sol with high reasoning and
+is deliberately independent of the orchestrator session's model. Never accept a
+review produced by the cheap implementer model, and never let the worker that
+wrote a change review it.
+
+### Worktree isolation
+
+Hermes may run delegated coding workers in isolated Git worktrees when that
+isolation is enabled by the user's Hermes configuration. This is an execution
+boundary for delegated work, not permission to create arbitrary branches or
+worktrees contrary to the development conventions above.
+
+When worktree isolation is enabled:
+
+- Each worker operates only inside its assigned worktree and must not modify the
+  main working tree directly.
+- Delegated changes remain focused on the assigned task.
+- Workers leave their work in a state the main agent can inspect and integrate.
+- The main agent reviews the resulting branch and diff before integration.
+- Avoid overlapping delegated tasks that edit the same areas unless isolation
+  and later reconciliation are intentional.
+- Do not discard unrelated user changes or perform destructive Git operations
+  merely to simplify integration.
+
+### Git safety
+
+All existing Git safety rules in this file remain in force. In addition, when
+using the Hermes workflow:
+
+- Do not force-push unless the user explicitly requests it; retain the required
+  recovery strategy and confirmation for destructive or history-rewriting work.
+- Do not use destructive reset or clean operations to remove user work.
+- Do not discard unrelated changes.
+- Do not push to a remote unless the task or user explicitly requires it.
+- Inspect repository state before integrating delegated work.
+
+### Cost-aware delegation
+
+Hermes intentionally uses a strong main model and cheaper delegated workers.
+Use the main model where stronger reasoning materially improves the result, and
+use delegated workers for high-volume routine work. Avoid unnecessary parallel
+delegation: do not spawn extra workers when one focused worker is sufficient,
+and keep each delegated task narrowly scoped. Escalate failed or ambiguous work
+to the main agent rather than allowing an unproductive worker to loop
+indefinitely.
+
+The implementer model costs more per token than the previous cheap worker model.
+Treat delegation as a volume decision: delegating a large, mechanical, well-specified
+change is still the right call, but do not delegate work so small that the
+worker's setup and reporting overhead exceeds the tokens it saves, and do not
+leave `delegation.reasoning_effort` raised for trivial mechanical work — that
+setting also applies to the review pass.
+
 ## Early priorities
 
 1. Repository opening and validation.
