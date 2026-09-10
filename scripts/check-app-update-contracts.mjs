@@ -93,6 +93,11 @@ assert.ok(parseVersion(packageJson.version), `unsupported current version ${pack
 assert.equal(currentVersions.every((version) => version === packageJson.version), true, "current metadata differs");
 assert.equal(tauriConfig.identifier, "app.gitodile.desktop");
 assert.equal(tauriConfig.bundle?.active, true);
+assert.deepEqual(
+  tauriConfig.plugins?.updater,
+  { endpoints: [], pubkey: "" },
+  "the registered updater plugin needs a non-null config while release identity stays Rust-owned",
+);
 
 process.stdout.write(
   `App-update contract check passed (${contract.versionCases.length} version cases, ` +
