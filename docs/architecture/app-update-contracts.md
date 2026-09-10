@@ -10,6 +10,12 @@ Task 065-9-3 implemented the native lifecycle on 2026-09-10. Nothing in this
 document claims that any platform is qualified: every automatic target remains
 `qualification_required` until task 065-9-7 records real signed A-to-B evidence.
 
+Task 065-9-5 now supplies the secretless tag build, protected signing workflow,
+complete-matrix/hash evidence and operator runbook. No production credential or
+real signed run is evidenced yet, so this is pipeline readiness rather than a
+signed-artifact or platform-support claim. See the
+[signed-build runbook](../release/signed-builds.md).
+
 Task 065-9-2's implemented process-wide gate, complete current operation/draft
 inventory, and mandatory extension rules live in
 [`install-admission-and-drafts.md`](install-admission-and-drafts.md). Later
@@ -30,9 +36,10 @@ runtime evidence:
 - at that baseline neither updater plugin was installed, updater artifacts were
   disabled, no public key or endpoint was embedded, and the WebView had no
   updater or process capability;
-- current CI runs tests on Windows, macOS, and Linux and release-compiles an
-  executable on macOS/Linux with `--no-bundle`. It does not package, sign,
-  notarize, install, or update an application;
+- ordinary CI runs tests on Windows, macOS, and Linux and release-compiles an
+  executable on macOS/Linux with `--no-bundle`. Separate private candidate
+  workflows can package and verify a complete matrix from an eligible tag, but
+  no real signing/notarization run or installed update is currently evidenced;
 - the public `martinezelx/gitodile-feedback` repository exists, is public, uses
   `main`, and had no releases on 2026-09-09. Both planned feed URLs returned
   HTTP 404;
@@ -335,6 +342,17 @@ Secret values, certificate material, and private source never enter this table,
 fixtures, logs, manifests, renderer state, or public artifacts. Key rotation
 needs an old-key-signed bridge build. Loss before a bridge requires manual
 reinstallation; verification is never disabled.
+
+The private workflow boundary is deny-by-default. A broad `v*` event only
+starts a non-secret validation job; the exact release grammar, source SHA,
+`main` ancestry and metadata agreement must pass before compilation. The build
+matrix exports packages and hashes only. A later `workflow_run`, loaded from
+protected `main`, repeats object-level validation and complete-matrix checks
+before environment-protected jobs receive narrowly scoped OS/updater signing
+credentials. Those jobs do not check out candidate source. The final evidence
+records updater, OS-trust and notarization results separately and always sets
+`publicPromotionAllowed` to false. Operational setup, backups, rotation and
+loss response are owned by the [runbook](../release/signed-builds.md).
 
 ## Two-build qualification plan
 

@@ -584,6 +584,16 @@ The next launch reports success only when its compiled running version equals
 the recorded expected version. Qualification remains a compile-time deny-by-
 default target allowlist, so mocks or compilation cannot advertise a platform.
 
+Private packaging follows the two-workflow trust split documented in the
+[signed-build runbook](release/signed-builds.md). A tag-only, secretless matrix
+builds exact-source packages; a `workflow_run` loaded from the protected default
+branch revalidates the Git object and complete matrix before protected jobs can
+see signing credentials. Those jobs never check out candidate source. Updater,
+OS-trust and notarization results remain separate evidence fields, and the final
+matrix record is explicitly non-promotable. Public release/feed writes belong
+to 065-9-6; installed A-to-B qualification and target enablement belong to
+065-9-7.
+
 ## Enforced checks
 
 `pnpm run check` is the repository gate:

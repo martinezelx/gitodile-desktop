@@ -69,6 +69,7 @@ function evaluateMetadataCase(testCase) {
 assert.deepEqual(contract.channels, ["stable", "preview"]);
 assert.equal(new Set(contract.channels).size, 2);
 assert.equal(contract.bounds.retainedCandidates, 1);
+assert.equal(contract.bounds.artifactBytes, 256 * 1024 * 1024);
 assert.equal(contract.targets.every((target) => target.automaticEligibility === "qualification_required"), true);
 assert.equal(new Set(contract.targets.map((target) => target.key)).size, contract.targets.length);
 assert.deepEqual(contract.validationBuilds, ["0.2.0-preview.2", "0.2.0-preview.3"]);

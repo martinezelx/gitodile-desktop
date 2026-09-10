@@ -248,3 +248,9 @@ accessible update interface on 2026-09-10. Changelog, More actions, the command
 palette and General Settings share one native lifecycle; background checks are
 an off-by-default, disclosed 24-hour opt-in. Signed CI, feed publication and
 real A-to-B qualification remain with 065-9-5 through 065-9-7.
+
+Task 065-9-5 implemented the locally verifiable private tag/matrix/signing
+boundary and runbook on 2026-09-10, but remains active: no real signing
+credential, protected environment, notarized package or complete signed run is
+evidenced, so no target is enabled. Public publication and installed A-to-B
+qualification remain exclusively 065-9-6 and 065-9-7.

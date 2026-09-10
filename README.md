@@ -135,7 +135,11 @@ and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
 The native updater lifecycle and its visual controls are implemented, but
 production keys are not configured and no target is enabled for automatic
 installation until its real signed A-to-B qualification succeeds. Signed build
-and publishing pipelines are still pending.
+validation, private evidence and protected signing workflows are implemented,
+but no real certificate/key run has passed yet. Public publishing is still
+pending. Maintainers must follow the
+[private signed-build runbook](docs/release/signed-builds.md); its artifacts are
+not releases and cannot modify either public feed.
 
 Before publishing a desktop build, run `pnpm run check:publication`. It runs
 the complete local gate plus `check:feedback`, which checks the live public

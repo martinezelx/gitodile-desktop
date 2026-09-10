@@ -109,7 +109,7 @@
     "remoteNotesBytes": 16384,
     "platformEntries": 8,
     "signatureBytes": 4096,
-    "artifactBytes": 536870912,
+    "artifactBytes": 268435456,
     "checkTimeoutSeconds": 15,
     "downloadIdleTimeoutSeconds": 30,
     "downloadTotalTimeoutSeconds": 1800,
