@@ -192,9 +192,13 @@ noreply address, and the irrevocable MIT consequence.
 The same preflight identified and the hardening change corrects mutable Action
 refs, missing repository-wide SHA enforcement, direct workflow-dispatch input
 interpolation, a four-platform publication matrix and insufficient separation
-between source-run validation and the destination credential. Live GitHub
-controls still must be enabled and reviewed after public visibility and before
-any credential is introduced.
+between source-run validation and the destination credential. After public
+visibility, restricted Actions with repository-wide SHA enforcement, active
+`main`/`v*` rulesets, five reviewer-protected environments, Secret Scanning,
+Push Protection, Dependabot and CodeQL were enabled and inspected before any
+credential was introduced. The first scans exposed development dependency and
+dynamic-regexp findings; these were corrected rather than dismissed. Exact
+settings and run links are retained in the public-readiness audit.
 
 # Validation
 

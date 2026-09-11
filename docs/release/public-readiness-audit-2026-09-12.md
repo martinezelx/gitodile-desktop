@@ -64,6 +64,51 @@ Linux, adds CodeQL and Dependabot configuration, preserves read-only default
 tokens and separates the destination credential from source-token validation.
 No signing or publisher secret is configured by this change.
 
+## Live public control activation
+
+After the hardening commit was pushed and its local gates passed, the source
+repository was made public under the accepted disclosure above. Actions now
+allows only GitHub-owned Actions plus the exact pinned `pnpm/action-setup`,
+`dtolnay/rust-toolchain` and `Swatinem/rust-cache` revisions used by this tree;
+repository-wide SHA pinning is required. The default workflow token is
+read-only and cannot approve pull requests.
+
+Repository rulesets [Protect main](https://github.com/martinezelx/project-gitodile/settings/rules/22979730)
+and [Protect release tags](https://github.com/martinezelx/project-gitodile/settings/rules/22979731)
+are active. `main` rejects deletion and non-fast-forward changes and requires a
+pull request, one approval, resolved review threads and the complete CI/CodeQL
+status set for contributors without the repository-administrator bypass. Tags
+matching `v*` can only be created, changed or deleted through that bypass. This
+preserves the maintainer's explicitly requested direct-`main` operating model
+without granting the same path to unreviewed contributors.
+
+The five environments `production-windows-signing`,
+`validation-updater-signing`, `production-updater-signing`,
+`public-release-validation-draft` and `public-release-production` require the
+named maintainer's approval, accept protected branches only and disallow an
+administrator bypass. Self-review remains enabled because this personal
+repository has a single eligible maintainer; every deployment still requires
+the explicit environment approval. None contains a secret or variable at this
+stage.
+
+Secret Scanning and Push Protection are enabled and reported zero open secret
+alerts. Public-repository code scanning became available without a separate
+Advanced Security entitlement; [CodeQL run 34656016863](https://github.com/martinezelx/project-gitodile/actions/runs/34656016863)
+then completed successfully. It exposed two instances of an incorrectly
+escaped dynamic regular expression in a style architecture test; both were
+corrected rather than dismissed. Secret-scanning validity checks remained
+unavailable/disabled through the repository API, so the base scanner, push
+protection and the independently checksum-verified Gitleaks history scan are
+the recorded controls for this phase.
+
+Dependabot version updates, vulnerability alerts and automated security fixes
+are enabled. Its first public scan exposed vulnerable development versions of
+`js-yaml`, Vitest's mocker and PostCSS. The tree now resolves `js-yaml` 4.3.2,
+Vitest 4.1.11 and PostCSS 8.5.28; a full `pnpm audit` reports no known
+vulnerabilities. The initial automatic jobs that said a security update was not
+possible ran against the preceding lockfile and are retained as evidence rather
+than concealed.
+
 ## Clearance decision
 
 The history and current-tree review found no secret requiring rewrite or ref
@@ -74,7 +119,7 @@ Actions, SHA enforcement, `main`/`v*` protection, reviewer-protected
 environments, Secret Scanning with Push Protection, Dependabot and CodeQL, then
 review their live results before introducing any credential.
 
-The audit is not signing or release evidence. A real Authenticode certificate,
+The audit and live controls are not signing or release evidence. A real Authenticode certificate,
 separate updater keys with tested encrypted recovery, working-name clearance,
 controlled validation origin, destination-scoped credential and real Windows/
 Linux test environments remain external gates.

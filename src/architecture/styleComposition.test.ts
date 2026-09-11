@@ -367,7 +367,7 @@ describe("production style composition", () => {
     // DESIGN.md § Size states that a label and the control it names agree, so
     // the two pairs are the same number. Nothing but this stops them drifting
     // apart the next time one of the four is edited on its own.
-    const step = (name: string) => tokens.match(new RegExp(`${name}:\s*([\d.]+)px`))?.[1];
+    const step = (name: string) => tokens.match(new RegExp(`${name}:\\s*([\\d.]+)px`))?.[1];
     expect(step("--control-font-md")).toBe(step("--text-body"));
     expect(step("--control-font-sm")).toBe(step("--text-label"));
 
