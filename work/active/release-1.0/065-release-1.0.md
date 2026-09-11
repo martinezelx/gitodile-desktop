@@ -35,7 +35,7 @@ is the authoritative release sequence and capability cut.
 # Scope
 
 - Deliver child tasks 065-1 through 065-9 in roadmap order; updater epic 065-9
-  leads the queue through its seven children, before the remaining product work
+  leads the queue through its eight children, before the remaining product work
   and final release qualification in 065-8.
 - Complete existing tasks 015, 037, and 064 at their defined dependency points.
 - Close the settled visual system across the release-candidate surface in task
@@ -58,7 +58,7 @@ is the authoritative release sequence and capability cut.
 
 - [ ] Gates 0–4 in `docs/ROADMAP.md` are complete in dependency order.
 - [ ] Tasks 015, 037, 064, 099, and 065-1 through 065-9 are done with their own
-      validation recorded, including all seven children of updater epic 065-9.
+      validation recorded, including all eight children of updater epic 065-9.
 - [ ] The release capability matrix has no unsupported path presented as
       working and no required path dependent on the terminal.
 - [ ] The actual Windows, macOS, and Linux release artifacts pass their defined
