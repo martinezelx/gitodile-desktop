@@ -562,8 +562,8 @@ fn existing_folder_windows_symlink_alias_is_resolved_when_privileges_allow_it() 
     )
     .unwrap();
     assert_eq!(
-        Path::new(&plan.destination_path),
-        target.canonicalize().unwrap()
+        plan.destination_path,
+        display_path(target.canonicalize().unwrap())
     );
     execute_plan(plan, "", "", &alias.to_string_lossy());
     assert_eq!(fs::read(target.join("data.txt")).unwrap(), b"unchanged\n");

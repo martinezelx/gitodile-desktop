@@ -136,6 +136,8 @@ pub(crate) struct BoundedOutput {
 pub(crate) fn command() -> Command {
     #[allow(unused_mut)]
     let mut command = Command::new("git");
+    #[cfg(target_os = "windows")]
+    command.args(["-c", "core.longpaths=true"]);
     command
         .env("LC_ALL", "C")
         .env("LANG", "C")
@@ -429,6 +431,17 @@ pub(crate) fn redact_diagnostic(bytes: &[u8], limit: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_git_commands_enable_long_paths_without_writing_user_config() {
+        let command = command();
+        let args = command
+            .get_args()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(args, ["-c", "core.longpaths=true"]);
+    }
 
     #[test]
     fn diagnostics_redact_credentials_queries_and_malformed_bytes() {

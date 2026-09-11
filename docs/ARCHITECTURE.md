@@ -357,6 +357,8 @@ All Git launches use argument vectors, an explicit working directory where
 applicable, and deterministic locale. User input is never interpolated into a
 shell string. Stdout and stderr drain concurrently and retain only their caps.
 Diagnostics redact URL credentials, queries, and fragments.
+On Windows the runner also passes `-c core.longpaths=true` to each Git process
+so valid project roots remain usable without writing to the user's Git config.
 
 Equivalent reads may cancel an older process token. Mutations never
 automatically cancel one another because interruption can leave an uncertain
