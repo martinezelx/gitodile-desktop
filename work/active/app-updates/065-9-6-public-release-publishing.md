@@ -50,9 +50,61 @@ Public source hosting, custom update servers, rollout percentages and issuing a 
 
 # Implementation notes
 
-Not implemented. Record decisions, changed files and evidence here; keep durable
-architecture and operator guidance in docs and link them rather than duplicating them.
+Implemented the locally verifiable publication boundary on 2026-09-11. The task
+remains active: 065-9-5 has no real signed matrix, 065-9-7 has qualified no
+target, no destination credential/protected publication environment is
+evidenced, working-name clearance is absent, and the public repository has not
+been changed. Consequently no production or validation release was created and
+no channel feed was advanced.
+
+- `.github/workflows/public-release-publishing.yml` is manual-only and globally
+  serialized for the destination. Its unprivileged job consumes one successful
+  private signing run, runs `check:publication`, rehashes the complete signed
+  matrix and stages only publishable bytes. The destination-token job has no
+  private checkout and cannot compile or sign.
+- `scripts/release/public-release.mjs` validates immutable matrix/provenance,
+  updater/OS/notary evidence, curated bounded notes, version/channel/GitHub flag
+  agreement and the explicit qualification registry. It produces versioned
+  packages/signatures, archived `latest.json`, `SHA256SUMS`, license and notices.
+- `scripts/release/github-publication.mjs` reconciles interrupted drafts without
+  replacing bytes, rejects unexpected or conflicting finalized assets,
+  anonymously rehashes every finalized download before promotion, prevents
+  equal-version conflicts and older feed regression, and changes all selected
+  feeds plus README guidance in one compare-and-swap public commit.
+- `validation-draft` accepts only the fixed distinct-key A/B versions and can
+  neither finalize nor write feeds. `production` accepts only a production
+  signing profile and requires every target plus release/name approval from
+  `docs/release/update-target-qualifications.json`. That registry currently
+  records every target as `qualification_required` and production disabled.
+- Retry, raw-cache, withdrawal, retained-installer, credential and recovery
+  procedures live in the
+  [public publishing runbook](../../../docs/release/public-publishing.md).
+  065-9-7 retains exclusive ownership of real A-to-B evidence and target
+  enablement; this task added only the schema/gate it must satisfy.
+
+The unchecked acceptance criteria require external evidence: a real public tag
+and draft/final release, anonymous package downloads, destination README/feed
+commits, and a qualified signed matrix. Local fixtures deliberately do not
+stand in for those observations.
 
 # Validation
 
-Record publisher failure/retry tests, anonymous download evidence, feedback-contract validation and pnpm run check.
+Local validation on 2026-09-11 covers 21 release tests: ten public publisher
+cases plus the eleven private-pipeline cases. Positive cases build complete
+preview/stable manifests, preserve version-specific URLs, promote preview and
+stable according to SemVer, update feedback guidance idempotently, and
+reconcile missing draft assets. Negative cases reject validation/production
+profile confusion, zero/partial qualification, mixed provenance, incomplete
+matrices, tampered packages, finalized missing assets, byte conflicts,
+unexpected assets, failed source runs, feed regression and automatic workflow
+triggers. All three release workflows parse as YAML and every external action
+is commit-pinned.
+
+`pnpm run check:publication` passed: 358 Markdown files / 153 task IDs, 21
+release tests, 377 architecture modules, TypeScript, 85 frontend test files /
+859 tests, the production build, Rust formatting and Clippy, 396 Rust tests,
+and the live feedback repository at public commit
+`f8420b8e402558a7b04e19cf807608100806d1a0`. The publication variant also
+validated the planned bilingual README transformation without writing it.
+No local test claims a real signature, OS trust, notarization, anonymous
+production download or public write.

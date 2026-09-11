@@ -590,8 +590,20 @@ builds exact-source packages; a `workflow_run` loaded from the protected default
 branch revalidates the Git object and complete matrix before protected jobs can
 see signing credentials. Those jobs never check out candidate source. Updater,
 OS-trust and notarization results remain separate evidence fields, and the final
-matrix record is explicitly non-promotable. Public release/feed writes belong
-to 065-9-6; installed A-to-B qualification and target enablement belong to
+matrix record is explicitly non-promotable.
+
+Public promotion is a third, manual-only workflow and a separate trust domain,
+documented in the [public publishing runbook](release/public-publishing.md).
+Its unprivileged half consumes and rehashes only the complete private signed
+artifact, runs the public feedback contract and stages a package-only bundle.
+Its serialized privileged half receives the destination-scoped credential but
+does not check out private application source. It reconciles immutable draft
+assets, anonymously verifies every finalized download, then changes complete
+channel manifests with one compare-and-swap commit. Preview/stable selection,
+GitHub prerelease status and versioned URLs are derived rather than supplied as
+independent operator choices. The source-controlled qualification registry is
+deny-by-default; validation drafts cannot finalize or write production feeds,
+and installed A-to-B qualification/target enablement remain exclusively
 065-9-7.
 
 ## Enforced checks

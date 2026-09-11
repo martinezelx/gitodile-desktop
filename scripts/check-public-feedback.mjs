@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { load } from "js-yaml";
 import feedbackContract from "../src/app/issueReportContract.json" with { type: "json" };
+import { GUIDANCE_END, GUIDANCE_START, updateFeedbackReadme } from "./release/public-release.mjs";
 
 export { feedbackContract };
 
@@ -46,11 +47,20 @@ export function validateFeedbackSettings(repository, reporting, labels) {
   }
 }
 
+export function validatePublicationReadme(readme) {
+  assert.equal((readme.match(new RegExp(GUIDANCE_START, "g")) ?? []).length, 1, "Missing or duplicate download guidance start marker");
+  assert.equal((readme.match(new RegExp(GUIDANCE_END, "g")) ?? []).length, 1, "Missing or duplicate download guidance end marker");
+  assert.match(readme, /Signed installers and application-update files/);
+  assert.match(readme, /Los instaladores firmados y los archivos de actualización/);
+  assert.doesNotMatch(readme, /project-gitodile/);
+}
+
 async function check() {
   const args = process.argv.slice(2);
-  assert.ok(args.length === 0 || (args.length === 2 && args[0] === "--local"), "Usage: check-public-feedback.mjs [--local <feedback checkout>]");
+  assert.ok(args.length === 0 || (args.length === 2 && args[0] === "--local") || (args.length === 1 && args[0] === "--publication-plan"), "Usage: check-public-feedback.mjs [--local <feedback checkout> | --publication-plan]");
   const names = [...Object.values(feedbackContract.bugTemplates), ...Object.values(feedbackContract.featureTemplates), "config.yml"];
   let files;
+  let readme = null;
   if (args[0] === "--local") {
     files = Object.fromEntries(await Promise.all(names.map(async (name) => [name, await readFile(path.join(args[1], ".github/ISSUE_TEMPLATE", name), "utf8")])));
   } else {
@@ -75,10 +85,17 @@ async function check() {
       assert.equal(file.encoding, "base64", `${name}: unexpected content encoding`);
       return [name, Buffer.from(file.content, "base64").toString("utf8")];
     })));
+    if (args[0] === "--publication-plan") {
+      const file = await api(`/contents/README.md?ref=${commit.sha}`);
+      assert.equal(file.encoding, "base64", "README.md: unexpected content encoding");
+      readme = Buffer.from(file.content, "base64").toString("utf8");
+    }
     console.log(`Public feedback settings verified at ${commit.sha}.`);
   }
   validateFeedbackForms(files);
+  if (readme !== null) validatePublicationReadme(updateFeedbackReadme(readme));
   console.log("Feedback forms match the app contract in English and Spanish.");
+  if (readme !== null) console.log("Planned public download guidance is valid and idempotent.");
 }
 
 if (import.meta.url.startsWith("file:") && process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

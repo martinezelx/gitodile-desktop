@@ -136,10 +136,15 @@ The native updater lifecycle and its visual controls are implemented, but
 production keys are not configured and no target is enabled for automatic
 installation until its real signed A-to-B qualification succeeds. Signed build
 validation, private evidence and protected signing workflows are implemented,
-but no real certificate/key run has passed yet. Public publishing is still
-pending. Maintainers must follow the
-[private signed-build runbook](docs/release/signed-builds.md); its artifacts are
-not releases and cannot modify either public feed.
+but no real certificate/key run has passed yet. The manual public publisher,
+immutable-asset reconciliation and stable/preview feed gates are implemented
+and locally tested. Production remains closed: no target is qualified, no
+publisher credential or real signed matrix is evidenced, and no release/feed
+has been published. Maintainers must follow the
+[private signed-build](docs/release/signed-builds.md) and
+[public publishing](docs/release/public-publishing.md) runbooks; a private
+artifact is not a release and validation drafts cannot modify a production
+feed.
 
 Before publishing a desktop build, run `pnpm run check:publication`. It runs
 the complete local gate plus `check:feedback`, which checks the live public

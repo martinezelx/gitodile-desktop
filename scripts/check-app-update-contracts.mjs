@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contractPath = path.join(root, "docs", "architecture", "065-9-1-app-update-contract.json");
 const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
+const qualificationPath = path.join(root, "docs", "release", "update-target-qualifications.json");
+const qualification = JSON.parse(fs.readFileSync(qualificationPath, "utf8"));
 
 const stablePattern = new RegExp(contract.version.stablePattern);
 const previewPattern = new RegExp(contract.version.previewPattern);
@@ -74,6 +76,17 @@ assert.equal(contract.targets.every((target) => target.automaticEligibility === 
 assert.equal(new Set(contract.targets.map((target) => target.key)).size, contract.targets.length);
 assert.deepEqual(contract.validationBuilds, ["0.2.0-preview.2", "0.2.0-preview.3"]);
 assert.equal(compareVersions(parseVersion(contract.validationBuilds[0]), parseVersion(contract.validationBuilds[1])), -1);
+assert.equal(qualification.schemaVersion, 1);
+assert.deepEqual(qualification.targets.map((target) => target.key), contract.targets.map((target) => target.key));
+assert.equal(new Set(qualification.targets.map((target) => target.key)).size, contract.targets.length);
+assert.equal(qualification.targets.every((target) => target.status === "qualification_required" && target.evidence.length === 0), true,
+  "a target may leave qualification_required only with real 065-9-7 evidence");
+assert.deepEqual(qualification.productionPromotion, {
+  enabled: false,
+  workingNameClearance: "not_evidenced",
+  approvedAt: null,
+  evidence: null,
+}, "production promotion must remain disabled until external evidence exists");
 
 for (const testCase of contract.versionCases) {
   assert.equal(evaluateVersionCase(testCase), testCase.expected, testCase.name);

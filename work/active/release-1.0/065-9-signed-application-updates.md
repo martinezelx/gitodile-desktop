@@ -254,3 +254,14 @@ boundary and runbook on 2026-09-10, but remains active: no real signing
 credential, protected environment, notarized package or complete signed run is
 evidenced, so no target is enabled. Public publication and installed A-to-B
 qualification remain exclusively 065-9-6 and 065-9-7.
+
+Task 065-9-6 implemented the locally verifiable public promotion coordinator
+and runbook on 2026-09-11. Publication is manual and destination-serialized;
+private source and signing stay outside the credentialed job, immutable assets
+are reconciled before anonymous verification, and stable/preview feeds move
+only through one non-regressing compare-and-swap commit. The checked
+qualification registry disables production and leaves all targets
+`qualification_required`. With no signed matrix, destination credential,
+working-name clearance, public release or real A-to-B evidence, 065-9-6 remains
+active and no feed/target is enabled; 065-9-7 still exclusively owns platform
+qualification.

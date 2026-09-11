@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dump } from "js-yaml";
-import { feedbackContract, validateFeedbackForms, validateFeedbackSettings } from "./check-public-feedback.mjs";
+import { feedbackContract, validateFeedbackForms, validateFeedbackSettings, validatePublicationReadme } from "./check-public-feedback.mjs";
+import { updateFeedbackReadme } from "./release/public-release.mjs";
 
 function forms() {
   const result = {};
@@ -39,5 +40,11 @@ describe("public feedback publication check", () => {
     const labels = [{ name: "bug" }, { name: "enhancement" }];
     expect(() => validateFeedbackSettings(repository, { enabled: false }, labels)).toThrow(/Private vulnerability reporting/);
     expect(() => validateFeedbackSettings(repository, { enabled: true }, labels)).not.toThrow();
+  });
+  it("validates the planned bilingual download guidance without exposing private source", () => {
+    const planned = updateFeedbackReadme("# GitOdile feedback\n");
+    expect(() => validatePublicationReadme(planned)).not.toThrow();
+    expect(() => validatePublicationReadme(planned.replace("Signed installers", "Installers"))).toThrow(/Signed installers/);
+    expect(() => validatePublicationReadme(`${planned}\n${planned}`)).toThrow(/duplicate/);
   });
 });

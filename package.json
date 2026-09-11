@@ -15,7 +15,7 @@
     "check:release": "node --test scripts/release/*.test.mjs",
     "check:docs": "node scripts/check-docs.mjs && node scripts/check-app-update-contracts.mjs && pnpm run check:release",
     "check:feedback": "node scripts/check-public-feedback.mjs",
-    "check:publication": "pnpm run check && pnpm run check:feedback",
+    "check:publication": "pnpm run check && node scripts/check-public-feedback.mjs --publication-plan",
     "check:architecture": "node scripts/check-frontend-architecture.mjs",
     "check:frontend": "pnpm run check:architecture && pnpm run typecheck && pnpm run test && pnpm run build",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings && cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features",
