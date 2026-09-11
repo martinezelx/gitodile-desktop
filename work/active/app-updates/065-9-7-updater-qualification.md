@@ -50,9 +50,34 @@ Git credential hardening in 065-7, the final full-product audit in 065-8, and au
 
 # Implementation notes
 
-Not implemented. Record decisions, changed files and evidence here; keep durable
-architecture and operator guidance in docs and link them rather than duplicating them.
+Infrastructure implemented on `main` on 2026-09-11:
+
+- validation builds are compile-time restricted to the fixed preview.2/preview.3
+  pair, controlled HTTPS feed and exact matrix target; production rejects
+  validation routing;
+- the manual, read-only `Controlled updater qualification bundle` workflow
+  verifies both complete signed matrices and creates a private, non-promoting
+  feed/package bundle;
+- the production registry moved to schema version 2. Its executable gate binds
+  target/platform, A and B provenance/artifacts/trust, installed-version
+  confirmation, preservation, failure matrix, report hash/run and macOS
+  replacement-safety evidence;
+- shallow, cross-target, incomplete and missing-macOS-review claims fail closed;
+- durable operation and evidence instructions live in
+  [`docs/release/updater-qualification.md`](../../../docs/release/updater-qualification.md).
+
+The task remains active. A read-only GitHub audit found no configured release
+variables, secrets or protected environments and no public releases. No real
+signed A/B matrix or installed-platform evidence exists, so all four targets
+remain `qualification_required`, production remains disabled and no 1.0.0
+readiness is claimed.
 
 # Validation
 
-Record build tags/SHAs, platform matrix, A-to-B results, failure cases, retained installers, CI evidence and final gates.
+Local validation on 2026-09-11: `pnpm run check` and the read-only
+`pnpm run check:publication` pass. This includes 23 release tests, 859 frontend
+tests, the production frontend build, strict Clippy and 397 Rust tests. The live
+feedback contract was verified at public commit
+`f8420b8e402558a7b04e19cf807608100806d1a0`. Record future build tags/SHAs,
+platform matrix, A-to-B results, failure cases, retained installers and CI
+evidence without replacing absent external facts with fixture results.

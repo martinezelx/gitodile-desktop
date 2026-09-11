@@ -76,7 +76,7 @@ assert.equal(contract.targets.every((target) => target.automaticEligibility === 
 assert.equal(new Set(contract.targets.map((target) => target.key)).size, contract.targets.length);
 assert.deepEqual(contract.validationBuilds, ["0.2.0-preview.2", "0.2.0-preview.3"]);
 assert.equal(compareVersions(parseVersion(contract.validationBuilds[0]), parseVersion(contract.validationBuilds[1])), -1);
-assert.equal(qualification.schemaVersion, 1);
+assert.equal(qualification.schemaVersion, 2);
 assert.deepEqual(qualification.targets.map((target) => target.key), contract.targets.map((target) => target.key));
 assert.equal(new Set(qualification.targets.map((target) => target.key)).size, contract.targets.length);
 assert.equal(qualification.targets.every((target) => target.status === "qualification_required" && target.evidence.length === 0), true,

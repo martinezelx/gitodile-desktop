@@ -12,7 +12,10 @@ No production publication is currently authorized. The qualification registry
 deny-by-default: all four candidate targets remain `qualification_required`,
 working-name clearance is not evidenced, and `productionPromotion.enabled` is
 false. Task 065-9-7 alone may replace those states after recording the real
-signed A-to-B evidence described by the application-update contract.
+signed A-to-B evidence described by the
+[updater qualification runbook](updater-qualification.md). Schema version 2
+binds each record to its target, both signed builds, preservation/failure
+results and platform trust; the older shallow two-record form is rejected.
 
 ## Promotion model
 
@@ -109,11 +112,13 @@ private security channel and repository settings before the privileged job.
 
 ## Current external blockers
 
-- No real complete signed matrix from 065-9-5 exists.
+- No real complete signed matrix from 065-9-5 exists. A read-only GitHub audit
+  on 2026-09-11 found no repository variables, repository secrets or protected
+  environments configured.
 - Production and validation updater keys/backups, Authenticode identity, Apple
   Developer ID/notary access and protected environments are not evidenced.
 - No destination-scoped publisher credential or destination environment is
-  evidenced.
+  evidenced, and the public feedback repository has no releases.
 - The public feedback README has not been changed because this work performs no
   commit or push; the coordinator holds the reviewed idempotent update for the
   first authorized promotion.

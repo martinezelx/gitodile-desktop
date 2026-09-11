@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "productionPromotion": {
     "enabled": false,
     "workingNameClearance": "not_evidenced",

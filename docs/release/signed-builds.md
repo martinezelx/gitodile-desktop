@@ -59,7 +59,7 @@ workflow inputs or logs:
 
 | Scope | Names | Current readiness (2026-09-10) |
 | --- | --- | --- |
-| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID` | Not evidenced/configured |
+| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED` | Not configured as of the read-only 2026-09-11 audit |
 | `production-windows-signing` environment secrets | `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD` | Certificate/service and access not evidenced |
 | `production-macos-signing` environment secrets | `GITODILE_MACOS_CERTIFICATE_BASE64`, `GITODILE_MACOS_CERTIFICATE_PASSWORD`, `GITODILE_APPLE_SIGNING_IDENTITY`, `GITODILE_APPLE_ID`, `GITODILE_APPLE_PASSWORD`, `GITODILE_APPLE_TEAM_ID` | Apple membership, certificate and notary access not evidenced |
 | `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Production key and backup not evidenced |
@@ -106,8 +106,9 @@ The protected qualification pair is fixed by the executable contract:
 the `validation` signing profile and the separate validation updater key. They
 still require valid tags on `main` and the complete matrix. The workflows never
 alter either public feed, so producing A and B cannot advertise or promote
-them. Task 065-9-7 will provide a controlled feed/harness and record real
-installed A-to-B results.
+them. The controlled feed/bundle procedure is defined in
+[updater qualification](updater-qualification.md); it does not deploy bytes,
+promote a feed or substitute for real installed A-to-B results.
 
 ## Independent verification
 

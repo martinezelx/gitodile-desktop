@@ -32,6 +32,12 @@ export function useModalFocus<T extends HTMLElement>(
       if (!dialog) {
         return;
       }
+      // A user action may have moved focus to a control rendered after the
+      // opening frame was queued (for example a second confirmation step).
+      // Never let the delayed initial focus overwrite that newer intent.
+      if (document.activeElement instanceof HTMLElement && dialog.contains(document.activeElement)) {
+        return;
+      }
       // `data-autofocus` lets a dialog name its own landing point. Without it
       // focus goes to the first focusable element, which for any dialog with a
       // header close button is Close — so Enter right after opening shuts the

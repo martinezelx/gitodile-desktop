@@ -228,4 +228,13 @@ test("workflows expose no branch publication path and pin external actions", () 
       if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, "main");
     }
   }
+
+  const qualification = readWorkflow("qualification-validation-bundle.yml");
+  assert.deepEqual(Object.keys(qualification.parsed.on), ["workflow_dispatch"]);
+  assert.deepEqual(qualification.parsed.permissions, { actions: "read", contents: "read" });
+  assert.doesNotMatch(qualification.source, /secrets\.|contents:\s*write|gitodile-feedback/i);
+  assert.match(qualification.source, /GITODILE_VALIDATION_UPDATE_FEED/);
+  for (const match of qualification.source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) {
+    assert.match(match[1], /@[0-9a-f]{40}$/);
+  }
 });

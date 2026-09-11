@@ -367,6 +367,7 @@ pub(crate) fn begin_install_admission(
 /// it. The returned guard is moved into the helper's reaper thread, closing the
 /// gap between spawn and process exit without manufacturing a command frame on
 /// the wrong thread.
+#[cfg(target_os = "windows")]
 pub(crate) fn begin_background_activity(command: &'static str) -> OperationActivity {
     let policy = *policy(command);
     admission().start_operation(command, policy.install_admission, None)

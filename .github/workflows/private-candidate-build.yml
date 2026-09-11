@@ -74,6 +74,9 @@ jobs:
     env:
       GITODILE_UPDATER_PUBLIC_KEY: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY || vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
       GITODILE_UPDATER_PUBLIC_KEY_ID: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID || vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
+      GITODILE_UPDATE_PROFILE: ${{ needs.validate.outputs.profile }}
+      GITODILE_VALIDATION_UPDATE_FEED: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATE_FEED || '' }}
+      GITODILE_VALIDATION_UPDATE_TARGET: ${{ needs.validate.outputs.profile == 'validation' && matrix.target || '' }}
       GITODILE_QUALIFIED_UPDATE_TARGETS: ""
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -85,7 +88,7 @@ jobs:
           name: candidate-identity
       - name: Require reviewed public updater identity
         shell: bash
-        run: node -e "if (!process.env.GITODILE_UPDATER_PUBLIC_KEY || !process.env.GITODILE_UPDATER_PUBLIC_KEY_ID) { console.error('Required updater public identity is not configured for this signing profile.'); process.exit(1) }"
+        run: node -e "const validation=process.env.GITODILE_UPDATE_PROFILE==='validation'; if (!process.env.GITODILE_UPDATER_PUBLIC_KEY || !process.env.GITODILE_UPDATER_PUBLIC_KEY_ID || (validation && (!process.env.GITODILE_VALIDATION_UPDATE_FEED || !process.env.GITODILE_VALIDATION_UPDATE_TARGET))) { console.error('Required public update identity or controlled validation routing is not configured for this build profile.'); process.exit(1) }"
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |

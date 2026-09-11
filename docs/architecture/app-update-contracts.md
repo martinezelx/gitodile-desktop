@@ -75,6 +75,9 @@ unavailable rather than accepting a placeholder. Automatic installation is a
 second compile-time deny-by-default gate,
 `GITODILE_QUALIFIED_UPDATE_TARGETS`. It must remain empty in ordinary builds
 until task 065-9-7 qualifies an exact target/mode with real signed packages.
+The fixed A/B pair instead uses a compile-time `validation` profile, controlled
+HTTPS feed and exact target. That profile is rejected outside preview.2 and
+preview.3, cannot carry URL credentials, and cannot enable a different target.
 
 The renderer-facing feature exposes only typed GitOdile commands and opaque
 candidate/operation IDs. There is no JavaScript updater dependency and the
@@ -137,15 +140,16 @@ The two production feed identities are fixed in native build metadata:
 struct BuildUpdateIdentity {
     version: ReleaseVersion,
     channel: ReleaseChannel,
+    profile: Production | Validation,
     feed: KnownFeed,
     public_key_id: UpdaterPublicKeyId,
 }
 ```
 
 `ReleaseChannel` and `KnownFeed` are closed enums. Production values come from
-the validated version and checked release configuration. A separately branded
-validation build may use a compile-time validation feed and validation public
-key, but it cannot promote either production feed. The renderer can request a
+the validated version and checked release configuration. A validation build
+uses a compile-time controlled feed, exact build target and distinct validation
+public key, but it cannot promote either production feed. The renderer can request a
 check; it cannot provide a channel, URL, public key, installer path, target, or
 arbitrary request headers.
 
@@ -388,5 +392,9 @@ separate validation key and feed and must not advance `preview.json` or
    observed result in task 065-9-7.
 
 A target remains unadvertised and `qualification_required` until all of its real
-package evidence is complete. The contract fixtures validate selection and
-metadata now; they are not substitutes for the two installations.
+package evidence is complete. The schema-version-2 registry additionally binds
+both signed matrix identities, platform trust, preservation, failure cases and
+the installed transition to the exact target. See
+[`docs/release/updater-qualification.md`](../release/updater-qualification.md).
+The contract fixtures validate selection and metadata now; they are not
+substitutes for the two installations.

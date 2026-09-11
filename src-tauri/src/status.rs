@@ -444,7 +444,8 @@ pub(crate) const MAX_LISTED_SAVED_VERSIONS: usize = 50;
 pub(crate) fn parse_saved_version_summaries(text: &str) -> Vec<SavedVersionSummary> {
     let fields = text.split('\0').collect::<Vec<_>>();
     fields
-        .chunks_exact(6)
+        .chunks(6)
+        .filter(|parts| parts.len() == 6)
         .filter_map(|parts| {
             let commit = parts[0].trim();
             let short_commit = parts[1].trim();

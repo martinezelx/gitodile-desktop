@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseReleaseVersion, ReleaseValidationError, REQUIRED_TARGETS } from "./release-candidate.mjs";
 import { verifyCompleteMatrix, verifyEvidenceArtifacts } from "./release-evidence.mjs";
+import { validateQualificationRegistry } from "./qualification-evidence.mjs";
 
 export const PUBLIC_REPOSITORY = "martinezelx/gitodile-feedback";
 export const PUBLIC_RELEASE_ORIGIN = `https://github.com/${PUBLIC_REPOSITORY}/releases/download`;
@@ -49,51 +50,7 @@ export function compareReleaseVersions(left, right) {
 }
 
 export function validateQualification(qualification, candidate, mode) {
-  if (qualification?.schemaVersion !== 1 || !Array.isArray(qualification.targets)) {
-    fail("qualification_invalid", "qualification registry is malformed");
-  }
-  const byTarget = new Map(qualification.targets.map((item) => [item.key, item]));
-  if (new Set(byTarget.keys()).size !== qualification.targets.length) {
-    fail("qualification_invalid", "qualification registry contains duplicate targets");
-  }
-  for (const target of REQUIRED_TARGETS) {
-    if (!byTarget.has(target)) fail("qualification_invalid", `qualification registry omits ${target}`);
-  }
-  if (mode === "validation-draft") {
-    if (candidate.release.signingProfile !== "validation" || candidate.release.purpose !== "qualification") {
-      fail("profile_mismatch", "validation drafts require the fixed validation signing profile");
-    }
-    return { productionAllowed: false, qualifiedTargets: [] };
-  }
-  if (mode !== "production") fail("invalid_mode", "mode must be validation-draft or production");
-  if (candidate.release.signingProfile !== "production" || candidate.release.purpose !== "release_candidate") {
-    fail("profile_mismatch", "production promotion requires a production-signed release candidate");
-  }
-  if (
-    qualification.productionPromotion?.enabled !== true ||
-    qualification.productionPromotion?.workingNameClearance !== "evidenced" ||
-    typeof qualification.productionPromotion?.approvedAt !== "string" ||
-    typeof qualification.productionPromotion?.evidence !== "string"
-  ) {
-    fail("production_not_approved", "production promotion and working-name clearance are not evidenced");
-  }
-  const qualificationVersions = ["0.2.0-preview.2", "0.2.0-preview.3"];
-  const qualifiedTargets = candidate.matrix.requiredTargets.filter((target) => {
-    const entry = byTarget.get(target);
-    if (entry?.status !== "qualified" || !Array.isArray(entry.evidence) || entry.evidence.length !== 2) return false;
-    return entry.evidence.every((proof, index) =>
-      proof?.version === qualificationVersions[index] && proof?.installedVersion === qualificationVersions[index] &&
-      proof?.result === "passed" && typeof proof?.observedAt === "string" &&
-      typeof proof?.installationMode === "string" && proof.installationMode.length > 0 &&
-      /^[0-9a-f]{64}$/.test(proof?.signedMatrixSha256 ?? "") &&
-      /^https:\/\/github\.com\/martinezelx\/project-gitodile\/actions\/runs\/[1-9][0-9]*$/.test(proof?.runUrl ?? ""),
-    );
-  });
-  if (qualifiedTargets.length !== candidate.matrix.requiredTargets.length) {
-    const missing = candidate.matrix.requiredTargets.filter((target) => !qualifiedTargets.includes(target));
-    fail("qualification_required", `targets still require real A-to-B evidence: ${missing.join(", ")}`);
-  }
-  return { productionAllowed: true, qualifiedTargets };
+  return validateQualificationRegistry(qualification, candidate, mode);
 }
 
 function normalizeNotes(markdown) {
