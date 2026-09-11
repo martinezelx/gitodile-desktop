@@ -13,6 +13,9 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 
+# Signed fixtures are byte-sensitive; newline conversion invalidates signatures.
+src-tauri/tests/fixtures/app-updates/*.txt text eol=lf
+
 # Windows-native scripts keep CRLF when introduced.
 *.bat text eol=crlf
 *.cmd text eol=crlf
