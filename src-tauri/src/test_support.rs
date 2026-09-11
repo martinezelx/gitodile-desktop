@@ -12,7 +12,7 @@ pub(crate) fn unique_temp_dir(label: &str) -> String {
 
 pub(crate) fn git_init(path: &str) {
     let status = git_command(path)
-        .args(["init", "-q"])
+        .args(["init", "-q", "--initial-branch=main"])
         .status()
         .expect("run git init");
     assert!(status.success(), "git init should succeed");
