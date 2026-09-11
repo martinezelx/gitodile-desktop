@@ -897,6 +897,7 @@ fn repository_with_three_lines(label: &str) -> String {
     let first = head(&path);
     write_file(&path, "file.txt", "one\ntwo\n");
     commit_all(&path, "second on main");
+    git(&path, &["branch", "-M", "main"]);
 
     git(&path, &["switch", "-q", "-c", "feature/one", &first]);
     write_file(&path, "feature.txt", "a\n");
