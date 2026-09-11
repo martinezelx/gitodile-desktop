@@ -109,6 +109,17 @@ vulnerabilities. The initial automatic jobs that said a security update was not
 possible ran against the preceding lockfile and are retained as evidence rather
 than concealed.
 
+[Dependabot alert 9](https://github.com/martinezelx/project-gitodile/security/dependabot/9)
+also identified the `glib::VariantStrIter` unsoundness in the Linux runtime
+graph. The current Tauri 2.11.5 stack requires GTK/glib 0.18 and even Wry 0.57.0
+still depends on GTK 0.18, so no patched version is resolvable. A source search
+of GitOdile, Tauri, tauri-runtime-wry, Wry, WebKitGTK and GTK found no reference
+to the affected `VariantStrIter` or `Variant::array_iter_str` API. The alert is
+therefore dismissed specifically as `not_used`, with that bounded rationale,
+and must be reassessed when Tauri migrates away from GTK/glib 0.18. This is an
+explicit reachability mitigation, not a claim that the transitive crate itself
+is patched.
+
 ## Clearance decision
 
 The history and current-tree review found no secret requiring rewrite or ref
