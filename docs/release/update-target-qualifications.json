@@ -1,5 +1,44 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
+  "releaseMatrix": {
+    "enabledTargets": [
+      "windows-x86_64",
+      "linux-x86_64"
+    ],
+    "disabledTargets": [
+      {
+        "key": "darwin-aarch64",
+        "status": "planned_disabled",
+        "reason": "real_platform_qualification_required",
+        "followUpTask": "065-10",
+        "evidence": []
+      },
+      {
+        "key": "darwin-x86_64",
+        "status": "planned_disabled",
+        "reason": "real_platform_qualification_required",
+        "followUpTask": "065-10",
+        "evidence": []
+      }
+    ]
+  },
+  "validationQualification": {
+    "status": "pending",
+    "signingProfile": "validation",
+    "fromVersion": "0.2.0-preview.2",
+    "toVersion": "0.2.0-preview.3",
+    "evidence": null
+  },
+  "publicPreviewQualification": {
+    "status": "pending",
+    "signingProfile": "production",
+    "fromVersion": "0.2.0-preview.4",
+    "toVersion": "0.2.0-preview.5",
+    "productionUpdaterPublicKeyId": null,
+    "releases": [],
+    "feed": null,
+    "targets": []
+  },
   "productionPromotion": {
     "enabled": false,
     "workingNameClearance": "not_evidenced",
@@ -14,12 +53,12 @@
     },
     {
       "key": "darwin-aarch64",
-      "status": "qualification_required",
+      "status": "planned_disabled",
       "evidence": []
     },
     {
       "key": "darwin-x86_64",
-      "status": "qualification_required",
+      "status": "planned_disabled",
       "evidence": []
     },
     {

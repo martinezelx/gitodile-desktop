@@ -586,27 +586,30 @@ The next launch reports success only when its compiled running version equals
 the recorded expected version. Qualification remains a compile-time deny-by-
 default target allowlist, so mocks or compilation cannot advertise a platform.
 
-Private packaging follows the two-workflow trust split documented in the
-[signed-build runbook](release/signed-builds.md). A tag-only, secretless matrix
-builds exact-source packages; a `workflow_run` loaded from the protected default
-branch revalidates the Git object and complete matrix before protected jobs can
-see signing credentials. Those jobs never check out candidate source. Updater,
-OS-trust and notarization results remain separate evidence fields, and the final
-matrix record is explicitly non-promotable.
+Release packaging follows the two-workflow trust split documented in the
+[signed-build runbook](release/signed-builds.md). Source visibility is not a
+security boundary: a tag-only, secretless matrix builds exact-source packages;
+a `workflow_run` loaded from the protected default branch revalidates the Git
+object and complete enabled matrix before protected jobs can see signing
+credentials. Those jobs never execute candidate-source scripts with secrets.
+Updater and OS-trust results remain separate evidence fields, and the final
+matrix record is explicitly non-promotable. The enabled matrix is Windows
+x86-64 NSIS plus Linux x86-64 AppImage. Both macOS targets remain planned and
+disabled under task 065-10 and cannot appear in feeds or release assets.
 
 Public promotion is a third, manual-only workflow and a separate trust domain,
 documented in the [public publishing runbook](release/public-publishing.md).
-Its unprivileged half consumes and rehashes only the complete private signed
+Its unprivileged half consumes and rehashes only the complete protected signed
 artifact, runs the public feedback contract and stages a package-only bundle.
 Its serialized privileged half receives the destination-scoped credential but
-does not check out private application source. It reconciles immutable draft
+does not check out application source. It reconciles immutable draft
 assets, anonymously verifies every finalized download, then changes complete
 channel manifests with one compare-and-swap commit. Preview/stable selection,
 GitHub prerelease status and versioned URLs are derived rather than supplied as
 independent operator choices. The source-controlled qualification registry is
 deny-by-default; validation drafts cannot finalize or write production feeds,
-and installed A-to-B qualification/target enablement remain exclusively
-065-9-7.
+and installed A-to-B qualification/target enablement remain exclusively with
+065-9-7 and 065-9-8.
 
 ## Enforced checks
 

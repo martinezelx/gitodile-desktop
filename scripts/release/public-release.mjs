@@ -55,9 +55,6 @@ export function validateQualification(qualification, candidate, mode) {
 
 function normalizeNotes(markdown) {
   if (Buffer.byteLength(markdown, "utf8") > 16_384) fail("notes_too_large", "release notes exceed 16 KiB");
-  if (/project-gitodile|github\.com\/[^/\s]+\/project-gitodile/i.test(markdown)) {
-    fail("private_reference", "release notes reference the private source repository");
-  }
   if (/https?:\/\/[^\s/@]+:[^\s/@]+@/i.test(markdown)) fail("secret_material", "release notes contain an authenticated URL");
   return markdown
     .replace(/```[\s\S]*?```/g, " ")
@@ -195,7 +192,7 @@ export function feedsForPromotion(plan, current = {}) {
 }
 
 export function updateFeedbackReadme(readme) {
-  const guidance = `${GUIDANCE_START}\n## Downloads / Descargas\n\nSigned installers and application-update files are attached to each [GitOdile release](https://github.com/${PUBLIC_REPOSITORY}/releases). Preview releases are marked as prereleases. Existing installers remain available for reinstall; a withdrawn update may stop appearing in the channel feed but is not silently replaced. GitOdile source code and signing material are not published here.\n\nLos instaladores firmados y los archivos de actualización están adjuntos a cada [versión de GitOdile](https://github.com/${PUBLIC_REPOSITORY}/releases). Las versiones preview se marcan como preliminares. Los instaladores anteriores se conservan para reinstalar; una actualización retirada puede dejar de aparecer en el canal, pero no se sustituye silenciosamente. El código fuente y el material de firma no se publican aquí.\n${GUIDANCE_END}`;
+  const guidance = `${GUIDANCE_START}\n## Downloads / Descargas\n\nSigned Windows x86-64 NSIS installers, Linux x86-64 AppImages and their application-update files are attached to each [GitOdile release](https://github.com/${PUBLIC_REPOSITORY}/releases). macOS is not yet qualified and no macOS package is published. Preview releases are marked as prereleases. Existing installers remain available for reinstall; a withdrawn update may stop appearing in the channel feed but is not silently replaced. Application source is maintained in a separate repository and signing material is never published.\n\nLos instaladores NSIS firmados para Windows x86-64, las AppImage para Linux x86-64 y sus archivos de actualización se adjuntan a cada [versión de GitOdile](https://github.com/${PUBLIC_REPOSITORY}/releases). macOS todavía no está cualificado y no se publica ningún paquete para macOS. Las versiones preview se marcan como preliminares. Los instaladores anteriores se conservan para reinstalar; una actualización retirada puede dejar de aparecer en el canal, pero no se sustituye silenciosamente. El código de la aplicación se mantiene en otro repositorio y el material de firma nunca se publica.\n${GUIDANCE_END}`;
   if (readme.includes(GUIDANCE_START)) {
     const pattern = new RegExp(`${GUIDANCE_START}[\\s\\S]*?${GUIDANCE_END}`);
     if (!pattern.test(readme)) fail("readme_contract", "download guidance markers are malformed");
@@ -203,7 +200,7 @@ export function updateFeedbackReadme(readme) {
   }
   const cleaned = readme
     .replace("There is no source code here, and there are no pull requests to send. Issues,\n", "There is no application source code here, and there are no source pull requests to send. Issues,\n")
-    .replace("El código de la aplicación es privado. Este repositorio no contiene código de\nla aplicación ni descargas.", "El código de la aplicación es privado y no se publica en este repositorio.");
+    .replace("El código de la aplicación es privado. Este repositorio no contiene código de\nla aplicación ni descargas.", "El código de la aplicación no se mantiene en este repositorio.");
   return `${cleaned.trimEnd()}\n\n${guidance}\n`;
 }
 

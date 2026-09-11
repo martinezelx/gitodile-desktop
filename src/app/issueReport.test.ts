@@ -9,7 +9,7 @@ describe("issue report url", () => {
     expect(url.searchParams.get("template")).toBe("bug-es.yml");
     expect(url.searchParams.get("diagnostics")).toContain("GitOdile 0.1.0");
   });
-  it("opens the public tracker's bug form and never the private repository", () => {
+  it("opens the dedicated public tracker's bug form, not the source repository", () => {
     const url = new URL(buildIssueReportUrl("reviewed report"));
 
     expect(`${url.origin}${url.pathname}`).toBe(`${FEEDBACK_REPOSITORY_URL}/issues/new`);

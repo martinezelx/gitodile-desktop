@@ -41,10 +41,10 @@ describe("public feedback publication check", () => {
     expect(() => validateFeedbackSettings(repository, { enabled: false }, labels)).toThrow(/Private vulnerability reporting/);
     expect(() => validateFeedbackSettings(repository, { enabled: true }, labels)).not.toThrow();
   });
-  it("validates the planned bilingual download guidance without exposing private source", () => {
+  it("validates the planned bilingual enabled-target guidance without exposing source internals", () => {
     const planned = updateFeedbackReadme("# GitOdile feedback\n");
     expect(() => validatePublicationReadme(planned)).not.toThrow();
-    expect(() => validatePublicationReadme(planned.replace("Signed installers", "Installers"))).toThrow(/Signed installers/);
+    expect(() => validatePublicationReadme(planned.replace("Signed Windows x86-64 NSIS installers", "Installers"))).toThrow(/Signed Windows/);
     expect(() => validatePublicationReadme(`${planned}\n${planned}`)).toThrow(/duplicate/);
   });
 });

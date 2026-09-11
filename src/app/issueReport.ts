@@ -3,7 +3,7 @@ import { useLanguage, type Language } from "../i18n";
 import contract from "./issueReportContract.json";
 import { formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
 
-/** User support is public even though the application's source is private. */
+/** User support has a stable public home independent of source visibility. */
 export const FEEDBACK_REPOSITORY_URL = `https://github.com/${contract.repository}`;
 
 const ENVIRONMENT_HEADING = "Environment\n-----------\n";

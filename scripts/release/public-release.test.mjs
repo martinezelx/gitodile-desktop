@@ -6,7 +6,13 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import { createEvidence } from "./release-evidence.mjs";
-import { REQUIRED_TARGETS, TARGET_CONTRACTS, ReleaseValidationError, parseReleaseVersion } from "./release-candidate.mjs";
+import {
+  ALL_TARGETS,
+  REQUIRED_TARGETS,
+  TARGET_CONTRACTS,
+  ReleaseValidationError,
+  parseReleaseVersion,
+} from "./release-candidate.mjs";
 import { REQUIRED_FAILURE_CASES, REQUIRED_PRESERVATION_CHECKS } from "./qualification-evidence.mjs";
 import { compareReleaseVersions, feedsForPromotion, preparePublication, updateFeedbackReadme } from "./public-release.mjs";
 import { anonymousHash, atomicPublicCommit, reconcileAssets, validateSourceRun } from "./github-publication.mjs";
@@ -43,7 +49,45 @@ function qualification(enabled = false) {
     notarization: key.startsWith("darwin-") ? { result: "passed" } : { result: "not_applicable" },
   });
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
+    releaseMatrix: {
+      enabledTargets: [...REQUIRED_TARGETS],
+      disabledTargets: ALL_TARGETS.filter((key) => !REQUIRED_TARGETS.includes(key)).map((key) => ({
+        key,
+        status: "planned_disabled",
+        reason: "real_platform_qualification_required",
+        followUpTask: "065-10",
+        evidence: [],
+      })),
+    },
+    validationQualification: enabled ? {
+      status: "qualified",
+      signingProfile: "validation",
+      fromVersion: "0.2.0-preview.2",
+      toVersion: "0.2.0-preview.3",
+      evidence: {
+        schemaVersion: 1,
+        controlledBundleRunUrl: "https://github.com/martinezelx/project-gitodile/actions/runs/98",
+        bundleReportSha256: "8".repeat(64),
+        updaterPublicKeyId: "validation-key-1",
+      },
+    } : {
+      status: "pending",
+      signingProfile: "validation",
+      fromVersion: "0.2.0-preview.2",
+      toVersion: "0.2.0-preview.3",
+      evidence: null,
+    },
+    publicPreviewQualification: {
+      status: "pending",
+      signingProfile: "production",
+      fromVersion: "0.2.0-preview.4",
+      toVersion: "0.2.0-preview.5",
+      productionUpdaterPublicKeyId: null,
+      releases: [],
+      feed: null,
+      targets: [],
+    },
     productionPromotion: enabled ? {
       enabled: true,
       workingNameClearance: "evidenced",
@@ -55,19 +99,20 @@ function qualification(enabled = false) {
           result: "passed",
           qualificationRunUrl: "https://github.com/martinezelx/project-gitodile/actions/runs/99",
           reportSha256: "9".repeat(64),
+          validationDraft: "passed",
           fullMatrixFailure: "passed",
           retry: "passed",
           immutableAssets: "passed",
-          previewPromotion: "passed",
-          stablePromotion: "passed",
-          anonymousAccess: "passed",
+          feedUnchanged: "passed",
         },
       },
     } : { enabled: false, workingNameClearance: "not_evidenced", approvedAt: null, evidence: null },
-    targets: REQUIRED_TARGETS.map((key, targetIndex) => ({
+    targets: ALL_TARGETS.map((key, targetIndex) => ({
       key,
-      status: enabled ? "qualified" : "qualification_required",
-      evidence: enabled ? [{
+      status: REQUIRED_TARGETS.includes(key)
+        ? (enabled ? "qualified" : "qualification_required")
+        : "planned_disabled",
+      evidence: enabled && REQUIRED_TARGETS.includes(key) ? [{
         schemaVersion: 1,
         target: key,
         result: "passed",
@@ -140,11 +185,12 @@ test("a validation-signed qualification pair can only prepare a non-promoting dr
   expectCode("profile_mismatch", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 });
 
-test("production is denied while every target remains qualification_required", () => {
+test("production is denied while every enabled target remains qualification_required", () => {
   const root = signedMatrix("0.2.0-preview.4");
-  expectCode("production_not_approved", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
+  expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
   const partial = qualification(true);
-  partial.targets[2] = { key: partial.targets[2].key, status: "qualification_required", evidence: [] };
+  const linuxIndex = partial.targets.findIndex(({ key }) => key === "linux-x86_64");
+  partial.targets[linuxIndex] = { key: "linux-x86_64", status: "qualification_required", evidence: [] };
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: partial, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 });
 
@@ -166,6 +212,18 @@ test("the controlled qualification bundle binds real A/B matrices without produc
   assert.ok(Object.values(manifest.platforms).every(({ url }) => url.startsWith("https://validation.example/gitodile-validation/065-9-7/releases/v0.2.0-preview.3/")));
   assert.equal(fs.existsSync(path.join(output, "packages", "v0.2.0-preview.2")), true);
   assert.equal(fs.existsSync(path.join(output, "packages", "v0.2.0-preview.3")), true);
+
+  const inconsistent = signedMatrix("0.2.0-preview.3");
+  const linuxEvidencePath = path.join(inconsistent, "linux-x86_64", "evidence.json");
+  const linuxEvidence = JSON.parse(fs.readFileSync(linuxEvidencePath, "utf8"));
+  linuxEvidence.trust.updater.publicIdentity = "different-validation-key";
+  fs.writeFileSync(linuxEvidencePath, `${JSON.stringify(linuxEvidence, null, 2)}\n`);
+  expectCode("provenance_mismatch", () => prepareQualificationBundle({
+    fromDirectory: from,
+    toDirectory: inconsistent,
+    validationFeed: "https://validation.example/gitodile-validation/065-9-7/updates/preview.json",
+    output: `${output}-mixed-key`,
+  }));
 
   expectCode("validation_feed_invalid", () => prepareQualificationBundle({
     fromDirectory: from,
@@ -190,30 +248,36 @@ test("production rejects shallow, cross-target and incomplete qualification clai
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: shallow, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 
   const crossTarget = qualification(true);
-  crossTarget.targets[1].evidence[0].target = "windows-x86_64";
+  const linuxIndex = crossTarget.targets.findIndex(({ key }) => key === "linux-x86_64");
+  crossTarget.targets[linuxIndex].evidence[0].target = "windows-x86_64";
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: crossTarget, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 
+  const wrongValidationKey = qualification(true);
+  wrongValidationKey.targets[0].evidence[0].builds.to.updaterSignature.publicKeyId = "unexpected-key";
+  expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: wrongValidationKey, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
+
   const incompleteFailureMatrix = qualification(true);
-  incompleteFailureMatrix.targets[3].evidence[0].failureCases.pop();
+  incompleteFailureMatrix.targets[linuxIndex].evidence[0].failureCases.pop();
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: incompleteFailureMatrix, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 
-  const missingMacReview = qualification(true);
-  missingMacReview.targets[1].evidence[0].replacementSafety = { result: "not_applicable" };
-  expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: missingMacReview, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
+  const advertisedMac = qualification(true);
+  const macIndex = advertisedMac.targets.findIndex(({ key }) => key === "darwin-aarch64");
+  advertisedMac.targets[macIndex] = { key: "darwin-aarch64", status: "qualified", evidence: [{}] };
+  expectCode("qualification_invalid", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: advertisedMac, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 });
 
-test("a complete qualified production matrix creates version-specific manifest entries", () => {
+test("a complete qualified Windows and Linux matrix creates version-specific manifest entries", () => {
   const root = signedMatrix("0.2.0-preview.4");
-  const plan = preparePublication({ signedDirectory: root, notesMarkdown: "# Safer updates\n\nAll targets.", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T12:00:00Z" });
+  const plan = preparePublication({ signedDirectory: root, notesMarkdown: "# Safer updates\n\nAll enabled targets.", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T12:00:00Z" });
   assert.equal(plan.release.githubPrerelease, true);
   assert.deepEqual(Object.keys(plan.manifest.platforms), REQUIRED_TARGETS);
   assert.ok(Object.values(plan.manifest.platforms).every((entry) => entry.url.includes("/v0.2.0-preview.4/")));
-  assert.equal(plan.manifest.notes, "Safer updates All targets.");
+  assert.equal(plan.manifest.notes, "Safer updates All enabled targets.");
 });
 
 test("mixed provenance, incomplete matrices and tampered bytes fail closed", () => {
   const root = signedMatrix("0.2.0-preview.4");
-  const evidencePath = path.join(root, "darwin-aarch64", "evidence.json");
+  const evidencePath = path.join(root, "windows-x86_64", "evidence.json");
   const evidence = JSON.parse(fs.readFileSync(evidencePath));
   evidence.source.sha = "b".repeat(40);
   fs.writeFileSync(evidencePath, JSON.stringify(evidence));
@@ -286,13 +350,22 @@ test("feed publication uses one non-forced compare-and-swap ref update", async (
 });
 
 test("source workflow and public README contracts reject unsafe provenance and update guidance idempotently", () => {
-  const run = { name: "Private candidate signing", event: "workflow_run", conclusion: "success", repository: { full_name: "martinezelx/project-gitodile" } };
+  const run = {
+    id: 42,
+    name: "Private candidate signing",
+    event: "workflow_run",
+    conclusion: "success",
+    path: ".github/workflows/private-candidate-signing.yml",
+    head_branch: "main",
+    repository: { full_name: "martinezelx/project-gitodile" },
+  };
   assert.equal(validateSourceRun(run, "martinezelx/project-gitodile"), true);
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, conclusion: "failure" }, "martinezelx/project-gitodile"));
+  expectCode("source_run_invalid", () => validateSourceRun({ ...run, path: ".github/workflows/ci.yml" }, "martinezelx/project-gitodile"));
   const first = updateFeedbackReadme("# GitOdile — feedback\n\nThere is no source code here, and there are no pull requests to send. Issues,\n\nEl código de la aplicación es privado. Este repositorio no contiene código de\nla aplicación ni descargas.\n");
-  assert.match(first, /Signed installers/);
+  assert.match(first, /Signed Windows x86-64/);
+  assert.match(first, /macOS is not yet qualified/);
   assert.equal(updateFeedbackReadme(first), first);
-  assert.doesNotMatch(first, /project-gitodile/);
 });
 
 test("the publication workflow is manual, serialized, pinned and keeps destination credentials out of staging", () => {
@@ -305,6 +378,8 @@ test("the publication workflow is manual, serialized, pinned and keeps destinati
   assert.doesNotMatch(JSON.stringify(workflow.jobs["authorize-and-stage"]), /GITODILE_PUBLIC_RELEASE_TOKEN|contents.:.write/);
   assert.equal(workflow.jobs.publish.steps.some((step) => step.uses?.startsWith("actions/checkout@")), false);
   assert.match(JSON.stringify(workflow.jobs.publish), /GITODILE_PUBLIC_RELEASE_TOKEN/);
+  assert.doesNotMatch(JSON.stringify(workflow.jobs.publish), /GITHUB_TOKEN|github\.token|source-run-id/);
+  assert.match(source, /validated-source-run\.json/);
   assert.match(source, /qualification-evidence\.mjs/);
   for (const match of source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) assert.match(match[1], /@[0-9a-f]{40}$/);
 });

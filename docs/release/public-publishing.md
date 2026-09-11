@@ -3,19 +3,22 @@
 This runbook implements the public promotion half of
 [ADR 0010](../adr/0010-distribute-signed-app-updates-through-public-github-releases.md).
 It consumes the package-only output of the
-[private signed-build pipeline](signed-builds.md); it never compiles or signs an
+[protected signed-build pipeline](signed-builds.md); it never compiles or signs an
 application and never accepts a local installer path supplied to the privileged
 job.
 
 No production publication is currently authorized. The qualification registry
 [`update-target-qualifications.json`](update-target-qualifications.json) is
-deny-by-default: all four candidate targets remain `qualification_required`,
+deny-by-default: Windows x86-64 and Linux x86-64 remain
+`qualification_required`, both macOS targets are `planned_disabled`,
 working-name clearance is not evidenced, and `productionPromotion.enabled` is
-false. Task 065-9-7 alone may replace those states after recording the real
+false. Tasks 065-9-7 and 065-9-8 may replace the enabled-target states only
+after recording the real
 signed A-to-B evidence described by the
-[updater qualification runbook](updater-qualification.md). Schema version 2
+[updater qualification runbook](updater-qualification.md). Schema version 3
 binds each record to its target, both signed builds, preservation/failure
-results and platform trust; the older shallow two-record form is rejected.
+results and platform trust, while separately retaining the pending public
+`.4` to `.5` proof; older shallow forms are rejected.
 
 ## Promotion model
 
@@ -29,16 +32,16 @@ workflow and one closed mode:
   cannot finalize it or write `stable.json` / `preview.json`.
 - `production` accepts only a production-signing profile, a fixed UTC
   publication timestamp and a registry that approves production plus every
-  exact target in the signed matrix. A missing or malformed A/B proof blocks
+  exact enabled target in the signed matrix. A missing or malformed A/B proof blocks
   the entire release; the publisher never drops the failed row to make a
   partial manifest.
 
 The unprivileged staging job checks the live feedback contract, rehashes the
-complete signed matrix, checks updater/OS/notary evidence independently,
+complete enabled signed matrix, checks updater and OS-trust evidence independently,
 derives the channel and GitHub prerelease flag from the version, and creates a
 public-only bundle. That bundle contains packages, updater signatures,
 `latest.json`, `SHA256SUMS`, `LICENSE`, `THIRD_PARTY_LICENSES.md`, curated notes
-and the reviewed publisher runtime. It does not contain the private source SHA
+and the reviewed publisher runtime. It does not expose the source SHA as an asset,
 as a public asset, evidence files, candidate archives, signing material or a
 credential.
 
@@ -46,9 +49,10 @@ Only the second job enters a destination environment and receives
 `GITODILE_PUBLIC_RELEASE_TOKEN`. Use a short-lived GitHub App installation token
 with Contents write access only to `martinezelx/gitodile-feedback`; a narrowly
 scoped expiring fine-grained PAT is the temporary fallback. This job does not
-check out the private repository. Both destination environments require
+check out the source repository. Source visibility is not an authorization
+boundary. Both destination environments require
 reviewers and no administrator bypass; production additionally requires the
-065-9-7 evidence review and working-name clearance.
+065-9-7/065-9-8 evidence review and working-name clearance.
 
 ## Immutable release sequence
 
@@ -57,11 +61,15 @@ reviewers and no administrator bypass; production additionally requires the
    authenticated URLs, local paths, credentials or signing details.
 2. Verify the referenced signing run and its single `private-signed-v<version>`
    artifact. `matrix.json` must remain `publicPromotionAllowed: false`; the
-   public publisher supplies the separate promotion decision.
+   public publisher supplies the separate promotion decision. Verify that all
+   targets record the same updater public-key ID and that validation and
+   production identities are different.
 3. Dispatch the public workflow in `validation-draft` first. Inspect the draft,
-   asset names, hashes, flags, public tag and curated notes. This is pipeline
-   validation, not target qualification.
-4. After 065-9-7 has recorded every target and the release approval, dispatch
+   asset names, hashes, flags, public tag and curated notes; interrupt and retry
+   once to prove reconciliation. Draft assets require authenticated inspection
+   because GitHub does not expose draft downloads anonymously. Confirm that no
+   production feed moved. This is pipeline validation, not target qualification.
+4. After 065-9-7/065-9-8 have recorded both enabled targets and the release approval, dispatch
    `production` with the same signing run and fixed UTC timestamp. Do not edit
    the notes, timestamp or qualification registry during a retry.
 5. The coordinator creates the public lightweight tag at a commit in the
@@ -80,6 +88,15 @@ Stable versions set it to false, advance `stable.json`, and advance preview only
 when newer than its current candidate. Equal versions must have byte-identical
 manifests. Older versions fail closed. A stable release is newly built and
 signed; changing a preview release flag is never promotion.
+
+The asset and manifest set is exactly Windows x86-64 NSIS plus Linux x86-64
+AppImage. A Darwin target or macOS-looking asset is an error while task 065-10
+is open. Production approval is the pre-publication gate: it records the real
+validation draft, interrupted retry, immutable reconciliation, unchanged feed,
+the `.2` to `.3` installed qualification and name clearance. Anonymous
+downloads, preview advancement and the public `.4` to `.5` installed proof are
+recorded afterward in `publicPreviewQualification`; they cannot be prerequisites
+for their own first publication.
 
 ## Retry and recovery
 
@@ -115,15 +132,17 @@ private security channel and repository settings before the privileged job.
 - No real complete signed matrix from 065-9-5 exists. A read-only GitHub audit
   on 2026-09-11 found no repository variables, repository secrets or protected
   environments configured.
-- Production and validation updater keys/backups, Authenticode identity, Apple
-  Developer ID/notary access and protected environments are not evidenced.
+- Production and validation updater keys/backups, a real Authenticode identity
+  and protected environments are not evidenced. Apple credentials are
+  deliberately out of scope with macOS disabled under task 065-10.
 - No destination-scoped publisher credential or destination environment is
   evidenced, and the public feedback repository has no releases.
 - The public feedback README has not been changed because this work performs no
   commit or push; the coordinator holds the reviewed idempotent update for the
   first authorized promotion.
-- No target has the two real installed packages and failure evidence required
-  by 065-9-7, and macOS retains its replacement-safety blocker.
+- Neither enabled target has the two real installed packages and failure
+  evidence required by 065-9-7/065-9-8. macOS retains its separate
+  replacement-safety blocker without entering this release matrix.
 - Written clearance for the working name is not evidenced.
 
 Local fixtures, mocked trust values and workflow parsing prove the contracts,

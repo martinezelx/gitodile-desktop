@@ -1,6 +1,6 @@
 ---
 id: 065-9-5
-title: Build signed release artifacts in private CI
+title: Build signed release artifacts in protected CI
 status: active
 priority: high
 type: feature
@@ -16,7 +16,7 @@ queue: "01"
 
 # Goal
 
-Produce verified platform packages from checked source tags without exposing private source or signing secrets.
+Produce verified platform packages from checked source tags without exposing signing secrets.
 
 # Context
 
@@ -26,10 +26,12 @@ owns the accepted architecture. Execute in queue order on the approved version b
 
 # Scope
 
-- Implement private CI that validates tag syntax, main ancestry, exact source revision and agreement of all version metadata; ordinary branch pushes and merges do not publish.
-- Build the required target matrix and sign final updater artifacts; handle OS signing and macOS notarization separately with trusted-job credentials.
+- Implement protected CI that validates tag syntax, main ancestry, exact source revision and agreement of all version metadata; ordinary branch pushes and merges do not publish.
+- Build the enabled target matrix and sign final updater artifacts; handle
+  Windows OS signing separately with trusted-job credentials. macOS remains
+  disabled under task 065-10.
 - Provide protected validation builds for two forward versions without promoting public channel feeds, so updater qualification can precede a public release.
-- Record artifact hashes, private source/build provenance, certificate identities and the key backup/rotation/loss procedure; do not log secrets or export private source archives.
+- Record artifact hashes, source/build provenance, certificate identities and the key backup/rotation/loss procedure; do not log secrets or export source archives.
 
 # Out of scope
 
@@ -50,23 +52,24 @@ Public feed promotion, replacing finalized assets and the complete product QA ma
 
 Implemented the locally verifiable pipeline boundary on 2026-09-10. The task
 remains active because no production/validation updater key, Windows signing
-certificate, Apple identity/notary access, protected-environment configuration,
+certificate, protected-environment configuration,
 or real signed matrix run is evidenced. Consequently no target is enabled and
 the two artifact-producing acceptance criteria remain open.
 
 - `.github/workflows/private-candidate-build.yml` is tag-push-only. Its
   secretless validator checks the exact grammar, tag object/SHA, `main`
-  ancestry, all four version owners and the derived channel before a four-target
-  unsigned matrix can start. Branch pushes, pull requests and ordinary merges
+  ancestry, all four version owners and the derived channel before the enabled
+  Windows x86-64/Linux x86-64 unsigned matrix can start. Branch pushes, pull requests and ordinary merges
   do not trigger it.
 - `.github/workflows/private-candidate-signing.yml` uses `workflow_run`, is
   loaded from protected `main`, repeats Git-object and complete-matrix/hash
   validation, and never checks out candidate source inside signing jobs.
-  Windows, Apple and updater secrets are split across protected environments.
+  Windows and updater secrets are split across protected environments.
   The final coordinator alone can close a matrix, and every output says
   `publicPromotionAllowed: false`.
 - `scripts/release/` owns the validators, evidence/hash generation, credential
-  readiness guard and isolated Windows/macOS signing helpers. The Rust example
+  readiness guard and the active isolated Windows signing helper. A retained
+  macOS helper is not wired into the disabled matrix. The Rust example
   independently verifies Tauri updater signatures. Evidence binds full source
   SHA/tag, version/channel/profile, target, final-byte SHA-256, public
   certificate/signer identity and each verification result.
@@ -77,10 +80,11 @@ the two artifact-producing acceptance criteria remain open.
   compromise and loss procedures live in the
   [private signed-build runbook](../../../docs/release/signed-builds.md).
 
-External blockers are exact rather than simulated: the four updater public
+External blockers are exact rather than simulated: the validation and
+production updater public
 identity variables; production and validation updater private keys plus
-verified offline backups; Authenticode certificate access; Apple Developer ID,
-team and notarization access; protected-environment reviewers; runner/package
+verified offline backups; Authenticode certificate access;
+protected-environment reviewers; runner/package
 availability; and real platform executions. Working-name clearance remains a
 separate public-release gate. An absent credential fails by name before a
 signing command and cannot yield a production evidence record.
@@ -102,6 +106,6 @@ Local validation on 2026-09-10:
 `pnpm run check` passed over 356 Markdown files / 153 task IDs, the release and
 architecture guards, TypeScript, 84 frontend test files / 858 tests, the
 production build, Rust formatting and Clippy, and 396 Rust tests.
-`git diff --check` also passed. No Actions build, Authenticode signature, Apple
-signature/notarization, production updater signature or installed update was
+`git diff --check` also passed. No Actions build, Authenticode signature,
+production updater signature or installed update was
 executed or claimed by this local evidence.

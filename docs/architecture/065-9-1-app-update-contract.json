@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "channels": ["stable", "preview"],
   "version": {
     "stablePattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
@@ -19,6 +19,7 @@
   "targets": [
     {
       "key": "windows-x86_64",
+      "releaseEnabled": true,
       "rustTarget": "x86_64-pc-windows-msvc",
       "installation": "windows_nsis_per_user",
       "firstInstallArtifact": "nsis-setup.exe",
@@ -28,24 +29,27 @@
     },
     {
       "key": "darwin-aarch64",
+      "releaseEnabled": false,
       "rustTarget": "aarch64-apple-darwin",
       "installation": "macos_app_bundle",
       "firstInstallArtifact": "dmg",
       "updateArtifact": "app.tar.gz",
       "installMode": "replace_app_bundle",
-      "automaticEligibility": "qualification_required"
+      "automaticEligibility": "planned_disabled"
     },
     {
       "key": "darwin-x86_64",
+      "releaseEnabled": false,
       "rustTarget": "x86_64-apple-darwin",
       "installation": "macos_app_bundle",
       "firstInstallArtifact": "dmg",
       "updateArtifact": "app.tar.gz",
       "installMode": "replace_app_bundle",
-      "automaticEligibility": "qualification_required"
+      "automaticEligibility": "planned_disabled"
     },
     {
       "key": "linux-x86_64",
+      "releaseEnabled": true,
       "rustTarget": "x86_64-unknown-linux-gnu",
       "installation": "linux_appimage",
       "firstInstallArtifact": "AppImage",

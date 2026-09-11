@@ -132,19 +132,23 @@ from tagged commits on `main`. Short-lived version branches prepare releases;
 the version/tag selects the channel. See
 [ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
-The native updater lifecycle and its visual controls are implemented, but
-production keys are not configured and no target is enabled for automatic
-installation until its real signed A-to-B qualification succeeds. Signed build
-validation, private evidence and protected signing workflows are implemented,
-but no real certificate/key run has passed yet. The manual public publisher,
+The native updater lifecycle and its visual controls are implemented. The
+current release matrix enables only Windows x86-64 per-user NSIS and Linux
+x86-64 AppImage candidates, but neither is enabled for automatic installation
+until its real signed A-to-B qualification succeeds. Both macOS targets are
+planned and explicitly disabled under task 065-10; they are not advertised in
+feeds or published as supported packages. Signed-build validation, protected
+evidence and protected signing workflows are implemented, but no real
+certificate/key run has passed yet. Source-repository visibility grants no
+access to signing material or publisher credentials. The manual public publisher,
 immutable-asset reconciliation and stable/preview feed gates are implemented
 and locally tested. Production remains closed: no target is qualified, no
 publisher credential or real signed matrix is evidenced, and no release/feed
 has been published. Maintainers must follow the
-[private signed-build](docs/release/signed-builds.md) and
+[signed-build](docs/release/signed-builds.md) and
 [public publishing](docs/release/public-publishing.md) runbooks; a private
 artifact is not a release and validation drafts cannot modify a production
-feed.
+feed. The validation updater identity is distinct from production.
 
 Before publishing a desktop build, run `pnpm run check:publication`. It runs
 the complete local gate plus `check:feedback`, which checks the live public

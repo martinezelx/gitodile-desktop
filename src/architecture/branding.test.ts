@@ -31,10 +31,10 @@ describe("product identity", () => {
     expect(readSource("index.html")).toContain("<title>GitOdile</title>");
   });
 
-  it("points issue reporting at the public tracker, never the private source repository", () => {
+  it("points issue reporting at the dedicated public tracker, never the source repository", () => {
     expect(FEEDBACK_REPOSITORY_URL).toBe("https://github.com/martinezelx/gitodile-feedback");
-    // The private repository 404s for every user this button exists for, so a
-    // link back to it is a regression however it gets reintroduced.
+    // Source visibility may change; reporting remains on the stable public
+    // tracker so released builds do not depend on that operational choice.
     expect(readSource("src/app/issueReport.ts")).not.toContain("project-gitodile");
     expect(readSource("src/app/TitlebarMenu.tsx")).not.toContain("github.com");
   });

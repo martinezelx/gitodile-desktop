@@ -1,6 +1,12 @@
-import { QUALIFICATION_PAIR, REQUIRED_TARGETS, TARGET_CONTRACTS, ReleaseValidationError } from "./release-candidate.mjs";
+import {
+  ALL_TARGETS,
+  QUALIFICATION_PAIR,
+  REQUIRED_TARGETS,
+  TARGET_CONTRACTS,
+  ReleaseValidationError,
+} from "./release-candidate.mjs";
 
-export const QUALIFICATION_SCHEMA_VERSION = 2;
+export const QUALIFICATION_SCHEMA_VERSION = 3;
 
 export const REQUIRED_PRESERVATION_CHECKS = Object.freeze([
   "settings",
@@ -33,6 +39,8 @@ const SHA256 = /^[0-9a-f]{64}$/;
 const SOURCE_SHA = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 const RUN_URL = /^https:\/\/github\.com\/martinezelx\/project-gitodile\/actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?$/;
 const HTTPS_URL = /^https:\/\//;
+const PUBLIC_RELEASE_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-feedback\/releases\/tag\/v0\.2\.0-preview\.[45]$/;
+const PUBLIC_ASSET_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-feedback\/releases\/download\/v0\.2\.0-preview\.[45]\/[A-Za-z0-9._-]+$/;
 
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
@@ -88,7 +96,7 @@ function expectedEnvironment(target) {
   return { os: "macos", architecture: target.endsWith("aarch64") ? "aarch64" : "x86_64" };
 }
 
-function validateTargetEvidence(entry, target) {
+function validateTargetEvidence(entry, target, expectedUpdaterPublicKeyId) {
   if (entry.status !== "qualified" || !Array.isArray(entry.evidence) || entry.evidence.length !== 1) return false;
   const proof = entry.evidence[0];
   try {
@@ -111,6 +119,10 @@ function validateTargetEvidence(entry, target) {
     ) fail("qualification_invalid", `${target} does not prove the fixed A-to-B transition`);
     validateBuild(proof.builds?.from, fromVersion, target, `${target} build A`);
     validateBuild(proof.builds?.to, toVersion, target, `${target} build B`);
+    if (
+      proof.builds.from.updaterSignature.publicKeyId !== expectedUpdaterPublicKeyId ||
+      proof.builds.to.updaterSignature.publicKeyId !== expectedUpdaterPublicKeyId
+    ) fail("qualification_invalid", `${target} validation builds use an unexpected updater identity`);
 
     for (const check of REQUIRED_PRESERVATION_CHECKS) {
       const required = check === "gitHistory" ? "unchanged" : "passed";
@@ -157,9 +169,115 @@ function validateProductionApproval(approval) {
   if (publisher?.result !== "passed" || !RUN_URL.test(publisher?.qualificationRunUrl ?? "") || !SHA256.test(publisher?.reportSha256 ?? "")) {
     fail("production_not_approved", "publisher qualification provenance is incomplete");
   }
-  for (const check of ["fullMatrixFailure", "retry", "immutableAssets", "previewPromotion", "stablePromotion", "anonymousAccess"]) {
+  for (const check of ["validationDraft", "fullMatrixFailure", "retry", "immutableAssets", "feedUnchanged"]) {
     if (publisher?.[check] !== "passed") fail("production_not_approved", `publisher check ${check} is incomplete`);
   }
+}
+
+function validateReleaseMatrix(qualification) {
+  if (
+    JSON.stringify(qualification?.releaseMatrix?.enabledTargets) !== JSON.stringify(REQUIRED_TARGETS) ||
+    !Array.isArray(qualification?.releaseMatrix?.disabledTargets)
+  ) fail("qualification_invalid", "reviewed release matrix is missing or differs from the enabled target set");
+  const disabled = qualification.releaseMatrix.disabledTargets;
+  const expectedDisabled = ALL_TARGETS.filter((target) => !REQUIRED_TARGETS.includes(target));
+  if (JSON.stringify(disabled.map((entry) => entry.key)) !== JSON.stringify(expectedDisabled)) {
+    fail("qualification_invalid", "disabled target set differs from the reviewed contract");
+  }
+  for (const entry of disabled) {
+    if (
+      entry.status !== "planned_disabled" || entry.reason !== "real_platform_qualification_required" ||
+      entry.followUpTask !== "065-10" || !Array.isArray(entry.evidence) || entry.evidence.length !== 0
+    ) fail("qualification_invalid", `${entry.key} lacks an explicit empty planned-disabled record`);
+  }
+}
+
+function validateValidationQualification(record, required) {
+  const [fromVersion, toVersion] = QUALIFICATION_PAIR;
+  if (
+    record?.signingProfile !== "validation" || record?.fromVersion !== fromVersion ||
+    record?.toVersion !== toVersion
+  ) fail("qualification_invalid", "validation qualification pair or signing profile is invalid");
+  if (record.status === "pending") {
+    if (record.evidence !== null) fail("qualification_invalid", "pending validation qualification cannot contain evidence");
+    if (required) fail("qualification_required", "the controlled validation qualification is still pending");
+    return;
+  }
+  if (
+    record.status !== "qualified" || record.evidence?.schemaVersion !== 1 ||
+    !RUN_URL.test(record.evidence?.controlledBundleRunUrl ?? "") ||
+    !SHA256.test(record.evidence?.bundleReportSha256 ?? "") ||
+    typeof record.evidence?.updaterPublicKeyId !== "string" ||
+    record.evidence.updaterPublicKeyId.length === 0
+  ) fail("qualification_required", "the controlled validation qualification is not evidenced");
+}
+
+export function validatePublicPreviewQualification(record) {
+  if (
+    record?.signingProfile !== "production" || record?.fromVersion !== "0.2.0-preview.4" ||
+    record?.toVersion !== "0.2.0-preview.5" || !["pending", "qualified"].includes(record?.status)
+  ) fail("qualification_invalid", "public preview qualification record is malformed");
+  if (record.status === "pending" && (
+    record.productionUpdaterPublicKeyId !== null || record.feed !== null ||
+    !Array.isArray(record.releases) || record.releases.length !== 0 ||
+    !Array.isArray(record.targets) || record.targets.length !== 0
+  )) fail("qualification_invalid", "pending public preview qualification must not contain inferred evidence");
+  if (record.status === "pending") return true;
+  if (typeof record.productionUpdaterPublicKeyId !== "string" || record.productionUpdaterPublicKeyId.length === 0) {
+    fail("qualification_invalid", "qualified public previews need the production updater key identity");
+  }
+  if (!Array.isArray(record.releases) || record.releases.length !== 2) {
+    fail("qualification_invalid", "public preview qualification needs exactly two release records");
+  }
+  const expectedVersions = [record.fromVersion, record.toVersion];
+  for (let index = 0; index < expectedVersions.length; index += 1) {
+    const release = record.releases[index];
+    const version = expectedVersions[index];
+    if (
+      release?.version !== version || release?.tag !== `v${version}` || !SOURCE_SHA.test(release?.sourceSha ?? "") ||
+      !RUN_URL.test(release?.signingRunUrl ?? "") || !RUN_URL.test(release?.publishingRunUrl ?? "") ||
+      !PUBLIC_RELEASE_URL.test(release?.publicReleaseUrl ?? "") || !SOURCE_SHA.test(release?.publicTagCommit ?? "") ||
+      release?.updaterPublicKeyId !== record.productionUpdaterPublicKeyId ||
+      !SHA256.test(release?.manifestSha256 ?? "") || !Array.isArray(release?.assets) ||
+      release.assets.length !== REQUIRED_TARGETS.length
+    ) fail("qualification_invalid", `public release evidence for ${version} is incomplete`);
+    const assets = new Map(release.assets.map((asset) => [asset.target, asset]));
+    if (assets.size !== release.assets.length) fail("qualification_invalid", `${version} public assets contain duplicate targets`);
+    for (const target of REQUIRED_TARGETS) {
+      const asset = assets.get(target);
+      for (const [kind, value] of [["package", asset?.package], ["signature", asset?.signature]]) {
+        if (
+          typeof value?.fileName !== "string" || value.fileName !== value.fileName.split(/[\\/]/).at(-1) ||
+          !Number.isSafeInteger(value?.size) || value.size <= 0 || !SHA256.test(value?.sha256 ?? "") ||
+          !PUBLIC_ASSET_URL.test(value?.anonymousUrl ?? "")
+        ) fail("qualification_invalid", `${version} ${target} ${kind} anonymous asset evidence is invalid`);
+      }
+    }
+  }
+  if (
+    record.feed?.url !== "https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/preview.json" ||
+    record.feed?.version !== record.toVersion || !SHA256.test(record.feed?.sha256 ?? "") ||
+    !SOURCE_SHA.test(record.feed?.commitSha ?? "") || !isCanonicalTimestamp(record.feed?.observedAt)
+  ) fail("qualification_invalid", "public preview feed evidence is incomplete");
+  if (!Array.isArray(record.targets) || record.targets.length !== REQUIRED_TARGETS.length) {
+    fail("qualification_invalid", "public preview installed evidence is incomplete");
+  }
+  const targetReports = new Map(record.targets.map((target) => [target.key, target]));
+  if (targetReports.size !== record.targets.length) fail("qualification_invalid", "public preview target evidence contains duplicates");
+  for (const target of REQUIRED_TARGETS) {
+    const report = targetReports.get(target);
+    const expected = expectedEnvironment(target);
+    if (
+      report?.environment?.os !== expected.os || report?.environment?.architecture !== expected.architecture ||
+      report?.environment?.installationMode !== TARGET_CONTRACTS[target].installation ||
+      typeof report?.environment?.osVersion !== "string" || report.environment.osVersion.length === 0 ||
+      report?.transition?.runningVersionBefore !== record.fromVersion ||
+      report?.transition?.runningVersionAfter !== record.toVersion || report?.transition?.result !== "passed" ||
+      report?.transition?.falseSuccessObserved !== false || report?.transition?.forcedDowngradeObserved !== false ||
+      !HTTPS_URL.test(report?.report?.url ?? "") || !SHA256.test(report?.report?.sha256 ?? "")
+    ) fail("qualification_invalid", `${target} public installed transition evidence is incomplete`);
+  }
+  return true;
 }
 
 export function validateQualificationRegistry(qualification, candidate, mode) {
@@ -167,24 +285,48 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
     fail("qualification_invalid", "qualification registry is malformed");
   }
   const byTarget = new Map(qualification.targets.map((item) => [item.key, item]));
-  if (byTarget.size !== qualification.targets.length || qualification.targets.length !== REQUIRED_TARGETS.length) {
+  validateReleaseMatrix(qualification);
+  validatePublicPreviewQualification(qualification.publicPreviewQualification);
+  if (
+    qualification.validationQualification?.status === "qualified" &&
+    qualification.publicPreviewQualification?.status === "qualified" &&
+    qualification.validationQualification.evidence?.updaterPublicKeyId ===
+      qualification.publicPreviewQualification.productionUpdaterPublicKeyId
+  ) fail("qualification_invalid", "validation and production updater identities must be distinct");
+  if (byTarget.size !== qualification.targets.length || qualification.targets.length !== ALL_TARGETS.length) {
     fail("qualification_invalid", "qualification registry contains duplicate or unexpected targets");
   }
-  for (const target of REQUIRED_TARGETS) {
+  for (const target of ALL_TARGETS) {
     if (!byTarget.has(target)) fail("qualification_invalid", `qualification registry omits ${target}`);
+  }
+  if (
+    JSON.stringify(candidate.matrix.requiredTargets) !== JSON.stringify(REQUIRED_TARGETS) ||
+    JSON.stringify(candidate.matrix.targets.map((target) => target.key)) !== JSON.stringify(REQUIRED_TARGETS)
+  ) {
+    fail("qualification_invalid", "signed matrix differs from the reviewed enabled target set");
+  }
+  for (const target of ALL_TARGETS.filter((key) => !REQUIRED_TARGETS.includes(key))) {
+    const entry = byTarget.get(target);
+    if (entry?.status !== "planned_disabled" || !Array.isArray(entry.evidence) || entry.evidence.length !== 0) {
+      fail("qualification_invalid", `${target} must remain planned_disabled without evidence or publication`);
+    }
   }
   if (mode === "validation-draft") {
     if (candidate.release.signingProfile !== "validation" || candidate.release.purpose !== "qualification") {
       fail("profile_mismatch", "validation drafts require the fixed validation signing profile");
     }
+    validateValidationQualification(qualification.validationQualification, false);
     return { productionAllowed: false, qualifiedTargets: [] };
   }
   if (mode !== "production") fail("invalid_mode", "mode must be validation-draft or production");
   if (candidate.release.signingProfile !== "production" || candidate.release.purpose !== "release_candidate") {
     fail("profile_mismatch", "production promotion requires a production-signed release candidate");
   }
+  validateValidationQualification(qualification.validationQualification, true);
   validateProductionApproval(qualification.productionPromotion);
-  const qualifiedTargets = candidate.matrix.requiredTargets.filter((target) => validateTargetEvidence(byTarget.get(target), target));
+  const validationUpdaterPublicKeyId = qualification.validationQualification.evidence.updaterPublicKeyId;
+  const qualifiedTargets = candidate.matrix.requiredTargets.filter((target) =>
+    validateTargetEvidence(byTarget.get(target), target, validationUpdaterPublicKeyId));
   if (qualifiedTargets.length !== candidate.matrix.requiredTargets.length) {
     const missing = candidate.matrix.requiredTargets.filter((target) => !qualifiedTargets.includes(target));
     fail("qualification_required", `targets still require real A-to-B evidence: ${missing.join(", ")}`);

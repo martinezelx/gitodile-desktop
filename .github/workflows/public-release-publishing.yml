@@ -30,12 +30,33 @@ concurrency:
 jobs:
   authorize-and-stage:
     name: Verify private evidence and stage public-only bytes
+    if: github.ref == 'refs/heads/main' && github.sha == github.workflow_sha
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: main
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
+      - name: Validate manual dispatch inputs
+        env:
+          SIGNING_RUN_ID: ${{ inputs.signing_run_id }}
+          PUBLICATION_MODE: ${{ inputs.mode }}
+          PUBLISHED_AT: ${{ inputs.published_at }}
+        run: |
+          node --input-type=module <<'NODE'
+          const runId = process.env.SIGNING_RUN_ID ?? "";
+          const mode = process.env.PUBLICATION_MODE ?? "";
+          const publishedAt = process.env.PUBLISHED_AT ?? "";
+          if (!/^[1-9][0-9]*$/.test(runId)) throw new Error("Signing run ID must be a positive integer.");
+          if (!new Set(["validation-draft", "production"]).has(mode)) throw new Error("Publication mode is invalid.");
+          if (mode === "production") {
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(publishedAt)) throw new Error("Production needs a canonical UTC timestamp.");
+            const parsed = new Date(publishedAt);
+            if (Number.isNaN(parsed.valueOf()) || parsed.toISOString().replace(".000Z", "Z") !== publishedAt) throw new Error("Production timestamp is invalid.");
+          } else if (publishedAt !== "") {
+            throw new Error("Validation drafts must not set a publication timestamp.");
+          }
+          NODE
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           run-id: ${{ inputs.signing_run_id }}
@@ -43,7 +64,33 @@ jobs:
           pattern: private-signed-*
           path: signed
           merge-multiple: true
-      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+      - name: Validate the exact source signing workflow run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SIGNING_RUN_ID: ${{ inputs.signing_run_id }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import { validateSourceRun } from "./scripts/release/github-publication.mjs";
+          const response = await fetch(`https://api.github.com/repos/${process.env.SOURCE_REPOSITORY}/actions/runs/${process.env.SIGNING_RUN_ID}`, {
+            headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "X-GitHub-Api-Version": "2022-11-28" },
+            signal: AbortSignal.timeout(15000),
+          });
+          if (!response.ok) throw new Error(`Signing run lookup failed with HTTP ${response.status}.`);
+          const run = await response.json();
+          validateSourceRun(run, process.env.SOURCE_REPOSITORY);
+          fs.writeFileSync("validated-source-run.json", `${JSON.stringify({
+            id: run.id,
+            name: run.name,
+            event: run.event,
+            conclusion: run.conclusion,
+            path: run.path,
+            head_branch: run.head_branch,
+            repository: { full_name: run.repository.full_name },
+          }, null, 2)}\n`, { flag: "wx" });
+          NODE
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 11.17.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -61,13 +108,17 @@ jobs:
           test -f "docs/release/notes/$tag.md"
           printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
       - name: Validate the full signed matrix and prepare public-only bytes
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          PUBLICATION_MODE: ${{ inputs.mode }}
+          PUBLISHED_AT: ${{ inputs.published_at }}
         run: |
-          args=(--signed signed --notes "docs/release/notes/${{ steps.release.outputs.tag }}.md" --qualification docs/release/update-target-qualifications.json --mode "${{ inputs.mode }}" --public-file license=LICENSE --public-file third-party-notices=THIRD_PARTY_LICENSES.md --output public-bundle)
-          if [[ "${{ inputs.mode }}" == production ]]; then
-            test -n "${{ inputs.published_at }}"
-            args+=(--published-at "${{ inputs.published_at }}")
+          args=(--signed signed --notes "docs/release/notes/$RELEASE_TAG.md" --qualification docs/release/update-target-qualifications.json --mode "$PUBLICATION_MODE" --public-file license=LICENSE --public-file third-party-notices=THIRD_PARTY_LICENSES.md --output public-bundle)
+          if [[ "$PUBLICATION_MODE" == production ]]; then
+            test -n "$PUBLISHED_AT"
+            args+=(--published-at "$PUBLISHED_AT")
           else
-            test -z "${{ inputs.published_at }}"
+            test -z "$PUBLISHED_AT"
           fi
           node scripts/release/public-release.mjs "${args[@]}"
       - name: Add reviewed publisher runtime without application source
@@ -75,6 +126,7 @@ jobs:
           mkdir -p public-bundle/runtime/scripts/release public-bundle/runtime/docs/architecture
           cp scripts/release/github-publication.mjs scripts/release/public-release.mjs scripts/release/qualification-evidence.mjs scripts/release/release-candidate.mjs scripts/release/release-evidence.mjs public-bundle/runtime/scripts/release/
           cp docs/architecture/065-9-1-app-update-contract.json public-bundle/runtime/docs/architecture/
+          cp validated-source-run.json public-bundle/runtime/
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: public-publication-bundle
@@ -100,10 +152,10 @@ jobs:
       - name: Reconcile immutable release and promote only when qualified
         working-directory: public-bundle/runtime
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           GITODILE_PUBLIC_RELEASE_TOKEN: ${{ secrets.GITODILE_PUBLIC_RELEASE_TOKEN }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
         run: >-
           node scripts/release/github-publication.mjs
           --directory ..
-          --source-repository "${{ github.repository }}"
-          --source-run-id "${{ inputs.signing_run_id }}"
+          --source-repository "$SOURCE_REPOSITORY"
+          --source-run validated-source-run.json

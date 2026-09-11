@@ -82,6 +82,13 @@ export function prepareQualificationBundle({ fromDirectory, toDirectory, validat
   const [fromVersion, toVersion] = QUALIFICATION_PAIR;
   const from = loadSignedMatrix(fromDirectory, fromVersion);
   const to = loadSignedMatrix(toDirectory, toVersion);
+  const updaterIdentities = new Set(
+    [...from.ordered, ...to.ordered].map((record) => record.trust.updater.publicIdentity),
+  );
+  if (updaterIdentities.size !== 1) {
+    fail("provenance_mismatch", "the validation pair must use one consistent updater identity");
+  }
+  const updaterPublicKeyId = [...updaterIdentities][0];
   const names = new Set();
   const platforms = {};
   const copied = [];
@@ -142,6 +149,7 @@ export function prepareQualificationBundle({ fromDirectory, toDirectory, validat
     purpose: "065-9-7-controlled-qualification",
     publicPromotionAllowed: false,
     validationFeed: feed.href,
+    updaterPublicKeyId,
     pair: {
       from: { version: fromVersion, tag: from.matrix.source.tag, sourceSha: from.matrix.source.sha, signedMatrixSha256: from.matrixSha256 },
       to: { version: toVersion, tag: to.matrix.source.tag, sourceSha: to.matrix.source.sha, signedMatrixSha256: to.matrixSha256 },

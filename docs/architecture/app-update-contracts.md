@@ -1,14 +1,17 @@
 # Application update contracts
 
-This document is the implementation boundary established by task 065-9-1.
+This document is the implementation boundary established by task 065-9-1 and
+scoped for public Windows/Linux qualification by task 065-9-8.
 [ADR 0010](../adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 owns the durable decision; this document fixes the values and bounded types that
-tasks 065-9-2 through 065-9-7 must implement and qualify. The executable cases
+tasks 065-9-2 through 065-9-8 must implement and qualify. The executable cases
 live in [`065-9-1-app-update-contract.json`](065-9-1-app-update-contract.json).
 
 Task 065-9-3 implemented the native lifecycle on 2026-09-10. Nothing in this
-document claims that any platform is qualified: every automatic target remains
-`qualification_required` until task 065-9-7 records real signed A-to-B evidence.
+document claims that any platform is qualified: enabled automatic targets remain
+`qualification_required` until tasks 065-9-7 and 065-9-8 record real signed
+A-to-B evidence. macOS is known but `planned_disabled`, owned by task 065-10,
+and absent from the enabled release matrix.
 
 Task 065-9-5 now supplies the secretless tag build, protected signing workflow,
 complete-matrix/hash evidence and operator runbook. No production credential or
@@ -43,8 +46,9 @@ runtime evidence:
 - the public `martinezelx/gitodile-feedback` repository exists, is public, uses
   `main`, and had no releases on 2026-09-09. Both planned feed URLs returned
   HTTP 404;
-- the private source repository exposed no Actions secret names, variables, or
-  environments to the authenticated maintainer query on 2026-09-09.
+- the source repository exposed no Actions secret names, variables, or
+  environments to the authenticated maintainer query on 2026-09-09. Its
+  visibility is not a release trust boundary.
 
 The native implementation pins `tauri-plugin-updater` exactly at `2.11.0`
 and uses only its Rust API. No `@tauri-apps/plugin-updater` or process guest
@@ -109,14 +113,14 @@ For a release, one exact string must match all of these identities:
 | `src-tauri/Cargo.toml` | package `version = V` |
 | `src-tauri/Cargo.lock` | root package `gitodile` has `version = V` |
 | `src-tauri/tauri.conf.json` | `version = V` |
-| private source tag | `vV`, at the exact checked merge commit in `main` history |
+| source tag | `vV`, at the exact checked merge commit in `main` history |
 | public release tag | `vV`, on an intentionally public feedback-repository commit |
 | archived and channel manifests | top-level `version = V` |
 | GitHub prerelease flag | `true` only for `preview`; `false` for `stable` |
 
-The source and public tags share a name, not a commit identity. Private build
+The source and public tags share a name, not a commit identity. Protected build
 evidence binds the source tag/SHA to the public release; a public tag must never
-point at a private source commit. The release workflow receives the tag only,
+point at a source-repository commit. The release workflow receives the tag only,
 proves its exact commit is reachable from `main`, then derives all other values.
 There is no independent channel or prerelease input.
 
@@ -155,17 +159,19 @@ arbitrary request headers.
 
 ## Target and installation matrix
 
-Tauri static manifests use the documented `OS-ARCH` keys. The first candidate
-matrix is deliberately narrow:
+Tauri static manifests use the documented `OS-ARCH` keys. Known targets and
+the current enabled matrix are deliberately explicit:
 
-| Manifest target | Build target and first install | Automatic contract | Current evidence / gate | Manual fallback |
-| --- | --- | --- | --- | --- |
-| `windows-x86_64` | `x86_64-pc-windows-msvc`; per-user NSIS `-setup.exe` | Reuse the final NSIS executable, `passive` mode; installer handoff exits the old process | Candidate only. Needs Authenticode, updater signature, installed A→B and locked/low-space/path QA | Download the same signed NSIS installer |
-| `darwin-aarch64` | `aarch64-apple-darwin`; signed/notarized DMG containing the app | Signed `.app.tar.gz` replaces a writable installed app bundle; relaunch and confirm version | Candidate only. No Apple identity/notarization evidence or real host QA. The open official [replacement-safety report](https://github.com/tauri-apps/plugins-workspace/issues/3505) must be resolved or independently mitigated and tested | Download the signed/notarized DMG and replace through Finder |
-| `darwin-x86_64` | `x86_64-apple-darwin`; signed/notarized DMG containing the app | Same as Apple Silicon, with an architecture-specific artifact | Candidate only; same gates, plus real Intel hardware/VM evidence | Download the matching signed/notarized DMG |
-| `linux-x86_64` | `x86_64-unknown-linux-gnu`; AppImage | Replace only the exact running AppImage when its backing file is regular and writable; relaunch and confirm version | Candidate only. Needs oldest-supported-glibc decision and installed A→B across the advertised distro baseline | Download the signed AppImage, mark executable, and replace it manually |
+| Manifest target | Release state | Build target and first install | Automatic contract | Current evidence / gate | Manual fallback |
+| --- | --- | --- | --- | --- | --- |
+| `windows-x86_64` | Enabled | `x86_64-pc-windows-msvc`; per-user NSIS `-setup.exe` | Reuse the final NSIS executable, `passive` mode; installer handoff exits the old process | Needs real Authenticode, updater signature, installed A→B and locked/low-space/path QA | Download the same signed NSIS installer |
+| `linux-x86_64` | Enabled | `x86_64-unknown-linux-gnu`; AppImage | Replace only the exact running AppImage when its backing file is regular and writable; relaunch and confirm version | Needs updater signature, oldest-supported-glibc decision and installed A→B across the advertised distro baseline | Download the signed AppImage, mark executable, and replace it manually |
+| `darwin-aarch64` | Planned, disabled | Future `aarch64-apple-darwin` signed/notarized app and DMG | No automatic contract is advertised | Task 065-10 must resolve or independently mitigate the official [replacement-safety report](https://github.com/tauri-apps/plugins-workspace/issues/3505), then prove notarization and real host A→B | No supported download is published in this phase |
+| `darwin-x86_64` | Planned, disabled | Future `x86_64-apple-darwin` signed/notarized app and DMG | No automatic contract is advertised | Task 065-10 additionally needs real Intel evidence | No supported download is published in this phase |
 
-The updater feed contains one Windows installer family: NSIS. A current MSI or
+Only enabled, qualified targets may enter a manifest or public release asset
+set. The publisher rejects either Darwin key while macOS is disabled. The
+updater feed contains one Windows installer family: NSIS. A current MSI or
 machine-wide install is not silently converted to NSIS. Tauri documents both
 Windows families and `passive` as the default/recommended updater mode; using
 only NSIS prevents family ambiguity. macOS uses a DMG only for first/manual
@@ -338,16 +344,17 @@ Apple's [notarization requirements](https://developer.apple.com/documentation/se
 | Offline updater-key backup | Release maintainer plus a separately stored recovery copy | Not evidenced |
 | Cross-repository publisher credential | Prefer GitHub App installation token, Contents write only on `gitodile-feedback`; fine-grained expiring PAT is temporary fallback | Not configured; source `GITHUB_TOKEN` is repository-scoped and insufficient |
 | Windows Authenticode identity | Release maintainer; trusted Windows signing job only | Certificate/service identity and access not evidenced |
-| Apple Developer ID Application and notarization access | Apple team Account Holder/release maintainer; trusted macOS job only | Membership, certificate, team ID, and notary credentials not evidenced |
-| Linux packaging baseline | Release maintainer; private Linux build job | Compile-only CI exists; oldest supported glibc/distro and real AppImage QA not evidenced |
+| Apple Developer ID Application and notarization access | Future task 065-10; protected macOS environment only | Deliberately not configured for this phase; macOS is planned and disabled |
+| Linux packaging baseline | Release maintainer; protected Linux build job | Compile-only CI exists; oldest supported glibc/distro and real AppImage QA not evidenced |
 | Working-name clearance | Product owner | Still an external release gate; not evidenced as granted |
 
-Secret values, certificate material, and private source never enter this table,
+Secret values, certificate material, and protected build evidence never enter this table,
 fixtures, logs, manifests, renderer state, or public artifacts. Key rotation
 needs an old-key-signed bridge build. Loss before a bridge requires manual
 reinstallation; verification is never disabled.
 
-The private workflow boundary is deny-by-default. A broad `v*` event only
+The release workflow boundary is deny-by-default and independent of source
+visibility. A broad `v*` event only
 starts a non-secret validation job; the exact release grammar, source SHA,
 `main` ancestry and metadata agreement must pass before compilation. The build
 matrix exports packages and hashes only. A later `workflow_run`, loaded from
@@ -369,7 +376,7 @@ B = 0.2.0-preview.3 / v0.2.0-preview.3
 
 Both are future relative to the current `0.2.0-preview.1` candidate. They use a
 separate validation key and feed and must not advance `preview.json` or
-`stable.json`. For each target proposed above:
+`stable.json`. For each enabled target:
 
 1. prepare each exact version on a short-lived version branch, merge it into
    `main`, tag that exact checked merge commit, and prove npm/Cargo/lock/Tauri,
@@ -391,10 +398,12 @@ separate validation key and feed and must not advance `preview.json` or
    source SHA/tag, CI run, installation mode/path class, OS/architecture, and
    observed result in task 065-9-7.
 
-A target remains unadvertised and `qualification_required` until all of its real
-package evidence is complete. The schema-version-2 registry additionally binds
+A release-enabled target remains unadvertised and `qualification_required`
+until all of its real package evidence is complete. The schema-version-3
+registry additionally binds
 both signed matrix identities, platform trust, preservation, failure cases and
 the installed transition to the exact target. See
 [`docs/release/updater-qualification.md`](../release/updater-qualification.md).
 The contract fixtures validate selection and metadata now; they are not
-substitutes for the two installations.
+substitutes for the two installations. Darwin remains `planned_disabled` with
+empty evidence and follow-up owner 065-10.

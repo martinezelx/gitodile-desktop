@@ -34,11 +34,11 @@ owns the accepted architecture. Execute in queue order on the approved version b
 
 # Out of scope
 
-Public source hosting, custom update servers, rollout percentages and issuing a 1.0.0 readiness claim.
+Custom update servers, rollout percentages and issuing a 1.0.0 readiness claim.
 
 # Acceptance criteria
 
-- [ ] No client token or private source/archive is published, and public tags reference the public repository.
+- [ ] No credential, signing artifact or source archive is published, and public tags reference the public repository.
 - [ ] Partial matrix, anonymous-download failure, interrupted retry and concurrent release cases cannot expose an incomplete/regressed feed or overwrite finalized assets.
 - [ ] Manifest versions, URLs, signatures, target entries and GitHub flags match verified artifacts; both channels follow ADR 0010.
 - [ ] Publication and feed promotion are gated on qualification from 065-9-7; validation/draft publication can run earlier without promoting production feeds.
@@ -61,7 +61,7 @@ no channel feed was advanced.
   serialized for the destination. Its unprivileged job consumes one successful
   private signing run, runs `check:publication`, rehashes the complete signed
   matrix and stages only publishable bytes. The destination-token job has no
-  private checkout and cannot compile or sign.
+  source checkout and cannot compile or sign.
 - `scripts/release/public-release.mjs` validates immutable matrix/provenance,
   updater/OS/notary evidence, curated bounded notes, version/channel/GitHub flag
   agreement and the explicit qualification registry. It produces versioned
@@ -75,7 +75,8 @@ no channel feed was advanced.
   neither finalize nor write feeds. `production` accepts only a production
   signing profile and requires every target plus release/name approval from
   `docs/release/update-target-qualifications.json`. That registry currently
-  records every target as `qualification_required` and production disabled.
+  records Windows/Linux as `qualification_required`, macOS as
+  `planned_disabled`, and production disabled.
 - Retry, raw-cache, withdrawal, retained-installer, credential and recovery
   procedures live in the
   [public publishing runbook](../../../docs/release/public-publishing.md).

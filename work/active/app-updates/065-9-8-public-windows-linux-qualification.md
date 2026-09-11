@@ -25,8 +25,8 @@ macOS visibly disabled until it can be exercised on real hardware.
 
 Child of [epic 065-9](../release-1.0/065-9-signed-application-updates.md).
 [ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
-currently assumes a private source repository and a four-target production
-matrix. The maintainer decided on 2026-09-11 to make the source repository
+originally assumed a private source repository and a four-target production
+matrix. This task amends both assumptions. The maintainer decided on 2026-09-11 to make the source repository
 temporarily public so standard GitHub-hosted qualification runs do not consume
 the private-repository minutes allowance, then return it to private after the
 updater epic is evidenced. This temporary publication is an intentional source
@@ -76,8 +76,10 @@ macOS artifacts or runtime evidence.
   one controlled non-promoting bundle and exercise the complete installed A-to-B
   and failure matrix on real Windows and Linux environments.
 - Exercise `Public release publishing` in `validation-draft` mode, including
-  interrupted retry, immutable-asset reconciliation, exact hashes and
-  anonymous downloads, without advancing a production feed.
+  interrupted retry, immutable-asset reconciliation and exact hashes, without
+  finalizing the draft or advancing a production feed. GitHub draft assets are
+  not anonymously downloadable; anonymous verification belongs to the later
+  finalized public previews.
 - Build and publish at least two higher, successively versioned production-key
   previews through `gitodile-feedback` so a normally installed public build can
   update through the real public `preview.json`. Unless a later reviewed version
@@ -140,9 +142,10 @@ macOS artifacts or runtime evidence.
       handoff and preserve settings, sessions, drafts, operations, helpers,
       dirty tracked/untracked files and Git history. Every required failure case
       records no false success and no forced downgrade.
-- [ ] A validation draft proves safe publisher retries, immutable assets,
-      complete manifests and anonymous downloads without production feed
-      promotion or private/credential disclosure.
+- [ ] A validation draft proves safe publisher retries, immutable assets and
+      complete manifests without finalization, production feed promotion or
+      private/credential disclosure. Anonymous downloads are not claimed for a
+      GitHub draft and are instead proven by the finalized public previews.
 - [ ] Two successive production-key preview releases are publicly available in
       `martinezelx/gitodile-feedback`; their public tags target public commits,
       assets download anonymously with recorded hashes, and `preview.json`
@@ -177,26 +180,21 @@ macOS artifacts or runtime evidence.
 
 # Implementation notes
 
-Pre-implementation audit on 2026-09-11 found no known provider-token or private
-key signature in the 242 reachable commits, no sensitive filename or binary
-artifact in published refs, noreply-only commit email, an MIT license and no
-production dependency advisory from `pnpm audit --prod`. GitHub reports no
-repository variables, secrets, environments or deploy keys. Secret Scanning,
-Code Scanning, Dependabot alerts, branch protection and rulesets are currently
-disabled or unavailable on the private free repository.
+The completed second local audit is recorded in
+[`docs/release/public-readiness-audit-2026-09-12.md`](../../../docs/release/public-readiness-audit-2026-09-12.md).
+It used the checksum-verified Gitleaks 8.30.1 binary over `--all`, reviewed all
+5,122 reachable object paths and the current tree, and found no secret or
+private artifact requiring history rewrite. `pnpm audit --prod` also reported
+no known production vulnerability. The accepted disclosure covers 161 tracked
+`work/` files, strategy and critique history, the maintainer's public name and
+noreply address, and the irrevocable MIT consequence.
 
-Do not treat that result as final clearance. The local environment could not
-run the downloaded Gitleaks binary, so repeat the scan with GitHub Secret
-Scanning/Push Protection and an independently pinned scanner after public
-security controls are available. The audit also identified mutable Action refs
-in `.github/workflows/ci.yml`, repository-wide SHA enforcement disabled, and
-direct shell interpolation of `published_at` and `signing_run_id` in
-`public-release-publishing.yml`. Correct these before configuring any secret.
-
-The existing repository deliberately tracks 160 `work/` files, internal
-product-strategy wording and design critiques. They contain no detected secret
-but will become public history; require a conscious maintainer choice rather
-than assuming deletion from the current tree can retract them.
+The same preflight identified and the hardening change corrects mutable Action
+refs, missing repository-wide SHA enforcement, direct workflow-dispatch input
+interpolation, a four-platform publication matrix and insufficient separation
+between source-run validation and the destination credential. Live GitHub
+controls still must be enabled and reviewed after public visibility and before
+any credential is introduced.
 
 # Validation
 
@@ -207,4 +205,3 @@ reports, validation-draft and production publication run URLs, public feedback
 tag/release/feed commits, anonymous hash verification, final repository
 visibility decision, and complete `pnpm run check` plus
 `pnpm run check:publication` results.
-

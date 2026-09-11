@@ -50,8 +50,10 @@ export function validateFeedbackSettings(repository, reporting, labels) {
 export function validatePublicationReadme(readme) {
   assert.equal((readme.match(new RegExp(GUIDANCE_START, "g")) ?? []).length, 1, "Missing or duplicate download guidance start marker");
   assert.equal((readme.match(new RegExp(GUIDANCE_END, "g")) ?? []).length, 1, "Missing or duplicate download guidance end marker");
-  assert.match(readme, /Signed installers and application-update files/);
-  assert.match(readme, /Los instaladores firmados y los archivos de actualización/);
+  assert.match(readme, /Signed Windows x86-64 NSIS installers, Linux x86-64 AppImages and their application-update files/);
+  assert.match(readme, /Los instaladores NSIS firmados para Windows x86-64, las AppImage para Linux x86-64 y sus archivos de actualización/);
+  assert.match(readme, /macOS is not yet qualified and no macOS package is published/);
+  assert.match(readme, /macOS todavía no está cualificado y no se publica ningún paquete para macOS/);
   assert.doesNotMatch(readme, /project-gitodile/);
 }
 

@@ -8,11 +8,19 @@ Implementation contracts fixed on 2026-09-09 are recorded in the
 their executable fixture. They refine this decision without changing its two
 channels, hosting, signing, or publication architecture.
 
+An amendment accepted on 2026-09-11 makes source visibility explicitly
+irrelevant to the release trust boundary. The source repository may be public
+or private; signing keys, OS certificates, protected build evidence and the
+destination credential remain available only to reviewed environment jobs.
+For the first qualified preview phase, the enabled updater matrix is exactly
+Windows x86-64 NSIS and Linux x86-64 AppImage. Both macOS targets are planned
+but disabled and are owned by follow-up task 065-10.
+
 ## Context
 
 GitOdile needs to update its installed desktop application without interrupting
-Git operations, losing UI drafts, exposing private source, or requiring users
-to authenticate. This is separate from getting a project's remote changes and
+Git operations, losing UI drafts, exposing release credentials or protected
+build evidence, or requiring users to authenticate. This is separate from getting a project's remote changes and
 from the existing system-Git update command.
 
 Inspection on 2026-09-03 found:
@@ -44,13 +52,15 @@ design, not a claim that update infrastructure exists. Implementation belongs to
 ### Hosting and channels
 
 Use the official Tauri 2 updater from Rust and publish its signed artifacts as
-GitHub Release assets in `martinezelx/gitodile-feedback`. Keep source, builds,
-signing configuration, and private build evidence in `project-gitodile`.
+GitHub Release assets in `martinezelx/gitodile-feedback`. Source and reviewed
+non-secret release configuration live in `project-gitodile`; Actions artifacts,
+signing material and protected build evidence remain access-controlled
+regardless of that repository's visibility.
 Installers are release assets, never binary commits or Git LFS objects.
 
-The public repository can serve both feedback and downloads. Public release
-tags refer to commits in that repository; they cannot refer to private source
-commits. Record the source tag/SHA and build run in private release evidence,
+The public feedback repository can serve both feedback and downloads. Public
+release tags refer to commits in that repository, never to source-repository
+commits. Record the source tag/SHA and build run in protected release evidence,
 and expose only intentionally public provenance. GitHub's automatic source
 archives will contain the public feedback repository, not the application.
 Write curated product release notes: generating them from feedback commits
@@ -174,8 +184,9 @@ the updater key. Sign/package in the correct order so the updater signature
 covers the final bytes. Follow the [Windows signing guide](https://v2.tauri.app/distribute/sign/windows/)
 and [macOS signing guide](https://v2.tauri.app/distribute/sign/macos/).
 
-Build in private CI from a verified source tag. Restrict signing/publishing to
-trusted release runs; pin third-party actions to reviewed commits. Use a
+Build in CI from a verified source tag. Repository visibility grants no signing
+or publishing authority. Restrict credentials to trusted, reviewer-protected
+release environments; pin third-party actions to reviewed commits. Use a
 short-lived GitHub App installation token scoped to the public destination
 with Contents write permission. A repository-scoped, expiring fine-grained
 PAT is an acceptable initial alternative. The workflow's automatic
@@ -264,22 +275,24 @@ and provide a public reinstall link; do not loop an unattended install.
 
 ### Platform contract and recovery
 
-Initial candidate matrix, subject to actual artifact validation:
+Current release matrix, subject to the real qualification evidence below:
 
-| Installation | Proposed update behavior |
-| --- | --- |
-| Windows x64 | NSIS per-user installation, passive installer progress; one installer family in the feed |
-| macOS Apple Silicon / Intel | Signed/notarized app; DMG for first install and signed `.app.tar.gz` for updating |
-| Linux x64 AppImage | Signed AppImage replacement, after checking the actual writable installed file |
-| Linux `.deb` / `.rpm`, managed or read-only installs | Explain manual/package-manager update; do not overwrite them with an AppImage |
+| Installation | State | Proposed update behavior |
+| --- | --- | --- |
+| Windows x64 | Enabled candidate | NSIS per-user installation, passive installer progress; one installer family in the feed |
+| Linux x64 AppImage | Enabled candidate | Updater-signed AppImage replacement, after checking the actual writable installed file |
+| macOS Apple Silicon / Intel | Planned, disabled | No feed entry or published supported package until task 065-10 proves signing, notarization, replacement safety and installed A-to-B behavior |
+| Linux `.deb` / `.rpm`, managed or read-only installs | Manual only | Explain manual/package-manager update; do not overwrite them with an AppImage |
 
-All rows are candidates, not current support claims. Each exact target remains
-disabled for production automatic updates until two real consecutive signed
-packages pass the installation evidence required by task 065-9-7. In
-particular, the official Tauri updater repository had an open macOS
+The two enabled rows remain unqualified until two real consecutive signed
+packages pass the installation evidence required by tasks 065-9-7 and 065-9-8.
+The public manifests and release asset set must contain exactly those qualified
+rows; they fail closed if either macOS key appears. The official Tauri updater
+repository had an open macOS
 [replacement-safety report](https://github.com/tauri-apps/plugins-workspace/issues/3505)
 when contracts were fixed on 2026-09-09; macOS cannot be enabled without a
-reviewed fix or independently tested mitigation.
+reviewed fix or independently tested mitigation and real evidence under task
+065-10.
 
 Support detection includes the packaging/installation mode, not just OS/CPU.
 Keep downloads for documented Linux package formats available alongside
@@ -330,15 +343,17 @@ Sources inspected on 2026-09-03; these are observations, not code to import.
 
 ## Consequences
 
-- Public downloads work without exposing application source or requiring an
-  account. One existing public destination handles support and releases.
+- Public downloads require no account and expose neither release credentials
+  nor protected build evidence. One existing public destination handles support
+  and releases.
 - Updater correctness includes publication ordering, native shutdown, draft
   protection, and installed-package evidence; adding a plugin alone is not done.
 - GitHub availability, caching, public-repository continuity, signing-key
   custody, and destination write credentials become release dependencies.
 - Static feeds provide channels but no per-user rollout, forced-update policy,
   or automatic rollback. Add a dynamic service only against a concrete need.
-- Hosting/signing credentials, certificates, the actual supported matrix,
+- Hosting/signing credentials, certificates, source-repository security controls,
+  the actual supported matrix,
   and the first release version must be configured/verified during execution.
   General public-release gates remain with task 065-8, including the existing
   product-name clearance requirement in the product strategy.

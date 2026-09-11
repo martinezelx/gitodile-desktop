@@ -120,8 +120,6 @@ test("binds tag, exact revision, metadata, channel and matrix", () => {
   assert.equal(candidate.release.publicPromotionAllowed, false);
   assert.deepEqual(candidate.matrix.requiredTargets, [
     "windows-x86_64",
-    "darwin-aarch64",
-    "darwin-x86_64",
     "linux-x86_64",
   ]);
   assert.deepEqual(candidate.matrix.targets[0], {
@@ -202,39 +200,109 @@ test("evidence rejects source archives and non-package output", () => {
   );
 });
 
+test("Windows trust evidence rejects self-signed or unpinned Authenticode identities", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-windows-trust-"));
+  const identity = path.join(root, "identity.json");
+  const output = path.join(root, "trust.json");
+  const run = () => spawnSync(process.execPath, [
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "make-os-trust.mjs"),
+    "windows-x86_64",
+    identity,
+    output,
+  ], { encoding: "utf8", windowsHide: true });
+  fs.writeFileSync(identity, JSON.stringify({
+    result: "passed",
+    subject: "CN=Example",
+    issuer: "CN=Example",
+    selfSigned: true,
+    codeSigningEku: "passed",
+    certificateChain: "passed",
+  }));
+  assert.notEqual(run().status, 0);
+  fs.writeFileSync(identity, JSON.stringify({
+    result: "passed",
+    subject: "CN=Example Publisher",
+    issuer: "CN=Public CA",
+    sha256Thumbprint: "a".repeat(64),
+    selfSigned: false,
+    codeSigningEku: "passed",
+    certificateChain: "passed",
+    timestampSubject: "CN=Timestamp CA",
+  }));
+  assert.equal(run().status, 0);
+  const signingScript = fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "sign-windows.ps1"), "utf8");
+  assert.match(signingScript, /GITODILE_WINDOWS_CERTIFICATE_SHA256/);
+  assert.match(signingScript, /TimeStamperCertificate/);
+  assert.match(signingScript, /X509RevocationMode/);
+  assert.match(signingScript, /self-signed certificate is not accepted/);
+});
+
 test("workflows expose no branch publication path and pin external actions", () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const workflowDirectory = path.join(repositoryRoot, ".github", "workflows");
   const readWorkflow = (name) => {
-    const source = fs.readFileSync(path.join(repositoryRoot, ".github", "workflows", name), "utf8");
+    const source = fs.readFileSync(path.join(workflowDirectory, name), "utf8");
     return { source, parsed: yaml.load(source, { schema: yaml.JSON_SCHEMA }) };
   };
+  for (const name of fs.readdirSync(workflowDirectory).filter((item) => /\.ya?ml$/.test(item))) {
+    const workflow = readWorkflow(name);
+    for (const match of workflow.source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) {
+      if (!match[1].startsWith("./")) assert.match(match[1], /@[0-9a-f]{40}$/, `${name} uses a mutable Action ref`);
+    }
+    for (const job of Object.values(workflow.parsed.jobs ?? {})) {
+      for (const step of job.steps ?? []) {
+        if (step.uses?.startsWith("actions/checkout@")) {
+          assert.equal(step.with?.["persist-credentials"], false, `${name} persists checkout credentials`);
+        }
+        if (step.run) {
+          assert.doesNotMatch(step.run, /\$\{\{\s*(?:inputs|github\.event\.inputs)\./, `${name} interpolates a dispatch input into a shell`);
+        }
+      }
+    }
+  }
   const candidate = readWorkflow("private-candidate-build.yml");
   assert.deepEqual(Object.keys(candidate.parsed.on), ["push"]);
   assert.deepEqual(candidate.parsed.on.push, { tags: ["v*"] });
   assert.deepEqual(candidate.parsed.permissions, { contents: "read" });
   assert.doesNotMatch(candidate.source, /secrets\./);
+  assert.deepEqual(candidate.parsed.jobs.build.strategy.matrix.include.map((item) => item.target), [
+    "windows-x86_64",
+    "linux-x86_64",
+  ]);
+  assert.equal(
+    candidate.parsed.jobs.build.env.GITODILE_QUALIFIED_UPDATE_TARGETS,
+    "${{ needs.validate.outputs.profile == 'validation' && matrix.target || vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}",
+  );
+  const identityGuard = candidate.parsed.jobs.build.steps.find((step) => step.name === "Require reviewed public updater identity");
+  assert.match(identityGuard.run, /Validation and production updater identities must both exist and be distinct/);
+  assert.match(identityGuard.run, /qualifiedTargets !== validationTarget/);
+  assert.match(identityGuard.run, /qualifiedTargets !== "windows-x86_64,linux-x86_64"/);
 
   const signing = readWorkflow("private-candidate-signing.yml");
   assert.deepEqual(Object.keys(signing.parsed.on), ["workflow_run"]);
   assert.deepEqual(signing.parsed.permissions, { actions: "read", contents: "read" });
+  assert.equal(signing.parsed.jobs["macos-os-sign"], undefined);
+  assert.deepEqual(signing.parsed.jobs["updater-sign-and-gate"].needs, [
+    "authorize",
+    "windows-os-sign",
+    "linux-os-boundary",
+  ]);
   for (const source of [candidate.source, signing.source]) {
     assert.doesNotMatch(source, /gitodile-feedback|contents:\s*write|create-release|upload-release-asset/i);
-    for (const match of source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) {
-      assert.match(match[1], /@[0-9a-f]{40}$/);
-    }
   }
   for (const job of Object.values(signing.parsed.jobs)) {
     for (const step of job.steps ?? []) {
-      if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, "main");
+      if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, "${{ github.workflow_sha }}");
     }
   }
 
   const qualification = readWorkflow("qualification-validation-bundle.yml");
   assert.deepEqual(Object.keys(qualification.parsed.on), ["workflow_dispatch"]);
   assert.deepEqual(qualification.parsed.permissions, { actions: "read", contents: "read" });
+  assert.equal(qualification.parsed.jobs.prepare.if, "github.ref == 'refs/heads/main' && github.sha == github.workflow_sha");
   assert.doesNotMatch(qualification.source, /secrets\.|contents:\s*write|gitodile-feedback/i);
   assert.match(qualification.source, /GITODILE_VALIDATION_UPDATE_FEED/);
-  for (const match of qualification.source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) {
-    assert.match(match[1], /@[0-9a-f]{40}$/);
-  }
+
+  const publication = readWorkflow("public-release-publishing.yml");
+  assert.equal(publication.parsed.jobs["authorize-and-stage"].if, "github.ref == 'refs/heads/main' && github.sha == github.workflow_sha");
 });

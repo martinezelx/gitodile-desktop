@@ -126,6 +126,14 @@ export function verifyCompleteMatrix(evidenceItems, candidate, { requiredPhase =
   if (missing.length > 0) {
     throw new ReleaseValidationError("matrix_incomplete", `missing required targets: ${missing.join(", ")}`);
   }
+  if (requiredPhase === "signed") {
+    const updaterIdentities = new Set(
+      REQUIRED_TARGETS.map((target) => byTarget.get(target).trust.updater.publicIdentity),
+    );
+    if (updaterIdentities.size !== 1) {
+      throw new ReleaseValidationError("provenance_mismatch", "signed targets use different updater identities");
+    }
+  }
   return REQUIRED_TARGETS.map((target) => byTarget.get(target));
 }
 

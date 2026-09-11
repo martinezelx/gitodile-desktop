@@ -58,14 +58,6 @@ jobs:
             rustTarget: x86_64-pc-windows-msvc
             runner: windows-2025
             bundle: nsis
-          - target: darwin-aarch64
-            rustTarget: aarch64-apple-darwin
-            runner: macos-15
-            bundle: app
-          - target: darwin-x86_64
-            rustTarget: x86_64-apple-darwin
-            runner: macos-15
-            bundle: app
           - target: linux-x86_64
             rustTarget: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
@@ -74,10 +66,14 @@ jobs:
     env:
       GITODILE_UPDATER_PUBLIC_KEY: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY || vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
       GITODILE_UPDATER_PUBLIC_KEY_ID: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID || vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
+      GITODILE_VALIDATION_UPDATER_PUBLIC_KEY: ${{ vars.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY }}
+      GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID: ${{ vars.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID }}
+      GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
+      GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
       GITODILE_UPDATE_PROFILE: ${{ needs.validate.outputs.profile }}
       GITODILE_VALIDATION_UPDATE_FEED: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATE_FEED || '' }}
       GITODILE_VALIDATION_UPDATE_TARGET: ${{ needs.validate.outputs.profile == 'validation' && matrix.target || '' }}
-      GITODILE_QUALIFIED_UPDATE_TARGETS: ""
+      GITODILE_QUALIFIED_UPDATE_TARGETS: ${{ needs.validate.outputs.profile == 'validation' && matrix.target || vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -88,13 +84,41 @@ jobs:
           name: candidate-identity
       - name: Require reviewed public updater identity
         shell: bash
-        run: node -e "const validation=process.env.GITODILE_UPDATE_PROFILE==='validation'; if (!process.env.GITODILE_UPDATER_PUBLIC_KEY || !process.env.GITODILE_UPDATER_PUBLIC_KEY_ID || (validation && (!process.env.GITODILE_VALIDATION_UPDATE_FEED || !process.env.GITODILE_VALIDATION_UPDATE_TARGET))) { console.error('Required public update identity or controlled validation routing is not configured for this build profile.'); process.exit(1) }"
+        run: |
+          node --input-type=module <<'NODE'
+          const validation = process.env.GITODILE_UPDATE_PROFILE === "validation";
+          const validationTarget = process.env.GITODILE_VALIDATION_UPDATE_TARGET ?? "";
+          const qualifiedTargets = process.env.GITODILE_QUALIFIED_UPDATE_TARGETS ?? "";
+          if (!process.env.GITODILE_UPDATER_PUBLIC_KEY || !process.env.GITODILE_UPDATER_PUBLIC_KEY_ID) {
+            throw new Error("Required public update identity is not configured for this build profile.");
+          }
+          const validationKey = process.env.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY ?? "";
+          const validationKeyId = process.env.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID ?? "";
+          const productionKey = process.env.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY ?? "";
+          const productionKeyId = process.env.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID ?? "";
+          if (!validationKey || !validationKeyId || !productionKey || !productionKeyId ||
+              validationKey === productionKey || validationKeyId === productionKeyId) {
+            throw new Error("Validation and production updater identities must both exist and be distinct.");
+          }
+          const expectedKey = validation ? validationKey : productionKey;
+          const expectedKeyId = validation ? validationKeyId : productionKeyId;
+          if (process.env.GITODILE_UPDATER_PUBLIC_KEY !== expectedKey || process.env.GITODILE_UPDATER_PUBLIC_KEY_ID !== expectedKeyId) {
+            throw new Error("The selected updater identity does not match the build profile.");
+          }
+          if (validation) {
+            if (!process.env.GITODILE_VALIDATION_UPDATE_FEED || !validationTarget || qualifiedTargets !== validationTarget) {
+              throw new Error("Controlled validation routing must enable only this matrix target.");
+            }
+          } else if (validationTarget !== "" || process.env.GITODILE_VALIDATION_UPDATE_FEED !== "" || qualifiedTargets !== "windows-x86_64,linux-x86_64") {
+            throw new Error("Production qualification must be the reviewed canonical Windows/Linux target set.");
+          }
+          NODE
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
-      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 11.17.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -123,18 +147,6 @@ jobs:
           New-Item -ItemType Directory -Path "candidate/${{ matrix.target }}" | Out-Null
           Copy-Item -LiteralPath $source.FullName -Destination "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_x64-setup.exe"
           node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "first-install-and-updater=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_x64-setup.exe" --output "candidate/${{ matrix.target }}/evidence.json"
-      - name: Stage macOS app bundle only
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          app_root="src-tauri/target/${{ matrix.rustTarget }}/release/bundle/macos"
-          apps=()
-          while IFS= read -r -d '' item; do apps+=("$item"); done < <(find "$app_root" -maxdepth 1 -name '*.app' -type d -print0)
-          test "${#apps[@]}" -eq 1
-          mkdir -p "candidate/${{ matrix.target }}"
-          ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_${{ matrix.target }}-unsigned-app.zip"
-          node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "staged-app=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_${{ matrix.target }}-unsigned-app.zip" --output "candidate/${{ matrix.target }}/evidence.json"
       - name: Stage Linux package only
         if: runner.os == 'Linux'
         shell: bash

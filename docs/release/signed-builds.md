@@ -1,11 +1,11 @@
-# Private signed-build operations
+# Protected signed-build operations
 
-This runbook implements the private build boundary from
+This runbook implements the protected build boundary from
 [ADR 0010](../adr/0010-distribute-signed-app-updates-through-public-github-releases.md).
-It prepares candidate artifacts and private evidence only. It does not create a
+It prepares candidate artifacts and access-controlled evidence only. It does not create a
 GitHub Release, upload to `gitodile-feedback`, or write `stable.json` or
 `preview.json`; those remain task 065-9-6. Real A-to-B installation
-qualification and automatic-target enablement remain task 065-9-7.
+qualification and automatic-target enablement remain tasks 065-9-7 and 065-9-8.
 
 ## Trust boundary
 
@@ -15,14 +15,21 @@ The pipeline is two workflows with different authority:
    rejects anything except `vX.Y.Z` or `vX.Y.Z-preview.N`, verifies the exact
    tag object and checked-out SHA, proves that SHA is in `origin/main`, and
    reads npm, Cargo, Cargo lock and Tauri versions. Only after those checks does
-   a four-target matrix compile. It receives reviewed updater **public**
+   the enabled two-target matrix (Windows x86-64 NSIS and Linux x86-64
+   AppImage) compile. It receives reviewed updater **public**
    identity variables, but no signing or publishing secret.
 2. `private-candidate-signing.yml` is a `workflow_run` workflow loaded from the
    default branch. It accepts only a successful same-repository tag-push run,
    fetches the tag without checking out candidate source, re-reads metadata
-   from the exact Git object, rehashes all four staged packages, and then enters
+   from the exact Git object, rehashes both staged packages, and then enters
    protected signing environments. Candidate build scripts and package hooks
-   therefore never receive production secrets.
+   therefore never receive production secrets. The workflow runtime is pinned
+   to its immutable workflow SHA, not a later moving `main`.
+
+Source visibility is not an authority boundary. A public clone can read the
+workflows and scripts but cannot read environment secrets, approve a protected
+environment, create a protected release tag, or use the destination-scoped
+publisher credential.
 
 All actions used by these workflows are pinned to exact commits. Both
 workflows have read-only repository permissions. There is no destination token
@@ -31,8 +38,9 @@ reviewer and disallow administrator bypass; approve only after comparing the
 tag, SHA, version, matrix and run link. A rejected or absent environment leaves
 the run blocked, not partially authorized.
 
-The final matrix gate requires all four target evidence records to have the
-same tag, source SHA, version, channel and signing profile. It rehashes every
+The final matrix gate requires both enabled target evidence records to have the
+same tag, source SHA, version, channel, signing profile and updater public-key
+identity. It rehashes every
 file and requires updater verification plus the target-specific OS result.
 No per-target job can produce the matrix authorization record. A failed,
 cancelled or incomplete matrix cannot be consumed as promotion evidence.
@@ -43,10 +51,13 @@ These are independent claims and are recorded independently:
 
 | Layer | Targets | Required proof |
 | --- | --- | --- |
-| Updater signature | all four | Tauri signer covers the final update bytes; the repository-owned verifier checks the emitted signature with the configured public key and records its public key ID |
-| Operating-system trust | Windows and macOS | Authenticode validation plus certificate subject/SHA-256 thumbprint on Windows; strict `codesign` validation plus authority/team identity on macOS |
-| Apple notarization | both macOS targets | `notarytool` returns `Accepted`, the ticket is stapled, and `stapler validate` succeeds for the app and DMG |
+| Updater signature | Windows and Linux | Tauri signer covers the final update bytes; the repository-owned verifier checks the emitted signature with the configured public key and records its public key ID |
+| Operating-system trust | Windows | Authenticode validation, expected SHA-256 certificate identity, Code Signing EKU, timestamp, non-self-signed trusted chain and certificate subject/issuer |
 | Linux OS signing | Linux AppImage | `not_applicable`; this is not represented as an OS-trust success. The updater signature is still mandatory |
+
+macOS signing and notarization are deliberately absent from this phase. Task
+065-10 must add them back together with real installed qualification; no Apple
+secret or macOS package belongs in the current release workflow.
 
 The order is OS-sign/notarize first and updater-sign last. The updater
 signature therefore covers the bytes a client actually downloads. A `.sig`
@@ -59,9 +70,8 @@ workflow inputs or logs:
 
 | Scope | Names | Current readiness (2026-09-10) |
 | --- | --- | --- |
-| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED` | Not configured as of the read-only 2026-09-11 audit |
-| `production-windows-signing` environment secrets | `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD` | Certificate/service and access not evidenced |
-| `production-macos-signing` environment secrets | `GITODILE_MACOS_CERTIFICATE_BASE64`, `GITODILE_MACOS_CERTIFICATE_PASSWORD`, `GITODILE_APPLE_SIGNING_IDENTITY`, `GITODILE_APPLE_ID`, `GITODILE_APPLE_PASSWORD`, `GITODILE_APPLE_TEAM_ID` | Apple membership, certificate and notary access not evidenced |
+| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | Not configured as of the 2026-09-12 preflight |
+| `production-windows-signing` environment secrets and variable | Secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | No real Code Signing certificate/service is available or evidenced |
 | `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Production key and backup not evidenced |
 | `validation-updater-signing` environment secrets | same two updater secret names, containing a distinct validation key | Validation key and backup not evidenced |
 
@@ -72,8 +82,7 @@ key IDs, certificate subject/team data, SHA-256 certificate thumbprints,
 artifact hashes and verification results. GitHub log retention and access must
 be restricted to release maintainers.
 
-The macOS jobs currently depend on a working `macos-15` runner with both target
-toolchains; Windows depends on `windows-2025`; Linux depends on `ubuntu-24.04`
+Windows depends on `windows-2025`; Linux depends on `ubuntu-24.04`
 and its AppImage packages. Availability in a YAML matrix is not platform
 validation. If a runner image, certificate, timestamp/notary service or
 credential is missing, the corresponding job must fail or remain awaiting
@@ -89,7 +98,7 @@ approval. Do not substitute an unsigned artifact.
    request or ordinary merge cannot start this workflow.
 3. Review the unprivileged validation job before approving any protected
    environment. Compare its tag and full SHA with `main`; confirm the derived
-   channel (`preview` only for `-preview.N`) and all four unsigned evidence
+   channel (`preview` only for `-preview.N`) and both unsigned evidence
    hashes.
 4. Approve each signing environment only if its public identity matches the
    recorded certificate/key inventory. A signing job rehashes its input before
@@ -97,13 +106,15 @@ approval. Do not substitute an unsigned artifact.
 5. Download the single `private-signed-v<version>` Actions artifact. Verify its
    `matrix.json` says `publicPromotionAllowed: false`; verify each target's
    `evidence.json` and hashes with `release-evidence.mjs verify-matrix`.
-6. Store the private evidence with the restricted release record. Do not copy
-   private source, workflow checkout archives, credentials, key material,
+6. Store the protected evidence with the restricted release record. Do not copy
+   source archives, workflow checkout archives, credentials, key material,
    notary passwords or raw authenticated responses into the retained artifact.
 
 The protected qualification pair is fixed by the executable contract:
 `0.2.0-preview.2` (A) and `0.2.0-preview.3` (B). Their candidate identities use
-the `validation` signing profile and the separate validation updater key. They
+the `validation` signing profile and one consistent validation updater key.
+Both workflows fail if the configured validation public key or its ID equals
+the production identity. They
 still require valid tags on `main` and the complete matrix. The workflows never
 alter either public feed, so producing A and B cannot advertise or promote
 them. The controlled feed/bundle procedure is defined in
@@ -118,15 +129,13 @@ For every retained target, verify rather than infer:
   `evidence.json`;
 - verify the Tauri signature using the configured public key, then compare the
   recorded public key ID with the release inventory;
-- on Windows, run Authenticode verification and compare certificate subject
-  and SHA-256 thumbprint;
-- on macOS, run strict code-signature verification, Gatekeeper assessment,
-  and stapler validation; retain the accepted notarization result and public
-  Developer ID/team identity;
-- confirm tag, full private source SHA, Rust target and package role in the
+- on Windows, run Authenticode verification and compare certificate subject,
+  issuer and SHA-256 thumbprint; require a timestamp, Code Signing EKU and a
+  trusted non-self-signed chain. A self-signed certificate never qualifies;
+- confirm tag, full source SHA, Rust target and package role in the
   evidence; do not treat a compile-only artifact as signed or qualified.
 
-The private artifact is candidate evidence, not a public release and not proof
+The protected artifact is candidate evidence, not a public release and not proof
 that installation works. Do not enable `GITODILE_QUALIFIED_UPDATE_TARGETS`
 until task 065-9-7 supplies real consecutive installed-build evidence for that
 exact target and mode.

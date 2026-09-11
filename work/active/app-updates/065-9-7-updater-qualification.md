@@ -26,7 +26,10 @@ owns the accepted architecture. Execute in queue order on the approved version b
 
 # Scope
 
-- Exercise two successively versioned signed builds for every enabled NSIS, macOS and AppImage target through the normal installation path; verify running-version confirmation after handoff.
+- Exercise two successively versioned signed builds for every enabled NSIS and
+  AppImage target through the normal installation path; verify running-version
+  confirmation after handoff. macOS qualification is excluded and retained in
+  task 065-10.
 - Verify preservation of settings, sessions, volatile drafts and dirty tracked/untracked files, including other projects, active operations and helpers.
 - Exercise offline, missing feed/target, corruption, cancellation, low disk space, locked/read-only installs, interrupted handoff and reinstall; test managed-package fallback accurately.
 - Validate the publisher in a controlled validation path before authorizing production feed promotion. Record platform/artifact evidence, residual limits and maintainer/user runbooks.
@@ -58,18 +61,20 @@ Infrastructure implemented on `main` on 2026-09-11:
 - the manual, read-only `Controlled updater qualification bundle` workflow
   verifies both complete signed matrices and creates a private, non-promoting
   feed/package bundle;
-- the production registry moved to schema version 2. Its executable gate binds
+- the production registry moved to schema version 3. Its executable gate binds
   target/platform, A and B provenance/artifacts/trust, installed-version
   confirmation, preservation, failure matrix, report hash/run and macOS
   replacement-safety evidence;
-- shallow, cross-target, incomplete and missing-macOS-review claims fail closed;
+- shallow, cross-target and incomplete enabled-target claims fail closed;
+  Darwin claims also fail while macOS is `planned_disabled`;
 - durable operation and evidence instructions live in
   [`docs/release/updater-qualification.md`](../../../docs/release/updater-qualification.md).
 
 The task remains active. A read-only GitHub audit found no configured release
 variables, secrets or protected environments and no public releases. No real
-signed A/B matrix or installed-platform evidence exists, so all four targets
-remain `qualification_required`, production remains disabled and no 1.0.0
+signed A/B matrix or installed-platform evidence exists, so Windows and Linux
+remain `qualification_required`, both Darwin targets remain `planned_disabled`,
+production remains disabled and no 1.0.0
 readiness is claimed.
 
 # Validation

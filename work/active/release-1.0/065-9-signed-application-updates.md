@@ -18,7 +18,7 @@ parent: "065"
 
 # Goal
 
-Implement Tauri application updates with a private build/signing pipeline and
+Implement Tauri application updates with a protected build/signing pipeline and
 public GitHub Release assets, preserving repository operations and user work
 across installation and restart.
 
@@ -75,7 +75,7 @@ and controlled feeds are used first so testing does not depend on publication.
   into the existing Changelog/menu/palette and Settings preference surfaces.
 - Establish app-wide native install admission and frontend draft protection.
   Inventory every operation before relying on the current session busy helper.
-- Add private release CI, protected signing, one publication coordinator, public
+- Add protected release CI, protected signing, one publication coordinator, public
   release assets, and stable/preview manifests in `gitodile-feedback`.
 - Implement version-tag-triggered publication from `main`'s history, with
   `X.Y.Z-preview.N` selecting preview and `X.Y.Z` selecting stable. Derive the
@@ -127,18 +127,20 @@ and controlled feeds are used first so testing does not depend on publication.
       cause an actionable install blocker. Unsaved files on disk remain intact;
       updating never commits, stashes, resets, cleans, or changes Git history.
 - [ ] Windows installer exit and restart are exercised from a real NSIS install;
-      macOS and AppImage updates are exercised for every advertised target.
+      AppImage updates are exercised on Linux. Every advertised target must be
+      exercised; macOS remains unadvertised and disabled until task 065-10.
       A `.deb`/`.rpm`, managed, mounted/read-only, or unsupported installation
       receives accurate external-update guidance rather than an AppImage swap.
 - [ ] A launch after installer handoff verifies the running version before
       reporting success. Interrupted/failed installs offer reinstall guidance
       without a loop, a forced downgrade, or fabricated rollback guarantees.
-- [ ] CI builds from a verified private source tag, signs final packages with
+- [ ] CI builds from a verified source tag, signs final packages with
       distinct updater/OS-signing mechanisms, and publishes curated public
       artifacts using destination-scoped credentials only in trusted jobs.
-      Public tags target public commits and expose no private source/archive.
-- [ ] Release branches merge into `main` before their exact merged commit is
-      tagged. Ordinary merges publish nothing. Tests reject source tags outside
+      Public tags target public commits and expose no credential or private
+      signing artifact.
+- [ ] Exact reviewed commits on `main` are tagged. Ordinary branch pushes and
+      merges publish nothing. Tests reject source tags outside
       `main`, metadata mismatches, unsupported prerelease suffixes, and channel/
       GitHub-flag disagreement. Preview updates only preview; stable promotion
       builds a new stable version and never relabels/overwrites a preview asset.
@@ -250,7 +252,7 @@ palette and General Settings share one native lifecycle; background checks are
 an off-by-default, disclosed 24-hour opt-in. Signed CI, feed publication and
 real A-to-B qualification remain with 065-9-5 through 065-9-7.
 
-Task 065-9-5 implemented the locally verifiable private tag/matrix/signing
+Task 065-9-5 implemented the locally verifiable protected tag/matrix/signing
 boundary and runbook on 2026-09-10, but remains active: no real signing
 credential, protected environment, notarized package or complete signed run is
 evidenced, so no target is enabled. Public publication and installed A-to-B
@@ -258,7 +260,7 @@ qualification remain exclusively 065-9-6 and 065-9-7.
 
 Task 065-9-6 implemented the locally verifiable public promotion coordinator
 and runbook on 2026-09-11. Publication is manual and destination-serialized;
-private source and signing stay outside the credentialed job, immutable assets
+source validation and signing stay outside the credentialed job, immutable assets
 are reconciled before anonymous verification, and stable/preview feeds move
 only through one non-regressing compare-and-swap commit. The checked
 qualification registry disables production and leaves all targets

@@ -5,10 +5,18 @@ if (!target || !identityPath || !outputPath) {
   throw new Error("usage: make-os-trust.mjs <target> <identity-json|not-applicable> <output>");
 }
 const macOS = target.startsWith("darwin-");
+const windows = target === "windows-x86_64";
 const linux = target === "linux-x86_64";
 const identity = linux ? null : JSON.parse(fs.readFileSync(identityPath, "utf8"));
 const operatingSystem = macOS ? identity?.operatingSystem : identity;
 if (!linux && operatingSystem?.result !== "passed") throw new Error("OS identity verification has not passed");
+if (windows && (
+  operatingSystem?.selfSigned !== false || operatingSystem?.codeSigningEku !== "passed" ||
+  operatingSystem?.certificateChain !== "passed" || typeof operatingSystem?.subject !== "string" ||
+  typeof operatingSystem?.issuer !== "string" || operatingSystem.subject === operatingSystem.issuer ||
+  !/^[0-9a-f]{64}$/.test(operatingSystem?.sha256Thumbprint ?? "") ||
+  typeof operatingSystem?.timestampSubject !== "string" || operatingSystem.timestampSubject.length === 0
+)) throw new Error("Windows Authenticode identity is not publicly trusted");
 if (macOS && identity?.notarization?.result !== "passed") throw new Error("notarization verification has not passed");
 const trust = {
   updater: { result: "not_checked", publicIdentity: null },

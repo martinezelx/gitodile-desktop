@@ -23,13 +23,14 @@ concurrency:
 jobs:
   prepare:
     name: Verify and package the fixed A-to-B validation pair
+    if: github.ref == 'refs/heads/main' && github.sha == github.workflow_sha
     runs-on: ubuntu-24.04
     env:
       GITODILE_VALIDATION_UPDATE_FEED: ${{ vars.GITODILE_VALIDATION_UPDATE_FEED }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: main
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
       - name: Verify successful private signing run identities
         env:

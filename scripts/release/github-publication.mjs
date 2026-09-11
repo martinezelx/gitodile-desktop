@@ -15,8 +15,10 @@ function sha256(bytes) {
 
 export function validateSourceRun(run, expectedRepository) {
   if (
+    !Number.isSafeInteger(run?.id) || run.id <= 0 ||
     run?.name !== "Private candidate signing" || run?.event !== "workflow_run" ||
-    run?.conclusion !== "success" || run?.repository?.full_name !== expectedRepository
+    run?.conclusion !== "success" || run?.repository?.full_name !== expectedRepository ||
+    run?.path !== ".github/workflows/private-candidate-signing.yml" || run?.head_branch !== "main"
   ) fail("source_run_invalid", "artifact source is not a successful private signing workflow run");
   return true;
 }
@@ -215,12 +217,8 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   const args = parseArgs(process.argv.slice(2));
   try {
-    const runResponse = await fetch(`https://api.github.com/repos/${args.get("source-repository")}/actions/runs/${args.get("source-run-id")}`, {
-      headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "User-Agent": "GitOdile-public-release-publisher" },
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!runResponse.ok) fail("source_run_invalid", `source run lookup returned HTTP ${runResponse.status}`);
-    const result = await publish({ directory: path.resolve(args.get("directory")), token: process.env.GITODILE_PUBLIC_RELEASE_TOKEN, sourceRun: await runResponse.json(), sourceRepository: args.get("source-repository") });
+    const sourceRun = JSON.parse(fs.readFileSync(path.resolve(args.get("source-run")), "utf8"));
+    const result = await publish({ directory: path.resolve(args.get("directory")), token: process.env.GITODILE_PUBLIC_RELEASE_TOKEN, sourceRun, sourceRepository: args.get("source-repository") });
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } catch (error) {
     const code = error instanceof ReleaseValidationError ? error.code : "internal";

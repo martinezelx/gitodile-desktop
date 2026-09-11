@@ -7,7 +7,10 @@ const moduleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const updateContract = JSON.parse(
   fs.readFileSync(path.join(moduleRoot, "docs", "architecture", "065-9-1-app-update-contract.json"), "utf8"),
 );
-export const REQUIRED_TARGETS = Object.freeze(updateContract.targets.map((target) => target.key));
+export const ALL_TARGETS = Object.freeze(updateContract.targets.map((target) => target.key));
+export const REQUIRED_TARGETS = Object.freeze(
+  updateContract.targets.filter((target) => target.releaseEnabled).map((target) => target.key),
+);
 export const TARGET_CONTRACTS = Object.freeze(
   Object.fromEntries(updateContract.targets.map((target) => [target.key, Object.freeze({ ...target })])),
 );
@@ -128,7 +131,9 @@ export function validateReleaseCandidate({
     },
     matrix: {
       requiredTargets: [...REQUIRED_TARGETS],
-      targets: updateContract.targets.map(({ key, rustTarget }) => ({ key, rustTarget })),
+      targets: updateContract.targets
+        .filter((target) => target.releaseEnabled)
+        .map(({ key, rustTarget }) => ({ key, rustTarget })),
     },
   };
 }
