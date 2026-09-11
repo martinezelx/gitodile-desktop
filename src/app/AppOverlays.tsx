@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
-import { Check, CircleAlert, Copy, X } from "lucide-react";
+import { ArrowUpRight, Check, CircleAlert, Copy, X } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import {
@@ -27,10 +28,12 @@ import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
-import { IssueReportErrorDialog } from "./IssueReportErrorDialog";
+import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
+import type { AppUpdatesController, AppUpdatesSnapshot } from "../features/app-updates";
+import { AppUpdateDialog, AppUpdateSettingsControl } from "../features/app-updates";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
-import { describeStack } from "./stack";
+import { describeStack, describeStackHost } from "./stack";
 import { OperatingSystemMark, StackMark } from "./vendorMarks";
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
@@ -42,6 +45,8 @@ export type AppOverlaysProps = {
     setOpen: BooleanSetter;
     theme: ThemePreference;
     setTheme: (theme: ThemePreference) => void;
+    reducedMotion: boolean;
+    setReducedMotion: BooleanSetter;
     section: SettingsSection;
     setSection: (section: SettingsSection) => void;
     gitTooling: GitToolingState;
@@ -70,6 +75,10 @@ export type AppOverlaysProps = {
     identity: GitIdentityState;
     defaultBranch: DefaultBranchState;
     lineEndings: LineEndingsState;
+    automaticAppUpdates?: boolean;
+    setAutomaticAppUpdates?: BooleanSetter;
+    appUpdates?: AppUpdatesSnapshot;
+    appUpdatesController?: AppUpdatesController;
   };
   /** The per-project panel. `project` is null exactly when no project is open,
    * which is also when nothing can open this dialog: every read behind it is
@@ -87,6 +96,7 @@ export type AppOverlaysProps = {
   };
   about: { isOpen: boolean; setOpen: BooleanSetter };
   changelog: { isOpen: boolean; setOpen: BooleanSetter };
+  appUpdate?: { isOpen: boolean; setOpen: BooleanSetter };
   shortcuts: { isOpen: boolean; setOpen: BooleanSetter };
   closeConfirmation: {
     isOpen: boolean;
@@ -113,6 +123,7 @@ export function AppOverlays({
   projectSettings,
   about,
   changelog,
+  appUpdate,
   shortcuts,
   closeConfirmation,
   error,
@@ -213,7 +224,7 @@ export function AppOverlays({
 
   return (
     <>
-      <IssueReportErrorDialog report={issueReport} />
+      <IssueReportDialog report={issueReport} />
       {settings.isOpen && (
         <div className="settings-backdrop" role="presentation" onMouseDown={() => requestSettingsClose(false)}>
           <div
@@ -248,6 +259,8 @@ export function AppOverlays({
             <SettingsPanel
               theme={settings.theme}
               setTheme={settings.setTheme}
+              reducedMotion={settings.reducedMotion}
+              setReducedMotion={settings.setReducedMotion}
               activeSection={settings.section}
               onSectionChange={settings.setSection}
               gitDiagnostics={settings.gitTooling.diagnostics}
@@ -278,6 +291,15 @@ export function AppOverlays({
               identity={settings.identity}
               defaultBranch={settings.defaultBranch}
               lineEndingsState={settings.lineEndings}
+              applicationUpdates={settings.appUpdates && settings.appUpdatesController && settings.setAutomaticAppUpdates ? (
+                <AppUpdateSettingsControl
+                  snapshot={settings.appUpdates}
+                  controller={settings.appUpdatesController}
+                  enabled={settings.automaticAppUpdates ?? false}
+                  setEnabled={settings.setAutomaticAppUpdates}
+                  onOpenDialog={appUpdate ? () => appUpdate.setOpen(true) : undefined}
+                />
+              ) : null}
               onClose={closeSettings}
               onRegisterCloseGuard={registerSettingsCloseGuard}
             />
@@ -338,6 +360,12 @@ export function AppOverlays({
             <div className="about-dialog__mark" aria-hidden="true">{CROCODILE_MARK}</div>
             <p className="eyebrow">{t.aboutGitOdile}</p>
             <h2 id="about-title">{t.aboutHeading}</h2>
+            <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version} ${CURRENT_APP_RELEASE.channel}`}>
+              <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
+              {CURRENT_APP_RELEASE.channel === "preview" && (
+                <span className="about-dialog__release-channel" aria-hidden="true">preview</span>
+              )}
+            </p>
             <p>{t.aboutDescription}</p>
             {(systemInfo || webviewVersion || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">
@@ -378,10 +406,22 @@ export function AppOverlays({
                 <h3 id="about-stack-title">{t.aboutBuiltWith}</h3>
                 <ul className="about-stack__list">
                   {stack.map((layer) => (
-                    <li className="about-stack__item" key={layer.id}>
-                      <StackMark layer={layer.id} />
-                      <span className="about-stack__name">{layer.name}</span>
-                      <span className="about-stack__version">{layer.version}</span>
+                    <li key={layer.id}>
+                      {/* A button rather than an anchor: the destination is a
+                          browser outside the app, not a document this webview
+                          can navigate to, and an `href` here would let a middle
+                          click replace the window the dialog is sitting in. */}
+                      <button
+                        className="about-stack__item"
+                        type="button"
+                        aria-label={t.aboutStackLink(layer.name, describeStackHost(layer.url))}
+                        onClick={() => void openUrl(layer.url).catch(() => undefined)}
+                      >
+                        <StackMark layer={layer.id} />
+                        <span className="about-stack__name">{layer.name}</span>
+                        <span className="about-stack__version">{layer.version}</span>
+                        <ArrowUpRight className="about-stack__go" aria-hidden="true" />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -400,7 +440,18 @@ export function AppOverlays({
         </div>
       )}
 
-      <ChangelogDialog isOpen={changelog.isOpen} setOpen={changelog.setOpen} />
+      <ChangelogDialog
+        isOpen={changelog.isOpen}
+        setOpen={changelog.setOpen}
+        onCheckForUpdates={appUpdate && settings.appUpdatesController ? () => {
+          changelog.setOpen(false);
+          appUpdate.setOpen(true);
+          void settings.appUpdatesController?.check();
+        } : undefined}
+      />
+      {appUpdate && settings.appUpdates && settings.appUpdatesController && (
+        <AppUpdateDialog isOpen={appUpdate.isOpen} setOpen={appUpdate.setOpen} snapshot={settings.appUpdates} controller={settings.appUpdatesController} />
+      )}
 
       {shortcuts.isOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>

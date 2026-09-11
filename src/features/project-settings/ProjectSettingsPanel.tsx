@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
 import { autoHideScrollbarProps, moveFocusWithinRadioGroup } from "../../shared/ui";
 import {
@@ -294,6 +295,17 @@ function RemoteSection({
   const [connectPlan, setConnectPlan] = useState<ConnectRemotePlan | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const hasRemoteDraft =
+    Object.values(edits).some((edit) => edit.text !== edit.base) ||
+    connectName !== "origin" ||
+    connectUrl.trim() !== "" ||
+    connectPlan !== null ||
+    pendingChange !== null;
+  useInstallDraftBlocker(
+    `project-settings-remotes:${project.path}`,
+    "project remote address",
+    hasRemoteDraft,
+  );
 
   const commitChange = async (name: string, url: string): Promise<void> => {
     setIsBusy(true);
@@ -1033,6 +1045,11 @@ export function ProjectSettingsPanel({
     }) ?? null;
   const hasUnsavedIdentity =
     isOverriding && identity.data !== null && hasIdentityDraftChanged(identityDraft, identity.data);
+  useInstallDraftBlocker(
+    `project-settings-editor:${project.path}`,
+    unsavedIgnoreScope !== null ? "project ignore rules" : "project identity",
+    unsavedIgnoreScope !== null || hasUnsavedIdentity,
+  );
 
   /* Registered once and reading the current drafts through a ref: the shell
      stores the guard in a ref of its own, so re-registering per keystroke

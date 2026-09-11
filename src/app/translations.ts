@@ -11,6 +11,20 @@ export interface AppTranslations {
   titlebarReloadBlocked: string;
   titlebarReportIssue: string;
   issueReportHint: string;
+  issueReportPreparingTitle: string;
+  issueReportPreparingMessage: string;
+  issueReportReviewTitle: string;
+  issueReportReviewMessage: string;
+  issueReportContentsLabel: string;
+  issueReportAttachmentNote: string;
+  issueReportCopyReport: string;
+  issueReportReportCopied: string;
+  issueReportCopyReportFailed: string;
+  issueReportSaveReport: string;
+  issueReportSaving: string;
+  issueReportSaved: string;
+  issueReportSaveFailed: string;
+  issueReportContinue: string;
   issueReportFailedTitle: string;
   issueReportFailedMessage: string;
   issueReportLink: string;
@@ -64,6 +78,7 @@ export interface AppTranslations {
   commandCheckRemoteChanges: string;
   commandRefreshHistory: string;
   commandRefreshVersionLines: string;
+  commandCheckAppUpdates: string;
   commandGoSettings: string;
   commandGoSettingsSection: (section: string) => string;
   automaticUpdatesUpdateNow: string;
@@ -107,6 +122,7 @@ export interface AppTranslations {
   projectSwitcherCloseBlocked: (name: string) => string;
   statusBarAriaLabel: string;
   statusBarNoProject: string;
+  statusBarWorkingOn: string;
   statusBarDetached: string;
   statusBarUnbornLine: string;
   statusBarVersionLineUnavailable: string;
@@ -152,6 +168,10 @@ export interface AppTranslations {
   /* Credits, not diagnostics: the layers the product is built on. The layer
      names themselves are never translated — a product name is a name. */
   aboutBuiltWith: string;
+  /* Names the destination as well as the layer: a chip that leaves the app for
+     a browser should say so before it is pressed, and the version beside the
+     name is not what the press acts on. */
+  aboutStackLink: (name: string, site: string) => string;
   aboutCopySystemInfo: string;
   aboutCopied: string;
   /* Split around the heart so it can be colored, and so both halves stay
@@ -180,7 +200,21 @@ const en: AppTranslations = {
   titlebarReloadWindow: "Reload window",
   titlebarReloadBlocked: "Finish the current project operation before reloading.",
   titlebarReportIssue: "Report an issue",
-  issueReportHint: "Opens GitHub in your browser with the available system versions. A GitHub account is required; reports are public.",
+  issueReportHint: "Reviews the system details and recent app activity before opening GitHub. A GitHub account is required; reports are public.",
+  issueReportPreparingTitle: "Preparing your report",
+  issueReportPreparingMessage: "Collecting the app and system details stored for this session.",
+  issueReportReviewTitle: "Review issue report",
+  issueReportReviewMessage: "Only the versions are prefilled. Copy or save to include the activity.",
+  issueReportContentsLabel: "Report contents",
+  issueReportAttachmentNote: "If you save the report, attach it to the issue yourself.",
+  issueReportCopyReport: "Copy",
+  issueReportReportCopied: "Report copied.",
+  issueReportCopyReportFailed: "Couldn't copy the report. Select the text above and copy it manually.",
+  issueReportSaveReport: "Save report…",
+  issueReportSaving: "Saving…",
+  issueReportSaved: "Report saved. Attach the file to your GitHub issue.",
+  issueReportSaveFailed: "Couldn't save the report. Choose another location and try again.",
+  issueReportContinue: "Open issue",
   issueReportFailedTitle: "Couldn't open the issue report",
   issueReportFailedMessage: "Try again or copy the link into your browser. GitHub requires sign-in, and you can review the public report before submitting it.",
   issueReportLink: "Report link",
@@ -233,6 +267,7 @@ const en: AppTranslations = {
   commandCheckRemoteChanges: "Check remote project changes",
   commandRefreshHistory: "Update history",
   commandRefreshVersionLines: "Update version lines",
+  commandCheckAppUpdates: "Check for GitOdile updates",
   commandGoSettings: "Go to Settings",
   commandGoSettingsSection: (section) => `Settings: ${section}`,
   automaticUpdatesUpdateNow: "Update now",
@@ -278,6 +313,7 @@ const en: AppTranslations = {
     `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
   statusBarAriaLabel: "Project status",
   statusBarNoProject: "No project open",
+  statusBarWorkingOn: "Working on",
   statusBarDetached: "Specific saved version",
   statusBarUnbornLine: "New version line",
   statusBarVersionLineUnavailable: "Version line unavailable",
@@ -324,6 +360,7 @@ const en: AppTranslations = {
   aboutWebview: "Webview",
   aboutGitVersion: "Git",
   aboutBuiltWith: "Built with",
+  aboutStackLink: (name, site) => `${name} — open ${site}`,
   aboutCopySystemInfo: "Copy system info",
   aboutCopied: "Copied",
   aboutFooterMadeWith: "Made with",
@@ -335,6 +372,9 @@ const en: AppTranslations = {
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "You are running this",
   changelogNotes: {
+    publicIssueReporting: "Report an issue from More actions. Review the app and system details before submitting your report on GitHub.",
+    previewVersions: "Preview builds now show their full version number so you can identify the build you are using.",
+    canonicalIdentity: "GitOdile now uses its canonical name and application identity consistently.",
     projectSessions: "Open, clone, or create local projects, and pick your last session up where you left it.",
     saveAndPublish: "Save all or selected changes as a version, then publish it through a previewed flow that reports uncertain remote outcomes honestly.",
     historyTimeline: "Browse the saved-version timeline and read syntax-colored diffs for any change.",
@@ -357,7 +397,21 @@ const es: AppTranslations = {
   titlebarReloadWindow: "Recargar ventana",
   titlebarReloadBlocked: "Termina la operación actual del proyecto antes de recargar.",
   titlebarReportIssue: "Reportar un problema",
-  issueReportHint: "Abre GitHub en el navegador con las versiones del sistema disponibles. Requiere una cuenta de GitHub; los informes son públicos.",
+  issueReportHint: "Permite revisar los datos del sistema y la actividad reciente antes de abrir GitHub. Requiere una cuenta de GitHub; los informes son públicos.",
+  issueReportPreparingTitle: "Preparando el informe",
+  issueReportPreparingMessage: "Recopilando los datos de la aplicación y del sistema guardados durante esta sesión.",
+  issueReportReviewTitle: "Revisar informe del problema",
+  issueReportReviewMessage: "Solo se rellenan las versiones. Copia o guarda para incluir la actividad.",
+  issueReportContentsLabel: "Contenido del informe",
+  issueReportAttachmentNote: "Si guardas el informe, adjúntalo tú en GitHub.",
+  issueReportCopyReport: "Copiar",
+  issueReportReportCopied: "Informe copiado.",
+  issueReportCopyReportFailed: "No se pudo copiar el informe. Selecciona el texto de arriba y cópialo manualmente.",
+  issueReportSaveReport: "Guardar informe…",
+  issueReportSaving: "Guardando…",
+  issueReportSaved: "Informe guardado. Adjunta el archivo en GitHub.",
+  issueReportSaveFailed: "No se pudo guardar el informe. Elige otra ubicación e inténtalo de nuevo.",
+  issueReportContinue: "Reportar en GitHub",
   issueReportFailedTitle: "No se pudo abrir el informe",
   issueReportFailedMessage: "Reinténtalo o copia el enlace en tu navegador. GitHub requiere iniciar sesión y podrás revisar el informe público antes de enviarlo.",
   issueReportLink: "Enlace del informe",
@@ -410,6 +464,7 @@ const es: AppTranslations = {
   commandCheckRemoteChanges: "Comprobar cambios del proyecto remoto",
   commandRefreshHistory: "Actualizar historial",
   commandRefreshVersionLines: "Actualizar líneas de versión",
+  commandCheckAppUpdates: "Buscar actualizaciones de GitOdile",
   commandGoSettings: "Ir a Ajustes",
   commandGoSettingsSection: (section) => `Ajustes: ${section}`,
   automaticUpdatesUpdateNow: "Actualizar ahora",
@@ -455,6 +510,7 @@ const es: AppTranslations = {
     `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
   statusBarAriaLabel: "Estado del proyecto",
   statusBarNoProject: "Ningún proyecto abierto",
+  statusBarWorkingOn: "Trabajando en",
   statusBarDetached: "Versión guardada concreta",
   statusBarUnbornLine: "Línea de versión nueva",
   statusBarVersionLineUnavailable: "Línea de versión no disponible",
@@ -501,6 +557,7 @@ const es: AppTranslations = {
   aboutWebview: "Webview",
   aboutGitVersion: "Git",
   aboutBuiltWith: "Hecho con",
+  aboutStackLink: (name, site) => `${name} — abrir ${site}`,
   aboutCopySystemInfo: "Copiar info del sistema",
   aboutCopied: "Copiado",
   aboutFooterMadeWith: "Hecho con",
@@ -512,6 +569,9 @@ const es: AppTranslations = {
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Estás usando esta",
   changelogNotes: {
+    publicIssueReporting: "Informa de un problema desde Más acciones. Revisa los datos de la aplicación y del sistema antes de enviar el informe en GitHub.",
+    previewVersions: "Las versiones preview muestran ahora su número completo para que puedas identificar la build que estás usando.",
+    canonicalIdentity: "GitOdile utiliza ahora de forma coherente su nombre y su identidad de aplicación definitivos.",
     projectSessions: "Abre, clona o crea proyectos locales, y retoma tu última sesión donde la dejaste.",
     saveAndPublish: "Guarda todos los cambios o los que elijas como una versión y publícala con un flujo previsualizado que reconoce cuando el resultado remoto es incierto.",
     historyTimeline: "Recorre la línea de tiempo de versiones guardadas y lee las diferencias con color de sintaxis de cualquier cambio.",

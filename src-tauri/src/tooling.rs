@@ -207,7 +207,7 @@ fn current_installation_platform() -> GitInstallationPlatform {
 }
 
 #[cfg(target_os = "windows")]
-fn spawn_git_installer() -> InstallSpawnResult {
+fn spawn_git_installer() -> (InstallSpawnResult, Option<std::process::Child>) {
     let mut command = Command::new("winget");
     command
         .args([
@@ -220,9 +220,9 @@ fn spawn_git_installer() -> InstallSpawnResult {
         ])
         .creation_flags(CREATE_NEW_CONSOLE);
     match command.spawn() {
-        Ok(_) => InstallSpawnResult::Started,
-        Err(error) if error.kind() == ErrorKind::NotFound => InstallSpawnResult::Missing,
-        Err(_) => InstallSpawnResult::Failed,
+        Ok(child) => (InstallSpawnResult::Started, Some(child)),
+        Err(error) if error.kind() == ErrorKind::NotFound => (InstallSpawnResult::Missing, None),
+        Err(_) => (InstallSpawnResult::Failed, None),
     }
 }
 
@@ -238,10 +238,25 @@ pub(crate) fn install_git() -> GitInstallationResult {
 
     let platform = current_installation_platform();
     #[cfg(target_os = "windows")]
-    let result = installation_result(platform, Some(spawn_git_installer()));
+    let result = {
+        let background = application::begin_background_activity("install_git");
+        let (attempt, child) = spawn_git_installer();
+        if let Some(mut child) = child {
+            std::thread::spawn(move || {
+                let _background = background;
+                let _ = child.wait();
+                INSTALL_STARTING.store(false, Ordering::Release);
+            });
+        } else {
+            drop(background);
+            INSTALL_STARTING.store(false, Ordering::Release);
+        }
+        installation_result(platform, Some(attempt))
+    };
     #[cfg(not(target_os = "windows"))]
     let result = installation_result(platform, None);
 
+    #[cfg(not(target_os = "windows"))]
     INSTALL_STARTING.store(false, Ordering::Release);
     result
 }
@@ -263,7 +278,7 @@ enum GitUpdateLaunchOutcome {
 }
 
 #[cfg(target_os = "windows")]
-fn spawn_git_update() -> GitUpdateLaunchOutcome {
+fn spawn_git_update() -> (GitUpdateLaunchOutcome, Option<std::process::Child>) {
     let mut command = Command::new("winget");
     command
         .args([
@@ -276,9 +291,11 @@ fn spawn_git_update() -> GitUpdateLaunchOutcome {
         ])
         .creation_flags(CREATE_NEW_CONSOLE);
     match command.spawn() {
-        Ok(_) => GitUpdateLaunchOutcome::Started,
-        Err(error) if error.kind() == ErrorKind::NotFound => GitUpdateLaunchOutcome::Unavailable,
-        Err(_) => GitUpdateLaunchOutcome::Failed,
+        Ok(child) => (GitUpdateLaunchOutcome::Started, Some(child)),
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            (GitUpdateLaunchOutcome::Unavailable, None)
+        }
+        Err(_) => (GitUpdateLaunchOutcome::Failed, None),
     }
 }
 
@@ -291,10 +308,25 @@ pub(crate) fn update_git() -> GitUpdateLaunchResult {
     }
 
     #[cfg(target_os = "windows")]
-    let outcome = spawn_git_update();
+    let outcome = {
+        let background = application::begin_background_activity("update_git");
+        let (outcome, child) = spawn_git_update();
+        if let Some(mut child) = child {
+            std::thread::spawn(move || {
+                let _background = background;
+                let _ = child.wait();
+                UPDATE_STARTING.store(false, Ordering::Release);
+            });
+        } else {
+            drop(background);
+            UPDATE_STARTING.store(false, Ordering::Release);
+        }
+        outcome
+    };
     #[cfg(not(target_os = "windows"))]
     let outcome = GitUpdateLaunchOutcome::Unavailable;
 
+    #[cfg(not(target_os = "windows"))]
     UPDATE_STARTING.store(false, Ordering::Release);
     if outcome == GitUpdateLaunchOutcome::Started {
         if let Ok(mut cache) = UPDATE_CACHE.lock() {
@@ -382,6 +414,7 @@ fn cache_update_status(status: GitUpdateStatus, now: Instant) {
 
 #[cfg(target_os = "windows")]
 fn run_winget_update_check(timeout: Duration) -> UpdateCheckAttempt {
+    let cancellation = application::current_cancellation();
     let mut command = Command::new("winget");
     command
         .args(GIT_UPDATE_CHECK_ARGS)
@@ -413,6 +446,15 @@ fn run_winget_update_check(timeout: Duration) -> UpdateCheckAttempt {
                 }
                 Err(_) => return UpdateCheckAttempt::FailedToStart,
             },
+            Ok(None)
+                if cancellation
+                    .as_ref()
+                    .is_some_and(|token| token.is_cancelled()) =>
+            {
+                let _ = child.kill();
+                let _ = child.wait();
+                return UpdateCheckAttempt::TimedOut;
+            }
             Ok(None) if started_at.elapsed() < timeout => {
                 std::thread::sleep(Duration::from_millis(50));
             }

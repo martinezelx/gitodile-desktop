@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -89,6 +89,7 @@ import {
   versionLinesPort,
 } from "../features/version-lines";
 import { createHistoryController, historyPort } from "../features/history";
+import { appUpdatesPort, createAppUpdatesController, useAppUpdatesController } from "../features/app-updates";
 import { TooltipHost } from "../shared/ui/tooltip";
 import { LoadingBar } from "../shared/ui/loadingBar";
 import { AppOverlays } from "./AppOverlays";
@@ -110,6 +111,8 @@ import {
   SIDEBAR_HIDDEN_STORAGE_KEY,
   WATCH_PROJECTS_DEFAULT,
   WATCH_PROJECTS_STORAGE_KEY,
+  APP_UPDATE_AUTOMATIC_DEFAULT,
+  APP_UPDATE_AUTOMATIC_STORAGE_KEY,
   applyTheme,
   resolveEffectiveTheme,
   useStoredBoolean,
@@ -117,6 +120,7 @@ import {
   useStoredDiffPreferences,
   useStoredNavigationPreferences,
   useStoredRemoteCheckInterval,
+  useReducedMotionPreference,
   useThemePreference,
 } from "./preferences";
 import { startThemeFade } from "./themeTransition";
@@ -209,6 +213,7 @@ export function App(): React.JSX.Element {
   const { t } = useLanguage();
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  const [isAppUpdateOpen, setIsAppUpdateOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   /* Declared beside the Settings flag because `hasBlockingDialog` below reads
      both, and a `const` cannot be read before it exists. */
@@ -403,8 +408,20 @@ export function App(): React.JSX.Element {
   // inside that screen's React subtree. All use the feature-owned dialogs and
   // port, so the safety plan stays identical whichever shortcut was used.
   const [versionLineSwitchTarget, setVersionLineSwitchTarget] = useState<string | null>(null);
-  const [overviewCreateRequest, setOverviewCreateRequest] = useState<{ forceSwitch: boolean } | null>(null);
+  const [createLineRequest, setCreateLineRequest] = useState<
+    { forceSwitch: boolean; startVersion?: { commit: string; shortCommit: string; subject: string } | null } | null
+  >(null);
   const [versionLinesAutoOpenCreate, setVersionLinesAutoOpenCreate] = useState(false);
+  /* Where one screen asked another to look. Both are consumed once and cleared
+     by the screen that takes them: `KeepAliveScreens` holds every visited
+     screen mounted for the session, so a target left standing would re-apply on
+     the next render here and quietly undo whatever the reader chose after
+     arriving. Neither is persisted — where someone was heading is not durable
+     project state. */
+  const [historyScopeLineIntent, setHistoryScopeLineIntent] = useState<string | null>(null);
+  /** A saved version Lines asked History to open, alongside the line it is on. */
+  const [historySelectCommitIntent, setHistorySelectCommitIntent] = useState<string | null>(null);
+  const [linesSelectIntent, setLinesSelectIntent] = useState<string | null>(null);
   const publishDialogSession = publishDialogSessionId
     ? sessionsState.byId[publishDialogSessionId] ?? null
     : null;
@@ -547,6 +564,7 @@ export function App(): React.JSX.Element {
     });
   };
   const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
+  const [reducedMotion, setReducedMotion] = useReducedMotionPreference();
   const [navigationPreferences, setNavigationPreferences] =
     useStoredNavigationPreferences(DEFAULT_NAVIGATION_PREFERENCES.visibleDestinationIds);
   const [reopenLastProject, setReopenLastProject] = useStoredBoolean(
@@ -562,6 +580,20 @@ export function App(): React.JSX.Element {
     WATCH_PROJECTS_DEFAULT,
   );
   const [remoteCheckInterval, setRemoteCheckInterval] = useStoredRemoteCheckInterval();
+  const [automaticAppUpdates, setAutomaticAppUpdates] = useStoredBoolean(
+    APP_UPDATE_AUTOMATIC_STORAGE_KEY,
+    APP_UPDATE_AUTOMATIC_DEFAULT,
+  );
+  const [appUpdatesController] = useState(() => createAppUpdatesController(appUpdatesPort, {
+    automaticEnabled: automaticAppUpdates,
+  }));
+  const appUpdates = useAppUpdatesController(appUpdatesController, automaticAppUpdates);
+  const presentedStartupUpdateRef = useRef(false);
+  useEffect(() => {
+    if (presentedStartupUpdateRef.current || appUpdates.startupConfirmation.kind === "none") return;
+    presentedStartupUpdateRef.current = true;
+    setIsAppUpdateOpen(true);
+  }, [appUpdates.startupConfirmation]);
   const activeWatcherRegistration = activeSession ? watcherRegistrations[activeSession.id] : undefined;
   const activeWatcherState: "starting" | "watching" | "off" | "unavailable" =
     !watchProjects
@@ -985,6 +1017,54 @@ export function App(): React.JSX.Element {
     };
   }, []);
 
+  /* What History may ask of a version line, and the flow each request is
+     handed to. History never mutates a repository itself: switching runs the
+     same previewed dialog the status bar and the Lines screen run, creating
+     runs the same create dialog, and viewing is navigation. Stable identities,
+     because the timeline is memoized and a new object every render would
+     re-render every row. */
+  const versionLineNames = useMemo(
+    () => activeVersionLines.snapshot?.lines.map((line) => line.name) ?? [],
+    [activeVersionLines.snapshot],
+  );
+  /* Latest-value refs so the callbacks below can be identity-stable without
+     closing over a stale project or a stale navigator. */
+  const navigateToViewRef = useRef(navigateToView);
+  navigateToViewRef.current = navigateToView;
+  const projectPathRef = useRef(projectPath);
+  projectPathRef.current = projectPath;
+  const startVersionLineOperationRef = useRef(startVersionLineOperation);
+  startVersionLineOperationRef.current = startVersionLineOperation;
+  const viewVersionLine = useCallback((name: string) => {
+    setLinesSelectIntent(name);
+    navigateToViewRef.current("version-lines");
+  }, []);
+  const switchToVersionLine = useCallback((name: string) => {
+    const path = projectPathRef.current;
+    if (path && startVersionLineOperationRef.current(path)) {
+      setVersionLineSwitchTarget(name);
+    }
+  }, []);
+  const createVersionLineFromVersion = useCallback(
+    (version: { commit: string; shortCommit: string; subject: string }) => {
+      const path = projectPathRef.current;
+      if (path && startVersionLineOperationRef.current(path)) {
+        setCreateLineRequest({
+          forceSwitch: false,
+          startVersion: {
+            commit: version.commit,
+            shortCommit: version.shortCommit,
+            subject: version.subject,
+          },
+        });
+      }
+    },
+    [],
+  );
+  const clearHistoryScopeLineIntent = useCallback(() => setHistoryScopeLineIntent(null), []);
+  const clearHistorySelectCommitIntent = useCallback(() => setHistorySelectCommitIntent(null), []);
+  const clearLinesSelectIntent = useCallback(() => setLinesSelectIntent(null), []);
+
   // Dropping a folder on the window opens it. Session lifecycle wiring, like
   // the watcher above, so it lives here rather than in a feature: it ends in
   // the same `handleOpenProject` every other route uses, and therefore in the
@@ -1303,6 +1383,7 @@ export function App(): React.JSX.Element {
     hasBlockingDialog ||
     isAboutOpen ||
     isChangelogOpen ||
+    isAppUpdateOpen ||
     isShortcutsOpen ||
     isCloseConfirmOpen ||
     isOpenErrorDialogOpen ||
@@ -1496,6 +1577,14 @@ export function App(): React.JSX.Element {
         ]
       : []),
     { id: "changelog", label: t.changelogTitle, action: () => setIsChangelogOpen(true) },
+    {
+      id: "check-app-updates",
+      label: t.commandCheckAppUpdates,
+      action: () => {
+        setIsAppUpdateOpen(true);
+        void appUpdatesController.check();
+      },
+    },
     { id: "about", label: t.aboutGitOdile, action: () => setIsAboutOpen(true) },
   ];
 
@@ -1650,6 +1739,10 @@ export function App(): React.JSX.Element {
           <TitlebarMenu
             onOpenAbout={() => setIsAboutOpen(true)}
             onOpenChangelog={() => setIsChangelogOpen(true)}
+            onCheckAppUpdates={() => {
+              setIsAppUpdateOpen(true);
+              void appUpdatesController.check();
+            }}
             onOpenProject={() => void handleOpenProject()}
             onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
             onCloneProject={() => setIsCloneOpen(true)}
@@ -1930,7 +2023,7 @@ export function App(): React.JSX.Element {
       </header>
 
       <main
-        className={`app-shell${view === "changes" || view === "history" ? " app-shell--internal-scroll" : ""}`}
+        className={`app-shell${view === "changes" || view === "history" || view === "version-lines" ? " app-shell--internal-scroll" : ""}`}
       >
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}
@@ -2011,7 +2104,7 @@ export function App(): React.JSX.Element {
 
         <section
           {...autoHideScrollbarProps<HTMLElement>()}
-          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}${view === "history" ? " workspace--history" : ""}`}
+          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}${view === "history" ? " workspace--history" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}`}
         >
           <div className="compact-nav-row">
             <ProjectSwitcherCompact
@@ -2150,7 +2243,7 @@ export function App(): React.JSX.Element {
                   }}
                   onQuickCreateVersionLine={(forceSwitch) => {
                     if (projectPath && startVersionLineOperation(projectPath)) {
-                      setOverviewCreateRequest({ forceSwitch });
+                      setCreateLineRequest({ forceSwitch });
                     }
                   }}
                   onOpenProjectSettings={() => openProjectSettings()}
@@ -2253,8 +2346,15 @@ export function App(): React.JSX.Element {
                             navigateToView("changes");
                           }}
                           onOpenChanges={() => navigateToView("changes")}
+                          onOpenHistory={(name, commit) => {
+                            setHistoryScopeLineIntent(name);
+                            setHistorySelectCommitIntent(commit ?? null);
+                            navigateToView("history");
+                          }}
                           autoOpenCreate={versionLinesAutoOpenCreate}
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
+                          selectLineIntent={linesSelectIntent}
+                          onSelectLineIntentHandled={clearLinesSelectIntent}
                         />
                       </Suspense>
                     ),
@@ -2265,6 +2365,14 @@ export function App(): React.JSX.Element {
                           projectPath={project.path}
                           sessionEpoch={activeSession?.epoch ?? ""}
                           watcherState={activeWatcherState}
+                          lines={versionLineNames}
+                          scopeLineIntent={historyScopeLineIntent}
+                          selectCommitIntent={historySelectCommitIntent}
+                          onSelectCommitIntentHandled={clearHistorySelectCommitIntent}
+                          onScopeLineIntentHandled={clearHistoryScopeLineIntent}
+                          onViewLine={viewVersionLine}
+                          onSwitchLine={switchToVersionLine}
+                          onCreateLineFromVersion={createVersionLineFromVersion}
                           onOpenSettings={() => openSettings("general")}
                         />
                       </Suspense>
@@ -2292,6 +2400,11 @@ export function App(): React.JSX.Element {
           onSwitchVersionLine={(target) => {
             if (projectPath && startVersionLineOperation(projectPath)) {
               setVersionLineSwitchTarget(target);
+            }
+          }}
+          onCreateVersionLine={() => {
+            if (projectPath && startVersionLineOperation(projectPath)) {
+              setCreateLineRequest({ forceSwitch: false });
             }
           }}
           onSeeAllVersionLines={() => navigateToView("version-lines")}
@@ -2465,7 +2578,7 @@ export function App(): React.JSX.Element {
             }}
             onCreateWithWork={() => {
               if (startVersionLineOperation(project.path)) {
-                setOverviewCreateRequest({ forceSwitch: false });
+                setCreateLineRequest({ forceSwitch: false });
               }
             }}
             onPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
@@ -2473,20 +2586,21 @@ export function App(): React.JSX.Element {
         </Suspense>
       )}
 
-      {project && overviewCreateRequest && (
+      {project && createLineRequest && (
         <Suspense fallback={null}>
           <CreateVersionLineDialog
             isOpen
             projectPath={project.path}
             sessionEpoch={activeSession?.epoch ?? ""}
-            forceSwitch={overviewCreateRequest.forceSwitch}
+            forceSwitch={createLineRequest.forceSwitch}
+            startVersion={createLineRequest.startVersion ?? null}
             onClose={() => {
-              setOverviewCreateRequest(null);
+              setCreateLineRequest(null);
               finishSessionOperation(project.path);
             }}
             onCreated={(snapshot) => {
               versionLinesController.commit(activeVersionLinesQuery, snapshot);
-              setOverviewCreateRequest(null);
+              setCreateLineRequest(null);
               void handleVersionLineChanged(project.path);
               finishSessionOperation(project.path);
             }}
@@ -2513,6 +2627,8 @@ export function App(): React.JSX.Element {
           setOpen: setIsSettingsOpen,
           theme,
           setTheme: changeTheme,
+          reducedMotion,
+          setReducedMotion,
           section: settingsSection,
           setSection: setSettingsSection,
           gitTooling,
@@ -2524,6 +2640,10 @@ export function App(): React.JSX.Element {
           setWatchProjects,
           remoteCheckInterval,
           setRemoteCheckInterval,
+          automaticAppUpdates,
+          setAutomaticAppUpdates,
+          appUpdates,
+          appUpdatesController,
           confirmDiscard,
           setConfirmDiscard,
           notificationsEnabled,
@@ -2545,6 +2665,7 @@ export function App(): React.JSX.Element {
         }}
         about={{ isOpen: isAboutOpen, setOpen: setIsAboutOpen }}
         changelog={{ isOpen: isChangelogOpen, setOpen: setIsChangelogOpen }}
+        appUpdate={{ isOpen: isAppUpdateOpen, setOpen: setIsAppUpdateOpen }}
         shortcuts={{ isOpen: isShortcutsOpen, setOpen: setIsShortcutsOpen }}
         closeConfirmation={{
           isOpen: isCloseConfirmOpen,

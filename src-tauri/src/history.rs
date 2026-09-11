@@ -1,10 +1,18 @@
 //! Read-only saved-version history.
 //!
 //! The timeline is deliberately narrower than a full repository graph: it
-//! follows commits reachable from the current `HEAD` in stable topological /
-//! date order. Page cursors bind the offset to the exact local/upstream
-//! snapshot so a changed history is rejected instead of silently skipping or
-//! duplicating rows.
+//! follows commits reachable from a scope's tips in stable topological / date
+//! order. The scope is the current `HEAD`, one named local version line, or
+//! every local version line at once; it decides *which* graph is walked, while
+//! `HistoryFilters` decides how much of that graph is returned. Page cursors
+//! bind the offset to the exact scope/local/upstream snapshot so a changed
+//! history is rejected instead of silently skipping or duplicating rows.
+//!
+//! Scoping to a line means "reachable from that line's tip", never "these
+//! commits belong to that line". A commit reachable from five lines belongs to
+//! all of them, and Git will not cheaply say which line it is "on", so nothing
+//! here stamps a line name onto a row: decorations keep meaning only that a ref
+//! points at that commit.
 
 use crate::application;
 use crate::changes::{
@@ -36,6 +44,14 @@ const MAX_CACHED_HISTORY_SNAPSHOTS: usize = 4;
 const MAX_CACHED_HISTORY_COMMITS: usize = 1_000;
 const MAX_CACHED_HISTORY_DETAILS: usize = 8;
 const MAX_CACHED_HISTORY_DETAIL_BYTES: usize = 512 * 1024;
+const MAX_FILTER_AUTHOR_CHARS: usize = 200;
+const MAX_FILTER_PATH_CHARS: usize = 1_024;
+/// How many local version lines `AllLines` will walk from. A repository with
+/// more than this many lines gets the first `MAX_SCOPE_LINES` by name plus a
+/// warning, rather than an unbounded argv and an unbounded walk.
+const MAX_SCOPE_LINES: usize = 500;
+const MAX_LINE_NAME_CHARS: usize = 255;
+const MAX_SCOPE_REF_OUTPUT_BYTES: usize = 2 * 1024 * 1024;
 
 type PageObjects = (
     HashMap<String, Vec<u8>>,
@@ -133,6 +149,39 @@ pub(crate) enum HistoryWarningCode {
     MessagesTruncated,
     UnreadableMetadata,
     UpstreamUnavailable,
+    LinesTruncated,
+}
+
+/// Which history is being read.
+///
+/// Deliberately not a field of `HistoryFilters`. A filter narrows the graph the
+/// scope selected, and the two are cleared by different gestures: clearing every
+/// filter must not quietly walk the reader back to the current line.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub(crate) enum HistoryScope {
+    /// Whatever `HEAD` points at, including a detached one. The default, and
+    /// the only scope that existed before this was introduced.
+    #[default]
+    CurrentLine,
+    /// One named local version line, read without checking anything out.
+    Line { name: String },
+    /// Every local version line at once, deduplicated by `rev-list`.
+    AllLines,
+}
+
+/// A scope after it has been resolved against the repository: the commits to
+/// walk from, and the refs that produced them.
+///
+/// `tips` is what the snapshot token hashes, so a line that moves, is renamed
+/// or is deleted while a reader is paging invalidates the cursor instead of
+/// mixing two histories into one list.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ResolvedScope {
+    scope: HistoryScope,
+    roots: Vec<String>,
+    tips: Vec<(String, String)>,
+    truncated: bool,
 }
 
 #[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
@@ -140,9 +189,18 @@ pub(crate) enum HistoryWarningCode {
 pub(crate) struct HistoryPage {
     pub(crate) repository_id: String,
     pub(crate) snapshot_token: String,
+    /// The scope this page was read at, echoed so the screen can tell what it
+    /// actually got when a requested line has gone.
+    pub(crate) scope: HistoryScope,
+    /// `HEAD`'s own line, whatever the scope is. The timeline uses it to mark
+    /// which decoration is the line being stood on, which stays true under a
+    /// scope that is looking somewhere else.
     pub(crate) branch: Option<String>,
     pub(crate) head_state: HeadState,
     pub(crate) head_commit: Option<String>,
+    /// The publication boundary the versions below were classified against —
+    /// the scope's own upstream, not always `HEAD`'s. `None` under `AllLines`,
+    /// where no single boundary can answer the question.
     pub(crate) upstream: Option<UpstreamBoundary>,
     pub(crate) versions: Vec<SavedVersionSummary>,
     pub(crate) next_cursor: Option<String>,
@@ -192,6 +250,7 @@ struct HeadContext {
 #[derive(Debug, Clone)]
 struct SnapshotContext {
     head: HeadContext,
+    scope: ResolvedScope,
     upstream: Option<UpstreamBoundary>,
     shallow: bool,
     token: String,
@@ -512,8 +571,10 @@ fn encode_cursor(cursor: &HistoryCursor) -> String {
     )
 }
 
+/// `splitn(4)` rather than `split`: a snapshot token names its scope and so
+/// carries `:` separators of its own, and the token is the last field.
 fn decode_cursor(value: &str) -> Result<HistoryCursor, AppError> {
-    let mut fields = value.split(':');
+    let mut fields = value.splitn(4, ':');
     if fields.next() != Some("v1") {
         return Err(stale_cursor_error());
     }
@@ -529,9 +590,6 @@ fn decode_cursor(value: &str) -> Result<HistoryCursor, AppError> {
         .next()
         .filter(|field| !field.is_empty())
         .ok_or_else(stale_cursor_error)?;
-    if fields.next().is_some() {
-        return Err(stale_cursor_error());
-    }
     Ok(HistoryCursor {
         offset,
         local_only_seen,
@@ -597,9 +655,181 @@ fn read_upstream(path: &str, branch: Option<&str>) -> Result<Option<UpstreamBoun
     }))
 }
 
+fn missing_line_error(name: &str) -> AppError {
+    AppError::new(
+        AppErrorCode::VersionLineMissing,
+        format!("The version line \"{name}\" isn't in this project any more."),
+    )
+    .with_remediation("Choose another version line, or go back to the current one.")
+}
+
+/// A local line name as it arrives from the interface.
+///
+/// It is never handed to `rev-list` as a revision: it is prefixed to
+/// `refs/heads/`, which is what keeps a name that looks like an option, a tag,
+/// or a path from being read as one. This only bounds it and rejects what Git
+/// refuses in a ref name anyway, so the failure is a sentence rather than exit
+/// 128.
+fn validated_line_name(name: &str) -> Result<&str, AppError> {
+    let rejected = name.is_empty()
+        || name.chars().count() > MAX_LINE_NAME_CHARS
+        || name.chars().any(|value| {
+            value.is_control()
+                || value.is_whitespace()
+                || matches!(value, '~' | '^' | ':' | '?' | '*' | '[' | '\\')
+        })
+        || name.starts_with('-')
+        || name.starts_with('/')
+        || name.ends_with('/')
+        || name.contains("..")
+        || name.contains("//")
+        || name.contains("@{");
+    if rejected {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That isn't a version line this project can show.",
+        )
+        .with_remediation("Choose a version line from the list."));
+    }
+    Ok(name)
+}
+
+/// Every local version line and the commit it points at, oldest name first.
+///
+/// One `for-each-ref`, capped like every other read here — never one process
+/// per line.
+fn read_local_line_tips(path: &str) -> Result<(Vec<(String, String)>, bool), AppError> {
+    let output = run_git_capped(
+        path,
+        &[
+            "for-each-ref",
+            "--format=%(objectname)%00%(refname)%00",
+            "--sort=refname",
+            "refs/heads",
+        ],
+        MAX_SCOPE_REF_OUTPUT_BYTES,
+    )?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't list this project's version lines.",
+        )
+        .with_remediation("Refresh History and try again."));
+    }
+    let mut tips = Vec::new();
+    let fields = output.stdout.split(|byte| *byte == 0).collect::<Vec<_>>();
+    for record in fields.chunks(2) {
+        if record.len() < 2 {
+            break;
+        }
+        let (Ok(commit), Ok(reference)) = (
+            std::str::from_utf8(strip_record_newline(record[0])),
+            std::str::from_utf8(strip_record_newline(record[1])),
+        ) else {
+            continue;
+        };
+        if !is_valid_oid(commit) || !reference.starts_with("refs/heads/") {
+            continue;
+        }
+        tips.push((reference.to_string(), commit.to_string()));
+    }
+    let truncated = output.limit_exceeded || tips.len() > MAX_SCOPE_LINES;
+    tips.truncate(MAX_SCOPE_LINES);
+    Ok((tips, truncated))
+}
+
+fn resolve_scope(
+    path: &str,
+    scope: HistoryScope,
+    head: &HeadContext,
+) -> Result<ResolvedScope, AppError> {
+    match &scope {
+        HistoryScope::CurrentLine => Ok(ResolvedScope {
+            roots: head.head_commit.iter().cloned().collect(),
+            // `HEAD` is already hashed into the token by itself, so the current
+            // line adds no tips of its own.
+            tips: Vec::new(),
+            truncated: false,
+            scope,
+        }),
+        HistoryScope::Line { name } => {
+            let name = validated_line_name(name)?;
+            let reference = format!("refs/heads/{name}");
+            let commit =
+                resolve_commit(path, &reference)?.ok_or_else(|| missing_line_error(name))?;
+            Ok(ResolvedScope {
+                roots: vec![commit.clone()],
+                tips: vec![(reference, commit)],
+                truncated: false,
+                scope,
+            })
+        }
+        HistoryScope::AllLines => {
+            let (tips, truncated) = read_local_line_tips(path)?;
+            let mut roots = tips
+                .iter()
+                .map(|(_, commit)| commit.clone())
+                .collect::<Vec<_>>();
+            // `rev-list` deduplicates the walk itself; deduplicating the roots
+            // only keeps the argv proportional to distinct tips rather than to
+            // lines, which two lines on one commit would otherwise double.
+            roots.sort();
+            roots.dedup();
+            Ok(ResolvedScope {
+                roots,
+                tips,
+                truncated,
+                scope,
+            })
+        }
+    }
+}
+
+/// The line a scope's publication boundary should be read from: `HEAD`'s line
+/// for the current scope, the named line for itself, and nothing for the union.
+///
+/// `AllLines` has no honest single boundary — each line answers to its own
+/// upstream — so publication is reported as unknown there rather than measured
+/// against a boundary that only describes one of them.
+fn scope_upstream_branch<'a>(scope: &'a HistoryScope, head: &'a HeadContext) -> Option<&'a str> {
+    match scope {
+        HistoryScope::CurrentLine => head.branch.as_deref(),
+        HistoryScope::Line { name } => Some(name.as_str()),
+        HistoryScope::AllLines => None,
+    }
+}
+
+/// The scope half of a snapshot token, which is also how a later detail read
+/// recovers the scope a page was taken at without the interface having to carry
+/// it through every request. `:` cannot appear in a ref name, so the name field
+/// is unambiguous.
+fn scope_tag(scope: &HistoryScope) -> String {
+    match scope {
+        HistoryScope::CurrentLine => "c".to_string(),
+        HistoryScope::Line { name } => format!("l:{name}"),
+        HistoryScope::AllLines => "a".to_string(),
+    }
+}
+
+fn scope_from_token(token: &str) -> Option<HistoryScope> {
+    let mut fields = token.splitn(3, ':');
+    match fields.next()? {
+        "c" => Some(HistoryScope::CurrentLine),
+        "a" => Some(HistoryScope::AllLines),
+        "l" => {
+            let name = fields.next().filter(|value| !value.is_empty())?;
+            Some(HistoryScope::Line {
+                name: name.to_string(),
+            })
+        }
+        _ => None,
+    }
+}
+
 fn compute_snapshot_token(
     repository_id: &str,
     head: &HeadContext,
+    scope: &ResolvedScope,
     upstream: Option<&UpstreamBoundary>,
     shallow: bool,
 ) -> String {
@@ -612,20 +842,32 @@ fn compute_snapshot_token(
     upstream
         .map(|value| (&value.tracking_ref, &value.commit))
         .hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
+    // The tips, not merely the scope's name: a page and the pages after it
+    // describe one history only while the refs they were walked from still
+    // point where they did.
+    scope.tips.hash(&mut hasher);
+    scope.truncated.hash(&mut hasher);
+    format!("{}:{:016x}", scope_tag(&scope.scope), hasher.finish())
 }
 
-fn read_snapshot(path: &str, repository_id: &str) -> Result<(SnapshotContext, bool), AppError> {
+fn read_snapshot(
+    path: &str,
+    repository_id: &str,
+    scope: HistoryScope,
+) -> Result<(SnapshotContext, bool), AppError> {
     let head = read_head_context(path)?;
+    let scope = resolve_scope(path, scope, &head)?;
     let shallow = read_shallow(path)?;
-    let (upstream, upstream_unavailable) = match read_upstream(path, head.branch.as_deref()) {
-        Ok(value) => (value, false),
-        Err(_) => (None, true),
-    };
-    let token = compute_snapshot_token(repository_id, &head, upstream.as_ref(), shallow);
+    let (upstream, upstream_unavailable) =
+        match read_upstream(path, scope_upstream_branch(&scope.scope, &head)) {
+            Ok(value) => (value, false),
+            Err(_) => (None, true),
+        };
+    let token = compute_snapshot_token(repository_id, &head, &scope, upstream.as_ref(), shallow);
     Ok((
         SnapshotContext {
             head,
+            scope,
             upstream,
             shallow,
             token,
@@ -665,27 +907,216 @@ fn parse_graph_rows(output: &[u8]) -> Result<Vec<CommitGraphRow>, AppError> {
     Ok(rows)
 }
 
+/// What the caller asked the timeline to be narrowed to.
+///
+/// Every field becomes an argument to the same `rev-list` that pages the
+/// timeline, so a filter applies to the whole reachable history rather than to
+/// the rows the client happens to be holding. That distinction is the reason
+/// the old client-side ordering control was withdrawn: a control that operates
+/// on the loaded page stops telling the truth the moment the history is longer
+/// than the page, and it does so silently.
+#[derive(serde::Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub(crate) struct HistoryFilters {
+    pub(crate) author: Option<String>,
+    pub(crate) since: Option<String>,
+    pub(crate) until: Option<String>,
+    pub(crate) path: Option<String>,
+    pub(crate) no_merges: bool,
+    pub(crate) unpublished_only: bool,
+}
+
+/// Validated filters, each already shaped as the argument it will be passed as
+/// — one owned `String` per flag, so building the argv is a borrow rather than
+/// a second round of formatting.
+#[derive(Debug, Clone, Default)]
+struct PreparedFilters {
+    author: Option<String>,
+    since: Option<String>,
+    until: Option<String>,
+    path: Option<String>,
+    no_merges: bool,
+    unpublished_only: bool,
+}
+
+impl PreparedFilters {
+    /// Whether anything was actually asked for. Publication is classified by a
+    /// cheaper windowed walk while this holds; see `read_history_page_impl`.
+    fn is_inert(&self) -> bool {
+        self.author.is_none()
+            && self.since.is_none()
+            && self.until.is_none()
+            && self.path.is_none()
+            && !self.no_merges
+            && !self.unpublished_only
+    }
+}
+
+fn invalid_filter(message: &str) -> AppError {
+    AppError::new(AppErrorCode::InvalidSelection, message)
+        .with_remediation("Change the filters and try again.")
+}
+
+/// Trims, bounds, and rejects control characters. A value reaches Git as one
+/// argv element after `=`, never through a shell, so the danger is not quoting
+/// but an unbounded or unprintable string reaching a subprocess.
+fn text_filter(
+    value: Option<&str>,
+    limit: usize,
+    message: &str,
+) -> Result<Option<String>, AppError> {
+    let Some(value) = value else { return Ok(None) };
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    if trimmed.chars().count() > limit || trimmed.chars().any(char::is_control) {
+        return Err(invalid_filter(message));
+    }
+    Ok(Some(trimmed.to_string()))
+}
+
+/// `YYYY-MM-DD` and nothing else. Git's date parser accepts a great deal more,
+/// including relative phrasing that would make the filter mean different things
+/// on different days; the interface only ever sends a calendar day.
+fn date_filter(value: Option<&str>, flag: &str) -> Result<Option<String>, AppError> {
+    let Some(value) = text_filter(value, 10, "That date isn't a valid filter.")? else {
+        return Ok(None);
+    };
+    let bytes = value.as_bytes();
+    let shaped = bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && [0, 1, 2, 3, 5, 6, 8, 9]
+            .iter()
+            .all(|index| bytes[*index].is_ascii_digit());
+    if !shaped {
+        return Err(invalid_filter("That date isn't a valid filter."));
+    }
+    Ok(Some(format!("{flag}={value}")))
+}
+
+fn prepare_filters(filters: Option<HistoryFilters>) -> Result<PreparedFilters, AppError> {
+    let filters = filters.unwrap_or_default();
+    let path = text_filter(
+        filters.path.as_deref(),
+        MAX_FILTER_PATH_CHARS,
+        "That file or folder isn't a valid filter.",
+    )?;
+    if let Some(path) = path.as_deref() {
+        validate_repo_relative_path(path)?;
+    }
+    Ok(PreparedFilters {
+        author: text_filter(
+            filters.author.as_deref(),
+            MAX_FILTER_AUTHOR_CHARS,
+            "That author isn't a valid filter.",
+        )?
+        .map(|value| format!("--author={value}")),
+        since: date_filter(filters.since.as_deref(), "--since")?,
+        until: date_filter(filters.until.as_deref(), "--until")?,
+        path,
+        no_merges: filters.no_merges,
+        unpublished_only: filters.unpublished_only,
+    })
+}
+
+/// Which of `commits` are not reachable from the upstream tip.
+///
+/// `--no-walk` keeps the answer bounded by the page rather than by the length
+/// of the branch, which is what lets publication stay correct once a filter
+/// makes the page a non-contiguous slice of history: the windowed walk in
+/// `read_local_only_commits` assumes the page is the next `limit` commits, and
+/// a filtered page is not.
+fn classify_local_only(
+    path: &str,
+    commits: &[String],
+    upstream: &str,
+) -> Result<HashSet<String>, AppError> {
+    if commits.is_empty() {
+        return Ok(HashSet::new());
+    }
+    let mut args = vec!["rev-list", "--no-walk"];
+    args.extend(commits.iter().map(String::as_str));
+    args.push("--not");
+    args.push(upstream);
+    let output = run_git_capped(path, &args, commits.len() * 80 + 1024)?;
+    if !output.status.success() || output.limit_exceeded {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't classify saved versions against the configured upstream.",
+        ));
+    }
+    Ok(git_stdout(&std::process::Output {
+        status: output.status,
+        stdout: output.stdout,
+        stderr: Vec::new(),
+    })
+    .lines()
+    .filter(|commit| is_valid_oid(commit))
+    .map(str::to_string)
+    .collect())
+}
+
 fn read_graph_page(
     path: &str,
-    head: &str,
+    roots: &[String],
     offset: usize,
     limit: usize,
+    filters: &PreparedFilters,
+    unpublished_upstream: Option<&str>,
 ) -> Result<(Vec<CommitGraphRow>, bool), AppError> {
     let max_count = format!("--max-count={}", limit + 1);
     let skip = format!("--skip={offset}");
-    let output = run_git_capped(
-        path,
-        &[
-            "rev-list",
-            "--topo-order",
-            "--date-order",
-            "--parents",
-            &max_count,
-            &skip,
-            head,
-        ],
-        256 * 1024,
-    )?;
+    let mut args = vec![
+        "rev-list",
+        "--topo-order",
+        "--date-order",
+        "--parents",
+        max_count.as_str(),
+        skip.as_str(),
+    ];
+    if let Some(author) = filters.author.as_deref() {
+        // A name is text, not a pattern. Git reads `--author` as a regular
+        // expression by default, so a bracket typed into the name field —
+        // `a[` — is an invalid expression and fails the whole read with exit
+        // 128, which the screen can only report as an error. `--fixed-strings`
+        // makes it the substring match the field looks like it is, and
+        // `--regexp-ignore-case` makes "ada" find "Ada Lovelace", which is
+        // what someone who does not know Git will expect of a name box.
+        args.push("--fixed-strings");
+        args.push("--regexp-ignore-case");
+        args.push(author);
+    }
+    if let Some(since) = filters.since.as_deref() {
+        args.push(since);
+    }
+    if let Some(until) = filters.until.as_deref() {
+        args.push(until);
+    }
+    if filters.no_merges {
+        args.push("--no-merges");
+    }
+    // Several roots are one walk, not several: `rev-list` returns their union
+    // in one order, visiting a commit reachable from more than one of them
+    // exactly once. That is what makes "all lines" a deduplicated history
+    // rather than a concatenation of branches.
+    for root in roots {
+        args.push(root.as_str());
+    }
+    // "Not published yet" is an exclusion of everything the upstream already
+    // has, which is the same question `--not` answers — so it is a filter over
+    // the whole history like the others, not a predicate over loaded rows.
+    if let Some(upstream) = unpublished_upstream {
+        args.push("--not");
+        args.push(upstream);
+    }
+    // Last, and behind `--`: a pathspec, never an option, whatever it contains.
+    if let Some(path_spec) = filters.path.as_deref() {
+        args.push("--");
+        args.push(path_spec);
+    }
+    let output = run_git_capped(path, &args, 256 * 1024)?;
     if !output.status.success() || output.limit_exceeded {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
@@ -873,10 +1304,13 @@ fn decoration_for_ref(reference: &str) -> Option<HistoryDecoration> {
     })
 }
 
+/// `head` is optional because a scope can list versions while `HEAD` itself has
+/// none — a named line in a project whose current line is unborn. The synthetic
+/// `HEAD` marker is only ever added where `HEAD` genuinely points.
 fn read_decorations(
     path: &str,
     page_commits: &HashSet<String>,
-    head: &str,
+    head: Option<&str>,
 ) -> Result<DecorationSnapshot, AppError> {
     let output = run_git_capped(
         path,
@@ -920,7 +1354,7 @@ fn read_decorations(
         let decorations = by_commit.entry(commit.to_string()).or_default();
         // Reserve one slot for the synthetic HEAD marker on the current tip,
         // so the documented per-version cap remains true after insertion.
-        let limit = if commit == head {
+        let limit = if Some(commit) == head {
             MAX_DECORATIONS_PER_VERSION - 1
         } else {
             MAX_DECORATIONS_PER_VERSION
@@ -931,15 +1365,17 @@ fn read_decorations(
             truncated_commits.insert(commit.to_string());
         }
     }
-    let head_decorations = by_commit.entry(head.to_string()).or_default();
-    head_decorations.insert(
-        0,
-        HistoryDecoration {
-            kind: DecorationKind::Head,
-            name: "HEAD".to_string(),
-            full_ref: "HEAD".to_string(),
-        },
-    );
+    if let Some(head) = head {
+        let head_decorations = by_commit.entry(head.to_string()).or_default();
+        head_decorations.insert(
+            0,
+            HistoryDecoration {
+                kind: DecorationKind::Head,
+                name: "HEAD".to_string(),
+                full_ref: "HEAD".to_string(),
+            },
+        );
+    }
     for decorations in by_commit.values_mut() {
         decorations.sort_by(|left, right| {
             let rank = |kind| match kind {
@@ -963,27 +1399,26 @@ fn read_decorations(
 
 fn read_local_only_commits(
     path: &str,
-    head: &str,
+    roots: &[String],
     upstream: &str,
     skip: usize,
     limit: usize,
 ) -> Result<HashSet<String>, AppError> {
     let skip = format!("--skip={skip}");
     let max_count = format!("--max-count={limit}");
-    let output = run_git_capped(
-        path,
-        &[
-            "rev-list",
-            "--topo-order",
-            "--date-order",
-            &skip,
-            &max_count,
-            head,
-            "--not",
-            upstream,
-        ],
-        limit * 80 + 1024,
-    )?;
+    let mut args = vec![
+        "rev-list",
+        "--topo-order",
+        "--date-order",
+        skip.as_str(),
+        max_count.as_str(),
+    ];
+    for root in roots {
+        args.push(root.as_str());
+    }
+    args.push("--not");
+    args.push(upstream);
+    let output = run_git_capped(path, &args, limit * 80 + 1024)?;
     if !output.status.success() || output.limit_exceeded {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
@@ -1054,8 +1489,10 @@ pub(crate) fn read_history_page(
     path: String,
     cursor: Option<String>,
     page_size: Option<usize>,
+    filters: Option<HistoryFilters>,
+    scope: Option<HistoryScope>,
 ) -> Result<HistoryPage, AppError> {
-    read_history_page_impl(path, cursor, page_size, None)
+    read_history_page_impl(path, cursor, page_size, filters, scope, None)
 }
 
 pub(crate) fn read_history_page_cached(
@@ -1063,20 +1500,26 @@ pub(crate) fn read_history_page_cached(
     path: String,
     cursor: Option<String>,
     page_size: Option<usize>,
+    filters: Option<HistoryFilters>,
+    scope: Option<HistoryScope>,
 ) -> Result<HistoryPage, AppError> {
-    read_history_page_impl(path, cursor, page_size, Some(cache))
+    read_history_page_impl(path, cursor, page_size, filters, scope, Some(cache))
 }
 
 fn read_history_page_impl(
     path: String,
     cursor: Option<String>,
     page_size: Option<usize>,
+    filters: Option<HistoryFilters>,
+    scope: Option<HistoryScope>,
     cache: Option<&HistoryReadCache>,
 ) -> Result<HistoryPage, AppError> {
     let (repository, _access) =
         application::authorize_repository(&path, "read_history_page", None)?;
+    let filters = prepare_filters(filters)?;
     let repository_id = repository.worktree_root.match_key().to_string();
-    let (snapshot, upstream_unavailable) = read_snapshot(&path, &repository_id)?;
+    let (snapshot, upstream_unavailable) =
+        read_snapshot(&path, &repository_id, scope.unwrap_or_default())?;
     let cursor = cursor.as_deref().map(decode_cursor).transpose()?;
     if cursor
         .as_ref()
@@ -1096,13 +1539,20 @@ fn read_history_page_impl(
     if upstream_unavailable {
         warnings.push(HistoryWarningCode::UpstreamUnavailable);
     }
-    let Some(head) = snapshot.head.head_commit.as_deref() else {
+    if snapshot.scope.truncated {
+        warnings.push(HistoryWarningCode::LinesTruncated);
+    }
+    // Emptiness is a fact about the scope, not about `HEAD`: a named line can
+    // have versions in a project whose current line is unborn, and "all lines"
+    // in a project with none has nothing to walk from.
+    if snapshot.scope.roots.is_empty() {
         return Ok(HistoryPage {
             repository_id,
             snapshot_token: snapshot.token,
+            scope: snapshot.scope.scope,
             branch: snapshot.head.branch,
             head_state: snapshot.head.head_state,
-            head_commit: None,
+            head_commit: snapshot.head.head_commit,
             upstream: snapshot.upstream,
             versions: Vec::new(),
             next_cursor: None,
@@ -1110,8 +1560,29 @@ fn read_history_page_impl(
             shallow: snapshot.shallow,
             warnings,
         });
-    };
-    let (rows, has_more) = read_graph_page(&path, head, offset, page_size)?;
+    }
+    let roots = snapshot.scope.roots.clone();
+    // Asked for but unanswerable: without an upstream there is nothing to
+    // compare against, every version below reads `Unknown`, and the screen
+    // says so in a notice of its own. Narrowing to an empty list would be a
+    // worse answer than not narrowing.
+    let unpublished_upstream = filters
+        .unpublished_only
+        .then(|| {
+            snapshot
+                .upstream
+                .as_ref()
+                .map(|value| value.commit.as_str())
+        })
+        .flatten();
+    let (rows, has_more) = read_graph_page(
+        &path,
+        &roots,
+        offset,
+        page_size,
+        &filters,
+        unpublished_upstream,
+    )?;
     let (objects, unavailable) = read_page_objects(&path, &rows)?;
     if !unavailable.is_empty() {
         warnings.push(HistoryWarningCode::MessagesTruncated);
@@ -1121,17 +1592,28 @@ fn read_history_page_impl(
         .map(|row| row.commit.clone())
         .collect::<HashSet<_>>();
     let (mut decorations, decoration_truncations, decorations_truncated, unreadable_refs) =
-        read_decorations(&path, &commits, head)?;
+        read_decorations(&path, &commits, snapshot.head.head_commit.as_deref())?;
     if decorations_truncated || !decoration_truncations.is_empty() {
         warnings.push(HistoryWarningCode::DecorationsTruncated);
     }
     if unreadable_refs {
         warnings.push(HistoryWarningCode::UnreadableMetadata);
     }
-    let local_only = if let Some(upstream) = snapshot.upstream.as_ref() {
-        read_local_only_commits(&path, head, &upstream.commit, local_only_seen, page_size)?
-    } else {
-        HashSet::new()
+    let local_only = match snapshot.upstream.as_ref() {
+        None => HashSet::new(),
+        // The windowed walk only lines up with a page that is the next
+        // `page_size` commits in order. That is exactly what an unfiltered page
+        // is, and exactly what a filtered one is not.
+        Some(upstream) if filters.is_inert() => {
+            read_local_only_commits(&path, &roots, &upstream.commit, local_only_seen, page_size)?
+        }
+        Some(upstream) => {
+            let commits = rows
+                .iter()
+                .map(|row| row.commit.clone())
+                .collect::<Vec<_>>();
+            classify_local_only(&path, &commits, &upstream.commit)?
+        }
     };
     let page_local_only = rows
         .iter()
@@ -1173,6 +1655,7 @@ fn read_history_page_impl(
     Ok(HistoryPage {
         repository_id,
         snapshot_token: snapshot.token,
+        scope: snapshot.scope.scope,
         branch: snapshot.head.branch,
         head_state: snapshot.head.head_state,
         head_commit: snapshot.head.head_commit,
@@ -1197,22 +1680,75 @@ fn validate_snapshot_and_commit(
             "That saved version couldn't be identified.",
         ));
     }
-    let (snapshot, _) = read_snapshot(path, repository_id)?;
+    // The token names the scope it was taken at, so a detail read re-resolves
+    // the same history the page walked without the request having to carry the
+    // scope through every command. A token whose scope no longer resolves — a
+    // line deleted while its detail was open — is stale, not invalid input.
+    let Some(scope) = scope_from_token(snapshot_token) else {
+        return Err(stale_cursor_error());
+    };
+    let (snapshot, _) = match read_snapshot(path, repository_id, scope) {
+        Ok(value) => value,
+        Err(error) if error.code == AppErrorCode::VersionLineMissing => {
+            return Err(stale_cursor_error())
+        }
+        Err(error) => return Err(error),
+    };
     if snapshot.token != snapshot_token {
         return Err(stale_cursor_error());
     }
-    let Some(head) = snapshot.head.head_commit.as_deref() else {
+    if snapshot.scope.roots.is_empty() {
         return Err(stale_cursor_error());
-    };
-    let reachable = run_git(path, &["merge-base", "--is-ancestor", commit, head])?;
-    if !reachable.status.success() {
+    }
+    if !reachable_from_scope(path, commit, &snapshot.scope)? {
         return Err(AppError::new(
             AppErrorCode::InvalidSelection,
-            "That saved version is no longer reachable from the current history.",
+            "That saved version is no longer reachable from the history being shown.",
         )
         .with_remediation("Refresh History and choose a saved version that is still listed."));
     }
     Ok(snapshot)
+}
+
+/// Whether `commit` is still part of the history this scope walks.
+///
+/// One process whatever the scope's size. A single root is the ancestry test
+/// `merge-base` already answered; a union asks Git which local tips reach the
+/// commit and intersects that with the tips this scope was walked from, rather
+/// than running one `merge-base` per line.
+fn reachable_from_scope(path: &str, commit: &str, scope: &ResolvedScope) -> Result<bool, AppError> {
+    if let [only] = scope.roots.as_slice() {
+        let output = run_git(path, &["merge-base", "--is-ancestor", commit, only])?;
+        return Ok(output.status.success());
+    }
+    let contains = format!("--contains={commit}");
+    let output = run_git_capped(
+        path,
+        &[
+            "for-each-ref",
+            "--format=%(refname)",
+            &contains,
+            "refs/heads",
+        ],
+        MAX_SCOPE_REF_OUTPUT_BYTES,
+    )?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't check which version lines still hold this saved version.",
+        )
+        .with_remediation("Refresh History and try again."));
+    }
+    let listed = git_stdout(&std::process::Output {
+        status: output.status,
+        stdout: output.stdout,
+        stderr: Vec::new(),
+    });
+    let listed = listed.lines().collect::<HashSet<_>>();
+    Ok(scope
+        .tips
+        .iter()
+        .any(|(reference, _)| listed.contains(reference.as_str())))
 }
 
 fn read_one_commit(path: &str, commit: &str) -> Result<(ParsedCommit, bool), AppError> {
@@ -1358,12 +1894,33 @@ fn graph_row_for_commit(path: &str, commit: &str) -> Result<CommitGraphRow, AppE
         })
 }
 
-fn cached_head_is_current(path: &str, cached: &SnapshotContext) -> Result<bool, AppError> {
-    let Some(expected) = cached.head.head_commit.as_deref() else {
-        return Ok(false);
-    };
+/// Whether the cheap freshness check still holds for a cached read.
+///
+/// `HEAD` alone was enough while every history was `HEAD`'s. Under a scope it
+/// is not: the line being read can move while `HEAD` stands still, and serving
+/// a cached detail then would answer for a history that no longer exists. The
+/// current line still costs one `rev-parse`; a scoped read costs one more
+/// process, never one per line.
+fn cached_snapshot_is_current(path: &str, cached: &SnapshotContext) -> Result<bool, AppError> {
     let output = run_git(path, &["rev-parse", "--verify", "HEAD^{commit}"])?;
-    Ok(output.status.success() && git_stdout(&output) == expected)
+    let head = output.status.success().then(|| git_stdout(&output));
+    if head.as_deref() != cached.head.head_commit.as_deref() {
+        return Ok(false);
+    }
+    if cached.scope.tips.is_empty() {
+        return Ok(matches!(cached.scope.scope, HistoryScope::CurrentLine));
+    }
+    let (tips, truncated) = read_local_line_tips(path)?;
+    Ok(match cached.scope.scope {
+        // The union is only the same history while the whole set is, including
+        // a line that has since been added.
+        HistoryScope::AllLines => truncated == cached.scope.truncated && tips == cached.scope.tips,
+        _ => cached
+            .scope
+            .tips
+            .iter()
+            .all(|entry| tips.iter().any(|current| current == entry)),
+    })
 }
 
 fn detail_from_cached_read(
@@ -1416,7 +1973,7 @@ pub(crate) fn read_saved_version_detail_cached(
     let repository_id = repository.worktree_root.match_key().to_string();
     if is_valid_oid(&commit) {
         if let Some(cached) = cache.read(&repository_id, &snapshot_token, &commit) {
-            if cached_head_is_current(&path, &cached.snapshot)? {
+            if cached_snapshot_is_current(&path, &cached.snapshot)? {
                 let detail = detail_from_cached_read(&path, cached)?;
                 cache.record_detail(&repository_id, &snapshot_token, &commit, &detail);
                 return Ok(detail);
@@ -1436,11 +1993,8 @@ fn read_saved_version_detail_authorized(
     let row = graph_row_for_commit(path, &commit)?;
     let (parsed, message_capped) = read_one_commit(path, &commit)?;
     let page_commits = HashSet::from([commit.clone()]);
-    let (mut decorations, decoration_truncations, _, _) = read_decorations(
-        path,
-        &page_commits,
-        snapshot.head.head_commit.as_deref().unwrap_or(&commit),
-    )?;
+    let (mut decorations, decoration_truncations, _, _) =
+        read_decorations(path, &page_commits, snapshot.head.head_commit.as_deref())?;
     let publication = if let Some(upstream) = snapshot.upstream.as_ref() {
         let output = run_git(
             path,
@@ -1513,7 +2067,7 @@ pub(crate) fn read_saved_version_file_diff_cached(
     validate_repo_relative_path(&file_path)?;
     if is_valid_oid(&commit) {
         if let Some(cached) = cache.read(&repository_id, &snapshot_token, &commit) {
-            if cached_head_is_current(&path, &cached.snapshot)? {
+            if cached_snapshot_is_current(&path, &cached.snapshot)? {
                 let detail = detail_from_cached_read(&path, cached)?;
                 cache.record_detail(&repository_id, &snapshot_token, &commit, &detail);
                 let change = detail

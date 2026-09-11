@@ -5,10 +5,25 @@ use crate::git;
 #[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) enum OperationKind {
+    ReadOnly,
     HistoryMutation,
     RemoteMutation,
     LocalMutation,
     Destructive,
+    PlatformMutation,
+}
+
+impl OperationKind {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::ReadOnly => "read-only",
+            Self::HistoryMutation => "history-mutation",
+            Self::RemoteMutation => "remote-mutation",
+            Self::LocalMutation => "local-mutation",
+            Self::Destructive => "destructive",
+            Self::PlatformMutation => "platform-mutation",
+        }
+    }
 }
 
 const MAX_FAILURE_DETAIL_BYTES: usize = 4000;

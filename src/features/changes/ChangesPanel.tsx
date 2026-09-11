@@ -12,22 +12,26 @@ import {
   Ellipsis,
   RotateCcw,
   Save,
-  Search,
   Trash2,
   X,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps } from "../../shared/ui";
+import {
+  AutomaticUpdatesNotice, autoHideScrollbarProps, FilterCapsule, FilterCapsules, FilterChips,
+  FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, SearchBox,
+  useAnchoredPopup, type FilterChip,
+} from "../../shared/ui";
 import { SaveVersionDialog } from "../save-version";
-import { LoadingBar } from "../../shared/ui";
-import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
-import { CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
+import { QuickCommitBox } from "./QuickCommitBox";
+import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
 import { DiffViewSelector } from "./DiffViewSelector";
+import { DiffStepNav } from "./DiffStepNav";
+import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
 import type { DiscardRecovery, FileDiff } from "./domain";
 import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
@@ -44,6 +48,27 @@ const ChangesContextMenu = React.lazy(async () => {
 });
 
 export type { DiffHunk, DiffLine, DiffLineKind, FileDiff } from "./domain";
+
+/** Whether this project has any discarded work stored at all.
+ *
+ * The cheap question first — is there a newest recovery — and the whole list
+ * only when that rejects. A discard that never finished has no restorable
+ * state, so the cheap check says no while older records may still be there;
+ * that is a reason to open the door to the list, not to hide it. Reading the
+ * list costs a status pass per stored record, which is not what a menu should
+ * pay on every open. */
+async function hasStoredRecoveries(
+  controller: ChangesController,
+  projectPath: string,
+  sessionEpoch: string,
+): Promise<boolean> {
+  try {
+    await controller.getDiscardRecovery(projectPath, sessionEpoch);
+    return true;
+  } catch {
+    return (await controller.listDiscardRecoveries(projectPath, sessionEpoch)).length > 0;
+  }
+}
 
 function ChangesActionsMenu({
   controller,
@@ -78,14 +103,14 @@ function ChangesActionsMenu({
     const next = !open;
     setOpen(next);
     if (next) {
-      controller.getDiscardRecovery(projectPath, sessionEpoch)
-        .then(() => setCanRestore(true))
+      hasStoredRecoveries(controller, projectPath, sessionEpoch)
+        .then((value) => setCanRestore(value))
         .catch(() => setCanRestore(false));
     }
   };
   return (
     <div className="changes-actions-menu" ref={containerRef}>
-      <button ref={triggerRef} className="secondary-button changes-actions-menu__trigger" type="button" aria-label={t.changesMoreActions} aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={toggle} data-tooltip={t.changesMoreActions}>
+      <button ref={triggerRef} className="secondary-button secondary-button--sm changes-actions-menu__trigger" type="button" aria-label={t.changesMoreActions} aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={toggle} data-tooltip={t.changesMoreActions}>
         <Ellipsis aria-hidden="true" />
       </button>
       {open && <div ref={popupRef} className="app-menu changes-actions-menu__popup" role="menu" aria-label={t.changesMoreActions} tabIndex={-1} onKeyDown={(event) => handlePopupMenuKeyDown(event, popupRef.current, () => close(true))}>
@@ -128,6 +153,144 @@ export function filterEntriesBySearch(entries: WorkingTreeEntry[], search: strin
     return entries;
   }
   return entries.filter((entry) => entry.path.toLowerCase().includes(query));
+}
+
+/** Whether the list is showing everything, only what the next saved version
+ * takes, or only what it leaves behind. */
+export type ChangesInclusion = "all" | "included" | "excluded";
+
+/** What a multi-select answer does to the rows it names: keep only those, or
+ * drop them.
+ *
+ * A multi-select that can only include cannot answer "hide the pictures", which
+ * is the complaint the file-type filter exists for — with twenty types in a
+ * tree, hiding one would mean choosing the other nineteen. One mode per group
+ * rather than one for the whole panel, so "only the conflicts, without the
+ * snapshots" is still a question this panel can ask. */
+export type ChangesFilterMode = "only" | "hide";
+
+/** The file type a row is filtered by: its extension, lowercased, or the empty
+ * string for a name that has none.
+ *
+ * Deliberately the same rule `getFileTypeIcon` uses to pick a row's artwork —
+ * the bare name, its last dot, nothing before position 1 — so the filter and
+ * the icon can never disagree about what a file is. `Dockerfile`, `LICENSE` and
+ * `.gitignore` all land in the same bucket the default icon does.
+ *
+ * No taxonomy: no "code", "pictures" or "documents". Naming families is a
+ * decision that belongs to whatever owns the icon set, not to a filter, and an
+ * extension is exact, needs no list to maintain, and is a word the reader can
+ * already see at the end of every row. */
+export function fileTypeKey(path: string): string {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? "" : name.slice(dot + 1).toLowerCase();
+}
+
+/** The two questions this screen can answer about its own list, beyond the
+ * search box: what kind of change a file is, and whether it is going into the
+ * next saved version.
+ *
+ * Both are answered from what the screen already holds — the entries Rust sent,
+ * capped at 1,000, and the checkboxes the reader has cleared — so this is a
+ * predicate over the whole list rather than an argument to a read. That is the
+ * opposite of History's situation, where a filter has to reach Git because a
+ * predicate over the loaded page stops telling the truth as soon as the history
+ * is longer than the page. Here there is no page: the list is the entire
+ * answer, so the narrowing is exact and costs nothing. */
+export type ChangesFilters = {
+  categories: ChangeCategory[];
+  categoryMode: ChangesFilterMode;
+  extensions: string[];
+  extensionMode: ChangesFilterMode;
+  inclusion: ChangesInclusion;
+};
+
+export const NO_CHANGES_FILTERS: ChangesFilters = {
+  categories: [], categoryMode: "only",
+  extensions: [], extensionMode: "only",
+  inclusion: "all",
+};
+
+/** What the trigger's badge counts and the chips name, read from one place so
+ * the two can never disagree. Each chosen kind and type counts once, because
+ * each is removable on its own; the inclusion question counts once whichever
+ * end of it is chosen. A mode counts for nothing: it changes what an answer
+ * means rather than adding one, and counting it would leave the badge saying
+ * three beside two chips. */
+export function countActiveChangesFilters(filters: ChangesFilters): number {
+  return filters.categories.length + filters.extensions.length + (filters.inclusion === "all" ? 0 : 1);
+}
+
+/** One multi-select answer, in whichever direction its group is pointing.
+ * Nothing chosen narrows nothing — in either mode, because "hide none of them"
+ * and "show only all of them" are the same empty question. */
+function matchesSelection<T>(value: T, selected: Set<T>, mode: ChangesFilterMode): boolean {
+  if (selected.size === 0) return true;
+  return mode === "only" ? selected.has(value) : !selected.has(value);
+}
+
+/** The filters applied to the list, and to nothing else.
+ *
+ * `excludedPaths` is read, never written: which files the next saved version
+ * leaves out is the checkboxes' business, and a filter that changed it would be
+ * the worst kind of surprise — a file hidden by a filter is still a file being
+ * saved. */
+export function applyChangesFilters(
+  entries: WorkingTreeEntry[],
+  filters: ChangesFilters,
+  excludedPaths: Set<string>,
+): WorkingTreeEntry[] {
+  if (countActiveChangesFilters(filters) === 0) {
+    return entries;
+  }
+  const kinds = new Set(filters.categories);
+  const types = new Set(filters.extensions);
+  return entries.filter((entry) => {
+    if (!matchesSelection(entry.category, kinds, filters.categoryMode)) return false;
+    if (!matchesSelection(fileTypeKey(entry.path), types, filters.extensionMode)) return false;
+    if (filters.inclusion === "included") return !excludedPaths.has(entry.path);
+    if (filters.inclusion === "excluded") return excludedPaths.has(entry.path);
+    return true;
+  });
+}
+
+/** The kinds this working tree actually contains, in the order the list already
+ * sorts by, each with how many rows it stands for.
+ *
+ * Counted over the entries rather than over `WorkingTreeStatus.counts`: the
+ * counts describe the whole tree while the entries are what a filter can
+ * narrow, and on a truncated list the two differ. Offering a kind that would
+ * leave the list empty is exactly what "only the kinds present" rules out. */
+export function changeKindsPresent(entries: WorkingTreeEntry[]): Array<{ category: ChangeCategory; count: number }> {
+  const counted = new Map<ChangeCategory, number>();
+  for (const entry of entries) {
+    counted.set(entry.category, (counted.get(entry.category) ?? 0) + 1);
+  }
+  return CATEGORY_ORDER.flatMap((category) => {
+    const count = counted.get(category);
+    return count ? [{ category, count }] : [];
+  });
+}
+
+/** The file types this working tree holds, most of them first.
+ *
+ * Ordered by count rather than alphabetically, because the whole point is the
+ * type that is burying the list: in an asset-heavy tree the two hundred
+ * pictures should be the first thing this offers to hide. Ties break on the
+ * name so the order is stable between refreshes, and the extensionless bucket
+ * sits last however many files are in it — it is a leftover, not a type. */
+export function fileTypesPresent(entries: WorkingTreeEntry[]): Array<{ key: string; count: number }> {
+  const counted = new Map<string, number>();
+  for (const entry of entries) {
+    const key = fileTypeKey(entry.path);
+    counted.set(key, (counted.get(key) ?? 0) + 1);
+  }
+  return [...counted].map(([key, count]) => ({ key, count })).sort((a, b) => {
+    if (a.key === "") return 1;
+    if (b.key === "") return -1;
+    return b.count - a.count || a.key.localeCompare(b.key);
+  });
 }
 
 export type DiffLineTotals = { added: number; removed: number };
@@ -190,31 +353,25 @@ export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<strin
   return totals;
 }
 
+/* The screen's heading carries one action now. Discarding acts on the files
+   in the list — the selected one, or all of them — so its menu moved down to
+   the strip that owns that list, where what it will affect is on screen with
+   it. */
 function ChangesHeaderActions({
-  controller,
-  projectPath,
-  sessionEpoch,
   workingTree,
   isChecking,
-  selectedPath,
   canChooseFiles,
   canSaveSelection,
-  includedCount,
+  isEverythingSelected,
   onSave,
-  onChooseDiscard,
   t,
 }: {
-  controller: ChangesController;
-  projectPath: string;
-  sessionEpoch: string;
   workingTree: WorkingTreeStatus | null;
   isChecking: boolean;
-  selectedPath: string | null;
   canChooseFiles: boolean;
   canSaveSelection: boolean;
-  includedCount: number;
+  isEverythingSelected: boolean;
   onSave: () => void;
-  onChooseDiscard: (request: DiscardDialogRequest) => void;
   t: Translations;
 }): React.JSX.Element {
   const hasSavableChanges = workingTree !== null && !workingTree.isClean;
@@ -237,19 +394,16 @@ function ChangesHeaderActions({
           }
         >
           <Save aria-hidden="true" />
-          {/* Names the actual selection when per-file choices are available;
-              a truncated status has no trustworthy selection count. */}
-          {canChooseFiles && canSaveSelection ? t.changesSaveSelected(includedCount) : t.changesSaveVersion}
+          {/* The label qualifies itself only when there is something to
+              qualify. Saving everything is just saving a version, so it says
+              so; leaving files out is the case worth naming, and the count
+              belongs to the summary line rather than to a second copy of it on
+              the button. A truncated status has no trustworthy selection, so
+              it reads as the whole thing too. */}
+          {canChooseFiles && canSaveSelection && !isEverythingSelected
+            ? t.changesSaveSelected
+            : t.changesSaveVersion}
         </button>
-        <ChangesActionsMenu
-          controller={controller}
-          projectPath={projectPath}
-          sessionEpoch={sessionEpoch}
-          selectedPath={selectedPath}
-          disabled={actionsDisabled}
-          onChoose={onChooseDiscard}
-          t={t}
-        />
       </div>
     </div>
   );
@@ -313,7 +467,7 @@ function DiscardOutcomeNotice({
           : outcome.status === "error"
             ? outcome.message
             : outcome.status === "restored"
-              ? t.changesRestoreSuccess
+              ? t.changesRestoreSuccess(outcome.restoredFiles)
               : t.changesDiscardSuccess(outcome.discardedFiles)}
       </p>
       {outcome.status === "discarded" && (
@@ -338,6 +492,219 @@ const CATEGORY_LABEL_KEYS = {
   renamed: "changesCategoryLabelRenamed",
   conflicted: "changesCategoryLabelConflicted",
 } as const satisfies Record<ChangeCategory, keyof Translations>;
+
+/** An extension as a reader recognises it, and the leftover bucket named in
+ * words rather than as an empty string. */
+function fileTypeLabel(key: string, t: Translations): string {
+  return key === "" ? t.changesFilterTypeNone : `.${key}`;
+}
+
+/** The same artwork the row for that type carries, so a switch and the files it
+ * stands for are recognised as the same thing. Keyed off a bare name because
+ * the icon set resolves whole names too, and `x.ts` is the shortest honest
+ * sample of "a file whose type is ts". */
+function FileTypeGlyph({ typeKey }: { typeKey: string }): React.JSX.Element {
+  const Glyph = getFileTypeIcon(typeKey === "" ? "file" : `file.${typeKey}`);
+  return <Glyph className="changes-filter__type-icon" />;
+}
+
+const INCLUSION_LABEL_KEYS = {
+  all: "changesFilterInclusionAll",
+  included: "changesFilterInclusionIncluded",
+  excluded: "changesFilterInclusionExcluded",
+} as const satisfies Record<ChangesInclusion, keyof Translations>;
+
+const INCLUSION_CHIP_KEYS = {
+  included: "changesFilterInclusionIncludedChip",
+  excluded: "changesFilterInclusionExcludedChip",
+} as const satisfies Record<Exclude<ChangesInclusion, "all">, keyof Translations>;
+
+/** The two questions this list can answer, behind the same trigger the History
+ * timeline keeps in the same slot: knowing one screen's filter is knowing the
+ * other's.
+ *
+ * The kinds are switches rather than capsules — five of them, each carrying the
+ * glyph the rows already use for it and the number of rows it stands for, which
+ * is what turns "hide the untracked noise" into one informed click. Only the
+ * kinds this working tree contains are offered, so no answer here can empty the
+ * list on its own.
+ *
+ * The inclusion question is three capsules: one choice out of a short, fixed
+ * set, which is the shape a segmented choice takes. It is asked as the question
+ * the row's checkbox answers — "will be saved: yes / no" — because the checkbox
+ * is the only place this screen states that fact, and a filter must narrow by
+ * something the reader can then check on the rows it leaves.
+ *
+ * It is not offered at all where no file can be left out: past Rust's 1,000-entry
+ * cap the checkboxes are disabled and the next version takes everything, so the
+ * question has only one true answer and asking it would be theatre. */
+function ChangesFilterMode({ group, mode, name, onChange, t }: {
+  group: string;
+  mode: ChangesFilterMode;
+  name: string;
+  onChange: (mode: ChangesFilterMode) => void;
+  t: Translations;
+}): React.JSX.Element {
+  return (
+    <FilterCapsules ariaLabel={t.changesFilterModeLabel(group)}>
+      {(["only", "hide"] as const).map((option) => (
+        <FilterCapsule key={option} name={name} checked={mode === option} onChange={() => onChange(option)}>
+          {option === "only" ? t.changesFilterModeOnly : t.changesFilterModeHide}
+        </FilterCapsule>
+      ))}
+    </FilterCapsules>
+  );
+}
+
+function ChangesFilterPanel({ filters, kinds, types, canChooseFiles, onChange, t }: {
+  filters: ChangesFilters;
+  kinds: Array<{ category: ChangeCategory; count: number }>;
+  types: Array<{ key: string; count: number }>;
+  canChooseFiles: boolean;
+  onChange: (filters: ChangesFilters) => void;
+  t: Translations;
+}): React.JSX.Element {
+  const toggleKind = (category: ChangeCategory): void => onChange({
+    ...filters,
+    categories: filters.categories.includes(category)
+      ? filters.categories.filter((kind) => kind !== category)
+      : [...filters.categories, category],
+  });
+  const toggleType = (key: string): void => onChange({
+    ...filters,
+    extensions: filters.extensions.includes(key)
+      ? filters.extensions.filter((type) => type !== key)
+      : [...filters.extensions, key],
+  });
+  return (
+    <FilterPanel
+      activeCount={countActiveChangesFilters(filters)}
+      labels={{
+        open: t.changesFiltersLabel,
+        active: t.changesFiltersActive,
+        activeCount: t.changesFiltersActiveCount,
+        clear: t.changesFiltersClear,
+      }}
+      onClear={() => onChange(NO_CHANGES_FILTERS)}
+    >
+      <FilterGroup label={t.changesFilterKindLabel}>
+        {/* Always drawn, not revealed once something is chosen: a control that
+            appears under the pointer moves the switch the reader was about to
+            press next. */}
+        <ChangesFilterMode
+          group={t.changesFilterKindLabel}
+          mode={filters.categoryMode}
+          name="changes-filter-kind-mode"
+          onChange={(categoryMode) => onChange({ ...filters, categoryMode })}
+          t={t}
+        />
+        {kinds.map(({ category, count }) => (
+          <FilterSwitch
+            key={category}
+            checked={filters.categories.includes(category)}
+            icon={CHANGE_CATEGORY_ICONS[category]}
+            label={t[CATEGORY_LABEL_KEYS[category]]}
+            count={count}
+            onChange={() => toggleKind(category)}
+          />
+        ))}
+      </FilterGroup>
+
+      {/* Offered only where there is more than one type to tell apart — a tree
+          of nothing but `.ts` has nothing to narrow, and the group would be a
+          row of chrome answering a question the list already answers. */}
+      {types.length > 1 && <FilterGroup label={t.changesFilterTypeLabel}>
+        <ChangesFilterMode
+          group={t.changesFilterTypeLabel}
+          mode={filters.extensionMode}
+          name="changes-filter-type-mode"
+          onChange={(extensionMode) => onChange({ ...filters, extensionMode })}
+          t={t}
+        />
+        {/* The one part of this panel that grows with the repository, so it is
+            the one part that scrolls. The panel itself must not: History nests
+            popups inside it, and a scroll container there would clip them. */}
+        <div {...autoHideScrollbarProps<HTMLDivElement>()} className="changes-filter__types auto-hide-scrollbar">
+          {types.map(({ key, count }) => (
+            <FilterSwitch
+              key={key || "none"}
+              checked={filters.extensions.includes(key)}
+              icon={<FileTypeGlyph typeKey={key} />}
+              label={fileTypeLabel(key, t)}
+              count={count}
+              onChange={() => toggleType(key)}
+            />
+          ))}
+        </div>
+      </FilterGroup>}
+
+      {canChooseFiles && <FilterGroup label={t.changesFilterInclusionLabel}>
+        {/* Not `dense`: that padding exists for History's five date presets in
+            a 276px group, and three one-word answers have the room to breathe. */}
+        <FilterCapsules>
+          {(["all", "included", "excluded"] as const).map((inclusion) => (
+            <FilterCapsule
+              key={inclusion}
+              name="changes-filter-inclusion"
+              checked={filters.inclusion === inclusion}
+              onChange={() => onChange({ ...filters, inclusion })}
+            >
+              {t[INCLUSION_LABEL_KEYS[inclusion]]}
+            </FilterCapsule>
+          ))}
+        </FilterCapsules>
+      </FilterGroup>}
+    </FilterPanel>
+  );
+}
+
+/** What is narrowing the list, under the strip that set it. `shared/ui` draws
+ * the row; what belongs to Changes is which chips are in it and what removing
+ * one means. */
+function ChangesFilterChips({ filters, onChange, t }: {
+  filters: ChangesFilters;
+  onChange: (filters: ChangesFilters) => void;
+  t: Translations;
+}): React.JSX.Element | null {
+  /** A chip says what it is doing, not just what it names: "New" and "Hiding
+   * New" narrow the same list in opposite directions, and a chip row that
+   * showed only the name would read identically either way. Its remove button
+   * says the same — "remove the Hiding New filter" is not what pressing it
+   * means; putting those files back is. */
+  const describe = (mode: ChangesFilterMode, label: string): Pick<FilterChip, "label" | "removeLabel"> =>
+    mode === "only"
+      ? { label }
+      : { label: t.changesFilterHiddenChip(label), removeLabel: t.changesFilterShowAgain(label) };
+
+  const chips: FilterChip[] = filters.categories.map((category) => ({
+    key: `kind:${category}`,
+    ...describe(filters.categoryMode, t[CATEGORY_LABEL_KEYS[category]]),
+    icon: CHANGE_CATEGORY_ICONS[category],
+    onRemove: () => onChange({
+      ...filters,
+      categories: filters.categories.filter((kind) => kind !== category),
+    }),
+  }));
+  for (const key of filters.extensions) {
+    chips.push({
+      key: `type:${key || "none"}`,
+      ...describe(filters.extensionMode, fileTypeLabel(key, t)),
+      icon: <FileTypeGlyph typeKey={key} />,
+      onRemove: () => onChange({
+        ...filters,
+        extensions: filters.extensions.filter((type) => type !== key),
+      }),
+    });
+  }
+  if (filters.inclusion !== "all") {
+    chips.push({
+      key: "inclusion",
+      label: t[INCLUSION_CHIP_KEYS[filters.inclusion]],
+      onRemove: () => onChange({ ...filters, inclusion: "all" }),
+    });
+  }
+  return <FilterChips chips={chips} removeLabel={t.changesFilterRemove} />;
+}
 
 type DiffState =
   | { status: "idle" }
@@ -403,6 +770,19 @@ function DiffWorkspace({
   const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
   const [hunkTarget, setHunkTarget] = useState({ index: 0, token: 0 });
   const hunkCount = getHunkCount(diffState);
+  const picture = usePictureDiff(
+    diffState.status === "ready" ? diffState.diff : null,
+    `${projectPath}\0${sessionEpoch}`,
+    (filePath, originalPath) =>
+      controller.readFileImagePreview(projectPath, sessionEpoch, filePath, originalPath),
+  );
+  // A picture showing the only version it has needs no control, and the
+  // reading-mode picker would be one that does nothing: unified, split and
+  // accessible text are ways of laying out lines, and a drawing has none. The
+  // strip itself stays either way — it names the open file — so what a picture
+  // drops is the picker, not a row, and the file keeps its header.
+  const showsReadingMode = picture === null || (picture.isSvg && !picture.showsDrawing);
+  const hasViewControls = showsReadingMode || picture.hasControls;
 
   useEffect(() => {
     setHunkTarget({ index: 0, token: 0 });
@@ -418,105 +798,84 @@ function DiffWorkspace({
     return <div className="changes-diff" />;
   }
 
+  const { name, dir } = splitPath(selectedPath);
+  const FileTypeIcon = getFileTypeIcon(selectedPath);
+
   return (
     <div className="changes-diff" aria-label={t.changesDiffAriaLabel(selectedPath)}>
       <button type="button" className="changes-diff__back" onClick={onBackToList}>
         <ArrowLeft aria-hidden="true" />
         {t.changesBackToList}
       </button>
+      {/* One strip, not two. The file being read and the controls for reading
+          it were a header stacked on a toolbar, which cost this panel two
+          rules and ~100px before the first line of code appeared. They ask
+          one question between them — which file, shown how — so they are one
+          row now, paired with the file list's. See `.changes-layout` in
+          changes.css. */}
       <header className="changes-diff__header">
         <span className="changes-diff__header-icon" aria-hidden="true">
-          {entry ? CHANGE_CATEGORY_ICONS[entry.category] : null}
+          <FileTypeIcon className="changes-diff__type-icon" />
         </span>
-        <div className="changes-diff__header-text">
-          <div className="changes-diff__title-row">
-            <p className="changes-diff__path">
-              {selectedPath}
-            </p>
-            {entry && (
-              <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
-                {t[CATEGORY_LABEL_KEYS[entry.category]]}
-              </span>
-            )}
-            {/* Inline, not a second line: a line of its own grew this header
-                past the height it shares with the file list's, putting the
-                two panels' rules back out of step for exactly the renamed
-                files this text appears on. It truncates like the path, with
-                the full value on the tooltip. */}
-            {entry?.originalPath && (
-              <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
-                {t.changesRenamedFrom(entry.originalPath)}
-              </span>
-            )}
-          </div>
+        <div className="changes-diff__title-row">
+          {/* Name first and dir after, the same shape the file rows use, so
+              the open file is recognizable as the row it was chosen from. The
+              full path stays on the pane's accessible name. */}
+          <p className="changes-diff__path">
+            <span className="changes-diff__name">{name}</span>
+            <span className="changes-diff__dir">{dir ?? t.changesProjectRoot}</span>
+          </p>
+          {entry && (
+            <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
+              {t[CATEGORY_LABEL_KEYS[entry.category]]}
+            </span>
+          )}
+          {/* Inline, not a second line: a line of its own grew this header
+              past the height it shares with the file list's, putting the
+              two panels' rules back out of step for exactly the renamed
+              files this text appears on. It truncates like the path, with
+              the full value on the tooltip. */}
+          {entry?.originalPath && (
+            <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
+              {t.changesRenamedFrom(entry.originalPath)}
+            </span>
+          )}
         </div>
-        {fileTotal > 0 && (
-          <div className="changes-diff__file-nav">
-            {/* `0` means the open file is not in the list being shown — a
-                search can narrow the list without changing the selection —
-                and "File 0 of 3" is not a position. The arrows stay
-                (disabled) so the control does not jump in and out while
-                someone types. */}
-            {filePosition > 0 && (
-              <span className="changes-diff__position">{t.changesFilePosition(filePosition, fileTotal)}</span>
-            )}
-            <button
-              type="button"
-              className="changes-diff__step"
-              aria-label={t.changesPreviousFile}
-              data-tooltip={t.changesPreviousFile}
-              disabled={filePosition <= 1}
-              onClick={onSelectPreviousFile}
-            >
-              <ChevronLeft aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="changes-diff__step"
-              aria-label={t.changesNextFile}
-              data-tooltip={t.changesNextFile}
-              disabled={filePosition === 0 || filePosition >= fileTotal}
-              onClick={onSelectNextFile}
-            >
-              <ChevronRight aria-hidden="true" />
-            </button>
-          </div>
-        )}
+        <div className="changes-diff__controls">
+          {fileTotal > 0 && (
+            <DiffStepNav
+              kind="file"
+              position={filePosition}
+              total={fileTotal}
+              onPrevious={onSelectPreviousFile}
+              onNext={onSelectNextFile}
+              t={t}
+            />
+          )}
+          {hunkCount > 0 && viewMode !== "accessible" && (
+            <DiffStepNav
+              kind="hunk"
+              position={hunkTarget.index + 1}
+              total={hunkCount}
+              onPrevious={() => goToHunk(hunkTarget.index - 1)}
+              onNext={() => goToHunk(hunkTarget.index + 1)}
+              t={t}
+            />
+          )}
+          {/* Last, at the far edge: the arrows move within this file, and the
+              picker changes the file's whole shape. A picture answers the same
+              question with its own pickers, in the same place and the same
+              shape as the reading-mode picker a text file gets. Each picker
+              names itself to a screen reader, so nothing labels them a second
+              time in a row this dense. */}
+          {hasViewControls && (
+            <div className="changes-diff__view">
+              {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
+              {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
+            </div>
+          )}
+        </div>
       </header>
-      {/* Paired with the file list's search strip: same height, same bottom
-          rule, so the two panels keep reading as one grid. See the note on
-          `--changes-toolbar-height` in styles.css. */}
-      <div className="changes-diff__toolbar">
-        <div className="changes-diff__view">
-          <span className="changes-diff__view-label">{t.changesViewLabel}</span>
-          <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />
-        </div>
-        {hunkCount > 0 && viewMode !== "accessible" && (
-          <div className="changes-diff__hunk-nav">
-            <span className="changes-diff__position">{t.changesHunkPosition(hunkTarget.index + 1, hunkCount)}</span>
-            <button
-              type="button"
-              className="changes-diff__step"
-              aria-label={t.changesPreviousHunk}
-              data-tooltip={t.changesPreviousHunk}
-              disabled={hunkTarget.index <= 0}
-              onClick={() => goToHunk(hunkTarget.index - 1)}
-            >
-              <ArrowUp aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="changes-diff__step"
-              aria-label={t.changesNextHunk}
-              data-tooltip={t.changesNextHunk}
-              disabled={hunkTarget.index >= hunkCount - 1}
-              onClick={() => goToHunk(hunkTarget.index + 1)}
-            >
-              <ArrowDown aria-hidden="true" />
-            </button>
-          </div>
-        )}
-      </div>
       <div
         {...autoHideScrollbarProps<HTMLDivElement>()}
         className="changes-diff__body auto-hide-scrollbar"
@@ -540,6 +899,7 @@ function DiffWorkspace({
               readFileLines={(filePath, startLine, endLine) =>
                 controller.readFileLines(projectPath, sessionEpoch, filePath, startLine, endLine)
               }
+              picture={picture}
               viewMode={viewMode}
               hunkTarget={hunkTarget}
               t={t}
@@ -600,7 +960,7 @@ function FileListItem({
       style={virtualPosition === undefined ? undefined : { transform: `translateY(${virtualPosition}px)` }}
     >
       <input
-        className="changes-file-row__checkbox"
+        className="app-checkbox changes-file-row__checkbox"
         type="checkbox"
         checked={isIncluded}
         disabled={!canChoose}
@@ -797,8 +1157,26 @@ export function ChangesPanel({
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
   const [announcement, setAnnouncement] = useState("");
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<ChangesFilters>(NO_CHANGES_FILTERS);
   const [discardRequest, setDiscardRequest] = useState<DiscardDialogRequest | null>(null);
   const [contextMenu, setContextMenu] = useState<ChangesContextMenuState | null>(null);
+  /* Where a failed reveal lands. The menu is already gone by then — it closes
+     on the press, because the result is another application's window — so the
+     message needs a surface of its own that outlives it. */
+  const [revealError, setRevealError] = useState<string | null>(null);
+  /* Only asked while this screen is empty, and only then: with a file list on
+     screen the same question is answered when its menu opens, and a screen
+     that has something to review does not need to know. */
+  const [hasRecoveries, setHasRecoveries] = useState(false);
+  const isClean = workingTree?.isClean === true;
+  useEffect(() => {
+    if (!isClean) return undefined;
+    let cancelled = false;
+    hasStoredRecoveries(controller, projectPath, sessionEpoch)
+      .then((value) => { if (!cancelled) setHasRecoveries(value); })
+      .catch(() => { if (!cancelled) setHasRecoveries(false); });
+    return () => { cancelled = true; };
+  }, [controller, isClean, projectPath, sessionEpoch, discardRequest]);
   const directDiscard = useDirectDiscard({
     controller,
     projectPath,
@@ -821,11 +1199,6 @@ export function ChangesPanel({
       setDiscardRequest(request);
     }
   };
-  // The list the user is actually looking at. Selection, the save-version
-  // checkboxes, and the totals all keep working off the full `entries`: a
-  // search narrows what is *shown*, it does not silently drop files from the
-  // version being saved.
-  const visibleEntries = useMemo(() => filterEntriesBySearch(entries, search), [entries, search]);
   const store = controller.getStore(projectPath, sessionEpoch, workingTree);
   // Seeded from the cache rather than starting at `idle`: on a remount with a
   // warm cache (navigating back to this screen) that difference is the one
@@ -836,6 +1209,19 @@ export function ChangesPanel({
   });
   const [retryToken, setRetryToken] = useState(0);
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(() => new Set());
+  // The list the user is actually looking at. Selection, the save-version
+  // checkboxes, and the totals all keep working off the full `entries`: the
+  // search box and the filters narrow what is *shown*, they do not silently
+  // drop files from the version being saved.
+  const visibleEntries = useMemo(
+    () => applyChangesFilters(filterEntriesBySearch(entries, search), filters, excludedPaths),
+    [entries, excludedPaths, filters, search],
+  );
+  // Only the kinds this working tree contains, so the panel never offers an
+  // answer that would empty the list on its own.
+  const kindsPresent = useMemo(() => changeKindsPresent(entries), [entries]);
+  const typesPresent = useMemo(() => fileTypesPresent(entries), [entries]);
+  const activeFilterCount = countActiveChangesFilters(filters);
   // Below ~1024px the list and the diff can't sit side by side legibly, so
   // the layout becomes list/detail: this tracks which one is showing.
   const [isDetailFocused, setIsDetailFocused] = useState(false);
@@ -859,6 +1245,10 @@ export function ChangesPanel({
   useEffect(() => {
     setExcludedPaths(new Set());
     setSearch("");
+    setFilters(NO_CHANGES_FILTERS);
+    // A notice about a file in the project being left would otherwise still be
+    // on screen over the one being opened.
+    setRevealError(null);
   }, [projectPath]);
 
   useEffect(() => {
@@ -866,6 +1256,26 @@ export function ChangesPanel({
     setExcludedPaths((current) => {
       const next = new Set([...current].filter((path) => available.has(path)));
       return next.size === current.size ? current : next;
+    });
+  }, [entries]);
+
+  // A kind or a type the working tree no longer has is dropped along with the
+  // paths, and for the same reason: the panel offers only what is present, so a
+  // filter naming something absent could be counted on the trigger and never
+  // found in the panel — a narrowed list the reader cannot check. The chips it
+  // leaves behind go with it.
+  //
+  // A tree down to a single file type drops them all, because the panel stops
+  // offering that question entirely: one type is nothing to tell apart.
+  useEffect(() => {
+    const kinds = new Set(entries.map((entry) => entry.category));
+    const types = new Set(entries.map((entry) => fileTypeKey(entry.path)));
+    setFilters((current) => {
+      const categories = current.categories.filter((category) => kinds.has(category));
+      const extensions = types.size > 1 ? current.extensions.filter((key) => types.has(key)) : [];
+      return categories.length === current.categories.length && extensions.length === current.extensions.length
+        ? current
+        : { ...current, categories, extensions };
     });
   }, [entries]);
 
@@ -940,6 +1350,14 @@ export function ChangesPanel({
     });
   };
   const canChooseFiles = !workingTree?.truncated;
+  // The inclusion question goes with the checkboxes it asks about. Past the
+  // 1,000-entry cap nothing can be left out, so the panel stops offering it —
+  // and a filter set before the tree grew that far would otherwise be counted
+  // on the trigger with no capsule left in the panel to undo it.
+  useEffect(() => {
+    if (canChooseFiles) return;
+    setFilters((current) => current.inclusion === "all" ? current : { ...current, inclusion: "all" });
+  }, [canChooseFiles]);
   const includedPaths = useMemo(
     () => entries.filter((entry) => !excludedPaths.has(entry.path)).map((entry) => entry.path),
     [entries, excludedPaths],
@@ -1001,6 +1419,20 @@ export function ChangesPanel({
             </span>
           </>
         )}
+        {/* The selection belongs with the other things this screen says about
+            its changes, not beside the search box: the strip's job is finding
+            a file, and the count was taking a third of it to answer a question
+            nobody asks while typing. */}
+        {!workingTree.isClean && (
+          <>
+            <span className="changes-view__summary-separator" aria-hidden="true">
+              ·
+            </span>
+            <span className="changes-view__selection">
+              {t.changesSelectionSummary(includedCount, total)}
+            </span>
+          </>
+        )}
       </p>
     );
   }
@@ -1008,23 +1440,22 @@ export function ChangesPanel({
   return (
     <div className="changes-view" aria-busy={isCheckingChanges}>
       <ChangesStatusNotice watcherState={watcherState} error={workingTreeError} busy={isCheckingChanges} onRefresh={onRefresh} onOpenSettings={onOpenSettings} t={t} />
-      <header className="changes-view__header">
-        <div>
+      {/* Title and state on one line, with the screen's own actions at the far
+          end. `.screen-header` is the shared definition of that row — History
+          opens on the same one, so the two screens' panels start on the same
+          pixel row as well as in the same shape. */}
+      <header className="screen-header">
+        <div className="screen-header__heading">
           <h1>{t.changesHeading}</h1>
           {headerMessage}
         </div>
         <ChangesHeaderActions
-          controller={controller}
-          projectPath={projectPath}
-          sessionEpoch={sessionEpoch}
           workingTree={workingTree}
           isChecking={isCheckingChanges}
-          selectedPath={selectedPath}
           canChooseFiles={canChooseFiles}
           canSaveSelection={canSaveSelection}
-          includedCount={includedCount}
+          isEverythingSelected={allSelected}
           onSave={onOpenSaveVersion}
-          onChooseDiscard={requestDiscard}
           t={t}
         />
       </header>
@@ -1036,6 +1467,21 @@ export function ChangesPanel({
         t={t}
       />
 
+      {revealError && (
+        <div className="changes-notice changes-notice--error" role="status">
+          <CircleAlert aria-hidden="true" />
+          <p>{revealError}</p>
+          <button
+            className="changes-notice__dismiss"
+            type="button"
+            aria-label={t.commonClose}
+            onClick={() => setRevealError(null)}
+          >
+            <X aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {isLoadingList ? (
         <LoadingBar label={t.commonLoading} />
       ) : !workingTree ? null : workingTree.isClean ? (
@@ -1045,19 +1491,37 @@ export function ChangesPanel({
           </div>
           <h2>{t.changesEmptyTitle}</h2>
           <p>{t.changesEmptyDescription}</p>
-          <button className="secondary-button" type="button" onClick={onNavigateOverview}>
-            {t.changesBackToOverview}
-          </button>
+          <div className="changes-empty__actions">
+            <button className="secondary-button" type="button" onClick={onNavigateOverview}>
+              {t.changesBackToOverview}
+            </button>
+            {/* Discarding everything empties this screen, and the file list
+                takes the menu that reaches stored copies with it. Without this
+                the way back would exist only while there was still something
+                to review — which is exactly when nobody needs it. */}
+            {hasRecoveries && (
+              <button className="ghost-button" type="button" onClick={() => requestDiscard({ mode: "restore", selectedPath: null })}>
+                <RotateCcw aria-hidden="true" />
+                {t.changesRestoreDiscarded}
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}`}>
           <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
-            <div className="changes-file-list__selection">
+            {/* One strip: what is included, and what is listed. The selection
+                summary had a band of its own above the search box, which is a
+                whole row of chrome for a fraction like "3/12"; beside the
+                checkbox it names it holds the same meaning in a quarter of
+                the space, and the files start ~50px higher. Paired with the
+                diff header — see `.changes-layout` in changes.css. */}
+            <div className="changes-file-list__toolbar">
               <span className="changes-file-list__select-all">
                 {canChooseFiles ? (
                   <input
                     ref={selectAllRef}
-                    className="changes-file-row__checkbox"
+                    className="app-checkbox changes-file-row__checkbox"
                     type="checkbox"
                     checked={allSelected}
                     aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
@@ -1069,7 +1533,7 @@ export function ChangesPanel({
                   />
                 ) : (
                   <input
-                    className="changes-file-row__checkbox"
+                    className="app-checkbox changes-file-row__checkbox"
                     type="checkbox"
                     checked
                     disabled
@@ -1079,22 +1543,32 @@ export function ChangesPanel({
                   />
                 )}
               </span>
-              <span>{t.changesSelectionSummary(includedCount, workingTree.counts.total)}</span>
+              <SearchBox
+                value={search}
+                onChange={setSearch}
+                placeholder={t.changesSearchPlaceholder}
+                ariaLabel={t.changesSearchAriaLabel}
+                clearLabel={t.commonClearSearch}
+                trailing={<ChangesFilterPanel
+                  filters={filters}
+                  kinds={kindsPresent}
+                  types={typesPresent}
+                  canChooseFiles={canChooseFiles}
+                  onChange={setFilters}
+                  t={t}
+                />}
+              />
+              <ChangesActionsMenu
+                controller={controller}
+                projectPath={projectPath}
+                sessionEpoch={sessionEpoch}
+                selectedPath={selectedPath}
+                disabled={isCheckingChanges}
+                onChoose={requestDiscard}
+                t={t}
+              />
             </div>
-            {/* Paired with `.changes-diff__toolbar` — see the note on
-                `--changes-toolbar-height` in styles.css. */}
-            <div className="changes-file-list__search">
-              <label className="changes-search-box">
-                <Search aria-hidden="true" />
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder={t.changesSearchPlaceholder}
-                  aria-label={t.changesSearchAriaLabel}
-                />
-              </label>
-            </div>
+            <ChangesFilterChips filters={filters} onChange={setFilters} t={t} />
             <div
               {...autoHideScrollbarProps<HTMLDivElement>()}
               ref={fileListScrollRef}
@@ -1105,10 +1579,23 @@ export function ChangesPanel({
                   {t.statusTruncatedNote(entries.length)}
                 </p>
               )}
+              {/* An empty list has to say why it is empty and offer the way
+                  back. The search box carries its own clear control in the
+                  strip above; the filters do not, so the one that can strand a
+                  reader here offers its own undo. */}
               {visibleEntries.length === 0 && (
-                <p className="changes-file-list__empty" role="status">
-                  {t.changesNoSearchMatches}
-                </p>
+                <div className="changes-file-list__empty" role="status">
+                  <p>{activeFilterCount > 0 ? t.changesNoFilterMatches : t.changesNoSearchMatches}</p>
+                  {activeFilterCount > 0 && (
+                    <button
+                      className="secondary-button secondary-button--sm"
+                      type="button"
+                      onClick={() => setFilters(NO_CHANGES_FILTERS)}
+                    >
+                      {t.changesFiltersClear}
+                    </button>
+                  )}
+                </div>
               )}
               <FileListRows
                 entries={visibleEntries}
@@ -1139,12 +1626,24 @@ export function ChangesPanel({
                     x: event.clientX,
                     y: event.clientY,
                     path: entry.path,
+                    category: entry.category,
                     focusTarget: event.currentTarget,
                   });
                 }}
                 t={t}
               />
             </div>
+            <QuickCommitBox
+              projectPath={projectPath}
+              sessionEpoch={sessionEpoch}
+              selectedPaths={selectedPathsForSave}
+              canSave={canSaveSelection}
+              runHooks={runGitHooks}
+              remoteLabel={workingTree.upstream.upstream}
+              fileListRef={fileListScrollRef}
+              onSaveCompleted={onSaveCompleted}
+              onPublishNow={onPublishNow}
+            />
           </nav>
           <DiffWorkspace
             projectPath={projectPath}
@@ -1177,6 +1676,11 @@ export function ChangesPanel({
           onDiscard={(path) => {
             closeContextMenu(false);
             requestDiscard({ mode: "selected", selectedPath: path });
+          }}
+          onReveal={(path) => {
+            setRevealError(null);
+            void controller.revealFile(projectPath, sessionEpoch, path)
+              .catch((error: unknown) => setRevealError(localizeAppError(error, t, t.changesRevealFailed)));
           }}
           t={t}
         />

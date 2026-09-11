@@ -164,14 +164,29 @@ when the user opens it.
 
 ### Issue reporting
 
-Issue reporting is an app-shell service: `issueReport.ts` builds a URL from
-available local diagnostics and `issueReportContract.json`; `useIssueReport.ts`
-owns launch/copy attempts through `issueReportAdapter.ts`. The titlebar receives
-an action, and an eager error overlay provides retry, copy and manual selection.
-Dismissed attempts cannot restore stale errors or clipboard state. Opening the
-form is an explicit external action and sends no repository content. The live
-tracker/form contract is checked separately from the offline gate by
-`pnpm run check:feedback`, including private vulnerability reporting enablement.
+Issue reporting is an app-shell service. Rust's `diagnostics.rs` owns a bounded,
+session-only ring buffer of typed Git-invocation and IPC-command events. Command
+events retain the checked operation and success or stable error code; Git events
+add only an allowlisted subcommand, exit status and duration. Event construction
+accepts no repository path, ref, file content, command result or raw Git
+argument, and failure excerpts reuse the product's bounded redaction path. The
+report states its UTC start, a readable session duration, the retained event
+count and whether older events were omitted; timings read as offsets from that
+start rather than raw milliseconds. The buffer is managed as Tauri state and is
+never persisted unless the user explicitly saves the reviewed report.
+
+`issueReport.ts` builds a URL from the environment block of that reviewed
+snapshot and `issueReportContract.json`. Only the versions travel in the
+address: a full session encodes to some twelve thousand characters, which GitHub
+answers with 414 rather than a form, so the activity reaches the issue through
+the clipboard or the attached file instead. `useIssueReport.ts` owns the
+review/copy/save/launch flow through `issueReportAdapter.ts`. The titlebar
+receives an action, and one eager dialog moves through preparing, review,
+opening and browser-failure states. Dismissed attempts cannot restore stale
+errors or clipboard state. Opening the form is an explicit external action;
+the saved text file must be attached manually. The live tracker/form contract
+is checked separately from the offline gate by `pnpm run check:feedback`,
+including private vulnerability reporting enablement.
 
 ### Styles and translations
 
@@ -206,6 +221,7 @@ src-tauri/src/
   index.rs                # collision-safe temporary-index preparation
   session.rs              # opaque project epochs
   watch.rs                # filtered/debounced typed invalidation
+  app_updates.rs          # bounded signed-update lifecycle and install handoff
   desktop.rs              # desktop-shell services
   tooling.rs              # Git diagnostics, install/update, identity, line endings
   project_settings.rs     # one project's own identity and ignore files
@@ -502,10 +518,93 @@ persistent record under the selected worktree's Git metadata before mutation.
 The record preserves exact target bytes and the real index, can be restored
 after restart only while its post-discard state token still matches, and is
 defined by [ADR 0007](adr/0007-store-discard-recovery-in-worktree-git-metadata.md).
+All retained records are readable, not only the newest: `list_discard_recoveries`
+reports each one with whether it can be applied right now, which is what lets
+the app offer a choice instead of an undo of exactly one step. That question is
+answered per path rather than over the whole tree — a record is applicable while
+nothing has been written where it would write — so ordinary work elsewhere no
+longer retires every stored record, and several discards can be brought back in
+any order. Only a record the whole project still matches also restores the
+index; the rest bring their files back and leave the prepared state alone. A new
+record that would write exactly what an existing one holds replaces it, so
+discarding the same work twice leaves one entry rather than two. The 2026-09-06
+amendment to ADR 0007 carries the reasoning, the verification that replaces the
+whole-tree comparison in that mode, and the retention rule.
 
 Never silently resolve conflicts, discard untracked files, bypass hooks or
 signing, force-push, run `reset --hard`, clean files, or delete a branch without
 the confirmation and recovery rules in `AGENTS.md`.
+
+## Application update boundary
+
+[ADR 0010](adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+owns the signed public-release design. The version/channel grammar, candidate
+targets, installation-mode fallbacks, native states and errors, immutable
+candidate identity, payload limits, credential readiness, and A-to-B
+qualification pair are fixed in the
+[application update contracts](architecture/app-update-contracts.md). No target
+is advertised as automatically supported until its real signed A-to-B evidence
+exists. The renderer may request native lifecycle actions using opaque IDs; it
+never supplies a feed/channel, URL, public key, installer path, target, or
+request headers.
+
+The process-wide operation gate, watcher/background suspension, current command
+and draft inventories, rollback order, and extension requirements are defined
+in the
+[install-admission and draft contract](architecture/install-admission-and-drafts.md).
+Every later conflict, integration, stash, helper, timer, or editor owner must
+join that contract before it can ship.
+
+`app_updates.rs` is the one process-wide native owner. It compiles the build's
+channel, fixed feed and updater public-key identity; detects the native target
+and installation mode; and retains at most one immutable candidate and one
+verified payload. Its bounded preflight distinguishes transport/status/schema
+failures before the exact `tauri-plugin-updater = 2.11.0` Rust API performs the
+authoritative check, download, signature verification and platform handoff.
+The WebView reaches only six GitOdile commands described by the IPC contract;
+no updater/process guest permission or JavaScript updater package is exposed.
+
+`features/app-updates` owns the renderer controller and eager update dialog.
+The controller reads and mirrors the process-wide native snapshot, coalesces
+every shell entry point, and polls only while a native check, download, or
+verification is active; it never infers a second lifecycle or retains payload
+bytes. Changelog mounting remains local-only. General Settings stores the
+off-by-default consent switch, while the controller owns the settled-startup
+timer and its fixed once-per-24-hours in-process cadence. That timer is an
+install participant, so preparation suspends it with the other background
+owners. The renderer supplies no project identity or stable installation ID.
+
+Install preparation is ordered across the renderer and native process:
+synchronously protect drafts, suspend renderer participants, acquire/drain the
+global admission gate, suspend native watchers, revalidate the exact candidate
+and installation path, persist a bounded one-shot handoff record, then invoke
+the installer. A failure unwinds those owners in reverse order. Windows exits
+inside the accepted updater handoff; macOS/Linux restart after replacement.
+The next launch reports success only when its compiled running version equals
+the recorded expected version. Qualification remains a compile-time deny-by-
+default target allowlist, so mocks or compilation cannot advertise a platform.
+
+Private packaging follows the two-workflow trust split documented in the
+[signed-build runbook](release/signed-builds.md). A tag-only, secretless matrix
+builds exact-source packages; a `workflow_run` loaded from the protected default
+branch revalidates the Git object and complete matrix before protected jobs can
+see signing credentials. Those jobs never check out candidate source. Updater,
+OS-trust and notarization results remain separate evidence fields, and the final
+matrix record is explicitly non-promotable.
+
+Public promotion is a third, manual-only workflow and a separate trust domain,
+documented in the [public publishing runbook](release/public-publishing.md).
+Its unprivileged half consumes and rehashes only the complete private signed
+artifact, runs the public feedback contract and stages a package-only bundle.
+Its serialized privileged half receives the destination-scoped credential but
+does not check out private application source. It reconciles immutable draft
+assets, anonymously verifies every finalized download, then changes complete
+channel manifests with one compare-and-swap commit. Preview/stable selection,
+GitHub prerelease status and versioned URLs are derived rather than supplied as
+independent operator choices. The source-controlled qualification registry is
+deny-by-default; validation drafts cannot finalize or write production feeds,
+and installed A-to-B qualification/target enablement remain exclusively
+065-9-7.
 
 ## Enforced checks
 
@@ -556,6 +655,10 @@ migration or explicit reset decision and recovery tests.
 - Tauri capabilities remain minimal; no generic command-execution endpoint is
   permitted.
 - Repository content, config, hooks, remote responses, and paths are untrusted.
+- Repository content is never rendered as markup. A picture — an SVG
+  included — is drawn as an `<img>` with a `data:` URL, a context in which
+  the engine runs no script and fetches no external resource. Inlining it
+  would hand repository content the application's own document and origin.
 - Never log credentials, helper output, private keys, or authenticated remote
   URLs.
 - AI features require explicit consent and disclosure of transmitted data.

@@ -1,15 +1,15 @@
 .version-line-card__value {
   display: inline;
   margin-right: 4px;
-  color: var(--text-primary);
-  font-weight: 700;
+  color: var(--text-primary-color);
+  font-weight: var(--weight-title);
   overflow-wrap: anywhere;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family: var(--font-mono);
 }
 .version-line-selector {
   display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%;
   padding: 6px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); color: var(--text-primary);
+  background: var(--surface-hover); color: var(--text-primary-color);
   transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 .version-line-selector:hover { background: var(--surface-active); }
@@ -22,29 +22,23 @@
   color: currentColor;
 }
 .version-line-selector__value {
-  min-width: 0; overflow-wrap: anywhere; color: var(--text-primary);
-  font-size: 15px; font-weight: 650;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  min-width: 0; overflow-wrap: anywhere; color: var(--text-primary-color);
+  font-size: var(--text-subtitle); font-weight: var(--weight-heading);
+  font-family: var(--font-mono);
 }
 .version-line-selector__chevron {
-  flex-shrink: 0; width: 15px; height: 15px; color: var(--text-secondary);
+  flex-shrink: 0; width: 15px; height: 15px; color: var(--text-secondary-color);
   transition: transform var(--duration-fast);
 }
 .version-line-selector[aria-expanded="true"] .version-line-selector__chevron { transform: rotate(180deg); }
-.version-lines-view { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--space-4); }
-.version-lines-view__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.version-lines-view__header h1 { margin: 0; }
-.version-lines-view__header p { margin: 4px 0 0; max-width: 76ch; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
-.version-lines-view__header .primary-button { flex-shrink: 0; }
-.version-lines-view__header .primary-button svg { width: 16px; height: 16px; }
 
 .version-lines-banner {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2);
   padding: var(--space-3) var(--space-4); border-radius: var(--radius-surface);
   background: var(--surface-panel);
 }
-.version-lines-banner h2 { margin: 0; font-size: 15px; }
-.version-lines-banner p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
+.version-lines-banner h2 { margin: 0; font-size: var(--text-subtitle); }
+.version-lines-banner p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
 .version-lines-banner .primary-button svg { width: 16px; height: 16px; }
 .version-lines-refresh-error {
   display: flex;
@@ -55,165 +49,671 @@
   border-radius: var(--radius-item);
   background: color-mix(in srgb, var(--status-danger) 10%, var(--surface-panel));
   color: var(--status-danger);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .version-lines-refresh-error > span { min-width: 0; }
 .version-lines-refresh-error .secondary-button { flex: 0 0 auto; }
-.version-lines-stats {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  margin: 8px 0 0; color: var(--text-secondary); font-size: 13px;
-}
-.version-lines-stats svg { width: 15px; height: 15px; }
-.version-lines-stats__item { display: inline-flex; align-items: center; gap: 6px; }
-.version-lines-stats__separator { color: var(--border-strong, var(--border-subtle)); }
-.version-lines-stats__dot {
-  width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--text-tertiary, var(--text-secondary)); opacity: 0.5;
-}
-.version-lines-stats__dot--active { background: var(--accent-primary); opacity: 1; }
-.version-lines-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
-.version-lines-toolbar .version-lines-search-box__input { flex: 1 1 260px; min-width: 0; }
-.version-lines-search-box__input {
-  display: flex; align-items: center; gap: 8px; padding: 8px var(--space-4);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); transition: border-color var(--duration-fast), background var(--duration-fast);
-}
-.version-lines-search-box__input:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
-.version-lines-search-box__input svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary); }
-.version-lines-search-box__input input {
-  flex: 1; border: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: 14px; outline: none;
-}
-.version-lines-select {
-  position: relative; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
-  padding: 8px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-panel); color: var(--text-primary); font-size: 13.5px;
-  transition: border-color var(--duration-fast), color var(--duration-fast);
-}
-.version-lines-select:hover { border-color: var(--border-strong, var(--focus-ring)); }
-.version-lines-select--active { border-color: var(--accent-primary); color: var(--accent-primary); }
-.version-lines-select svg { width: 15px; height: 15px; flex-shrink: 0; }
-.version-lines-select__chevron { color: var(--text-secondary); }
-.version-lines-select[aria-expanded="true"] { border-color: var(--accent-primary); color: var(--accent-primary); }
-.version-lines-select[aria-expanded="true"] .version-lines-select__chevron { transform: rotate(180deg); }
-.version-lines-select__chevron { transition: transform var(--duration-fast); }
-.version-lines-sort { position: relative; display: inline-flex; }
-.version-lines-sort__menu { min-width: 200px; }
 
-.version-lines-filter { position: relative; display: inline-flex; }
-.version-lines-filter__popup {
-  position: absolute; z-index: 20; top: calc(100% + var(--space-2)); right: 0; min-width: 240px;
-  max-height: min(420px, calc(100vh - 300px)); padding: 8px; display: flex; flex-direction: column; overflow: hidden;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
-  background: var(--surface-raised); box-shadow: var(--shadow-md);
-}
-.version-lines-filter__options { min-height: 0; overflow-y: auto; }
-.version-lines-filter__group-label {
-  margin: 6px 8px 4px; color: var(--text-secondary); font-size: 11px; font-weight: 650;
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
-.version-lines-filter__option {
-  display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--radius-item);
-  font-size: 13px;
-}
-.version-lines-filter__option:hover { background: var(--surface-hover); }
-.version-lines-filter__option > span:first-of-type { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.version-lines-filter__count { color: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
-.version-lines-filter__clear {
-  flex-shrink: 0; width: 100%; margin-top: 6px; min-height: 36px; padding: 7px 8px;
-  border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--accent-primary); font: inherit; font-size: 13px; text-align: left;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.version-lines-filter__clear:hover { background: var(--surface-hover); color: var(--text-primary); }
+/* Lines is the third of the three panelled screens, and it is deliberately
+   built out of the same pieces as the other two: `.screen-header` above,
+   `--panel-column` and `--strip-height` from tokens.css inside, and one list
+   panel paired with one detail card. Nothing here invents a measure the other
+   two do not already keep — see the notes on `.history-layout` and
+   `.changes-layout`. */
+.workspace--version-lines { overflow-y: hidden; }
 
-.version-lines-empty-note { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.version-lines-screen {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.version-lines-notices:empty { display: none; }
+.version-lines-notices { display: grid; gap: 6px; }
+.version-lines-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--panel-column) minmax(0, 1fr);
+  gap: var(--space-4);
+}
 
-.version-lines-section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.version-lines-section__title {
-  display: flex; align-items: center; gap: 8px; margin: 0;
-  color: var(--text-secondary); font-size: 12px; font-weight: 650;
-  text-transform: uppercase; letter-spacing: 0.04em;
+/* A panel, not a bare column: the sibling of the History timeline and of the
+   Changes file list, carrying its own surface with one strip at the top. */
+.version-lines-list-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
 }
-.version-lines-section__title--active::before {
-  content: ""; width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--accent-primary);
+/* The positioning context for the filter panel below, which spans the strip
+   rather than hanging off a 24px trigger at its right end. */
+.version-lines-list-panel__toolbar {
+  position: relative;
+  flex: 0 0 auto;
+  height: var(--strip-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
 }
+.version-lines-list-panel__toolbar .search-box { flex: 1; }
+/* Two pixels under the strip, in the flow rather than over the rows: the list
+   below dims instead of blanking while Git answers. */
+.version-lines-list-panel__progress { flex: 0 0 auto; height: 2px; margin: 0 var(--space-2); }
+.version-lines-list-panel__progress .loading-state { gap: 0; }
+.version-lines-list-panel__footer {
+  flex: 0 0 auto;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+}
+.version-lines-list-panel__footer p { margin: 0; }
+
 .version-lines-list {
-  margin: 0; padding: 0; list-style: none; overflow: visible;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) 5px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
-.version-lines-list > li + li { border-top: 1px solid var(--border-subtle); }
-.version-lines-list--active { border-color: var(--accent-primary); background: var(--surface-active); }
+.version-lines-list__empty {
+  flex: 0 0 auto;
+  margin: auto;
+  padding: 20px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+  text-align: center;
+}
 
-.version-line-row { display: flex; flex-direction: column; }
-.version-line-row__main {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: 12px 14px;
+/* Docked at the foot of the list, the same pattern `.changes-quick-commit`
+   established: a pill that reads as a sibling of the search box above it at
+   rest, and a small raised card once it holds more than one row. See that
+   selector's own comment for the shape rationale (DESIGN.md § Shape) and
+   `useScrollAnchoredResize` for why opening or closing it must not just push
+   rows out of view. This block deliberately mirrors `.changes-quick-commit`
+   rule for rule rather than reusing it: the CSS lives with the feature that
+   draws it, same as every other pair of screen styles in this app, and only
+   the two field-count differs enough that a shared class would carry unused
+   selectors on one side or the other. */
+.version-lines-quick-create {
+  flex: 0 0 auto; display: flex; flex-direction: column;
+  margin: 0 var(--space-2) var(--space-2);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  transition: border-color var(--duration-normal), background var(--duration-fast);
 }
-.version-line-row--active .version-line-row__main { padding: 16px; }
-.version-line-row__icon {
-  flex-shrink: 0; display: grid; place-items: center; width: 32px; height: 32px;
-  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary);
+.version-lines-quick-create--expanded {
+  padding: 6px; border-radius: var(--radius-surface);
+  background: var(--surface-raised); box-shadow: var(--shadow-sm);
 }
-.version-line-row__icon svg { width: 16px; height: 16px; }
-.version-line-row__body { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.version-line-row__name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.version-line-row__name { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
-.version-line-row__badge {
-  /* `--accent-primary` and `--accent-primary-fill` are the same green in
-     dark mode (see `:root[data-theme="dark"]`), so pairing the fill with
-     `--accent-primary` as text made this badge invisible there.
-     `--accent-primary-contrast` is the color this fill is actually designed
-     to pair with (same pairing the checkbox/radio checked state uses). */
-  flex-shrink: 0; padding: 2px 8px; border-radius: var(--radius-pill); background: var(--accent-primary-fill);
-  color: var(--accent-primary-contrast); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.02em;
+.version-lines-quick-create:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
+.version-lines-quick-create__field { display: flex; flex-direction: column; gap: 6px; }
+.version-lines-quick-create__name-wrap {
+  display: flex; align-items: center; gap: 8px; min-height: var(--control-height-sm);
+  padding: 0 var(--space-3); border-radius: var(--radius-item);
+  cursor: text;
 }
-.version-line-row__meta { margin: 0; color: var(--text-secondary); font-size: 12.5px; overflow-wrap: anywhere; }
-.version-lines-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.version-line-row__pill--deletable {
-  border-color: color-mix(in srgb, var(--status-success) 45%, transparent); color: var(--status-success);
+.version-lines-quick-create--expanded .version-lines-quick-create__name-wrap { background: var(--surface-hover); }
+.version-lines-quick-create__name-wrap > svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+.version-lines-quick-create__name-wrap input.version-lines-quick-create__name {
+  flex: 1; min-width: 0; height: 100%; padding: 6px 0; border: 0; background: transparent;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); font-family: var(--font-mono); outline: none;
 }
-.version-line-row__pill--blocked {
-  border-color: color-mix(in srgb, var(--status-warning) 45%, transparent); color: var(--status-warning);
+.version-lines-quick-create__name::placeholder { color: var(--text-secondary-color); font-family: inherit; }
+.version-lines-quick-create__name:disabled { opacity: 0.6; }
+.version-lines-quick-create__dismiss {
+  width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 auto;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  visibility: hidden; transition: background-color var(--duration-fast), color var(--duration-fast);
 }
-.version-line-row__pill--warning {
-  border-color: color-mix(in srgb, var(--status-warning) 45%, transparent); color: var(--status-warning);
+.version-lines-quick-create--expanded .version-lines-quick-create__dismiss { visibility: visible; }
+.version-lines-quick-create__dismiss:hover:not(:disabled) { background: var(--surface-raised); color: var(--text-primary-color); }
+.version-lines-quick-create__dismiss:disabled { opacity: 0.4; }
+.version-lines-quick-create__dismiss svg { width: 14px; height: 14px; }
+.version-lines-quick-create__extra {
+  display: grid; grid-template-rows: 0fr;
 }
-.version-line-row__pill--upstream {
-  max-width: 32ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block;
+.version-lines-quick-create--expanded .version-lines-quick-create__extra { grid-template-rows: 1fr; margin-top: var(--space-2); }
+.version-lines-quick-create__extra > div {
+  overflow: hidden; display: flex; flex-direction: column; gap: var(--space-2);
+  opacity: 0; transform: scaleY(0.96); transform-origin: top;
+  transition: opacity var(--duration-fast), transform var(--duration-normal) ease-out;
 }
+.version-lines-quick-create--expanded .version-lines-quick-create__extra > div { opacity: 1; transform: scaleY(1); }
+@media (prefers-reduced-motion: reduce) {
+  .version-lines-quick-create, .version-lines-quick-create__extra > div { transition: none; }
+}
+/* Only rendered when the default line and the active one actually differ —
+   see `showSourceChoice`'s own doc — so this group costs nothing in the
+   common case where this box behaves exactly as it always did. A flex item
+   inside `.version-lines-quick-create__foot` rather than a row of its own —
+   the same tier as `.version-lines-quick-create__switch` beside it, and
+   `flex-wrap` on that shared parent is what lets it drop to a line of its
+   own when the row runs out of width, rather than every combination of
+   fields reserving a fixed line whether or not it is present. */
+.version-lines-quick-create__source {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
+}
+/* `.segmented-control` at its own default size is Settings-scale — 8px/14px
+   option padding and `--text-lead` — sized for a whole panel row, not a
+   single line inside a compose box already tight on height. Scaled down to
+   this box's own control tier (`--text-label`, the same size the switch
+   toggle's label beside it uses) rather than growing the row to fit the
+   control at full size, the same "smaller box, not a quieter colour" reading
+   DESIGN.md gives `.primary-button--sm`. A line's own name has no natural
+   length limit; capped and ellipsised rather than left to push the row wide
+   or wrap mid-name, with the full name still reachable as a title tooltip. */
+/* Overrides the global `@media (max-width: 800px) { .segmented-control {
+   flex-direction: column } }` rule primitives.css sets for Settings' own,
+   much wider rows. Two options already capped at 130px each fit side by
+   side even in this screen's narrowest supported list column; stacking them
+   would only add a second row's height to a box built to stay short. */
+.version-lines-quick-create__source .segmented-control {
+  flex-direction: row; padding: 2px; gap: 2px; border-radius: var(--radius-item);
+}
+.version-lines-quick-create__source .segmented-control__option {
+  max-width: 130px; padding: 3px 10px; border-radius: var(--radius-item);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-label); font-weight: var(--weight-medium);
+}
+.version-lines-quick-create__source .segmented-control__option:disabled { opacity: 0.5; }
+.version-lines-quick-create__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.version-lines-quick-create__switch {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
+}
+.version-lines-quick-create__action { flex: 1 1 auto; min-width: 0; }
+.version-lines-quick-create__action svg { width: 15px; height: 15px; }
+.version-lines-quick-create__error {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger);
+  font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.version-lines-quick-create__error svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+.version-lines-quick-create__success {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-success) 12%, transparent); color: var(--status-success);
+  font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.version-lines-quick-create__success svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+
+/* The row. Two lines and one height, the way a History timeline row and a
+   Changes file row are: what the line is called and when it last moved, then —
+   quieter, under it — the states worth flagging. Never the actions, which
+   belong to the one line the reader has actually chosen.
+
+   It used to be three lines and a glyph. The glyph was a branch icon repeated
+   down a list of branches, which is a column of pixels spent saying what the
+   panel's own title says once; and the middle line spelled the upstream out,
+   which in a 300px column is `Tracks origin/0.2.0-previe…` — the row repeating
+   its own name, badly, in the width the name needed. Both are gone. The
+   upstream is stated in full in the header of the panel beside this one, and
+   `Local only` is still here for the lines that have none. */
+.version-line-row {
+  position: relative;
+  width: 100%;
+  min-height: 56px;
+  /* Never shrink. In a column flex container an overflowing list is resolved
+     by squashing its items down to their content, which leaves a row shorter
+     than its own two lines with the second one spilling over the row below.
+     `flex: 0 0 auto` is what makes the scroller scroll instead. */
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  /* Centred, not stacked from the top: a line that is in sync with its remote
+     has no state to flag, so its row is one line and the air belongs on both
+     sides of it rather than all below. */
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-primary-color);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease-out, border-color var(--duration-fast) ease-out;
+}
+.version-line-row:hover { background: var(--surface-hover); }
+/* One border and one tint, the same pair the History row and the Changes file
+   row wear. The `ACTIVE` chip is what says which line the project is on; the
+   selection says which one this column is describing, and the two are
+   different questions. */
+.version-line-row--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); }
+.version-line-row--selected:hover { background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-panel)); }
+.version-line-row__name-row { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.version-line-row__name {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  font-weight: var(--weight-heading);
+  line-height: var(--leading-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* When it last moved, at the trailing end of the line that names the line —
+   the place a list of dated things keeps its date. It shared the second line
+   with the chips at first, and in a 272px column `last month · Local only ·
+   Can't be deleted yet` is 250px of content in 240px of row: every crowded
+   line wrapped to a third row, which is the height this row was rebuilt to
+   stop spending. The second line is the states and nothing else now, and two
+   of them always fit. */
+.version-line-row__date {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding-inline-start: var(--space-2);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  white-space: nowrap;
+}
+.version-line-row__states:empty { display: none; }
+.version-line-row__states {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* The row-scale chip: the same box as a History reference chip, so a state on
+   this screen weighs exactly what a state on that one weighs. */
+.version-line-chip {
+  min-width: 0;
+  max-width: 100%;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.version-line-chip--positive {
+  border-color: color-mix(in srgb, var(--status-success) 45%, transparent);
+  background: color-mix(in srgb, var(--status-success) 12%, var(--surface-raised));
+  color: var(--status-success);
+}
+.version-line-chip--warning {
+  border-color: color-mix(in srgb, var(--status-warning) 45%, transparent);
+  color: var(--status-warning);
+}
+/* The line the project is standing on. It used to be a filled accent capsule
+   in uppercase with its own weight and tracking — three louder settings than
+   any other chip, on the row that is already first in the list and already
+   marked by the detail beside it. It is a chip like the rest now, tinted the
+   way `--positive` and `--warning` are, and it stops shouting over the name it
+   sits next to. */
+.version-line-chip--active {
+  flex: 0 0 auto;
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-raised));
+  color: var(--accent-primary);
+}
+
+/* What is left of this screen's filters after the surface moved to `shared/ui`
+   (task 121): the trigger, the panel, the groups, the capsules, the switches
+   and the footer are `.filter-control` and `.filter-panel` there, the same
+   boxes Changes and History wear. Lines had a private copy of all of it — and
+   the copy had never picked up the fix for a `<legend>` not being a grid item,
+   so `Sort by` sat flush against the capsules under it where the shared panel
+   gives it 6px.
+
+   This is the one part only Lines has: the group that lists name prefixes
+   grows with the repository, so it scrolls on its own — the way the file-type
+   group in Changes does, and for the same reason. `.filter-panel` deliberately
+   has no overflow of its own.
+
+   Five rows of headroom: enough that an ordinary project needs no scrolling at
+   all, short enough that the footer under it stays on screen. */
+.version-lines-filter__prefixes {
+  max-height: 148px;
+  min-width: 0;
+  display: grid;
+  gap: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The detail column. The same shape as the History saved-version card: one
+   surface, a summary band at the top, the body scrolling under it, and a quiet
+   footer at the bottom. */
+.version-lines-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); overflow: hidden; }
+.version-lines-detail__back { display: none; align-self: flex-start; }
+.version-lines-detail__card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+}
+.version-lines-detail--empty {
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+  color: var(--text-secondary-color);
+  text-align: center;
+}
+.version-lines-detail--empty p { margin: 0; }
+/* The identity block: one row for the name and its actions, one line under it
+   for everything else known about the line. It carries the rule that used to
+   belong to the byline band below it — one block of chrome, one edge. */
+.version-lines-detail__summary {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 11px 12px 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.version-lines-detail__summary-top {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* Where the line lives, then who last saved to it — one line, packed from the
+   left, wrapping rather than truncating on a narrow panel. */
+.version-lines-detail__meta {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--space-3);
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.version-lines-detail__upstream { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-detail__byline { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.version-lines-detail__byline-label { flex: 0 0 auto; }
+.version-lines-detail__byline strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.version-lines-detail__byline > span:last-child { flex: 0 0 auto; }
+.version-lines-detail__byline > strong + span::before { content: "·"; margin-inline-end: 6px; }
+.version-lines-detail__icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-round);
+  background: var(--surface-card);
+  color: var(--text-secondary-color);
+}
+.version-lines-detail__icon svg { width: 16px; height: 16px; }
+.version-lines-detail__identity { min-width: 0; flex: 1; }
+.version-lines-detail__identity h2 {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+}
+.version-lines-detail__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-detail__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.version-lines-detail__actions .secondary-button { white-space: nowrap; }
+.version-lines-detail__actions .secondary-button svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* The right-click menu's surface is `.context-menu` in primitives.css. What is
+   this feature's is the one line only this menu shows. */
+.version-lines-context-menu__error {
+  max-width: 280px;
+  margin: 4px 8px 6px;
+  color: var(--status-danger);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+
+/* Delete stands on the same row as Switch and Rename, in the same box, and is
+   told apart by colour rather than by being hidden: it takes the danger tint
+   only under the pointer, so the row reads as three ordinary actions at rest
+   and says which one is destructive the moment it is reached for. */
+.version-lines-detail__delete { color: var(--status-danger); }
+.version-lines-detail__delete svg { color: var(--status-danger); }
+.version-lines-detail__delete:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--status-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+}
+
+/* Not a scroller: the sections divide the panel's remaining height between
+   them, and the one that can outgrow it scrolls inside itself. */
+.version-lines-detail__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.version-lines-detail__grid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.version-lines-card {
+  min-width: 0;
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-4);
+  border-block-start: 1px solid var(--border-divider);
+}
+/* The section that takes whatever height the ones above it leave, and scrolls
+   inside itself rather than pushing them off the top of the panel. */
+.version-lines-card--fill {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-2);
+}
+/* The first section opens against the strip, which already draws the rule
+   above it. */
+.version-lines-card:first-child { border-block-start: 0; }
+/* A section label, not a card title: the rule above it is what says a new
+   section has started, so the heading only has to name it. */
+.version-lines-card h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+}
+.version-lines-avatar {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle));
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-raised));
+  color: var(--accent-primary);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-wide);
+}
+
+/* A few of this line's saved versions, at the tier the History timeline lists
+   them: the subject is the row, and when it happened is the caption beside it. */
+.version-lines-recent { min-height: 0; display: grid; align-content: start; gap: 1px; margin: 0 -6px; padding: 0; list-style: none; }
+.version-lines-card--fill .version-lines-recent { flex: 1; overflow-y: auto; }
+.version-lines-recent li {
+  min-width: 0;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 6px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+/* The row is the control: it opens this version in History, so it answers on
+   approach the way a row in the list column does, with the same tint and the
+   same item radius. It takes the row's own padding with it — the `li` keeps
+   it only for a host that offers nowhere to open, where the row is a line of
+   text rather than a button. */
+.version-lines-recent li:has(.version-lines-recent__open) { padding: 0; }
+.version-lines-recent__open {
+  min-width: 0;
+  flex: 1;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-caption);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease-out;
+}
+.version-lines-recent__open:hover { background: var(--surface-hover); }
+.version-lines-recent__open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.version-lines-recent .version-line-chip { flex: 0 0 auto; }
+.version-lines-recent code {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border-divider);
+  border-radius: var(--radius-item);
+  background: var(--surface-code);
+  font-size: var(--text-micro);
+}
+.version-lines-recent__subject {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.version-lines-recent__date { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+
+.version-lines-relations { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.version-lines-relations li { display: flex; align-items: flex-start; gap: var(--space-2); }
+.version-lines-relations svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; color: var(--text-secondary-color); }
+.version-lines-relations__item--positive svg { color: var(--status-success); }
+.version-lines-relations__item--warning svg { color: var(--status-warning); }
+.version-lines-relations__item--protected svg { color: var(--accent-primary); }
+.version-lines-relations span { min-width: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere; }
+/* The state and the sentence that explains it on one line, not stacked. Given
+   the whole measure of the panel, the pair reads as a sentence — and stacked
+   it spent two lines and a 4px gap per state to fill a third of the width. */
+.version-lines-relations strong { margin-inline-end: 6px; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-strong); }
+
+/* The way on from this screen, at the quiet end of the card. */
+.version-lines-detail__history {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-divider);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.version-lines-detail__history > svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.version-lines-detail__history > div { min-width: 0; flex: 1; }
+.version-lines-detail__history strong { display: block; color: var(--text-primary-color); font-size: var(--text-label); }
+.version-lines-detail__history p { margin: 2px 0 0; line-height: var(--leading-normal); }
+.version-lines-detail__history .secondary-button { flex: 0 0 auto; white-space: nowrap; }
+.version-lines-detail__history .secondary-button svg { width: 14px; height: 14px; }
+
+/* The list column narrows before the screen gives up its second panel, at the
+   width Changes and History narrow on. */
+@media (max-width: 1200px) {
+  .version-lines-layout { grid-template-columns: var(--panel-column-narrow) minmax(0, 1fr); }
+}
+
+@media (max-width: 1240px) {
+  /* The wrap belongs to the row, which is the box that can run out of width:
+     the summary itself is a column now, and `flex-wrap` on a column is a rule
+     that reads as if it did something. Without it here the actions' 100% below
+     had nothing to wrap onto and simply crushed the name beside them. */
+  .version-lines-detail__summary { padding-inline: 13px 11px; }
+  .version-lines-detail__summary-top { flex-wrap: wrap; }
+}
+
+/* One column, at the width the other two drop to one. */
+@media (max-width: 1024px) {
+  .version-lines-layout { grid-template-columns: 1fr; }
+  .version-lines-detail { display: none; }
+  .version-lines-screen--narrow-detail .version-lines-list-panel { display: none; }
+  .version-lines-screen--narrow-detail .version-lines-detail { display: flex; }
+  .version-lines-detail__back { display: inline-flex; }
+}
+
+@media (max-width: 700px) {
+  .version-lines-detail__actions { width: 100%; justify-content: flex-end; }
+  .version-lines-detail__history { flex-wrap: wrap; }
+  .version-lines-detail__history .secondary-button { margin-inline-start: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .version-line-row { transition: none; }
+}
+
+
+@media (forced-colors: active) {
+  .version-line-row--selected { outline: 2px solid Highlight; outline-offset: -2px; }
+  .version-line-chip { border: 1px solid CanvasText; }
+}
+
 .delete-version-line-options {
   display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 18px;
-  color: var(--text-secondary); font-size: 13px; overflow-wrap: anywhere;
+  color: var(--text-secondary-color); font-size: var(--text-body); overflow-wrap: anywhere;
 }
-.version-line-row__details-toggle {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  min-height: 32px; padding: 6px 12px; border: 0; border-radius: var(--radius-pill);
-  background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.version-line-row__details-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
-.version-line-row__chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform var(--duration-fast); }
-.version-line-row__chevron--open { transform: rotate(180deg); }
-.version-line-row__details-panel {
-  display: flex; flex-wrap: wrap; column-gap: 22px; row-gap: 8px;
-  margin: 0 14px 12px 58px; padding: 10px 12px;
-  border-radius: var(--radius-surface); background: var(--surface-hover); font-size: 12px;
-}
-.version-line-row__details-panel > div { display: flex; align-items: baseline; gap: 6px; min-width: 0; max-width: 100%; }
-.version-line-row__details-panel dt { margin: 0; color: var(--text-secondary); white-space: nowrap; }
-.version-line-row__details-panel dd {
-  margin: 0; overflow-wrap: anywhere; color: var(--text-primary);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 11.5px;
-}
-.version-line-row__details-panel-prose { font-family: inherit; font-size: 12px; }
-.version-line-row__actions { flex-shrink: 0; display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.version-line-row__actions-divider { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--border-subtle); }
-/* Row-scale: these live inside a version-line row and must not out-weigh the
-   line's own name. The size comes from the shared `--sm` modifier on the
-   buttons themselves; only the no-wrap is this row's own. */
-.version-line-row__actions .secondary-button { white-space: nowrap; }
-.version-line-row__actions .secondary-button svg { width: 15px; height: 15px; flex-shrink: 0; }
-.version-line-row__delete { padding: 6px 9px; color: var(--status-danger); }
 
-.version-lines-checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin: 4px 0; }
+/* A choice with a consequence under it, so the row is aligned to the top of
+   the label rather than centred on a block of two lines. */
+.version-lines-checkbox {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  margin: var(--space-3) 0; font-size: var(--text-body);
+}
+.version-lines-checkbox > span { min-width: 0; display: grid; gap: 2px; }
+.version-lines-checkbox strong { font-weight: var(--weight-strong); }
+.version-lines-checkbox .save-version-note { margin: 0; }
 
 .version-lines-quick-switch { position: relative; display: inline-flex; gap: 8px; }
 /* A circle at row scale. `min-height` as well as `height`, because the shared
@@ -233,36 +733,39 @@
 .version-lines-quick-switch__menu {
   box-sizing: border-box;
   width: min(400px, calc(100vw - 2 * var(--space-4)));
-  height: min(380px, calc(100vh - 2 * var(--space-4)));
+  /* Down 42px with the footer's two rows: the box is fixed, so the row the
+     actions gave back has to come off the box or it becomes empty space under
+     the results. */
+  height: min(338px, calc(100vh - 2 * var(--space-4)));
   min-width: 0;
   max-width: none;
   overflow: hidden;
 }
 .version-lines-quick-switch__menu--status {
   width: min(320px, calc(100vw - 2 * var(--space-2)));
-  height: min(292px, calc(100vh - 56px));
+  height: min(250px, calc(100vh - 56px));
 }
 .version-lines-quick-switch__menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .version-lines-quick-switch__search {
   display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px;
   padding: 0 var(--space-3); border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill); color: var(--text-secondary);
+  border-radius: var(--radius-pill); color: var(--text-secondary-color);
 }
 .version-lines-quick-switch__search:focus-within { border-color: var(--focus-ring); }
 .version-lines-quick-switch__search > svg { width: 14px; height: 14px; flex-shrink: 0; }
 .version-lines-quick-switch__search input {
   flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
-  color: var(--text-primary); font: inherit; font-size: 13px;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-body);
 }
-.version-lines-quick-switch__search input::placeholder { color: var(--text-secondary); }
+.version-lines-quick-switch__search input::placeholder { color: var(--text-secondary-color); }
 .version-lines-quick-switch__filter {
   width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center;
   padding: 0; border: 0; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-secondary);
+  background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .version-lines-quick-switch__filter svg { width: 14px; height: 14px; }
-.version-lines-quick-switch__filter:hover { background: var(--surface-hover); color: var(--text-primary); }
+.version-lines-quick-switch__filter:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .version-lines-quick-switch__filter--on { color: var(--accent-primary); }
 .version-lines-quick-switch__filter--on svg { fill: currentColor; }
 .version-lines-quick-switch__results {
@@ -274,35 +777,35 @@
 .version-lines-quick-switch__choose {
   display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 46px;
   padding: 5px 8px; border: 0; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-primary); text-align: left;
+  background: transparent; color: var(--text-primary-color); text-align: left;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .version-lines-quick-switch__choose:hover { background: var(--surface-hover); }
 .version-lines-quick-switch__glyph {
   flex-shrink: 0; width: 28px; height: 28px; display: grid; place-items: center;
-  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary);
+  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
 }
 .version-lines-quick-switch__glyph svg { width: 14px; height: 14px; }
 .version-lines-quick-switch__copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .version-lines-quick-switch__name {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 13px; font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: var(--text-body); font-weight: var(--weight-strong);
 }
 .version-lines-quick-switch__context {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--text-secondary); font-size: 11.5px;
+  color: var(--text-secondary-color); font-size: var(--text-caption);
 }
 .version-lines-quick-switch__favourite {
   flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
   padding: 0; border: 0; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-secondary); opacity: 0.55;
+  background: transparent; color: var(--text-secondary-color); opacity: 0.55;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .version-lines-quick-switch__favourite svg { width: 14px; height: 14px; }
 .version-lines-quick-switch__item:hover .version-lines-quick-switch__favourite,
 .version-lines-quick-switch__favourite:focus-visible { opacity: 1; }
-.version-lines-quick-switch__favourite:hover { background: var(--surface-hover); color: var(--text-primary); }
+.version-lines-quick-switch__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .version-lines-quick-switch__favourite--on { color: var(--accent-primary); opacity: 1; }
 .version-lines-quick-switch__favourite--on svg { fill: currentColor; }
 .version-lines-quick-switch__menu--status .version-lines-quick-switch__glyph {
@@ -311,23 +814,40 @@
 .version-lines-quick-switch__menu--status .version-lines-quick-switch__favourite {
   width: 32px; height: 32px;
 }
-.version-lines-quick-switch__see-all {
-  flex-shrink: 0; margin-top: 6px; min-height: 36px; padding: 8px 10px; border-radius: var(--radius-item); border: 0;
-  background: transparent; color: var(--accent-primary); font-size: 12.5px; text-align: left;
-  transition: background var(--duration-fast), color var(--duration-fast);
+/* The two hand-offs at the end of the list, on one row: a line that does not
+   exist yet, and everything about a line that is not "which one am I on". A
+   rule separates them from the results, because they act rather than choose.
+   They are ghost buttons, so they take the shared control height and the shared
+   quiet treatment rather than a size of their own. */
+.version-lines-quick-switch__footer {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle);
 }
-.version-lines-quick-switch__see-all:hover { background: var(--surface-hover); color: var(--text-primary); }
+/* Only child, and it still belongs at the right-hand end. */
+.version-lines-quick-switch__footer > .version-lines-quick-switch__see-all:only-child { margin-left: auto; }
+.version-lines-quick-switch__new,
+.version-lines-quick-switch__see-all { min-width: 0; padding-inline: var(--space-2); }
+.version-lines-quick-switch__new span,
+.version-lines-quick-switch__see-all span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* "Working on", in front of the value. The words are the sentence around the
+   control; the line's name is the fact, and stays the heavier of the two. */
+.version-lines-quick-switch__context-label {
+  flex-shrink: 0; color: var(--text-secondary-color); font-size: var(--text-label); white-space: nowrap;
+}
+
 .version-lines-quick-switch__empty {
   display: grid; place-items: center; min-height: 100%; margin: 0; padding: var(--space-4);
-  color: var(--text-secondary); font-size: 12.5px; line-height: 1.45; text-align: center;
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-align: center;
 }
 .version-lines-quick-switch__status { display: grid; place-items: center; min-height: 100%; padding: 10px; }
-.version-lines-quick-switch__status svg { width: 16px; height: 16px; color: var(--text-secondary); }
+.version-lines-quick-switch__status svg { width: 16px; height: 16px; color: var(--text-secondary-color); }
 
 @media (max-width: 800px) {
   .overview-meta .version-lines-quick-switch { flex: 1 1 auto; }
   .overview-meta .version-line-selector { flex: 1 1 auto; justify-content: space-between; }
-  .version-lines-view__header { flex-direction: column; align-items: stretch; }
 }
 
 @media (forced-colors: active) {
@@ -339,8 +859,8 @@
 @media (pointer: coarse) {
   .version-lines-quick-switch__filter,
   .version-lines-quick-switch__favourite { width: 44px; height: 44px; }
-  .version-lines-quick-switch__choose,
-  .version-lines-filter__clear,
-  .version-lines-quick-switch__see-all,
-  .version-line-row__details-toggle { min-height: 44px; }
+  /* The two footer actions are `.ghost-button`s, which primitives.css already
+     raises to `--control-height-lg` here; restating it would be a second copy
+     of the same accommodation. */
+  .version-lines-quick-switch__choose { min-height: 44px; }
 }

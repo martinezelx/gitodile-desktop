@@ -7,7 +7,10 @@ import { LanguageProvider } from "../../i18n";
 import { NotificationCenter } from "./NotificationCenter";
 import { recordNotification, type AppNotification, type NotificationDetails } from "./domain";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete document.documentElement.dataset.reducedMotion;
+});
 
 let nextId = 0;
 
@@ -316,5 +319,26 @@ describe("the titlebar notification centre", () => {
     expect(bellClass()).not.toContain("notification-center__bell--");
 
     Reflect.deleteProperty(window, "matchMedia");
+  });
+
+  it("does not ring when GitOdile's reduced-motion setting is on", () => {
+    document.documentElement.dataset.reducedMotion = "true";
+    const { rerender } = renderCentre({ unreadCount: 0 });
+
+    rerender(
+      <LanguageProvider>
+        <NotificationCenter
+          notifications={[]}
+          unreadCount={1}
+          isEnabled
+          onOpened={vi.fn()}
+          onClear={vi.fn()}
+          onReviewTeamChanges={vi.fn()}
+          onOpenSettings={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(bellClass()).not.toContain("notification-center__bell--");
   });
 });

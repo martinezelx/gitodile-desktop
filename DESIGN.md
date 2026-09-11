@@ -73,11 +73,15 @@ The main desktop window should broadly support:
    destinations and utilities alike, since a rail that labels one and not the
    other reads as an accident — and the column narrows to 56px, the icon circle
    plus its padding. The 40px pointer target and accessible name remain.
-   - Overview, Changes, Lines, History, and Recovery keep their order.
-     Navigation Settings controls which stay in the rail; deselected and
-     height-overflowed destinations remain reachable in More, in registry
-     order. Recovery stays disabled and marked "Coming soon" until its screen
-     exists;
+   - Overview, Changes, History, Lines, and Recovery keep their order.
+     History sits directly under Changes because the two are one loop — what
+     has changed, and what has been saved — and they share a shape as well as
+     a neighbour: one screen header, one strip per panel, one list column.
+     Lines follows them: switching a version line is a deliberate move between
+     pieces of work rather than a step in that loop. Navigation Settings
+     controls which stay in the rail; deselected and height-overflowed
+     destinations remain reachable in More, in registry order. Recovery stays
+     disabled and marked "Coming soon" until its screen exists;
    - "More" is always the final destination tile. As the window loses height,
      the trailing destinations move into its menu in order instead of making
      the narrow rail scroll. The menu always ends after a separator with
@@ -129,7 +133,13 @@ The main desktop window should broadly support:
 3. **Status bar** — a 34px strip along the bottom of the content column,
    spanning from the rail's edge to the window's, on every screen including
    Overview. It reports what is true of the project right now: branch, unsaved
-   work, sync state and when that was last learned, and the app version.
+   work, sync state and when that was last learned, and the app version. The
+   branch is also the app's one global version-line control — it states the
+   working context ("Working on", at the secondary tier, with the line's name
+   carrying the weight) and its dropdown switches, creates and hands off to the
+   Lines screen. No screen adds a second selector to its own header: two
+   controls answering one question in one window is how a reader stops trusting
+   either.
    - it is chrome, not content: no fill, no radius, no shadow. Shadow signals
      stacking order, and this strip is the floor of the window rather than
      something resting on it; at 30px tall it could not carry the 14–18px card
@@ -162,14 +172,23 @@ The main desktop window should broadly support:
      scroll boundary; fading it makes the surface appear not to end. They keep
      only a compact 8px gap above the status bar;
    - the release metadata is grouped at the far right: the version is shown as
-     `v0.1.0` with its compact lifecycle tag (`alpha`) beside it. Together they
-     form one quiet button that opens the Changelog — the version the reader
+     `v0.2.0-preview.1`; preview builds add a compact textual `preview` badge with
+     warning tint, while stable builds omit the default-channel badge. Color only
+     reinforces the visible word. The two channel names are `stable` and `preview`, kept the same in both locales.
+     Together they form one quiet button that opens the Changelog — the version the reader
      can already see is what a release note is *about*, so the tag leads to the
      notes and not to the product description. The changelog shares the About
-     dialog's shell and lists each release with its channel, date, notes, and a
-     marker for the build being run. Notes are bundled and open without a
-     network request; a future application updater may report through this
-     surface but must keep its remote state separate from the local notes. The
+     dialog's shell and lists each release with its channel, publication date
+     when known, notes, and a
+     marker for the build being run. Each version is a keyboard-accessible
+     disclosure: its identity stays visible while its notes remain collapsed
+     until requested, keeping current and historical releases equally scannable.
+     Unpublished candidates omit the date.
+     Notes are bundled and open without a network request. A separate explicit
+     action opens the application-update dialog and starts its shared remote
+     check; mounting or expanding the Changelog never does. Remote update notes
+     remain bounded plain text inside that dialog, separate from the local
+     notes, and cannot load markup, links or images. The
      titlebar stays reserved for global actions and window controls; no product
      name is repeated because the window is already the product;
    - the current version line is the strip's one navigation shortcut. Its
@@ -209,6 +228,16 @@ The main desktop window should broadly support:
      offers manual-only, 15-minute, 30-minute, and hourly cadences; one timer
      follows the active project session, skips states without a usable upstream,
      and shares the same deduplicated check path as the status-bar action;
+   - application-update checks are a separate global concern. What's new, More
+     actions, the command palette and General settings all enter one eager
+     dialog backed by one feature-owned controller, including when no project
+     is open. Settings defaults background checks to off and discloses the
+     GitHub contact, 24-hour maximum cadence and transmitted-data boundary
+     before the switch. Checking never downloads; downloading never installs;
+     and installation adds a final focused confirmation that explains the
+     close/restart consequence. Determinate and indeterminate progress use the
+     same stable region, dynamic state changes are announced, and reduced
+     motion replaces the moving indeterminate bar with a static fill;
    - interactive chrome raised the text to 13px, inline icons to 14px, and the
      remote-check target to 28px. Coarse pointers receive the standard 44px
      target and a correspondingly taller strip;
@@ -250,8 +279,41 @@ The app should work well between approximately 1024px and large desktop displays
   --control-height-sm: 32px;
   --control-height-md: 38px;
   --control-height-lg: 44px;
-  --control-font-sm: 13px;
-  --control-font-md: 13.5px;
+  --control-font-sm: 12px;
+  --control-font-md: 13px;
+
+  /* Type size and weight each state a role too — see Typography below. */
+  --text-hero: 28px;
+  --text-display: 22px;
+  --text-title: 17px;
+  --text-subtitle: 15px;
+  --text-lead: 14px;
+  --text-body: 13px;
+  --text-label: 12px;
+  --text-caption: 11px;
+  --text-micro: 10px;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+  --weight-heading: 650;
+  --weight-title: 700;
+
+  /* Leading and tracking state a role too — see Typography below. */
+  --leading-none: 1;
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-code: 1.6;
+
+  --tracking-hero: -0.02em;
+  --tracking-tight: -0.01em;
+  --tracking-wide: 0.02em;
+  --tracking-caps: 0.06em;
+
+  /* The two stacks, named once each. */
+  --font-sans: ui-sans-serif, system-ui, ...;
+  --font-mono: ui-monospace, SFMono-Regular, ...;
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
@@ -264,8 +326,8 @@ Colors should be defined semantically rather than by component:
 - `--surface-panel`
 - `--surface-raised`
 - `--surface-code`
-- `--text-primary`
-- `--text-secondary`
+- `--text-primary-color`
+- `--text-secondary-color`
 - `--border-subtle`
 - `--accent-brand` / `--accent-brand-contrast` (the fixed lime brand mark and primary CTA)
 - `--accent-primary`
@@ -282,6 +344,7 @@ Colors should be defined semantically rather than by component:
 - `--overlay` (modal/backdrop scrim)
 - `--surface-hover` / `--surface-active` (neutral interactive-state tints, used for any hover/pressed/selected state instead of one-off `rgba(...)` values)
 - `--surface-control` / `--border-control` (the fill and edge of a control that sits *on* a raised card — see Shape below; never use `--surface-panel` for this, it is the same white as `--surface-raised` in light mode and leaves the control with no step of its own)
+- `--surface-card` (the fill of a card sitting *inside* a panel — a section of the History overview, a fact card on the Lines detail. A mix of `--surface-raised` into `--surface-panel`, so it resolves per theme from one definition)
 - `--focus-ring` (the visible keyboard focus color, distinct enough against every focusable surface)
 - `--shadow-sm` / `--shadow-md` / `--shadow-lg` (elevation; theme-aware, see below)
 
@@ -416,18 +479,110 @@ Three things this settles:
 - **Height and type size are chosen together, in the primitive.** The button
   used to declare padding and radius and nothing else, so its height came from
   `line-height: normal` over the browser's default 16px — a number nobody chose,
-  and one that differs per platform's system font. `--control-font-md` (13.5px)
-  goes with `md`, `--control-font-sm` (13px) with `sm`. A height without a font
-  is half a decision and the other half drifts.
+  and one that differs per platform's system font. `--control-font-md` (13px)
+  goes with `md`, `--control-font-sm` (12px) with `sm` — the same two numbers as
+  `--text-body` and `--text-label`, because a label and the control it names
+  must agree. A height without a font is half a decision and the other half
+  drifts.
 - **Radius depends on this.** `--radius-pill` reads as half the height, which is
   what makes the concentric nesting above true for free. It is only true where
   the height is actually known, so an un-sized control quietly breaks the shape
   rules as well as the size ones.
 
-A control that genuinely belongs to a denser context may sit outside the scale —
-the diff pane's footer runs at 30px over a 10px type scale, because the pane
-around it is a code surface with its own measure. That is an exception, it is
-written down here, and it is the only one.
+**A measure that decides whether two screens line up belongs to the scale, not
+to a screen.** Changes and History pair the same two panels — a list beside a
+detail — and the same person moves between them all day. Both used to write
+that geometry themselves, and had drifted: a 280px list column against 330px,
+one strip height derived twice from the same `calc`, one screen giving up its
+second panel 44px of window width before the other. Four values in
+`tokens.css` say it once instead:
+
+| Token | What it is |
+| --- | --- |
+| `--panel-column` | The list column's grid track, with `--panel-column-narrow` below 1200px |
+| `--strip-height` | A panel's own strip: the row control in it plus 10px of air above and below. The History card's tab band is one |
+| `--strip-height-inner` | A strip *inside* a panel — the History workspace's file and diff panes — one step quieter |
+
+Lines pairs those two panels too, and reads at the same density as the screens
+either side of it. Its rows are two lines and one height: the name with when
+the line last moved at the trailing end, then the states worth flagging under
+it. The date sits up there rather than beside the chips because at 272px
+`last month · Local only · Can't be deleted yet` is 250px of content in 240px
+of row, and every crowded line then wrapped to a third one — a row that grows
+when it has more to say is a list that never scans the same way twice.
+
+Its detail panel is one surface divided by rules, not a tray of cards: an
+identity header — the name and its actions on one row, where the line lives and
+who last saved to it on the row under them — then two sections separated by a
+hairline, where the line stands and the versions on it, and a footer leading to
+History. A card inside a card is two borders describing one thing.
+
+**The panel does not scroll; the section that can outgrow it does.** Where a
+line stands is three lines that never grow, and a panel that scrolls as a whole
+carries them off the top to reach the list underneath — the answer leaving to
+show the question. The body divides its height between the sections instead,
+and the list of versions takes what is left and scrolls inside itself, which
+also keeps the way through to History against the bottom edge where a way out
+belongs.
+
+**Each fact is stated once on a panel, in the place that says it best.** This
+panel used to close with a Status table whose five pairs were all answered
+above it — the upstream by the header, the count by the strip, the date and the
+hash by the latest-version section — which in turn described in full the same
+saved version the list under it opened with. A screen that repeats itself is
+not thorough; it is a screen where the reader has to check whether the second
+statement means something new. The upstream is named in the header, who last
+saved and when in the byline, and every saved version exactly once in the list,
+the newest carrying the two things only it can say: whether it is published,
+and its hash. The list is eight deep rather than four, which is what makes it a
+preview worth the section rather than three rows under half a panel of nothing,
+and every row opens that version in History — the screen that draws the same
+sequence in full.
+
+**A third screen asking the same question uses the same surface.** Lines
+filters a list the way Changes and History do — a trigger with a count, a
+panel, groups of capsules and switches, a footer that clears them — and had a
+private copy of every rule for it. The copy is what a private copy always
+becomes: it had never picked up the shared sheet's fix for a `<legend>` not
+being a grid item, so `Sort by` sat flush against the capsules under it where
+the other two screens give it 6px. What a feature may still own is the part
+only it has — here, the group listing name prefixes, which grows with the
+repository and therefore scrolls, the way the file-type group in Changes does.
+
+**A drawing has to say more than its caption does.** The strip opened with a
+rail of dots — one per version the read returned, hollow at the left for the
+ones behind them, `Older versions` and `Newer versions` written under its two
+ends. Every line that had filled the read drew the identical picture, so the
+only thing the rail could tell you was "there are more than eight", and the
+count standing beside it said that in words. A diagram that needs a legend to
+explain what it is, and then encodes one bit, is decoration with a caption on
+it; the pixels went to who saved the last version and when.
+
+**A state and the sentence explaining it are one line, not two.** Given the
+whole measure of a panel, `Up to date with the remote — Your local line is in
+sync with origin/…` reads as what it is. Stacked, it spent two lines and a gap
+per state to fill a third of the width, which is how the panel ended up wanting
+two columns it did not need: three short sections beside each other, and a list
+of subjects truncated at half measure. The sections take the full width and the
+grid is one column again.
+
+The heights are a `calc` off `--control-height-sm` rather than sizes of their
+own, for the same reason a control's height is a token: a strip is the control
+that lives in it plus its air, so it cannot be right at one number and wrong at
+another. The screen header above them is one shared rule too — `.screen-header`
+in `primitives.css`, which measures a labelled action whether or not the screen
+has one. Without that the panels beneath started 12px lower on the screen whose
+header carries a button, and the same 22px title did not even measure the same
+on the two screens: one pinned its leading and the other left it to the
+browser.
+
+There are no exceptions. There was one — the History diff pane's footer ran its
+buttons at 30px, below even `sm`, on the grounds that the pane around it is a
+code surface with its own measure. It went with the footer: stepping between
+changes is now the same arrow pair the Changes diff header carries, in the same
+place, and an icon-only stepper is not a labelled button at all. A control that
+seems to need a size of its own is usually a control that has been given the
+wrong shape.
 
 A guard in `styleComposition.test.ts` fails the build on any feature rule that
 gives a `.primary-button` or `.secondary-button` its own height, font size or
@@ -436,7 +591,7 @@ second one is a deliberate edit to the guard rather than a quiet override.
 
 ### Icons
 
-Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`lucide-react`, ISC) at 16–18px, imported by name so unused icons are tree-shaken out of the bundle. Chosen over hand-drawing our own because it ships real Git-specific glyphs (`GitCompare`, `GitCommitHorizontal`) instead of the generic pencil/clock metaphors the app used before — see the icon-library comparison done when this was decided. An active nav item tints its icon with `--accent-primary`; the label stays `--text-primary`. Don't mix in a second icon library or hand-drawn icons alongside it — pick the closest Lucide glyph even when it's not a perfect semantic match.
+Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`lucide-react`, ISC) at 16–18px, imported by name so unused icons are tree-shaken out of the bundle. Chosen over hand-drawing our own because it ships real Git-specific glyphs (`GitCompare`, `GitCommitHorizontal`) instead of the generic pencil/clock metaphors the app used before — see the icon-library comparison done when this was decided. An active nav item tints its icon with `--accent-primary`; the label stays `--text-primary-color`. Don't mix in a second icon library or hand-drawn icons alongside it — pick the closest Lucide glyph even when it's not a perfect semantic match.
 
 That rule governs **controls** — the glyph vocabulary a user learns to operate the app. It does not govern **artwork naming somebody else's product**, which Lucide has no glyphs for at all: file-type icons in the Changes list, and the stack and operating-system marks in About. Those come from the vscode-icons set already installed for file types, or — for the three OS marks, which that set does not carry — are drawn in `src/app/vendorMarks.tsx` and used nowhere else. They keep their vendor colours, because a logo reduced to one ink stops being recognizable at 14px, which is the only job it has. That is the trade: About accepts a handful of fixed colours it does not own so that nothing else in the app has to. The exception is a mark whose brand colour is an ink rather than a hue — Apple's, monochrome by its own definition, and Tux's black body, which is a hole in the layout on the dark dialog surface. Those take `currentColor` and the dialog's own surface, so they are legible in both themes; what identifies Tux at 14px is the silhouette and the yellow beak, not which side of the ink it is on.
 
@@ -444,7 +599,12 @@ Brand identity (mark + name) appears in exactly one visible place at a time, nev
 
 The mark is the crocodile silhouette itself, not a silhouette knocked out of a green tile, and it is painted in `--accent-primary` — *not* `--accent-brand`. This follows the standing rule below rather than breaking it: the brand lime is a single fixed value in both themes, which works behind a tile it also supplies the contrast for, but a bare mark on the light app surface measures 1.95:1 with it. `--accent-primary` is the per-theme green and measures 5.09:1 on light and 11.46:1 on dark. The About dialog uses the same treatment at hero scale — one identity, one rendering.
 
-The titlebar mark is also the About affordance, as it is in every desktop application: clicking the identity is how you ask what the thing is. It is deliberately the *quiet* route — no tooltip and no hover plate, because a fill would turn the identity into the first button of the toolbar and advertise a shortcut nobody needs advertised. The signposted routes are the toolbar menu and the command palette; this one rewards knowing the convention. What it does keep: an accessible name, which is invisible to a sighted user and is the only thing naming the button to a screen reader; a 30px target around the 24px glyph, since nothing paints that box and an unadvertised control still has to be easy to hit once found; and a response on the silhouette itself — the mark deepens toward `--text-primary` on hover (6.85:1 on light, 12.97:1 on dark, from a resting 5.09:1 and 11.46:1) and presses with the same `scale(0.94)` the rail icons use. `data-tauri-drag-region` stays on the wrapper around it, so the chrome still drags the window while the button keeps its click.
+About places the running app version directly below the product promise.
+Preview builds repeat their textual channel badge there; stable builds show only
+the version. Both facts come from the same release model as the status bar and
+changelog, so these three surfaces cannot describe one build differently.
+
+The titlebar mark is also the About affordance, as it is in every desktop application: clicking the identity is how you ask what the thing is. It is deliberately the *quiet* route — no tooltip and no hover plate, because a fill would turn the identity into the first button of the toolbar and advertise a shortcut nobody needs advertised. The signposted routes are the toolbar menu and the command palette; this one rewards knowing the convention. What it does keep: an accessible name, which is invisible to a sighted user and is the only thing naming the button to a screen reader; a 30px target around the 24px glyph, since nothing paints that box and an unadvertised control still has to be easy to hit once found; and a response on the silhouette itself — the mark deepens toward `--text-primary-color` on hover (6.85:1 on light, 12.97:1 on dark, from a resting 5.09:1 and 11.46:1) and presses with the same `scale(0.94)` the rail icons use. `data-tauri-drag-region` stays on the wrapper around it, so the chrome still drags the window while the button keeps its click.
 
 ### Honest affordances
 
@@ -460,8 +620,8 @@ The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and prima
 | `--surface-panel` | `#1a1a1a` | `#ffffff` |
 | `--surface-raised` | `#242424` | `#ffffff` |
 | `--surface-code` | `#1a1a1a` | `#f5f5f4` |
-| `--text-primary` | `#fafafa` | `#1c1917` |
-| `--text-secondary` | `#a1a1aa` | `#6f6a64` |
+| `--text-primary-color` | `#fafafa` | `#1c1917` |
+| `--text-secondary-color` | `#a1a1aa` | `#6f6a64` |
 | `--border-subtle` | `#27272a` | `#e7e5e4` |
 | `--accent-brand` | `#8bc53f` | `#8bc53f` |
 | `--accent-brand-contrast` | `#14170f` | `#14170f` |
@@ -551,6 +711,161 @@ Requirements:
 - no tiny low-contrast secondary text;
 - avoid all-caps labels except very short status tags.
 
+### Size
+
+**Type size is a token, the same way a control's height is.** Pick the step by
+what the text *is*, never by how big it needs to look on the surface in front of
+you — that is what let one screen drift a whole step below the rest while every
+value in it looked locally reasonable.
+
+| Token | What it is |
+| --- | --- |
+| `--text-hero` (28px) | A name, not a heading: the app's, the project's. One per surface |
+| `--text-display` (22px) | The screen's own title (`h1`), and a figure meant to be read at a glance |
+| `--text-title` (17px) | A card, dialog or section heading (`h2`) |
+| `--text-subtitle` (15px) | A heading inside a card (`h3`) |
+| `--text-lead` (14px) | The name of a row, where the row *is* the content |
+| `--text-body` (13px) | Body copy, and any labelled control (`--control-font-md`) |
+| `--text-label` (12px) | A label, and a control living inside a row (`--control-font-sm`) |
+| `--text-caption` (11px) | A chip, a count, metadata beside a name |
+| `--text-micro` (10px) | The floor: an avatar's initials, a badge's number |
+
+**Whole pixels, and these particular ones.** The steps are not house taste; they
+are where desktop software has converged, and they were checked against it:
+
+| | Body | Secondary | Floor | Section heading | Screen title |
+| --- | --- | --- | --- | --- | --- |
+| [macOS HIG](https://developer.apple.com/design/human-interface-guidelines/typography) | 13 | 12 / 11 | 10 | 15 / 17 | 22 |
+| [Windows 11 / Fluent 2](https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/typography) | 14 | 12 | 12 | 20 | 28 |
+| VS Code | 13 | 12 | 11 | — | — |
+| [GitHub Desktop](https://github.com/desktop/desktop) | 12 | 11 | 9 | 14 | 28 |
+| [GitButler](https://github.com/gitbutlerapp/gitbutler) | 12 | 11 | 10 | 13–15 | — |
+| **GitOdile** | **13** | **12 / 11** | **10** | **15 / 17** | **22** |
+
+22/17/15 is the macOS title ramp and 13/12/11/10 its body ramp, which is also
+where VS Code, GitHub Desktop and GitButler land. Fluent's 14px body and 12px
+floor belong to a general-audience, touch-capable ramp; every dense developer
+tool in the table sits below it, and so do we.
+
+The scale used to run half a pixel above all of them — 13.5, 12.5, 11.5, 10.5 —
+because five steps had been squeezed into the four the ramp has. No established
+ramp uses a fractional size, and a fractional one also sits worse on the pixel
+grid at small sizes. `styleComposition.test.ts` fails the build on a non-integer
+step.
+
+**`--text-*` is a size, always.** The two text *colors* carry a `-color`
+suffix — `--text-primary-color` and `--text-secondary-color` — because they
+predate this scale and would otherwise read as steps of it. So `var(--text-label)`
+is a size and `var(--text-secondary-color)` is a color, and you can tell which
+without looking either one up. Every step here is named for what the text *is*
+(`body`, `label`, `caption`), never for its prominence.
+
+`--text-micro` is a floor, not a step to reach for. Below it the app was running
+8.5px and 9px secondary text, which the Accessibility section already forbids.
+
+Two things sit below the floor, and both are named in the guard rather than
+left to judgement. `.sidebar-project__badge-count` is a numeral inside a 14px
+status dot, which leaves a 10px box once the ring and padding are out; and
+`.navigation-display__preview small` is a label inside a miniature *drawing* of
+the navigation rail, where the text is part of the picture rather than something
+anyone reads. Neither is prose. Adding a third is a deliberate edit to the
+guard, not a quiet override.
+
+### Weight
+
+**Five steps, and each of them is a role.** Anything in between is a number
+somebody eyeballed.
+
+| Token | What it is |
+| --- | --- |
+| `--weight-normal` (400) | Body copy and metadata |
+| `--weight-medium` (500) | A value that must not be mistaken for a name |
+| `--weight-strong` (600) | The name of a thing: a file, a version line, a row's subject |
+| `--weight-heading` (650) | A heading, and the label of a selected control |
+| `--weight-title` (700) | A screen or dialog title, a primary action, an avatar's initials |
+
+Two things this settles:
+
+- **Semibold, not bold, carries emphasis.** Fluent states it outright: bold is
+  not part of the Windows type ramp, and Semibold is what emphasis uses. That is
+  what `--weight-strong` is.
+- **`<strong>` is a semantic mark, not a request for a weight.** Left to the
+  browser it lands on 700 — the loudest step the app owns. History reached for
+  it on every filename, count, value and area total, so the densest screen in
+  the app was also its boldest, and no single rule looked wrong. `base.css`
+  pins `strong`/`b` to `--weight-strong`; a surface that genuinely needs more
+  says so itself.
+- **A heading is never heavier than the screen title.** `h2` and `h3` carry
+  `--weight-heading` from `base.css` rather than the browser's bold, and their
+  sizes come from the scale, so an un-styled heading is never a 24px guess.
+
+The drift this replaced: History ran 630, 680 and 760 while every other screen
+sat on 600/650/700 — including the *same* commit row, which Overview renders at
+650 and History rendered at 680.
+
+### Leading and tracking
+
+The same idea on the last two axes. Every ramp in the table above pairs a line
+height with each *size*; ours pairs one with each *role*, which survives a size
+change — the size pass moved every number in the app and not one line height had
+to follow.
+
+| Token | What it is |
+| --- | --- |
+| `--leading-none` (1) | A glyph centred in a box of its own: a count, an avatar's initials |
+| `--leading-tight` (1.2) | A heading — the bigger the type, the less air it needs |
+| `--leading-snug` (1.35) | A name, or a row that may wrap to a second line |
+| `--leading-normal` (1.5) | Body copy and prose |
+| `--leading-code` (1.6) | A monospace *surface*: a diff, a code block, an editable file |
+
+| Token | What it is |
+| --- | --- |
+| `--tracking-hero` (-0.02em) | The largest type on a surface |
+| `--tracking-tight` (-0.01em) | A heading |
+| `--tracking-wide` (0.02em) | Small text opened out: initials, a count |
+| `--tracking-caps` (0.06em) | An uppercase label |
+
+### Family and figures
+
+`--font-sans` and `--font-mono` name the two stacks. Before them the monospace
+stack was spelled out verbatim twelve times, so adding a fallback meant finding
+all twelve. TypeScript had already understood this — `SYSTEM_MONO_STACK` in
+`features/changes/diffPreferences.tsx` builds the diff's font preference and has
+to spell the stack out — so a guard compares that constant against the token and
+fails if they drift.
+
+**A figure read against a sibling takes tabular figures.** A column of counts, a
+row of stats, a badge whose number updates in place: without
+`font-variant-numeric: tabular-nums` the digits are proportional, so the value
+shifts sideways as it changes and a column of them never lines up. Changes
+already did this for its diff totals; History rendered the same two numbers
+without it, alongside four other figures that wanted it.
+
+Two distinctions worth keeping:
+
+- **A code surface is not the same as monospace text.** A diff, a code block and
+  the ignore-file editor take `--leading-code`; a branch name or a file path
+  that merely happens to be monospace is a *name*, and takes `--leading-snug`
+  like any other. Deciding this by font family rather than by role is how the
+  same list ended up at 1.35, 1.4 and 1.45 in one sheet.
+- **`letter-spacing: 0` is a reset, not a step.** The tooltip uses it to shed
+  whatever tracking it was rendered inside of, and the guard allows it.
+
+The drift this replaced: twelve line heights for what were only ever four roles
+plus code, and eleven tracking values — among them −0.005, −0.012 and −0.018em,
+which at the sizes they were written on differ by about a fifth of a pixel.
+
+`styleComposition.test.ts` fails the build on any literal `font-weight` or
+`font-size` anywhere in the eager cascade — inside the `font:` shorthand too,
+which is where six rules had been hiding from both guards — on a fractional step
+in the tokens, on `--control-font-*` drifting from the text step it must match,
+on any literal `line-height` or `letter-spacing`, on a font stack spelled out
+in a feature sheet, on the TypeScript mono stack drifting from `--font-mono`,
+and on a `<strong>` left to the browser's bold. Every sheet is on the scale: the
+pass that got them there moved 248 declarations spread across twenty-two
+distinct values — 14.5, 16, 18, 20 and 21 among them, each reasonable where it
+was written and none of them agreeing with the next sheet over.
+
 ## Motion
 
 Motion should communicate relationships and state changes, not decorate.
@@ -576,6 +891,10 @@ Rules:
   which Settings offers — has no origin to sweep from anyway;
 - avoid large spring animations in work surfaces;
 - respect `prefers-reduced-motion`;
+- Appearance settings offers an app-specific **Reduce motion** switch, off by
+  default. When enabled it removes GitOdile's transitions and animations while
+  keeping every state change immediately visible; the operating-system
+  preference is respected independently and never needs this switch to be on;
 - never delay an operation solely to show an animation.
 
 ## Transparency and native effects
@@ -707,7 +1026,7 @@ ignored. Its dashed edge is the only dashed border in the app and is meant to
 stay that way: dashes are the universal "drop here" mark, and a solid edge at
 that size would read as a dialog.
 
-**About separates what a maintainer needs from what the product is proud of.** Technical details answer "why is it broken on *your* machine": the platform, its build, the webview, the Git it found — all things that differ per install, and all things the copy button puts on the clipboard. Built with answers "what is this made of": Tauri, React, TypeScript, Rust, which are identical for every user of a given build and therefore explain nothing about a bug. Mixing the two produces a diagnostics block nobody can act on and a credits list nobody reads, so they are separate sections in separate shapes — label-and-value rows for the facts that vary, and one row of equal tiles, mark above name above version, for the ones that do not. The tiles were capsules first, which is what a mark beside short text asks to be; four of them overflowed the dialog and wrapped three-and-one, which reads as an accident rather than a set. Stacking the mark fits them all on one row and settles the shape at the same time, since a capsule is a single-line control. A value the app cannot establish is omitted, never filled with "unknown": a missing row says nothing, and a fabricated one sends a bug report the wrong way.
+**About separates what a maintainer needs from what the product is proud of.** Technical details answer "why is it broken on *your* machine": the platform, its build, the webview, the Git it found — all things that differ per install, and all things the copy button puts on the clipboard. Built with answers "what is this made of": Tauri, React, TypeScript, Rust, which are identical for every user of a given build and therefore explain nothing about a bug. Mixing the two produces a diagnostics block nobody can act on and a credits list nobody reads, so they are separate sections in separate shapes — label-and-value rows for the facts that vary, and one row of equal tiles, mark above name above version, for the ones that do not. The tiles were capsules first, which is what a mark beside short text asks to be; four of them overflowed the dialog and wrapped three-and-one, which reads as an accident rather than a set. Stacking the mark fits them all on one row and settles the shape at the same time, since a capsule is a single-line control. Each tile is also a control that opens that project's own home page in the user's browser, because "built with Tauri" is a claim the reader should be able to check; it is a button rather than a link, since the destination is outside the app and an `href` would let a middle click navigate the webview the dialog sits in. A credit is not a call to action, so the tile stays at rest until pointed at and withholds nothing at rest — mark, name and version are all readable without hovering. On hover it takes the app's neutral interactive treatment warmed by the accent that carries the identity a few lines above it (accent border, a tint of the resting fill, a one-pixel lift), and reveals the one fact the resting tile cannot state: a small outward arrow in the corner, saying the press leaves the app. Its accessible name pairs the layer with the host it opens, so that fact reaches a screen reader before the press rather than after it, and every host is listed explicitly in the opener scope — an unlisted one simply fails to open. A value the app cannot establish is omitted, never filled with "unknown": a missing row says nothing, and a fabricated one sends a bug report the wrong way.
 
 **A dialog that carries a message is not the About dialog.** About is the
 product-identity surface — the mark at hero scale, a 28px heading, 32px of

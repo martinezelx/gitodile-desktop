@@ -4,13 +4,29 @@ import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui";
-import { getSaveVersionBreakdown, type SaveVersionPlan, type SaveVersionResult } from "./domain";
+import { usePersistedInstallDraft } from "../../runtime/drafts";
+import {
+  getSaveVersionBreakdown,
+  PUBLISH_AFTER_SAVE_STORAGE_KEY,
+  type SaveVersionPlan,
+  type SaveVersionResult,
+} from "./domain";
 import type { ChangeCategory } from "../status";
 import type { SaveVersionController } from "./controller";
 import { createSaveVersionController } from "./controller";
 import { saveVersionPort } from "./tauriAdapter";
 
 const defaultController = createSaveVersionController(saveVersionPort);
+
+type VersionMessageDraft = { title: string; details: string };
+const EMPTY_VERSION_MESSAGE: VersionMessageDraft = { title: "", details: "" };
+const isEmptyVersionMessage = (draft: VersionMessageDraft): boolean =>
+  draft.title === "" && draft.details === "";
+const isVersionMessage = (value: unknown): value is VersionMessageDraft =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as Partial<VersionMessageDraft>).title === "string" &&
+  typeof (value as Partial<VersionMessageDraft>).details === "string";
 
 const BREAKDOWN_LABEL_KEYS = {
   changed: "statusCategoryChanged",
@@ -35,6 +51,12 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): R
   const breakdown = getSaveVersionBreakdown(plan.counts);
   return (
     <div className="save-version-summary">
+      {/* Where this version lands, from the plan that will write it — the same
+          read that produced the state token, so the sentence and the save
+          cannot disagree. A plan with no line to name says nothing here rather
+          than guessing one: a detached `HEAD` is not a line, and inventing a
+          name would be the one thing a destination must never do. */}
+      {plan.branch && <p className="save-version-destination">{t.saveVersionDestination(plan.branch)}</p>}
       <p>{t.saveVersionFilesSummary(plan.totalFiles)}</p>
       {breakdown.length > 0 && (
         <ul className="status-breakdown" aria-label={t.statusBreakdownLabel}>
@@ -50,7 +72,10 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): R
       )}
       {plan.remainingFiles > 0 && <p className="save-version-note">{t.saveVersionRemainingNote(plan.remainingFiles)}</p>}
       {plan.hasPreparedChanges && <p className="save-version-note">{t.saveVersionPreparedNote}</p>}
-      {plan.isFirstVersion && <p className="save-version-note">{t.saveVersionFirstVersionNote}</p>}
+      {plan.isFirstVersion && <p className="save-version-note">{plan.branch ? t.saveVersionFirstVersionOnLineNote(plan.branch) : t.saveVersionFirstVersionNote}</p>}
+      {/* Detached `HEAD`: there is a commit to make and no line to make it on,
+          which is exactly what the reader needs told before they make it. */}
+      {!plan.branch && <p className="save-version-note">{t.saveVersionNoDestinationNote}</p>}
       <p className="save-version-note">{t.saveVersionLocalOnlyNote}</p>
     </div>
   );
@@ -139,10 +164,35 @@ export function SaveVersionDialog({
     selectedPathsRef.current = selectedPaths;
   }
   previousIsOpenRef.current = isOpen;
-  const [title, setTitle] = useState("");
-  const [details, setDetails] = useState("");
+  const [messageDraft, setMessageDraft, clearMessageDraft] = usePersistedInstallDraft(
+    `save-version-dialog:${projectPath}`,
+    "version message",
+    EMPTY_VERSION_MESSAGE,
+    isEmptyVersionMessage,
+    isVersionMessage,
+  );
+  const { title, details } = messageDraft;
+  const setTitle = (value: string): void =>
+    setMessageDraft((current) => ({ ...current, title: value }));
+  const setDetails = (value: string): void =>
+    setMessageDraft((current) => ({ ...current, details: value }));
   const [showTitleError, setShowTitleError] = useState(false);
   const [state, setState] = useState<DialogState>({ status: "loading" });
+  /* Deliberately not reset by the open-effect below, unlike title/details:
+   * this is a standing preference ("I usually publish right after saving"),
+   * not per-save input, so it should still be checked the next time this
+   * dialog opens. Shared with Changes' quick commit box through the same
+   * storage key, so checking it once there is remembered here too. */
+  const [publishToo, setPublishToo] = useState<boolean>(
+    () => localStorage.getItem(PUBLISH_AFTER_SAVE_STORAGE_KEY) === "1",
+  );
+  const togglePublishToo = (): void => {
+    setPublishToo((current) => {
+      const next = !current;
+      localStorage.setItem(PUBLISH_AFTER_SAVE_STORAGE_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
 
   // `useModalFocus` only ever calls this with the literal `false` (Escape),
   // but it must still satisfy `Dispatch<SetStateAction<boolean>>`. Reading
@@ -164,13 +214,14 @@ export function SaveVersionDialog({
   }, []);
   useModalFocus(isOpen, dialogRef, setOpenState);
 
-  // Resets per-open input state; separate from the plan-fetching effect below
-  // so a "Try again" retry (which bumps `retryToken`) never wipes what the
-  // user already typed.
+  // Only the validation flag resets on open. `title`/`details` deliberately
+  // do not: closing this dialog without saving — a backdrop click, Escape, a
+  // stray click on Cancel — used to throw away whatever was typed with no
+  // confirmation, and reopening it for the same change should find the draft
+  // still there. It's cleared explicitly once a save actually succeeds,
+  // below, instead of implicitly here on every open.
   useEffect(() => {
     if (isOpen) {
-      setTitle("");
-      setDetails("");
       setShowTitleError(false);
     }
   }, [isOpen]);
@@ -267,8 +318,20 @@ export function SaveVersionDialog({
     })
       .then((result) => {
         setState({ status: "success", result });
+        // The draft this saved, cleared now that it's the version's own
+        // record rather than still-editable text — see the open-effect above
+        // for why it otherwise survives a close.
+        clearMessageDraft();
         onPhaseChangeRef.current?.("success");
         onSaved();
+        // Same handoff as clicking "Publish now" on the success screen below,
+        // just without waiting for that extra click: the save already
+        // succeeded, and Publish still shows its own plan and asks its own
+        // confirmation before anything is sent anywhere.
+        if (publishToo) {
+          onClose();
+          onPublishNow();
+        }
       })
       .catch((error: unknown) => {
         setState({ status: "save-error", plan, error, ranHooks: attemptHooks });
@@ -413,6 +476,24 @@ export function SaveVersionDialog({
               />
             </label>
 
+            <div className="settings-row">
+              <div>
+                <strong>{t.saveVersionPublishToggleLabel}</strong>
+                <p>{t.saveVersionPublishToggleHint}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={publishToo}
+                aria-label={t.saveVersionPublishToggleLabel}
+                className={`toggle-switch${publishToo ? " toggle-switch--on" : ""}`}
+                disabled={isBusy}
+                onClick={togglePublishToo}
+              >
+                <span className="toggle-switch__knob" />
+              </button>
+            </div>
+
             <div className="dialog-actions">
               <button className="secondary-button" type="button" onClick={onClose} disabled={isBusy}>
                 {t.commonCancel}
@@ -426,7 +507,7 @@ export function SaveVersionDialog({
                 ) : (
                   <>
                     <Save aria-hidden="true" />
-                    {t.saveVersionConfirm}
+                    {publishToo ? t.saveVersionConfirmAndPublish : t.saveVersionConfirm}
                   </>
                 )}
               </button>

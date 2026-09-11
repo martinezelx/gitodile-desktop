@@ -18,10 +18,10 @@
   align-items: center;
   gap: 6px;
   margin: 0 0 var(--space-1);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-wide);
 }
 .changes-preview__group-icon { display: inline-flex; align-items: center; }
 .changes-preview__group-icon svg { width: 13px; height: 13px; }
@@ -56,15 +56,15 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
 }
 .changes-preview__icon svg { width: 14px; height: 14px; }
 .changes-preview__file-type-icon { width: 14px; height: 14px; display: block; }
 .changes-preview__name {
   min-width: 0;
   overflow: hidden;
-  color: var(--text-primary);
-  font-size: 13.5px;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -79,8 +79,8 @@
   background: transparent;
   color: var(--accent-primary);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
 }
 .changes-preview__more:hover { background: var(--surface-hover); }
 .changes-preview__more svg { width: 15px; height: 15px; }
@@ -90,12 +90,15 @@
 }
 
 .changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
-.changes-view__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
-.changes-view__header p { margin: 4px 0 0; color: var(--text-secondary); font-size: 14px; }
+/* The header row itself is `.screen-header` in primitives.css: the title and
+   the state of the working tree are one line, not a heading with a paragraph
+   under it, and History opens on the same row. What stays here is what this
+   screen says inside it. */
 .changes-view__summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
-.changes-view__summary-separator { color: var(--text-secondary); opacity: 0.6; }
+.changes-view__summary-separator { color: var(--text-secondary-color); opacity: 0.6; }
 .changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 10px; }
-.changes-view__lines { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13.5px; }
+.changes-view__selection { font-variant-numeric: tabular-nums; }
+.changes-view__lines { font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); font-size: var(--text-body); }
 .changes-view__lines--added { color: var(--diff-added); }
 .changes-view__lines--removed { color: var(--diff-removed); }
 .changes-status-notice {
@@ -106,8 +109,8 @@
 }
 .changes-status-notice__body { flex: 1; min-width: 0; }
 .changes-status-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
-.changes-status-notice strong { display: block; margin-bottom: 2px; font-size: 12px; }
-.changes-status-notice p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.changes-status-notice strong { display: block; margin-bottom: 2px; font-size: var(--text-label); }
+.changes-status-notice p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 .changes-status-notice > .secondary-button { flex: 0 0 auto; align-self: center; }
 .changes-status-notice > .secondary-button svg { width: 14px; height: 14px; }
 .changes-status-notice--danger { outline: 1px solid var(--status-danger); outline-offset: -1px; }
@@ -120,7 +123,7 @@
   padding: 10px var(--space-4);
   border-radius: var(--radius-surface); background: var(--surface-raised);
 }
-.changes-notice p { flex: 1; min-width: 0; margin: 0; font-size: 14px; color: var(--text-primary); }
+.changes-notice p { flex: 1; min-width: 0; margin: 0; font-size: var(--text-lead); color: var(--text-primary-color); }
 .changes-notice > svg { width: 18px; height: 18px; flex-shrink: 0; }
 .changes-notice--discarded > svg, .changes-notice--restored > svg { color: var(--status-success); }
 .changes-notice--error > svg { color: var(--status-danger); }
@@ -130,62 +133,55 @@
 .changes-notice__dismiss {
   flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 26px;
   border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
 }
-.changes-notice__dismiss:hover { background: var(--surface-active); color: var(--text-primary); }
+.changes-notice__dismiss:hover { background: var(--surface-active); color: var(--text-primary-color); }
 .changes-notice__dismiss svg { width: 15px; height: 15px; }
-/* A pill, not an 18px card: the elements at its corners are the two circular
-   icon buttons, and a container stays concentric with the shape it hugs when
-   its radius is the child's plus the padding — 19 + 8 here, which is exactly
-   half of the 54px the row measures. `999px` keeps that true when coarse
-   pointers grow the buttons to 44px and the row to 60. */
+/* No card of its own. The Version lines header sets the pattern for a screen
+   heading's actions: the controls sit straight on the screen background and
+   each carries its own shape, so nothing here paints a surface or a shadow. */
 .changes-header-actions {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
 }
 .changes-header-actions__buttons { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
-.changes-header-actions .secondary-button,
-.changes-header-actions__save {
-  border-color: var(--border-control);
-}
 /* Same rule as the Overview summary row: a single-line control is fully
    rounded — a circle where it is square, a capsule where it carries a label.
-   Save is the capsule between these two circles, and every radius in the
-   cluster is now half its own height, so the whole row nests concentrically
-   without a single number needing to be worked out. */
+   It is a circle at the row tier because it now lives inside a row (the file
+   list's strip), which is what `--sm` on the primitive says; only the width is
+   set here, since a feature may not resize a button's height. */
 .changes-actions-menu__trigger {
-  width: var(--control-height-md);
-  min-width: var(--control-height-md);
+  width: var(--control-height-sm);
+  min-width: var(--control-height-sm);
   padding: 0;
   border-radius: var(--radius-round);
 }
-.changes-header-actions .secondary-button { background: var(--surface-control); }
-.changes-header-actions .secondary-button:hover:not(:disabled) { background: var(--surface-hover); }
-.changes-header-actions .secondary-button:active:not(:disabled) { background: var(--surface-active); }
 .changes-header-actions__save svg { width: 16px; height: 16px; }
-.changes-actions-menu { position: relative; display: inline-flex; }
+.changes-actions-menu { position: relative; display: inline-flex; flex-shrink: 0; }
 .changes-actions-menu__trigger { justify-content: center; }
 .changes-actions-menu__trigger svg { width: 17px; height: 17px; }
-.changes-actions-menu__popup { min-width: 270px; }
+/* The one menu in this screen that opens rightward, and the exception the
+   shared default allows for: its items name files — this one, all of them —
+   and right-anchored it dropped straight down over the list that answers
+   which. Hung from the trigger's left edge it opens across the diff instead,
+   so what is about to be discarded stays on screen while the choice is made.
+   There is room for it there: the list panel is 280px at most and the menu is
+   270px, so it clears the diff's own edge by a wide margin. */
+.changes-actions-menu__popup { right: auto; left: 0; min-width: 270px; }
 .changes-actions-menu .app-menu__item--danger { color: var(--status-danger); }
 .changes-actions-menu .app-menu__item--danger svg { color: currentColor; }
 .changes-actions-menu .app-menu__item:disabled { opacity: 0.42; }
-.changes-context-menu {
-  position: fixed; right: auto; bottom: auto; z-index: 30;
-  min-width: 148px; max-width: min(320px, calc(100vw - 16px));
-}
-.changes-context-menu .app-menu__item--danger,
-.changes-context-menu .app-menu__item--danger svg { color: var(--status-danger); }
-.changes-context-menu .app-menu__item:disabled { opacity: 0.42; cursor: default; }
+/* The surface itself is `.context-menu` in primitives.css now. What is left
+   here is what only this menu shows: why an action did not happen, and the
+   rule that fences the destructive item off from the harmless ones above it. */
 .changes-context-menu__error {
   max-width: 280px; margin: 4px 8px 6px; color: var(--status-danger);
-  font-size: 12px; line-height: 1.45; overflow-wrap: anywhere;
+  font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere;
+}
+.changes-context-menu__divider {
+  height: 1px; margin: 4px 8px; background: var(--border-divider);
 }
 .changes-diff-context-scope { display: contents; }
 
@@ -199,23 +195,100 @@
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); outline: none;
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
-.changes-discard-dialog h2 { margin: 0; font-size: 22px; }
-.changes-discard-status { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); }
+.changes-discard-dialog h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+/* The dialog spaces its own parts with one gap, so nothing inside it brings a
+   margin of its own. Discarding said this through a wrapper it happened to
+   have; restoring's sentences sat straight in the column and kept the
+   browser's, which is how two halves of one dialog ended up with different
+   rhythm. */
+.changes-discard-dialog > p { margin: 0; }
+.changes-discard-status { display: flex; align-items: center; gap: 10px; color: var(--text-secondary-color); }
 .changes-discard-status svg { width: 19px; height: 19px; }
 .changes-discard-summary { display: grid; gap: var(--space-3); }
 .changes-discard-summary > p, .changes-discard-summary ul { margin: 0; }
-.changes-discard-summary ul { display: grid; gap: 6px; padding-left: 20px; color: var(--text-secondary); font-size: 13px; }
+.changes-discard-summary ul { display: grid; gap: 6px; padding-left: 20px; color: var(--text-secondary-color); font-size: var(--text-body); }
 .changes-discard-recovery {
   display: flex; align-items: flex-start; gap: 9px; padding: 10px 12px; border-radius: var(--radius-surface);
-  background: var(--surface-active); color: var(--text-primary); font-size: 13px;
+  background: var(--surface-active); color: var(--text-primary-color); font-size: var(--text-body);
 }
 .changes-discard-recovery svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; color: var(--accent-primary); }
+/* The stored recoveries scroll inside the dialog rather than growing it: ten
+   is the cap Rust keeps, and the actions below have to stay reachable without
+   scrolling past the list to find them. The padding is for the focus ring,
+   which an `overflow` container would otherwise clip on the first and last
+   card. */
+.changes-restore-list {
+  max-height: 264px; overflow-y: auto; padding: 2px;
+  /* `flex: 0 0 auto` because the dialog is a flex column that scrolls: an
+     `overflow` child has a zero min-height, so it was the one thing here that
+     could shrink, and expanding the folded-away records squeezed the actual
+     choices down to a sliver. The list caps itself at its own height; anything
+     past that is the dialog's scroll to take. */
+  flex: 0 0 auto;
+}
+/* Why a record is not on offer, on the record itself. A reason that lived in a
+   tooltip would be unreachable on exactly the card that cannot be focused. */
+.changes-restore-option__reason {
+  color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
+}
+/* A record and the one thing that can be done to it besides restoring. The
+   card keeps the whole row's width; the delete control is a quiet square
+   beside it, because a destructive action on a list of protected work should
+   not be the loudest thing in the row. */
+.changes-restore-row { display: flex; align-items: stretch; gap: 4px; }
+.changes-restore-row > .choice-list__option { flex: 1; min-width: 0; }
+.changes-restore-row__forget {
+  flex: 0 0 auto; width: 32px; display: grid; place-items: center;
+  border: 1px solid transparent; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.changes-restore-row__forget:hover { background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); }
+.changes-restore-row__forget:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.changes-restore-row__forget svg { width: 15px; height: 15px; }
+/* The row becomes its own question rather than opening a dialog over the
+   dialog: the list stays readable behind the choice, and the answer sits
+   exactly where the thing it destroys was. */
+.changes-restore-row--forgetting {
+  flex-direction: column; gap: var(--space-2);
+  padding: 10px var(--space-3);
+  border: 1px solid var(--status-danger); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) 8%, transparent);
+}
+.changes-restore-row__question { margin: 0; font-size: var(--text-body); line-height: var(--leading-normal); }
+.changes-restore-row__question strong { margin-right: 4px; }
+.changes-restore-row__answers { display: flex; justify-content: flex-end; gap: var(--space-2); }
+/* The row tier from DESIGN.md § Size: this pair lives inside a list row, not
+   in the dialog's own action bar. */
+.changes-danger-button--sm {
+  min-height: var(--control-height-sm);
+  padding: 6px var(--space-3);
+  font-size: var(--control-font-sm);
+}
+.changes-restore-unavailable { display: grid; gap: var(--space-2); }
+/* A disclosure, not a control that acts: it reads as the quiet line it is
+   until pointed at, and carries its own caret rather than a chevron button. */
+.changes-restore-unavailable__toggle {
+  display: flex; align-items: center; gap: 6px; justify-self: start;
+  padding: 4px 8px 4px 4px; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  font: inherit; font-size: var(--text-label);
+}
+.changes-restore-unavailable__toggle:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.changes-restore-unavailable__toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.changes-restore-unavailable__toggle svg { width: 15px; height: 15px; flex-shrink: 0; }
+/* The same card as an option, minus every affordance of one: nothing here is
+   pickable, so nothing here hovers, focuses or claims to be a choice. */
+.changes-restore-option--static { opacity: 0.75; background: var(--surface-hover); }
+.changes-discard-dialog__header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+}
 .changes-discard-error {
   display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); font-size: 13px;
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); font-size: var(--text-body);
 }
 .changes-discard-error svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
-.changes-discard-success { display: flex; align-items: flex-start; gap: 9px; color: var(--text-primary); }
+.changes-discard-success { display: flex; align-items: flex-start; gap: 9px; color: var(--text-primary-color); }
 .changes-discard-success p { margin: 0; }
 .changes-discard-success svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--status-success); }
 .changes-discard-dialog .dialog-actions button svg { width: 16px; height: 16px; }
@@ -224,7 +297,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
   padding: 6px var(--space-4); border: 1px solid transparent; border-radius: var(--radius-pill);
   background: var(--status-danger); color: var(--status-danger-contrast);
-  font: inherit; font-size: var(--control-font-md); font-weight: 700;
+  font: inherit; font-size: var(--control-font-md); font-weight: var(--weight-title);
 }
 .changes-danger-button:hover { filter: brightness(1.06); }
 .changes-danger-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -237,41 +310,54 @@
   border-radius: var(--radius-round); background: var(--surface-active); color: var(--status-success); box-shadow: var(--shadow-sm);
 }
 .changes-empty__icon svg { width: 20px; height: 20px; }
-.changes-empty h2 { font-size: 17px; margin-bottom: 6px; }
-.changes-empty p { color: var(--text-secondary); font-size: 14px; line-height: 1.55; margin-bottom: 22px; }
+.changes-empty h2 { font-size: var(--text-title); margin-bottom: 6px; }
+.changes-empty p { color: var(--text-secondary-color); font-size: var(--text-lead); line-height: var(--leading-normal); margin-bottom: 22px; }
+/* The empty-state pattern allows a second action; this one stacks under the
+   first rather than sitting beside it, because the block is 380px of prose
+   wide and two capsules do not fit in that. Quieter, too: leaving for Overview
+   is what this screen expects, and reaching for discarded work is the rare
+   errand — which is exactly the difference between a capsule and a ghost. */
+.changes-empty__actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
 .changes-layout {
-  flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: var(--space-4);
-  /* Both panels open with a header strip closed by a bottom rule, and those
-     two rules have to land on the same pixel row or the pair looks skewed.
-     Their natural heights differ — the left strip's tallest child is the
-     18px round checkbox, the right's is the ~23px category badge — so equal
-     padding alone is not enough. Pinning both to one height here makes them
-     match by construction instead of by a measured padding fudge, and it
-     stays correct if either strip's content changes. Sized a hair above the
-     taller strip's natural height so it always wins. */
-  --changes-header-height: 57px;
-  /* The second paired strip, below the two headers: the file list's search
-     box on the left, the diff's view/change toolbar on the right. Same
-     contract as `--changes-header-height` — both strips wrap one control with
-     9px of breathing room above and below, so pinning the height here keeps
-     their bottom rules on one pixel row even when only one side has content
-     (a file with no hunks hides the change navigation).
+  /* The column track and the strip height are `--panel-column` and
+     `--strip-height` in tokens.css. History pairs the same two panels and reads
+     the same two values, so the panel edge and the first row stay put when
+     someone switches between the screens rather than stepping ~50px sideways
+     and a few pixels up. */
+  flex: 1; min-height: 0; display: grid;
+  grid-template-columns: var(--panel-column) minmax(0, 1fr); gap: var(--space-4);
+  /* Each panel opens with one strip of the same height, so their contents
+     start on the same pixel row rather than a step apart.
 
-     The control is the row tier from DESIGN.md § Size, not a size of this
-     toolbar's own: this variable predates the scale, sat at 34px, and the
-     History diff workspace had already overridden it to 32 — one control
-     wearing two heights two pixels apart, which is the drift the scale
-     exists to stop. The strip height is a `calc` off it rather than a second
-     number, so the +9/+9/+1 contract holds by construction if the tier moves.
+     There used to be two strips a side — a header over a toolbar — kept level
+     by two separate height contracts. They asked one question between them
+     (which file, included how, shown how), so each pair is now a single row,
+     which leaves one number to keep instead of two and hands the files and the
+     diff back the ~50px the second rule cost them.
+
+     Only the diff side draws a rule now: the file list's search box carries a
+     border of its own, and a second line under it fenced the box off from the
+     rows it filters. The height contract still holds both strips level, which
+     is what the pairing was ever about.
+
+     The strip is the row control — the search box on the left, the
+     reading-mode picker on the right — plus 10px of breathing room above and
+     below. That is `--strip-height`, a `calc` off the control tier rather than
+     a number of its own, so it stays correct if that tier moves; a size
+     written here on its own is the drift task 106 fixed.
 
      Applied as a fixed `height` rather than a `min-height`: both strips are
      flex items in a column whose other child is a scroller, so a `min-height`
      let whichever side was under shrink pressure settle 1px shorter than the
      other — the two rules landing one pixel apart is precisely what a paired
-     header is supposed to prevent. `flex: 0 0 auto` below is the other half
-     of that fix. */
+     header is supposed to prevent. `flex: 0 0 auto` on each strip is the other
+     half of that fix, and everything inside them stays on one line.
+
+     The control variable keeps its name from those toolbars: it is the height
+     of the control that lives in these strips, and `DiffOptionPicker` reads it
+     with a fallback so the same picker still sizes correctly on the History
+     workspace, which is outside this layout. */
   --changes-toolbar-control-height: var(--control-height-sm);
-  --changes-toolbar-height: calc(var(--changes-toolbar-control-height) + 19px);
 }
 .changes-file-list {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
@@ -280,54 +366,82 @@
      insert gutters between the paired list and diff headers. */
   gap: 0;
 }
-.changes-file-list__selection {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-  /* Right inset matches where the file rows' trailing category icon actually
-     sits: the scroll viewport's own margin (`--space-2`) plus the file item's
-     own right padding (`--space-3`) — not just the viewport margin alone,
-     or the count reads closer to the edge than the icons below it. */
-  padding: var(--space-4) calc(var(--space-2) + var(--space-3)) var(--space-4) var(--space-2);
-  /* Paired with `.changes-diff__header`: same height, same bottom rule, so
-     the two panels read as one matched header band. See the note on
-     `--changes-header-height`. `min-height` (not a fixed height) because the
-     opposite strip can legitimately grow — a long wrapped path, or the
-     renamed-from line — and this one has to follow. `flex-shrink: 0` so it
-     can only ever grow: as a flex item beside a scroller it would otherwise
-     be squeezed back to the minimum while its partner kept its natural
-     height, which is the same 1px mismatch the toolbar strips had. */
-  flex-shrink: 0;
-  min-height: var(--changes-header-height);
-  color: var(--text-secondary); font-size: 12px;
+/* Include-everything, the count it produces, and the filter over the list:
+   one strip, paired with the diff header. See the note on `.changes-layout`. */
+/* No rule under it. The search box is already a bordered capsule floating on
+   the panel, and a second line right below it fenced the box off from the very
+   rows it filters — two edges 10px apart saying the same thing. The strip's
+   height is what separates them now, and it is still the height the diff
+   header opposite pairs with, so the two panels' contents start level even
+   though only one of them draws a line. */
+.changes-file-list__toolbar {
+  /* The containing block for `.filter-panel` — the shared surface in
+     `shared/ui/primitives.css`, which spans the strip that opens it rather than
+     hanging off a 24px trigger at one end of the search box. The History
+     timeline's strip does the same, so the two panels land on the same inset
+     over the same column width. */
+  position: relative;
+  display: flex; align-items: center; gap: var(--space-2);
+  flex: 0 0 auto; height: var(--strip-height);
+  padding: 0 var(--space-2);
 }
 .changes-file-list__select-all {
   display: inline-flex;
 }
+/* The same 6px inset the rows below use, from the same 8px gutter, so this
+   checkbox stands at the head of their column rather than beside it. */
 .changes-file-list__select-all .changes-file-row__checkbox { margin: 0 0 0 6px; }
-.changes-file-list__search {
-  display: flex; align-items: center;
-  flex: 0 0 auto; height: var(--changes-toolbar-height);
-  /* Asymmetric on purpose: the strip's total height is fixed (paired with
-     the diff toolbar on the right), so this is what actually moves the
-     search box within it — less room above than below shifts it up. */
-  padding: 4px var(--space-2) 15px;
-  border-bottom: 1px solid var(--border-subtle);
+/* The box itself is `.search-box` in primitives.css now. What stays here is
+   what this strip asks of it: the free width, and the height contract the
+   picker beside it reads — the two have to agree or the strip looks stepped. */
+.changes-file-list__toolbar .search-box {
+  flex: 1;
+  height: var(--changes-toolbar-control-height, var(--control-height-sm));
 }
-.changes-search-box {
-  /* Same fallback as the view picker below, for the same reason. */
-  flex: 1; min-width: 0; box-sizing: border-box; height: var(--changes-toolbar-control-height, var(--control-height-sm));
-  display: flex; align-items: center; gap: 8px; padding: 0 var(--space-4);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); transition: border-color var(--duration-fast), background var(--duration-fast);
+/* The shared `.filter-panel` deliberately carries no overflow of its own —
+   History nests absolutely positioned lists inside it, and a scroll container
+   there would clip them. This panel nests none, and it asks three questions
+   where History asks four in less height, so it takes the cap History cannot.
+
+   Measured against the smallest window the app allows (620px tall, see
+   `tauri.conf.json`): the panel's top edge sits ~104px down, so this leaves it
+   the rest of that window with room to breathe underneath. The ceiling stops it
+   growing past what is comfortable to read on a tall screen. */
+.changes-file-list__toolbar .filter-panel {
+  max-height: min(560px, calc(100vh - 128px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
-.changes-search-box:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
-.changes-search-box svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary); }
-.changes-search-box input {
-  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text-primary);
-  font: inherit; font-size: 13.5px; outline: none;
+
+/* The only part of the filter panel that grows with the repository: a tree can
+   hold thirty file types where it holds five kinds of change. It scrolls on its
+   own rather than the panel scrolling, because `.filter-panel` deliberately has
+   no overflow — History nests popups inside it — and because a group that keeps
+   its heading in place while its options move is easier to read than a panel
+   that slides everything.
+
+   Six rows of headroom: enough that the common tree needs no scrolling at all,
+   short enough that the two groups below it stay on screen. */
+.changes-filter__types {
+  max-height: 172px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 0;
+  min-width: 0;
 }
+/* Vendor artwork at the same size the switch's own lucide glyphs take, so a
+   row of file types and a row of change kinds measure alike. */
+.changes-filter__type-icon { width: 14px; height: 14px; flex: 0 0 auto; }
+
+/* Says why the list is empty, and — where a filter is what emptied it — offers
+   the way back, since the filters keep no clear control in the strip the way
+   the search box does. */
 .changes-file-list__empty {
-  margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-secondary); font-size: 13px; text-align: center;
+  display: grid; justify-items: center; gap: var(--space-3);
+  padding: var(--space-4) var(--space-3); color: var(--text-secondary-color); font-size: var(--text-body); text-align: center;
 }
+.changes-file-list__empty p { margin: 0; }
 .changes-file-list__scroll {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: var(--space-2);
 }
@@ -339,43 +453,17 @@
 .changes-file-row--virtual {
   position: absolute; top: 0; left: 0; width: 100%; padding-bottom: 2px;
 }
-.changes-file-row__checkbox {
-  appearance: none; display: grid; place-content: center; flex: 0 0 auto;
-  width: 18px; height: 18px; margin: 0 2px 0 6px;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
-  background: var(--surface-raised);
-  transition: border-color var(--duration-fast), background var(--duration-fast);
-}
-.changes-file-row__checkbox::before {
-  content: ""; width: 8px; height: 4px;
-  border-inline-start: 2px solid var(--accent-primary-contrast);
-  border-bottom: 2px solid var(--accent-primary-contrast);
-  transform: translate(0.25px, -1px) rotate(-45deg) scale(0);
-  transform-origin: center;
-  transition: transform var(--duration-fast);
-}
-.changes-file-row__checkbox:hover { border-color: var(--accent-primary); }
-.changes-file-row__checkbox:checked {
-  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
-}
-.changes-file-row__checkbox:checked::before { transform: translate(0.25px, -1px) rotate(-45deg) scale(1); }
-.changes-file-row__checkbox:indeterminate {
-  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
-}
-.changes-file-row__checkbox:indeterminate::before {
-  width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary-contrast);
-  transform: translate(0, 0) rotate(0deg) scale(1);
-}
-.changes-file-row__checkbox:disabled { opacity: 0.55; }
-.changes-file-row__checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* The control itself is `.app-checkbox` in primitives.css. All this list adds
+   is where it stands in the row. */
+.changes-file-row__checkbox { margin: 0 2px 0 6px; }
 .changes-file-row .changes-file-item { flex: 1; width: auto; }
 .changes-file-list__truncated {
   margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-item); background: var(--surface-hover);
-  color: var(--text-secondary); font-size: 12.5px;
+  color: var(--text-secondary-color); font-size: var(--text-label);
 }
 .changes-file-item {
   width: 100%; min-width: 0; display: flex; align-items: flex-start; gap: 13px; padding: 9px var(--space-3);
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-primary); text-align: left;
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-primary-color); text-align: left;
   font: inherit;
 }
 .changes-file-item:hover { background: var(--surface-hover); }
@@ -384,7 +472,7 @@
 .changes-file-item__icon { display: grid; place-items: center; flex-shrink: 0; align-self: center; }
 .changes-file-item__type-icon { width: 15px; height: 15px; display: block; }
 .changes-file-item__category-icon {
-  display: grid; place-items: center; flex-shrink: 0; align-self: center; margin-left: auto; color: var(--text-secondary);
+  display: grid; place-items: center; flex-shrink: 0; align-self: center; margin-left: auto; color: var(--text-secondary-color);
 }
 .changes-file-item__category-icon svg { width: 13px; height: 13px; }
 .changes-file-item__category-icon--new { color: var(--status-success); }
@@ -392,19 +480,146 @@
 .changes-file-item__category-icon--renamed { color: var(--status-renamed); }
 .changes-file-item__category-icon--conflicted { color: var(--status-warning); }
 .changes-file-item__details { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
-.changes-file-item__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
-.changes-file-item--active .changes-file-item__name { font-weight: 600; }
+.changes-file-item__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); }
+.changes-file-item--active .changes-file-item__name { font-weight: var(--weight-strong); }
 .changes-file-item__dir {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;
-  font-size: 11.5px; color: var(--text-secondary);
+  font-size: var(--text-caption); color: var(--text-secondary-color);
 }
 @media (forced-colors: active) {
   .changes-notice, .changes-status-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
-  .changes-file-row__checkbox { appearance: auto; }
 }
 .changes-file-item__origin {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--text-secondary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--text-secondary-color);
 }
+
+/* The fast path for the common case, docked at the foot of the file list
+   rather than behind the header's "Save version" button. Closed, it reads as
+   a sibling of the search box above it, not a card of its own: the same
+   pill shape, the same flat tinted fill, no border of its own beyond the
+   one shape they already share. It only becomes a raised card — a surface
+   worth a shadow, and `--radius-surface` rather than the pill — once it
+   actually holds more than one row, which is also when the dismiss control
+   and the rest of the form appear. `--radius-surface` and not
+   `--radius-control`: once expanded this is "a container with its own
+   background," same as `.changes-file-list` around it and
+   `.save-version-dialog` beside it, not a multiline control like the
+   textarea it holds — see DESIGN.md § Shape and the concentric chain in
+   tokens.css. */
+.changes-quick-commit {
+  flex: 0 0 auto; display: flex; flex-direction: column;
+  margin: 0 var(--space-2) var(--space-2);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  transition: border-color var(--duration-normal), background var(--duration-fast);
+}
+/* The radius and the padding step change size on open, which is exactly the
+   kind of layout-property motion this app's own architecture check forbids
+   animating (see styleComposition.test.ts) — so they snap instantly, same as
+   the border and background here, which are cheap enough to leave unanimated
+   rather than reach for a compositor-only stand-in. Only the content fades
+   in — see `.changes-quick-commit__extra` below. */
+.changes-quick-commit--expanded {
+  padding: 6px; border-radius: var(--radius-surface);
+  background: var(--surface-raised); box-shadow: var(--shadow-sm);
+}
+.changes-quick-commit:focus-within { border-color: var(--focus-ring); background: var(--surface-raised); }
+.changes-quick-commit__field { display: flex; flex-direction: column; gap: 6px; }
+/* Flush with the pill at rest — no fill or radius of its own, so the icon,
+   the input and the outer shape read as the one control search's is. Once
+   expanded it is a field sitting *on* the card instead of *as* it, which is
+   what gives it a fill of its own back. */
+.changes-quick-commit__summary-wrap {
+  display: flex; align-items: center; gap: 8px; min-height: var(--control-height-sm);
+  padding: 0 var(--space-3); border-radius: var(--radius-item);
+  cursor: text;
+}
+.changes-quick-commit--expanded .changes-quick-commit__summary-wrap { background: var(--surface-hover); }
+/* `>`, not a bare descendant selector: the dismiss button below carries its
+   own icon, and reaching past it here would fix that icon's colour in place
+   over its own `:hover`. */
+.changes-quick-commit__summary-wrap > svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+/* `input` in the selector, not just the class: `input:focus-visible` in
+   base.css carries the same (0,1,1) specificity, and without the type here
+   that rule's own outline was winning over this one's `none` regardless of
+   cascade order — the wrap around it already says "focused". */
+.changes-quick-commit__summary-wrap input.changes-quick-commit__summary {
+  flex: 1; min-width: 0; height: 100%; padding: 6px 0; border: 0; background: transparent;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); outline: none;
+}
+.changes-quick-commit__summary::placeholder { color: var(--text-secondary-color); }
+.changes-quick-commit__summary:disabled { opacity: 0.6; }
+/* The escape hatch for "opened this by accident" (Escape does the same).
+   Same box and shape as `.search-box__clear` above it in this exact panel —
+   a rectangle, since it's attached to a field rather than standing alone —
+   and the same `visibility` trick to leave it out of tab order at rest
+   instead of mounting and unmounting it. */
+.changes-quick-commit__dismiss {
+  width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 auto;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  visibility: hidden; transition: background-color var(--duration-fast), color var(--duration-fast);
+}
+.changes-quick-commit--expanded .changes-quick-commit__dismiss { visibility: visible; }
+.changes-quick-commit__dismiss:hover:not(:disabled) { background: var(--surface-raised); color: var(--text-primary-color); }
+.changes-quick-commit__dismiss:disabled { opacity: 0.4; }
+.changes-quick-commit__dismiss svg { width: 14px; height: 14px; }
+/* Grid rows collapse the panel to zero height when closed, same as a
+   `.filter-panel` disclosure — snapped, not eased: `grid-template-rows` is
+   layout motion, which this app's own architecture check forbids animating
+   (see styleComposition.test.ts). The soften-on-open feel instead comes from
+   the child below, on properties the compositor can animate for free. */
+.changes-quick-commit__extra {
+  display: grid; grid-template-rows: 0fr;
+}
+.changes-quick-commit--expanded .changes-quick-commit__extra { grid-template-rows: 1fr; margin-top: var(--space-2); }
+/* Opacity and a barely-there scale, both composited — no reflow, so this
+   costs nothing the row-snap above doesn't already pay. `transform-origin:
+   top` reads as the panel settling in from the row it grows out of, not a
+   generic fade. Kept subtle (0.96, not 0) since this box also holds text:
+   a bigger scale would visibly squash it for a frame. */
+.changes-quick-commit__extra > div {
+  overflow: hidden; display: flex; flex-direction: column; gap: var(--space-2);
+  opacity: 0; transform: scaleY(0.96); transform-origin: top;
+  transition: opacity var(--duration-fast), transform var(--duration-normal) ease-out;
+}
+.changes-quick-commit--expanded .changes-quick-commit__extra > div { opacity: 1; transform: scaleY(1); }
+@media (prefers-reduced-motion: reduce) {
+  .changes-quick-commit, .changes-quick-commit__extra > div { transition: none; }
+}
+.changes-quick-commit__desc {
+  width: 100%; resize: none; min-height: 52px; padding: 6px var(--space-3);
+  border: 1px solid transparent; border-radius: var(--radius-item); background: var(--surface-hover);
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-body); line-height: var(--leading-normal); outline: none;
+}
+.changes-quick-commit__desc::placeholder { color: var(--text-secondary-color); }
+.changes-quick-commit__desc:disabled { opacity: 0.6; }
+/* What the header summary already says ("N of M selected") is not repeated
+   here — this row is only the two things it alone controls, the publish
+   toggle and the save action. They share one line only at the panel column's
+   own wide end; short of that — most of its 260–320px range, and all of the
+   240–280px narrow track below 1200px — `flex-wrap` drops the button to a
+   full-width line of its own rather than clipping either. */
+.changes-quick-commit__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.changes-quick-commit__publish {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
+}
+.changes-quick-commit__action { flex: 1 1 auto; min-width: 0; }
+.changes-quick-commit__action svg { width: 15px; height: 15px; }
+.changes-quick-commit__error {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger);
+  font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.changes-quick-commit__error svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+.changes-quick-commit__hook-escape { align-self: flex-start; }
+.changes-quick-commit__success {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-success) 12%, transparent); color: var(--status-success);
+  font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.changes-quick-commit__success svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
 
 .changes-diff {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
@@ -412,32 +627,57 @@
 }
 .changes-diff__back {
   display: none; align-items: center; gap: 6px; margin: var(--space-3) var(--space-3) 0; padding: 4px 0;
-  border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px;
+  border: 0; background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--text-body);
   align-self: flex-start;
 }
 .changes-diff__back svg { width: 16px; height: 16px; }
 .changes-diff__header {
-  display: flex; align-items: flex-start; gap: 10px; padding: var(--space-4);
-  /* Paired with `.changes-file-list__selection` — see the note on
-     `--changes-header-height`. `min-height` rather than `height` so a long
-     path that wraps, or the renamed-from line, can still push this taller;
-     `flex-shrink: 0` so nothing can push it shorter. */
-  flex-shrink: 0;
-  min-height: var(--changes-header-height);
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-4) 0 var(--space-3);
+  /* Paired with `.changes-file-list__toolbar` — see the note on
+     `.changes-layout`. A fixed height, not a minimum: everything in
+     here is a single line that truncates, so nothing a path or a
+     renamed-from note can say pushes this strip out of step with the one
+     beside it. */
+  flex: 0 0 auto;
+  height: var(--strip-height);
   border-bottom: 1px solid var(--border-subtle);
 }
-.changes-diff__header-icon { display: grid; place-items: center; color: var(--text-secondary); margin-top: 2px; }
+.changes-diff__header-icon { display: grid; place-items: center; flex-shrink: 0; color: var(--text-secondary-color); }
 .changes-diff__header-icon svg { width: 16px; height: 16px; }
-.changes-diff__header-text { min-width: 0; flex: 1; }
-.changes-diff__title-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex-wrap: nowrap; }
-.changes-diff__path {
-  min-width: 0; margin: 0; font-weight: 600; font-size: 14px;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  direction: rtl; unicode-bidi: plaintext; text-align: left;
+/* The file's own icon, the same one its row carries, so the open file is
+   recognizable as the one that was clicked. */
+.changes-diff__type-icon { width: 16px; height: 16px; display: block; }
+/* `overflow: hidden` is the guard, not a tidy-up: the badge beside the name
+   cannot shrink, so under enough pressure the row would keep painting it
+   straight over the controls to its right. Clipped, the narrowest pane loses
+   the end of the badge instead of overlapping two things nobody can read. */
+.changes-diff__title-row {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  min-width: 0; flex: 1; flex-wrap: nowrap; overflow: hidden;
+}
+.changes-diff__path { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; flex: 0 1 auto; margin: 0; }
+.changes-diff__name {
+  /* A floor, so the one thing this strip exists to name cannot be squeezed
+     out of it entirely: past this the name keeps a few characters and its
+     ellipsis, and the folder and the badge give way instead. */
+  min-width: 4em; flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-weight: var(--weight-strong); font-size: var(--text-lead);
+}
+.changes-diff__dir {
+  /* Both halves can shrink, but not at the same rate: the weight makes the
+     folder give up room several times faster than the name, because the name
+     is what this strip is naming and the file list is already showing the
+     folder. It truncates from the head, in the same size and with the same
+     `rtl` trick its row uses, since the folders nearest the file locate it
+     better than the root does. */
+  min-width: 0; flex: 0 8 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  color: var(--text-secondary-color); font-size: var(--text-caption);
+  direction: rtl; text-align: left;
 }
 .changes-diff__category {
   flex-shrink: 0; padding: 3px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); color: var(--text-secondary); font-size: 11.5px; font-weight: 650; line-height: 1.3;
+  background: var(--surface-hover); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-heading); line-height: var(--leading-snug);
 }
 .changes-diff__category--new {
   border-color: transparent; background: color-mix(in srgb, var(--status-success) 16%, transparent);
@@ -456,36 +696,52 @@
   color: var(--status-warning);
 }
 .changes-diff__origin {
-  min-width: 0; flex: 0 1 auto; margin: 0; font-size: 12px; color: var(--text-secondary);
+  /* Last in the row and first to give way — hence the shrink weight, well
+     above the folder's: where a file came from is worth a strip's leftover
+     room, never the room the file's own name needs. The full value stays on
+     the tooltip. */
+  min-width: 0; flex: 0 40 auto; margin: 0; font-size: var(--text-label); color: var(--text-secondary-color);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
-.changes-diff__file-nav,
-.changes-diff__hunk-nav { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.changes-diff__file-nav { align-self: center; }
-.changes-diff__position {
-  margin-right: 4px; color: var(--text-secondary); font-size: 12.5px; font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+/* The controls for reading the file, kept off the file's own name by the same
+   hairline the app divides content with. The rule is the height of the
+   controls rather than of the strip, so it reads as a divider inside a row and
+   not as a second panel edge. */
+.changes-diff__controls {
+  display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--border-divider);
 }
+/* Each pair reads as a pair: the arrows inside one sit closer to each other
+   than the two pairs do to each other, which is the only thing left telling
+   "previous/next file" from "previous/next change" now that neither carries a
+   number. */
+.changes-diff__file-nav,
+.changes-diff__hunk-nav { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .changes-diff__step {
-  width: 24px; height: 24px; display: grid; place-items: center; flex-shrink: 0;
-  border: 1px solid transparent; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-secondary);
+  /* A circle, not a rounded square: an icon on its own is a round target
+     everywhere else in the app, and at this size `--radius-item` was close
+     enough to a circle to read as a failed one (DESIGN.md § Shape). Sized so
+     the 15px glyph keeps an even ring of space around it.
+
+     `padding: 0` is load-bearing. A `<button>` carries the browser's own
+     `1px 6px`, and nothing resets it globally: with the box 24px wide there
+     was less content box than glyph, so the icon was laid out from the
+     padding edge rather than centred in the button — which is why it sat
+     right of its own hover shape. */
+  width: 28px; height: 28px; padding: 0;
+  display: grid; place-items: center; flex-shrink: 0;
+  border: 1px solid transparent; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
 }
-.changes-diff__step svg { width: 15px; height: 15px; }
+.changes-diff__step svg { width: 15px; height: 15px; display: block; }
 .changes-diff__step:hover:not(:disabled) {
-  background: var(--surface-hover); border-color: var(--border-subtle); color: var(--text-primary);
+  background: var(--surface-hover); border-color: var(--border-subtle); color: var(--text-primary-color);
 }
 .changes-diff__step:disabled { opacity: 0.35; }
 .changes-diff__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.changes-diff__toolbar {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
-  flex: 0 0 auto; height: var(--changes-toolbar-height);
-  padding: 9px var(--space-4);
-  border-bottom: 1px solid var(--border-subtle);
-}
 .changes-diff__view { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.changes-diff__view-label { color: var(--text-secondary); font-size: 12.5px; white-space: nowrap; }
 .changes-view-picker { position: relative; display: inline-flex; }
 /* Doubled up on `.version-line-selector` on purpose. The trigger wears that
    class too, and `features/version-lines` loads *after* this file, so at equal
@@ -505,27 +761,39 @@
   box-sizing: border-box; height: var(--changes-toolbar-control-height, var(--control-height-sm));
   padding: 0 var(--space-4); gap: 7px; border-radius: var(--radius-pill);
 }
-.changes-view-picker__value { font-size: 13.5px; font-weight: 500; white-space: nowrap; }
-.changes-view-picker__menu { right: auto; left: 0; min-width: 180px; }
+.changes-view-picker__value { font-size: var(--text-body); font-weight: var(--weight-medium); white-space: nowrap; }
+/* Alignment comes from `.app-menu` now, and must: this trigger sits at the
+   right edge of the header, inside a panel that clips its own overflow, so the
+   left-anchored menu this rule used to force — correct while the picker stood
+   at the left of a toolbar of its own — opened straight off the panel's edge
+   and lost half its items. Right-anchored it opens back over the diff, which
+   is what the same picker does in History. */
+.changes-view-picker__menu { min-width: 180px; }
+/* The trigger's leading glyph is wrapped in a span rather than classed on the
+   SVG itself, because the same icon is reused inside the menu where a
+   different rule sizes it. The 15px the shared token sets therefore has to
+   reach the SVG inside the wrapper. */
+.changes-view-picker__trigger .version-line-selector__icon { display: inline-flex; }
+.changes-view-picker__trigger .version-line-selector__icon svg { width: 100%; height: 100%; }
 .changes-diff__body {
   flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; margin-bottom: var(--space-2);
   background: var(--surface-code);
 }
 .changes-diff__status {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  padding: var(--space-6); color: var(--text-secondary); text-align: center;
+  padding: var(--space-6); color: var(--text-secondary-color); text-align: center;
 }
 .changes-diff__status svg { width: 22px; height: 22px; }
 .changes-diff__status--error { color: var(--status-danger); }
 .changes-diff__truncated {
   margin: var(--space-3) var(--space-4) 0; padding: 8px 10px; border-radius: var(--radius-item);
-  background: var(--surface-hover); color: var(--text-secondary); font-size: 12.5px;
+  background: var(--surface-hover); color: var(--text-secondary-color); font-size: var(--text-label);
 }
 
-.changes-diff__note { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: var(--space-6); text-align: center; color: var(--text-secondary); }
+.changes-diff__note { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: var(--space-6); text-align: center; color: var(--text-secondary-color); }
 .changes-diff__note-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-hover); margin-bottom: 6px; }
 .changes-diff__note-icon svg { width: 18px; height: 18px; }
-.changes-diff__note h3 { font-size: 15px; color: var(--text-primary); }
+.changes-diff__note h3 { font-size: var(--text-subtitle); color: var(--text-primary-color); }
 .changes-diff__note--attention .changes-diff__note-icon { background: var(--surface-active); color: var(--status-warning); }
 
 .diff-code {
@@ -536,16 +804,16 @@
      that sibling and either overlap it or hand scrolling back to the parent,
      which would defeat virtualization by keeping every row mounted. */
   flex: 1; min-height: 0; margin: 0; padding: var(--space-3) 0; overflow-x: hidden; overflow-y: auto;
-  background: var(--surface-code); font-size: 12.5px; line-height: 1.6;
+  background: var(--surface-code); font-size: var(--text-label); line-height: var(--leading-code);
   /* The family is a preference, set on the element by `DiffResultView`. The
      fallback here is the same stack that value carries, so a diff rendered
      without a preferences provider still reads correctly. */
-  font-family: var(--diff-code-font, "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace);
+  font-family: var(--diff-code-font, "Atkinson Hyperlegible Mono", var(--font-mono));
   user-select: text;
 }
 .diff-code--accessible {
   padding: var(--space-3) var(--space-4); overflow: auto; white-space: pre;
-  color: var(--text-primary);
+  color: var(--text-primary-color);
 }
 .diff-code--accessible-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
 /* `100%` of the container — which `DiffResultView` widens to the widest line
@@ -565,8 +833,8 @@
 .diff-row--hunk-start { margin-top: var(--space-3); border-top: 1px dashed var(--border-divider); padding-top: var(--space-2); }
 .diff-hunk__marker {
   margin: 6px var(--space-4); padding: 0; border-radius: var(--radius-item);
-  background: var(--surface-hover); color: var(--text-secondary); text-align: left;
-  font: 11.5px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--surface-hover); color: var(--text-secondary-color); text-align: left;
+  font: var(--text-caption)/var(--leading-normal) var(--font-sans);
   display: flex; align-items: center; gap: var(--space-2); overflow: hidden;
 }
 .diff-hunk__expand {
@@ -576,20 +844,20 @@
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .diff-hunk__expand svg { width: 13px; height: 13px; flex-shrink: 0; }
-.diff-hunk__expand:hover:not(:disabled) { background: var(--surface-active); color: var(--text-primary); }
+.diff-hunk__expand:hover:not(:disabled) { background: var(--surface-active); color: var(--text-primary-color); }
 .diff-hunk__expand:disabled { cursor: progress; }
 .diff-hunk__expand:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .diff-hunk__expand-error { flex-shrink: 0; padding-right: 14px; color: var(--status-danger); }
 .diff-hunk__marker--static { display: block; padding: 5px 14px; }
 .diff-line { display: grid; grid-template-columns: 48px 16px 1fr; align-items: baseline; padding-right: var(--space-4); }
-.diff-line__number { padding: 0 6px; text-align: right; color: var(--text-secondary); opacity: 0.55; font-size: 11px; user-select: none; }
+.diff-line__number { padding: 0 6px; text-align: right; color: var(--text-secondary-color); opacity: 0.55; font-size: var(--text-caption); user-select: none; }
 .diff-line__sign { text-align: center; user-select: none; }
 .diff-line .visually-hidden { user-select: none; }
 .diff-line__content { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
 .syntax-token--comment { color: var(--syntax-comment); font-style: italic; }
 .syntax-token--string { color: var(--syntax-string); }
 .syntax-token--number { color: var(--syntax-number); }
-.syntax-token--keyword { color: var(--syntax-keyword); font-weight: 600; }
+.syntax-token--keyword { color: var(--syntax-keyword); font-weight: var(--weight-strong); }
 .syntax-token--type { color: var(--syntax-type); }
 .syntax-token--property { color: var(--syntax-property); }
 .diff-line--addition { background: color-mix(in srgb, var(--diff-added) 12%, transparent); }
@@ -610,8 +878,18 @@
 .diff-split-cell--deletion .diff-line__sign, .diff-split-cell--deletion .diff-line__content { color: var(--diff-removed); }
 .diff-split-cell--empty { background: var(--surface-hover); opacity: 0.35; }
 .diff-line__number--empty { user-select: none; }
+/* The same step History takes at the same width: the list column narrows
+   before either screen gives up its second panel. */
+@media (max-width: 1200px) {
+  .changes-layout { grid-template-columns: var(--panel-column-narrow) minmax(0, 1fr); }
+}
+
 @media (max-width: 1024px) {
   .changes-layout { grid-template-columns: 1fr; }
+  /* One column: the list fills the window, so its strip's trigger is at the
+     window's right edge and the menu goes back to the shared alignment. There
+     is nothing to its right to open over any more. */
+  .changes-actions-menu__popup { right: 0; left: auto; }
   .changes-layout .changes-diff { display: none; }
   .changes-layout--detail .changes-file-list { display: none; }
   .changes-layout--detail .changes-diff { display: flex; }
@@ -619,22 +897,15 @@
 }
 
 @media (max-width: 800px) {
-  .changes-view__header { flex-direction: column; align-items: stretch; }
-  /* Stacked, the cluster is taller than it is wide, and a pill radius would
-     round it into a lozenge. Back to the card radius, which is what the shape
-     now is. */
+  /* `.screen-header` stacks itself at this width; the actions inside it are
+     this screen's own. */
   .changes-header-actions {
     flex-direction: column;
     align-items: stretch;
     gap: var(--space-2);
-    border-radius: var(--radius-surface);
   }
   .changes-header-actions__buttons { width: 100%; }
-  /* Only the labelled action takes the free width. Stretching the two icon
-     buttons would turn their 50% radius into an ellipse, and neither gains
-     anything from being 200px wide. */
   .changes-header-actions__save { flex: 1 1 auto; justify-content: center; }
-  .changes-actions-menu { flex: 0 0 auto; }
 }
 
 @media (pointer: coarse) {
@@ -646,3 +917,65 @@
   }
   .changes-notice__dismiss { width: var(--control-height-lg); height: var(--control-height-lg); }
 }
+
+/* Pictures instead of a note (task 111). A changed image, and the drawing
+   behind a changed SVG, are shown here; the diff language above stays exactly
+   as it was for every file that really is text. */
+.image-diff { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+/* Lives in the surface's own toolbar next to the picker, so it takes a share
+   of that row rather than a whole one. */
+.image-diff__slider { display: flex; align-items: center; flex: 0 1 200px; min-width: 120px; }
+.image-diff__slider input { width: 100%; accent-color: var(--accent-primary); }
+.image-diff__pair {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4); align-items: start;
+}
+.image-diff__figure { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.image-diff__figure--overlay { max-width: 720px; align-self: center; width: 100%; }
+/* The checkerboard is not decoration: a transparent PNG on a flat panel reads
+   as a white (or black) background, which is exactly the mistake someone
+   opens this view to catch. It is built from `--surface-hover` over the panel
+   so it stays a whisper in both themes. */
+.image-diff__frame {
+  position: relative; display: grid; place-items: center; min-height: 120px; padding: var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
+  background-color: var(--surface-panel);
+  background-image:
+    linear-gradient(45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-hover) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--surface-hover) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  overflow: hidden;
+}
+.image-diff__image { display: block; max-width: 100%; max-height: 320px; object-fit: contain; }
+.image-diff__caption {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3);
+  font-size: var(--text-label); color: var(--text-secondary-color);
+}
+.image-diff__caption strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.image-diff__side-note { padding: var(--space-4); text-align: center; color: var(--text-secondary-color); font-size: var(--text-label); }
+.image-diff__status {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: var(--space-6); color: var(--text-secondary-color); text-align: center;
+}
+.image-diff__status svg { width: 22px; height: 22px; }
+.image-diff__status--error { color: var(--status-danger); }
+/* The stage hugs the pictures: it is a grid item of the frame, so it is sized
+   by its content rather than stretched to the frame's width. Both layers then
+   fill that one cell — overlaying exactly, whatever the two pictures measure —
+   and the divider and the clip below are percentages of the same box. */
+.image-diff__stage { position: relative; display: grid; max-width: 100%; }
+.image-diff__layer { grid-area: 1 / 1; display: grid; place-items: center; min-width: 0; }
+.image-diff__stage--swipe .image-diff__layer--after { clip-path: inset(0 0 0 var(--image-diff-position)); }
+/* The one piece of movement in this view, and it is a cross-fade of state,
+   not decoration. The app-wide reduced-motion rule removes it. */
+.image-diff__stage--fade .image-diff__layer--after { opacity: var(--image-diff-opacity); transition: opacity 120ms ease; }
+/* Centred on the cut rather than starting at it, so a 2px rule does not read
+   as 2px of the new version leaking past the divider. */
+.image-diff__swipe-line {
+  position: absolute; top: 0; bottom: 0; left: var(--image-diff-position);
+  width: 2px; margin-left: -1px; background: var(--accent-primary); pointer-events: none;
+}
+

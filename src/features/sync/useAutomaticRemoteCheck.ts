@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { registerInstallParticipant } from "../../runtime/install";
 
 type AutomaticRemoteCheckOptions = {
   intervalMinutes: number;
@@ -25,7 +26,26 @@ export function useAutomaticRemoteCheck({
     if (intervalMinutes === 0 || !projectId || !sessionEpoch || !eligible) {
       return undefined;
     }
-    const timer = window.setInterval(() => onCheckRef.current(), intervalMinutes * 60_000);
-    return () => window.clearInterval(timer);
+    let timer: number | null = null;
+    const start = (): void => {
+      timer = window.setInterval(() => onCheckRef.current(), intervalMinutes * 60_000);
+    };
+    const stop = (): void => {
+      if (timer !== null) window.clearInterval(timer);
+      timer = null;
+    };
+    start();
+    const unregister = registerInstallParticipant({
+      id: `automatic-remote-check:${projectId}:${sessionEpoch}`,
+      label: "automatic project-change checks",
+      suspend() {
+        stop();
+        return start;
+      },
+    });
+    return () => {
+      unregister();
+      stop();
+    };
   }, [eligible, intervalMinutes, projectId, sessionEpoch]);
 }

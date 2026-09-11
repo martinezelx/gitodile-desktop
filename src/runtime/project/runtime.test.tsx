@@ -3,6 +3,7 @@ import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createProjectRuntime, useProjectSelector } from "./runtime";
+import { prepareRendererForInstall } from "../install";
 import { initialProjectSessionsState, projectSessionsReducer } from "./sessions";
 import type { RepositoryInfo } from "../../features/repository";
 
@@ -39,6 +40,7 @@ describe("ProjectRuntime", () => {
     act(() => runtime.dispatch({ type: "startStatusCheck", id: "/b", generation: 1, epoch: "epoch:/b" }));
     expect(renders).toBe(1);
     expect(screen.getByText("epoch:/a")).toBeInTheDocument();
+    runtime.dispose();
   });
 
   it("does not tear when StrictMode observes concurrent transitions", () => {
@@ -71,6 +73,7 @@ describe("ProjectRuntime", () => {
     expect(screen.getByText("/b|epoch:/b")).toBeInTheDocument();
     expect(observed).not.toContain("/a|epoch:/b");
     expect(observed).not.toContain("/b|epoch:/a");
+    runtime.dispose();
   });
 
   it("deduplicates and cancels idle cache warming owned by activation or invalidation", async () => {
@@ -97,5 +100,31 @@ describe("ProjectRuntime", () => {
 
     // @ts-expect-error Screen visibility is intentionally not a cache-warm owner.
     runtime.scheduleCacheWarm({ key: "forbidden", reason: "visibility", run: warm });
+    runtime.dispose();
+  });
+
+  it("cancels and rejects speculative warmers while install preparation is held", () => {
+    const queued: Array<() => void> = [];
+    const runtime = createProjectRuntime(initialProjectSessionsState, (task) => {
+      queued.push(task);
+      return () => {
+        const index = queued.indexOf(task);
+        if (index >= 0) queued.splice(index, 1);
+      };
+    });
+    const warm = vi.fn();
+    runtime.scheduleCacheWarm({ key: "before", reason: "project-activation", run: warm });
+    expect(queued).toHaveLength(1);
+
+    const result = prepareRendererForInstall();
+    expect(result.kind).toBe("ready");
+    expect(queued).toHaveLength(0);
+    runtime.scheduleCacheWarm({ key: "during", reason: "repository-invalidation", run: warm });
+    expect(queued).toHaveLength(0);
+
+    if (result.kind === "ready") result.preparation.release();
+    runtime.scheduleCacheWarm({ key: "after", reason: "repository-invalidation", run: warm });
+    expect(queued).toHaveLength(1);
+    runtime.dispose();
   });
 });

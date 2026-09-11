@@ -1,5 +1,10 @@
 import type { ChangeCategory, WorkingTreeCounts } from "../status";
 
+/** Whether "also publish" was left checked last time. Shared by both entry
+ * points that offer it — this dialog and Changes' quick commit box — so
+ * checking it once is remembered by either. */
+export const PUBLISH_AFTER_SAVE_STORAGE_KEY = "gitodile-publish-after-save";
+
 /** Mirrors the Rust `SaveVersionPlan` (src-tauri/src/save_version.rs). `summary`,
  * `steps`, `risks`, and `recovery` are deliberately not part of this type:
  * Rust's copy for those fields is English-only prose meant for its own

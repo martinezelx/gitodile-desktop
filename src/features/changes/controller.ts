@@ -107,6 +107,17 @@ export function createChangesController(port: ChangesPort) {
     readFileLines(projectId: string, sessionEpoch: string, filePath: string, startLine: number, endLine: number) {
       return port.readFileLines({ projectId, sessionEpoch, filePath, startLine, endLine });
     },
+    revealFile(projectId: string, sessionEpoch: string, filePath: string) {
+      return port.revealFile({ projectId, sessionEpoch, filePath });
+    },
+    readFileImagePreview(
+      projectId: string,
+      sessionEpoch: string,
+      filePath: string,
+      originalPath: string | null,
+    ) {
+      return port.readFileImagePreview({ projectId, sessionEpoch, filePath, originalPath });
+    },
     planDiscard(projectId: string, sessionEpoch: string, selectedPath: string | null) {
       return port.planDiscard({ projectId, sessionEpoch, selectedPath });
     },
@@ -116,8 +127,14 @@ export function createChangesController(port: ChangesPort) {
     getDiscardRecovery(projectId: string, sessionEpoch: string) {
       return port.getDiscardRecovery({ projectId, sessionEpoch });
     },
+    listDiscardRecoveries(projectId: string, sessionEpoch: string) {
+      return port.listDiscardRecoveries({ projectId, sessionEpoch });
+    },
     restoreDiscard(projectId: string, sessionEpoch: string, recoveryId: string, stateToken: string) {
       return port.restoreDiscard({ projectId, sessionEpoch, recoveryId, stateToken });
+    },
+    deleteDiscardRecovery(projectId: string, sessionEpoch: string, recoveryId: string) {
+      return port.deleteDiscardRecovery({ projectId, sessionEpoch, recoveryId });
     },
     scheduleWarm(runtime: ProjectRuntime, projectId: string, sessionEpoch: string, workingTree: WorkingTreeStatus, reason: ProjectCacheWarmReason): () => void {
       const store = getStore(projectId, sessionEpoch, workingTree);

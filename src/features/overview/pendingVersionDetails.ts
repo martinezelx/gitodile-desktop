@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { FileDiff } from "../changes";
+import type { FileDiff, ImagePreview } from "../changes";
 import type { CommitFileChange } from "../publish";
 import type { PendingVersionDetailsPort } from "./port";
 import { pendingVersionDetailsPort } from "./tauriAdapter";
@@ -36,6 +36,12 @@ export function usePendingVersionDetails(
       .catch(() => setDiffsByCommit((current) => ({ ...current, [commit]: { ...current[commit], [filePath]: "error" } })));
   }, [diffsByCommit, port, projectId, sessionEpoch]);
 
-  return useMemo(() => ({ filesByCommit, selectedFileByCommit, diffsByCommit, toggleCommit, toggleFile }),
-    [diffsByCommit, filesByCommit, selectedFileByCommit, toggleCommit, toggleFile]);
+  const readImagePreview = useCallback(
+    (commit: string, filePath: string, originalPath: string | null): Promise<ImagePreview> =>
+      port.readImagePreview(projectId, sessionEpoch, commit, filePath, originalPath),
+    [port, projectId, sessionEpoch],
+  );
+
+  return useMemo(() => ({ filesByCommit, selectedFileByCommit, diffsByCommit, toggleCommit, toggleFile, readImagePreview }),
+    [diffsByCommit, filesByCommit, readImagePreview, selectedFileByCommit, toggleCommit, toggleFile]);
 }

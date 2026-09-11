@@ -66,6 +66,43 @@ describe("application-shell preferences", () => {
         displayMode: "icons-and-text",
       });
   });
+
+  // Every session writes the whole snapshot back, so the old default order was
+  // already in storage for everyone by the time History moved up beside
+  // Changes. A stored order identical to a superseded default is the absence
+  // of a choice, not one.
+  it("adopts the current rail order when the stored one is a superseded default", () => {
+    const current = ["overview", "changes", "history", "version-lines", "recovery"];
+    localStorage.setItem(
+      "gitodile-navigation-preferences",
+      JSON.stringify({
+        visibleDestinationIds: current,
+        destinationOrderIds: ["overview", "changes", "version-lines", "history", "recovery"],
+        displayMode: "icons-and-text",
+      }),
+    );
+
+    const { result } = renderHook(() => useStoredNavigationPreferences(current));
+
+    expect(result.current[0].destinationOrderIds).toEqual(current);
+  });
+
+  it("keeps an arrangement the user actually made", () => {
+    const current = ["overview", "changes", "history", "version-lines", "recovery"];
+    localStorage.setItem(
+      "gitodile-navigation-preferences",
+      JSON.stringify({
+        visibleDestinationIds: current,
+        destinationOrderIds: ["history", "overview", "changes", "version-lines", "recovery"],
+        displayMode: "icons-and-text",
+      }),
+    );
+
+    const { result } = renderHook(() => useStoredNavigationPreferences(current));
+
+    expect(result.current[0].destinationOrderIds)
+      .toEqual(["history", "overview", "changes", "version-lines", "recovery"]);
+  });
 });
 
 describe("CommandPalette", () => {

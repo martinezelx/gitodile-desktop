@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  ArrowRight,
   ChevronDown,
   ChevronUp,
   GitBranch,
@@ -18,6 +19,10 @@ export type VersionLineQuickSwitchProps = {
   snapshot: VersionLinesSnapshot | null;
   isLoadingSnapshot: boolean;
   currentValue: string;
+  /** The words in front of the value, so the strip states the context rather
+   * than displaying a value whose meaning the reader has to infer. Purely
+   * visual: the trigger's own accessible name already says what it changes. */
+  contextLabel?: string;
   canSwitch: boolean;
   variant?: "control" | "status";
   favouriteLines?: ReadonlySet<string>;
@@ -36,6 +41,7 @@ export function VersionLineQuickSwitch({
   snapshot,
   isLoadingSnapshot,
   currentValue,
+  contextLabel,
   canSwitch,
   variant = "control",
   favouriteLines = new Set<string>(),
@@ -90,6 +96,11 @@ export function VersionLineQuickSwitch({
 
   return (
     <div className={`version-lines-quick-switch version-lines-quick-switch--${variant}`}>
+      {contextLabel && (
+        <span className="version-lines-quick-switch__context-label" aria-hidden="true">
+          {contextLabel}
+        </span>
+      )}
       {canSwitch ? (
         <button
           ref={triggerRef}
@@ -112,7 +123,10 @@ export function VersionLineQuickSwitch({
         </span>
       )}
 
-      {onCreate && (
+      {/* Only where the control has room for it. The status strip is 34px of
+          chrome across the whole window, and its dropdown now carries the same
+          action. */}
+      {onCreate && variant === "control" && (
         <button
           className="secondary-button version-lines-quick-switch__create"
           type="button"
@@ -224,16 +238,42 @@ export function VersionLineQuickSwitch({
             </ul>
           )}
           </div>
-          <button
-            type="button"
-            className="app-menu__item version-lines-quick-switch__see-all"
-            onClick={() => {
-              close(false);
-              onSeeAll();
-            }}
-          >
-            {t.versionLinesQuickSwitchSeeAll}
-          </button>
+          {/* The two things this control cannot answer by choosing from the
+              list above it: a line that does not exist yet, and everything
+              about a line that is not "which one am I on". Both hand off to the
+              flow that owns them — there is no second way to create a line and
+              no second Lines screen. */}
+          {/* One row, not two: these are the two things choosing from the list
+              above cannot answer, and a popup that spends two full rows on them
+              is a popup with less room for the lines it exists to show. Ghost
+              buttons rather than menu rows — they leave this control instead of
+              choosing inside it. */}
+          <div className="version-lines-quick-switch__footer">
+            {onCreate && (
+              <button
+                type="button"
+                className="ghost-button version-lines-quick-switch__new"
+                onClick={() => {
+                  close(false);
+                  onCreate();
+                }}
+              >
+                <GitBranchPlus aria-hidden="true" />
+                <span>{t.versionLinesQuickSwitchNew}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="ghost-button version-lines-quick-switch__see-all"
+              onClick={() => {
+                close(false);
+                onSeeAll();
+              }}
+            >
+              <span>{t.versionLinesQuickSwitchSeeAll}</span>
+              <ArrowRight aria-hidden="true" />
+            </button>
+          </div>
         </div>,
         document.body,
       )}

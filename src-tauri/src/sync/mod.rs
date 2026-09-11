@@ -16,6 +16,7 @@ mod get_team_changes;
 pub(crate) use get_team_changes::*;
 
 use crate::application;
+use crate::diagnostics;
 use crate::error::{AppError, AppErrorCode};
 use crate::git;
 use crate::git_command::{checked_git_stdout, git_stdout, run_git};
@@ -26,7 +27,7 @@ use crate::status::read_working_tree_status;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::process::ExitStatus;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub(crate) const NETWORK_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_WARNINGS: usize = 4;
@@ -800,30 +801,66 @@ pub(crate) fn run_git_networked(
         .unwrap_or_else(|| git::ExecutionPolicy::repository_read("network_git"));
     policy.timeout = timeout;
     let cancellation = application::current_cancellation();
-    match git::run_with_env(
+    let subcommand = diagnostics::safe_git_subcommand(args.first().map(String::as_ref));
+    let started = Instant::now();
+    let result = git::run_with_env(
         Some(Path::new(repo_path)),
         args,
         &[("GIT_TERMINAL_PROMPT", "0")],
         policy,
         cancellation.as_ref(),
-    ) {
-        Ok(output) => Ok(NetworkOutput {
-            status: Some(output.status),
-            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-            timed_out: false,
-        }),
-        Err(error) if error.message.contains("too long") => Ok(NetworkOutput {
-            status: None,
-            stdout: String::new(),
-            stderr: String::new(),
-            timed_out: true,
-        }),
-        Err(error) if error.message.contains("cancelled") => Err(AppError::new(
-            AppErrorCode::OperationCancelled,
-            "The remote check was cancelled.",
-        )),
-        Err(error) => Err(error),
+    );
+    match result {
+        Ok(output) => {
+            diagnostics::record_git(
+                policy.class,
+                policy.command,
+                subcommand,
+                output.status.code(),
+                started.elapsed().as_millis(),
+                Some(&output.stderr),
+            );
+            Ok(NetworkOutput {
+                status: Some(output.status),
+                stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                timed_out: false,
+            })
+        }
+        Err(error) if error.message.contains("too long") => {
+            diagnostics::record_git(
+                policy.class,
+                policy.command,
+                subcommand,
+                None,
+                started.elapsed().as_millis(),
+                None,
+            );
+            Ok(NetworkOutput {
+                status: None,
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: true,
+            })
+        }
+        Err(error) => {
+            diagnostics::record_git(
+                policy.class,
+                policy.command,
+                subcommand,
+                None,
+                started.elapsed().as_millis(),
+                None,
+            );
+            if error.message.contains("cancelled") {
+                Err(AppError::new(
+                    AppErrorCode::OperationCancelled,
+                    "The remote check was cancelled.",
+                ))
+            } else {
+                Err(error)
+            }
+        }
     }
 }
 

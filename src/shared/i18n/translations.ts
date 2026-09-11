@@ -53,6 +53,7 @@ export interface SharedTranslations {
   errorInvalidTitle: string;
   errorStalePreview: string;
   errorStaleHistoryCursor: string;
+  errorVersionLineMissing: string;
   errorHookRejected: string;
   errorSigningFailed: string;
   errorIndexUnavailable: string;
@@ -86,6 +87,7 @@ export interface SharedTranslations {
   errorVersionLineNameCollides: string;
   errorVersionLineCheckedOutElsewhere: string;
   errorVersionLineIsActive: string;
+  errorVersionLineIsDefault: string;
   errorVersionLineUniqueWork: string;
   errorVersionLineSwitchObstructed: string;
   errorStaleVersionLinePlan: string;
@@ -106,6 +108,7 @@ export interface SharedTranslations {
   commonVersion: string;
   commonClose: string;
   commonLoading: string;
+  commonClearSearch: string;
   commonCancel: string;
   commonRequiredField: string;
 }
@@ -167,6 +170,7 @@ const en: SharedTranslations = {
   errorInvalidTitle: "Keep the version name on one line.",
   errorStalePreview: "This project changed since the preview was shown. Review the updated changes and try again.",
   errorStaleHistoryCursor: "The saved-version timeline changed while it was loading. GitOdile refreshed it from the newest version.",
+  errorVersionLineMissing: "That version line isn't in this project any more. History went back to the current line.",
   errorHookRejected: "A Git hook rejected this version. Check the hook's output, then try again.",
   errorSigningFailed: "Git couldn't sign this version. Check your commit-signing setup (GPG or SSH key) and try again.",
   errorIndexUnavailable:
@@ -207,6 +211,8 @@ const en: SharedTranslations = {
     "That name only differs by letter case from an existing version line, which some file systems can't tell apart. Choose a different name.",
   errorVersionLineCheckedOutElsewhere: "That version line is open in another workspace.",
   errorVersionLineIsActive: "The active version line can't be deleted. Switch to a different one first.",
+  errorVersionLineIsDefault:
+    "This is the project's main version line, so GitOdile keeps it as it is.",
   errorVersionLineUniqueWork:
     "This version line has saved work that isn't reachable from any other version line or remote yet.",
   errorVersionLineSwitchObstructed:
@@ -222,7 +228,7 @@ const en: SharedTranslations = {
   errorNothingToDiscard: "There are no matching changes to discard. Refresh Changes and try again.",
   errorStaleDiscardPlan: "The changed files moved since the preview was shown. Review the updated plan.",
   errorRecoveryUnavailable: "That discard recovery is no longer available.",
-  errorRecoveryConflict: "The project changed after this discard, so GitOdile won't overwrite the newer work.",
+  errorRecoveryConflict: "One of those files changed after this discard, so GitOdile won't overwrite the newer work.",
   errorRecoveryFailed: "GitOdile couldn't create or apply the local recovery safely. Check disk space and permissions.",
   errorIgnoreFileTooLarge: "This ignore file is too large to edit here. Open it in a text editor instead.",
   errorIgnoreFileNotText: "This ignore file isn't plain text, so GitOdile won't rewrite it.",
@@ -232,6 +238,7 @@ const en: SharedTranslations = {
   commonVersion: "Version",
   commonClose: "Close",
   commonLoading: "Loading…",
+  commonClearSearch: "Clear search",
   commonCancel: "Cancel",
   commonRequiredField: "Fill in this field.",
 };
@@ -294,6 +301,7 @@ const es: SharedTranslations = {
   errorInvalidTitle: "Escribe el nombre de la versión en una sola línea.",
   errorStalePreview: "Este proyecto cambió desde que se mostró la vista previa. Revisa los cambios actualizados e inténtalo de nuevo.",
   errorStaleHistoryCursor: "El historial de versiones guardadas cambió mientras se cargaba. GitOdile lo actualizó desde la versión más reciente.",
+  errorVersionLineMissing: "Esa línea de versión ya no está en este proyecto. El historial volvió a la línea actual.",
   errorHookRejected: "Un hook de Git rechazó esta versión. Revisa lo que indica el hook e inténtalo de nuevo.",
   errorSigningFailed: "Git no pudo firmar esta versión. Comprueba tu configuración de firma (GPG o clave SSH) e inténtalo de nuevo.",
   errorIndexUnavailable:
@@ -338,6 +346,8 @@ const es: SharedTranslations = {
     "Ese nombre solo se diferencia por mayúsculas o minúsculas de una línea de versión existente, algo que algunos sistemas de archivos no distinguen. Elige otro nombre.",
   errorVersionLineCheckedOutElsewhere: "Esa línea de versión está abierta en otro espacio de trabajo.",
   errorVersionLineIsActive: "La línea de versión activa no se puede eliminar. Cambia primero a otra distinta.",
+  errorVersionLineIsDefault:
+    "Es la línea de versión principal del proyecto, así que GitOdile la deja como está.",
   errorVersionLineUniqueWork:
     "Esta línea de versión tiene trabajo guardado que todavía no es accesible desde ninguna otra línea de versión ni remoto.",
   errorVersionLineSwitchObstructed:
@@ -353,7 +363,7 @@ const es: SharedTranslations = {
   errorNothingToDiscard: "No hay cambios coincidentes que descartar. Actualiza Cambios e inténtalo de nuevo.",
   errorStaleDiscardPlan: "Los archivos cambiaron desde que se mostró la vista previa. Revisa el plan actualizado.",
   errorRecoveryUnavailable: "Esa recuperación de descarte ya no está disponible.",
-  errorRecoveryConflict: "El proyecto cambió después del descarte, así que GitOdile no sobrescribirá el trabajo nuevo.",
+  errorRecoveryConflict: "Uno de esos archivos cambió después del descarte, así que GitOdile no sobrescribirá el trabajo más nuevo.",
   errorRecoveryFailed: "GitOdile no pudo crear o aplicar la recuperación local de forma segura. Comprueba el espacio y los permisos.",
   errorIgnoreFileTooLarge: "Este archivo de exclusiones es demasiado grande para editarlo aquí. Ábrelo en un editor de texto.",
   errorIgnoreFileNotText: "Este archivo de exclusiones no es texto plano, así que GitOdile no lo reescribirá.",
@@ -363,6 +373,7 @@ const es: SharedTranslations = {
   commonVersion: "Versión",
   commonClose: "Cerrar",
   commonLoading: "Cargando…",
+  commonClearSearch: "Borrar la búsqueda",
   commonCancel: "Cancelar",
   commonRequiredField: "Rellena este campo.",
 };

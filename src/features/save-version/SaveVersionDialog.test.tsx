@@ -63,6 +63,7 @@ function renderDialog(props: Partial<React.ComponentProps<typeof SaveVersionDial
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 describe("SaveVersionDialog", () => {
@@ -139,7 +140,28 @@ describe("SaveVersionDialog", () => {
     mockedInvoke.mockResolvedValueOnce(plan({ isFirstVersion: true }));
     renderDialog();
 
-    expect(await screen.findByText("This will be this project's first saved version.")).toBeInTheDocument();
+    expect(await screen.findByText("This will be the first saved version on main.")).toBeInTheDocument();
+  });
+
+  it("names the version line this version will be saved to, from the plan", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan({ branch: "0.2.0-preview.1" }));
+    renderDialog();
+
+    expect(await screen.findByText("This version will be saved to 0.2.0-preview.1.")).toBeInTheDocument();
+  });
+
+  it("names no destination when the plan has no version line to name", async () => {
+    // A detached `HEAD`: there is a commit to make and no line to make it on.
+    // Inventing a name here would be the one thing a destination must not do.
+    mockedInvoke.mockResolvedValueOnce(plan({ branch: null }));
+    renderDialog();
+
+    expect(
+      await screen.findByText(
+        "This project isn't on a version line right now, so this version won't belong to one. Create a version line here to keep it easy to find.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/This version will be saved to/)).not.toBeInTheDocument();
   });
 
   it("shows a localized blocker and offers to try again when planning fails", async () => {
@@ -162,7 +184,7 @@ describe("SaveVersionDialog", () => {
     renderDialog();
     await screen.findByLabelText("Version name");
 
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("Write a short name before saving.")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledTimes(1); // only the plan fetch
@@ -175,7 +197,7 @@ describe("SaveVersionDialog", () => {
 
     await userEvent.type(screen.getByLabelText("Version name"), "   ");
     await userEvent.type(screen.getByLabelText("More details (optional)"), "some context");
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("Write a short name before saving.")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledTimes(1); // only the plan fetch
@@ -185,7 +207,7 @@ describe("SaveVersionDialog", () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     renderDialog();
     await screen.findByLabelText("Version name");
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByText("Write a short name before saving.");
 
     await userEvent.type(screen.getByLabelText("Version name"), "a");
@@ -200,7 +222,7 @@ describe("SaveVersionDialog", () => {
 
     await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
     mockedInvoke.mockResolvedValueOnce(saveResult());
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText('Saved "fix the thing" as abc123a.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("heading", { name: "Version saved" })).toHaveFocus());
@@ -232,7 +254,7 @@ describe("SaveVersionDialog", () => {
     mockedInvoke.mockResolvedValueOnce(
       saveResult({ description: "line one\n\nline two" }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText('Saved "fix the thing" as abc123a.')).toBeInTheDocument();
     expect(container.querySelector(".save-version-success-details")?.textContent).toBe(
@@ -258,9 +280,11 @@ describe("SaveVersionDialog", () => {
     await userEvent.tab();
     expect(screen.getByLabelText("More details (optional)")).toHaveFocus();
     await userEvent.tab();
+    expect(screen.getByRole("switch", { name: "Also publish" })).toHaveFocus();
+    await userEvent.tab();
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
     await userEvent.tab();
-    expect(screen.getByRole("button", { name: "Save version" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Save" })).toHaveFocus();
 
     mockedInvoke.mockResolvedValueOnce(saveResult({ title: "keyboard save" }));
     await userEvent.keyboard("{Enter}");
@@ -277,7 +301,7 @@ describe("SaveVersionDialog", () => {
     fireEvent.change(screen.getByLabelText("More details (optional)"), { target: { value: longDetails } });
 
     mockedInvoke.mockResolvedValueOnce(saveResult({ title: longTitle, description: longDetails }));
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await screen.findByText(`Saved "${longTitle}" as abc123a.`);
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
@@ -299,7 +323,7 @@ describe("SaveVersionDialog", () => {
     await userEvent.type(screen.getByLabelText("Version name"), "  fix the thing  ");
     await userEvent.type(screen.getByLabelText("More details (optional)"), "  details  ");
     mockedInvoke.mockResolvedValueOnce(saveResult({ description: "details" }));
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await screen.findByText('Saved "fix the thing" as abc123a.');
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
@@ -320,7 +344,7 @@ describe("SaveVersionDialog", () => {
     await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
 
     mockedInvoke.mockResolvedValueOnce(saveResult());
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByText('Saved "fix the thing" as abc123a.');
 
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
@@ -354,7 +378,7 @@ describe("SaveVersionDialog", () => {
     await userEvent.type(screen.getByLabelText("Version name"), "done");
 
     mockedInvoke.mockResolvedValueOnce(saveResult({ title: "done", savedFiles: 1 }));
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText('Saved "done" as abc123a.')).toBeInTheDocument();
 
     rerender(
@@ -389,7 +413,7 @@ describe("SaveVersionDialog", () => {
       remediation: null,
       detail: "pre-commit exited 1",
     });
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("A Git hook rejected this version.");
     // The form (and the already-typed name/details) is still there to retry.
@@ -418,7 +442,7 @@ describe("SaveVersionDialog", () => {
       remediation: null,
       detail: "pre-commit: 2 files need formatting",
     });
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("A Git hook rejected this version.");
     // Open without being asked for: the hook's message is the only thing that
@@ -453,7 +477,7 @@ describe("SaveVersionDialog", () => {
       remediation: null,
       detail: "gpg failed to sign",
     });
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByRole("alert");
     expect(screen.queryByText("gpg failed to sign")).not.toBeInTheDocument();
 
@@ -465,7 +489,7 @@ describe("SaveVersionDialog", () => {
       remediation: null,
       detail: "pre-commit: 2 files need formatting",
     });
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("pre-commit: 2 files need formatting")).toBeInTheDocument();
   });
@@ -484,7 +508,7 @@ describe("SaveVersionDialog", () => {
       remediation: null,
       detail: "gpg failed to sign",
     });
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await screen.findByRole("alert");
     expect(
@@ -505,7 +529,7 @@ describe("SaveVersionDialog", () => {
           resolveSave = resolve;
         }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     await userEvent.keyboard("{Escape}");
@@ -568,5 +592,61 @@ describe("SaveVersionDialog", () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a typed title and details across a close without saving, and clears them once a save succeeds", async () => {
+    function Harness(): React.JSX.Element {
+      const [isOpen, setIsOpen] = React.useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setIsOpen((value) => !value)}>
+            toggle open
+          </button>
+          <SaveVersionDialog
+            isOpen={isOpen}
+            projectPath="/repo"
+            sessionEpoch="epoch-1"
+            selectedPaths={null}
+            runHooks={false}
+            onClose={() => setIsOpen(false)}
+            onSaved={vi.fn()}
+            onPublishNow={vi.fn()}
+          />
+        </>
+      );
+    }
+    mockedInvoke.mockResolvedValueOnce(plan());
+    render(
+      <LanguageProvider>
+        <Harness />
+      </LanguageProvider>,
+    );
+    await userEvent.type(await screen.findByLabelText("Version name"), "fix the thing");
+    await userEvent.type(screen.getByLabelText("More details (optional)"), "some context");
+
+    // A stray Cancel — or a backdrop click, or Escape, all the same path —
+    // used to throw this away with no confirmation.
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    mockedInvoke.mockResolvedValueOnce(plan());
+    await userEvent.click(screen.getByRole("button", { name: "toggle open" }));
+
+    await screen.findByLabelText("Version name");
+    expect(screen.getByLabelText("Version name")).toHaveValue("fix the thing");
+    expect(screen.getByLabelText("More details (optional)")).toHaveValue("some context");
+
+    // A save that actually succeeds is the one thing that does clear it —
+    // the draft became the version's own record, not still-editable text.
+    mockedInvoke.mockResolvedValueOnce(saveResult());
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText('Saved "fix the thing" as abc123a.');
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle open" }));
+    mockedInvoke.mockResolvedValueOnce(plan());
+    await userEvent.click(screen.getByRole("button", { name: "toggle open" }));
+
+    await screen.findByLabelText("Version name");
+    expect(screen.getByLabelText("Version name")).toHaveValue("");
+    expect(screen.getByLabelText("More details (optional)")).toHaveValue("");
   });
 });

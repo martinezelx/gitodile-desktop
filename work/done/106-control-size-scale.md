@@ -10,7 +10,6 @@ areas:
 created: 2026-09-03
 completed: 2026-09-03
 parent:
-queue: "19"
 ---
 
 # Goal
@@ -262,7 +261,7 @@ segmented control sits off the scale at ~34.6px. `.changes-danger-button`
 now reads the tokens but is not a primitive, so the button guard cannot see it;
 promoting it to a shared danger variant would close that and is a markup change
 this task did not need. Typography is the larger one
-and is now task [107](../active/107-type-scale.md): 24 literal font sizes in 306
+and is now task [107](107-type-scale.md): 24 literal font sizes in 306
 declarations, no scale in `DESIGN.md`, and the missing `body` `font-size` that
 leaves anything un-sized on the browser's 16px.
 
@@ -301,5 +300,7 @@ Commands run:
 
 `pnpm run check:rust` was not run: no Rust source was touched.
 
-Left `active` at the user's request — the visual result is under review and this
-task is expected to iterate before it moves to `done/`.
+Left `active` at the user's request while the visual result was under review,
+and closed once it was. The follow-ups listed above outlived the task: they are
+in [`work/backlog.md`](../backlog.md) now rather than only here, where a
+completed file is the last place anyone would look for open work.

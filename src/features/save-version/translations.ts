@@ -11,8 +11,14 @@ export interface SaveVersionTranslations {
   saveVersionRemainingNote: (remaining: number) => string;
   saveVersionPreparedNote: string;
   saveVersionFirstVersionNote: string;
+  saveVersionFirstVersionOnLineNote: (branch: string) => string;
+  saveVersionDestination: (branch: string) => string;
+  saveVersionNoDestinationNote: string;
   saveVersionLocalOnlyNote: string;
   saveVersionConfirm: string;
+  saveVersionConfirmAndPublish: string;
+  saveVersionPublishToggleLabel: string;
+  saveVersionPublishToggleHint: string;
   saveVersionSaving: string;
   saveVersionRetry: string;
   saveVersionSkipHooks: string;
@@ -42,8 +48,16 @@ const en: SaveVersionTranslations = {
   saveVersionPreparedNote:
     "Some selected changes were prepared earlier with another Git tool. They will be saved together with this selection.",
   saveVersionFirstVersionNote: "This will be this project's first saved version.",
+  saveVersionFirstVersionOnLineNote: (branch) =>
+    `This will be the first saved version on ${branch}.`,
+  saveVersionDestination: (branch) => `This version will be saved to ${branch}.`,
+  saveVersionNoDestinationNote:
+    "This project isn't on a version line right now, so this version won't belong to one. Create a version line here to keep it easy to find.",
   saveVersionLocalOnlyNote: "This creates a saved version on this computer only. Nothing is sent anywhere yet.",
-  saveVersionConfirm: "Save version",
+  saveVersionConfirm: "Save",
+  saveVersionConfirmAndPublish: "Save and publish",
+  saveVersionPublishToggleLabel: "Also publish",
+  saveVersionPublishToggleHint: "After saving, opens Publish so you can send it to the remote.",
   saveVersionSaving: "Saving your version…",
   saveVersionRetry: "Try again",
   saveVersionSkipHooks: "Save without running the hooks",
@@ -77,8 +91,16 @@ const es: SaveVersionTranslations = {
   saveVersionPreparedNote:
     "Algunos cambios seleccionados se habían preparado antes con otra herramienta Git. Se guardarán junto con esta selección.",
   saveVersionFirstVersionNote: "Esta será la primera versión guardada de este proyecto.",
+  saveVersionFirstVersionOnLineNote: (branch) =>
+    `Esta será la primera versión guardada en ${branch}.`,
+  saveVersionDestination: (branch) => `Esta versión se guardará en ${branch}.`,
+  saveVersionNoDestinationNote:
+    "Este proyecto no está en una línea de versión ahora mismo, así que esta versión no pertenecerá a ninguna. Crea una línea de versión aquí para que sea fácil de encontrar.",
   saveVersionLocalOnlyNote: "Esto crea una versión guardada solo en este equipo. Todavía no se envía nada a ningún sitio.",
-  saveVersionConfirm: "Guardar versión",
+  saveVersionConfirm: "Guardar",
+  saveVersionConfirmAndPublish: "Guardar y publicar",
+  saveVersionPublishToggleLabel: "Publicar también",
+  saveVersionPublishToggleHint: "Al guardar, abre Publicar para que puedas enviarla al remoto.",
   saveVersionSaving: "Guardando tu versión…",
   saveVersionRetry: "Reintentar",
   saveVersionSkipHooks: "Guardar sin ejecutar los hooks",

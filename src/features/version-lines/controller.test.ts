@@ -21,6 +21,7 @@ function snapshot(name = "main", commit = "abc123"): VersionLinesSnapshot {
       upstreamAhead: null,
       upstreamBehind: null,
       upstreamGone: false,
+      isDefault: false,
     }],
     totalCount: 1,
     isTruncated: false,
@@ -41,11 +42,14 @@ function deferred<T>() {
 function port(read: VersionLinesPort["read"]): VersionLinesPort {
   return {
     read,
+    readHistory: vi.fn(),
     planCreate: vi.fn(),
     create: vi.fn(),
     planSwitch: vi.fn(),
     switch: vi.fn(),
     planDelete: vi.fn(),
+    planRename: vi.fn(),
+    rename: vi.fn(),
     delete: vi.fn(),
   };
 }

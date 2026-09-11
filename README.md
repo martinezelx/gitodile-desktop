@@ -8,7 +8,8 @@ Linux. It is designed for learners, AI-assisted builders, designers, writers,
 and developers who want a calmer workflow without losing access to Git's
 technical truth.
 
-Current application version: **0.1.0**.
+Current development version: **0.2.0-preview.1**, **preview** channel.
+This candidate has not been tagged or published yet.
 
 Official repository: [martinezelx/project-gitodile](https://github.com/martinezelx/project-gitodile).
 
@@ -46,6 +47,11 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Discard one file or every unsaved change through a confirmed, state-checked
   flow that creates a persistent local recovery record and offers Undo. The
   confirmation can be turned off; the recovery record and Undo cannot.
+- Bring discarded work back from a picker listing every stored recovery, not
+  just the last one. A record the working tree has moved past stays listed and
+  says why it cannot be applied, so a protected snapshot never reads as a lost
+  one. A copy that is no longer wanted can be deleted from the same list, and
+  says what goes with it before it does.
 - Receive live, debounced repository updates without exposing raw filesystem
   paths to the frontend, or turn watching off — in which case Changes, History,
   and Lines disclose that their local snapshot may be out of date and offer a
@@ -62,15 +68,32 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   fast-forward-only update. GitOdile blocks local work and path collisions,
   creates a verified durable recovery point first, and reports uncertain local
   outcomes without attempting an automatic repair.
-- List, create, switch, and safely delete version lines (local branches), with
-  dirty-worktree checks and recovery references where required.
+- List, create, switch, rename, and safely delete version lines (local
+  branches), with dirty-worktree checks and recovery references where required.
+  A line is only called safe to delete when another local or remote-tracking
+  reference already holds its saved work; a published line can have its remote
+  copy removed with it, and the two halves are reported separately. The remote's
+  own default line is never renamed or deleted.
+- See one version line's recent saved versions, its saved-version count and
+  where it stands against its remote, read on demand for the line you select
+  rather than for every branch on every refresh.
 - Browse the active version line as a bounded, read-only saved-version
   timeline. Inspect author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
-- Configure light/dark/system themes, English/Spanish copy, date and number
-  formats, Git identity, installation diagnostics, supported Git update
-  guidance, how diffs are read, and whether projects are watched and discards
-  confirmed.
+- Review a bounded, redacted record of this session's app commands, Git
+  operations, and failures before reporting an issue; copy it, save it locally to attach, or
+  continue to the public GitHub form. Nothing is retained between sessions.
+- Check for GitOdile updates without opening a project from What's new, More
+  actions, the command palette, or Settings. One shared controller mirrors the
+  native lifecycle through download, signature verification, explicit
+  install/restart consent, draft or active-work blockers, cancellation and
+  observed-version confirmation. Background checks are off by default; the
+  opt-in contacts GitHub at most once every 24 hours while the app is open and
+  never downloads or installs automatically.
+- Configure light/dark/system themes, reduced motion, English/Spanish copy,
+  date and number formats, Git identity, installation diagnostics, supported
+  Git update guidance, how diffs are read, and whether projects are watched
+  and discards confirmed.
 - Set the default version-line name for new projects (written to Git's own
   `init.defaultBranch`), choose how often project changes are checked
   automatically — from every minute to every day, or never — and decide whether
@@ -103,6 +126,25 @@ The completed History implementation and its validation are recorded in
 [`task 015`](work/done/015-history-timeline.md).
 
 ## Publication checks
+
+The planned updater uses two channels, `stable` and `preview`, both released
+from tagged commits on `main`. Short-lived version branches prepare releases;
+the version/tag selects the channel. See
+[ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
+The native updater lifecycle and its visual controls are implemented, but
+production keys are not configured and no target is enabled for automatic
+installation until its real signed A-to-B qualification succeeds. Signed build
+validation, private evidence and protected signing workflows are implemented,
+but no real certificate/key run has passed yet. The manual public publisher,
+immutable-asset reconciliation and stable/preview feed gates are implemented
+and locally tested. Production remains closed: no target is qualified, no
+publisher credential or real signed matrix is evidenced, and no release/feed
+has been published. Maintainers must follow the
+[private signed-build](docs/release/signed-builds.md) and
+[public publishing](docs/release/public-publishing.md) runbooks; a private
+artifact is not a release and validation drafts cannot modify a production
+feed.
 
 Before publishing a desktop build, run `pnpm run check:publication`. It runs
 the complete local gate plus `check:feedback`, which checks the live public
@@ -215,6 +257,12 @@ Run only the Vite frontend at `http://localhost:1420`:
 ```bash
 pnpm run dev
 ```
+
+The status bar, About and What's new share the version injected from
+`package.json`. Vite watches that manifest as a configuration dependency and
+reloads the frontend after a version change. A Git branch name alone does not
+change the app version; installed packages retain the version they were built
+with. Keep npm, Cargo and Tauri metadata synchronized when preparing a release.
 
 Run the complete repository harness:
 

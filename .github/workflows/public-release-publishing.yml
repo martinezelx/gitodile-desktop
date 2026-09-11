@@ -1,0 +1,109 @@
+name: Public release publishing
+
+on:
+  workflow_dispatch:
+    inputs:
+      signing_run_id:
+        description: Successful Private candidate signing workflow run ID
+        required: true
+        type: string
+      mode:
+        description: Reconcile a private validation draft or publish a qualified production release
+        required: true
+        type: choice
+        options:
+          - validation-draft
+          - production
+      published_at:
+        description: Fixed UTC timestamp for production (YYYY-MM-DDTHH:MM:SSZ); blank for validation drafts
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: gitodile-feedback-publication
+  cancel-in-progress: false
+
+jobs:
+  authorize-and-stage:
+    name: Verify private evidence and stage public-only bytes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          run-id: ${{ inputs.signing_run_id }}
+          github-token: ${{ github.token }}
+          pattern: private-signed-*
+          path: signed
+          merge-multiple: true
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Require the full repository and live feedback contracts
+        run: pnpm run check:publication
+      - name: Derive the immutable notes path
+        id: release
+        run: |
+          tag="$(node -e "process.stdout.write(require('./signed/matrix.json').source.tag)")"
+          test -f "docs/release/notes/$tag.md"
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+      - name: Validate the full signed matrix and prepare public-only bytes
+        run: |
+          args=(--signed signed --notes "docs/release/notes/${{ steps.release.outputs.tag }}.md" --qualification docs/release/update-target-qualifications.json --mode "${{ inputs.mode }}" --public-file license=LICENSE --public-file third-party-notices=THIRD_PARTY_LICENSES.md --output public-bundle)
+          if [[ "${{ inputs.mode }}" == production ]]; then
+            test -n "${{ inputs.published_at }}"
+            args+=(--published-at "${{ inputs.published_at }}")
+          else
+            test -z "${{ inputs.published_at }}"
+          fi
+          node scripts/release/public-release.mjs "${args[@]}"
+      - name: Add reviewed publisher runtime without application source
+        run: |
+          mkdir -p public-bundle/runtime/scripts/release public-bundle/runtime/docs/architecture
+          cp scripts/release/github-publication.mjs scripts/release/public-release.mjs scripts/release/release-candidate.mjs scripts/release/release-evidence.mjs public-bundle/runtime/scripts/release/
+          cp docs/architecture/065-9-1-app-update-contract.json public-bundle/runtime/docs/architecture/
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-publication-bundle
+          path: public-bundle
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+
+  publish:
+    name: Serialize destination release and feeds
+    needs: authorize-and-stage
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.mode == 'production' && 'public-release-production' || 'public-release-validation-draft' }}
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-publication-bundle
+          path: public-bundle
+      - name: Require destination-scoped credential without printing it
+        env:
+          GITODILE_PUBLIC_RELEASE_TOKEN: ${{ secrets.GITODILE_PUBLIC_RELEASE_TOKEN }}
+        run: test -n "$GITODILE_PUBLIC_RELEASE_TOKEN"
+      - name: Reconcile immutable release and promote only when qualified
+        working-directory: public-bundle/runtime
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITODILE_PUBLIC_RELEASE_TOKEN: ${{ secrets.GITODILE_PUBLIC_RELEASE_TOKEN }}
+        run: >-
+          node scripts/release/github-publication.mjs
+          --directory ..
+          --source-repository "${{ github.repository }}"
+          --source-run-id "${{ inputs.signing_run_id }}"

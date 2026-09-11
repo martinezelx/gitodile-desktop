@@ -167,6 +167,63 @@ pub(crate) fn retaining_refs(path: &str, name: &str, tip: &str) -> Result<Vec<St
         .collect())
 }
 
+/// The lines a remote calls its default, read from `refs/remotes/<remote>/HEAD`.
+///
+/// This is the only signal for it that is both cheap and true: `init.defaultBranch`
+/// is a *global* preference for repositories yet to be created, and a name like
+/// `main` or `master` is a guess. A project with no remote — or one whose remote
+/// HEAD was never fetched — simply has no default line, and nothing is protected
+/// on the strength of a guess.
+pub(crate) fn default_branch_names(path: &str) -> Result<Vec<String>, AppError> {
+    let output = run_git(
+        path,
+        &[
+            "for-each-ref",
+            "--format=%(refname)%00%(symref)",
+            "refs/remotes/*/HEAD",
+        ],
+    )?;
+    if !output.status.success() {
+        return Ok(Vec::new());
+    }
+    let mut names = Vec::new();
+    for line in git_stdout(&output).lines() {
+        let Some((refname, symref)) = line.split_once('\0') else {
+            continue;
+        };
+        // `refs/remotes/origin/HEAD` minus `HEAD` is the prefix every branch of
+        // that remote carries, so stripping it is exact even for a branch whose
+        // own name looks like a remote's.
+        let Some(prefix) = refname.strip_suffix("HEAD") else {
+            continue;
+        };
+        if let Some(name) = symref.strip_prefix(prefix) {
+            if !name.is_empty() && !names.iter().any(|known| known == name) {
+                names.push(name.to_string());
+            }
+        }
+    }
+    Ok(names)
+}
+
+/// Refuses a change that would take a remote's default line out from under the
+/// project. Shared by delete and rename, which are the two ways to do it.
+pub(crate) fn ensure_not_default_branch(path: &str, name: &str) -> Result<(), AppError> {
+    if default_branch_names(path)?
+        .iter()
+        .any(|known| known == name)
+    {
+        return Err(AppError::new(
+            AppErrorCode::VersionLineIsDefault,
+            format!("\"{name}\" is this project's main version line."),
+        )
+        .with_remediation(
+            "It's where the project's shared work lives, so GitOdile keeps it as it is.",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn add_reaching_ref(references: &mut Vec<String>, reference: &str) {
     if references.iter().any(|existing| existing == reference) {
         return;
@@ -381,6 +438,10 @@ pub(crate) struct VersionLine {
     /// this as `[gone]`). `ahead`/`behind` are meaningless in this state —
     /// there is nothing left to compare against.
     pub(crate) upstream_gone: bool,
+    /// This is a remote's default line (`refs/remotes/<remote>/HEAD` points at
+    /// it). Deleting or renaming it locally is almost never what someone
+    /// means, so both are refused and the screen does not offer them.
+    pub(crate) is_default: bool,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -635,10 +696,12 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
     raw_lines.truncate(VERSION_LINE_LIST_CAP);
 
     let reaching_refs = reaching_refs_by_commit(&path)?;
+    let default_names = default_branch_names(&path)?;
     let mut unique_counts_by_tip = std::collections::HashMap::new();
     let mut lines = Vec::with_capacity(raw_lines.len());
     for raw in raw_lines {
         let is_active = branch.as_deref() == Some(raw.name.as_str());
+        let is_default = default_names.contains(&raw.name);
         let worktree_path = if is_active {
             None
         } else if has_batched_metadata {
@@ -690,6 +753,7 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
             upstream_ahead: track.as_ref().map(|track| track.ahead),
             upstream_behind: track.as_ref().map(|track| track.behind),
             upstream_gone: track.as_ref().is_some_and(|track| track.gone),
+            is_default,
         });
     }
 
@@ -701,6 +765,150 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
         total_count,
         is_truncated,
         unreadable_count,
+    })
+}
+
+// ---- One line's saved versions (read-only) ----
+//
+// The inventory above answers "which lines exist" for every branch at once,
+// and deliberately stops at each line's tip: anything deeper would cost one
+// Git process per branch on every refresh. This asks the deeper question for
+// exactly one line — the one the user has selected — so the cost is two
+// processes per selection rather than two per branch.
+
+/// How many recent versions one call reports. The detail panel shows the tip
+/// in full and the ones before it as a list, then hands the rest to History; a
+/// longer list here would be paging, which is History's job and not this
+/// screen's. Four left that list three rows long under a panel with room for
+/// twice that, which is a preview too short to be worth the section.
+pub(crate) const VERSION_LINE_HISTORY_LIMIT: usize = 8;
+
+/// `%s` is the subject — the first line of the message by definition — so a
+/// record can be newline-delimited with NUL between its fields, the same
+/// shape `parse_version_line_refs` reads.
+const VERSION_LINE_HISTORY_FORMAT: &str = "%H%x00%h%x00%s%x00%an%x00%cI";
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct VersionLineVersion {
+    pub(crate) commit: String,
+    pub(crate) short_commit: String,
+    pub(crate) subject: String,
+    pub(crate) author_name: String,
+    /// ISO 8601 (`%cI`), matching `VersionLineTip::committed_at`.
+    pub(crate) committed_at: String,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct VersionLineHistory {
+    pub(crate) name: String,
+    /// Saved versions reachable from this line's tip. `None` in a shallow
+    /// clone, where the history this machine holds is not the history that
+    /// exists — a number that would be wrong is worse than no number.
+    pub(crate) total_count: Option<u32>,
+    pub(crate) versions: Vec<VersionLineVersion>,
+    /// Whether the line has versions beyond the ones listed. Read from one
+    /// extra record rather than from `total_count`, so it stays true when the
+    /// count is unavailable.
+    pub(crate) has_more: bool,
+}
+
+/// Author names and subjects are bytes, and unlike a ref name nothing here is
+/// used to address anything: the commit id beside them is hex. So a record
+/// that is not valid UTF-8 is decoded lossily and still shown, rather than
+/// being dropped the way an unrepresentable *branch name* has to be.
+pub(crate) fn parse_version_line_history(
+    bytes: &[u8],
+    limit: usize,
+) -> (Vec<VersionLineVersion>, bool) {
+    let mut versions = Vec::new();
+    let mut has_more = false;
+    for line in bytes.split(|byte| *byte == b'\n') {
+        if line.is_empty() {
+            continue;
+        }
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        let fields = line.split(|byte| *byte == 0).collect::<Vec<_>>();
+        if fields.len() < 2 {
+            continue;
+        }
+        if versions.len() == limit {
+            has_more = true;
+            break;
+        }
+        let text = |index: usize| -> String {
+            fields
+                .get(index)
+                .map(|field| String::from_utf8_lossy(field).into_owned())
+                .unwrap_or_default()
+        };
+        versions.push(VersionLineVersion {
+            commit: text(0),
+            short_commit: text(1),
+            subject: text(2),
+            author_name: text(3),
+            committed_at: text(4),
+        });
+    }
+    (versions, has_more)
+}
+
+pub(crate) fn get_version_line_history(
+    path: String,
+    name: String,
+) -> Result<VersionLineHistory, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "get_version_line_history", None)?;
+    validate_branch_ref_name(&path, &name)?;
+    let branch_ref = format!("refs/heads/{name}");
+    // The fully qualified ref, and `show-ref --verify` over it: a bare name
+    // could resolve to a tag or a remote-tracking branch of the same name, and
+    // this screen is only ever describing a local line.
+    let exists = run_git(&path, &["show-ref", "--verify", "--quiet", &branch_ref])?;
+    if !exists.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That version line no longer exists.",
+        )
+        .with_remediation("Refresh and try again."));
+    }
+
+    // One more than the panel shows, so `has_more` is answered by the same
+    // walk instead of a second one.
+    let max_count = format!("--max-count={}", VERSION_LINE_HISTORY_LIMIT + 1);
+    let format = format!("--format={VERSION_LINE_HISTORY_FORMAT}");
+    let log = run_git(
+        &path,
+        &["log", &max_count, &format, "--no-color", &branch_ref, "--"],
+    )?;
+    if !log.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't read this version line's saved versions.",
+        )
+        .with_detail(truncate_detail(&String::from_utf8_lossy(&log.stderr))));
+    }
+    let (versions, has_more) = parse_version_line_history(&log.stdout, VERSION_LINE_HISTORY_LIMIT);
+
+    let shallow = run_git(&path, &["rev-parse", "--is-shallow-repository"])?;
+    let is_shallow = shallow.status.success() && git_stdout(&shallow) == "true";
+    let total_count = if is_shallow {
+        None
+    } else {
+        let counted = run_git(&path, &["rev-list", "--count", &branch_ref, "--"])?;
+        counted
+            .status
+            .success()
+            .then(|| git_stdout(&counted).parse().ok())
+            .flatten()
+    };
+
+    Ok(VersionLineHistory {
+        name,
+        total_count,
+        versions,
+        has_more,
     })
 }
 
@@ -719,6 +927,11 @@ pub(crate) struct CreateVersionLinePlan {
     pub(crate) name: String,
     pub(crate) head_state: HeadState,
     pub(crate) starting_commit: Option<String>,
+    /// Whether `starting_commit` is a saved version the user picked rather than
+    /// wherever the project happens to be standing. The preview says different
+    /// things about the two, and only the first can be true while `HEAD` is
+    /// somewhere else entirely.
+    pub(crate) from_saved_version: bool,
     pub(crate) will_switch: bool,
     pub(crate) has_unsaved_work: bool,
 }
@@ -727,15 +940,45 @@ pub(crate) struct ValidatedCreate {
     pub(crate) name: String,
     pub(crate) head_state: HeadState,
     pub(crate) starting_commit: Option<String>,
+    pub(crate) from_saved_version: bool,
     pub(crate) will_switch: bool,
     pub(crate) has_unsaved_work: bool,
     pub(crate) state_token: String,
+}
+
+/// A starting point chosen from History, resolved to the exact commit it names.
+///
+/// Only a full object id is accepted, and it is verified to be a commit that
+/// exists: a revision expression would let a name, a tag, or `@{upstream}` in
+/// as a starting point, and the interface only ever sends what a saved version
+/// row already holds.
+fn resolve_start_commit(path: &str, value: &str) -> Result<String, AppError> {
+    let shaped = (value.len() == 40 || value.len() == 64)
+        && value.bytes().all(|byte| byte.is_ascii_hexdigit());
+    if !shaped {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version couldn't be identified.",
+        )
+        .with_remediation("Choose a saved version from History and try again."));
+    }
+    let revision = format!("{value}^{{commit}}");
+    let output = run_git(path, &["rev-parse", "--verify", "--quiet", &revision])?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That saved version isn't in this project any more.",
+        )
+        .with_remediation("Refresh History and choose a saved version that is still listed."));
+    }
+    Ok(git_stdout(&output))
 }
 
 pub(crate) fn validate_and_prepare_create(
     path: &str,
     name: &str,
     switch: bool,
+    start_commit: Option<&str>,
 ) -> Result<ValidatedCreate, AppError> {
     require_git_switch_support(path)?;
 
@@ -754,7 +997,13 @@ pub(crate) fn validate_and_prepare_create(
         .then(|| git_stdout(&symbolic_head));
     let (head_state, head_sha) = resolve_head_state(path, branch.clone())?;
 
-    if head_state == HeadState::Unborn {
+    // A chosen saved version is a commit of its own, so it answers the
+    // question an unborn `HEAD` cannot: there is something to start from even
+    // when the current line has nothing on it yet.
+    let start_commit = start_commit
+        .map(|value| resolve_start_commit(path, value))
+        .transpose()?;
+    if head_state == HeadState::Unborn && start_commit.is_none() {
         return Err(AppError::new(
             AppErrorCode::UnbornBranchNoVersion,
             "Save the first version before creating another version line.",
@@ -794,20 +1043,31 @@ pub(crate) fn validate_and_prepare_create(
         .with_remediation("Resolve the overlapping changes, then try again."));
     }
     let has_unsaved_work = !status.is_clean;
-    let will_switch = switch || head_state == HeadState::Detached;
+    // A detached `HEAD` is recovered by switching onto the line being created
+    // at the commit it is standing on — but only when that is where the line
+    // starts. Creating a line at a saved version somewhere else is not a
+    // recovery, and switching to it would move the working tree away from the
+    // commit the reader was on without being asked.
+    let from_saved_version = start_commit.is_some();
+    let will_switch = switch || (head_state == HeadState::Detached && !from_saved_version);
+    let starting_commit = start_commit.or(head_sha.clone());
 
     let mutable_state = create_version_line_state_fingerprint(path, &head_state, &status)?;
     let state_token = compute_version_line_state_token(
         head_sha.as_deref(),
         branch.as_deref(),
         &mutable_state,
-        &format!("create:{name}:{will_switch}"),
+        &format!(
+            "create:{name}:{will_switch}:{}",
+            starting_commit.as_deref().unwrap_or("")
+        ),
     );
 
     Ok(ValidatedCreate {
         name: name.to_string(),
         head_state,
-        starting_commit: head_sha,
+        starting_commit,
+        from_saved_version,
         will_switch,
         has_unsaved_work,
         state_token,
@@ -818,14 +1078,22 @@ pub(crate) fn plan_create_version_line(
     path: String,
     name: String,
     switch: bool,
+    start_commit: Option<String>,
 ) -> Result<CreateVersionLinePlan, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "plan_create_version_line", None)?;
-    let validated = validate_and_prepare_create(&path, &name, switch)?;
-    let mut steps = vec![format!(
-        "Create the version line \"{}\" at the current commit.",
-        validated.name
-    )];
+    let validated = validate_and_prepare_create(&path, &name, switch, start_commit.as_deref())?;
+    let mut steps = vec![if validated.from_saved_version {
+        format!(
+            "Create the version line \"{}\" at the chosen saved version.",
+            validated.name
+        )
+    } else {
+        format!(
+            "Create the version line \"{}\" at the current commit.",
+            validated.name
+        )
+    }];
     if validated.will_switch {
         steps.push(format!("Switch this project to \"{}\".", validated.name));
     }
@@ -836,9 +1104,15 @@ pub(crate) fn plan_create_version_line(
                 .to_string(),
         );
     }
-    if validated.head_state == HeadState::Detached {
+    if validated.head_state == HeadState::Detached && !validated.from_saved_version {
         risks.push(
             "This project isn't on a version line right now; creating one here keeps the current commit reachable by name."
+                .to_string(),
+        );
+    }
+    if validated.from_saved_version && !validated.will_switch {
+        risks.push(
+            "This project stays where it is; the new version line starts at the chosen saved version."
                 .to_string(),
         );
     }
@@ -861,6 +1135,7 @@ pub(crate) fn plan_create_version_line(
         name: validated.name,
         head_state: validated.head_state,
         starting_commit: validated.starting_commit,
+        from_saved_version: validated.from_saved_version,
         will_switch: validated.will_switch,
         has_unsaved_work: validated.has_unsaved_work,
     })
@@ -892,11 +1167,12 @@ pub(crate) fn create_version_line(
     path: String,
     name: String,
     switch: bool,
+    start_commit: Option<String>,
     state_token: String,
 ) -> Result<VersionLinesSnapshot, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "create_version_line", None)?;
-    let validated = validate_and_prepare_create(&path, &name, switch)?;
+    let validated = validate_and_prepare_create(&path, &name, switch, start_commit.as_deref())?;
     if validated.state_token != state_token {
         return Err(AppError::new(
             AppErrorCode::StaleVersionLinePlan,
@@ -905,10 +1181,12 @@ pub(crate) fn create_version_line(
         .with_remediation("Refresh and try again."));
     }
 
+    let starting = validated.starting_commit.as_deref().unwrap_or("HEAD");
     let output = if validated.will_switch {
-        run_git(&path, &["switch", "-c", &validated.name])?
+        // `switch -c <name> <start>` is one operation: the line is created at
+        // the chosen version and checked out, or neither happens.
+        run_git(&path, &["switch", "-c", &validated.name, starting])?
     } else {
-        let starting = validated.starting_commit.as_deref().unwrap_or("HEAD");
         run_git(&path, &["branch", "--", &validated.name, starting])?
     };
     if !output.status.success() {
@@ -1073,6 +1351,37 @@ mod tests {
         assert_eq!(lines[0].upstream_track, "[ahead 2, behind 1]");
         assert_eq!(lines[0].unique_commit_count, Some(3));
         assert_eq!(lines[0].worktree_path.as_deref(), Some("C:/repo-linked"));
+    }
+
+    #[test]
+    fn parse_version_line_history_reads_records_and_reports_the_overflow() {
+        let text = b"aaa111\0aaa1\0First subject\0Ada Lovelace\x002024-01-01T00:00:00+00:00\nbbb222\0bbb2\0Second\0Ada Lovelace\x002024-01-02T00:00:00+00:00\n";
+        let (versions, has_more) = parse_version_line_history(text, 4);
+        assert_eq!(versions.len(), 2);
+        assert!(!has_more);
+        assert_eq!(versions[0].commit, "aaa111");
+        assert_eq!(versions[0].short_commit, "aaa1");
+        assert_eq!(versions[0].subject, "First subject");
+        assert_eq!(versions[0].author_name, "Ada Lovelace");
+        assert_eq!(versions[0].committed_at, "2024-01-01T00:00:00+00:00");
+
+        // The walk asks for one more than it reports, and that extra record is
+        // what says there is more rather than a second count.
+        let (trimmed, overflowed) = parse_version_line_history(text, 1);
+        assert_eq!(trimmed.len(), 1);
+        assert!(overflowed);
+    }
+
+    #[test]
+    fn parse_version_line_history_keeps_a_version_whose_metadata_is_not_utf8() {
+        // Nothing here addresses anything — the commit id beside it is hex —
+        // so an unrepresentable author is shown lossily rather than hiding a
+        // saved version that genuinely exists.
+        let text = b"aaa111\0aaa1\0Subject\0Ada \xff Lovelace\x002024-01-01T00:00:00+00:00\n";
+        let (versions, _) = parse_version_line_history(text, 4);
+        assert_eq!(versions.len(), 1);
+        assert_eq!(versions[0].commit, "aaa111");
+        assert!(versions[0].author_name.starts_with("Ada "));
     }
 
     #[test]
@@ -1351,7 +1660,7 @@ mod tests {
         write_and_commit(&path, "a.txt", "one\n", "first");
         let original_head = git_stdout(&test_git(&path, &["rev-parse", "HEAD"]).unwrap());
 
-        let plan = plan_create_version_line(path.clone(), "feature-x".to_string(), true)
+        let plan = plan_create_version_line(path.clone(), "feature-x".to_string(), true, None)
             .expect("plan should succeed");
         assert!(plan.will_switch);
         assert!(plan.requires_confirmation);
@@ -1361,6 +1670,7 @@ mod tests {
             path.clone(),
             "feature-x".to_string(),
             true,
+            None,
             plan.state_token,
         )
         .expect("create should succeed");
@@ -1381,7 +1691,7 @@ mod tests {
         write_and_commit(&path, "a.txt", "one\n", "first");
         let original_branch = current_branch(&path);
 
-        let plan = plan_create_version_line(path.clone(), "feature-y".to_string(), false)
+        let plan = plan_create_version_line(path.clone(), "feature-y".to_string(), false, None)
             .expect("plan should succeed");
         assert!(!plan.will_switch);
 
@@ -1389,6 +1699,7 @@ mod tests {
             path.clone(),
             "feature-y".to_string(),
             false,
+            None,
             plan.state_token,
         )
         .expect("create should succeed");
@@ -1407,7 +1718,7 @@ mod tests {
         write_file(&path, "a.txt", "one\nmodified\n");
         write_file(&path, "new.txt", "untracked\n");
 
-        let plan = plan_create_version_line(path.clone(), "carrying-work".to_string(), true)
+        let plan = plan_create_version_line(path.clone(), "carrying-work".to_string(), true, None)
             .expect("plan should succeed");
         assert!(plan.has_unsaved_work);
 
@@ -1415,6 +1726,7 @@ mod tests {
             path.clone(),
             "carrying-work".to_string(),
             true,
+            None,
             plan.state_token,
         )
         .expect("create should succeed");
@@ -1445,7 +1757,7 @@ mod tests {
             .expect("detach HEAD");
         assert!(status.success());
 
-        let plan = plan_create_version_line(path.clone(), "recovered".to_string(), false)
+        let plan = plan_create_version_line(path.clone(), "recovered".to_string(), false, None)
             .expect("plan should succeed even without an explicit switch request");
         assert!(
             plan.will_switch,
@@ -1456,6 +1768,7 @@ mod tests {
             path.clone(),
             "recovered".to_string(),
             false,
+            None,
             plan.state_token,
         )
         .expect("create should succeed");
@@ -1473,7 +1786,7 @@ mod tests {
         let path = unique_temp_dir("vl-create-unborn");
         git_init(&path);
 
-        let error = plan_create_version_line(path.clone(), "too-soon".to_string(), true)
+        let error = plan_create_version_line(path.clone(), "too-soon".to_string(), true, None)
             .expect_err("an unborn branch has nothing to branch from yet");
         assert_eq!(error.code, AppErrorCode::UnbornBranchNoVersion);
 
@@ -1487,7 +1800,7 @@ mod tests {
         write_and_commit(&path, "a.txt", "one\n", "first");
         let branch = current_branch(&path);
 
-        let error = plan_create_version_line(path.clone(), branch, true)
+        let error = plan_create_version_line(path.clone(), branch, true, None)
             .expect_err("the current branch's own name must be rejected as a duplicate");
         assert_eq!(error.code, AppErrorCode::VersionLineNameTaken);
 
@@ -1505,7 +1818,7 @@ mod tests {
             .expect("run git branch");
         assert!(status.success());
 
-        let error = plan_create_version_line(path.clone(), "feature-z".to_string(), false)
+        let error = plan_create_version_line(path.clone(), "feature-z".to_string(), false, None)
             .expect_err("a case-only collision must be rejected before mutation");
         assert_eq!(error.code, AppErrorCode::VersionLineNameCollides);
 
@@ -1518,7 +1831,7 @@ mod tests {
         git_init(&path);
         write_and_commit(&path, "a.txt", "one\n", "first");
 
-        let plan = plan_create_version_line(path.clone(), "feature-stale".to_string(), false)
+        let plan = plan_create_version_line(path.clone(), "feature-stale".to_string(), false, None)
             .expect("plan should succeed");
         write_file(&path, "b.txt", "changed after preview\n");
 
@@ -1526,6 +1839,7 @@ mod tests {
             path.clone(),
             "feature-stale".to_string(),
             false,
+            None,
             plan.state_token,
         )
         .expect_err("a state change after preview must stop execution");
@@ -1544,9 +1858,13 @@ mod tests {
         write_and_commit(&path, "a.txt", "one\n", "first");
         write_file(&path, "pending.txt", "before preview\n");
 
-        let plan =
-            plan_create_version_line(path.clone(), "feature-stale-content".to_string(), true)
-                .expect("plan should succeed with ordinary unsaved work");
+        let plan = plan_create_version_line(
+            path.clone(),
+            "feature-stale-content".to_string(),
+            true,
+            None,
+        )
+        .expect("plan should succeed with ordinary unsaved work");
         // The file remains untracked before and after, so the old status-only
         // token was identical even though the confirmed bytes had changed.
         write_file(&path, "pending.txt", "after preview\n");
@@ -1555,6 +1873,7 @@ mod tests {
             path.clone(),
             "feature-stale-content".to_string(),
             true,
+            None,
             plan.state_token,
         )
         .expect_err("content drift after preview must stop execution");
@@ -1575,8 +1894,9 @@ mod tests {
         git_add(&path, "a.txt");
         write_file(&path, "a.txt", "same final worktree\n");
 
-        let plan = plan_create_version_line(path.clone(), "feature-stale-index".to_string(), true)
-            .expect("plan should capture both index and worktree content");
+        let plan =
+            plan_create_version_line(path.clone(), "feature-stale-index".to_string(), true, None)
+                .expect("plan should capture both index and worktree content");
         write_file(&path, "a.txt", "different staged content\n");
         git_add(&path, "a.txt");
         write_file(&path, "a.txt", "same final worktree\n");
@@ -1585,6 +1905,7 @@ mod tests {
             path.clone(),
             "feature-stale-index".to_string(),
             true,
+            None,
             plan.state_token,
         )
         .expect_err("staged-content drift must stop execution even when the worktree matches");
@@ -1707,8 +2028,13 @@ mod tests {
         assert!(!plan.retained_by.is_empty());
         assert_eq!(plan.operation_kind, OperationKind::Destructive);
 
-        delete_version_line(path.clone(), "mergeable".to_string(), plan.state_token)
-            .expect("delete should succeed");
+        delete_version_line(
+            path.clone(),
+            "mergeable".to_string(),
+            false,
+            plan.state_token,
+        )
+        .expect("delete should succeed");
         assert!(!in_test_frame(|| list_branch_names(&path))
             .unwrap()
             .contains(&"mergeable".to_string()));
@@ -1801,12 +2127,186 @@ mod tests {
         // token's status fingerprint only reflects working-tree drift.
         write_file(&path, "c.txt", "uncommitted change after preview\n");
 
-        let error = delete_version_line(path.clone(), "goes-away".to_string(), plan.state_token)
-            .expect_err("a state change after preview must stop execution");
+        let error = delete_version_line(
+            path.clone(),
+            "goes-away".to_string(),
+            false,
+            plan.state_token,
+        )
+        .expect_err("a state change after preview must stop execution");
         assert_eq!(error.code, AppErrorCode::StaleVersionLinePlan);
         assert!(in_test_frame(|| list_branch_names(&path))
             .unwrap()
             .contains(&"goes-away".to_string()));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    fn commit_at(path: &str, revision: &str) -> String {
+        git_stdout(
+            &git_command(path)
+                .args(["rev-parse", "--verify", revision])
+                .output()
+                .expect("run git rev-parse"),
+        )
+    }
+
+    #[test]
+    fn create_version_line_can_start_at_a_chosen_saved_version() {
+        let path = unique_temp_dir("vl-create-from-version");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let first = commit_at(&path, "HEAD");
+        write_and_commit(&path, "a.txt", "one\ntwo\n", "second");
+        let second = commit_at(&path, "HEAD");
+        let original_branch = current_branch(&path);
+
+        let plan = plan_create_version_line(
+            path.clone(),
+            "from-first".to_string(),
+            false,
+            Some(first.clone()),
+        )
+        .expect("plan should succeed");
+        assert!(plan.from_saved_version);
+        assert_eq!(plan.starting_commit.as_deref(), Some(first.as_str()));
+        assert!(!plan.will_switch);
+
+        create_version_line(
+            path.clone(),
+            "from-first".to_string(),
+            false,
+            Some(first.clone()),
+            plan.state_token,
+        )
+        .expect("create should succeed");
+
+        // The line starts where it was told to, and the project has not moved.
+        assert_eq!(commit_at(&path, "refs/heads/from-first"), first);
+        assert_eq!(current_branch(&path), original_branch);
+        assert_eq!(commit_at(&path, "HEAD"), second);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn create_version_line_from_a_version_switches_only_when_asked() {
+        let path = unique_temp_dir("vl-create-from-version-switch");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let first = commit_at(&path, "HEAD");
+        write_and_commit(&path, "a.txt", "one\ntwo\n", "second");
+
+        let plan = plan_create_version_line(
+            path.clone(),
+            "moved-back".to_string(),
+            true,
+            Some(first.clone()),
+        )
+        .expect("plan should succeed");
+        assert!(plan.will_switch);
+
+        create_version_line(
+            path.clone(),
+            "moved-back".to_string(),
+            true,
+            Some(first.clone()),
+            plan.state_token,
+        )
+        .expect("create should succeed");
+        assert_eq!(current_branch(&path), "moved-back");
+        assert_eq!(commit_at(&path, "HEAD"), first);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn a_detached_head_is_not_recovered_by_a_line_starting_somewhere_else() {
+        let path = unique_temp_dir("vl-create-from-version-detached");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let first = commit_at(&path, "HEAD");
+        write_and_commit(&path, "a.txt", "one\ntwo\n", "second");
+        let second = commit_at(&path, "HEAD");
+        assert!(git_command(&path)
+            .args(["switch", "-q", "--detach", &second])
+            .status()
+            .unwrap()
+            .success());
+
+        // Creating a line at the current commit still recovers the detached
+        // HEAD by switching onto it...
+        let here = plan_create_version_line(path.clone(), "recovered".to_string(), false, None)
+            .expect("plan should succeed");
+        assert!(here.will_switch);
+
+        // ...but a line rooted at an older version is not a recovery, and
+        // switching to it would move the working tree away unasked.
+        let elsewhere = plan_create_version_line(
+            path.clone(),
+            "elsewhere".to_string(),
+            false,
+            Some(first.clone()),
+        )
+        .expect("plan should succeed");
+        assert!(!elsewhere.will_switch);
+        assert_eq!(elsewhere.starting_commit.as_deref(), Some(first.as_str()));
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn create_version_line_refuses_a_starting_point_it_cannot_verify() {
+        let path = unique_temp_dir("vl-create-from-bad-version");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+
+        // A revision expression is not a saved version: only a full object id
+        // this project actually holds is accepted.
+        for candidate in ["HEAD~1", "main", "not-a-commit"] {
+            let error = plan_create_version_line(
+                path.clone(),
+                "nope".to_string(),
+                false,
+                Some(candidate.to_string()),
+            )
+            .expect_err("an unverifiable starting point should be refused");
+            assert_eq!(error.code, AppErrorCode::InvalidSelection);
+        }
+
+        let missing = "0".repeat(40);
+        let error =
+            plan_create_version_line(path.clone(), "nope".to_string(), false, Some(missing))
+                .expect_err("a commit this project does not have should be refused");
+        assert_eq!(error.code, AppErrorCode::InvalidSelection);
+
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    #[test]
+    fn creating_from_a_version_rejects_a_state_token_from_another_starting_point() {
+        let path = unique_temp_dir("vl-create-from-version-stale");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let first = commit_at(&path, "HEAD");
+        write_and_commit(&path, "a.txt", "one\ntwo\n", "second");
+        let second = commit_at(&path, "HEAD");
+
+        let plan =
+            plan_create_version_line(path.clone(), "swapped".to_string(), false, Some(first))
+                .expect("plan should succeed");
+
+        // The token covers the starting point, so a preview of one version
+        // cannot be executed against another.
+        let error = create_version_line(
+            path.clone(),
+            "swapped".to_string(),
+            false,
+            Some(second),
+            plan.state_token,
+        )
+        .expect_err("a plan for another starting point should be refused");
+        assert_eq!(error.code, AppErrorCode::StaleVersionLinePlan);
 
         let _ = fs::remove_dir_all(&path);
     }
@@ -2047,6 +2547,48 @@ pub(crate) fn switch_version_line(
 
 // ---- Safely delete a local version line ----
 
+/// Where a line is published, when it is. Both halves come from the line's own
+/// Git configuration rather than from splitting `origin/name` on a slash: a
+/// remote may be named with a slash in it, and a branch certainly may.
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PublishedLine {
+    pub(crate) remote: String,
+    pub(crate) branch: String,
+    /// `origin/feature-x` — what the rest of the app calls the upstream.
+    pub(crate) short_name: String,
+}
+
+pub(crate) fn published_line(path: &str, name: &str) -> Result<Option<PublishedLine>, AppError> {
+    let remote_key = format!("branch.{name}.remote");
+    let merge_key = format!("branch.{name}.merge");
+    let remote_output = run_git(path, &["config", "--get", &remote_key])?;
+    let merge_output = run_git(path, &["config", "--get", &merge_key])?;
+    if !remote_output.status.success() || !merge_output.status.success() {
+        return Ok(None);
+    }
+    let remote = git_stdout(&remote_output);
+    let merge = git_stdout(&merge_output);
+    // A remote named `.` means "this repository": there is nothing to publish
+    // to and nothing to delete there.
+    if remote.is_empty() || remote == "." {
+        return Ok(None);
+    }
+    let branch = merge
+        .strip_prefix("refs/heads/")
+        .unwrap_or(&merge)
+        .to_string();
+    if branch.is_empty() {
+        return Ok(None);
+    }
+    let short_name = format!("{remote}/{branch}");
+    Ok(Some(PublishedLine {
+        remote,
+        branch,
+        short_name,
+    }))
+}
+
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DeleteVersionLinePlan {
@@ -2061,6 +2603,24 @@ pub(crate) struct DeleteVersionLinePlan {
     pub(crate) tip_commit: String,
     pub(crate) retained_by: Vec<String>,
     pub(crate) upstream: Option<String>,
+    /// The remote copy this delete can clear away as well, when there is one
+    /// and it still exists. `None` for a line that was never published, or one
+    /// whose remote branch is already gone.
+    pub(crate) published: Option<PublishedLine>,
+}
+
+/// What a delete actually did. The local half and the remote half can succeed
+/// separately, and a screen that reports only the first would leave the user
+/// believing a branch is gone from the project when their team still sees it.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DeleteVersionLineResult {
+    pub(crate) snapshot: VersionLinesSnapshot,
+    /// `None` when no remote delete was asked for.
+    pub(crate) remote_deleted: Option<bool>,
+    /// Set when a remote delete was asked for and refused. The local line is
+    /// gone either way; this says the shared copy is not.
+    pub(crate) remote_error: Option<AppError>,
 }
 
 pub(crate) struct ValidatedDelete {
@@ -2068,6 +2628,7 @@ pub(crate) struct ValidatedDelete {
     pub(crate) tip: String,
     pub(crate) retained_by: Vec<String>,
     pub(crate) upstream: Option<String>,
+    pub(crate) published: Option<PublishedLine>,
     pub(crate) state_token: String,
 }
 
@@ -2097,6 +2658,7 @@ pub(crate) fn validate_and_prepare_delete(
         )
         .with_remediation("Switch to a different version line first."));
     }
+    ensure_not_default_branch(path, name)?;
 
     let target_ref = format!("refs/heads/{name}");
     let target_exists = run_git(path, &["show-ref", "--verify", "--quiet", &target_ref])?;
@@ -2139,15 +2701,19 @@ pub(crate) fn validate_and_prepare_delete(
         ));
     }
 
-    let upstream_output = run_git(
-        path,
-        &["for-each-ref", "--format=%(upstream:short)", &target_ref],
-    )?;
-    let upstream = upstream_output
-        .status
-        .success()
-        .then(|| git_stdout(&upstream_output))
-        .filter(|value| !value.is_empty());
+    let published = published_line(path, name)?;
+    // Only offered when the remote branch is actually still there: a line whose
+    // upstream is `[gone]` has nothing left to delete, and offering it would
+    // fail for a reason the user cannot act on.
+    let published = match published {
+        Some(entry) => {
+            let tracking = format!("refs/remotes/{}", entry.short_name);
+            let exists = run_git(path, &["show-ref", "--verify", "--quiet", &tracking])?;
+            exists.status.success().then_some(entry)
+        }
+        None => None,
+    };
+    let upstream = published.as_ref().map(|entry| entry.short_name.clone());
 
     let status = read_working_tree_status(path.to_string())?;
     let state_token = compute_version_line_state_token(
@@ -2162,6 +2728,7 @@ pub(crate) fn validate_and_prepare_delete(
         tip,
         retained_by,
         upstream,
+        published,
         state_token,
     })
 }
@@ -2173,18 +2740,30 @@ pub(crate) fn plan_delete_version_line(
     let (_repository, _access) =
         application::authorize_repository(&path, "plan_delete_version_line", None)?;
     let validated = validate_and_prepare_delete(&path, &name)?;
+    let mut steps = vec![format!(
+        "Remove the local reference \"{}\"; its saved work stays reachable from {}.",
+        validated.name,
+        validated.retained_by.join(", ")
+    )];
+    let mut risks = vec![
+        "This can't be undone from GitOdile; the retained reference(s) above are the only guaranteed way back to this work."
+            .to_string(),
+    ];
+    if let Some(published) = &validated.published {
+        steps.push(format!(
+            "Optionally delete \"{}\" on the remote as well.",
+            published.short_name
+        ));
+        risks.push(format!(
+            "Deleting \"{}\" on the remote removes it for everyone who works on this project.",
+            published.short_name
+        ));
+    }
     Ok(DeleteVersionLinePlan {
         operation_kind: OperationKind::Destructive,
         summary: format!("Delete the version line \"{}\".", validated.name),
-        steps: vec![format!(
-            "Remove the local reference \"{}\"; its saved work stays reachable from {}.",
-            validated.name,
-            validated.retained_by.join(", ")
-        )],
-        risks: vec![
-            "This can't be undone from GitOdile; the retained reference(s) above are the only guaranteed way back to this work."
-                .to_string(),
-        ],
+        steps,
+        risks,
         recovery: format!("Reachable from: {}", validated.retained_by.join(", ")),
         requires_confirmation: true,
         state_token: validated.state_token,
@@ -2192,6 +2771,7 @@ pub(crate) fn plan_delete_version_line(
         tip_commit: validated.tip,
         retained_by: validated.retained_by,
         upstream: validated.upstream,
+        published: validated.published,
     })
 }
 
@@ -2222,11 +2802,51 @@ pub(crate) fn classify_delete_failure(output: &Output) -> AppError {
     }
 }
 
+pub(crate) fn classify_remote_delete_failure(output: &Output) -> AppError {
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let stderr_lower = stderr.to_lowercase();
+    if stderr_lower.contains("remote ref does not exist") {
+        AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That version line is already gone from the remote.",
+        )
+        .with_remediation("Nothing else to do — get project changes to refresh what's published.")
+    } else if stderr_lower.contains("authentication")
+        || stderr_lower.contains("permission denied")
+        || stderr_lower.contains("could not read")
+        || stderr_lower.contains("access denied")
+    {
+        AppError::new(
+            AppErrorCode::AuthenticationFailed,
+            "The remote wouldn't accept the deletion with the credentials on this computer.",
+        )
+        .with_remediation("Check your access to the project's remote, then try again.")
+    } else if stderr_lower.contains("protected branch")
+        || stderr_lower.contains("pre-receive hook declined")
+        || stderr_lower.contains("deletion of the current branch prohibited")
+    {
+        AppError::new(
+            AppErrorCode::RemoteRejected,
+            "The remote refused to delete this version line.",
+        )
+        .with_remediation("It may be protected there; ask whoever administers the remote.")
+        .with_detail(truncate_detail(&stderr))
+    } else {
+        AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't delete this version line on the remote.",
+        )
+        .with_remediation("Check your connection and your access to the remote, then try again.")
+        .with_detail(truncate_detail(&stderr))
+    }
+}
+
 pub(crate) fn delete_version_line(
     path: String,
     name: String,
+    delete_remote: bool,
     state_token: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<DeleteVersionLineResult, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "delete_version_line", None)?;
     let validated = validate_and_prepare_delete(&path, &name)?;
@@ -2237,13 +2857,278 @@ pub(crate) fn delete_version_line(
         )
         .with_remediation("Refresh and try again."));
     }
-    // Never `-D`: Git's own safe-delete refusal (a branch not fully merged
-    // into its upstream or HEAD) is the actual enforcement of "never delete
-    // unique work" — `retained_by` above only explains why it's expected to
-    // succeed.
+
+    // `-d` first, always: Git's own refusal is the outer safety net and it
+    // costs nothing to ask for it.
+    //
+    // Its rule is narrower than this app's, though, and that gap used to be a
+    // lie on screen. Git accepts `-d` only for a branch merged into HEAD or
+    // into its own upstream; GitOdile calls a line safe when its tip is
+    // reachable from *any* other local or remote-tracking ref, which is the
+    // question that actually decides whether work can be lost. A feature line
+    // already merged and published, sitting beside a local `main` that has not
+    // been pulled yet, satisfies the second and not the first — so the screen
+    // said "Safe to delete", the dialog agreed, and Git then refused.
+    //
+    // So a `not fully merged` refusal is answered with `-D`, and only ever
+    // after `validate_and_prepare_delete` has just proved retention again and
+    // the state token has confirmed nothing moved since the preview. Every
+    // other refusal stands.
     let output = run_git(&path, &["branch", "-d", "--", &validated.name])?;
     if !output.status.success() {
-        return Err(classify_delete_failure(&output));
+        let failure = classify_delete_failure(&output);
+        if failure.code != AppErrorCode::VersionLineUniqueWork {
+            return Err(failure);
+        }
+        let forced = run_git(&path, &["branch", "-D", "--", &validated.name])?;
+        if !forced.status.success() {
+            return Err(classify_delete_failure(&forced));
+        }
+    }
+
+    let mut remote_deleted = None;
+    let mut remote_error = None;
+    if delete_remote {
+        match &validated.published {
+            Some(published) => {
+                let push = run_git(
+                    &path,
+                    &[
+                        "push",
+                        "--porcelain",
+                        &published.remote,
+                        "--delete",
+                        &format!("refs/heads/{}", published.branch),
+                    ],
+                )?;
+                if push.status.success() {
+                    remote_deleted = Some(true);
+                } else {
+                    remote_deleted = Some(false);
+                    remote_error = Some(classify_remote_delete_failure(&push));
+                }
+            }
+            // Asked for, but there is nothing published to delete. Reported as
+            // "not done" rather than as a failure: the local line is gone and
+            // the remote never had a copy.
+            None => remote_deleted = Some(false),
+        }
+    }
+
+    Ok(DeleteVersionLineResult {
+        snapshot: get_version_lines(path)?,
+        remote_deleted,
+        remote_error,
+    })
+}
+
+// ---- Rename a version line ----
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RenameVersionLinePlan {
+    pub(crate) operation_kind: OperationKind,
+    pub(crate) summary: String,
+    pub(crate) steps: Vec<String>,
+    pub(crate) risks: Vec<String>,
+    pub(crate) recovery: String,
+    pub(crate) requires_confirmation: bool,
+    pub(crate) state_token: String,
+    pub(crate) name: String,
+    pub(crate) new_name: String,
+    pub(crate) is_active: bool,
+    /// The line is published under its old name, which this rename does not
+    /// touch. The screen says so rather than letting the user assume the
+    /// remote followed along.
+    pub(crate) upstream: Option<String>,
+}
+
+pub(crate) struct ValidatedRename {
+    pub(crate) name: String,
+    pub(crate) new_name: String,
+    pub(crate) is_active: bool,
+    pub(crate) upstream: Option<String>,
+    pub(crate) state_token: String,
+}
+
+pub(crate) fn validate_and_prepare_rename(
+    path: &str,
+    name: &str,
+    new_name: &str,
+) -> Result<ValidatedRename, AppError> {
+    require_git_switch_support(path)?;
+
+    if let Some(operation) = git_operation_in_progress(path)? {
+        return Err(AppError::new(
+            AppErrorCode::GitOperationInProgress,
+            format!("A Git {operation} is already in progress in this project."),
+        )
+        .with_remediation("Finish or abort that operation in Git, then try again."));
+    }
+
+    validate_branch_ref_name(path, name)?;
+    validate_branch_ref_name(path, new_name)?;
+    ensure_not_default_branch(path, name)?;
+
+    let target_ref = format!("refs/heads/{name}");
+    let target_exists = run_git(path, &["show-ref", "--verify", "--quiet", &target_ref])?;
+    if !target_exists.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "That version line no longer exists.",
+        )
+        .with_remediation("Refresh and try again."));
+    }
+
+    if new_name == name {
+        return Err(AppError::new(
+            AppErrorCode::VersionLineNameTaken,
+            "That's already this version line's name.",
+        )
+        .with_remediation("Choose a different name."));
+    }
+
+    let existing = list_branch_names(path)?;
+    if existing.iter().any(|known| known == new_name) {
+        return Err(AppError::new(
+            AppErrorCode::VersionLineNameTaken,
+            "A version line with this exact name already exists.",
+        )
+        .with_remediation("Choose a different name."));
+    }
+    if let Some(collision) = existing
+        .iter()
+        .filter(|known| *known != name)
+        .find(|known| known.eq_ignore_ascii_case(new_name))
+    {
+        return Err(AppError::new(
+            AppErrorCode::VersionLineNameCollides,
+            format!(
+                "\"{collision}\" already exists and only differs by letter case, which some file systems can't tell apart."
+            ),
+        )
+        .with_remediation("Choose a name that isn't just a different case of an existing one."));
+    }
+
+    // A line open in another workspace is renamed *there* as far as that
+    // window is concerned: Git rewrites the ref under it without telling it.
+    // Refused for the same reason switching and deleting are.
+    let worktrees = list_worktrees(path)?;
+    let symbolic_head = run_git(path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
+    let active = symbolic_head
+        .status
+        .success()
+        .then(|| git_stdout(&symbolic_head));
+    let is_active = active.as_deref() == Some(name);
+    if !is_active {
+        if let Some(occupied) = worktrees
+            .iter()
+            .find(|worktree| worktree.branch.as_deref() == Some(name))
+        {
+            return Err(AppError::new(
+                AppErrorCode::VersionLineCheckedOutElsewhere,
+                format!(
+                    "\"{name}\" is open in another workspace at {}.",
+                    occupied.path
+                ),
+            )
+            .with_remediation(
+                "Close that workspace, or switch it to a different version line, before renaming.",
+            ));
+        }
+    }
+
+    let upstream = published_line(path, name)?.map(|entry| entry.short_name);
+    let tip = checked_git_stdout(run_git(path, &["rev-parse", &target_ref])?)?;
+    let status = read_working_tree_status(path.to_string())?;
+    let state_token = compute_version_line_state_token(
+        Some(&tip),
+        Some(name),
+        &status_fingerprint(&status),
+        &format!("rename:{name}:{new_name}"),
+    );
+
+    Ok(ValidatedRename {
+        name: name.to_string(),
+        new_name: new_name.to_string(),
+        is_active,
+        upstream,
+        state_token,
+    })
+}
+
+pub(crate) fn plan_rename_version_line(
+    path: String,
+    name: String,
+    new_name: String,
+) -> Result<RenameVersionLinePlan, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "plan_rename_version_line", None)?;
+    let validated = validate_and_prepare_rename(&path, &name, &new_name)?;
+    let mut steps = vec![format!(
+        "Rename the local version line \"{}\" to \"{}\".",
+        validated.name, validated.new_name
+    )];
+    let mut risks = Vec::new();
+    if let Some(upstream) = &validated.upstream {
+        steps.push(format!(
+            "Keep tracking \"{upstream}\", which keeps its own name."
+        ));
+        risks.push(format!(
+            "The published copy stays called \"{upstream}\"; renaming it there is a separate decision."
+        ));
+    }
+    Ok(RenameVersionLinePlan {
+        // Nothing is lost and nothing leaves this computer: the saved versions
+        // are the same commits under a different local name.
+        operation_kind: OperationKind::LocalMutation,
+        summary: format!(
+            "Rename \"{}\" to \"{}\".",
+            validated.name, validated.new_name
+        ),
+        steps,
+        risks,
+        recovery: format!(
+            "Rename it back to \"{}\" at any time; no saved version is touched.",
+            validated.name
+        ),
+        requires_confirmation: false,
+        state_token: validated.state_token,
+        name: validated.name,
+        new_name: validated.new_name,
+        is_active: validated.is_active,
+        upstream: validated.upstream,
+    })
+}
+
+pub(crate) fn rename_version_line(
+    path: String,
+    name: String,
+    new_name: String,
+    state_token: String,
+) -> Result<VersionLinesSnapshot, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "rename_version_line", None)?;
+    let validated = validate_and_prepare_rename(&path, &name, &new_name)?;
+    if validated.state_token != state_token {
+        return Err(AppError::new(
+            AppErrorCode::StaleVersionLinePlan,
+            "This project changed since the preview was shown.",
+        )
+        .with_remediation("Refresh and try again."));
+    }
+    // `-m`, never `-M`: the forcing variant overwrites an existing branch of
+    // the target name, and losing a line to a rename is exactly the surprise
+    // the name check above exists to prevent.
+    let output = run_git(
+        &path,
+        &["branch", "-m", "--", &validated.name, &validated.new_name],
+    )?;
+    if !output.status.success() {
+        return Err(classify_ref_mutation_failure(
+            &output,
+            "Git couldn't rename this version line.",
+        ));
     }
     get_version_lines(path)
 }

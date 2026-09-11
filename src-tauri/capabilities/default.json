@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
-  "description": "Minimal permissions for the main GitOdile window. `opener:allow-open-url` enables the command but carries no scope of its own, so the two destinations the app can actually open are listed explicitly: the public issue tracker and Git's own download pages.",
+  "description": "Minimal permissions for the main GitOdile window. `opener:allow-open-url` enables the command but carries no scope of its own, so every destination the app can actually open is listed explicitly: the public issue tracker, Git's own download pages, and the home pages of the four projects About credits in \"Built with\".",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -10,11 +10,16 @@
     "core:window:allow-start-dragging",
     "core:window:allow-toggle-maximize",
     "dialog:allow-open",
+    "dialog:allow-save",
     {
       "identifier": "opener:allow-open-url",
       "allow": [
         { "url": "https://github.com/martinezelx/gitodile-feedback/*" },
-        { "url": "https://git-scm.com/download/*" }
+        { "url": "https://git-scm.com/download/*" },
+        { "url": "https://tauri.app/*" },
+        { "url": "https://react.dev/*" },
+        { "url": "https://www.typescriptlang.org/*" },
+        { "url": "https://www.rust-lang.org/*" }
       ]
     },
     "os:allow-locale",

@@ -151,15 +151,17 @@ describe("ChangesPanel save selection", () => {
     const added = screen.getByRole("checkbox", { name: "Include new.txt in this version" });
     expect(edited).toBeChecked();
     expect(added).toBeChecked();
-    expect(screen.getAllByText("Project root")).toHaveLength(2);
+    // Two rows plus the open file's own header, which names its folder the
+    // same way the row it was chosen from does.
+    expect(screen.getAllByText("Project root")).toHaveLength(3);
 
-    // With nothing selected there is no count to name, so the button falls
-    // back to its plain label — and is disabled.
+    // Nothing selected is not a selection to name, so the button reads as the
+    // plain action it always was — and is disabled.
     await userEvent.click(screen.getByRole("checkbox", { name: "Select none" }));
-    expect(screen.getByRole("button", { name: "Save version" })).toBeDisabled();
+    expect(within(screen.getByRole("group", { name: "Changes" })).getByRole("button", { name: "Save version" })).toBeDisabled();
 
     await userEvent.click(edited);
-    await userEvent.click(screen.getByRole("button", { name: "Save selected (1)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save selected" }));
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
@@ -169,6 +171,65 @@ describe("ChangesPanel save selection", () => {
       }),
     );
     expect(await screen.findByText("1 other file will remain as a pending change.")).toBeInTheDocument();
+  });
+
+  it("saves through the quick commit box docked under the file list, without opening Save Version", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") {
+        return Promise.resolve({ kind: "unchanged", path: "edited.txt" });
+      }
+      if (command === "plan_save_version") {
+        return Promise.resolve({
+          operationKind: "history-mutation",
+          requiresConfirmation: true,
+          stateToken: "quick-token",
+          branch: "main",
+          isFirstVersion: false,
+          totalFiles: 2,
+          remainingFiles: 0,
+          isPartial: false,
+          hasPreparedChanges: false,
+          counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+        });
+      }
+      if (command === "save_version") {
+        return Promise.resolve({
+          commit: "abc123abc123abc123abc123abc123abc123ab",
+          shortCommit: "abc123a",
+          title: "quick fix",
+          description: null,
+          branch: "main",
+          savedFiles: 2,
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={workingTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.type(screen.getByLabelText("Version name"), "quick fix");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText('Saved "quick fix" as abc123a.')).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
+      path: "/repo",
+      sessionEpoch: "test-epoch",
+      selectedPaths: ["edited.txt", "new.txt"],
+    });
+    // The full dialog, with its own plan preview, never opened for this.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("reuses a cached diff until the working-tree snapshot changes", async () => {
@@ -555,13 +616,17 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
   });
 
-  it("keeps the healthy action cluster focused on saving and change actions", () => {
+  it("keeps the healthy heading focused on saving, with the change actions over the list", () => {
     renderPanel();
 
     const actions = screen.getByRole("group", { name: "Changes" });
     expect(within(actions).queryByRole("button", { name: "Check local changes" })).not.toBeInTheDocument();
-    expect(within(actions).getByRole("button", { name: "Save selected (2)" })).toBeEnabled();
-    expect(within(actions).getByRole("button", { name: "More change actions" })).toBeEnabled();
+    expect(within(actions).getByRole("button", { name: "Save version" })).toBeEnabled();
+    // Discarding acts on the files, so its menu sits over the file list rather
+    // than beside Save.
+    expect(within(actions).queryByRole("button", { name: "Discard or restore changes" })).not.toBeInTheDocument();
+    const list = screen.getByRole("navigation", { name: "Changed files" });
+    expect(within(list).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
   });
 
   it("shows the snapshot's added and removed line totals once the diff cache is warm", async () => {
@@ -749,12 +814,12 @@ describe("ChangesPanel review controls", () => {
       </LanguageProvider>,
     );
     await screen.findByRole("button", { name: /edited\.txt/ });
-    await userEvent.click(screen.getByRole("button", { name: "More change actions" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Discard changes in selected file…" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Discard this file’s changes…" }));
     expect(await screen.findByRole("heading", { name: "Discard this file’s changes?" })).toBeInTheDocument();
-    await screen.findByText("edited.txt will return to its latest saved state.");
-    await userEvent.click(screen.getByRole("button", { name: "Discard file changes" }));
-    expect(await screen.findByText("The file’s changes were discarded safely.")).toBeInTheDocument();
+    await screen.findByText("edited.txt goes back to its last saved version.");
+    await userEvent.click(screen.getByRole("button", { name: "Discard these changes" }));
+    expect(await screen.findByText("1 file went back to its last saved version.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo discard" })).toBeInTheDocument();
   });
 
@@ -811,7 +876,7 @@ describe("ChangesPanel review controls", () => {
     const file = await screen.findByRole("button", { name: /new\.txt/ });
     fireEvent.contextMenu(file, { clientX: 180, clientY: 220 });
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard changes…" }));
-    expect(await screen.findByText("new.txt will return to its latest saved state.")).toBeInTheDocument();
+    expect(await screen.findByText("new.txt goes back to its last saved version.")).toBeInTheDocument();
   });
 
   it("says the screen has stopped updating itself, beside the refresh that replaces it", async () => {
@@ -929,19 +994,234 @@ describe("ChangesPanel review controls", () => {
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
-    await userEvent.click(screen.getByRole("button", { name: "More change actions" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard all changes…" }));
 
     // No dialog, no second click: the work is gone and the screen says so.
-    expect(await screen.findByText("2 files were returned to their saved state.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files went back to their last saved version.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Discard all unsaved changes?" })).toBeNull();
     expect(discarded).toEqual([
       { path: "/repo", sessionEpoch: "test-epoch", selectedPath: null, stateToken: "before" },
     ]);
 
     await userEvent.click(screen.getByRole("button", { name: "Undo discard" }));
-    expect(await screen.findByText("The discarded changes were restored.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files are back where they were.")).toBeInTheDocument();
     expect(restores).toBe(1);
+  });
+
+  it("lists every stored discard, says why one cannot be restored, and restores the chosen one", async () => {
+    const restores: unknown[] = [];
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" });
+      if (command === "get_discard_recovery") {
+        return Promise.resolve({ recoveryId: "discard-2", createdAtMs: 2, fileCount: 2, selectedPath: null, stateToken: "token-2" });
+      }
+      if (command === "list_discard_recoveries") {
+        expect(args).toMatchObject({ path: "/repo", sessionEpoch: "test-epoch" });
+        return Promise.resolve([
+          {
+            recoveryId: "discard-2", createdAtMs: 1756000000000, fileCount: 2, selectedPath: null,
+            previewPaths: ["edited.txt", "new.txt"], stateToken: "token-2", availability: "restorable",
+            restoresPreparedState: true,
+          },
+          {
+            recoveryId: "discard-1", createdAtMs: 1755000000000, fileCount: 5, selectedPath: null,
+            previewPaths: ["a.txt", "b.txt", "c.txt", "d.txt"], stateToken: "token-1", availability: "superseded",
+            restoresPreparedState: false,
+          },
+        ]);
+      }
+      if (command === "restore_discarded_changes") {
+        restores.push(args);
+        return Promise.resolve(null);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Restore discarded changes…" }));
+
+    expect(await screen.findByRole("heading", { name: "Restore discarded changes" })).toBeInTheDocument();
+    // Only what can be applied is an option, and the newest of those is chosen
+    // for you. The dialog closes the way the others do, with no Cancel of its
+    // own.
+    const options = screen.getAllByRole("radio");
+    expect(options).toHaveLength(1);
+    expect(options[0]).toBeChecked();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+
+    // The one whose own files were written again is kept and folded away —
+    // its copy is still on disk — and says why when asked for.
+    expect(screen.queryByText("a.txt, b.txt, c.txt, d.txt and 1 more")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "1 more can’t be restored right now" }));
+    expect(screen.getByText("a.txt, b.txt, c.txt, d.txt and 1 more")).toBeInTheDocument();
+    expect(screen.getByText(/One of these files changed after this discard/)).toBeInTheDocument();
+    // This one matches the project as a whole, so it says nothing about
+    // prepared changes: it puts them back with the files.
+    expect(screen.queryByText(/Prepared changes stay/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Restore these changes" }));
+
+    expect(await screen.findByText("2 files are back where they were.")).toBeInTheDocument();
+    expect(restores).toEqual([
+      { path: "/repo", sessionEpoch: "test-epoch", recoveryId: "discard-2", stateToken: "token-2" },
+    ]);
+  });
+
+  it("says a record that only brings its files back will leave prepared changes alone", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" });
+      if (command === "get_discard_recovery") {
+        return Promise.resolve({ recoveryId: "discard-1", createdAtMs: 1, fileCount: 1, selectedPath: null, stateToken: "token-1" });
+      }
+      if (command === "list_discard_recoveries") {
+        return Promise.resolve([
+          {
+            recoveryId: "discard-1", createdAtMs: 1756000000000, fileCount: 1, selectedPath: "gone.txt",
+            previewPaths: ["gone.txt"], stateToken: "token-1", availability: "restorable",
+            // Work happened elsewhere in the project since, so this record's
+            // copy of the index is the older one and stays out of it.
+            restoresPreparedState: false,
+          },
+        ]);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Restore discarded changes…" }));
+
+    expect(await screen.findByRole("radio")).toBeChecked();
+    expect(screen.getByText(/Prepared changes stay as they are/)).toBeInTheDocument();
+  });
+
+  it("asks before deleting a stored copy, and lists what is left afterwards", async () => {
+    const deleted: unknown[] = [];
+    const record = (id: string, path: string) => ({
+      recoveryId: id, createdAtMs: 1756000000000, fileCount: 1, selectedPath: path,
+      previewPaths: [path], stateToken: `token-${id}`, availability: "restorable" as const,
+      restoresPreparedState: true,
+    });
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" });
+      if (command === "get_discard_recovery") {
+        return Promise.resolve({ recoveryId: "keep", createdAtMs: 1, fileCount: 1, selectedPath: null, stateToken: "token-keep" });
+      }
+      if (command === "list_discard_recoveries") {
+        return Promise.resolve(
+          deleted.length === 0
+            ? [record("gone", "doomed.txt"), record("keep", "kept.txt")]
+            : [record("keep", "kept.txt")],
+        );
+      }
+      if (command === "delete_discard_recovery") {
+        deleted.push(args);
+        return Promise.resolve(null);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Restore discarded changes…" }));
+    expect(await screen.findByText("doomed.txt")).toBeInTheDocument();
+
+    // One click asks; it never deletes. There is no undo behind this one.
+    await userEvent.click(screen.getAllByRole("button", { name: "Delete this copy" })[0]);
+    expect(screen.getByText("Delete this copy?")).toBeInTheDocument();
+    expect(deleted).toEqual([]);
+
+    // And it can be called off without touching anything.
+    await userEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(screen.queryByText("Delete this copy?")).not.toBeInTheDocument();
+    expect(deleted).toEqual([]);
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Delete this copy" })[0]);
+    await userEvent.click(screen.getByRole("button", { name: "Delete copy" }));
+
+    await waitFor(() => expect(deleted).toEqual([
+      { path: "/repo", sessionEpoch: "test-epoch", recoveryId: "gone" },
+    ]));
+    // The list says what happened better than a sentence would.
+    await waitFor(() => expect(screen.queryByText("doomed.txt")).not.toBeInTheDocument());
+    expect(screen.getByText("kept.txt")).toBeInTheDocument();
+  });
+
+  it("keeps a way back to discarded work after the last change is discarded", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_discard_recovery") {
+        return Promise.resolve({ recoveryId: "discard-1", createdAtMs: 1, fileCount: 1, selectedPath: null, stateToken: "token-1" });
+      }
+      if (command === "list_discard_recoveries") {
+        return Promise.resolve([
+          {
+            recoveryId: "discard-1", createdAtMs: 1756000000000, fileCount: 1, selectedPath: null,
+            previewPaths: ["gone.txt"], stateToken: "token-1", availability: "restorable" as const,
+            restoresPreparedState: true,
+          },
+        ]);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const clean: WorkingTreeStatus = {
+      ...workingTree,
+      isClean: true,
+      counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 0 },
+      entries: [],
+      hasUnpreparedChanges: false,
+    };
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={clean} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    // Discarding everything takes the file list away, and its menu with it.
+    expect(screen.getByRole("heading", { name: "Nothing to review" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Discard or restore changes" })).not.toBeInTheDocument();
+
+    // The door to what was discarded has to survive that.
+    await userEvent.click(await screen.findByRole("button", { name: "Restore discarded changes…" }));
+    expect(await screen.findByRole("heading", { name: "Restore discarded changes" })).toBeInTheDocument();
+    expect(screen.getByText("gone.txt")).toBeInTheDocument();
+  });
+
+  it("says so plainly when nothing has been discarded yet", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" });
+      if (command === "get_discard_recovery") return Promise.reject({ code: "recovery_unavailable", message: "none" });
+      if (command === "list_discard_recoveries") return Promise.resolve([]);
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("button", { name: /edited\.txt/ });
+    await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
+    // Nothing stored, so the door to the picker is not offered at all.
+    expect(await screen.findByRole("menuitem", { name: "Discard all changes…" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Restore discarded changes…" })).not.toBeInTheDocument();
   });
 
   it("still confirms when the preference is on", async () => {
@@ -966,9 +1246,348 @@ describe("ChangesPanel review controls", () => {
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
-    await userEvent.click(screen.getByRole("button", { name: "More change actions" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard all changes…" }));
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("ChangesPanel filters", () => {
+  class NoopResizeObserver implements ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+
+  const mixedTree: WorkingTreeStatus = {
+    isClean: false,
+    counts: { changed: 2, new: 1, deleted: 1, renamed: 0, conflicted: 1, total: 5 },
+    entries: [
+      { path: "conflict.txt", originalPath: null, category: "conflicted", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "edited.txt", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "also-edited.txt", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "asset.png", originalPath: null, category: "new", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "gone.txt", originalPath: null, category: "deleted", isPrepared: false, hasUnpreparedChanges: true },
+    ],
+    truncated: false,
+    hasPreparedChanges: false,
+    hasUnpreparedChanges: true,
+    upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
+  };
+
+  beforeEach(() => {
+    globalThis.ResizeObserver = NoopResizeObserver;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "conflict.txt" });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+  });
+
+  function renderMixed(): ReturnType<typeof render> {
+    return render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={mixedTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+  }
+
+  function listedFiles(container: HTMLElement): string[] {
+    return [...container.querySelectorAll(".changes-file-list__scroll .changes-file-item__name")]
+      .map((node) => node.textContent ?? "");
+  }
+
+  it("offers only the kinds this working tree holds, and narrows by several at once", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    // Five kinds exist; this tree has four of them, and "Renamed" is not an
+    // answer that could narrow anything here.
+    expect(within(panel).getByRole("checkbox", { name: /Needs attention/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole("checkbox", { name: /Renamed/ })).not.toBeInTheDocument();
+
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /Needs attention/ }));
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /Deleted/ }));
+    expect(listedFiles(container)).toEqual(["conflict.txt", "gone.txt"]);
+
+    // Two kinds, two chips, and a trigger that counts exactly what they name.
+    const chips = container.querySelectorAll(".filter-chip");
+    expect(chips).toHaveLength(2);
+    expect(container.querySelector(".filter-control__badge")).toHaveTextContent("2");
+  });
+
+  it("narrows to what the next version leaves out without changing what it saves", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Include asset.png in this version" }));
+    expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("radio", { name: "No" }));
+
+    expect(listedFiles(container)).toEqual(["asset.png"]);
+    // Filtering changed only what is listed: the count and the select-all
+    // checkbox still answer for the whole working tree.
+    expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
+    expect(screen.getByRole("checkbox", { name: "Select all" })).toBeInTheDocument();
+  });
+
+  it("offers copy, reveal and discard on a file row, with the destructive one fenced off", async () => {
+    const clipboard = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: clipboard } });
+    const { container } = renderMixed();
+    const row = await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    fireEvent.contextMenu(row);
+    const menu = await screen.findByRole("menu", { name: "Context actions" });
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent))
+      .toEqual(["Copy path", "Show in folder", "Discard changes…"]);
+    expect(menu.querySelector('[role="separator"]')).not.toBeNull();
+
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Copy path" }));
+    expect(clipboard).toHaveBeenCalledWith("conflict.txt");
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("cannot show a deleted file in a folder it is no longer in", async () => {
+    renderMixed();
+    const row = await screen.findByRole("button", { name: /gone\.txt/ });
+
+    fireEvent.contextMenu(row);
+    const menu = await screen.findByRole("menu", { name: "Context actions" });
+    expect(within(menu).getByRole("menuitem", { name: "Show in folder" })).toBeDisabled();
+    // The row already says "Deleted", so the item owes no second explanation.
+    expect(within(menu).getByRole("menuitem", { name: "Copy path" })).toBeEnabled();
+  });
+
+  it("closes the menu the moment reveal is pressed rather than waiting on the file manager", async () => {
+    // The real call ends in a synchronous Windows shell call that can take a
+    // moment while Explorer starts. A menu held open and disabled across that
+    // reads as a freeze, so the press closes it and the wait is invisible.
+    let settle: (() => void) | undefined;
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "reveal_project_file") return new Promise<void>((resolve) => { settle = resolve; });
+      if (command === "read_file_diff") return Promise.resolve({ kind: "unchanged", path: "conflict.txt" });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const { container } = renderMixed();
+    const row = await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    fireEvent.contextMenu(row);
+    const menu = await screen.findByRole("menu", { name: "Context actions" });
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Show in folder" }));
+
+    // Gone while the reveal is still in flight, and nothing left greyed behind.
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+    // The frontend never names a place on the disk: Rust resolves the
+    // repository-relative path against the open project itself.
+    expect(mockedInvoke).toHaveBeenCalledWith("reveal_project_file", {
+      path: "/repo",
+      sessionEpoch: "test-epoch",
+      filePath: "conflict.txt",
+    });
+    settle?.();
+  });
+
+  it("says so on the screen when the file manager never appears", async () => {
+    renderMixed();
+    const row = await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    fireEvent.contextMenu(row);
+    const menu = await screen.findByRole("menu", { name: "Context actions" });
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Show in folder" }));
+
+    // The stub rejects everything but `read_file_diff`. The menu that asked is
+    // already gone, so the message needs a surface that outlives it.
+    const notice = await screen.findByText("That file couldn't be shown.");
+    expect(notice.closest(".changes-notice--error")).not.toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByText("That file couldn't be shown.")).not.toBeInTheDocument();
+  });
+
+  it("offers the file types most of the list first and narrows by one", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    // Four .txt against one .png, so the type burying the list leads.
+    const typeNames = [...panel.querySelectorAll(".changes-filter__types .filter-panel__switch-label")]
+      .map((node) => node.textContent);
+    expect(typeNames).toEqual([".txt", ".png"]);
+
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /\.png/ }));
+    expect(listedFiles(container)).toEqual(["asset.png"]);
+  });
+
+  it("hides a type instead of naming every other one", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    const types = within(panel).getByRole("group", { name: "Show or hide the chosen file type" });
+    await userEvent.click(within(types).getByRole("radio", { name: "Hide" }));
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /\.png/ }));
+    await userEvent.keyboard("{Escape}");
+
+    // One click puts the pictures away; the four other files stay.
+    expect(listedFiles(container)).toEqual(["conflict.txt", "edited.txt", "also-edited.txt", "gone.txt"]);
+    // The chip says what it is doing, not just what it names, and its remove
+    // button says putting them back.
+    expect(screen.getByText("Hiding .png")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show .png again" }));
+    expect(listedFiles(container)).toHaveLength(5);
+  });
+
+  it("keeps each group pointing its own way", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    // Only the edited ones, and not the .png among them: one group showing,
+    // one hiding, in the same panel.
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /Edited/ }));
+    const types = within(panel).getByRole("group", { name: "Show or hide the chosen file type" });
+    await userEvent.click(within(types).getByRole("radio", { name: "Hide" }));
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /\.png/ }));
+
+    expect(listedFiles(container)).toEqual(["edited.txt", "also-edited.txt"]);
+    // The badge counts the answers, never the modes.
+    expect(container.querySelector(".filter-control__badge")).toHaveTextContent("2");
+  });
+
+  it("does not ask about file type when there is only one to tell apart", async () => {
+    const oneType = {
+      ...mixedTree,
+      entries: mixedTree.entries.filter((entry) => entry.path.endsWith(".txt")),
+    };
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={oneType}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    expect(within(panel).queryByRole("group", { name: "Show or hide the chosen file type" })).not.toBeInTheDocument();
+    // The kinds are still worth asking about, so the panel is not empty.
+    expect(within(panel).getByRole("checkbox", { name: /Edited/ })).toBeInTheDocument();
+  });
+
+  it("drops a type filter the tree no longer has anything to tell apart", async () => {
+    const { rerender, container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("checkbox", { name: /\.png/ }));
+    await userEvent.keyboard("{Escape}");
+    expect(container.querySelector(".filter-control__badge")).toHaveTextContent("1");
+
+    // The picture is saved; only `.txt` is left. The panel stops offering the
+    // question, so a filter counted on the trigger would have nowhere to be
+    // undone — it goes with it.
+    rerender(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={{ ...mixedTree, entries: mixedTree.entries.filter((entry) => entry.path.endsWith(".txt")) }}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(container.querySelector(".filter-control__badge")).toBeNull();
+    expect(container.querySelectorAll(".filter-chip")).toHaveLength(0);
+  });
+
+  it("does not ask what the next version takes when no file can be left out", async () => {
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={{ ...mixedTree, truncated: true }}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    // Past the cap the checkboxes are disabled and the next version takes
+    // everything, so the question has one true answer and is not asked.
+    expect(within(panel).getByRole("checkbox", { name: /Edited/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole("radio", { name: "Any" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("radio", { name: "Yes" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("radio", { name: "No" })).not.toBeInTheDocument();
+  });
+
+  it("says why a filtered list is empty and offers the way back", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const panel = screen.getByRole("dialog", { name: "Filters" });
+    await userEvent.click(within(panel).getByRole("checkbox", { name: /Deleted/ }));
+    await userEvent.click(within(panel).getByRole("radio", { name: "Yes" }));
+    await userEvent.click(within(panel).getByRole("radio", { name: "Any" }));
+    // Nothing is excluded, so "left out" can only be empty.
+    await userEvent.click(within(panel).getByRole("radio", { name: "No" }));
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.getByText("No changed file matches what you are looking for.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+
+    expect(listedFiles(container)).toHaveLength(5);
+    expect(container.querySelectorAll(".filter-chip")).toHaveLength(0);
+  });
+
+  it("removes one filter from its chip and walks the narrowed list file to file", async () => {
+    const { container } = renderMixed();
+    await screen.findByRole("button", { name: /conflict\.txt/ });
+
+    await userEvent.click(screen.getByRole("button", { name: /^edited\.txt/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("checkbox", { name: /Edited/ }));
+    await userEvent.keyboard("{Escape}");
+
+    expect(listedFiles(container)).toEqual(["edited.txt", "also-edited.txt"]);
+    // The arrows walk what is shown, not what is loaded — the same rule the
+    // search box already established.
+    expect(screen.getByText("File 1 of 2")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Remove the Edited filter" }));
+    expect(listedFiles(container)).toHaveLength(5);
   });
 });

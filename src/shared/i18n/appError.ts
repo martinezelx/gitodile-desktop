@@ -35,10 +35,12 @@ export const APP_ERROR_CODES = [
   "remote_connect_failed", "remote_connect_uncertain",
   "publish_uncertain", "get_team_changes_uncertain", "git_version_too_old", "version_line_name_taken",
   "version_line_name_collides", "version_line_checked_out_elsewhere", "version_line_is_active",
+  "version_line_is_default", "version_line_missing",
   "version_line_unique_work", "version_line_switch_obstructed", "stale_version_line_plan",
   "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
   "recovery_unavailable", "recovery_conflict", "recovery_failed",
   "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed",
+  "install_blocked",
 ] as const;
 
 export type AppError = {
@@ -149,6 +151,8 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     version_line_name_collides: t.errorVersionLineNameCollides,
     version_line_checked_out_elsewhere: t.errorVersionLineCheckedOutElsewhere,
     version_line_is_active: t.errorVersionLineIsActive,
+    version_line_is_default: t.errorVersionLineIsDefault,
+    version_line_missing: t.errorVersionLineMissing,
     version_line_unique_work: t.errorVersionLineUniqueWork,
     version_line_switch_obstructed: t.errorVersionLineSwitchObstructed,
     stale_version_line_plan: t.errorStaleVersionLinePlan,
@@ -165,6 +169,7 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     ignore_file_not_text: t.errorIgnoreFileNotText,
     stale_ignore_file: t.errorStaleIgnoreFile,
     ignore_file_write_failed: t.errorIgnoreFileWriteFailed,
+    install_blocked: fallback,
   };
   return messages[error.code] ?? fallback;
 }

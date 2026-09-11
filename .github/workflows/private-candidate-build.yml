@@ -1,0 +1,179 @@
+name: Private signed-build candidate
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate immutable source identity
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+      channel: ${{ steps.identity.outputs.channel }}
+      profile: ${{ steps.identity.outputs.profile }}
+      sha: ${{ steps.identity.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch the approved main boundary
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - name: Validate tag, ancestry, revision, versions and channel
+        run: >-
+          node scripts/release/release-candidate.mjs
+          --event push
+          --tag "$GITHUB_REF_NAME"
+          --sha "$GITHUB_SHA"
+          --main-ref refs/remotes/origin/main
+          --output candidate.json
+      - name: Export validated non-secret identity
+        id: identity
+        run: |
+          node -e "const c=require('./candidate.json'); const fs=require('fs'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version='+c.release.version+'\nchannel='+c.release.channel+'\nprofile='+c.release.signingProfile+'\nsha='+c.source.sha+'\n')"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: candidate-identity
+          path: candidate.json
+          if-no-files-found: error
+          retention-days: 30
+
+  build:
+    name: Build unsigned ${{ matrix.target }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x86_64
+            rustTarget: x86_64-pc-windows-msvc
+            runner: windows-2025
+            bundle: nsis
+          - target: darwin-aarch64
+            rustTarget: aarch64-apple-darwin
+            runner: macos-15
+            bundle: app
+          - target: darwin-x86_64
+            rustTarget: x86_64-apple-darwin
+            runner: macos-15
+            bundle: app
+          - target: linux-x86_64
+            rustTarget: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            bundle: appimage
+    runs-on: ${{ matrix.runner }}
+    env:
+      GITODILE_UPDATER_PUBLIC_KEY: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY || vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
+      GITODILE_UPDATER_PUBLIC_KEY_ID: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID || vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
+      GITODILE_QUALIFIED_UPDATE_TARGETS: ""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: candidate-identity
+      - name: Require reviewed public updater identity
+        shell: bash
+        run: node -e "if (!process.env.GITODILE_UPDATER_PUBLIC_KEY || !process.env.GITODILE_UPDATER_PUBLIC_KEY_ID) { console.error('Required updater public identity is not configured for this signing profile.'); process.exit(1) }"
+      - name: Install Linux packaging dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          targets: ${{ matrix.rustTarget }}
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build without signing credentials
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: >-
+          pnpm tauri build --ci --no-sign
+          --target ${{ matrix.rustTarget }}
+          --bundles ${{ matrix.bundle }}
+          --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: Stage Windows package only
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $source = Get-ChildItem "src-tauri/target/${{ matrix.rustTarget }}/release/bundle/nsis" -Filter "*-setup.exe" -File
+          if ($source.Count -ne 1) { throw "Expected exactly one NSIS package" }
+          New-Item -ItemType Directory -Path "candidate/${{ matrix.target }}" | Out-Null
+          Copy-Item -LiteralPath $source.FullName -Destination "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_x64-setup.exe"
+          node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "first-install-and-updater=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_x64-setup.exe" --output "candidate/${{ matrix.target }}/evidence.json"
+      - name: Stage macOS app bundle only
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_root="src-tauri/target/${{ matrix.rustTarget }}/release/bundle/macos"
+          apps=()
+          while IFS= read -r -d '' item; do apps+=("$item"); done < <(find "$app_root" -maxdepth 1 -name '*.app' -type d -print0)
+          test "${#apps[@]}" -eq 1
+          mkdir -p "candidate/${{ matrix.target }}"
+          ditto -c -k --sequesterRsrc --keepParent "${apps[0]}" "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_${{ matrix.target }}-unsigned-app.zip"
+          node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "staged-app=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_${{ matrix.target }}-unsigned-app.zip" --output "candidate/${{ matrix.target }}/evidence.json"
+      - name: Stage Linux package only
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' packages < <(find "src-tauri/target/${{ matrix.rustTarget }}/release/bundle/appimage" -maxdepth 1 -name '*.AppImage' -type f -print0)
+          test "${#packages[@]}" -eq 1
+          mkdir -p "candidate/${{ matrix.target }}"
+          cp "${packages[0]}" "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_amd64.AppImage"
+          node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "first-install-and-updater=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_amd64.AppImage" --output "candidate/${{ matrix.target }}/evidence.json"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: unsigned-${{ matrix.target }}
+          path: candidate/${{ matrix.target }}
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
+
+  matrix-gate:
+    name: Require the complete unsigned matrix
+    needs: [validate, build]
+    if: ${{ always() && needs.validate.result == 'success' && needs.build.result == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: unsigned-*
+          path: unsigned
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: candidate-identity
+      - name: Verify hashes, provenance and complete target set
+        run: node scripts/release/release-evidence.mjs verify-matrix --candidate candidate.json --directory unsigned --phase unsigned
+      - name: Record complete private candidate gate
+        run: node -e "const fs=require('fs'); const c=require('./candidate.json'); fs.writeFileSync('matrix-gate.json', JSON.stringify({schemaVersion:1,source:c.source,release:c.release,result:'passed',publicPromotionAllowed:false},null,2)+'\n',{flag:'wx'})"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: complete-unsigned-matrix
+          path: matrix-gate.json
+          if-no-files-found: error
+          retention-days: 30

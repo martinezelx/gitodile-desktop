@@ -11,9 +11,9 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
   background: var(--surface-panel);
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  line-height: 1.5;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
   white-space: nowrap;
 }
 .status-breakdown__item--new { border-color: color-mix(in srgb, var(--status-success) 45%, transparent); color: var(--status-success); }

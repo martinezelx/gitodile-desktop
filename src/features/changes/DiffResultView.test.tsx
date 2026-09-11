@@ -1,11 +1,12 @@
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { translations } from "../../i18n";
 import { DiffResultView, lineColumns, widestRowColumns } from "./DiffResultView";
+import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
 import { DiffPreferencesProvider, DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "./diffPreferences";
-import type { DiffHunk, FileDiff } from "./domain";
+import type { DiffHunk, FileDiff, ImagePreview, ImagePreviewSide } from "./domain";
 
 afterEach(cleanup);
 
@@ -172,5 +173,175 @@ describe("DiffResultView reading preferences", () => {
     // pane for a file the list says has changed reads as a bug.
     expect(screen.getByRole("heading", { name: "Only spacing changed" })).toBeInTheDocument();
     expect(document.querySelector(".diff-code")).toBeNull();
+  });
+});
+
+/** A one-pixel PNG and a hostile SVG, as base64 — the two shapes the preview
+ * has to handle: something the webview draws, and something a repository can
+ * put in front of the app. */
+const PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const HOSTILE_SVG = btoa(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">' +
+    '<script>window.__svgRan = true;</script>' +
+    '<image href="https://example.invalid/pixel.png" />' +
+    "</svg>",
+);
+
+function imageDiff(path = "assets/logo.png"): FileDiff {
+  return { kind: "image", path, originalPath: null, change: "changed" };
+}
+
+function ready(data: string, mediaType: string, byteLength = 64): ImagePreviewSide {
+  return { kind: "ready", mediaType, byteLength, data };
+}
+
+/** Stands in for a surface: it owns the picture the way ChangesPanel and
+ * History do — the pickers in its own header strip, the pictures in the diff
+ * view below — so these tests exercise the wiring the app actually uses. */
+function PictureHost({
+  diff,
+  preview,
+  viewMode,
+}: {
+  diff: FileDiff;
+  preview: ImagePreview | null;
+  viewMode?: "accessible";
+}): React.JSX.Element {
+  const picture = usePictureDiff(diff, "test-source", preview === null ? undefined : async () => preview);
+  return (
+    <DiffPreferencesProvider value={DEFAULT_DIFF_PREFERENCES}>
+      <div className="changes-diff__controls">
+        {picture && <PictureDiffControls picture={picture} t={t} />}
+      </div>
+      <DiffResultView diff={diff} picture={picture} viewMode={viewMode} t={t} />
+    </DiffPreferencesProvider>
+  );
+}
+
+function renderImage(diff: FileDiff, preview: ImagePreview | null, viewMode?: "accessible") {
+  return render(<PictureHost diff={diff} preview={preview} viewMode={viewMode} />);
+}
+
+describe("changed images", () => {
+  it("shows both versions as pictures instead of a note", async () => {
+    renderImage(imageDiff(), {
+      before: ready(PNG_BASE64, "image/png", 90),
+      after: ready(PNG_BASE64, "image/png", 120),
+    });
+
+    const before = await screen.findByAltText("assets/logo.png before this change");
+    const after = screen.getByAltText("assets/logo.png after this change");
+    expect(before).toHaveAttribute("src", `data:image/png;base64,${PNG_BASE64}`);
+    expect(after).toHaveAttribute("src", `data:image/png;base64,${PNG_BASE64}`);
+    // The size delta is part of what the picture is being asked, so it is
+    // stated next to it rather than left to be worked out.
+    expect(screen.getByText(/30 B larger/)).toBeInTheDocument();
+  });
+
+  it("offers the three ways to compare, and only when there are two versions", async () => {
+    const { unmount } = renderImage(imageDiff(), {
+      before: ready(PNG_BASE64, "image/png"),
+      after: ready(PNG_BASE64, "image/png"),
+    });
+
+    // One picker in the diff language's own style, not a third kind of
+    // control: the trigger names itself and its current choice.
+    fireEvent.click(await screen.findByRole("button", { name: "How to compare (Side by side)" }));
+    expect(screen.getByRole("menuitemradio", { name: "Side by side" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: "Swipe" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: "Fade" })).toBeInTheDocument();
+    unmount();
+
+    renderImage(imageDiff(), { before: null, after: ready(PNG_BASE64, "image/png") });
+
+    // An added image has nothing to compare against, so the control that
+    // compares is not offered at all.
+    expect(await screen.findByText("Added")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /How to compare/ })).toBeNull();
+    cleanup();
+
+    renderImage(imageDiff(), { before: ready(PNG_BASE64, "image/png"), after: null });
+
+    expect(await screen.findByText("Removed")).toBeInTheDocument();
+    expect(screen.getByAltText("assets/logo.png before this change")).toBeInTheDocument();
+  });
+
+  it("moves the divider from the keyboard", async () => {
+    renderImage(imageDiff(), {
+      before: ready(PNG_BASE64, "image/png"),
+      after: ready(PNG_BASE64, "image/png"),
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "How to compare (Side by side)" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Swipe" }));
+    const slider = screen.getByRole("slider", { name: "Move the divider" });
+    fireEvent.change(slider, { target: { value: "70" } });
+
+    expect(document.querySelector(".image-diff__stage--swipe")).toHaveStyle({
+      "--image-diff-position": "70%",
+    });
+  });
+
+  it("says a version is too large instead of drawing an empty frame", async () => {
+    renderImage(imageDiff(), {
+      before: { kind: "too-large", byteLength: 20 * 1024 * 1024, limitBytes: 10 * 1024 * 1024 },
+      after: ready(PNG_BASE64, "image/png"),
+    });
+
+    expect(await screen.findByText(/larger than 10 MB/)).toBeInTheDocument();
+  });
+
+  it("keeps the plain note when the surface cannot say which versions to compare", () => {
+    renderImage(imageDiff(), null);
+
+    expect(
+      screen.getByRole("heading", { name: "This file can’t be previewed as text" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("changed SVGs", () => {
+  const svgDiff: FileDiff = {
+    kind: "text",
+    path: "src/assets/icon.svg",
+    originalPath: null,
+    change: "changed",
+    truncated: false,
+    hunks: [realChangeHunk],
+  };
+
+  it("opens on the drawing and keeps the source one press away", async () => {
+    renderImage(
+      svgDiff,
+      { before: ready(HOSTILE_SVG, "image/svg+xml"), after: ready(HOSTILE_SVG, "image/svg+xml") },
+      "accessible",
+    );
+
+    expect(await screen.findByAltText("src/assets/icon.svg before this change")).toBeInTheDocument();
+    expect(diffText()).toBe("");
+
+    fireEvent.click(screen.getByRole("button", { name: "How to read this file (Drawing)" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Source" }));
+
+    // The text diff that exists today, unchanged, is what Source returns to.
+    expect(diffText()).toContain("-const a = 1;");
+    expect(screen.queryByAltText("src/assets/icon.svg before this change")).toBeNull();
+  });
+
+  it("draws repository SVG through an img, never as markup", async () => {
+    renderImage(svgDiff, {
+      before: ready(HOSTILE_SVG, "image/svg+xml"),
+      after: ready(HOSTILE_SVG, "image/svg+xml"),
+    });
+
+    const drawing = await screen.findByAltText("src/assets/icon.svg after this change");
+    expect(drawing.tagName).toBe("IMG");
+    expect(drawing.getAttribute("src")).toBe(`data:image/svg+xml;base64,${HOSTILE_SVG}`);
+    // Nothing from the file reaches the app's own document, which is what
+    // keeps a script or a remote reference inside it inert.
+    expect(document.querySelector("svg script")).toBeNull();
+    expect(document.body.innerHTML).not.toContain("example.invalid");
+    expect((window as unknown as { __svgRan?: boolean }).__svgRan).toBeUndefined();
   });
 });

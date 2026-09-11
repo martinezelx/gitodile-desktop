@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import { useInstallDraftBlocker } from "../../runtime/drafts";
 import type { RepositoryInfo } from "../repository";
 import type { SaveVersionController } from "../save-version";
 import { isAppError, localizeAppError } from "../../shared/i18n";
@@ -128,6 +129,11 @@ export function InitializeProjectDialog({
   const [cleanupAfterFailure, setCleanupAfterFailure] = useState(false);
   const [connectedRemoteName, setConnectedRemoteName] = useState<string | null>(null);
   const { errors, formProps, fieldProps, validate, reset: resetFieldErrors } = useFieldErrors();
+  useInstallDraftBlocker(
+    "initialize-project-dialog",
+    "new project details",
+    isOpen && step !== "success",
+  );
 
   const resetTransientState = (): void => {
     setStep("input");

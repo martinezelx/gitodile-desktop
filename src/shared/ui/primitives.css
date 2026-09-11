@@ -1,12 +1,12 @@
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background-color: color-mix(in srgb, var(--text-secondary) 35%, transparent);
+  background-color: color-mix(in srgb, var(--text-secondary-color) 35%, transparent);
   border-radius: var(--radius-pill);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--text-secondary) 60%, transparent); }
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--text-secondary-color) 60%, transparent); }
 ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar-corner { background: transparent; }
 
@@ -37,7 +37,7 @@
 .auto-hide-scrollbar--pointer-active::-webkit-scrollbar-thumb,
 .auto-hide-scrollbar:focus-visible::-webkit-scrollbar-thumb,
 .auto-hide-scrollbar:has(:focus-visible)::-webkit-scrollbar-thumb {
-  background-color: color-mix(in srgb, var(--text-secondary) 32%, transparent);
+  background-color: color-mix(in srgb, var(--text-secondary-color) 32%, transparent);
 }
 .auto-hide-scrollbar::-webkit-scrollbar-button,
 .auto-hide-scrollbar::-webkit-scrollbar-button:single-button,
@@ -52,7 +52,7 @@
   background: transparent;
 }
 .auto-hide-scrollbar::-webkit-scrollbar-corner { background: transparent; }
-.eyebrow { margin-bottom: 6px; color: var(--accent-primary); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.eyebrow { margin-bottom: 6px; color: var(--accent-primary); font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 
 /* The labelled button carries its own size. It used to declare padding and
    radius only, which left its height to `line-height: normal` over the
@@ -78,9 +78,9 @@
   padding: 6px var(--space-3);
   font-size: var(--control-font-sm);
 }
-.primary-button { background: var(--accent-brand); color: var(--accent-brand-contrast); border-color: transparent; font-weight: 700; }
+.primary-button { background: var(--accent-brand); color: var(--accent-brand-contrast); border-color: transparent; font-weight: var(--weight-title); }
 .primary-button:not(:disabled):hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
-.secondary-button { background: var(--surface-hover); color: var(--text-primary); }
+.secondary-button { background: var(--surface-hover); color: var(--text-primary-color); }
 .secondary-button:not(:disabled):hover { background: var(--surface-active); }
 .primary-button:disabled, .secondary-button:disabled { opacity: 0.5; }
 .ghost-button {
@@ -93,13 +93,13 @@
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   font: inherit;
   font-size: var(--control-font-sm);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.ghost-button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary); }
+.ghost-button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .ghost-button:disabled { opacity: 0.5; }
 .ghost-button svg { width: 14px; height: 14px; flex-shrink: 0; }
 .automatic-updates-notice {
@@ -114,8 +114,8 @@
 }
 .automatic-updates-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; color: var(--status-warning); }
 .automatic-updates-notice__body { flex: 1; min-width: 0; }
-.automatic-updates-notice strong { display: block; margin-bottom: 2px; font-size: 12px; }
-.automatic-updates-notice p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.automatic-updates-notice strong { display: block; margin-bottom: 2px; font-size: var(--text-label); }
+.automatic-updates-notice p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 .automatic-updates-notice__actions { flex: 0 0 auto; align-self: center; display: flex; align-items: center; gap: var(--space-2); }
 @media (max-width: 760px) {
   .automatic-updates-notice { flex-wrap: wrap; }
@@ -133,6 +133,34 @@
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
+/* The line a screen opens on: its own name, one line of state beside it, and
+   whatever that screen can do about it at the far end. Changes and History both
+   wrote this row by hand and had already drifted — one pinned the title's
+   leading and the other left it to the browser, so the same 22px heading did
+   not even measure the same on the two screens. One definition, so switching
+   between two screens moves nothing that is meant to be the same.
+
+   `baseline` is what lets the 22px title and the 14px caption share a row
+   without the caption reading as dropped, and the wrap is for the narrow
+   window, where the sentence returns to a line of its own rather than being
+   cut. A screen with no actions simply renders the heading; the row still
+   measures the same, which is the point. */
+.screen-header {
+  /* The row measures a labelled action whether or not this screen has one, so
+     a screen that only states its name still hands the panels below it the
+     same first pixel row as the screen next to it. Without it Changes — whose
+     header carries Save — started its panels 12px lower than History's, and
+     the whole workbench nudged on every switch between them. */
+  min-height: var(--control-height-md);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-5);
+}
+.screen-header__heading { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.screen-header__heading h1 { margin: 0; line-height: var(--leading-tight); }
+.screen-header__heading p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-lead); }
+@media (max-width: 800px) {
+  .screen-header { flex-direction: column; align-items: stretch; }
+}
+
 .empty-state {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; max-width: 380px; margin: 0 auto; padding: 40px 24px; text-align: center;
@@ -140,11 +168,11 @@
 .empty-state__icon {
   width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 14px;
   border-radius: var(--radius-round); background: var(--surface-raised); border: 1px solid var(--border-subtle);
-  color: var(--text-secondary); box-shadow: var(--shadow-sm);
+  color: var(--text-secondary-color); box-shadow: var(--shadow-sm);
 }
 .empty-state__icon svg { width: 20px; height: 20px; }
-.empty-state h2 { font-size: 17px; margin-bottom: 6px; }
-.empty-state p { color: var(--text-secondary); font-size: 14px; line-height: 1.55; margin-bottom: 22px; }
+.empty-state h2 { font-size: var(--text-title); margin-bottom: 6px; }
+.empty-state p { color: var(--text-secondary-color); font-size: var(--text-lead); line-height: var(--leading-normal); margin-bottom: 22px; }
 .empty-state__actions { display: flex; gap: 10px; }
 
 .empty-state__icon--loading svg { animation: spin 900ms linear infinite; }
@@ -156,13 +184,13 @@
   display: flex; align-items: center; gap: var(--space-2); justify-content: space-between;
   margin: 0 0 var(--space-4); padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
-  background: var(--surface-panel); color: var(--text-secondary); font-size: 13px;
+  background: var(--surface-panel); color: var(--text-secondary-color); font-size: var(--text-body);
 }
 .restore-skipped-notice button {
   flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
 }
-.restore-skipped-notice button:hover { background: var(--surface-hover); color: var(--text-primary); }
+.restore-skipped-notice button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .restore-skipped-notice button svg { width: 14px; height: 14px; }
 .card-row-divider {
   position: relative;
@@ -205,13 +233,13 @@
 }
 .segmented-control__option {
   display: flex; align-items: center; gap: 8px; padding: 8px 14px; border: 0; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-secondary); font-weight: 600; font-size: 14px;
+  background: transparent; color: var(--text-secondary-color); font-weight: var(--weight-strong); font-size: var(--text-lead);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .segmented-control__option svg { width: 16px; height: 16px; }
-.segmented-control__option:hover:not(.segmented-control__option--active) { color: var(--text-primary); }
-.segmented-control__option--active { background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-sm); }
-.text-field { display: grid; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+.segmented-control__option:hover:not(.segmented-control__option--active) { color: var(--text-primary-color); }
+.segmented-control__option--active { background: var(--surface-raised); color: var(--text-primary-color); box-shadow: var(--shadow-sm); }
+.text-field { display: grid; gap: 6px; font-size: var(--text-body); color: var(--text-secondary-color); }
 /* A single-line field is the same box as a button — DESIGN.md § Shape asks the
    two to read as one family, and the Clone and Initialize path pickers put one
    of each in a single grid row, where any difference is visible. It keeps its
@@ -219,19 +247,118 @@
 .text-field input {
   min-height: var(--control-height-md);
   padding: 6px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); color: var(--text-primary); font: inherit; font-size: 14px; outline: none;
+  background: var(--surface-hover); color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); outline: none;
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
 .text-field input:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
 .text-field input[aria-invalid="true"],
 .text-field textarea[aria-invalid="true"] { border-color: var(--status-danger); }
 
+/* The other single-line field: the one that narrows a list rather than
+   collecting a value. Same box as `.text-field input` a tier down, because it
+   lives inside a panel's strip and must not out-weigh the rows under it —
+   DESIGN.md § Size, which is also where the type size comes from.
+
+   Four features had written this pill by hand at 32, 34 and 36px over three
+   different backgrounds, and the History timeline's had drifted furthest from
+   the Changes file list it is meant to read as a sibling of. */
+.search-box {
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--control-height-sm);
+  display: flex;
+  align-items: center;
+  /* The trailing inset is the small one because something always stands
+     there: the clear button holds its 24px whether or not there is anything
+     to clear, so the text can never run to the border. */
+  padding: 0 var(--space-1) 0 var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+/* The input, not `:focus-within`: a trailing filter is a control of its own
+   with its own focus ring, and lighting the whole pill for it says the user is
+   about to type when they are not. */
+.search-box:has(.search-box__field input:focus) { border-color: var(--focus-ring); background: var(--surface-raised); }
+/* The label is the field, not the pill: it forwards a click to the input, and
+   wrapped around the whole box it would answer for the trailing controls too. */
+.search-box__field { min-width: 0; flex: 1; display: flex; align-items: center; gap: var(--space-2); }
+.search-box__field > svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.search-box__field input {
+  min-width: 0; flex: 1; padding: 0; border: 0; outline: none;
+  background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--control-font-sm);
+}
+.search-box__field input::placeholder { color: var(--text-secondary-color); }
+/* WebKit draws its own clear control inside a search input — a blue-grey glyph
+   at a size and colour this app never chose, and one that cannot be restyled
+   past its own shape. Turned off; `.search-box__clear` is ours. */
+.search-box__field input::-webkit-search-cancel-button,
+.search-box__field input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+/* Same box as the controls a host may put in the trailing slot, so everything
+   standing at that end of the pill reads as one family. An affordance attached
+   to the input, so it is rectangular rather than a circle — DESIGN.md § Shape. */
+.search-box__clear {
+  width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 auto;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background-color var(--duration-fast), color var(--duration-fast);
+}
+.search-box__clear:hover { background: var(--surface-raised); color: var(--text-primary-color); }
+.search-box__clear[data-empty] { visibility: hidden; }
+.search-box__clear svg { width: 14px; height: 14px; }
+.search-box__trailing { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; padding-inline-start: var(--space-2); }
+/* A rule rather than a gap: what follows it acts on the list, not on what is
+   typed, and the pill has to say so without growing a second border. */
+/* The app's checkbox: a filled circle with a tick, not the platform's square.
+   DESIGN.md § Shape puts a checkbox with the avatars and the timeline nodes —
+   an atomic thing with no reading direction — and this is the one definition
+   of it. Carries no margin: where it sits is the host's business.
+
+   The Changes file list had it to itself until the History filter panel needed
+   the same control, which is ADR 0003's bar. */
+.app-checkbox {
+  appearance: none; display: grid; place-content: center; flex: 0 0 auto;
+  width: 18px; height: 18px; margin: 0;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
+  background: var(--surface-raised);
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.app-checkbox::before {
+  content: ""; width: 8px; height: 4px;
+  border-inline-start: 2px solid var(--accent-primary-contrast);
+  border-bottom: 2px solid var(--accent-primary-contrast);
+  transform: translate(0.25px, -1px) rotate(-45deg) scale(0);
+  transform-origin: center;
+  transition: transform var(--duration-fast);
+}
+.app-checkbox:hover { border-color: var(--accent-primary); }
+.app-checkbox:checked, .app-checkbox:indeterminate {
+  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
+}
+.app-checkbox:checked::before { transform: translate(0.25px, -1px) rotate(-45deg) scale(1); }
+/* A dash, not a tick: some of the set, not all of it. */
+.app-checkbox:indeterminate::before {
+  width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary-contrast);
+  transform: translate(0, 0) rotate(0deg) scale(1);
+}
+.app-checkbox:disabled { opacity: 0.55; }
+.app-checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (forced-colors: active) {
+  .app-checkbox { appearance: auto; }
+}
+
+.search-box__trailing::before {
+  content: ""; align-self: center; flex: 0 0 auto;
+  width: 1px; height: 16px; margin-inline-end: var(--space-1);
+  background: var(--border-divider);
+}
+
 /* The app-owned replacement for the browser's native validation bubble: it
    stays put while the user fixes the field, follows the theme, and is read
    out through the control's own `aria-describedby`. */
 .field-error {
   display: flex; align-items: center; gap: var(--space-2); margin: 0;
-  color: var(--status-danger); font-size: 12.5px; line-height: 1.45;
+  color: var(--status-danger); font-size: var(--text-label); line-height: var(--leading-normal);
 }
 .field-error svg { flex: 0 0 auto; width: 14px; height: 14px; }
 
@@ -244,10 +371,10 @@
   border: 0;
   border-radius: var(--radius-item);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.dialog-close-button:hover { background: var(--surface-hover); color: var(--text-primary); }
+.dialog-close-button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .dialog-close-button svg { width: 18px; height: 18px; }
 
 .toggle-switch {
@@ -256,7 +383,7 @@
   transition: background var(--duration-fast);
 }
 .toggle-switch__knob {
-  display: block; width: 16px; height: 16px; border-radius: var(--radius-round); background: var(--text-secondary);
+  display: block; width: 16px; height: 16px; border-radius: var(--radius-round); background: var(--text-secondary-color);
   transition: transform var(--duration-fast), background var(--duration-fast);
 }
 .toggle-switch--on { background: var(--accent-primary-fill); border-color: transparent; }
@@ -267,14 +394,16 @@
 /* The shared anchored-popup surface, worn by every app-styled dropdown that
    is not a native `<select>` (the Changes view picker, the titlebar menus).
    It belongs here rather than in a feature file precisely so features can
-   still override it: the cascade order in `styles.css` puts shared
-   primitives ahead of every feature, so a rule like
-   `.changes-view-picker__menu { left: 0 }` wins on equal specificity. When
+   still override it: the cascade order in `styles.css` puts shared primitives
+   ahead of every feature, so a rule like
+   `.changes-actions-menu__popup { left: 0 }` wins on equal specificity. When
    this block lived in `features/version-lines/version-lines.css` it loaded
    *after* `features/changes/changes.css`, so `.app-menu`'s `right: 0` beat
    the Changes override and dropped that menu leftwards, overlapping the file
    list beside it. Default alignment stays `right: 0` — most triggers in this
-   app sit at the right edge of their row. */
+   app sit at the right edge of their row, and a menu that opens off that edge
+   is one a panel with `overflow: hidden` cuts in half. A feature aligns this
+   the other way only when its trigger is *not* at that edge. */
 .app-menu {
   position: absolute; top: calc(100% + 6px); right: 0; left: auto; z-index: 5;
   min-width: 220px; max-width: min(320px, calc(100vw - 2 * var(--space-5)));
@@ -285,14 +414,24 @@
   background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .app-menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* An `.app-menu` pinned to the pointer instead of to a trigger. `fixed`, and
+   the four inset properties reset, because `.app-menu` positions itself off a
+   trigger's box — a context menu has no trigger, only a point. */
+.context-menu {
+  position: fixed; right: auto; bottom: auto; z-index: 30;
+  min-width: 148px; max-width: min(320px, calc(100vw - 16px));
+}
+.context-menu .app-menu__item--danger,
+.context-menu .app-menu__item--danger svg { color: var(--status-danger); }
+.context-menu .app-menu__item:disabled { opacity: 0.42; cursor: default; }
 .app-menu__item {
   display: flex; align-items: center; gap: 8px;
   text-align: left; padding: 8px 10px; border-radius: var(--radius-item); background: transparent; border: 0;
-  color: var(--text-primary); font-size: 13px; overflow-wrap: anywhere;
+  color: var(--text-primary-color); font-size: var(--text-body); overflow-wrap: anywhere;
 }
-.app-menu__item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary); }
+.app-menu__item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
 .app-menu__item:hover { background: var(--surface-hover); }
-.app-menu__item--selected { color: var(--text-primary); font-weight: 600; }
+.app-menu__item--selected { color: var(--text-primary-color); font-weight: var(--weight-strong); }
 .app-menu__check { margin-left: auto; color: var(--accent-primary) !important; }
 .app-menu__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
@@ -329,8 +468,8 @@
 .loading-state__message {
   margin: 0;
   padding: 0 var(--space-4);
-  color: var(--text-secondary);
-  font-size: 13px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-body);
   text-align: center;
 }
 
@@ -355,8 +494,8 @@
     overflow: visible;
     clip-path: none;
     white-space: normal;
-    color: var(--text-secondary);
-    font-size: 13px;
+    color: var(--text-secondary-color);
+    font-size: var(--text-body);
     text-align: center;
   }
   .loading-bar__indicator { background: color-mix(in srgb, var(--accent-primary) 32%, transparent); }
@@ -381,7 +520,152 @@
      row and their own tighter gap. */
 }
 
+/* A day, and the calendar it is chosen from.
+ *
+ * Drawn here rather than left to `<input type="date">`, whose popup takes none
+ * of these tokens, changes with the WebView under the app, and writes the date
+ * in the operating system's format while the rest of the product writes it in
+ * the one the reader picked. See `datePicker.tsx` for the rest of that
+ * reasoning. */
+.date-field { position: relative; display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.date-field__trigger {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--control-height-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+  font: inherit;
+  font-size: var(--control-font-sm);
+  text-align: left;
+  transition: border-color var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
+}
+.date-field__trigger:hover { border-color: var(--border-control); }
+.date-field__trigger:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.date-field__trigger[aria-expanded="true"] { border-color: var(--accent-primary); background: var(--surface-panel); }
+/* A field holding a day and a field waiting for one are not the same thing, and
+   the difference cannot rest on colour: the value is there, in the weight the
+   rest of the app gives a fact. */
+.date-field__trigger--set { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.date-field__trigger > svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.date-field__value {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.date-field__clear {
+  width: 24px; height: 24px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.date-field__clear:hover { background: var(--surface-active); color: var(--text-primary-color); }
+.date-field__clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.date-field__clear svg { width: 12px; height: 12px; }
+.date-field__popup {
+  /* Fixed and on `document.body`: the panels this is opened from sit inside
+     columns that clip their overflow, so an absolutely positioned calendar is
+     cut at the column's edge. `datePicker.tsx` places it. */
+  position: fixed;
+  z-index: 60;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.date-calendar { display: grid; gap: var(--space-2); }
+.date-calendar__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.date-calendar__month {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-strong);
+  /* The month name is the one thing here that changes length between locales,
+     so it gets the room and the day cells keep their column. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.date-calendar__step {
+  width: 24px; height: 24px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.date-calendar__step:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.date-calendar__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* A month entirely outside `min`/`max` has nothing to step to, and a button that
+   answers nothing when pressed is worse than one that says it cannot. */
+.date-calendar__step:disabled { opacity: 0.42; cursor: default; }
+.date-calendar__step svg { width: 14px; height: 14px; }
+.date-calendar__grid { display: grid; gap: 2px; }
+.date-calendar__week { display: grid; grid-template-columns: repeat(7, 28px); gap: 2px; }
+/* A hairline under the initials, so the week's header reads as the header of
+   the columns below it rather than as a first, oddly quiet row of days. */
+.date-calendar__week:first-child {
+  margin-bottom: 2px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.date-calendar__weekday {
+  display: grid; place-items: center;
+  height: 18px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+}
+.date-calendar__day {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  padding: 0; border: 1px solid transparent; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-primary-color);
+  font: inherit; font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+.date-calendar__day:hover { background: var(--surface-hover); }
+.date-calendar__day:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+/* The days either side of this month are shown, not hidden: a grid that jumps
+   its shape every month is harder to read than one with quiet edges. */
+.date-calendar__day--outside { color: var(--text-secondary-color); opacity: 0.55; }
+/* Today is marked by a ring and the chosen day by a fill, so the two are told
+   apart without either depending on colour alone. The ring is the accent rather
+   than a neutral border: at 28px, a hairline in `--border-control` is invisible
+   against the surface it sits on, which makes "today" a mark nobody sees. */
+.date-calendar__day--today { border-color: var(--accent-primary); }
+/* The pair every checked control in this file uses: the light-green fill, which
+   is the same green in both themes, under the dark ink meant to sit on it.
+   `--accent-primary` is not that pair — on light it is a dark green, and white
+   ink on it in one theme and dark in the other is two decisions where there
+   should be none. */
+.date-calendar__day--selected {
+  background: var(--accent-primary-fill);
+  border-color: var(--accent-primary-fill);
+  color: var(--accent-primary-contrast);
+  font-weight: var(--weight-strong);
+}
+.date-calendar__day--selected:hover { background: var(--accent-primary-fill); }
+/* Both at once — today, chosen — reads as chosen: the fill is the stronger
+   statement and the ring would only muddy its edge. */
+.date-calendar__day--today.date-calendar__day--selected { border-color: var(--accent-primary-fill); }
+.date-calendar__day[aria-disabled="true"] { opacity: 0.35; }
+.date-calendar__day[aria-disabled="true"]:hover { background: transparent; }
+
 @media (pointer: coarse) {
+  .date-calendar__day { width: 34px; height: 34px; }
+  .date-calendar__week { grid-template-columns: repeat(7, 34px); }
   .primary-button,
   .secondary-button,
   .ghost-button,
@@ -399,13 +683,232 @@
 
 @media (hover: none) {
   .auto-hide-scrollbar::-webkit-scrollbar-thumb {
-    background-color: color-mix(in srgb, var(--text-secondary) 32%, transparent);
+    background-color: color-mix(in srgb, var(--text-secondary-color) 32%, transparent);
   }
 }
 
 @media (forced-colors: active) {
   .auto-hide-scrollbar::-webkit-scrollbar-thumb { background-color: ButtonText; }
 }
+
+/* ---------------------------------------------------------------------------
+ * Filter surface: the trigger with its count, the panel it opens, the groups,
+ * capsules and switches a filter is written in, and the chips that say what is
+ * on.
+ *
+ * History wrote all of it (tasks 113–120) while it was the only list with
+ * filters. The Changes file list is the second, asking a different question of
+ * a different list through the same control in the same slot — ADR 0003's bar
+ * for a primitive — so the vocabulary lost its feature name and moved here.
+ * What stayed behind is what only History has: the completion fields, the
+ * version-line picker and the two ends of a date range.
+ * ------------------------------------------------------------------------- */
+.filter-control { display: inline-flex; }
+/* One trigger for every filter, and it never grows. Filters used to be menus
+   that printed their current value into the strip, which cost width in
+   proportion to how many there were — a sidebar column of ~300px cannot pay
+   that for five of them. The count is the whole message: something is on, and
+   this much of it. An affordance attached to the search box, so it stays
+   rectangular rather than joining the circle family (DESIGN.md § Shape) and
+   takes the tier below its side: 10 over 24 is 0.42, inside the band that
+   reads as clearly rounded and clearly not a circle. */
+.filter-control__trigger {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  transition: background-color var(--duration-fast) ease-out, color var(--duration-fast) ease-out;
+}
+.filter-control__trigger:hover { background: var(--surface-raised); color: var(--text-primary-color); }
+.filter-control__trigger[aria-expanded="true"] { background: var(--surface-active); color: var(--text-primary-color); }
+.filter-control__trigger--active { background: var(--surface-active); color: var(--accent-primary); }
+.filter-control__trigger svg { width: 14px; height: 14px; }
+/* A filled count, not a bare tint: a filter that is narrowing what the user is
+   looking at must not be distinguishable by colour alone. */
+.filter-control__badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-primary);
+  color: var(--accent-primary-contrast);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-none);
+}
+/* A form, not a menu, so it takes the surface an `.app-menu` takes but lays
+   its own contents out. It spans the strip that opens it — both insets equal,
+   no width of its own — so it is centred on the column at every width and can
+   never be clipped by the panel that holds it. The host makes that strip the
+   containing block; the trigger is 24px wide and could anchor nothing.
+
+   No `overflow` of its own, deliberately: History puts absolutely positioned
+   lists inside this panel, and a scroll container here would clip them. */
+.filter-panel {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: var(--space-2);
+  right: var(--space-2);
+  z-index: 5;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+.filter-panel:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.filter-panel__group {
+  /* Named so the legend rule below cannot drift from it. */
+  --filter-group-gap: 6px;
+  display: grid;
+  gap: var(--filter-group-gap);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+/* A `<legend>` is not a grid item — Chromium lays it out above the fieldset's
+   box, outside the `gap` — so the groups labelled by one sat flush against
+   their capsules while the ones labelled by a `<label>` kept their 6px.
+   Measured at 0px against 6px before this. */
+.filter-panel__group > legend { margin-bottom: var(--filter-group-gap); }
+.filter-panel__label { color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); padding: 0; }
+/* One choice out of a short fixed set, so it reads as a segmented row of
+   capsules rather than a column of dots — and one row, which is what the names
+   are kept short enough to allow. `wrap` stays as the way out: a translation
+   longer than these drops to a second line rather than being cut, and a capsule
+   that wraps is still a capsule where a segmented control with hard borders
+   would not be. */
+.filter-panel__capsules { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* Five answers on one line, at a panel that gives its groups 276px.
+   Measured, because it is decided in pixels and in two languages: at the row's
+   ordinary 8px padding the five come to 260px in English and 318px in Spanish,
+   where "Personalizado" alone is 87px. Shortening that one word and taking 2px
+   off each side brings them to 233px and 261px — fitting both, with room left
+   for a font that renders a little wider. Wrapping is still allowed: a language
+   longer than Spanish should break the row rather than the words. */
+.filter-panel__capsules--dense .filter-panel__capsule { padding: 0 6px; }
+/* A one- or two-letter answer — "Yes", "No", "Sí" — comes out 26px wide beside
+   its own 26px height, and a square with a pill radius is a circle. DESIGN.md
+   § Shape reserves circles for atomic things with no reading direction, which a
+   segmented answer is not, so the shortest capsule keeps a floor that holds it
+   visibly wider than it is tall. Only on the roomy rows: `--dense` exists for a
+   row whose fit was counted in pixels, and a floor there could break it. */
+.filter-panel__capsules:not(.filter-panel__capsules--dense) .filter-panel__capsule { min-width: 44px; justify-content: center; }
+.filter-panel__capsule {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.filter-panel__capsule:hover { border-color: var(--border-divider); background: var(--surface-hover); color: var(--text-primary-color); }
+/* The input is hidden, not removed, so the ring has to be drawn on the capsule
+   the eye actually sees. */
+.filter-panel__capsule:has(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.filter-panel__capsule--active {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  background: var(--surface-active);
+  color: var(--accent-primary);
+}
+.filter-panel__switch {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 6px;
+  border-radius: var(--radius-item);
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+  transition: background var(--duration-fast);
+}
+.filter-panel__switch:hover { background: var(--surface-hover); }
+.filter-panel__switch svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.filter-panel__switch-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* How many rows the switch stands for, at the caption tier: a fact about the
+   list, not a second label. */
+.filter-panel__count { flex: 0 0 auto; color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
+.filter-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-divider);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+
+/* What is on, under the strip that set it. The trigger's badge counts them;
+   these name them, and each ends on its own — which is the part a count can
+   never offer. Their own row, because chips inside the search pill take the
+   width from the field they sit in. Present only while something is on, so
+   the list keeps its full height the rest of the time. */
+.filter-chips {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2);
+}
+.filter-chip {
+  max-width: 100%;
+  min-width: 0;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-active);
+  color: var(--accent-primary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+}
+/* A chip that states context rather than a filter — which history is being
+   read, not how much of one is shown. It leads the row and is marked as a
+   different kind of thing. */
+.filter-chip--quiet {
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-raised));
+  color: var(--text-primary-color);
+}
+.filter-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.filter-chip__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-chip__remove {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: inherit;
+  transition: background var(--duration-fast);
+}
+.filter-chip__remove:hover { background: color-mix(in srgb, var(--accent-primary) 18%, transparent); }
+.filter-chip__remove svg { width: 12px; height: 12px; }
 
 /* ---------------------------------------------------------------------------
  * Settings-panel chrome.
@@ -429,15 +932,15 @@
 }
 .settings-nav__item {
   width: 100%; min-height: 42px; padding: 0 12px; display: flex; align-items: center; gap: 11px;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary);
-  text-align: left; font-size: 13.5px; font-weight: 600; line-height: 1.25;
+  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
+  text-align: left; font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-tight);
   transition: background var(--duration-fast), color var(--duration-fast), box-shadow var(--duration-fast);
 }
-.settings-nav__item:hover { background: var(--surface-hover); color: var(--text-primary); }
+.settings-nav__item:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .settings-nav__item--active {
-  background: color-mix(in srgb, var(--text-primary) 9%, var(--surface-raised));
-  color: var(--text-primary); font-weight: 700;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 12%, transparent);
+  background: color-mix(in srgb, var(--text-primary-color) 9%, var(--surface-raised));
+  color: var(--text-primary-color); font-weight: var(--weight-title);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary-color) 12%, transparent);
 }
 .settings-nav__item--active > span:first-child { color: var(--accent-primary); }
 .settings-nav__item > span:first-child { width: 18px; height: 18px; display: grid; place-items: center; }
@@ -457,9 +960,9 @@
   border-top: 1px solid var(--border-divider);
 }
 .settings-group__header { padding: 0; }
-.settings-group__header h3 { margin: 0 0 4px; font-size: 14.5px; line-height: 1.35; }
+.settings-group__header h3 { margin: 0 0 4px; font-size: var(--text-lead); line-height: var(--leading-snug); }
 .settings-group__header p {
-  max-width: 68ch; margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.45;
+  max-width: 68ch; margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal);
 }
 .settings-group__body {
   padding: 0;
@@ -483,9 +986,9 @@
   background: var(--surface-hover);
 }
 .settings-view .segmented-control__option--active {
-  background: color-mix(in srgb, var(--text-primary) 9%, var(--surface-raised));
-  color: var(--text-primary);
-  font-weight: 700;
+  background: color-mix(in srgb, var(--text-primary-color) 9%, var(--surface-raised));
+  color: var(--text-primary-color);
+  font-weight: var(--weight-title);
 }
 .settings-view .segmented-control__option--active svg { color: var(--accent-primary); }
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
@@ -499,11 +1002,11 @@
    as it moves between the active value and a range complaint. */
 .settings-row__status { min-height: 18px; }
 .settings-row + .settings-row { margin-top: var(--space-4); }
-.settings-row strong { display: block; margin-bottom: 3px; font-size: 13.5px; line-height: 1.35; }
-.settings-row p { max-width: 64ch; color: var(--text-secondary); font-size: 13.5px; line-height: 1.45; margin-bottom: 0; }
+.settings-row strong { display: block; margin-bottom: 3px; font-size: var(--text-body); line-height: var(--leading-snug); }
+.settings-row p { max-width: 64ch; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); margin-bottom: 0; }
 .settings-row__hint {
   display: flex; align-items: center; gap: 6px; margin: 0;
-  color: var(--text-secondary); font-size: 12px;
+  color: var(--text-secondary-color); font-size: var(--text-label);
 }
 .settings-row__hint svg { flex-shrink: 0; width: 13px; height: 13px; }
 /* Only the two tones the identity notice can actually take. The Git action
@@ -530,24 +1033,24 @@
 .choice-list__option {
   display: grid; gap: 3px; padding: 10px var(--space-3); text-align: left;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
-  background: var(--surface-raised); color: var(--text-primary);
+  background: var(--surface-raised); color: var(--text-primary-color);
 }
 .choice-list__option:hover:not(:disabled) { background: var(--surface-hover); }
 .choice-list__option:disabled { cursor: default; opacity: 0.6; }
 .choice-list__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .choice-list__option--active {
-  border-color: var(--text-secondary);
-  background: color-mix(in srgb, var(--text-primary) 7%, var(--surface-raised));
+  border-color: var(--text-secondary-color);
+  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-raised));
 }
 .choice-list__label {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
-  font-size: 13.5px; font-weight: 650;
+  font-size: var(--text-body); font-weight: var(--weight-heading);
 }
-.choice-list__description { color: var(--text-secondary); font-size: 12.5px; line-height: 1.45; }
+.choice-list__description { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 .choice-list__badge {
   padding: 1px 7px; border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
-  color: var(--accent-primary); font-size: 11px; font-weight: 600;
+  color: var(--accent-primary); font-size: var(--text-caption); font-weight: var(--weight-strong);
 }
 
 @media (max-width: 800px) {

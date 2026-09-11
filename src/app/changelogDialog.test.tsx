@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../i18n";
-import { APP_CHANGELOG, CURRENT_APP_RELEASE } from "./appRelease";
+import { APP_CHANGELOG, CURRENT_APP_RELEASE, appReleaseChannel } from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
 
 afterEach(() => {
@@ -26,13 +26,22 @@ function TriggerAndDialog(): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <LanguageProvider>
-      <button type="button" onClick={() => setIsOpen(true)}>v0.1.0</button>
+      <button type="button" onClick={() => setIsOpen(true)}>v{__APP_VERSION__}</button>
       <ChangelogDialog isOpen={isOpen} setOpen={setIsOpen} />
     </LanguageProvider>
   );
 }
 
 describe("Changelog dialog", () => {
+  it("derives stable and preview channels from the release version", () => {
+    expect(appReleaseChannel("0.1.0")).toBe("stable");
+    expect(appReleaseChannel("0.2.0-preview.1")).toBe("preview");
+    expect(() => appReleaseChannel("0.2.0-alpha.1")).toThrow(/Unsupported GitOdile release version/);
+    expect(() => appReleaseChannel("0.2.0-preview.0")).toThrow(/Unsupported GitOdile release version/);
+    expect(() => appReleaseChannel("0.2.0-preview.01")).toThrow(/Unsupported GitOdile release version/);
+    expect(() => appReleaseChannel("01.2.0")).toThrow(/Unsupported GitOdile release version/);
+    expect(() => appReleaseChannel("0.2.0+build.7")).toThrow(/Unsupported GitOdile release version/);
+  });
   it("renders nothing while closed", () => {
     render(
       <LanguageProvider>
@@ -43,7 +52,15 @@ describe("Changelog dialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("lists every bundled release with its channel, date, and notes", () => {
+  it("keeps bundled notes offline and checks remotely only after the explicit action", async () => {
+    const onCheckForUpdates = vi.fn();
+    render(<LanguageProvider><ChangelogDialog isOpen setOpen={vi.fn()} onCheckForUpdates={onCheckForUpdates} /></LanguageProvider>);
+    expect(onCheckForUpdates).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Check for GitOdile updates" }));
+    expect(onCheckForUpdates).toHaveBeenCalledOnce();
+  });
+
+  it("lists every bundled release with its channel, date, and notes", async () => {
     renderDialog();
 
     const dialog = screen.getByRole("dialog", { name: "What's new" });
@@ -54,7 +71,12 @@ describe("Changelog dialog", () => {
       const rendered = releases[index] as HTMLElement;
       expect(within(rendered).getByRole("heading", { name: `v${release.version}` })).toBeInTheDocument();
       expect(rendered).toHaveTextContent(release.channel);
-      expect(rendered.querySelector("time")).toHaveAttribute("dateTime", release.date);
+      if (release.date === null) {
+        expect(rendered.querySelector("time")).toBeNull();
+      } else {
+        expect(rendered.querySelector("time")).toHaveAttribute("dateTime", release.date);
+      }
+      await userEvent.click(within(rendered).getByRole("button"));
       expect(rendered.querySelectorAll(".changelog-release__notes li")).toHaveLength(release.noteIds.length);
     }
   });
@@ -67,13 +89,24 @@ describe("Changelog dialog", () => {
     expect(current.closest(".changelog-release")).toHaveTextContent(`v${CURRENT_APP_RELEASE.version}`);
   });
 
-  it("localizes the heading, the running-version marker, and the notes", () => {
+  it("keeps each release compact until its notes are requested", async () => {
+    renderDialog();
+    const currentHeading = screen.getByRole("heading", { name: `v${CURRENT_APP_RELEASE.version}` });
+    const disclosure = currentHeading.closest("button");
+
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(disclosure as HTMLElement);
+    expect(disclosure).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("localizes the heading, the running-version marker, and the notes", async () => {
     localStorage.setItem("gitodile-language", "es");
     renderDialog();
 
     const dialog = screen.getByRole("dialog", { name: "Novedades" });
     expect(within(dialog).getByText("Estás usando esta")).toBeInTheDocument();
-    expect(within(dialog).getByText(/Consulta la línea de versión actual/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: /v0\.2\.0-preview\.1/ }));
+    expect(within(dialog).getByText(/GitOdile utiliza ahora/)).toBeInTheDocument();
   });
 
   it("closes from the close button, Escape, and the backdrop", async () => {
@@ -100,7 +133,7 @@ describe("Changelog dialog", () => {
 
   it("returns focus to whatever opened it", async () => {
     render(<TriggerAndDialog />);
-    const trigger = screen.getByRole("button", { name: "v0.1.0" });
+    const trigger = screen.getByRole("button", { name: `v${__APP_VERSION__}` });
 
     await userEvent.click(trigger);
     expect(await screen.findByRole("dialog", { name: "What's new" })).toBeInTheDocument();

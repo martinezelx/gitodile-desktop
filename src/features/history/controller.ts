@@ -8,16 +8,33 @@ import type {
   HistoryState,
   SavedVersionDetail,
 } from "./domain";
-import type { HistoryPort, HistoryQuery } from "./port";
+import {
+  CURRENT_LINE_SCOPE,
+  NO_HISTORY_FILTERS,
+  sameHistoryFilters,
+  sameHistoryScope,
+  type HistoryFilters,
+  type HistoryPort,
+  type HistoryQuery,
+  type HistoryScope,
+} from "./port";
 
 type Listener = () => void;
+type InFlight = { generation: number; promise: Promise<void> };
 type Entry = {
   state: HistoryState;
   listeners: Set<Listener>;
   firstPageRequest: { generation: number; promise: Promise<void> } | null;
   moreRequest: { generation: number; cursor: string; promise: Promise<void> } | null;
-  detailRequests: Map<string, Promise<void>>;
-  diffRequests: Map<string, Promise<void>>;
+  /** In-flight reads, with the generation they were started under.
+   *
+   * The generation is not bookkeeping: a request from a superseded generation
+   * publishes nothing when it lands, so handing it back to a later caller
+   * leaves that caller waiting for an answer that never arrives — and the pane
+   * it belongs to stranded on its empty state. Coalescing is only sound
+   * between callers asking the same question at the same generation. */
+  detailRequests: Map<string, InFlight>;
+  diffRequests: Map<string, InFlight>;
   details: Map<string, CachedDetail>;
   diffs: Map<string, CachedDiff>;
   cacheBytes: number;
@@ -38,6 +55,8 @@ const EMPTY_DIFF = { diff: null, isLoading: false, error: null } as const;
 function emptyState(query: HistoryQuery): HistoryState {
   return {
     ...query,
+    filters: NO_HISTORY_FILTERS,
+    scope: CURRENT_LINE_SCOPE,
     snapshot: null,
     versions: [],
     isLoading: false,
@@ -190,7 +209,7 @@ export function createHistoryController(port: HistoryPort) {
       return Promise.resolve();
     }
     const current = entry.diffRequests.get(key);
-    if (current) return current;
+    if (current && current.generation === generation) return current.promise;
     if (entry.state.selectedCommit === commit && entry.state.selectedFilePath === filePath) {
       publish(entry, { ...entry.state, fileDiff: { diff: null, isLoading: true, error: null } });
     }
@@ -210,9 +229,9 @@ export function createHistoryController(port: HistoryPort) {
         }
       })
       .finally(() => {
-        if (entry.diffRequests.get(key) === request) entry.diffRequests.delete(key);
+        if (entry.diffRequests.get(key)?.promise === request) entry.diffRequests.delete(key);
       });
-    entry.diffRequests.set(key, request);
+    entry.diffRequests.set(key, { generation, promise: request });
     return request;
   };
 
@@ -228,20 +247,34 @@ export function createHistoryController(port: HistoryPort) {
     const cached = entry.details.get(commit);
     if (cached) {
       cached.usedAt = ++clock;
-      const selectedFilePath = entry.state.selectedFilePath ?? cached.detail.files[0]?.path ?? null;
+      // The same choice the read below makes, and for the same reason: a file
+      // that is not in this version's list cannot be the one it opens on. No
+      // caller reaches this branch with a stale path today — every route into
+      // it nulls the selection first — so this is the two branches agreeing
+      // rather than a fault being fixed, and there is deliberately no test
+      // pinning it: one would pass either way.
+      const selectedFilePath = cached.detail.files.some((file) => file.path === entry.state.selectedFilePath)
+        ? entry.state.selectedFilePath
+        : cached.detail.files[0]?.path ?? null;
       if (entry.state.selectedCommit === commit) {
+        // A diff belongs to one commit and one file under one snapshot token.
+        // When all three still hold, the one on screen is the answer already —
+        // emptying it here and reading it again is a blank frame and a round
+        // trip to arrive back where we started.
+        const keepsDiff = entry.state.selectedFilePath === selectedFilePath
+          && entry.state.fileDiff.diff !== null;
         publish(entry, {
           ...entry.state,
           selectedFilePath,
           detail: { detail: cached.detail, isLoading: false, error: null },
-          fileDiff: EMPTY_DIFF,
+          fileDiff: keepsDiff ? entry.state.fileDiff : EMPTY_DIFF,
         });
-        if (selectedFilePath) void loadFileDiff(query, entry, generation, commit, selectedFilePath);
+        if (!keepsDiff && selectedFilePath) void loadFileDiff(query, entry, generation, commit, selectedFilePath);
       }
       return Promise.resolve();
     }
     const current = entry.detailRequests.get(commit);
-    if (current) return current;
+    if (current && current.generation === generation) return current.promise;
     if (entry.state.selectedCommit === commit) {
       publish(entry, { ...entry.state, detail: { detail: null, isLoading: true, error: null }, fileDiff: EMPTY_DIFF });
     }
@@ -254,10 +287,16 @@ export function createHistoryController(port: HistoryPort) {
         const selectedFilePath = detail.files.some((file) => file.path === entry.state.selectedFilePath)
           ? entry.state.selectedFilePath
           : detail.files[0]?.path ?? null;
+        // `selectionRemoved` is not cleared here. It says the version that was
+        // open is gone and this one was chosen instead — and the read landing
+        // is the *completion* of that move, not the user acknowledging it.
+        // Clearing it here retracted a `role="status"` message within one round
+        // trip of publishing it, which is to say it was never read. It stands
+        // until the next version is chosen, which is where `selectVersion`
+        // clears it.
         publish(entry, {
           ...entry.state,
           selectedFilePath,
-          selectionRemoved: false,
           detail: { detail, isLoading: false, error: null },
           fileDiff: EMPTY_DIFF,
         });
@@ -281,9 +320,9 @@ export function createHistoryController(port: HistoryPort) {
         }
       })
       .finally(() => {
-        if (entry.detailRequests.get(commit) === request) entry.detailRequests.delete(commit);
+        if (entry.detailRequests.get(commit)?.promise === request) entry.detailRequests.delete(commit);
       });
-    entry.detailRequests.set(commit, request);
+    entry.detailRequests.set(commit, { generation, promise: request });
     return request;
   };
 
@@ -303,11 +342,25 @@ export function createHistoryController(port: HistoryPort) {
     const previousSnapshotToken = entry.state.snapshot?.snapshotToken;
     const previousSelection = entry.state.selectedCommit;
     const promise = port
-      .readPage({ ...query, pageSize: HISTORY_INITIAL_PAGE_SIZE })
+      .readPage({
+        ...query,
+        pageSize: HISTORY_INITIAL_PAGE_SIZE,
+        filters: entry.state.filters,
+        scope: entry.state.scope,
+      })
       .then((page) => {
         if (entry.state.generation !== generation) return;
         if (previousSnapshotToken !== page.snapshotToken) clearContentCaches(entry);
         const selectedCommit = previousSelection ?? page.versions[0]?.commit ?? null;
+        // The card on the right describes one saved version, and a page that
+        // arrives under the same snapshot with the same version selected has
+        // said nothing about it. Emptying it anyway is what made every filter
+        // change tear down the whole right-hand side and build it again from
+        // the cache a frame later — the list is what the filter narrowed, and
+        // the list is all that should move.
+        const keepsDetail = previousSnapshotToken === page.snapshotToken
+          && previousSelection === selectedCommit
+          && entry.state.detail.detail !== null;
         publish(entry, {
           ...entry.state,
           snapshot: pageSnapshot(page),
@@ -318,8 +371,8 @@ export function createHistoryController(port: HistoryPort) {
           error: null,
           moreError: null,
           clientTruncated: false,
-          detail: EMPTY_DETAIL,
-          fileDiff: EMPTY_DIFF,
+          detail: keepsDetail ? entry.state.detail : EMPTY_DETAIL,
+          fileDiff: keepsDetail ? entry.state.fileDiff : EMPTY_DIFF,
         });
         if (selectedCommit) {
           const validatingSelection = previousSelection !== null && !page.versions.some((item) => item.commit === previousSelection);
@@ -345,7 +398,13 @@ export function createHistoryController(port: HistoryPort) {
     const generation = entry.state.generation;
     publish(entry, { ...entry.state, isLoadingMore: true, moreError: null });
     const promise = port
-      .readPage({ ...query, cursor, pageSize: HISTORY_PAGE_SIZE })
+      .readPage({
+        ...query,
+        cursor,
+        pageSize: HISTORY_PAGE_SIZE,
+        filters: entry.state.filters,
+        scope: entry.state.scope,
+      })
       .then((page) => {
         if (entry.state.generation !== generation) return;
         const snapshot = entry.state.snapshot;
@@ -385,6 +444,44 @@ export function createHistoryController(port: HistoryPort) {
     return promise;
   };
 
+  /** Ask a different question of the same history cache.
+   *
+   * The rows on screen stay until the new answer lands. They belong to the
+   * previous question and `isLoading` says so, but blanking the list meant a
+   * flash on every click, and — because an empty list has no last row — it also
+   * tripped the timeline's "near the end, fetch more" rule the instant it
+   * emptied. That fired a page request carrying the *old* cursor against the
+   * *new* question: an offset counted through one history applied to another.
+   * Nulling the pagination pointers here is what makes that impossible; the
+   * fresh page brings its own.
+   *
+   * `isLoading` is set here rather than left to `refreshInternal` a line later:
+   * between the two publishes the question is already the new one while the
+   * rows are still the old answer, and a screen reading those together has to
+   * be told a read is in flight. React coalesces the pair today; the state
+   * should be truthful without depending on it. */
+  const restartTimeline = (
+    query: HistoryQuery,
+    entry: Entry,
+    question: Partial<Pick<HistoryState, "filters" | "scope">>,
+  ): Promise<void> => {
+    entry.firstPageRequest = null;
+    entry.moreRequest = null;
+    publish(entry, {
+      ...entry.state,
+      ...question,
+      snapshot: entry.state.snapshot
+        ? { ...entry.state.snapshot, nextCursor: null, hasMore: false }
+        : null,
+      isLoading: true,
+      scrollOffset: 0,
+      clientTruncated: false,
+      moreError: null,
+      generation: entry.state.generation + 1,
+    });
+    return refreshInternal(query, false);
+  };
+
   return {
     port,
     getSnapshot(query: HistoryQuery): HistoryState {
@@ -397,6 +494,41 @@ export function createHistoryController(port: HistoryPort) {
     },
     refresh(query: HistoryQuery): Promise<void> {
       return refreshInternal(query, false);
+    },
+    /** Narrow the timeline, and read it again.
+     *
+     * The rows on screen stay until the new answer lands. They belong to the
+     * previous question and `isLoading` says so, but blanking the list meant a
+     * flash on every click, and — because an empty list has no last row — it
+     * also tripped the timeline's "near the end, fetch more" rule the instant
+     * it emptied. That fired a page request carrying the *old* cursor with the
+     * *new* filters: an offset counted through one history applied to another.
+     * Nulling the pagination pointers here is what makes that impossible; the
+     * fresh page brings its own.
+     *
+     * The selection stays too. It is still a real saved version — the list
+     * narrowed, the version did not go anywhere — and its detail is already
+     * cached, so keeping it costs no read where clearing it cost two. */
+    setFilters(query: HistoryQuery, filters: HistoryFilters): Promise<void> {
+      const entry = entryFor(query);
+      if (sameHistoryFilters(entry.state.filters, filters)) return Promise.resolve();
+      return restartTimeline(query, entry, { filters });
+    },
+    /** Read a different history: the current line, one named line, or all of
+     * them.
+     *
+     * Same restart as a filter change — the pagination pointers are the
+     * question's, not the list's — and for the same reason the rows stay put
+     * until the new answer lands.
+     *
+     * The selection stays too, and is validated rather than assumed: a commit
+     * chosen under one scope may be unreachable from another, and the detail
+     * read already knows how to fall back when the version it was asked for is
+     * no longer listed. */
+    setScope(query: HistoryQuery, scope: HistoryScope): Promise<void> {
+      const entry = entryFor(query);
+      if (sameHistoryScope(entry.state.scope, scope)) return Promise.resolve();
+      return restartTimeline(query, entry, { scope });
     },
     loadMore,
     selectVersion(query: HistoryQuery, commit: string): void {
@@ -457,6 +589,14 @@ export function createHistoryController(port: HistoryPort) {
         reason,
         run: () => refreshInternal(query, false),
       });
+    },
+    readImagePreview(
+      query: HistoryQuery,
+      commit: string,
+      filePath: string,
+      originalPath: string | null,
+    ) {
+      return port.readImagePreview({ ...query, commit, filePath, originalPath });
     },
     close(query: HistoryQuery): void {
       const entry = entries.get(keyOf(query));

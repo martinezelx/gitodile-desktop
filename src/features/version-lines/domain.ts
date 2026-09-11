@@ -37,6 +37,9 @@ export type VersionLine = {
    * stays set (it names what's missing); `upstreamAhead`/`upstreamBehind`
    * are meaningless in this state. */
   upstreamGone: boolean;
+  /** This is a remote's default line. Deleting or renaming it is refused, and
+   * the screen doesn't offer either. */
+  isDefault: boolean;
 };
 
 /** Mirrors the Rust `VersionLinesSnapshot` contract. */
@@ -54,6 +57,30 @@ export type VersionLinesSnapshot = {
   unreadableCount: number;
 };
 
+/** Mirrors the Rust `VersionLineVersion` contract — one saved version on a
+ * line, as read by the on-demand history call. */
+export type VersionLineVersion = {
+  commit: string;
+  shortCommit: string;
+  subject: string;
+  authorName: string;
+  /** ISO 8601, same as `VersionLineTip.committedAt`. */
+  committedAt: string;
+};
+
+/** Mirrors the Rust `VersionLineHistory` contract — the deeper answer for one
+ * selected line, which the inventory deliberately does not carry: reading it
+ * for every branch would cost one Git process per branch on every refresh. */
+export type VersionLineHistory = {
+  name: string;
+  /** Saved versions reachable from this line's tip. `null` in a shallow
+   * clone, where the history this machine holds is not the history that
+   * exists. */
+  totalCount: number | null;
+  versions: VersionLineVersion[];
+  hasMore: boolean;
+};
+
 /** Mirrors the Rust `CreateVersionLinePlan` contract. */
 export type CreateVersionLinePlan = {
   operationKind: "local-mutation";
@@ -66,6 +93,10 @@ export type CreateVersionLinePlan = {
   name: string;
   headState: HeadState;
   startingCommit: string | null;
+  /** Whether `startingCommit` is a saved version the user chose rather than
+   * wherever the project is standing. The two are previewed differently, and
+   * only the first can be somewhere other than `HEAD`. */
+  fromSavedVersion: boolean;
   willSwitch: boolean;
   hasUnsavedWork: boolean;
 };
@@ -88,6 +119,42 @@ export type SwitchVersionLinePlan = {
   changedFilesTotal: number;
 };
 
+/** Mirrors the Rust `PublishedLine` contract — where a line is published,
+ * read from its own Git configuration rather than by splitting `origin/x`. */
+export type PublishedLine = {
+  remote: string;
+  branch: string;
+  /** `origin/feature-x` — what the rest of the app calls the upstream. */
+  shortName: string;
+};
+
+/** Mirrors the Rust `DeleteVersionLineResult` contract. The local half and the
+ * remote half can succeed separately, so both are reported. */
+export type DeleteVersionLineResult = {
+  snapshot: VersionLinesSnapshot;
+  /** `null` when no remote deletion was asked for. */
+  remoteDeleted: boolean | null;
+  /** Set when one was asked for and refused. The local line is gone either
+   * way; this says the published copy is not. */
+  remoteError: unknown | null;
+};
+
+/** Mirrors the Rust `RenameVersionLinePlan` contract. */
+export type RenameVersionLinePlan = {
+  operationKind: "local-mutation";
+  summary: string;
+  steps: string[];
+  risks: string[];
+  recovery: string;
+  requiresConfirmation: boolean;
+  stateToken: string;
+  name: string;
+  newName: string;
+  isActive: boolean;
+  /** The line is published under its old name, which a rename doesn't touch. */
+  upstream: string | null;
+};
+
 /** Mirrors the Rust `DeleteVersionLinePlan` contract. */
 export type DeleteVersionLinePlan = {
   operationKind: "destructive";
@@ -102,4 +169,7 @@ export type DeleteVersionLinePlan = {
   /** Exact ref name(s) that keep this line's tip reachable after deletion. */
   retainedBy: string[];
   upstream: string | null;
+  /** The published copy this delete can clear away too, when there is one and
+   * it still exists on the remote. */
+  published: PublishedLine | null;
 };

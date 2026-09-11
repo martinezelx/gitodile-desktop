@@ -1,6 +1,7 @@
 import type { FileDiff } from "../changes";
 import type { HeadState } from "../repository";
 import type { ChangeCategory } from "../status";
+import type { HistoryFilters, HistoryScope } from "./port";
 
 export type HistoryTimestamp = { unixSeconds: number; offsetMinutes: number };
 export type SavedVersionAuthor = { name: string; email: string };
@@ -13,7 +14,8 @@ export type HistoryWarningCode =
   | "decorationsTruncated"
   | "messagesTruncated"
   | "unreadableMetadata"
-  | "upstreamUnavailable";
+  | "upstreamUnavailable"
+  | "linesTruncated";
 
 export type SavedVersionSummary = {
   commit: string;
@@ -44,6 +46,10 @@ export type UpstreamBoundary = {
 export type HistoryPage = {
   repositoryId: string;
   snapshotToken: string;
+  /** The scope this page was actually read at. */
+  scope: HistoryScope;
+  /** `HEAD`'s own line, whatever the scope is — the timeline uses it to mark
+   * which decoration is the line being stood on. */
   branch: string | null;
   headState: HeadState;
   headCommit: string | null;
@@ -95,6 +101,14 @@ export type HistoryDiffView = {
 export type HistoryState = {
   projectId: string;
   sessionEpoch: string;
+  /** What the loaded versions were asked to be narrowed to. Part of the state
+   * rather than of the screen because it decides which history the pages
+   * describe: changing it invalidates every page already held. */
+  filters: HistoryFilters;
+  /** Which history the loaded versions were read from. Part of the state for
+   * the same reason the filters are: changing it invalidates every page
+   * already held. */
+  scope: HistoryScope;
   snapshot: Omit<HistoryPage, "versions"> | null;
   versions: SavedVersionSummary[];
   isLoading: boolean;

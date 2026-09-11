@@ -1,6 +1,6 @@
 import type { RepositoryInvalidation } from "../../runtime/project/invalidation";
 import type { ProjectRuntime, ProjectCacheWarmReason } from "../../runtime/project/runtime";
-import type { VersionLinesSnapshot } from "./domain";
+import type { VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import type { VersionLinesPort, VersionLinesQuery } from "./port";
 import { EMPTY_VERSION_LINES_STATE, versionLinesSnapshotsEqual, type VersionLinesState } from "./store";
 
@@ -14,6 +14,12 @@ type Entry = {
 
 const MAX_PROJECT_SNAPSHOTS = 8;
 
+/** How many lines' histories stay resolved at once. A history is two Git
+ * processes, so re-reading one the user has already looked at is exactly the
+ * kind of work the session cache exists to prevent; the cap keeps a long
+ * browsing session from holding every branch it ever touched. */
+const MAX_LINE_HISTORIES = 24;
+
 function keyOf(query: VersionLinesQuery): string {
   return `${query.projectId}\0${query.sessionEpoch}`;
 }
@@ -22,6 +28,13 @@ export type VersionLinesController = ReturnType<typeof createVersionLinesControl
 
 export function createVersionLinesController(port: VersionLinesPort) {
   const entries = new Map<string, Entry>();
+  /* Keyed by the line's *tip*, not just its name: a line whose tip has moved
+     is a different answer, and one whose tip has not is the same answer no
+     matter how many times the screen is left and come back to. That is what
+     lets the detail render from cache on arrival instead of asking Git again
+     merely because it became visible. */
+  const histories = new Map<string, VersionLineHistory>();
+  const historyRequests = new Map<string, Promise<VersionLineHistory>>();
   let clock = 0;
 
   const publish = (entry: Entry, next: VersionLinesState): void => {
@@ -86,6 +99,38 @@ export function createVersionLinesController(port: VersionLinesPort) {
     return promise;
   };
 
+  const historyKeyOf = (query: VersionLinesQuery, name: string, tipCommit: string): string =>
+    `${keyOf(query)}\0${name}\0${tipCommit}`;
+
+  const readHistory = (
+    query: VersionLinesQuery,
+    name: string,
+    tipCommit: string,
+  ): Promise<VersionLineHistory> => {
+    const key = historyKeyOf(query, name, tipCommit);
+    const cached = histories.get(key);
+    if (cached) return Promise.resolve(cached);
+    const pending = historyRequests.get(key);
+    if (pending) return pending;
+    const request = port
+      .readHistory({ ...query, name })
+      .then((history) => {
+        histories.set(key, history);
+        if (histories.size > MAX_LINE_HISTORIES) {
+          // Insertion order is oldest-first, which is close enough to
+          // least-recently-read for a cache this small.
+          const oldest = histories.keys().next();
+          if (!oldest.done) histories.delete(oldest.value);
+        }
+        return history;
+      })
+      .finally(() => {
+        historyRequests.delete(key);
+      });
+    historyRequests.set(key, request);
+    return request;
+  };
+
   const commit = (query: VersionLinesQuery, snapshot: VersionLinesSnapshot): void => {
     const entry = entryFor(query);
     const unchanged = versionLinesSnapshotsEqual(entry.state.snapshot, snapshot);
@@ -111,6 +156,12 @@ export function createVersionLinesController(port: VersionLinesPort) {
     },
     refresh,
     commit,
+    readHistory,
+    /** The resolved answer if it is already held, so the detail can render on
+     * arrival without a loading frame. Never starts a read. */
+    peekHistory(query: VersionLinesQuery, name: string, tipCommit: string): VersionLineHistory | null {
+      return histories.get(historyKeyOf(query, name, tipCommit)) ?? null;
+    },
     supersede(query: VersionLinesQuery): void {
       const entry = entryFor(query);
       publish(entry, { ...entry.state, generation: entry.state.generation + 1 });
@@ -133,6 +184,10 @@ export function createVersionLinesController(port: VersionLinesPort) {
       });
     },
     close(query: VersionLinesQuery): void {
+      const prefix = `${keyOf(query)}\0`;
+      for (const key of [...histories.keys()]) {
+        if (key.startsWith(prefix)) histories.delete(key);
+      }
       const entry = entries.get(keyOf(query));
       if (!entry) return;
       entry.state = { ...entry.state, generation: entry.state.generation + 1 };

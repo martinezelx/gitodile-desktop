@@ -34,6 +34,7 @@ function page(versions: SavedVersionSummary[]): HistoryPage {
   return {
     repositoryId: query.projectId,
     snapshotToken: "snapshot-1",
+    scope: { kind: "currentLine" } as const,
     branch: "main",
     headState: "branch",
     headCommit: versions[0]?.commit ?? null,
@@ -60,6 +61,7 @@ function port(readPage: HistoryPort["readPage"]): HistoryPort {
       countsAreMinimum: false,
     })),
     readFileDiff: vi.fn(),
+    readImagePreview: vi.fn(),
   };
 }
 
@@ -109,20 +111,6 @@ describe("HistorySummarySection", () => {
 
     expect(controller.getSnapshot(query).selectedCommit).toBe(version(1).commit);
     expect(onOpenHistory).toHaveBeenCalledOnce();
-  });
-
-  it("marks hover travel in both directions across recent versions", async () => {
-    const controller = createHistoryController(port(vi.fn(async () => page([version(3), version(2), version(1)]))));
-    await controller.refresh(query);
-    renderSection(controller);
-    const lower = screen.getByRole("button", { name: "Open “Saved version 1” in history" });
-    const upper = screen.getByRole("button", { name: "Open “Saved version 2” in history" });
-
-    fireEvent.pointerEnter(lower);
-    expect(lower).toHaveAttribute("data-hover-direction", "down");
-
-    fireEvent.pointerEnter(upper);
-    expect(upper).toHaveAttribute("data-hover-direction", "up");
   });
 
   it("names the line a recent version sits on without turning it into prose", async () => {

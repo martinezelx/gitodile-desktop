@@ -3,7 +3,11 @@ import { createPortal } from "react-dom";
 import { Bell, Settings, Trash2 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { autoHideScrollbarProps, usePortalFlyout } from "../../shared/ui";
+import {
+  autoHideScrollbarProps,
+  isReducedMotionRequested,
+  usePortalFlyout,
+} from "../../shared/ui";
 import {
   NOTIFICATION_KINDS,
   notificationAction,
@@ -137,21 +141,6 @@ export type NotificationCenterProps = {
  * absolutely positioned panel inside it would be clipped by the app window's
  * own overflow.
  */
-/** Reduced motion means not starting a gesture at all, the same answer
- * `themeTransition.ts` gives. Decided here rather than in CSS because the
- * ring's class is cleared by `animationend`, and an animation suppressed to
- * `none` never ends — the class would stick to the element for the rest of the
- * session and no later ring could restart it. The badge keeps its own
- * reduced-motion rule in CSS, because nothing clears that one.
- *
- * Called optionally because jsdom does not implement `matchMedia`, and this
- * component renders in a dozen tests that have no reason to know that. An
- * environment that cannot answer has not expressed a preference, so the ring
- * runs — the same default a browser gives. */
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-}
-
 export function NotificationCenter({
   notifications,
   unreadCount,
@@ -188,10 +177,16 @@ export function NotificationCenter({
    * gesture — teaches people to ignore it. */
   const [isRinging, setIsRinging] = useState(false);
   const previousUnreadCount = useRef(unreadCount);
+  /** Reduced motion means not starting the gesture at all, the same answer
+   * `themeTransition.ts` gives. Decided here rather than in CSS because the
+   * ring's class is cleared by `animationend`, and an animation suppressed to
+   * `none` never ends — the class would stick to the element for the rest of
+   * the session and no later ring could restart it. The badge keeps its own
+   * reduced-motion rule in CSS, because nothing clears that one. */
   useEffect(() => {
     const rose = unreadCount > previousUnreadCount.current;
     previousUnreadCount.current = unreadCount;
-    if (rose && !prefersReducedMotion()) setIsRinging(true);
+    if (rose && !isReducedMotionRequested()) setIsRinging(true);
   }, [unreadCount]);
 
   const close = (restoreFocus: boolean): void => {

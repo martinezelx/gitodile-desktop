@@ -100,6 +100,8 @@ pub(crate) enum AppErrorCode {
     VersionLineNameCollides,
     VersionLineCheckedOutElsewhere,
     VersionLineIsActive,
+    VersionLineIsDefault,
+    VersionLineMissing,
     VersionLineUniqueWork,
     VersionLineSwitchObstructed,
     StaleVersionLinePlan,
@@ -116,6 +118,7 @@ pub(crate) enum AppErrorCode {
     IgnoreFileNotText,
     StaleIgnoreFile,
     IgnoreFileWriteFailed,
+    InstallBlocked,
 }
 
 impl AppError {

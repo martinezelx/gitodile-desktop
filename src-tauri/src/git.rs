@@ -46,6 +46,23 @@ pub(crate) enum CancellationPolicy {
     NotSupported,
 }
 
+/// Required relationship between one application operation and installer
+/// handoff. This deliberately lives on every execution policy: a future Git
+/// command, helper, conflict workflow or stash path cannot compile a policy
+/// without deciding how installation treats it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum InstallAdmissionPolicy {
+    /// Safe read/background work. Installation asks it to cancel through its
+    /// normal token when possible, then waits for its guard to drain.
+    Drain,
+    /// Work that may mutate files, Git state, a remote, platform state, run a
+    /// hook or interact with credentials. Installation never cancels it.
+    Block,
+    /// Lifecycle/control work needed while admission is closed. This is a
+    /// narrow exception, not a default for commands that merely run quickly.
+    Allow,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ExecutionPolicy {
     pub(crate) command: &'static str,
@@ -56,6 +73,7 @@ pub(crate) struct ExecutionPolicy {
     pub(crate) cancellation: CancellationPolicy,
     pub(crate) prompt: PromptPolicy,
     pub(crate) concurrency: ConcurrencyClass,
+    pub(crate) install_admission: InstallAdmissionPolicy,
 }
 
 impl ExecutionPolicy {
@@ -69,6 +87,7 @@ impl ExecutionPolicy {
             cancellation: CancellationPolicy::KillProcess,
             prompt: PromptPolicy::Disabled,
             concurrency: ConcurrencyClass::RepositoryRead,
+            install_admission: InstallAdmissionPolicy::Drain,
         }
     }
 
@@ -82,6 +101,7 @@ impl ExecutionPolicy {
             cancellation: CancellationPolicy::KillProcess,
             prompt: PromptPolicy::PreserveGitBehavior,
             concurrency: ConcurrencyClass::RepositoryWrite,
+            install_admission: InstallAdmissionPolicy::Block,
         }
     }
 }
@@ -343,8 +363,46 @@ where
 /// bypass redaction or make diagnostics fail.
 pub(crate) fn redact_diagnostic(bytes: &[u8], limit: usize) -> String {
     let text = String::from_utf8_lossy(bytes);
+    if text.to_ascii_uppercase().contains("PRIVATE KEY-----") {
+        return "[redacted private key material]".to_string();
+    }
     let mut words = Vec::new();
+    let mut redact_next = false;
     for word in text.split_whitespace() {
+        let lower = word.to_ascii_lowercase();
+        if redact_next {
+            if matches!(lower.as_str(), "bearer" | "basic") {
+                words.push(word.to_string());
+                continue;
+            }
+            words.push("[redacted]".to_string());
+            redact_next = false;
+            continue;
+        }
+        if matches!(
+            lower.as_str(),
+            "authorization:" | "authorization" | "bearer" | "basic"
+        ) {
+            words.push(word.to_string());
+            redact_next = true;
+            continue;
+        }
+        if [
+            "username=",
+            "password=",
+            "passwd=",
+            "credential=",
+            "secret=",
+            "token=",
+            "oauth_token=",
+            "authorization=",
+        ]
+        .iter()
+        .any(|prefix| lower.starts_with(prefix))
+        {
+            words.push("[redacted]".to_string());
+            continue;
+        }
         let without_fragment = word.split('#').next().unwrap_or_default();
         let without_query = without_fragment.split('?').next().unwrap_or_default();
         let redacted = if let Some(scheme) = without_query.find("://") {
@@ -374,12 +432,24 @@ mod tests {
 
     #[test]
     fn diagnostics_redact_credentials_queries_and_malformed_bytes() {
-        let raw = b"hook: https://alice:secret@example.test/repo.git?token=abc#x \xff";
+        let raw = b"hook: https://alice:secret@example.test/repo.git?token=abc#x username=alice password=hunter2 Bearer abc123 \xff";
         let redacted = redact_diagnostic(raw, 256);
         assert!(!redacted.contains("secret"));
         assert!(!redacted.contains("token"));
+        assert!(!redacted.contains("hunter2"));
+        assert!(!redacted.contains("abc123"));
+        assert!(!redacted.contains("username="));
         assert!(redacted.contains("[redacted]@example.test/repo.git"));
         assert!(redacted.contains('\u{fffd}'));
+    }
+
+    #[test]
+    fn diagnostics_drop_private_key_material_as_one_redacted_notice() {
+        let raw = b"-----BEGIN OPENSSH PRIVATE KEY----- secret -----END OPENSSH PRIVATE KEY-----";
+        assert_eq!(
+            redact_diagnostic(raw, 256),
+            "[redacted private key material]"
+        );
     }
 
     #[test]

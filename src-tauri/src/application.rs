@@ -6,18 +6,25 @@
 
 use crate::error::{AppError, AppErrorCode};
 use crate::git::{
-    CancellationPolicy, CancellationToken, ConcurrencyClass, ExecutionPolicy, OperationClass,
-    PromptPolicy, DEFAULT_STDERR_CAP, DEFAULT_STDOUT_CAP,
+    CancellationPolicy, CancellationToken, ConcurrencyClass, ExecutionPolicy,
+    InstallAdmissionPolicy, OperationClass, PromptPolicy, DEFAULT_STDERR_CAP, DEFAULT_STDOUT_CAP,
 };
 use crate::repository_access::{self, AccessGuard, AccessMode, RepositoryContext};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Mutex, OnceLock};
-use std::time::Duration;
+use std::sync::{Condvar, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 const fn no_process(command: &'static str) -> ExecutionPolicy {
     no_process_with_class(command, OperationClass::ReadOnly)
+}
+
+const fn control(command: &'static str) -> ExecutionPolicy {
+    ExecutionPolicy {
+        install_admission: InstallAdmissionPolicy::Allow,
+        ..no_process(command)
+    }
 }
 
 const fn no_process_with_class(command: &'static str, class: OperationClass) -> ExecutionPolicy {
@@ -30,6 +37,10 @@ const fn no_process_with_class(command: &'static str, class: OperationClass) -> 
         cancellation: CancellationPolicy::NotSupported,
         prompt: PromptPolicy::Disabled,
         concurrency: ConcurrencyClass::None,
+        install_admission: match class {
+            OperationClass::ReadOnly => InstallAdmissionPolicy::Drain,
+            _ => InstallAdmissionPolicy::Block,
+        },
     }
 }
 
@@ -47,6 +58,10 @@ const fn global_process(
         cancellation: CancellationPolicy::KillProcess,
         prompt: PromptPolicy::Disabled,
         concurrency: ConcurrencyClass::None,
+        install_admission: match class {
+            OperationClass::ReadOnly => InstallAdmissionPolicy::Drain,
+            _ => InstallAdmissionPolicy::Block,
+        },
     }
 }
 
@@ -63,6 +78,7 @@ const fn global_clone(command: &'static str) -> ExecutionPolicy {
         // question can never stall the desktop flow.
         prompt: PromptPolicy::PreserveGitBehavior,
         concurrency: ConcurrencyClass::None,
+        install_admission: InstallAdmissionPolicy::Block,
     }
 }
 
@@ -71,9 +87,20 @@ const fn read(command: &'static str) -> ExecutionPolicy {
 }
 
 pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
-    no_process("app_status"),
-    no_process("show_main_window"),
+    control("app_status"),
+    control("show_main_window"),
+    control("get_app_update_state"),
+    control("get_startup_update_confirmation"),
+    global_process("check_app_update", OperationClass::ReadOnly, 15),
+    global_process(
+        "download_app_update",
+        OperationClass::LocalMutation,
+        30 * 60,
+    ),
+    control("cancel_app_update"),
+    no_process_with_class("install_app_update", OperationClass::PlatformMutation),
     read("open_repository"),
+    read("reveal_project_file"),
     no_process("plan_clone"),
     global_clone("clone_repository"),
     no_process_with_class("cancel_clone", OperationClass::LocalMutation),
@@ -83,17 +110,22 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     no_process_with_class("cleanup_initialize_project", OperationClass::Destructive),
     read("read_working_tree_status"),
     read("read_file_diff"),
+    read("read_file_image_preview"),
     read("read_file_lines"),
     read("read_working_tree_diffs"),
     read("plan_discard_changes"),
     ExecutionPolicy::repository_write("discard_changes", OperationClass::Destructive),
     read("get_discard_recovery"),
+    read("list_discard_recoveries"),
     ExecutionPolicy::repository_write("restore_discarded_changes", OperationClass::LocalMutation),
+    ExecutionPolicy::repository_write("delete_discard_recovery", OperationClass::Destructive),
     global_process("git_diagnostics", OperationClass::ReadOnly, 15),
     global_process("install_git", OperationClass::PlatformMutation, 900),
     global_process("update_git", OperationClass::PlatformMutation, 900),
     global_process("check_git_update", OperationClass::ReadOnly, 15),
     global_process("get_git_identity", OperationClass::ReadOnly, 15),
+    control("render_diagnostic_report"),
+    no_process_with_class("save_diagnostic_report", OperationClass::PlatformMutation),
     global_process("set_git_identity", OperationClass::LocalMutation, 30),
     // Reads the global config, and the open project's when there is one, so it
     // is a repository read rather than a purely global one.
@@ -126,16 +158,227 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     ExecutionPolicy::repository_write("plan_publish", OperationClass::LocalMutation),
     ExecutionPolicy::repository_write("publish", OperationClass::RemoteMutation),
     read("get_version_lines"),
+    read("get_version_line_history"),
     read("plan_create_version_line"),
     ExecutionPolicy::repository_write("create_version_line", OperationClass::LocalMutation),
     read("plan_switch_version_line"),
     ExecutionPolicy::repository_write("switch_version_line", OperationClass::LocalMutation),
     read("plan_delete_version_line"),
     ExecutionPolicy::repository_write("delete_version_line", OperationClass::Destructive),
+    read("plan_rename_version_line"),
+    ExecutionPolicy::repository_write("rename_version_line", OperationClass::LocalMutation),
     read("watch_repository"),
-    no_process("unwatch_repository"),
+    no_process_with_class("unwatch_repository", OperationClass::LocalMutation),
     no_process_with_class("close_project_session", OperationClass::LocalMutation),
 ];
+
+#[derive(Default)]
+struct AdmissionState {
+    installing: bool,
+    next_activity: u64,
+    active: HashMap<u64, ActiveOperation>,
+}
+
+struct ActiveOperation {
+    command: &'static str,
+    policy: InstallAdmissionPolicy,
+    cancellation: Option<CancellationToken>,
+}
+
+/// Process-wide owner for the atomic boundary between ordinary application
+/// work and installer handoff. Repository locks remain responsible for Git
+/// consistency; this coordinator is intentionally broader and sees unrelated
+/// projects, acquisition workflows and global helpers together.
+#[derive(Default)]
+pub(crate) struct InstallAdmissionCoordinator {
+    state: Mutex<AdmissionState>,
+    changed: Condvar,
+}
+
+impl InstallAdmissionCoordinator {
+    pub(crate) fn start_operation(
+        self: &std::sync::Arc<Self>,
+        command: &'static str,
+        policy: InstallAdmissionPolicy,
+        cancellation: Option<CancellationToken>,
+    ) -> OperationActivity {
+        if policy == InstallAdmissionPolicy::Allow {
+            return OperationActivity {
+                coordinator: None,
+                activity_id: 0,
+            };
+        }
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        while state.installing {
+            state = self
+                .changed
+                .wait(state)
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+        }
+        state.next_activity += 1;
+        let activity_id = state.next_activity;
+        state.active.insert(
+            activity_id,
+            ActiveOperation {
+                command,
+                policy,
+                cancellation,
+            },
+        );
+        OperationActivity {
+            coordinator: Some(std::sync::Arc::clone(self)),
+            activity_id,
+        }
+    }
+
+    pub(crate) fn begin_install(
+        self: &std::sync::Arc<Self>,
+        drain_timeout: Duration,
+    ) -> Result<InstallAdmission, AppError> {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        while state.installing {
+            state = self
+                .changed
+                .wait(state)
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+        }
+        // Closing the gate and inspecting active work happen under one mutex,
+        // which is the race-free boundary the per-repository locks cannot
+        // provide. A mutation that won first blocks this attempt; otherwise
+        // every later operation waits behind this admission.
+        state.installing = true;
+        if let Some(active) = state
+            .active
+            .values()
+            .find(|active| active.policy == InstallAdmissionPolicy::Block)
+        {
+            let command = active.command;
+            state.installing = false;
+            self.changed.notify_all();
+            return Err(install_blocked_error(command));
+        }
+        for active in state.active.values() {
+            if active.policy == InstallAdmissionPolicy::Drain {
+                if let Some(cancellation) = &active.cancellation {
+                    cancellation.cancel();
+                }
+            }
+        }
+        let deadline = Instant::now() + drain_timeout;
+        while state
+            .active
+            .values()
+            .any(|active| active.policy == InstallAdmissionPolicy::Drain)
+        {
+            let now = Instant::now();
+            if now >= deadline {
+                state.installing = false;
+                self.changed.notify_all();
+                return Err(AppError::new(
+                    AppErrorCode::InstallBlocked,
+                    "GitOdile is still finishing background work.",
+                )
+                .with_remediation("Wait a moment, then choose Install and restart again."));
+            }
+            let (next, _) = self
+                .changed
+                .wait_timeout(state, deadline - now)
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            state = next;
+        }
+        Ok(InstallAdmission {
+            coordinator: std::sync::Arc::clone(self),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn active_count(&self) -> usize {
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .active
+            .len()
+    }
+}
+
+fn install_blocked_error(command: &str) -> AppError {
+    AppError::new(
+        AppErrorCode::InstallBlocked,
+        "GitOdile is still completing work that cannot be interrupted safely.",
+    )
+    .with_remediation(format!(
+        "Wait for `{command}` to finish, then choose Install and restart again."
+    ))
+}
+
+pub(crate) struct OperationActivity {
+    coordinator: Option<std::sync::Arc<InstallAdmissionCoordinator>>,
+    activity_id: u64,
+}
+
+impl Drop for OperationActivity {
+    fn drop(&mut self) {
+        let Some(coordinator) = &self.coordinator else {
+            return;
+        };
+        let mut state = coordinator
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.active.remove(&self.activity_id);
+        coordinator.changed.notify_all();
+    }
+}
+
+pub(crate) struct InstallAdmission {
+    coordinator: std::sync::Arc<InstallAdmissionCoordinator>,
+}
+
+impl Drop for InstallAdmission {
+    fn drop(&mut self) {
+        let mut state = self
+            .coordinator
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.installing = false;
+        self.coordinator.changed.notify_all();
+    }
+}
+
+fn admission() -> &'static std::sync::Arc<InstallAdmissionCoordinator> {
+    static ADMISSION: OnceLock<std::sync::Arc<InstallAdmissionCoordinator>> = OnceLock::new();
+    ADMISSION.get_or_init(|| std::sync::Arc::new(InstallAdmissionCoordinator::default()))
+}
+
+pub(crate) fn begin_install_admission(
+    drain_timeout: Duration,
+) -> Result<InstallAdmission, AppError> {
+    admission().begin_install(drain_timeout)
+}
+
+/// Registers an owned helper whose process outlives the IPC call that started
+/// it. The returned guard is moved into the helper's reaper thread, closing the
+/// gap between spawn and process exit without manufacturing a command frame on
+/// the wrong thread.
+pub(crate) fn begin_background_activity(command: &'static str) -> OperationActivity {
+    let policy = *policy(command);
+    admission().start_operation(command, policy.install_admission, None)
+}
+
+pub(crate) fn begin_background_activity_with_cancellation(
+    command: &'static str,
+    cancellation: CancellationToken,
+) -> OperationActivity {
+    let policy = *policy(command);
+    admission().start_operation(command, policy.install_admission, Some(cancellation))
+}
 
 pub(crate) fn policy(command: &str) -> &'static ExecutionPolicy {
     let found = EXECUTION_INVENTORY
@@ -188,6 +431,7 @@ fn cancellations() -> &'static Mutex<HashMap<(String, &'static str), Cancellatio
 
 pub(crate) struct CommandAccess {
     _guard: Option<AccessGuard>,
+    _activity: Option<OperationActivity>,
     cancellation_key: Option<(String, &'static str)>,
     cancellation: Option<CancellationToken>,
 }
@@ -212,16 +456,23 @@ impl Drop for CommandAccess {
 }
 
 pub(crate) fn enter(command: &'static str) -> CommandAccess {
+    let policy = *policy(command);
+    let cancellation = (policy.install_admission == InstallAdmissionPolicy::Drain
+        && policy.cancellation == CancellationPolicy::KillProcess)
+        .then(CancellationToken::default);
+    let activity =
+        admission().start_operation(command, policy.install_admission, cancellation.clone());
     POLICY_STACK.with(|stack| {
         stack.borrow_mut().push(CommandFrame {
-            policy: *policy(command),
-            cancellation: None,
+            policy,
+            cancellation: cancellation.clone(),
         })
     });
     CommandAccess {
         _guard: None,
+        _activity: Some(activity),
         cancellation_key: None,
-        cancellation: None,
+        cancellation,
     }
 }
 
@@ -232,14 +483,21 @@ pub(crate) fn enter_with_cancellation(
     command: &'static str,
     cancellation: CancellationToken,
 ) -> CommandAccess {
+    let policy = *policy(command);
+    let activity = admission().start_operation(
+        command,
+        policy.install_admission,
+        Some(cancellation.clone()),
+    );
     POLICY_STACK.with(|stack| {
         stack.borrow_mut().push(CommandFrame {
-            policy: *policy(command),
+            policy,
             cancellation: Some(cancellation.clone()),
         })
     });
     CommandAccess {
         _guard: None,
+        _activity: Some(activity),
         cancellation_key: None,
         cancellation: Some(cancellation),
     }
@@ -267,6 +525,7 @@ pub(crate) fn enter_test_frame() -> CommandAccess {
     });
     CommandAccess {
         _guard: None,
+        _activity: None,
         cancellation_key: None,
         cancellation: None,
     }
@@ -278,7 +537,33 @@ pub(crate) fn authorize_repository(
     cancellation: Option<&CancellationToken>,
 ) -> Result<(RepositoryContext, CommandAccess), AppError> {
     let policy = *policy(command);
-    let context = repository_access::global().context(Path::new(path))?;
+    let parent_cancellation = current_cancellation();
+    let initial_cancellation = if policy.install_admission == InstallAdmissionPolicy::Drain {
+        parent_cancellation
+            .clone()
+            .or_else(|| Some(CancellationToken::default()))
+    } else {
+        cancellation.cloned()
+    };
+    let activity = admission().start_operation(
+        command,
+        policy.install_admission,
+        initial_cancellation.clone(),
+    );
+    POLICY_STACK.with(|stack| {
+        stack.borrow_mut().push(CommandFrame {
+            policy,
+            cancellation: initial_cancellation.clone(),
+        })
+    });
+    let mut access = CommandAccess {
+        _guard: None,
+        _activity: Some(activity),
+        cancellation_key: None,
+        cancellation: initial_cancellation.clone(),
+    };
+    let context = repository_access::global()
+        .context_with_cancellation(Path::new(path), initial_cancellation.as_ref())?;
     if context.bare {
         return Err(AppError::new(
             AppErrorCode::BareRepository,
@@ -306,7 +591,11 @@ pub(crate) fn authorize_repository(
             ))
         }
         None => (
-            Some(repository_access::global().acquire(&context, requested, cancellation)?),
+            Some(repository_access::global().acquire(
+                &context,
+                requested,
+                initial_cancellation.as_ref(),
+            )?),
             false,
         ),
     };
@@ -316,10 +605,12 @@ pub(crate) fn authorize_repository(
         // a newer equivalent renderer request. Reuse the parent's token so an
         // internal status read cannot cancel a concurrent visible status
         // refresh (or the workflow that called it).
-        (None, current_cancellation())
+        (None, parent_cancellation)
     } else if requested == AccessMode::Read {
         let key = (repository_key, command);
-        let token = CancellationToken::default();
+        let token = initial_cancellation
+            .clone()
+            .unwrap_or_else(CancellationToken::default);
         let mut active = cancellations()
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -331,19 +622,14 @@ pub(crate) fn authorize_repository(
         (None, cancellation.cloned())
     };
     POLICY_STACK.with(|stack| {
-        stack.borrow_mut().push(CommandFrame {
-            policy,
-            cancellation: command_cancellation.clone(),
-        })
+        if let Some(frame) = stack.borrow_mut().last_mut() {
+            frame.cancellation = command_cancellation.clone();
+        }
     });
-    Ok((
-        context,
-        CommandAccess {
-            _guard: guard,
-            cancellation_key,
-            cancellation: command_cancellation,
-        },
-    ))
+    access._guard = guard;
+    access.cancellation_key = cancellation_key;
+    access.cancellation = command_cancellation;
+    Ok((context, access))
 }
 
 #[cfg(test)]
@@ -356,7 +642,14 @@ mod tests {
     const REGISTERED: &[&str] = &[
         "app_status",
         "show_main_window",
+        "get_app_update_state",
+        "get_startup_update_confirmation",
+        "check_app_update",
+        "download_app_update",
+        "cancel_app_update",
+        "install_app_update",
         "open_repository",
+        "reveal_project_file",
         "plan_clone",
         "clone_repository",
         "cancel_clone",
@@ -366,17 +659,22 @@ mod tests {
         "cleanup_initialize_project",
         "read_working_tree_status",
         "read_file_diff",
+        "read_file_image_preview",
         "read_file_lines",
         "read_working_tree_diffs",
         "plan_discard_changes",
         "discard_changes",
         "get_discard_recovery",
+        "list_discard_recoveries",
         "restore_discarded_changes",
+        "delete_discard_recovery",
         "git_diagnostics",
         "install_git",
         "update_git",
         "check_git_update",
         "get_git_identity",
+        "render_diagnostic_report",
+        "save_diagnostic_report",
         "set_git_identity",
         "get_line_endings",
         "set_line_endings",
@@ -407,12 +705,15 @@ mod tests {
         "plan_publish",
         "publish",
         "get_version_lines",
+        "get_version_line_history",
         "plan_create_version_line",
         "create_version_line",
         "plan_switch_version_line",
         "switch_version_line",
         "plan_delete_version_line",
         "delete_version_line",
+        "plan_rename_version_line",
+        "rename_version_line",
         "watch_repository",
         "unwatch_repository",
         "close_project_session",

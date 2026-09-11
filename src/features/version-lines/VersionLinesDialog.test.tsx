@@ -123,6 +123,7 @@ function deletePlan(overrides: Partial<DeleteVersionLinePlan> = {}): DeleteVersi
     tipCommit: "def456",
     retainedBy: ["refs/heads/main"],
     upstream: null,
+    published: null,
     ...overrides,
   };
 }
@@ -130,7 +131,11 @@ function deletePlan(overrides: Partial<DeleteVersionLinePlan> = {}): DeleteVersi
 describe("DeleteVersionLineDialog", () => {
   it("shows the retained-by proof and deletes on confirm", async () => {
     mockedInvoke.mockResolvedValueOnce(deletePlan());
-    mockedInvoke.mockResolvedValueOnce(emptySnapshot());
+    mockedInvoke.mockResolvedValueOnce({
+      snapshot: emptySnapshot(),
+      remoteDeleted: null,
+      remoteError: null,
+    });
     const onDeleted = vi.fn();
     const user = userEvent.setup();
     render(
@@ -147,9 +152,99 @@ describe("DeleteVersionLineDialog", () => {
     );
 
     expect(await screen.findByText(/refs\/heads\/main/)).toBeInTheDocument();
+    // Nothing published, so nothing to ask about.
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(emptySnapshot()));
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_version_line", {
+      path: "/repo",
+      sessionEpoch: "epoch-1",
+      name: "feature/x",
+      deleteRemote: false,
+      stateToken: "delete-token",
+    });
+  });
+
+  it("clears the published copy away by default, and lets that be turned off", async () => {
+    const published = { remote: "origin", branch: "feature/x", shortName: "origin/feature/x" };
+    mockedInvoke.mockResolvedValueOnce(deletePlan({ published, upstream: "origin/feature/x" }));
+    mockedInvoke.mockResolvedValueOnce({
+      snapshot: emptySnapshot(),
+      remoteDeleted: true,
+      remoteError: null,
+    });
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <DeleteVersionLineDialog
+          isOpen
+          projectPath="/repo"
+          sessionEpoch="epoch-1"
+          target="feature/x"
+          onClose={vi.fn()}
+          onDeleted={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    // Deleting a line only here would leave it on everyone else's screen, so
+    // the shared copy goes with it unless the user says otherwise.
+    const choice = await screen.findByRole("checkbox", { name: /Also delete origin\/feature\/x/ });
+    expect(choice).toBeChecked();
+    expect(screen.getByText("This removes it for everyone working on this project.")).toBeInTheDocument();
+
+    await user.click(choice);
+    expect(
+      screen.getByText("origin/feature/x stays as it is, and your team keeps seeing it."),
+    ).toBeInTheDocument();
+
+    await user.click(choice);
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_version_line", {
+      path: "/repo",
+      sessionEpoch: "epoch-1",
+      name: "feature/x",
+      deleteRemote: true,
+      stateToken: "delete-token",
+    });
+    expect(await screen.findByText("The published copy was deleted too.")).toBeInTheDocument();
+  });
+
+  it("says the local line is gone when only the remote half was refused", async () => {
+    const published = { remote: "origin", branch: "feature/x", shortName: "origin/feature/x" };
+    mockedInvoke.mockResolvedValueOnce(deletePlan({ published, upstream: "origin/feature/x" }));
+    mockedInvoke.mockResolvedValueOnce({
+      snapshot: emptySnapshot(),
+      remoteDeleted: false,
+      remoteError: { code: "remote_rejected", message: "protected branch", remediation: null },
+    });
+    const onDeleted = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <DeleteVersionLineDialog
+          isOpen
+          projectPath="/repo"
+          sessionEpoch="epoch-1"
+          target="feature/x"
+          onClose={vi.fn()}
+          onDeleted={onDeleted}
+        />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("checkbox");
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    // The local delete stands, so the list must be told; the remote refusal is
+    // reported as a fact about the remote rather than as a failed operation.
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(emptySnapshot()));
+    expect(
+      await screen.findByText(
+        "The version line is gone from this computer, but the published copy is still there.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("explains a blocked deletion of unique work and offers no destructive action", async () => {

@@ -11,9 +11,9 @@
 }
 .publish-plan__section h3 {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  font-weight: 650;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
 }
 .publish-plan__section p { margin: 0; }
 .publish-stays__pills {
@@ -30,27 +30,27 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
   background: var(--surface-panel);
-  color: var(--text-primary);
-  font-size: 12.5px;
-  line-height: 1.35;
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-snug);
   overflow-wrap: anywhere;
 }
 .publish-stays__pill--unsaved {
   background: var(--surface-hover);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
 }
 .publish-plan__destination {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
 }
 .publish-plan__destination code {
   padding: 3px 7px;
   border-radius: var(--radius-item);
   background: var(--surface-panel);
-  color: var(--text-primary);
-  font-size: 12.5px;
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
 }
 .publish-operation-status {
   display: flex;
@@ -60,12 +60,12 @@
   padding: 10px 12px;
   border-radius: var(--radius-surface);
   background: var(--surface-active);
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
 }
 .publish-operation-status > svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
 .publish-operation-status span { display: grid; gap: 2px; }
-.publish-operation-status small { color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.publish-operation-status small { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 
 .publish-commit-list {
   margin: 0;
@@ -83,8 +83,8 @@
   gap: var(--space-2);
   min-height: 36px;
   padding: 7px 10px;
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
   list-style: none;
   transition: background var(--duration-fast);
 }
@@ -94,7 +94,7 @@
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: var(--text-secondary);
+  color: var(--text-secondary-color);
   transition: transform var(--duration-fast);
 }
 details[open] > .publish-commit-list__summary .publish-commit-list__chevron { transform: rotate(180deg); }
@@ -110,9 +110,9 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
   padding: 1px 7px;
   border-radius: var(--radius-pill);
   background: var(--surface-panel);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  font-family: var(--font-mono);
 }
 .publish-commit-list__files {
   display: flex;
@@ -120,15 +120,15 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
   gap: 5px;
   margin: 0;
   padding: 2px 12px 10px 32px;
-  color: var(--text-secondary);
-  font-size: 12.5px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
 }
 .publish-commit-list__message-body {
   margin: 0;
   padding: 2px 12px 10px 32px;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  line-height: 1.5;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -147,5 +147,5 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   width: 100%; text-align: left; padding: 10px 12px;
 }
-.publish-remote-option__name { font-weight: 600; }
-.publish-remote-option__url { color: var(--text-secondary); font-size: 12.5px; word-break: break-all; }
+.publish-remote-option__name { font-weight: var(--weight-strong); }
+.publish-remote-option__url { color: var(--text-secondary-color); font-size: var(--text-label); word-break: break-all; }

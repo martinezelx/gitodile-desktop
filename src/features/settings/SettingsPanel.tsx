@@ -34,6 +34,7 @@ import {
   type NumberFormatPreference,
 } from "../../shared/i18n";
 import { autoHideScrollbarProps, moveFocusWithinRadioGroup } from "../../shared/ui";
+import { useInstallDraftBlocker } from "../../runtime/drafts";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
   DIFF_CODE_FONTS,
@@ -258,6 +259,8 @@ export function isGitInstallationBroken(diagnostics: GitDiagnostics | null): boo
 export function SettingsPanel({
   theme,
   setTheme,
+  reducedMotion,
+  setReducedMotion,
   activeSection,
   onSectionChange,
   gitDiagnostics,
@@ -288,12 +291,15 @@ export function SettingsPanel({
   identity,
   defaultBranch,
   lineEndingsState,
+  applicationUpdates,
   onClose,
   onRegisterCloseGuard,
   port = settingsPort,
 }: {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  reducedMotion: boolean;
+  setReducedMotion: (value: boolean) => void;
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   gitDiagnostics: GitDiagnostics | null;
@@ -330,6 +336,8 @@ export function SettingsPanel({
   identity: GitIdentityState;
   defaultBranch: DefaultBranchState;
   lineEndingsState: LineEndingsState;
+  /** Feature-owned application update controls composed into General. */
+  applicationUpdates?: React.ReactNode;
   onClose?: () => void;
   /** The panel holds the identity draft, so it is the only place that can know
    * whether dismissing the dialog would throw typed input away. It hands the
@@ -494,6 +502,16 @@ export function SettingsPanel({
   const hasEmailFormatError = trimmedEmail !== "" && !EMAIL_PATTERN.test(trimmedEmail);
   const canSaveIdentity =
     isIdentityDirty && trimmedName !== "" && trimmedEmail !== "" && !hasEmailFormatError;
+  const parsedCadence = Number(cadenceInput.trim());
+  const cadenceDraftMinutes =
+    cadenceInput.trim() !== "" && Number.isInteger(parsedCadence)
+      ? combineRemoteCheckInterval(parsedCadence, cadenceUnit)
+      : null;
+  const hasSettingsDraft =
+    isIdentityDirty ||
+    (showsCustomBranch && branchInput.trim() !== (savedDefaultBranch ?? "")) ||
+    (isCustomCadenceOpen && cadenceDraftMinutes !== remoteCheckInterval);
+  useInstallDraftBlocker("application-settings", "application settings", hasSettingsDraft);
 
   const saveIdentity = identity.save;
   const commitIdentity = useCallback(async (): Promise<boolean> => {
@@ -783,6 +801,7 @@ export function SettingsPanel({
       >
         {activeSection === "general" && (
           <div className="settings-groups">
+            {applicationUpdates}
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsStartupTitle}</h3>
@@ -1055,6 +1074,24 @@ export function SettingsPanel({
                       {option === "system" ? t.commonSystem : option === "light" ? t.themeLight : t.themeDark}
                     </button>
                   ))}
+                </div>
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsMotionTitle}</h3>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.reduceMotionLabel}</strong>
+                    <p>{t.reduceMotionDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.reduceMotionLabel}
+                    checked={reducedMotion}
+                    onChange={setReducedMotion}
+                  />
                 </div>
               </div>
             </section>

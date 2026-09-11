@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   DEFAULT_DIFF_PREFERENCES,
@@ -12,6 +12,7 @@ import {
   type RemoteCheckIntervalMinutes,
   type ThemePreference,
 } from "../features/settings";
+import { stopActiveThemeTransition } from "./themeTransition";
 
 const THEME_STORAGE_KEY = "gitodile-theme";
 export const REOPEN_LAST_PROJECT_STORAGE_KEY = "gitodile-reopen-last-project";
@@ -21,6 +22,8 @@ export const REMOTE_CHECK_INTERVAL_STORAGE_KEY = "gitodile-remote-check-interval
 export const RUN_GIT_HOOKS_STORAGE_KEY = "gitodile-run-git-hooks";
 export const CONFIRM_DISCARD_STORAGE_KEY = "gitodile-confirm-discard";
 export const NOTIFICATIONS_STORAGE_KEY = "gitodile-notifications";
+export const REDUCE_MOTION_STORAGE_KEY = "gitodile-reduce-motion";
+export const APP_UPDATE_AUTOMATIC_STORAGE_KEY = "gitodile-app-update-automatic";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodile-diff-preferences";
 export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodile-navigation-preferences";
@@ -50,6 +53,12 @@ export const CONFIRM_DISCARD_DEFAULT = true;
  * eager-write bug had already frozen in storage, and this one is newer than the
  * fix. */
 export const NOTIFICATIONS_DEFAULT = true;
+/** Off keeps GitOdile's full motion language. The operating system preference
+ * is still respected independently, whether or not this app-specific choice
+ * has ever been made. */
+export const REDUCE_MOTION_DEFAULT = false;
+/** Network contact for application updates is an explicit opt-in. */
+export const APP_UPDATE_AUTOMATIC_DEFAULT = false;
 /** On, because a hook is the project's own rule and skipping it by default
  * would make GitOdile produce commits the same repository would have rejected
  * from a terminal — the same action giving a different result depending on
@@ -185,6 +194,28 @@ export function useThemePreference(): [ThemePreference, Dispatch<SetStateAction<
   return [theme, setTheme];
 }
 
+function applyReducedMotionPreference(reducedMotion: boolean): void {
+  if (reducedMotion) {
+    document.documentElement.dataset.reducedMotion = "true";
+    stopActiveThemeTransition();
+  } else {
+    delete document.documentElement.dataset.reducedMotion;
+  }
+}
+
+/** App-specific motion override. A layout effect applies it before paint so
+ * the switch itself cannot animate on the frame that turns motion off. */
+export function useReducedMotionPreference(): [boolean, Dispatch<SetStateAction<boolean>>] {
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    readStoredBoolean(REDUCE_MOTION_STORAGE_KEY, REDUCE_MOTION_DEFAULT),
+  );
+
+  useLayoutEffect(() => applyReducedMotionPreference(reducedMotion), [reducedMotion]);
+  usePersistedChoice(REDUCE_MOTION_STORAGE_KEY, String(reducedMotion));
+
+  return [reducedMotion, setReducedMotion];
+}
+
 export function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {
   if (theme !== "system") return theme;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -284,6 +315,24 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
   return [preferences, setPreferences];
 }
 
+/** The rail order that shipped before History moved up beside Changes. Every
+ * session writes the whole snapshot back, so by the time the default changed
+ * this exact list was already sitting in storage for everyone who had ever
+ * opened the app — including everyone who had never opened Navigation
+ * Settings. An order identical to a superseded default is the absence of a
+ * choice rather than one, so it adopts the new default; anything else is the
+ * user's arrangement and stands. */
+const SUPERSEDED_DESTINATION_ORDERS: readonly (readonly string[])[] = [
+  ["overview", "changes", "version-lines", "history", "recovery"],
+];
+
+function isSupersededOrder(order: readonly string[]): boolean {
+  return SUPERSEDED_DESTINATION_ORDERS.some(
+    (superseded) =>
+      superseded.length === order.length && superseded.every((id, index) => id === order[index]),
+  );
+}
+
 /** Navigation is stored as one validated snapshot: membership, order and
  * appearance describe one rail, so applying only part of a stale or malformed
  * value would produce a surprising hybrid. Unknown ids are ignored; newly
@@ -322,9 +371,9 @@ export function useStoredNavigationPreferences(
             (id): id is string => typeof id === "string" && allowed.has(id),
           )
         : [];
-      const destinationOrderIds = Array.from(
-        new Set([...storedOrder, ...defaultDestinationIds]),
-      );
+      const destinationOrderIds = isSupersededOrder(storedOrder)
+        ? [...defaultDestinationIds]
+        : Array.from(new Set([...storedOrder, ...defaultDestinationIds]));
       return { visibleDestinationIds, destinationOrderIds, displayMode };
     } catch {
       return fallback();

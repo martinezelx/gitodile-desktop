@@ -1,11 +1,15 @@
 #![allow(linker_messages)]
 
+use tauri::Manager;
+
+mod app_updates;
 mod application;
 #[cfg(test)]
 mod architecture;
 mod changes;
 mod clone;
 mod desktop;
+mod diagnostics;
 mod error;
 mod git;
 mod git_command;
@@ -62,15 +66,28 @@ use std::path::Path;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(diagnostics::install_global())
         .manage(watch::WatcherRegistry::default())
         .manage(clone::CloneOperationRegistry::default())
         .manage(history::HistoryReadCache::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            app.manage(app_updates::AppUpdateService::new(app.handle()));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             ipc::app_status,
             ipc::show_main_window,
+            ipc::get_app_update_state,
+            ipc::get_startup_update_confirmation,
+            ipc::check_app_update,
+            ipc::download_app_update,
+            ipc::cancel_app_update,
+            ipc::install_app_update,
+            ipc::reveal_project_file,
             ipc::open_repository,
             ipc::plan_clone,
             ipc::clone_repository,
@@ -81,17 +98,22 @@ pub fn run() {
             ipc::cleanup_initialize_project,
             ipc::read_working_tree_status,
             ipc::read_file_diff,
+            ipc::read_file_image_preview,
             ipc::read_file_lines,
             ipc::read_working_tree_diffs,
             ipc::plan_discard_changes,
             ipc::discard_changes,
             ipc::get_discard_recovery,
+            ipc::list_discard_recoveries,
             ipc::restore_discarded_changes,
+            ipc::delete_discard_recovery,
             ipc::git_diagnostics,
             ipc::install_git,
             ipc::update_git,
             ipc::check_git_update,
             ipc::get_git_identity,
+            ipc::render_diagnostic_report,
+            ipc::save_diagnostic_report,
             ipc::set_git_identity,
             ipc::get_line_endings,
             ipc::set_line_endings,
@@ -122,12 +144,15 @@ pub fn run() {
             ipc::plan_publish,
             ipc::publish,
             ipc::get_version_lines,
+            ipc::get_version_line_history,
             ipc::plan_create_version_line,
             ipc::create_version_line,
             ipc::plan_switch_version_line,
             ipc::switch_version_line,
             ipc::plan_delete_version_line,
             ipc::delete_version_line,
+            ipc::plan_rename_version_line,
+            ipc::rename_version_line,
             ipc::watch_repository,
             ipc::unwatch_repository,
             ipc::close_project_session

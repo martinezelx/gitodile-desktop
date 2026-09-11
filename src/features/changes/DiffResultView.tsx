@@ -5,6 +5,7 @@ import { ChevronsUpDown, FileQuestion, FileWarning, Pencil, TriangleAlert } from
 import type { Translations } from "../../i18n";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import type { DiffHunk, DiffLine, FileDiff } from "./domain";
+import { PictureDiffBody, type PictureDiff } from "./pictureDiff";
 import { DIFF_CODE_FONT_STACKS, useDiffPreferences } from "./diffPreferences";
 import { applyIgnoreWhitespace } from "./ignoreWhitespace";
 
@@ -327,9 +328,18 @@ export function getHunkStartRows(rows: { hunkIndex: number }[], hunkCount: numbe
  * marker is estimated from that. Move the chip's padding or margin and the
  * estimate follows on its own. */
 const FALLBACK_MARKER_ROW_HEIGHT = 40;
-/** Fallback for before the first measurement lands, matching the CSS's
- * `font: 12.5px/1.6` line box. */
-const FALLBACK_LINE_HEIGHT = 20;
+/** Seed for `metrics.lineHeight`, used only until `readMetrics` reads the real
+ * value off the element — which happens in a `useLayoutEffect`, so before the
+ * first paint. `.diff-code` sets `font-size: var(--text-label)` and
+ * `line-height: var(--leading-code)`, and this is their product.
+ *
+ * Written as the arithmetic rather than as the answer because the answer is
+ * what rots: this said 20, "matching the CSS's `font: 12.5px/1.6`", through a
+ * move to 13px and then to the type scale's 12px — two sizes the diff has not
+ * had for some time. `styleComposition.test.ts` now checks the two factors
+ * against the tokens, so the next scale change fails the build here instead of
+ * leaving a stale number behind a stale comment. */
+const FALLBACK_LINE_HEIGHT = 12 * 1.6;
 /** Everything in `.diff-line` that isn't the content column: the 48px number
  * gutter and 16px sign column from its `grid-template-columns`, plus its own
  * 16px `padding-right`. Kept in sync with that rule in styles.css. */
@@ -913,6 +923,7 @@ export function DiffResultView({
   projectPath,
   sessionEpoch,
   readFileLines,
+  picture,
   viewMode = "unified",
   hunkTarget = { index: 0, token: 0 },
   searchQuery = "",
@@ -927,6 +938,12 @@ export function DiffResultView({
   projectPath?: string;
   sessionEpoch?: string;
   readFileLines?: (filePath: string, startLine: number, endLine: number) => Promise<{ startLine: number; lines: string[]; truncated: boolean }>;
+  /** The changed picture this file is, from `usePictureDiff`. The surface
+   * owns it because its controls belong in the surface's own toolbar; here it
+   * only says what to draw. Absent — a caller that cannot say which two
+   * versions to compare — leaves an image with the plain "can't be previewed
+   * as text" note and an SVG with its text diff. */
+  picture?: PictureDiff | null;
   viewMode?: DiffViewMode;
   hunkTarget?: { index: number; token: number };
   /** Highlights matches and scrolls the visual diff to the first one. */
@@ -948,16 +965,13 @@ export function DiffResultView({
   switch (diff.kind) {
     case "text": {
       const lineCount = hunks.reduce((total, hunk) => total + hunk.lines.length, 0);
-      if (isWhitespaceOnly) {
-        return (
-          <EmptyDiffNote
-            icon={<Pencil aria-hidden="true" />}
-            title={t.changesDiffWhitespaceOnlyTitle}
-            description={t.changesDiffWhitespaceOnlyDescription}
-          />
-        );
-      }
-      return (
+      const source = isWhitespaceOnly ? (
+        <EmptyDiffNote
+          icon={<Pencil aria-hidden="true" />}
+          title={t.changesDiffWhitespaceOnlyTitle}
+          description={t.changesDiffWhitespaceOnlyDescription}
+        />
+      ) : (
         <>
           {diff.truncated && (
             <p className="changes-diff__truncated" role="status">
@@ -981,7 +995,22 @@ export function DiffResultView({
           )}
         </>
       );
+      // An SVG is text with a picture in it. The picture is what someone
+      // opens an icon change to see, so it leads; the diff that produced it is
+      // one press away in the toolbar, and completely unchanged when it gets
+      // there.
+      return picture?.showsDrawing ? <PictureDiffBody picture={picture} t={t} /> : source;
     }
+    case "image":
+      return picture ? (
+        <PictureDiffBody picture={picture} t={t} />
+      ) : (
+        <EmptyDiffNote
+          icon={<FileQuestion aria-hidden="true" />}
+          title={t.changesDiffBinaryTitle}
+          description={t.changesDiffBinaryDescription}
+        />
+      );
     case "binary":
       return (
         <EmptyDiffNote

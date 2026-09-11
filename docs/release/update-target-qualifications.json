@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "productionPromotion": {
+    "enabled": false,
+    "workingNameClearance": "not_evidenced",
+    "approvedAt": null,
+    "evidence": null
+  },
+  "targets": [
+    {
+      "key": "windows-x86_64",
+      "status": "qualification_required",
+      "evidence": []
+    },
+    {
+      "key": "darwin-aarch64",
+      "status": "qualification_required",
+      "evidence": []
+    },
+    {
+      "key": "darwin-x86_64",
+      "status": "qualification_required",
+      "evidence": []
+    },
+    {
+      "key": "linux-x86_64",
+      "status": "qualification_required",
+      "evidence": []
+    }
+  ]
+}

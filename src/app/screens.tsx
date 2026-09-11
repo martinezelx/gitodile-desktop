@@ -61,12 +61,18 @@ export { ChangesPanel, HistoryScreen, OverviewPanel, VersionLinesScreen };
  * command palette, idle prefetching, the "leave if the project closed" guard,
  * and the keep-alive host all derive from this array — adding a screen means
  * adding an entry here and a component, and nothing else. Order is the order
- * the sidebar shows. */
+ * the sidebar shows.
+ *
+ * History sits directly under Changes because the two are one loop — what has
+ * changed, and what has been saved — and they now share a shape as well as a
+ * neighbour. Lines follows: switching a version line is a deliberate move
+ * between pieces of work, not part of that loop. The order here is only the
+ * default; Navigation Settings still lets anyone rearrange the rail. */
 export const SCREEN_MODULES = defineScreenModules([
   overviewScreenModule,
   changesScreenModule,
-  versionLinesScreenModule,
   historyScreenModule,
+  versionLinesScreenModule,
   {
     kind: "placeholder",
     id: "recovery",
