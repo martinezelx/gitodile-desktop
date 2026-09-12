@@ -9,6 +9,7 @@ import yaml from "js-yaml";
 import {
   ReleaseValidationError,
   parseReleaseTag,
+  runCandidateCli,
   validateReleaseCandidate,
 } from "./release-candidate.mjs";
 import {
@@ -126,6 +127,27 @@ test("binds tag, exact revision, metadata, channel and matrix", () => {
     key: "windows-x86_64",
     rustTarget: "x86_64-pc-windows-msvc",
   });
+});
+
+test("explicit trusted ref type supports workflow-run tag revalidation", () => {
+  const repo = repository();
+  const args = [
+    "--root",
+    repo.root,
+    "--event",
+    "push",
+    "--ref-type",
+    "tag",
+    "--tag",
+    repo.tag,
+    "--sha",
+    repo.sha,
+    "--main-ref",
+    "main",
+  ];
+  const candidate = runCandidateCli(args, { GITHUB_REF_TYPE: "branch" });
+  assert.equal(candidate.source.sha, repo.sha);
+  expectCode("invalid_event", () => runCandidateCli(args.with(5, "branch"), { GITHUB_REF_TYPE: "tag" }));
 });
 
 test("fails safely when credential names are absent without reading values", () => {
@@ -365,9 +387,13 @@ test("workflows expose no branch publication path and pin external actions", () 
   const signingRevalidation = signing.parsed.jobs.authorize.steps.find(
     (step) => step.name === "Revalidate metadata directly from the tagged object",
   );
-  assert.equal(signingRevalidation.env.GITHUB_REF_TYPE, "tag");
+  assert.match(signingRevalidation.run, /--ref-type tag/);
   assert.match(signingRevalidation.run, /--tag "\$RELEASE_TAG"/);
   assert.match(signingRevalidation.run, /--sha "\$SOURCE_SHA"/);
+  const candidateValidation = candidate.parsed.jobs.validate.steps.find(
+    (step) => step.name === "Validate tag, ancestry, revision, versions and channel",
+  );
+  assert.match(candidateValidation.run, /--ref-type "\$GITHUB_REF_TYPE"/);
   for (const source of [candidate.source, signing.source]) {
     assert.doesNotMatch(source, /gitodile-feedback|contents:\s*write|create-release|upload-release-asset/i);
   }
