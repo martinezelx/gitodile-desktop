@@ -200,6 +200,15 @@ credential was introduced. The first scans exposed development dependency and
 dynamic-regexp findings; these were corrected rather than dismissed. Exact
 settings and run links are retained in the public-readiness audit.
 
+Two distinct Tauri updater identities have now been generated for validation
+and production, stored only in their corresponding protected environments and
+in encrypted CurrentUser-DPAPI recovery copies on the controlled Windows
+maintainer machine. Both encrypted copies passed a real restore, fixture-signing
+and Rust-verifier test. The separate offline backup required by the runbook is
+still missing, so this preparation does not authorize a candidate matrix.
+Windows Authenticode, the destination-scoped publisher credential, controlled
+validation hosting and installed Windows/Linux evidence are also still pending.
+
 # Validation
 
 Record the public-readiness diff and local checks first, without spending or

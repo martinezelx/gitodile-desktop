@@ -111,11 +111,14 @@ authorized publication.
 
 ## Readiness snapshot — 2026-09-12
 
-The five required reviewer-protected environments now exist in
+The five required reviewer-protected environments exist in
 `martinezelx/project-gitodile`, with protected-branch admission and no
-administrator bypass. A read-only audit found zero repository or environment
-secrets and variables, and no releases in the public
-`martinezelx/gitodile-feedback` repository. Therefore no signed A/B matrix or
+administrator bypass. Distinct validation and production Tauri updater keys are
+configured and both local encrypted recovery copies passed an actual
+restore/sign/verify test. The independent offline backup, real publicly trusted
+Windows Authenticode provider, destination-scoped publisher credential and
+controlled validation feed are still pending. No release exists in the public
+`martinezelx/gitodile-feedback` repository, so no signed A/B matrix or
 installed-platform evidence exists. Windows and Linux remain
 `qualification_required`; both Darwin targets are deliberately
 `planned_disabled`; production promotion remains disabled. This document must

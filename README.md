@@ -21,6 +21,12 @@ paths, code and remote URLs are not included. Browser launch failures offer
 retry, copy link and a selectable address. Security reports use the tracker's
 private vulnerability reporting channel.
 
+Privacy and release trust are documented in the public
+[privacy policy](docs/PRIVACY.md) and
+[code-signing policy](docs/CODE_SIGNING_POLICY.md). GitOdile does not currently
+offer a signed public preview download; the release gates below remain closed
+until the real Windows and Linux qualification evidence exists.
+
 The pre-release naming reset uses a new desktop identity and recovery namespace.
 Previous-brand preferences and recovery records are not migrated or discovered;
 existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canonical-product-identity.md).
@@ -158,6 +164,19 @@ ordinary `pnpm run check` does not depend on GitHub availability. For prepared
 tracker changes, use `pnpm run check:feedback --local <feedback-checkout>` to
 validate form files before publishing them. Preserve form filenames and field
 IDs used by already released app versions.
+
+### Code signing policy
+
+Release tags are protected, candidate builds originate from reviewed GitHub
+Actions runs, and published packages must retain their checksums and signature
+evidence. Windows packages require a publicly trusted Authenticode signature;
+the Tauri updater signature is a separate requirement for every enabled target.
+GitOdile is applying for the SignPath Foundation open-source program. This is a
+request for sponsorship, not evidence that the project has been approved or
+that any existing package is signed.
+
+Free code signing provided by [SignPath.io](https://signpath.io/), certificate
+by [SignPath Foundation](https://signpath.org/).
 
 ## Architecture at a glance
 

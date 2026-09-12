@@ -151,6 +151,25 @@ the repository, an Actions artifact, release notes, chat, or ordinary cloud
 drive. At least twice a year, restore into an isolated machine, sign a harmless
 fixture, verify it with the recorded public key, and destroy the restored copy.
 
+### Readiness record — 2026-09-12
+
+Distinct validation and production Tauri updater identities are configured in
+their separate protected GitHub environments. Encrypted CurrentUser-DPAPI
+recovery copies exist on the controlled Windows maintainer machine with
+user-only filesystem access. Each recovery copy was restored, used to sign a
+new harmless fixture and verified with the application's Rust verifier and its
+recorded public key. The key identities are:
+
+- validation:
+  `sha256-2ee9c46df4787edce38ccbf947056e6af541a5ed5a37f1532857cd6e9115a8fa`;
+- production:
+  `sha256-074b4317dbc734a346c9efcdcb0b1e075febcb6b711c8fe7adfbab732f0d2ff1`.
+
+This is not the required second offline, geographically separate recovery
+store. No signed matrix may run until that independent backup is made and its
+custody is recorded. The private keys and passwords are deliberately absent
+from this repository and its evidence.
+
 For planned rotation, generate and back up the new key first. Build and qualify
 a bridge version signed by the old key whose application trusts the new public
 key. Release that bridge through the normal immutable pipeline and allow the
