@@ -109,12 +109,14 @@ enabled targets and the external approval are real. Run `pnpm run check` and the
 `pnpm run check:publication` on the exact reviewed `main` commit before any
 authorized publication.
 
-## Readiness snapshot — 2026-09-11
+## Readiness snapshot — 2026-09-12
 
-A read-only GitHub audit found no repository variables, repository secrets or
-protected environments configured in `martinezelx/project-gitodile`, and no
-releases in the public `martinezelx/gitodile-feedback` repository. Therefore no
-signed A/B matrix or installed-platform evidence exists. Windows and Linux
-remain `qualification_required`; both Darwin targets are deliberately
+The five required reviewer-protected environments now exist in
+`martinezelx/project-gitodile`, with protected-branch admission and no
+administrator bypass. A read-only audit found zero repository or environment
+secrets and variables, and no releases in the public
+`martinezelx/gitodile-feedback` repository. Therefore no signed A/B matrix or
+installed-platform evidence exists. Windows and Linux remain
+`qualification_required`; both Darwin targets are deliberately
 `planned_disabled`; production promotion remains disabled. This document must
 not be read as a qualification result.

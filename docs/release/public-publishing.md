@@ -129,14 +129,15 @@ private security channel and repository settings before the privileged job.
 
 ## Current external blockers
 
-- No real complete signed matrix from 065-9-5 exists. A read-only GitHub audit
-  on 2026-09-11 found no repository variables, repository secrets or protected
-  environments configured.
+- No real complete signed matrix from 065-9-5 exists. The five required
+  reviewer-protected environments were configured on 2026-09-12, but a
+  read-only audit found no repository or environment secrets and variables.
 - Production and validation updater keys/backups, a real Authenticode identity
   and protected environments are not evidenced. Apple credentials are
   deliberately out of scope with macOS disabled under task 065-10.
-- No destination-scoped publisher credential or destination environment is
-  evidenced, and the public feedback repository has no releases.
+- The destination environment exists, but no destination-scoped publisher
+  credential is configured or evidenced, and the public feedback repository
+  has no releases.
 - The public feedback README has not been changed because this work performs no
   commit or push; the coordinator holds the reviewed idempotent update for the
   first authorized promotion.
