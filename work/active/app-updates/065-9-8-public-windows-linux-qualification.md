@@ -227,6 +227,18 @@ JSON `--config` value. No protected signing job ran. The workflow now uses the
 checked `src-tauri/tauri.unsigned.conf.json` path on both shells, and executable
 tests reject a return to inline JSON configuration.
 
+The corrected candidate run
+[`34717984524`](https://github.com/martinezelx/project-gitodile/actions/runs/34717984524)
+then built the complete unsigned Windows/Linux matrix and passed its independent
+hash and provenance gate. Its downstream signing run
+[`34718448366`](https://github.com/martinezelx/project-gitodile/actions/runs/34718448366)
+failed closed before accessing a protected environment: GitHub exposes
+`GITHUB_REF_TYPE=branch` to a `workflow_run`, while the revalidation command is
+checking the exact candidate tag fetched from the triggering run. The trusted
+signing workflow now supplies the explicit `tag` context only to that step;
+the exact tag, source SHA, approved-main ancestry, metadata and byte-identical
+candidate identity remain revalidated before any signing material is reachable.
+
 # Validation
 
 Record the public-readiness diff and local checks first, without spending or

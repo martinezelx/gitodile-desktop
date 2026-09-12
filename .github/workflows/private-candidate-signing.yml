@@ -58,6 +58,9 @@ jobs:
           git fetch --no-tags origin "+refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
       - name: Revalidate metadata directly from the tagged object
         env:
+          # workflow_run itself is branch-scoped, but this step has fetched and
+          # revalidates the immutable tag recorded by the candidate workflow.
+          GITHUB_REF_TYPE: tag
           RELEASE_TAG: ${{ steps.identity.outputs.tag }}
           SOURCE_SHA: ${{ steps.identity.outputs.sha }}
         run: >-

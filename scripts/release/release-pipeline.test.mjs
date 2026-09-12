@@ -362,6 +362,12 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.equal(signing.parsed.jobs["windows-validation-boundary"].if, "needs.authorize.outputs.profile == 'validation'");
   assert.equal(signing.parsed.jobs["windows-os-sign"].if, "needs.authorize.outputs.profile == 'production'");
   assert.match(signing.parsed.jobs["updater-sign-and-gate"].if, /windows-validation-boundary\.result == 'success'/);
+  const signingRevalidation = signing.parsed.jobs.authorize.steps.find(
+    (step) => step.name === "Revalidate metadata directly from the tagged object",
+  );
+  assert.equal(signingRevalidation.env.GITHUB_REF_TYPE, "tag");
+  assert.match(signingRevalidation.run, /--tag "\$RELEASE_TAG"/);
+  assert.match(signingRevalidation.run, /--sha "\$SOURCE_SHA"/);
   for (const source of [candidate.source, signing.source]) {
     assert.doesNotMatch(source, /gitodile-feedback|contents:\s*write|create-release|upload-release-asset/i);
   }
