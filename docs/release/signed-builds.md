@@ -174,9 +174,13 @@ recorded public key. The key identities are:
   `sha256-074b4317dbc734a346c9efcdcb0b1e075febcb6b711c8fe7adfbab732f0d2ff1`.
 
 This is not the required second offline, geographically separate recovery
-store. No signed matrix may run until that independent backup is made and its
-custody is recorded. The private keys and passwords are deliberately absent
-from this repository and its evidence.
+store. No production-signed matrix or public production distribution may run
+until that independent backup is made and its custody is recorded. The fixed
+`.2`/`.3` qualification pair may run with the disposable validation identity:
+it is isolated from production, has a tested encrypted restore, cannot promote
+a production feed, and remains subject to its protected-environment approval.
+The private keys and passwords are deliberately absent from this repository
+and its evidence.
 
 For planned rotation, generate and back up the new key first. Build and qualify
 a bridge version signed by the old key whose application trusts the new public
