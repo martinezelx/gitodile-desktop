@@ -212,8 +212,12 @@ Platform-specific Tauri configuration now overrides the unsafe default
 macOS bundling is disabled. This prevents a normal preview `tauri build` on
 Windows from entering the unsupported MSI bundler, whose numeric-only
 prerelease constraint rejects `0.2.0-preview.N`. A real local
-`pnpm tauri build --ci --no-sign` produced only
-`GitOdile_0.2.0-preview.1_x64-setup.exe` successfully.
+`pnpm tauri build --ci --no-sign` on the `0.2.0-preview.2` version branch
+reported exactly one bundle and produced
+`GitOdile_0.2.0-preview.2_x64-setup.exe` successfully. The resulting local
+package is intentionally unsigned and is build-contract evidence only, not a
+substitute for the protected validation-key workflow or installed updater
+evidence.
 
 # Validation
 

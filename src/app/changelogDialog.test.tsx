@@ -105,7 +105,9 @@ describe("Changelog dialog", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Novedades" });
     expect(within(dialog).getByText("Estás usando esta")).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("button", { name: /v0\.2\.0-preview\.1/ }));
+    await userEvent.click(within(dialog).getByRole("button", {
+      name: (accessibleName) => accessibleName.includes(`v${CURRENT_APP_RELEASE.version}`),
+    }));
     expect(within(dialog).getByText(/GitOdile utiliza ahora/)).toBeInTheDocument();
   });
 
