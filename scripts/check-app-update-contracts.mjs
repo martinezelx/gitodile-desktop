@@ -163,6 +163,9 @@ for (const testCase of contract.metadataCases) {
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const tauriConfig = JSON.parse(fs.readFileSync(path.join(root, "src-tauri", "tauri.conf.json"), "utf8"));
+const tauriWindowsConfig = JSON.parse(fs.readFileSync(path.join(root, "src-tauri", "tauri.windows.conf.json"), "utf8"));
+const tauriLinuxConfig = JSON.parse(fs.readFileSync(path.join(root, "src-tauri", "tauri.linux.conf.json"), "utf8"));
+const tauriMacosConfig = JSON.parse(fs.readFileSync(path.join(root, "src-tauri", "tauri.macos.conf.json"), "utf8"));
 const cargoToml = fs.readFileSync(path.join(root, "src-tauri", "Cargo.toml"), "utf8");
 const cargoLock = fs.readFileSync(path.join(root, "src-tauri", "Cargo.lock"), "utf8");
 const cargoVersion = cargoToml.match(/^\[package\][\s\S]*?^version\s*=\s*"([^"]+)"/m)?.[1];
@@ -173,6 +176,9 @@ assert.ok(parseVersion(packageJson.version), `unsupported current version ${pack
 assert.equal(currentVersions.every((version) => version === packageJson.version), true, "current metadata differs");
 assert.equal(tauriConfig.identifier, "app.gitodile.desktop");
 assert.equal(tauriConfig.bundle?.active, true);
+assert.equal(tauriWindowsConfig.bundle?.targets, "nsis", "Windows must not implicitly build the unsupported MSI target");
+assert.equal(tauriLinuxConfig.bundle?.targets, "appimage", "Linux qualification only supports AppImage");
+assert.equal(tauriMacosConfig.bundle?.active, false, "macOS packaging remains explicitly disabled");
 assert.deepEqual(
   tauriConfig.plugins?.updater,
   { endpoints: [], pubkey: "" },
