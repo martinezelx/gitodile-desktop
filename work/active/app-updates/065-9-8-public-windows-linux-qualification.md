@@ -248,6 +248,19 @@ ancestry, metadata and byte-identical candidate identity remain revalidated
 before any signing material is reachable. Executable tests cover both the
 valid downstream revalidation and rejection of an explicit non-tag type.
 
+The next exact candidate run
+[`34719884465`](https://github.com/martinezelx/project-gitodile/actions/runs/34719884465)
+passed the complete Windows/Linux build matrix. Signing run
+[`34720357070`](https://github.com/martinezelx/project-gitodile/actions/runs/34720357070)
+then passed source reauthorization and both OS-boundary jobs, and the maintainer
+approved only `validation-updater-signing` after independently rehashing the
+downloaded matrices. It failed while compiling the repository-owned signature
+verifier because that Ubuntu job lacked the GTK/WebKit development packages
+required by the Tauri crate; the credential presence guard had passed but no
+signed matrix was emitted. The signing job now installs the same pinned-runner
+system dependencies used by CI and builds the verifier with Cargo's lockfile
+enforced before signing any final bytes.
+
 # Validation
 
 Record the public-readiness diff and local checks first, without spending or

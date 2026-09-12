@@ -394,6 +394,14 @@ test("workflows expose no branch publication path and pin external actions", () 
     (step) => step.name === "Validate tag, ancestry, revision, versions and channel",
   );
   assert.match(candidateValidation.run, /--ref-type "\$GITHUB_REF_TYPE"/);
+  const signingVerifierDependencies = signing.parsed.jobs["updater-sign-and-gate"].steps.find(
+    (step) => step.name === "Install Linux verifier dependencies",
+  );
+  assert.match(signingVerifierDependencies.run, /libwebkit2gtk-4\.1-dev/);
+  const updaterSigning = signing.parsed.jobs["updater-sign-and-gate"].steps.find(
+    (step) => step.name === "Sign final bytes and verify every updater signature",
+  );
+  assert.match(updaterSigning.run, /cargo build --locked .*--example verify_updater_signature/);
   for (const source of [candidate.source, signing.source]) {
     assert.doesNotMatch(source, /gitodile-feedback|contents:\s*write|create-release|upload-release-asset/i);
   }
