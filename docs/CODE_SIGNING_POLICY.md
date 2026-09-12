@@ -2,20 +2,25 @@
 
 Last updated: 2026-09-12
 
-GitOdile publishes no desktop package until its source tag, build provenance,
-checksums, updater signature and platform-specific trust evidence pass the
-documented release gates. Windows x86-64 NSIS and Linux x86-64 AppImage are the
-only targets in the current qualification matrix. macOS remains explicitly
-disabled and is not advertised or published.
+GitOdile offers no desktop package as a trusted general public download until
+its source tag, build provenance, checksums, updater signature and
+platform-specific trust evidence pass the documented release gates. Windows
+x86-64 NSIS and Linux x86-64 AppImage are the only targets in the current
+functional qualification matrix. macOS remains explicitly disabled and is not
+advertised or published.
 
-## SignPath open-source application
+## Controlled validation exception
 
-GitOdile is applying to the SignPath Foundation open-source code-signing
-program. The application and this policy do not claim that sponsorship has
-already been granted or that an unsigned package is trusted.
+The fixed `0.2.0-preview.2` to `0.2.0-preview.3` qualification may use a Windows
+NSIS package that lacks Authenticode solely to prove the independently signed
+Tauri updater lifecycle. Its evidence must say `authenticode_deferred`, its
+updater signature must still verify, and it may appear only on the controlled
+validation host. It must not be described as a trusted public release.
 
-Free code signing provided by [SignPath.io](https://signpath.io/), certificate
-by [SignPath Foundation](https://signpath.org/).
+[Task 065-9-9](../work/active/app-updates/065-9-9-authenticode-public-delivery.md)
+owns the future provider choice, Authenticode qualification and general public
+Windows distribution. The provider must remain suitable if future source
+development becomes private. No SignPath application was submitted.
 
 ## Authorized roles and source
 
@@ -23,7 +28,7 @@ The GitHub organization owner `martinezelx` is currently the project maintainer,
 committer, reviewer and release approver. A release candidate must originate
 from a protected `v*` tag whose commit is contained in protected `main`. Only a
 reviewed GitHub Actions artifact from the repository's pinned workflow may enter
-a SignPath trusted-build signing request. Locally built or modified binaries are
+a protected production signing request. Locally built or modified binaries are
 not eligible for publication.
 
 The release process separates build, updater signing, Windows OS signing and

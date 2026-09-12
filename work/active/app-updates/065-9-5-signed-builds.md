@@ -80,14 +80,14 @@ the two artifact-producing acceptance criteria remain open.
   compromise and loss procedures live in the
   [private signed-build runbook](../../../docs/release/signed-builds.md).
 
-External blockers are exact rather than simulated: the validation and
-production updater public
-identity variables; production and validation updater private keys plus
-verified offline backups; Authenticode certificate access;
-protected-environment reviewers; runner/package
-availability; and real platform executions. Working-name clearance remains a
-separate public-release gate. An absent credential fails by name before a
-signing command and cannot yield a production evidence record.
+External blockers are exact rather than simulated. The distinct validation and
+production updater identities and protected-environment reviewers are now
+configured; both local encrypted key copies passed restore/sign/verify.
+Runner/package availability and real platform execution still gate the fixed
+validation pair. Independent offline production recovery and Authenticode
+certificate access remain production-only blockers under 065-9-9. Working-name
+clearance remains a separate public-release gate. An absent credential fails by
+name before a signing command and cannot yield a production evidence record.
 
 # Validation
 

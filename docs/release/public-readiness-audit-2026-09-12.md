@@ -6,10 +6,12 @@ certificate, private key or authenticated response.
 
 ## Scope and accepted disclosure
 
-The maintainer explicitly accepted temporary public distribution of the
+The maintainer explicitly accepted public distribution of the
 reachable `martinezelx/project-gitodile` source under MIT, including the
 tracked `work/` history, product strategy, design critiques and existing audit
-records. Returning the repository to private cannot recall clones or forks or
+records. On 2026-09-12 the maintainer decided to keep the source public during
+the GitHub Actions qualification phase. Any later return to private cannot
+recall clones or forks or
 revoke MIT rights already granted. The current tree contains 161 tracked
 `work/` files among 640 tracked files.
 

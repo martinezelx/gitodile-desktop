@@ -111,9 +111,24 @@ export function verifyCompleteMatrix(evidenceItems, candidate, { requiredPhase =
       if (evidence.trust?.updater?.result !== "passed" || !evidence.trust.updater.publicIdentity) {
         throw new ReleaseValidationError("verification_incomplete", `${evidence.target} lacks updater verification`);
       }
-      const expectedOsResult = evidence.target === "linux-x86_64" ? "not_applicable" : "passed";
+      const validationWindows =
+        candidate.release.signingProfile === "validation" && evidence.target === "windows-x86_64";
+      const expectedOsResult = evidence.target === "linux-x86_64"
+        ? "not_applicable"
+        : validationWindows
+          ? "not_checked"
+          : "passed";
       if (evidence.trust?.operatingSystem?.result !== expectedOsResult) {
         throw new ReleaseValidationError("verification_incomplete", `${evidence.target} lacks OS trust verification`);
+      }
+      if (validationWindows && (
+        evidence.trust.operatingSystem.reason !== "authenticode_deferred" ||
+        evidence.trust.operatingSystem.publicIdentity !== null
+      )) {
+        throw new ReleaseValidationError(
+          "verification_incomplete",
+          "Windows validation without Authenticode must remain explicitly untrusted",
+        );
       }
       const expectedNotary = evidence.target.startsWith("darwin-") ? "passed" : "not_applicable";
       if (evidence.trust?.notarization?.result !== expectedNotary) {

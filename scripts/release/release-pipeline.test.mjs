@@ -204,6 +204,19 @@ test("Windows trust evidence rejects self-signed or unpinned Authenticode identi
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-windows-trust-"));
   const identity = path.join(root, "identity.json");
   const output = path.join(root, "trust.json");
+  const validationOutput = path.join(root, "validation-trust.json");
+  const validationRun = spawnSync(process.execPath, [
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "make-os-trust.mjs"),
+    "windows-x86_64",
+    "validation-unsigned",
+    validationOutput,
+  ], { encoding: "utf8", windowsHide: true });
+  assert.equal(validationRun.status, 0, validationRun.stderr);
+  assert.deepEqual(JSON.parse(fs.readFileSync(validationOutput, "utf8")).operatingSystem, {
+    result: "not_checked",
+    reason: "authenticode_deferred",
+    publicIdentity: null,
+  });
   const run = () => spawnSync(process.execPath, [
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), "make-os-trust.mjs"),
     "windows-x86_64",
@@ -235,6 +248,60 @@ test("Windows trust evidence rejects self-signed or unpinned Authenticode identi
   assert.match(signingScript, /TimeStamperCertificate/);
   assert.match(signingScript, /X509RevocationMode/);
   assert.match(signingScript, /self-signed certificate is not accepted/);
+});
+
+test("only validation matrices may carry explicitly deferred Windows Authenticode", () => {
+  const makeEvidence = (candidate, target, operatingSystem) => ({
+    schemaVersion: 1,
+    phase: "signed",
+    source: candidate.source,
+    release: candidate.release,
+    target,
+    rustTarget: target === "windows-x86_64" ? "x86_64-pc-windows-msvc" : "x86_64-unknown-linux-gnu",
+    artifacts: [
+      {
+        role: "first-install-and-updater",
+        fileName: target === "windows-x86_64" ? "GitOdile_setup.exe" : "GitOdile.AppImage",
+        size: 1,
+        sha256: "a".repeat(64),
+      },
+      {
+        role: "updater-signature",
+        fileName: target === "windows-x86_64" ? "GitOdile_setup.exe.sig" : "GitOdile.AppImage.sig",
+        size: 1,
+        sha256: "b".repeat(64),
+      },
+    ],
+    trust: {
+      updater: { result: "passed", publicIdentity: "validation-key" },
+      operatingSystem,
+      notarization: { result: "not_applicable" },
+    },
+  });
+  const validationRepo = repository("0.2.0-preview.2");
+  const validation = validateReleaseCandidate({
+    root: validationRepo.root,
+    tag: validationRepo.tag,
+    sha: validationRepo.sha,
+    mainRef: "main",
+  });
+  const deferred = { result: "not_checked", reason: "authenticode_deferred", publicIdentity: null };
+  assert.equal(verifyCompleteMatrix([
+    makeEvidence(validation, "windows-x86_64", deferred),
+    makeEvidence(validation, "linux-x86_64", { result: "not_applicable" }),
+  ], validation, { requiredPhase: "signed" }).length, 2);
+
+  const productionRepo = repository("0.2.0-preview.4");
+  const production = validateReleaseCandidate({
+    root: productionRepo.root,
+    tag: productionRepo.tag,
+    sha: productionRepo.sha,
+    mainRef: "main",
+  });
+  expectCode("verification_incomplete", () => verifyCompleteMatrix([
+    makeEvidence(production, "windows-x86_64", deferred),
+    makeEvidence(production, "linux-x86_64", { result: "not_applicable" }),
+  ], production, { requiredPhase: "signed" }));
 });
 
 test("workflows expose no branch publication path and pin external actions", () => {
@@ -284,9 +351,13 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.equal(signing.parsed.jobs["macos-os-sign"], undefined);
   assert.deepEqual(signing.parsed.jobs["updater-sign-and-gate"].needs, [
     "authorize",
+    "windows-validation-boundary",
     "windows-os-sign",
     "linux-os-boundary",
   ]);
+  assert.equal(signing.parsed.jobs["windows-validation-boundary"].if, "needs.authorize.outputs.profile == 'validation'");
+  assert.equal(signing.parsed.jobs["windows-os-sign"].if, "needs.authorize.outputs.profile == 'production'");
+  assert.match(signing.parsed.jobs["updater-sign-and-gate"].if, /windows-validation-boundary\.result == 'success'/);
   for (const source of [candidate.source, signing.source]) {
     assert.doesNotMatch(source, /gitodile-feedback|contents:\s*write|create-release|upload-release-asset/i);
   }

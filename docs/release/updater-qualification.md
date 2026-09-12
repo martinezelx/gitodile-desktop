@@ -115,10 +115,12 @@ The five required reviewer-protected environments exist in
 `martinezelx/project-gitodile`, with protected-branch admission and no
 administrator bypass. Distinct validation and production Tauri updater keys are
 configured and both local encrypted recovery copies passed an actual
-restore/sign/verify test. The independent offline backup, real publicly trusted
-Windows Authenticode provider, destination-scoped publisher credential and
-controlled validation feed are still pending. No release exists in the public
-`martinezelx/gitodile-feedback` repository, so no signed A/B matrix or
+restore/sign/verify test. The controlled GitHub Pages validation origin is
+configured and intentionally empty until the real pair exists. The independent
+offline production backup, publicly trusted Windows Authenticode provider and
+destination-scoped publisher credential moved to task 065-9-9 and do not block
+the fixed internal validation pair. No release exists in the public
+`martinezelx/gitodile-feedback` repository, so no A/B matrix or
 installed-platform evidence exists. Windows and Linux remain
 `qualification_required`; both Darwin targets are deliberately
 `planned_disabled`; production promotion remains disabled. This document must

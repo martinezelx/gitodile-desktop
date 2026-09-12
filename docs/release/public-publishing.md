@@ -129,20 +129,21 @@ private security channel and repository settings before the privileged job.
 
 ## Current external blockers
 
-- No real complete signed matrix from 065-9-5 exists. The five required
-  reviewer-protected environments were configured on 2026-09-12, but a
-  read-only audit found no repository or environment secrets and variables.
-- Production and validation updater keys/backups, a real Authenticode identity
-  and protected environments are not evidenced. Apple credentials are
-  deliberately out of scope with macOS disabled under task 065-10.
+- No real complete production matrix from 065-9-5 exists. The five required
+  reviewer-protected environments and distinct validation/production updater
+  identities were configured on 2026-09-12.
+- Both local encrypted updater-key recovery copies passed restore/sign/verify.
+  The independent offline production backup and real Authenticode identity are
+  deferred to task 065-9-9. Apple credentials are deliberately out of scope
+  with macOS disabled under task 065-10.
 - The destination environment exists, but no destination-scoped publisher
   credential is configured or evidenced, and the public feedback repository
   has no releases.
 - The public feedback README has not been changed because this work performs no
   commit or push; the coordinator holds the reviewed idempotent update for the
   first authorized promotion.
-- Neither enabled target has the two real installed packages and failure
-  evidence required by 065-9-7/065-9-8. macOS retains its separate
+- Neither enabled target has the two real installed validation packages and
+  failure evidence required by 065-9-7/065-9-8. macOS retains its separate
   replacement-safety blocker without entering this release matrix.
 - Written clearance for the working name is not evidenced.
 

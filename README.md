@@ -144,9 +144,11 @@ x86-64 AppImage candidates, but neither is enabled for automatic installation
 until its real signed A-to-B qualification succeeds. Both macOS targets are
 planned and explicitly disabled under task 065-10; they are not advertised in
 feeds or published as supported packages. Signed-build validation, protected
-evidence and protected signing workflows are implemented, but no real
-certificate/key run has passed yet. Source-repository visibility grants no
-access to signing material or publisher credentials. The manual public publisher,
+evidence and protected signing workflows are implemented. Distinct validation
+and production Tauri updater keys are configured; the fixed validation pair may
+defer Windows Authenticode only while remaining clearly marked as an internal,
+OS-untrusted test. Source-repository visibility grants no access to signing
+material or publisher credentials. The manual public publisher,
 immutable-asset reconciliation and stable/preview feed gates are implemented
 and locally tested. Production remains closed: no target is qualified, no
 publisher credential or real signed matrix is evidenced, and no release/feed
@@ -171,12 +173,12 @@ Release tags are protected, candidate builds originate from reviewed GitHub
 Actions runs, and published packages must retain their checksums and signature
 evidence. Windows packages require a publicly trusted Authenticode signature;
 the Tauri updater signature is a separate requirement for every enabled target.
-GitOdile is applying for the SignPath Foundation open-source program. This is a
-request for sponsorship, not evidence that the project has been approved or
-that any existing package is signed.
-
-Free code signing provided by [SignPath.io](https://signpath.io/), certificate
-by [SignPath Foundation](https://signpath.org/).
+Controlled validation packages may intentionally lack Authenticode so the
+Tauri-signed updater lifecycle can be tested; they are not trusted public
+downloads. [Task 065-9-9](work/active/app-updates/065-9-9-authenticode-public-delivery.md)
+owns the sustainable certificate/provider choice and real public Windows
+qualification before general distribution. No external signing-service
+application has been submitted.
 
 ## Architecture at a glance
 

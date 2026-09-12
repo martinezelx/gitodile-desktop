@@ -166,9 +166,14 @@ function signedMatrix(version) {
     fs.writeFileSync(updater, `signed-${target}-${version}`);
     fs.writeFileSync(signature, `signature-${target}`);
     artifacts.push({ role: target.startsWith("darwin-") ? "updater" : "first-install-and-updater", file: updater }, { role: "updater-signature", file: signature });
+    const validationWindows = identity.release.signingProfile === "validation" && target === "windows-x86_64";
     const evidence = createEvidence({ candidate: identity, target, phase: "signed", artifacts, trust: {
       updater: { result: "passed", publicIdentity: "test-key" },
-      operatingSystem: { result: target === "linux-x86_64" ? "not_applicable" : "passed", publicIdentity: target === "linux-x86_64" ? undefined : "test-os" },
+      operatingSystem: target === "linux-x86_64"
+        ? { result: "not_applicable" }
+        : validationWindows
+          ? { result: "not_checked", reason: "authenticode_deferred", publicIdentity: null }
+          : { result: "passed", publicIdentity: "test-os" },
       notarization: { result: target.startsWith("darwin-") ? "passed" : "not_applicable" },
     } });
     fs.writeFileSync(path.join(directory, "evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`);

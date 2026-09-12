@@ -55,6 +55,13 @@ These are independent claims and are recorded independently:
 | Operating-system trust | Windows | Authenticode validation, expected SHA-256 certificate identity, Code Signing EKU, timestamp, non-self-signed trusted chain and certificate subject/issuer |
 | Linux OS signing | Linux AppImage | `not_applicable`; this is not represented as an OS-trust success. The updater signature is still mandatory |
 
+The fixed validation profile is the only exception to the Windows OS-trust
+row. It carries the unchanged unsigned NSIS bytes through a boundary record
+whose result is `not_checked`, reason is `authenticode_deferred` and public
+identity is null, then applies and verifies the validation Tauri signature.
+Production evidence rejects that state and still requires Authenticode. Task
+065-9-9 owns the real provider and general public Windows qualification.
+
 macOS signing and notarization are deliberately absent from this phase. Task
 065-10 must add them back together with real installed qualification; no Apple
 secret or macOS package belongs in the current release workflow.
@@ -68,12 +75,12 @@ beside an unsigned or subsequently modified package is invalid evidence.
 Configure values without copying their contents into issues, task files,
 workflow inputs or logs:
 
-| Scope | Names | Current readiness (2026-09-10) |
+| Scope | Names | Current readiness (2026-09-12) |
 | --- | --- | --- |
-| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | Not configured as of the 2026-09-12 preflight |
+| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | Both distinct public identities and the controlled HTTPS validation feed are configured; qualified production targets remain unset |
 | `production-windows-signing` environment secrets and variable | Secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | No real Code Signing certificate/service is available or evidenced |
-| `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Production key and backup not evidenced |
-| `validation-updater-signing` environment secrets | same two updater secret names, containing a distinct validation key | Validation key and backup not evidenced |
+| `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Distinct key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before public production use |
+| `validation-updater-signing` environment secrets | same two updater secret names, containing a distinct validation key | Distinct disposable validation key configured; local encrypted restore/sign/verify passed |
 
 The credential guard reports missing **names** only. Scripts do not print
 values. Private key/certificate files exist only in an OS temporary directory,
@@ -84,9 +91,10 @@ be restricted to release maintainers.
 
 Windows depends on `windows-2025`; Linux depends on `ubuntu-24.04`
 and its AppImage packages. Availability in a YAML matrix is not platform
-validation. If a runner image, certificate, timestamp/notary service or
-credential is missing, the corresponding job must fail or remain awaiting
-approval. Do not substitute an unsigned artifact.
+validation. If a runner image or updater credential is missing, the
+corresponding validation job must fail or remain awaiting approval. A missing
+certificate or timestamp service blocks production Windows signing; only the
+fixed validation pair may retain an explicitly OS-untrusted artifact.
 
 ## Preparing a candidate
 

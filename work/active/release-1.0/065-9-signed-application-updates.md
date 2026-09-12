@@ -60,7 +60,8 @@ own executable work; this epic has no queue position.
 | Q01 | [065-9-5 — Build signed release artifacts in private CI](../app-updates/065-9-5-signed-builds.md) | Private CI, signing, provenance and source-tag gates |
 | Q02 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
 | Q03 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
-| Q04 | [065-9-8 — Qualify public Windows and Linux updater delivery](../app-updates/065-9-8-public-windows-linux-qualification.md) | Temporary-public hardening, scoped target matrix, public updater proof and epic closure |
+| Q04 | [065-9-8 — Qualify controlled Windows and Linux updater delivery](../app-updates/065-9-8-public-windows-linux-qualification.md) | Public-source hardening and real functional updater proof through the controlled validation feed |
+| Q23 | [065-9-9 — Add trusted Windows signing before general public distribution](../app-updates/065-9-9-authenticode-public-delivery.md) | Deferred Authenticode, production previews and public Windows distribution trust |
 
 All criteria below remain the epic completion gate. Each child records its own
 evidence; 065-9-7 checks the combined coverage before this epic can be closed.

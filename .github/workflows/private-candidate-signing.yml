@@ -74,9 +74,49 @@ jobs:
       - name: Rehash every package and require all targets
         run: node scripts/release/release-evidence.mjs verify-matrix --candidate authorization/candidate.json --directory authorization/unsigned --phase unsigned
 
-  windows-os-sign:
-    name: Authenticode sign Windows
+  windows-validation-boundary:
+    name: Record unsigned Windows validation boundary
     needs: authorize
+    if: needs.authorize.outputs.profile == 'validation'
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          name: candidate-identity
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          name: unsigned-windows-x86_64
+          path: input
+      - name: Rehash and retain explicitly untrusted validation bytes
+        shell: pwsh
+        run: |
+          node scripts/release/release-evidence.mjs verify-artifacts --evidence input/evidence.json --directory input
+          $evidence = Get-Content -Raw input/evidence.json | ConvertFrom-Json
+          $source = Join-Path input $evidence.artifacts[0].fileName
+          New-Item -ItemType Directory -Path os-signed/windows-x86_64 | Out-Null
+          $destination = Join-Path os-signed/windows-x86_64 $evidence.artifacts[0].fileName
+          Copy-Item -LiteralPath $source -Destination $destination
+          node scripts/release/make-os-trust.mjs windows-x86_64 validation-unsigned windows-trust.json
+          node scripts/release/release-evidence.mjs create --candidate candidate.json --target windows-x86_64 --phase os-signed --trust windows-trust.json --artifact "first-install-and-updater=$destination" --output os-signed/windows-x86_64/evidence.json
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: os-signed-windows-x86_64
+          path: os-signed/windows-x86_64
+          if-no-files-found: error
+          retention-days: 30
+
+  windows-os-sign:
+    name: Authenticode sign production Windows
+    needs: authorize
+    if: needs.authorize.outputs.profile == 'production'
     runs-on: windows-2025
     environment: production-windows-signing
     steps:
@@ -166,7 +206,19 @@ jobs:
 
   updater-sign-and-gate:
     name: Updater-sign final bytes and close matrix
-    needs: [authorize, windows-os-sign, linux-os-boundary]
+    needs: [authorize, windows-validation-boundary, windows-os-sign, linux-os-boundary]
+    if: >-
+      always() &&
+      needs.authorize.result == 'success' &&
+      needs.linux-os-boundary.result == 'success' &&
+      (
+        (needs.authorize.outputs.profile == 'validation' &&
+         needs.windows-validation-boundary.result == 'success' &&
+         needs.windows-os-sign.result == 'skipped') ||
+        (needs.authorize.outputs.profile == 'production' &&
+         needs.windows-validation-boundary.result == 'skipped' &&
+         needs.windows-os-sign.result == 'success')
+      )
     runs-on: ubuntu-24.04
     environment: ${{ needs.authorize.outputs.profile == 'validation' && 'validation-updater-signing' || 'production-updater-signing' }}
     env:
