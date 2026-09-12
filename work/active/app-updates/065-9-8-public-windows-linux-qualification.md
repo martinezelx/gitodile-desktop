@@ -219,6 +219,14 @@ package is intentionally unsigned and is build-contract evidence only, not a
 substitute for the protected validation-key workflow or installed updater
 evidence.
 
+The first protected candidate attempt is retained as failed run
+[`34702455447`](https://github.com/martinezelx/project-gitodile/actions/runs/34702455447).
+Its immutable identity validation passed, but the secretless Windows build
+failed before packaging because PowerShell removed the quotes from an inline
+JSON `--config` value. No protected signing job ran. The workflow now uses the
+checked `src-tauri/tauri.unsigned.conf.json` path on both shells, and executable
+tests reject a return to inline JSON configuration.
+
 # Validation
 
 Record the public-readiness diff and local checks first, without spending or

@@ -344,6 +344,10 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.match(identityGuard.run, /Validation and production updater identities must both exist and be distinct/);
   assert.match(identityGuard.run, /qualifiedTargets !== validationTarget/);
   assert.match(identityGuard.run, /qualifiedTargets !== "windows-x86_64,linux-x86_64"/);
+  const unsignedBuild = candidate.parsed.jobs.build.steps.find((step) => step.name === "Build without signing credentials");
+  assert.match(unsignedBuild.run, /--config src-tauri\/tauri\.unsigned\.conf\.json/);
+  assert.doesNotMatch(unsignedBuild.run, /--config\s+['"]?\{/,
+    "inline JSON config is not shell-portable across the Windows and Linux matrix");
 
   const signing = readWorkflow("private-candidate-signing.yml");
   assert.deepEqual(Object.keys(signing.parsed.on), ["workflow_run"]);
