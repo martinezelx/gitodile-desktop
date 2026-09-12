@@ -25,18 +25,20 @@ inventory, and mandatory extension rules live in
 updater work must consume that boundary rather than introducing a second busy
 flag or screen-local draft check.
 
-## Observed planning baseline
+## Observed baseline and current implementation
 
 The repository was inspected rather than treating the planning documents as
 runtime evidence:
 
 - npm, Cargo, Cargo's root lock entry, and Tauri all contain
-  `0.2.0-preview.1`; the build is an unpublished preview candidate;
-- the Tauri identity is `app.gitodile.desktop`, bundling is active, and
-  `bundle.targets` is `all`; that last value requests each host's normal bundle
-  set but does not select an updater installer family or prove a package works;
+  `0.2.0-preview.2`; the version branch is an unpublished validation candidate;
+- the Tauri identity is `app.gitodile.desktop` and bundling is active. The base
+  `bundle.targets` remains `all`, but the mandatory platform overlays restrict
+  Windows to `nsis`, Linux to `appimage`, and disable macOS bundling. These
+  settings select the intended package families without claiming that either
+  installed updater path is already qualified;
 - resolved Tauri runtime / CLI versions are `2.11.5` / `2.11.4`;
-- at that baseline neither updater plugin was installed, updater artifacts were
+- at the original planning baseline neither updater plugin was installed, updater artifacts were
   disabled, no public key or endpoint was embedded, and the WebView had no
   updater or process capability;
 - ordinary CI runs tests on Windows, macOS, and Linux and release-compiles an
@@ -374,9 +376,9 @@ A = 0.2.0-preview.2 / v0.2.0-preview.2
 B = 0.2.0-preview.3 / v0.2.0-preview.3
 ```
 
-Both are future relative to the current `0.2.0-preview.1` candidate. They use a
-separate validation key and feed and must not advance `preview.json` or
-`stable.json`. For each enabled target:
+Build A is the current unpublished candidate and build B is its planned
+successor. They use a separate validation key and feed and must not advance
+`preview.json` or `stable.json`. For each enabled target:
 
 1. prepare each exact version on a short-lived version branch, merge it into
    `main`, tag that exact checked merge commit, and prove npm/Cargo/lock/Tauri,
