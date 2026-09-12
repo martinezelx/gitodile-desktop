@@ -137,7 +137,7 @@ jobs:
           pnpm tauri build --ci --no-sign
           --target ${{ matrix.rustTarget }}
           --bundles ${{ matrix.bundle }}
-          --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          --config src-tauri/tauri.unsigned.conf.json
       - name: Stage Windows package only
         if: runner.os == 'Windows'
         shell: pwsh
