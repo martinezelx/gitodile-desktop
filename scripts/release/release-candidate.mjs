@@ -156,7 +156,8 @@ export function runCandidateCli(argv, environment = process.env) {
     throw new ReleaseValidationError("invalid_event", "release candidates can only originate from a tag push");
   }
   const tag = args.get("tag");
-  if (environment.GITHUB_REF_TYPE && environment.GITHUB_REF_TYPE !== "tag") {
+  const refType = args.get("ref-type") ?? environment.GITHUB_REF_TYPE;
+  if (refType && refType !== "tag") {
     throw new ReleaseValidationError("invalid_event", "release candidate ref must be a tag");
   }
   const candidate = validateReleaseCandidate({

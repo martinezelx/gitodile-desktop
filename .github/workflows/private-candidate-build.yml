@@ -32,6 +32,7 @@ jobs:
         run: >-
           node scripts/release/release-candidate.mjs
           --event push
+          --ref-type "$GITHUB_REF_TYPE"
           --tag "$GITHUB_REF_NAME"
           --sha "$GITHUB_SHA"
           --main-ref refs/remotes/origin/main

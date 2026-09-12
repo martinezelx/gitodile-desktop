@@ -235,9 +235,18 @@ hash and provenance gate. Its downstream signing run
 failed closed before accessing a protected environment: GitHub exposes
 `GITHUB_REF_TYPE=branch` to a `workflow_run`, while the revalidation command is
 checking the exact candidate tag fetched from the triggering run. The trusted
-signing workflow now supplies the explicit `tag` context only to that step;
-the exact tag, source SHA, approved-main ancestry, metadata and byte-identical
-candidate identity remain revalidated before any signing material is reachable.
+signing workflow first attempted to supply an explicit `tag` context only to
+that step. GitHub does not permit a workflow to override its default
+`GITHUB_*` variables, so run
+[`34719287176`](https://github.com/martinezelx/project-gitodile/actions/runs/34719287176)
+also failed closed at the same check even though the step log displayed the
+attempted override. The validator therefore accepts a dedicated `--ref-type`
+argument: the tag-push workflow passes GitHub's actual ref type, while the
+trusted downstream workflow passes `tag` only after fetching the exact tag
+recorded by the successful source run. The exact tag, source SHA, approved-main
+ancestry, metadata and byte-identical candidate identity remain revalidated
+before any signing material is reachable. Executable tests cover both the
+valid downstream revalidation and rejection of an explicit non-tag type.
 
 # Validation
 
