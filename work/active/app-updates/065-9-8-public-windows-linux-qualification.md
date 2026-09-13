@@ -324,6 +324,23 @@ accepted as installed A-to-B evidence. The already-published `.2`/`.3` assets
 remain immutable and disqualified; qualification requires a fresh signed pair
 rather than overwriting or relabelling them.
 
+Before producing that fresh pair, the runtime architecture must remove the
+standalone `fetch_bounded_manifest` request. It currently downloads the feed
+once with a GitOdile-owned reqwest client and then again through
+`tauri-plugin-updater`, comparing both JSON values. The first request ran before
+the plugin installed the crypto provider required by its deliberate
+`rustls-no-provider` feature, which caused the abort above. More importantly,
+the duplicate request adds a second HTTP authority and a cache/CDN race without
+strengthening the package signature that Tauri verifies. Keep the GitOdile
+state machine, consent and preservation admission, structured errors, strict
+version/target/URL validation, download bounds and the plugin client redirect
+and timeout policy; make the plugin's single `check()` response authoritative
+and validate its returned `raw_json`. Then remove the temporary direct `rustls`
+feature/AWS-LC dependency, run a real release-mode HTTPS regression, and only
+afterward create a fresh `.4` to `.5` validation pair. Reserve `.6` to `.7` for
+the future production-key/AuthentiCode pair. No `.4` or later tag or matrix had
+been created when this decision was recorded.
+
 # Validation
 
 Record the public-readiness diff and local checks first, without spending or
