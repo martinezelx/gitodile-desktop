@@ -275,6 +275,22 @@ package name. The loop now reads and parses that path explicitly through
 `node:fs`; an executable workflow-contract assertion prevents the unsafe path
 resolution from returning.
 
+The corrected exact candidate run
+[`34750914140`](https://github.com/martinezelx/project-gitodile/actions/runs/34750914140)
+passed the complete Windows/Linux build and provenance matrix at source
+`3e8f04fb1ac312b2242eccca896151b4d6ecde73`. Signing run
+[`34751381157`](https://github.com/martinezelx/project-gitodile/actions/runs/34751381157)
+then passed source reauthorization and both OS boundaries. Before approving
+`validation-updater-signing`, the exact unsigned and OS-stage artifacts were
+downloaded, rehashed and accepted by the repository verifier. The protected
+job Tauri-signed both the NSIS package and AppImage with validation updater
+identity `sha256-2ee9c46df4787edce38ccbf947056e6af541a5ed5a37f1532857cd6e9115a8fa`,
+verified both signatures independently with the Rust verifier, and emitted a
+complete signed matrix with `publicPromotionAllowed: false`. The final artifact
+was downloaded again and its full matrix and package/signature hashes passed
+local verification. Windows remains explicitly `authenticode_deferred`; this
+is functional qualification evidence, not a trusted public Windows release.
+
 # Validation
 
 Record the public-readiness diff and local checks first, without spending or
