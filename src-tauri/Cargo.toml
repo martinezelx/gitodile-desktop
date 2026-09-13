@@ -23,7 +23,11 @@ serde_json = "1"
 semver = "1"
 sha2 = "0.10"
 tokio = { version = "1", features = ["macros", "sync", "time"] }
-reqwest = { version = "0.13", default-features = false }
+# The updater plugin intentionally selects `rustls-no-provider`, but GitOdile
+# also builds its own bounded preflight client below that plugin. Opting that
+# direct client into Reqwest's `rustls` feature installs the AWS-LC provider;
+# without it `ClientBuilder::build` panics and a release build aborts.
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
 futures-util = "0.3"
 time = { version = "0.3", features = ["formatting"] }
 # Filesystem watching for live working-tree updates (task 020). Default

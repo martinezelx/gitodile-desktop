@@ -2302,6 +2302,13 @@ mod tests {
     }
 
     #[test]
+    fn bounded_manifest_client_has_a_rustls_crypto_provider() {
+        assert!(configure_http_client(reqwest::Client::builder())
+            .build()
+            .is_ok());
+    }
+
+    #[test]
     fn check_requests_share_the_exact_active_operation() {
         let service = AppUpdateService::for_test();
         let id = service.install_test_operation(ActiveOperationKind::Check);

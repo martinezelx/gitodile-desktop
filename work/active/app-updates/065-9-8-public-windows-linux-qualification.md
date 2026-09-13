@@ -202,10 +202,14 @@ in encrypted CurrentUser-DPAPI recovery copies on the controlled Windows
 maintainer machine. Both encrypted copies passed a real restore, fixture-signing
 and Rust-verifier test. The separate offline backup required before production
 distribution is still missing. The controlled validation host now exists at
-`https://martinezelx.github.io/gitodile-validation/065-9-7/updates/preview.json`;
-it intentionally returns 404 until the real `.2`/`.3` bundle exists. Windows
-Authenticode and the destination-scoped public publisher moved to 065-9-9;
-installed Windows/Linux evidence is still pending.
+`https://martinezelx.github.io/gitodile-validation/065-9-7/updates/preview.json`.
+Bundle run
+[`34764363010`](https://github.com/martinezelx/project-gitodile/actions/runs/34764363010)
+published the immutable `.2`/`.3` validation packages and feed at validation
+host commit `fbbff79`. Anonymous downloads and their expected hashes were
+verified outside an authenticated GitHub session. Windows Authenticode and the
+destination-scoped public publisher remain in 065-9-9; installed Linux evidence
+is still pending, and the Windows exercise below disqualified this first pair.
 
 Platform-specific Tauri configuration now overrides the unsafe default
 `bundle.targets: all`: Windows builds only NSIS, Linux builds only AppImage and
@@ -290,6 +294,35 @@ complete signed matrix with `publicPromotionAllowed: false`. The final artifact
 was downloaded again and its full matrix and package/signature hashes passed
 local verification. Windows remains explicitly `authenticode_deferred`; this
 is functional qualification evidence, not a trusted public Windows release.
+
+Candidate run
+[`34752710080`](https://github.com/martinezelx/project-gitodile/actions/runs/34752710080)
+and protected signing run
+[`34753158343`](https://github.com/martinezelx/project-gitodile/actions/runs/34753158343)
+produced and independently verified the corresponding `.3` Windows NSIS and
+Linux AppImage packages with the same validation updater identity. Bundle run
+`34764363010` combined both signed matrices without changing their bytes and
+published `preview.json` for `.3`. Its feed SHA-256 was
+`c369633a620db76e976076b95b4eba63971bcc87621dab133e73400ae757679e`.
+
+The real Windows `.2` NSIS was then installed from that controlled host. Opening
+the updater caused the installed application to terminate instead of reporting
+an update. Windows Error Reporting recorded exception `0xc0000409` and retained
+process dumps under `%LOCALAPPDATA%\CrashDumps`. Reproduction from an
+instrumented development build located the abort at the bounded manifest
+preflight: `reqwest` was compiled with rustls but without a process crypto
+provider, and constructing the HTTPS client panicked. Release builds use
+`panic=abort`, so this escaped the structured updater error path and terminated
+the entire application.
+
+The fix selects reqwest's `rustls` feature and adds a regression test that must
+successfully construct the exact bounded-manifest client. A correctly packaged
+local `.3` build (`tauri build --no-bundle`, not a raw Cargo build) remained
+alive after a real HTTPS check and returned `current` from the controlled `.3`
+feed. That local result proves the crash correction but is deliberately not
+accepted as installed A-to-B evidence. The already-published `.2`/`.3` assets
+remain immutable and disqualified; qualification requires a fresh signed pair
+rather than overwriting or relabelling them.
 
 # Validation
 
