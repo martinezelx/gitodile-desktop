@@ -402,6 +402,9 @@ test("workflows expose no branch publication path and pin external actions", () 
     (step) => step.name === "Sign final bytes and verify every updater signature",
   );
   assert.match(updaterSigning.run, /cargo build --locked .*--example verify_updater_signature/);
+  assert.match(updaterSigning.run, /fs\.readFileSync\(process\.argv\[1\],'utf8'\)/);
+  assert.doesNotMatch(updaterSigning.run, /require\(process\.argv\[1\]\)/,
+    "filesystem paths from find must not be resolved as Node package names");
   for (const source of [candidate.source, signing.source]) {
     assert.doesNotMatch(source, /gitodile-feedback|contents:\s*write|create-release|upload-release-asset/i);
   }
