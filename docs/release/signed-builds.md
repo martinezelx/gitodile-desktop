@@ -55,12 +55,11 @@ These are independent claims and are recorded independently:
 | Operating-system trust | Windows | Authenticode validation, expected SHA-256 certificate identity, Code Signing EKU, timestamp, non-self-signed trusted chain and certificate subject/issuer |
 | Linux OS signing | Linux AppImage | `not_applicable`; this is not represented as an OS-trust success. The updater signature is still mandatory |
 
-The fixed validation profile is the only exception to the Windows OS-trust
-row. It carries the unchanged unsigned NSIS bytes through a boundary record
-whose result is `not_checked`, reason is `authenticode_deferred` and public
-identity is null, then applies and verifies the validation Tauri signature.
-Production evidence rejects that state and still requires Authenticode. Task
-065-9-9 owns the real provider and general public Windows qualification.
+Pre-1.0 and initial `1.0.0` Windows packages carry the unchanged unsigned NSIS
+bytes through a boundary record whose result is `not_checked`, reason is
+`authenticode_deferred` and public identity is null, then apply and verify the
+appropriate Tauri signature. Publication may accept that state only with the
+required unknown-publisher warning. Task 065-9-9 owns post-1.0 Authenticode.
 
 macOS signing and notarization are deliberately absent from this phase. Task
 065-10 must add them back together with real installed qualification; no Apple
@@ -78,7 +77,7 @@ workflow inputs or logs:
 | Scope | Names | Current readiness (2026-09-12) |
 | --- | --- | --- |
 | Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | Both distinct public identities and the controlled HTTPS validation feed are configured; qualified production targets remain unset |
-| `production-windows-signing` environment secrets and variable | Secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | No real Code Signing certificate/service is available or evidenced |
+| `production-windows-signing` environment secrets and variable | Reserved post-1.0 names: secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | Deliberately unconfigured until task 065-9-9 resumes after `1.0.0` |
 | `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Distinct key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before public production use |
 | `validation-updater-signing` environment secrets | same two updater secret names, containing a distinct validation key | Distinct disposable validation key configured; local encrypted restore/sign/verify passed |
 

@@ -61,8 +61,10 @@ is the authoritative release sequence and capability cut.
       validation recorded, including all eight children of updater epic 065-9.
 - [ ] The release capability matrix has no unsupported path presented as
       working and no required path dependent on the terminal.
-- [ ] The actual Windows, macOS, and Linux release artifacts pass their defined
-      smoke, workflow, accessibility, credential, and update/rollback checks.
+- [ ] The actual Windows and Linux release artifacts pass their defined smoke,
+      workflow, accessibility, credential, and update/recovery checks. Windows
+      records Authenticode as deliberately deferred and discloses the resulting
+      OS warning; macOS remains disabled and unadvertised.
 - [ ] No open known issue can silently lose work, misreport a remote outcome,
       bypass hooks/signing, or overwrite newer state.
 - [ ] `pnpm run check` passes on the release commit and version metadata is
@@ -92,6 +94,8 @@ in each task and in the roadmap dependency map.
 - Audit before adding features; release claims follow evidence.
 - Work on one implementation task at a time even though the release epic keeps
   the approved sequence visible.
+- ADR 0011 removes Authenticode and macOS delivery from the `1.0.0` gate; tasks
+  065-9-9 and 065-10 retain their IDs as post-1.0 work.
 
 # Implementation notes
 

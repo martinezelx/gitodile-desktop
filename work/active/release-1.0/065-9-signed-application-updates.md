@@ -61,7 +61,7 @@ own executable work; this epic has no queue position.
 | Q02 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
 | Q03 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
 | Q04 | [065-9-8 — Qualify controlled Windows and Linux updater delivery](../app-updates/065-9-8-public-windows-linux-qualification.md) | Public-source hardening and real functional updater proof through the controlled validation feed |
-| Q23 | [065-9-9 — Add trusted Windows signing before general public distribution](../app-updates/065-9-9-authenticode-public-delivery.md) | Deferred Authenticode, production previews and public Windows distribution trust |
+| Post-1.0 | [065-9-9 — Add trusted Windows signing after 1.0.0](../app-updates/065-9-9-authenticode-public-delivery.md) | Authenticode provider, qualification and OS-level Windows publisher trust |
 
 All criteria below remain the epic completion gate. Each child records its own
 evidence; 065-9-7 checks the combined coverage before this epic can be closed.
@@ -136,10 +136,11 @@ and controlled feeds are used first so testing does not depend on publication.
       reporting success. Interrupted/failed installs offer reinstall guidance
       without a loop, a forced downgrade, or fabricated rollback guarantees.
 - [ ] CI builds from a verified source tag, signs final packages with
-      distinct updater/OS-signing mechanisms, and publishes curated public
+      updater-signing mechanisms, and publishes curated public
       artifacts using destination-scoped credentials only in trusted jobs.
       Public tags target public commits and expose no credential or private
-      signing artifact.
+      signing artifact. Windows records Authenticode as deliberately deferred
+      through `1.0.0`; task 065-9-9 adds OS signing afterwards.
 - [ ] Exact reviewed commits on `main` are tagged. Ordinary branch pushes and
       merges publish nothing. Tests reject source tags outside
       `main`, metadata mismatches, unsupported prerelease suffixes, and channel/

@@ -120,8 +120,10 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 
 Not yet implemented: non-fast-forward/local-line integration, the recovery
 center, guided conflict
-resolution, and setting changes aside. Signed cross-platform
-distribution and real macOS/Linux runtime validation also remain release gates.
+resolution, and setting changes aside. Windows/Linux release qualification also
+remains open. Windows Authenticode and macOS delivery are deliberately deferred
+until after `1.0.0`; see
+[ADR 0011](docs/adr/0011-defer-windows-authenticode-and-macos-delivery-until-after-1.0.md).
 The dependency-ordered `1.0.0` plan is in the
 [`roadmap`](docs/ROADMAP.md), with approved acceptance criteria under
 [`work/active/`](work/active/) and the completed core-workflow evidence in
@@ -141,18 +143,19 @@ and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
 The native updater lifecycle and its visual controls are implemented. The
 current release matrix enables only Windows x86-64 per-user NSIS and Linux
 x86-64 AppImage candidates, but neither is enabled for automatic installation
-until its real signed A-to-B qualification succeeds. Both macOS targets are
-planned and explicitly disabled under task 065-10; they are not advertised in
-feeds or published as supported packages. Signed-build validation, protected
+until its real Tauri-signed A-to-B qualification succeeds. Both macOS targets
+are post-1.0 work under task 065-10; they are not advertised in feeds or
+published as supported packages. Signed-build validation, protected
 evidence and protected signing workflows are implemented. Distinct validation
 and production Tauri updater keys are configured; the fixed validation pair may
 defer Windows Authenticode only while remaining clearly marked as an internal,
 OS-untrusted test. Source-repository visibility grants no access to signing
 material or publisher credentials. The manual public publisher,
 immutable-asset reconciliation and stable/preview feed gates are implemented
-and locally tested. Production remains closed: no target is qualified, no
-publisher credential or real signed matrix is evidenced, and no release/feed
-has been published. Maintainers must follow the
+and locally tested. Production remains closed until the enabled Windows/Linux
+matrix is qualified and published. Authenticode is deliberately not a pre-1.0
+gate, so Windows downloads must disclose that the operating system does not
+know their publisher. Maintainers must follow the
 [signed-build](docs/release/signed-builds.md) and
 [public publishing](docs/release/public-publishing.md) runbooks; a private
 artifact is not a release and validation drafts cannot modify a production
@@ -170,15 +173,12 @@ IDs used by already released app versions.
 ### Code signing policy
 
 Release tags are protected, candidate builds originate from reviewed GitHub
-Actions runs, and published packages must retain their checksums and signature
-evidence. Windows packages require a publicly trusted Authenticode signature;
-the Tauri updater signature is a separate requirement for every enabled target.
-Controlled validation packages may intentionally lack Authenticode so the
-Tauri-signed updater lifecycle can be tested; they are not trusted public
-downloads. [Task 065-9-9](work/active/app-updates/065-9-9-authenticode-public-delivery.md)
-owns the sustainable certificate/provider choice and real public Windows
-qualification before general distribution. No external signing-service
-application has been submitted.
+Actions runs, and published packages must retain their checksums and Tauri
+updater-signature evidence. Windows packages through `1.0.0` intentionally lack
+publicly trusted Authenticode and may trigger SmartScreen or unknown-publisher
+warnings. [Task 065-9-9](work/active/app-updates/065-9-9-authenticode-public-delivery.md)
+owns the post-1.0 provider choice and OS-level trust qualification. No external
+signing-service application has been submitted.
 
 ## Architecture at a glance
 

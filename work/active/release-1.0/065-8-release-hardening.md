@@ -14,25 +14,26 @@ areas:
 created: 2026-08-18
 completed:
 parent: "065"
-queue: "22"
+queue: "21"
 ---
 
 # Goal
 
 Freeze features, validate the full product on representative systems, and ship
-signed, updateable, supportable `1.0.0` artifacts.
+Tauri-signed, updateable, supportable `1.0.0` artifacts for Windows and Linux.
 
 # User outcome
 
-Users can install GitOdile from a trusted package, complete every advertised
+Users can install GitOdile from a verified updater package, complete every advertised
 workflow on their platform, update safely, and understand compatibility and
-support boundaries.
+support boundaries, including the lack of Windows publisher trust.
 
 # Context
 
 Compilation and unit/integration CI are not runtime, packaging, signing,
 credential, accessibility, or update evidence. ADR 0006 explicitly defers
-macOS/Linux runtime validation to this task.
+macOS/Linux runtime validation to release hardening. ADR 0011 supersedes the
+macOS portion for `1.0.0`: real macOS delivery is now post-1.0.
 
 # Scope
 
@@ -40,13 +41,13 @@ macOS/Linux runtime validation to this task.
   remote-integrity, correctness, accessibility, security, and usability risk.
 - Run the full Gate-0 workflow plus clone/create/history/integration/conflict/
   recovery/stash journeys from actual packaged artifacts on representative
-  Windows, macOS, and supported Linux environments.
+  Windows and supported Linux environments.
 - Execute large-repository, long-running process, watcher, memory, startup,
   screen-switch, keyboard, screen-reader, zoom, forced-colors, reduced-motion,
   locale, path, line-ending, symlink, casing, lock, and credential matrices.
-- Produce signed Windows installers, signed/notarized macOS packages, and
-  documented Linux packages/distributions with reproducible CI provenance and
-  artifact hashes.
+- Produce Tauri-signed Windows installers and Linux packages/distributions with
+  reproducible CI provenance and artifact hashes. Record Windows Authenticode
+  as deferred and keep macOS absent from the supported matrix.
 - Qualify the updater and publication pipeline delivered by
   [epic 065-9](065-9-signed-application-updates.md) against the final signed
   artifacts: signature verification, failure behavior, reinstall instructions,
@@ -68,10 +69,11 @@ macOS/Linux runtime validation to this task.
       behavior to automated plus actual-artifact evidence.
 - [ ] No open blocker/critical issue can lose work, corrupt state, expose a
       credential, misreport a remote result, or prevent a primary workflow.
-- [ ] Representative Windows, macOS, and documented Linux artifacts pass the
+- [ ] Representative Windows and documented Linux artifacts pass the
       complete smoke/workflow/platform/accessibility matrix from clean installs.
-- [ ] Signing/notarization/package provenance and hashes verify through the
-      normal installation path; uninstall preserves user repositories.
+- [ ] Updater signatures, package provenance and hashes verify through the
+      normal installation path; uninstall preserves user repositories and the
+      Windows documentation discloses its unknown publisher.
 - [ ] Update success, unavailable update, interrupted download/install, invalid
       signature, rollback/reinstall, and older-settings migration are tested.
 - [ ] Startup, memory, interaction, large-repository, watcher, and process
@@ -97,13 +99,14 @@ macOS/Linux runtime validation to this task.
 
 - Tasks 015, 037, 064, and 065-1 through 065-7 complete.
 - Epic 065-9 and all seven children complete; its signed updater and publication pipeline complete before freeze.
-- Access to representative Windows, macOS, and Linux QA/signing environments.
+- Access to representative Windows and Linux QA environments.
 
 # Decisions
 
 - Feature freeze begins when this task starts.
 - Support claims follow actual packaged-artifact evidence.
-- Release signing, update safety, and rollback are correctness requirements.
+- Tauri updater signing, update safety, and recovery are correctness requirements.
+- ADR 0011 defers Authenticode and macOS delivery until after `1.0.0`.
 
 # Implementation notes
 

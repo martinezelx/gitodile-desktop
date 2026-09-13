@@ -84,10 +84,11 @@ External blockers are exact rather than simulated. The distinct validation and
 production updater identities and protected-environment reviewers are now
 configured; both local encrypted key copies passed restore/sign/verify.
 Runner/package availability and real platform execution still gate the fixed
-validation pair. Independent offline production recovery and Authenticode
-certificate access remain production-only blockers under 065-9-9. Working-name
-clearance remains a separate public-release gate. An absent credential fails by
-name before a signing command and cannot yield a production evidence record.
+validation pair. Independent offline production updater-key recovery remains a
+public-release gate. Authenticode certificate access is deliberately deferred
+until after `1.0.0` under 065-9-9 and does not block the initial release.
+Working-name clearance remains separate. An absent required credential fails by
+name before a signing command and cannot yield a false evidence record.
 
 The original `.2`/`.3` matrices were successfully signed but are retained as a
 failed qualification attempt after the installed Windows updater exposed the

@@ -1,8 +1,8 @@
 ---
 id: 065-9-9
-title: Add trusted Windows signing before general public distribution
+title: Add trusted Windows signing after 1.0.0
 status: active
-priority: high
+priority: low
 type: hardening
 areas:
   - release
@@ -12,14 +12,13 @@ areas:
 created: 2026-09-12
 completed:
 parent: "065-9"
-queue: "23"
+queue: "24"
 ---
 
 # Goal
 
-Add publicly trusted Windows Authenticode signing and qualify the production
-preview publication path before GitOdile is offered as a general public Windows
-download.
+Add publicly trusted Windows Authenticode signing and requalify Windows
+publication after GitOdile `1.0.0`.
 
 # Context
 
@@ -30,9 +29,11 @@ artifacts. This is sufficient to prove Tauri package authentication and the
 installed A-to-B lifecycle, but it does not establish a trusted Windows
 publisher or remove SmartScreen warnings.
 
-The source repository remains public during the current GitHub Actions testing
-phase, but future development may be private. Do not assume eligibility for an
-OSS-only signing sponsorship. No SignPath application was submitted.
+On 2026-09-14 the maintainer deferred provider selection, certificate custody
+and Authenticode qualification until after `1.0.0`. Previews and the initial
+1.0 release may therefore ship without OS-level publisher trust, with explicit
+warnings and `authenticode_deferred` evidence. The Tauri updater signature
+remains mandatory and is not equivalent to Authenticode. See ADR 0011.
 
 # Scope
 
@@ -43,7 +44,7 @@ OSS-only signing sponsorship. No SignPath application was submitted.
 - Exercise the existing production Authenticode path or replace it with a
   reviewed remote-signing integration while keeping Actions commit-pinned and
   least-privileged.
-- Produce two consecutive production-key previews, verify Authenticode chain,
+- Produce two consecutive post-1.0 production-key previews, verify Authenticode chain,
   revocation and timestamp evidence, publish immutable assets to
   `martinezelx/gitodile-feedback`, and prove anonymous downloads plus the real
   public `.4` to `.5` updater transition.
@@ -53,8 +54,8 @@ OSS-only signing sponsorship. No SignPath application was submitted.
 
 - Treating a self-signed certificate, a Tauri updater signature or an unsigned
   validation build as equivalent to Authenticode.
-- Publishing macOS artifacts or a stable release.
-- Declaring GitOdile 1.0.0 ready.
+- Publishing macOS artifacts.
+- Retroactively describing pre-1.0 or 1.0 packages as Authenticode-qualified.
 
 # Acceptance criteria
 
@@ -75,6 +76,7 @@ OSS-only signing sponsorship. No SignPath application was submitted.
 
 # Dependencies
 
+- Released `1.0.0` and an explicit maintainer decision to resume this task.
 - Completed controlled updater qualification from 065-9-8.
 - A real Windows x86-64 test device.
 - A publicly trusted code-signing provider and protected credentials.

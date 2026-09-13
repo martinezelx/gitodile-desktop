@@ -1,8 +1,8 @@
 ---
 id: 065-10
-title: Qualify macOS updater delivery on real Apple targets
+title: Qualify post-1.0 macOS updater delivery on real Apple targets
 status: active
-priority: high
+priority: low
 type: hardening
 areas:
   - release
@@ -12,13 +12,14 @@ areas:
 created: 2026-09-12
 completed:
 parent: "065"
-queue: "21"
+queue: "25"
 ---
 
 # Goal
 
-Qualify and only then enable GitOdile updater delivery for Apple Silicon and
-Intel macOS using real signed, notarized packages and installed A-to-B evidence.
+After `1.0.0`, qualify and only then enable GitOdile updater delivery for Apple
+Silicon and Intel macOS using real signed, notarized packages and installed
+A-to-B evidence.
 
 # Context
 
@@ -26,6 +27,11 @@ Task 065-9-8 deliberately closes the first updater phase with only Windows
 x86-64 NSIS and Linux x86-64 AppImage enabled. `darwin-aarch64` and
 `darwin-x86_64` remain known but `planned_disabled`: they must not enter a feed,
 public release asset set or support claim until this task is complete.
+
+On 2026-09-14 the maintainer deferred this task until after `1.0.0` because no
+representative Apple device is available and purchasing one is not currently
+justified. CI compilation remains useful coverage but does not qualify macOS.
+See ADR 0011.
 
 # Scope
 
@@ -67,6 +73,7 @@ public release asset set or support claim until this task is complete.
 
 # Dependencies
 
+- Released `1.0.0` and an explicit maintainer decision to resume this task.
 - Completed Windows/Linux updater phase 065-9.
 - Real Apple Silicon and Intel test environments.
 - Apple Developer ID Application identity, notarization access and protected

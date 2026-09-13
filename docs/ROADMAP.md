@@ -117,6 +117,8 @@ references and therefore do not change when priorities move.
   New operations and drafts must integrate with install protection as they land.
   Git credential diagnostics remain Q23 / 065-7; final product qualification
   remains Q24 / 065-8. Completing this epic does not establish 1.0.0 readiness.
+  ADR 0011 defers Windows Authenticode and all macOS delivery until after
+  `1.0.0`; the initial release matrix is Windows x86-64 plus Linux x86-64.
 
 ### Gate 0 — Prove the existing loop (completed 2026-08-21)
 

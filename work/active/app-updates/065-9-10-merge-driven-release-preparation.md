@@ -12,7 +12,7 @@ areas:
 created: 2026-09-13
 completed:
 parent: "065-9"
-queue: "25"
+queue: "23"
 ---
 
 # Goal
@@ -40,7 +40,10 @@ or release branches to initiate the same hardened candidate workflow.
   bytes.
 - Keep production publication behind its protected environment approval and
   destination-scoped credential.
-- Preserve macOS as disabled until its independent qualification is complete.
+- Preserve macOS as disabled through `1.0.0` and until its post-1.0 independent
+  qualification is complete.
+- Preserve the honest `authenticode_deferred` state for pre-1.0 and initial
+  1.0 Windows releases; automation must not imply OS-level publisher trust.
 
 # Acceptance criteria
 
@@ -62,8 +65,10 @@ or release branches to initiate the same hardened candidate workflow.
 
 - [065-9-8](065-9-8-public-windows-linux-qualification.md) real controlled
   updater qualification.
-- [065-9-9](065-9-9-authenticode-public-delivery.md) production Windows trust
-  and destination publication qualification before general public releases.
+- [065-9-8](065-9-8-public-windows-linux-qualification.md) and the publication
+  contracts needed for unsigned-but-Tauri-authenticated Windows/Linux releases.
+
+Task 065-9-9 is deliberately post-1.0 and does not block this automation.
 
 # Validation
 
