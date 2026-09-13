@@ -120,7 +120,7 @@
     "redirects": 5,
     "retainedCandidates": 1
   },
-  "validationBuilds": ["0.2.0-preview.2", "0.2.0-preview.3"],
+  "validationBuilds": ["0.2.0-preview.4", "0.2.0-preview.5"],
   "versionCases": [
     {
       "name": "same stable version",

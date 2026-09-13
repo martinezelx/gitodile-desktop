@@ -11,7 +11,7 @@ advertised or published.
 
 ## Controlled validation exception
 
-The fixed `0.2.0-preview.2` to `0.2.0-preview.3` qualification may use a Windows
+The active `0.2.0-preview.4` to `0.2.0-preview.5` qualification may use a Windows
 NSIS package that lacks Authenticode solely to prove the independently signed
 Tauri updater lifecycle. Its evidence must say `authenticode_deferred`, its
 updater signature must still verify, and it may appear only on the controlled
@@ -21,6 +21,10 @@ validation host. It must not be described as a trusted public release.
 owns the future provider choice, Authenticode qualification and general public
 Windows distribution. The provider must remain suitable if future source
 development becomes private. No SignPath application was submitted.
+
+The earlier `.2` to `.3` validation packages remain immutable failed evidence
+and are not an active qualification pair. Public production-key qualification
+continues later with `.6` to `.7` after Authenticode is available.
 
 ## Authorized roles and source
 

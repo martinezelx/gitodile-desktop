@@ -127,7 +127,7 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
       assets.push({ ...artifact, target: item.target, source: path.join(path.dirname(evidenceFiles.find((file) => readJson(file).target === item.target)), artifact.fileName) });
     }
     const url = `${PUBLIC_RELEASE_ORIGIN}/${candidate.source.tag}/${encodeURIComponent(updater.fileName)}`;
-    platforms[item.target] = { signature: signatureText, url };
+    platforms[item.target] = { signature: signatureText, url, size: updater.size };
   }
   const manifest = {
     version: candidate.release.version,

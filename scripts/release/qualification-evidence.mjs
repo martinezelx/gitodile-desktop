@@ -39,8 +39,8 @@ const SHA256 = /^[0-9a-f]{64}$/;
 const SOURCE_SHA = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 const RUN_URL = /^https:\/\/github\.com\/martinezelx\/project-gitodile\/actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?$/;
 const HTTPS_URL = /^https:\/\//;
-const PUBLIC_RELEASE_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-feedback\/releases\/tag\/v0\.2\.0-preview\.[45]$/;
-const PUBLIC_ASSET_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-feedback\/releases\/download\/v0\.2\.0-preview\.[45]\/[A-Za-z0-9._-]+$/;
+const PUBLIC_RELEASE_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-feedback\/releases\/tag\/v0\.2\.0-preview\.[67]$/;
+const PUBLIC_ASSET_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-feedback\/releases\/download\/v0\.2\.0-preview\.[67]\/[A-Za-z0-9._-]+$/;
 
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
@@ -214,8 +214,8 @@ function validateValidationQualification(record, required) {
 
 export function validatePublicPreviewQualification(record) {
   if (
-    record?.signingProfile !== "production" || record?.fromVersion !== "0.2.0-preview.4" ||
-    record?.toVersion !== "0.2.0-preview.5" || !["pending", "qualified"].includes(record?.status)
+    record?.signingProfile !== "production" || record?.fromVersion !== "0.2.0-preview.6" ||
+    record?.toVersion !== "0.2.0-preview.7" || !["pending", "qualified"].includes(record?.status)
   ) fail("qualification_invalid", "public preview qualification record is malformed");
   if (record.status === "pending" && (
     record.productionUpdaterPublicKeyId !== null || record.feed !== null ||

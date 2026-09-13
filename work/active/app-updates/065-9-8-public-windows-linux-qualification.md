@@ -74,12 +74,13 @@ submitted.
   encrypted recovery, a controlled anonymous-read HTTPS validation origin and
   reviewer-protected GitHub environments. Never place secret values in source,
   task files, workflow inputs, logs or Actions artifacts.
-- Build and retain the fixed Tauri-signed validation pair
-  `0.2.0-preview.2` / `0.2.0-preview.3` from exact tagged `main` commits. Create
-  one controlled non-promoting bundle and exercise the complete installed A-to-B
-  and failure matrix on real Windows and Linux environments. Record Windows as
-  OS-untrusted during this internal validation; never present it as an
-  Authenticode-qualified public download.
+- Preserve the immutable failed `0.2.0-preview.2` / `0.2.0-preview.3` evidence,
+  then build and retain the corrected Tauri-signed validation pair
+  `0.2.0-preview.4` / `0.2.0-preview.5` from exact tagged `main` commits. Create
+  one new controlled non-promoting bundle and exercise the complete installed
+  A-to-B and failure matrix on real Windows and Linux environments. Record
+  Windows as OS-untrusted during this internal validation; never present it as
+  an Authenticode-qualified public download.
 - Publish only the fixed validation bundle to the controlled
   `martinezelx/gitodile-validation` GitHub Pages origin. Preserve exact hashes,
   immutable version paths and anonymous HTTPS access without advancing the
@@ -134,7 +135,7 @@ submitted.
       AppImage. Both macOS targets are visibly unqualified and absent from
       advertised production feeds/assets, with a separate active or blocked
       follow-up owning their real enablement.
-- [ ] Real Tauri-signed `0.2.0-preview.2` and `0.2.0-preview.3` packages exist
+- [ ] Real Tauri-signed `0.2.0-preview.4` and `0.2.0-preview.5` packages exist
       for both enabled targets with complete build provenance and updater
       verification. Windows evidence says `authenticode_deferred` and cannot be
       confused with production trust. The controlled bundle changes no package
@@ -145,9 +146,10 @@ submitted.
       records no false success and no forced downgrade.
 - [ ] The controlled GitHub Pages bundle exposes only immutable validation
       paths, downloads anonymously with recorded hashes and advances only from
-      `.2` to `.3`. It does not modify `gitodile-feedback`, production
+      `.4` to `.5`. The failed `.2`/`.3` paths remain byte-for-byte immutable.
+      It does not modify `gitodile-feedback`, production
       `preview.json` or `stable.json`.
-- [ ] A normal Windows NSIS installation updates end to end from `.2` to `.3`
+- [ ] A normal Windows NSIS installation updates end to end from `.4` to `.5`
       through GitOdile and truthfully reports the running version after restart.
       The same proof passes on the Linux AppImage environment before functional
       qualification is complete.
@@ -315,31 +317,41 @@ provider, and constructing the HTTPS client panicked. Release builds use
 `panic=abort`, so this escaped the structured updater error path and terminated
 the entire application.
 
-The fix selects reqwest's `rustls` feature and adds a regression test that must
-successfully construct the exact bounded-manifest client. A correctly packaged
-local `.3` build (`tauri build --no-bundle`, not a raw Cargo build) remained
-alive after a real HTTPS check and returned `current` from the controlled `.3`
-feed. That local result proves the crash correction but is deliberately not
-accepted as installed A-to-B evidence. The already-published `.2`/`.3` assets
-remain immutable and disqualified; qualification requires a fresh signed pair
-rather than overwriting or relabelling them.
+The provisional correction selected reqwest's `rustls` feature and added a
+regression test that constructed the duplicate bounded-manifest client. A
+correctly packaged local `.3` build (`tauri build --no-bundle`, not a raw Cargo
+build) remained alive after a real HTTPS check and returned `current` from the
+controlled `.3` feed. That local result isolated the provider failure, but it
+is deliberately not accepted as installed A-to-B evidence. The already
+published `.2`/`.3` assets remain immutable and disqualified; qualification
+requires a fresh signed pair rather than overwriting or relabelling them.
 
-Before producing that fresh pair, the runtime architecture must remove the
-standalone `fetch_bounded_manifest` request. It currently downloads the feed
-once with a GitOdile-owned reqwest client and then again through
-`tauri-plugin-updater`, comparing both JSON values. The first request ran before
-the plugin installed the crypto provider required by its deliberate
-`rustls-no-provider` feature, which caused the abort above. More importantly,
-the duplicate request adds a second HTTP authority and a cache/CDN race without
-strengthening the package signature that Tauri verifies. Keep the GitOdile
-state machine, consent and preservation admission, structured errors, strict
-version/target/URL validation, download bounds and the plugin client redirect
-and timeout policy; make the plugin's single `check()` response authoritative
-and validate its returned `raw_json`. Then remove the temporary direct `rustls`
-feature/AWS-LC dependency, run a real release-mode HTTPS regression, and only
-afterward create a fresh `.4` to `.5` validation pair. Reserve `.6` to `.7` for
-the future production-key/AuthentiCode pair. No `.4` or later tag or matrix had
-been created when this decision was recorded.
+The corrected runtime now has one HTTP authority: the updater plugin's single
+`check()` obtains the feed with its configured HTTPS-only client, bounded
+timeouts and redirect policy, and GitOdile validates the returned `raw_json`
+before accepting the plugin selection. The validator closes the manifest shape
+and cross-checks version, notes, publication date, target, URL, signature and
+positive bounded size. The GitOdile state machine, cancellation, progress,
+consent and preservation admission, install-mode checks, and Tauri-owned
+`download()` and `install()` remain intact. The standalone
+`fetch_bounded_manifest`, its streaming client and the temporary reqwest rustls
+feature were removed; the regenerated lockfile contains no AWS-LC packages.
+Executable contract tests require this client-unique architecture and reject a
+return to the preflight request.
+
+On 2026-09-13, before creating any new tag, the complete `pnpm run check` gate
+passed, including 859 frontend and 399 Rust tests. A real validation-profile
+`pnpm exec tauri build --no-bundle` produced the optimized Windows `.4`
+executable. That exact executable opened as the only GitOdile instance and
+remained responsive. A manual `check_app_update` invoked from its real Tauri
+renderer contacted the controlled HTTPS feed, transitioned from the structured
+`checking` state to `current` at `2026-09-13T20:55:53.2697159Z`, and left the
+process alive. No new Windows Error Reporting dump was created; the newest
+existing GitOdile dump remained the earlier `.2`/`.3` investigation artifact
+from `2026-09-13T16:45:02.2160761Z`. This clears the local pre-tag gates but is
+not installed `.4` to `.5` evidence. The fresh validation pair remains `.4` to
+`.5`; `.6` to `.7` remains reserved for the future production-key/AuthentiCode
+pair.
 
 # Validation
 

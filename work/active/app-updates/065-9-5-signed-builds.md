@@ -73,7 +73,7 @@ the two artifact-producing acceptance criteria remain open.
   independently verifies Tauri updater signatures. Evidence binds full source
   SHA/tag, version/channel/profile, target, final-byte SHA-256, public
   certificate/signer identity and each verification result.
-- The fixed A=`0.2.0-preview.2` / B=`0.2.0-preview.3` pair selects a distinct
+- The active A=`0.2.0-preview.4` / B=`0.2.0-preview.5` pair selects a distinct
   validation updater-signing environment. This pipeline has no GitHub Release,
   destination token or feed-writing capability.
 - Durable preparation, verification, key backup/restore testing, rotation,
@@ -88,6 +88,12 @@ validation pair. Independent offline production recovery and Authenticode
 certificate access remain production-only blockers under 065-9-9. Working-name
 clearance remains a separate public-release gate. An absent credential fails by
 name before a signing command and cannot yield a production evidence record.
+
+The original `.2`/`.3` matrices were successfully signed but are retained as a
+failed qualification attempt after the installed Windows updater exposed the
+missing rustls crypto-provider defect. Their immutable tags and assets are not
+reused; `.4`/`.5` is the corrected validation pair and `.6`/`.7` is reserved for
+the later production-key pair.
 
 # Validation
 

@@ -8,6 +8,7 @@ import yaml from "js-yaml";
 import { createEvidence } from "./release-evidence.mjs";
 import {
   ALL_TARGETS,
+  QUALIFICATION_PAIR,
   REQUIRED_TARGETS,
   TARGET_CONTRACTS,
   ReleaseValidationError,
@@ -24,7 +25,7 @@ function expectCode(code, callback) {
 
 function candidate(version) {
   const release = parseReleaseVersion(version);
-  const validation = ["0.2.0-preview.2", "0.2.0-preview.3"].includes(version);
+  const validation = QUALIFICATION_PAIR.includes(version);
   return {
     schemaVersion: 1,
     source: { tag: `v${version}`, sha: "a".repeat(40), approvedMainRef: "refs/remotes/origin/main" },
@@ -63,8 +64,8 @@ function qualification(enabled = false) {
     validationQualification: enabled ? {
       status: "qualified",
       signingProfile: "validation",
-      fromVersion: "0.2.0-preview.2",
-      toVersion: "0.2.0-preview.3",
+      fromVersion: "0.2.0-preview.4",
+      toVersion: "0.2.0-preview.5",
       evidence: {
         schemaVersion: 1,
         controlledBundleRunUrl: "https://github.com/martinezelx/project-gitodile/actions/runs/98",
@@ -74,15 +75,15 @@ function qualification(enabled = false) {
     } : {
       status: "pending",
       signingProfile: "validation",
-      fromVersion: "0.2.0-preview.2",
-      toVersion: "0.2.0-preview.3",
+      fromVersion: "0.2.0-preview.4",
+      toVersion: "0.2.0-preview.5",
       evidence: null,
     },
     publicPreviewQualification: {
       status: "pending",
       signingProfile: "production",
-      fromVersion: "0.2.0-preview.4",
-      toVersion: "0.2.0-preview.5",
+      fromVersion: "0.2.0-preview.6",
+      toVersion: "0.2.0-preview.7",
       productionUpdaterPublicKeyId: null,
       releases: [],
       feed: null,
@@ -126,17 +127,17 @@ function qualification(enabled = false) {
           installationMode: TARGET_CONTRACTS[key].installation,
         },
         transition: {
-          fromVersion: "0.2.0-preview.2",
-          toVersion: "0.2.0-preview.3",
-          runningVersionBefore: "0.2.0-preview.2",
-          runningVersionAfter: "0.2.0-preview.3",
+          fromVersion: "0.2.0-preview.4",
+          toVersion: "0.2.0-preview.5",
+          runningVersionBefore: "0.2.0-preview.4",
+          runningVersionAfter: "0.2.0-preview.5",
           result: "passed",
           falseSuccessObserved: false,
           forcedDowngradeObserved: false,
         },
         builds: {
-          from: buildProof(key, "0.2.0-preview.2", targetIndex * 2),
-          to: buildProof(key, "0.2.0-preview.3", targetIndex * 2 + 1),
+          from: buildProof(key, "0.2.0-preview.4", targetIndex * 2),
+          to: buildProof(key, "0.2.0-preview.5", targetIndex * 2 + 1),
         },
         preservation: Object.fromEntries(REQUIRED_PRESERVATION_CHECKS.map((name) => [name, name === "gitHistory" ? "unchanged" : "passed"])),
         failureCases: REQUIRED_FAILURE_CASES.map((name) => ({ name, result: "passed", falseSuccessObserved: false, forcedDowngradeObserved: false })),
@@ -183,7 +184,7 @@ function signedMatrix(version) {
 }
 
 test("a validation-signed qualification pair can only prepare a non-promoting draft", () => {
-  const root = signedMatrix("0.2.0-preview.2");
+  const root = signedMatrix("0.2.0-preview.4");
   const plan = preparePublication({ signedDirectory: root, notesMarkdown: "# Controlled validation", qualification: qualification(false), mode: "validation-draft" });
   assert.equal(plan.qualification.productionAllowed, false);
   assert.equal(plan.manifest.pub_date, null);
@@ -191,7 +192,7 @@ test("a validation-signed qualification pair can only prepare a non-promoting dr
 });
 
 test("production is denied while every enabled target remains qualification_required", () => {
-  const root = signedMatrix("0.2.0-preview.4");
+  const root = signedMatrix("0.2.0-preview.6");
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
   const partial = qualification(true);
   const linuxIndex = partial.targets.findIndex(({ key }) => key === "linux-x86_64");
@@ -200,8 +201,8 @@ test("production is denied while every enabled target remains qualification_requ
 });
 
 test("the controlled qualification bundle binds real A/B matrices without production promotion", () => {
-  const from = signedMatrix("0.2.0-preview.2");
-  const to = signedMatrix("0.2.0-preview.3");
+  const from = signedMatrix("0.2.0-preview.4");
+  const to = signedMatrix("0.2.0-preview.5");
   const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-qualification-")), "bundle");
   const report = prepareQualificationBundle({
     fromDirectory: from,
@@ -210,15 +211,15 @@ test("the controlled qualification bundle binds real A/B matrices without produc
     output,
   });
   assert.equal(report.publicPromotionAllowed, false);
-  assert.equal(report.pair.from.version, "0.2.0-preview.2");
-  assert.equal(report.pair.to.version, "0.2.0-preview.3");
+  assert.equal(report.pair.from.version, "0.2.0-preview.4");
+  assert.equal(report.pair.to.version, "0.2.0-preview.5");
   const manifest = JSON.parse(fs.readFileSync(path.join(output, "updates", "preview.json"), "utf8"));
   assert.deepEqual(Object.keys(manifest.platforms), REQUIRED_TARGETS);
-  assert.ok(Object.values(manifest.platforms).every(({ url }) => url.startsWith("https://validation.example/gitodile-validation/065-9-7/releases/v0.2.0-preview.3/")));
-  assert.equal(fs.existsSync(path.join(output, "packages", "v0.2.0-preview.2")), true);
-  assert.equal(fs.existsSync(path.join(output, "packages", "v0.2.0-preview.3")), true);
+  assert.ok(Object.values(manifest.platforms).every(({ url }) => url.startsWith("https://validation.example/gitodile-validation/065-9-7/releases/v0.2.0-preview.5/")));
+  assert.equal(fs.existsSync(path.join(output, "packages", "v0.2.0-preview.4")), true);
+  assert.equal(fs.existsSync(path.join(output, "packages", "v0.2.0-preview.5")), true);
 
-  const inconsistent = signedMatrix("0.2.0-preview.3");
+  const inconsistent = signedMatrix("0.2.0-preview.5");
   const linuxEvidencePath = path.join(inconsistent, "linux-x86_64", "evidence.json");
   const linuxEvidence = JSON.parse(fs.readFileSync(linuxEvidencePath, "utf8"));
   linuxEvidence.trust.updater.publicIdentity = "different-validation-key";
@@ -239,7 +240,7 @@ test("the controlled qualification bundle binds real A/B matrices without produc
 });
 
 test("production rejects shallow, cross-target and incomplete qualification claims", () => {
-  const root = signedMatrix("0.2.0-preview.4");
+  const root = signedMatrix("0.2.0-preview.6");
   const shallow = qualification(true);
   shallow.targets[0].evidence = [{
     version: "0.2.0-preview.2",
@@ -272,43 +273,43 @@ test("production rejects shallow, cross-target and incomplete qualification clai
 });
 
 test("a complete qualified Windows and Linux matrix creates version-specific manifest entries", () => {
-  const root = signedMatrix("0.2.0-preview.4");
+  const root = signedMatrix("0.2.0-preview.6");
   const plan = preparePublication({ signedDirectory: root, notesMarkdown: "# Safer updates\n\nAll enabled targets.", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T12:00:00Z" });
   assert.equal(plan.release.githubPrerelease, true);
   assert.deepEqual(Object.keys(plan.manifest.platforms), REQUIRED_TARGETS);
-  assert.ok(Object.values(plan.manifest.platforms).every((entry) => entry.url.includes("/v0.2.0-preview.4/")));
+  assert.ok(Object.values(plan.manifest.platforms).every((entry) => entry.url.includes("/v0.2.0-preview.6/")));
   assert.equal(plan.manifest.notes, "Safer updates All enabled targets.");
 });
 
 test("mixed provenance, incomplete matrices and tampered bytes fail closed", () => {
-  const root = signedMatrix("0.2.0-preview.4");
+  const root = signedMatrix("0.2.0-preview.6");
   const evidencePath = path.join(root, "windows-x86_64", "evidence.json");
   const evidence = JSON.parse(fs.readFileSync(evidencePath));
   evidence.source.sha = "b".repeat(40);
   fs.writeFileSync(evidencePath, JSON.stringify(evidence));
   expectCode("provenance_mismatch", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 
-  const incomplete = signedMatrix("0.2.0-preview.4");
+  const incomplete = signedMatrix("0.2.0-preview.6");
   fs.rmSync(path.join(incomplete, "linux-x86_64"), { recursive: true });
   expectCode("matrix_incomplete", () => preparePublication({ signedDirectory: incomplete, notesMarkdown: "Notes", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 
-  const tampered = signedMatrix("0.2.0-preview.4");
-  fs.appendFileSync(path.join(tampered, "windows-x86_64", "GitOdile_0.2.0-preview.4_setup.exe"), "tampered");
+  const tampered = signedMatrix("0.2.0-preview.6");
+  fs.appendFileSync(path.join(tampered, "windows-x86_64", "GitOdile_0.2.0-preview.6_setup.exe"), "tampered");
   expectCode("hash_mismatch", () => preparePublication({ signedDirectory: tampered, notesMarkdown: "Notes", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 });
 
 test("feed promotion follows preview/stable ordering without regression or relabeling", () => {
-  const previewRoot = signedMatrix("0.2.0-preview.4");
+  const previewRoot = signedMatrix("0.2.0-preview.6");
   const preview = preparePublication({ signedDirectory: previewRoot, notesMarkdown: "Preview", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T12:00:00Z" });
   assert.deepEqual(Object.keys(feedsForPromotion(preview, {})), ["preview"]);
-  expectCode("feed_regression", () => feedsForPromotion(preview, { preview: { version: "0.2.0-preview.5" } }));
+  expectCode("feed_regression", () => feedsForPromotion(preview, { preview: { version: "0.2.0-preview.7" } }));
 
   const stableRoot = signedMatrix("0.2.0");
   const stable = preparePublication({ signedDirectory: stableRoot, notesMarkdown: "Stable", qualification: qualification(true), mode: "production", publishedAt: "2026-09-11T13:00:00Z" });
   const updates = feedsForPromotion(stable, { preview: preview.manifest });
   assert.equal(typeof updates.stable, "string");
   assert.equal(typeof updates.preview, "string");
-  assert.equal(compareReleaseVersions("0.2.0", "0.2.0-preview.4"), 1);
+  assert.equal(compareReleaseVersions("0.2.0", "0.2.0-preview.6"), 1);
 });
 
 test("immutable assets reconcile missing draft files but never overwrite or repair finalized releases", () => {

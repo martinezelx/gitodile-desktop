@@ -31,7 +31,8 @@ The repository was inspected rather than treating the planning documents as
 runtime evidence:
 
 - npm, Cargo, Cargo's root lock entry, and Tauri all contain
-  `0.2.0-preview.2`; the version branch is an unpublished validation candidate;
+  `0.2.0-preview.4`; the version is the unpublished starting candidate for the
+  corrected validation pair;
 - the Tauri identity is `app.gitodile.desktop` and bundling is active. The base
   `bundle.targets` remains `all`, but the mandatory platform overlays restrict
   Windows to `nsis`, Linux to `appimage`, and disable macOS bundling. These
@@ -67,12 +68,13 @@ and the repository lockfiles.
 
 `src-tauri/src/app_updates.rs` owns one process-wide snapshot, exact-operation
 cancellation, check coalescence, the single pending candidate, its verified
-bytes, native install-mode detection and bounded startup handoff state. A
-bounded Rust preflight preserves distinct offline/timeout/HTTP/feed/schema
-errors; the exact updater plugin then performs the authoritative manifest
-interpretation, download, Minisign verification, and platform installation.
-The two responses must be JSON-identical, so a changed feed cannot silently
-retarget the candidate between those steps.
+bytes, native install-mode detection and bounded startup handoff state. The
+exact updater plugin's `check()` is the only feed request and manifest
+interpretation authority. GitOdile strictly validates the returned `raw_json`
+against a closed static-manifest shape, cross-checks every selected value, and
+then retains the official `Update` for Tauri's download, Minisign verification,
+and platform installation. This avoids a second HTTP authority and a feed/cache
+race while preserving structured plugin transport and schema errors.
 
 The production feeds are fixed constants. The public key and key ID are build-
 time values (`GITODILE_UPDATER_PUBLIC_KEY` and
@@ -82,8 +84,9 @@ second compile-time deny-by-default gate,
 `GITODILE_QUALIFIED_UPDATE_TARGETS`. It must remain empty in ordinary builds
 until task 065-9-7 qualifies an exact target/mode with real signed packages.
 The fixed A/B pair instead uses a compile-time `validation` profile, controlled
-HTTPS feed and exact target. That profile is rejected outside preview.2 and
-preview.3, cannot carry URL credentials, and cannot enable a different target.
+HTTPS feed and exact enabled target. That profile is rejected outside
+preview.4 and preview.5, cannot carry URL credentials, and cannot enable a
+different target or either disabled macOS target.
 
 The renderer-facing feature exposes only typed GitOdile commands and opaque
 candidate/operation IDs. There is no JavaScript updater dependency and the
@@ -283,7 +286,7 @@ native handoff. Late events for a cancelled/superseded operation are inert.
 
 | Boundary | Limit |
 | --- | ---: |
-| Complete manifest response | 256 KiB |
+| Canonical serialized `raw_json` manifest | 256 KiB |
 | Remote notes within that response | 16 KiB UTF-8 |
 | Platform entries | 8 |
 | Signature text | 4 KiB |
@@ -301,12 +304,15 @@ data, cookies, authentication token, persistent installation identifier, or
 renderer-supplied headers. The normal HTTP stack may expose IP address, user
 agent, and ordinary transport metadata to GitHub and intermediaries.
 
-Content-Length is advisory: reject a known oversize response before buffering,
-enforce the same limit while streaming when length is absent or false, and
-require the final observed length to agree when the server supplied one. A
-finished transfer enters `verifying`, not `ready`. Signature failure or any
-truncation releases the bytes. Raising the artifact cap requires new recorded
-measurements and review.
+The plugin is the only component that reads the manifest response. After its
+JSON decode, GitOdile rejects a canonical serialization over 256 KiB, any
+unknown or missing top-level/platform field, more than eight platforms, any
+disabled/unknown target, mismatched parsed field, empty/oversized signature, or
+invalid/oversized package length. Artifact Content-Length remains advisory:
+download callbacks enforce the same payload cap and final observed-length
+agreement. A finished transfer enters `verifying`, not `ready`. Signature
+failure or any truncation releases the bytes. Raising either cap requires new
+recorded measurements and review.
 
 The 2026-09-10 Windows release-profile measurement used the locally generated
 unsigned NSIS payload plus a gzip-compressed copy of the installed Git for
@@ -372,8 +378,8 @@ loss response are owned by the [runbook](../release/signed-builds.md).
 The controlled forward pair is:
 
 ```text
-A = 0.2.0-preview.2 / v0.2.0-preview.2
-B = 0.2.0-preview.3 / v0.2.0-preview.3
+A = 0.2.0-preview.4 / v0.2.0-preview.4
+B = 0.2.0-preview.5 / v0.2.0-preview.5
 ```
 
 Build A is the current unpublished candidate and build B is its planned

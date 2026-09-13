@@ -1,6 +1,6 @@
 [package]
 name = "gitodile"
-version = "0.2.0-preview.3"
+version = "0.2.0-preview.4"
 description = "A friendly Git desktop client"
 authors = ["Luis M. Martínez"]
 edition = "2021"
@@ -23,12 +23,10 @@ serde_json = "1"
 semver = "1"
 sha2 = "0.10"
 tokio = { version = "1", features = ["macros", "sync", "time"] }
-# The updater plugin intentionally selects `rustls-no-provider`, but GitOdile
-# also builds its own bounded preflight client below that plugin. Opting that
-# direct client into Reqwest's `rustls` feature installs the AWS-LC provider;
-# without it `ClientBuilder::build` panics and a release build aborts.
-reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
-futures-util = "0.3"
+# The exact updater plugin owns the only HTTP client. This direct dependency is
+# type-level only: it lets GitOdile retain the plugin client's redirect/timeout
+# policy and classify its errors without selecting a second TLS provider.
+reqwest = { version = "0.13", default-features = false }
 time = { version = "0.3", features = ["formatting"] }
 # Filesystem watching for live working-tree updates (task 020). Default
 # features off: only the platform backends are wanted, not `serde` (events are

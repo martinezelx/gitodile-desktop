@@ -28,7 +28,7 @@ Its input is the numeric run ID of one successful `Private candidate signing`
 workflow and one closed mode:
 
 - `validation-draft` accepts only the fixed validation-key pair
-  `0.2.0-preview.2` / `0.2.0-preview.3`. It may reconcile a draft release but
+  `0.2.0-preview.4` / `0.2.0-preview.5`. It may reconcile a draft release but
   cannot finalize it or write `stable.json` / `preview.json`.
 - `production` accepts only a production-signing profile, a fixed UTC
   publication timestamp and a registry that approves production plus every
@@ -93,7 +93,7 @@ The asset and manifest set is exactly Windows x86-64 NSIS plus Linux x86-64
 AppImage. A Darwin target or macOS-looking asset is an error while task 065-10
 is open. Production approval is the pre-publication gate: it records the real
 validation draft, interrupted retry, immutable reconciliation, unchanged feed,
-the `.2` to `.3` installed qualification and name clearance. Anonymous
+the `.4` to `.5` installed qualification and name clearance. Anonymous
 downloads, preview advancement and the public `.4` to `.5` installed proof are
 recorded afterward in `publicPreviewQualification`; they cannot be prerequisites
 for their own first publication.

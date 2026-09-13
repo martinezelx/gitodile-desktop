@@ -560,9 +560,10 @@ join that contract before it can ship.
 `app_updates.rs` is the one process-wide native owner. It compiles the build's
 channel, fixed feed and updater public-key identity; detects the native target
 and installation mode; and retains at most one immutable candidate and one
-verified payload. Its bounded preflight distinguishes transport/status/schema
-failures before the exact `tauri-plugin-updater = 2.11.0` Rust API performs the
-authoritative check, download, signature verification and platform handoff.
+verified payload. The exact `tauri-plugin-updater = 2.11.0` Rust API owns the
+single feed request and authoritative check; GitOdile strictly validates its
+returned `raw_json` before retaining the candidate. The plugin also owns the
+official download, signature verification and platform handoff.
 The WebView reaches only six GitOdile commands described by the IPC contract;
 no updater/process guest permission or JavaScript updater package is exposed.
 

@@ -9,7 +9,6 @@ use crate::application;
 use crate::error::{AppError, AppErrorCode};
 use crate::git::CancellationToken;
 use crate::watch::{WatcherRegistry, WatcherSuspension};
-use futures_util::StreamExt;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -1019,10 +1018,6 @@ async fn perform_check<R: Runtime>(app: &AppHandle<R>) -> CheckOutcome {
         Ok(target) => target,
         Err(error) => return CheckOutcome::Unavailable(error),
     };
-    let preflight = match fetch_bounded_manifest(&identity.feed).await {
-        Ok(manifest) => manifest,
-        Err(error) => return classify_check_error(error),
-    };
     let endpoint = match identity.feed.parse() {
         Ok(endpoint) => endpoint,
         Err(_) => {
@@ -1053,12 +1048,6 @@ async fn perform_check<R: Runtime>(app: &AppHandle<R>) -> CheckOutcome {
         Ok(None) => return CheckOutcome::Current,
         Err(error) => return classify_plugin_check_error(error),
     };
-    if update.raw_json != preflight {
-        return CheckOutcome::Failed(
-            UpdateError::new(UpdateErrorCode::InvalidManifest, UpdateStage::Check, true)
-                .detail("The feed changed while it was being checked."),
-        );
-    }
     validate_candidate(identity, target, update)
 }
 
@@ -1122,7 +1111,7 @@ fn build_update_identity(
             (BuildUpdateProfile::Production, feed.to_string(), None)
         }
         "validation" => {
-            if !matches!(version_text, "0.2.0-preview.2" | "0.2.0-preview.3") {
+            if !matches!(version_text, "0.2.0-preview.4" | "0.2.0-preview.5") {
                 return Err(
                     UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false).detail(
                         "Validation routing is restricted to the fixed qualification pair.",
@@ -1135,10 +1124,17 @@ fn build_update_identity(
                         .detail("The controlled validation feed is not configured safely."),
                 );
             }
-            let target = UpdateTarget::from_key(validation_target).ok_or_else(|| {
-                UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false)
-                    .detail("The validation build target is invalid.")
-            })?;
+            let target = UpdateTarget::from_key(validation_target)
+                .filter(|target| {
+                    matches!(
+                        target,
+                        UpdateTarget::WindowsX86_64 | UpdateTarget::LinuxX86_64
+                    )
+                })
+                .ok_or_else(|| {
+                    UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false)
+                        .detail("The validation build target is invalid.")
+                })?;
             (
                 BuildUpdateProfile::Validation,
                 validation_feed.to_string(),
@@ -1175,66 +1171,6 @@ fn valid_validation_feed(value: &str) -> bool {
             && url.host_str().is_some()
             && url.path().ends_with(".json")
     })
-}
-
-async fn fetch_bounded_manifest(feed: &str) -> Result<serde_json::Value, UpdateError> {
-    let client = configure_http_client(reqwest::Client::builder())
-        .timeout(CHECK_TIMEOUT)
-        .build()
-        .map_err(|_| UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false))?;
-    let response = client
-        .get(feed)
-        .send()
-        .await
-        .map_err(map_reqwest_check_error)?;
-    if !response.status().is_success() {
-        return Err(classify_manifest_status(response.status().as_u16()));
-    }
-    if response
-        .content_length()
-        .is_some_and(|length| length > MANIFEST_BYTES_LIMIT)
-    {
-        return Err(UpdateError::new(
-            UpdateErrorCode::InvalidManifest,
-            UpdateStage::Check,
-            false,
-        ));
-    }
-    let expected = response.content_length();
-    let mut body = Vec::new();
-    let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(map_reqwest_check_error)?;
-        if body.len() as u64 + chunk.len() as u64 > MANIFEST_BYTES_LIMIT {
-            return Err(UpdateError::new(
-                UpdateErrorCode::InvalidManifest,
-                UpdateStage::Check,
-                false,
-            ));
-        }
-        body.extend_from_slice(&chunk);
-    }
-    if expected.is_some_and(|length| length != body.len() as u64) {
-        return Err(UpdateError::new(
-            UpdateErrorCode::InvalidManifest,
-            UpdateStage::Check,
-            true,
-        ));
-    }
-    parse_manifest(&body)
-}
-
-fn classify_manifest_status(status: u16) -> UpdateError {
-    if matches!(status, 404 | 410) {
-        UpdateError::new(UpdateErrorCode::FeedUnavailable, UpdateStage::Check, true)
-    } else {
-        UpdateError::status(status, UpdateStage::Check)
-    }
-}
-
-fn parse_manifest(body: &[u8]) -> Result<serde_json::Value, UpdateError> {
-    serde_json::from_slice(body)
-        .map_err(|_| UpdateError::new(UpdateErrorCode::InvalidManifest, UpdateStage::Check, false))
 }
 
 fn configure_http_client(client: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
@@ -1277,44 +1213,22 @@ fn validate_candidate(
     target: UpdateTarget,
     update: Update,
 ) -> CheckOutcome {
-    let manifest_bytes = match serde_json::to_vec(&update.raw_json) {
-        Ok(bytes) if bytes.len() as u64 <= MANIFEST_BYTES_LIMIT => bytes,
-        _ => {
-            return CheckOutcome::Failed(UpdateError::new(
-                UpdateErrorCode::InvalidManifest,
-                UpdateStage::Check,
-                false,
-            ))
-        }
+    let validated_manifest = match validate_raw_manifest(
+        &identity,
+        target,
+        &update.raw_json,
+        PluginManifestSelection {
+            version: &update.version,
+            target: &update.target,
+            notes: update.body.as_deref(),
+            date: update.date.as_ref(),
+            url: &update.download_url,
+            signature: &update.signature,
+        },
+    ) {
+        Ok(manifest) => manifest,
+        Err(error) => return CheckOutcome::Failed(error),
     };
-    let Some(object) = update.raw_json.as_object() else {
-        return CheckOutcome::Failed(UpdateError::new(
-            UpdateErrorCode::InvalidManifest,
-            UpdateStage::Check,
-            false,
-        ));
-    };
-    let Some(platforms) = object
-        .get("platforms")
-        .and_then(serde_json::Value::as_object)
-    else {
-        return CheckOutcome::Failed(UpdateError::new(
-            UpdateErrorCode::InvalidManifest,
-            UpdateStage::Check,
-            false,
-        ));
-    };
-    if platforms.is_empty()
-        || platforms.len() > PLATFORM_ENTRIES_LIMIT
-        || update.signature.is_empty()
-        || update.signature.len() > SIGNATURE_BYTES_LIMIT
-    {
-        return CheckOutcome::Failed(UpdateError::new(
-            UpdateErrorCode::InvalidManifest,
-            UpdateStage::Check,
-            false,
-        ));
-    }
     let candidate_channel =
         match version_decision(identity.channel, &identity.version, &update.version) {
             Ok(Some(channel)) => channel,
@@ -1332,19 +1246,9 @@ fn validate_candidate(
             false,
         ));
     }
-    let expected_bytes = match manifest_expected_bytes(platforms, target) {
-        Ok(size) => size,
-        Err(error) => return CheckOutcome::Failed(error),
-    };
-    if expected_bytes.is_some_and(|bytes| bytes > ARTIFACT_BYTES_LIMIT) {
-        return CheckOutcome::Failed(UpdateError::new(
-            UpdateErrorCode::PayloadTooLarge,
-            UpdateStage::Check,
-            false,
-        ));
-    }
+    let expected_bytes = Some(validated_manifest.expected_bytes);
     let mode = detect_installation_mode();
-    let manifest_digest = hex_digest(Sha256::digest(&manifest_bytes));
+    let manifest_digest = hex_digest(Sha256::digest(&validated_manifest.bytes));
     let artifact_url = update.download_url.as_str().to_string();
     let candidate_id = candidate_identity(
         identity.channel,
@@ -1377,30 +1281,123 @@ fn validate_candidate(
     }))
 }
 
-fn manifest_expected_bytes(
-    platforms: &serde_json::Map<String, serde_json::Value>,
+#[derive(Debug)]
+struct ValidatedManifest {
+    bytes: Vec<u8>,
+    expected_bytes: u64,
+}
+
+struct PluginManifestSelection<'a> {
+    version: &'a str,
+    target: &'a str,
+    notes: Option<&'a str>,
+    date: Option<&'a OffsetDateTime>,
+    url: &'a reqwest::Url,
+    signature: &'a str,
+}
+
+fn invalid_manifest() -> UpdateError {
+    UpdateError::new(UpdateErrorCode::InvalidManifest, UpdateStage::Check, false)
+}
+
+fn validate_raw_manifest(
+    identity: &BuildUpdateIdentity,
     target: UpdateTarget,
-) -> Result<Option<u64>, UpdateError> {
-    let platform = platforms
-        .get(target.as_str())
+    raw_json: &serde_json::Value,
+    parsed: PluginManifestSelection<'_>,
+) -> Result<ValidatedManifest, UpdateError> {
+    let bytes = serde_json::to_vec(raw_json).map_err(|_| invalid_manifest())?;
+    if bytes.len() as u64 > MANIFEST_BYTES_LIMIT {
+        return Err(invalid_manifest());
+    }
+    let object = raw_json.as_object().ok_or_else(invalid_manifest)?;
+    if object.len() != 4
+        || !["version", "notes", "pub_date", "platforms"]
+            .into_iter()
+            .all(|key| object.contains_key(key))
+        || object.get("version").and_then(serde_json::Value::as_str) != Some(parsed.version)
+        || parsed.target != target.as_str()
+    {
+        return Err(invalid_manifest());
+    }
+    match (object.get("notes"), parsed.notes) {
+        (Some(serde_json::Value::String(raw)), Some(parsed)) if raw == parsed => {}
+        (Some(serde_json::Value::Null), None) => {}
+        _ => return Err(invalid_manifest()),
+    }
+    match (object.get("pub_date"), parsed.date) {
+        (Some(serde_json::Value::Null), None) => {}
+        (Some(serde_json::Value::String(raw)), Some(parsed))
+            if parsed.format(&Rfc3339).is_ok_and(|value| value == *raw) => {}
+        _ => return Err(invalid_manifest()),
+    }
+    let platforms = object
+        .get("platforms")
         .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| {
-            UpdateError::new(
-                UpdateErrorCode::TargetUnavailable,
+        .ok_or_else(invalid_manifest)?;
+    if platforms.is_empty() || platforms.len() > PLATFORM_ENTRIES_LIMIT {
+        return Err(invalid_manifest());
+    }
+    let mut selected_size = None;
+    for (key, value) in platforms {
+        let platform_target = UpdateTarget::from_key(key).ok_or_else(invalid_manifest)?;
+        if !matches!(
+            platform_target,
+            UpdateTarget::WindowsX86_64 | UpdateTarget::LinuxX86_64
+        ) {
+            return Err(invalid_manifest());
+        }
+        let platform = value.as_object().ok_or_else(invalid_manifest)?;
+        if platform.len() != 3
+            || !["url", "signature", "size"]
+                .into_iter()
+                .all(|field| platform.contains_key(field))
+        {
+            return Err(invalid_manifest());
+        }
+        let url_text = platform
+            .get("url")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(invalid_manifest)?;
+        let url = reqwest::Url::parse(url_text).map_err(|_| invalid_manifest())?;
+        if !valid_artifact_url(identity, &url, parsed.version) {
+            return Err(invalid_manifest());
+        }
+        let signature = platform
+            .get("signature")
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.is_empty() && value.len() <= SIGNATURE_BYTES_LIMIT)
+            .ok_or_else(invalid_manifest)?;
+        let size = platform
+            .get("size")
+            .and_then(serde_json::Value::as_u64)
+            .filter(|value| *value > 0)
+            .ok_or_else(invalid_manifest)?;
+        if size > ARTIFACT_BYTES_LIMIT {
+            return Err(UpdateError::new(
+                UpdateErrorCode::PayloadTooLarge,
                 UpdateStage::Check,
                 false,
-            )
-        })?;
-    match platform.get("size") {
-        None => Ok(None),
-        Some(value) => value
-            .as_u64()
-            .filter(|size| *size > 0)
-            .map(Some)
-            .ok_or_else(|| {
-                UpdateError::new(UpdateErrorCode::InvalidManifest, UpdateStage::Check, false)
-            }),
+            ));
+        }
+        if platform_target == target {
+            if url.as_str() != parsed.url.as_str() || signature != parsed.signature {
+                return Err(invalid_manifest());
+            }
+            selected_size = Some(size);
+        }
     }
+    let expected_bytes = selected_size.ok_or_else(|| {
+        UpdateError::new(
+            UpdateErrorCode::TargetUnavailable,
+            UpdateStage::Check,
+            false,
+        )
+    })?;
+    Ok(ValidatedManifest {
+        bytes,
+        expected_bytes,
+    })
 }
 
 fn valid_artifact_url(identity: &BuildUpdateIdentity, url: &reqwest::Url, version: &str) -> bool {
@@ -2171,7 +2168,7 @@ mod tests {
         }
 
         let validation = build_update_identity(
-            "0.2.0-preview.2",
+            "0.2.0-preview.4",
             "validation",
             "https://updates.validation.example/gitodile/preview.json",
             "windows-x86_64",
@@ -2180,13 +2177,13 @@ mod tests {
         )
         .unwrap();
         let controlled = reqwest::Url::parse(
-            "https://updates.validation.example/gitodile/v0.2.0-preview.3/GitOdile.exe",
+            "https://updates.validation.example/gitodile/v0.2.0-preview.5/GitOdile.exe",
         )
         .unwrap();
         assert!(valid_artifact_url(
             &validation,
             &controlled,
-            "0.2.0-preview.3"
+            "0.2.0-preview.5"
         ));
         assert!(!valid_artifact_url(&validation, &valid, "0.2.0-preview.2"));
     }
@@ -2194,35 +2191,35 @@ mod tests {
     #[test]
     fn validation_routing_is_build_time_bounded_to_the_fixed_pair_and_target() {
         let identity = build_update_identity(
-            "0.2.0-preview.2",
+            "0.2.0-preview.4",
             "validation",
             "https://updates.validation.example/gitodile/preview.json",
-            "darwin-aarch64",
+            "windows-x86_64",
             "validation-public-key",
             "validation-key-id",
         )
         .unwrap();
         assert_eq!(identity.profile, BuildUpdateProfile::Validation);
-        assert!(identity.target_is_enabled(UpdateTarget::DarwinAarch64));
-        assert!(!identity.target_is_enabled(UpdateTarget::DarwinX86_64));
+        assert!(identity.target_is_enabled(UpdateTarget::WindowsX86_64));
+        assert!(!identity.target_is_enabled(UpdateTarget::LinuxX86_64));
         for (version, feed, target) in [
             (
-                "0.2.0-preview.4",
+                "0.2.0-preview.2",
                 "https://updates.validation.example/feed.json",
-                "darwin-aarch64",
+                "windows-x86_64",
             ),
             (
-                "0.2.0-preview.2",
+                "0.2.0-preview.4",
                 "http://updates.validation.example/feed.json",
-                "darwin-aarch64",
+                "windows-x86_64",
             ),
             (
-                "0.2.0-preview.2",
+                "0.2.0-preview.4",
                 "https://updates.validation.example/feed.json?token=x",
-                "darwin-aarch64",
+                "windows-x86_64",
             ),
             (
-                "0.2.0-preview.2",
+                "0.2.0-preview.4",
                 "https://updates.validation.example/feed.json",
                 "unknown",
             ),
@@ -2238,7 +2235,7 @@ mod tests {
             .is_err());
         }
         assert!(build_update_identity(
-            "0.2.0-preview.2",
+            "0.2.0-preview.4",
             "production",
             "https://updates.validation.example/feed.json",
             "darwin-aarch64",
@@ -2249,7 +2246,7 @@ mod tests {
     }
 
     #[test]
-    fn target_manifest_and_redirect_failures_stay_distinct() {
+    fn raw_manifest_is_closed_bounded_and_matches_the_plugin_selection() {
         let missing = classify_plugin_check_error(tauri_plugin_updater::Error::TargetNotFound(
             "windows-x86_64".to_string(),
         ));
@@ -2260,34 +2257,101 @@ mod tests {
                 ..
             })
         ));
-        let malformed = serde_json::from_slice::<serde_json::Value>(b"{");
-        assert!(malformed.is_err());
-        let valid_platforms = serde_json::json!({
-            "windows-x86_64": { "size": 7 }
+        let identity = build_update_identity(
+            "0.2.0-preview.4",
+            "validation",
+            "https://updates.validation.example/gitodile/preview.json",
+            "windows-x86_64",
+            "validation-public-key",
+            "validation-key-id",
+        )
+        .unwrap();
+        let url = reqwest::Url::parse(
+            "https://updates.validation.example/gitodile/releases/v0.2.0-preview.5/GitOdile.exe",
+        )
+        .unwrap();
+        let manifest = serde_json::json!({
+            "version": "0.2.0-preview.5",
+            "notes": "Corrected updater path",
+            "pub_date": null,
+            "platforms": {
+                "windows-x86_64": {
+                    "url": url.as_str(),
+                    "signature": "signature",
+                    "size": 7
+                },
+                "linux-x86_64": {
+                    "url": "https://updates.validation.example/gitodile/releases/v0.2.0-preview.5/GitOdile.AppImage",
+                    "signature": "linux-signature",
+                    "size": 9
+                }
+            }
         });
-        let valid_platforms = valid_platforms.as_object().unwrap();
-        assert_eq!(
-            manifest_expected_bytes(valid_platforms, UpdateTarget::WindowsX86_64).unwrap(),
-            Some(7)
-        );
-        assert_eq!(
-            manifest_expected_bytes(valid_platforms, UpdateTarget::LinuxX86_64)
+        let validated = validate_raw_manifest(
+            &identity,
+            UpdateTarget::WindowsX86_64,
+            &manifest,
+            PluginManifestSelection {
+                version: "0.2.0-preview.5",
+                target: "windows-x86_64",
+                notes: Some("Corrected updater path"),
+                date: None,
+                url: &url,
+                signature: "signature",
+            },
+        )
+        .unwrap();
+        assert_eq!(validated.expected_bytes, 7);
+
+        for invalid in [
+            {
+                let mut value = manifest.clone();
+                value
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("extra".into(), true.into());
+                value
+            },
+            {
+                let mut value = manifest.clone();
+                value["platforms"]["windows-x86_64"]["size"] = "7".into();
+                value
+            },
+            {
+                let mut value = manifest.clone();
+                value["platforms"]["windows-x86_64"]["signature"] = "different".into();
+                value
+            },
+            {
+                let mut value = manifest.clone();
+                value["platforms"]["darwin-aarch64"] = serde_json::json!({
+                    "url": "https://updates.validation.example/gitodile/releases/v0.2.0-preview.5/GitOdile.app.tar.gz",
+                    "signature": "mac-signature",
+                    "size": 9
+                });
+                value
+            },
+        ] {
+            assert_eq!(
+                validate_raw_manifest(
+                    &identity,
+                    UpdateTarget::WindowsX86_64,
+                    &invalid,
+                    PluginManifestSelection {
+                        version: "0.2.0-preview.5",
+                        target: "windows-x86_64",
+                        notes: Some("Corrected updater path"),
+                        date: None,
+                        url: &url,
+                        signature: "signature",
+                    },
+                )
                 .unwrap_err()
                 .code,
-            UpdateErrorCode::TargetUnavailable
-        );
-        let malformed_size = serde_json::json!({
-            "windows-x86_64": { "size": "7" }
-        });
-        assert_eq!(
-            manifest_expected_bytes(
-                malformed_size.as_object().unwrap(),
-                UpdateTarget::WindowsX86_64
-            )
-            .unwrap_err()
-            .code,
-            UpdateErrorCode::InvalidManifest
-        );
+                UpdateErrorCode::InvalidManifest
+            );
+        }
+
         for allowed in [
             "https://raw.githubusercontent.com/x",
             "https://github.com/x",
@@ -2302,10 +2366,13 @@ mod tests {
     }
 
     #[test]
-    fn bounded_manifest_client_has_a_rustls_crypto_provider() {
-        assert!(configure_http_client(reqwest::Client::builder())
-            .build()
-            .is_ok());
+    fn the_plugin_check_is_the_only_feed_request_authority() {
+        let source = include_str!("app_updates.rs");
+        let production = source.split("\n#[cfg(test)]\nmod tests").next().unwrap();
+        assert_eq!(production.matches("updater.check().await").count(), 1);
+        assert!(!production.contains("fetch_bounded_manifest"));
+        assert!(!production.contains("bytes_stream"));
+        assert!(production.contains(".configure_client(configure_http_client)"));
     }
 
     #[test]
@@ -2426,18 +2493,6 @@ mod tests {
         assert_eq!(
             classify_network_error(false, false, None, UpdateStage::Check).code,
             UpdateErrorCode::FeedUnavailable
-        );
-        assert_eq!(
-            classify_manifest_status(404).code,
-            UpdateErrorCode::FeedUnavailable
-        );
-        assert_eq!(
-            classify_manifest_status(500).code,
-            UpdateErrorCode::HttpStatus
-        );
-        assert_eq!(
-            parse_manifest(b"{").unwrap_err().code,
-            UpdateErrorCode::InvalidManifest
         );
         assert_eq!(
             parse_http_status("status: 503 Service Unavailable"),

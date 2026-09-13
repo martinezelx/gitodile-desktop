@@ -55,7 +55,7 @@ Git credential hardening in 065-7, the final full-product audit in 065-8, and au
 
 Infrastructure implemented on `main` on 2026-09-11:
 
-- validation builds are compile-time restricted to the fixed preview.2/preview.3
+- validation builds are compile-time restricted to the active preview.4/preview.5
   pair, controlled HTTPS feed and exact matrix target; production rejects
   validation routing;
 - the manual, read-only `Controlled updater qualification bundle` workflow

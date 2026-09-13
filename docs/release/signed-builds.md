@@ -118,8 +118,8 @@ fixed validation pair may retain an explicitly OS-untrusted artifact.
    source archives, workflow checkout archives, credentials, key material,
    notary passwords or raw authenticated responses into the retained artifact.
 
-The protected qualification pair is fixed by the executable contract:
-`0.2.0-preview.2` (A) and `0.2.0-preview.3` (B). Their candidate identities use
+The active protected qualification pair is fixed by the executable contract:
+`0.2.0-preview.4` (A) and `0.2.0-preview.5` (B). Their candidate identities use
 the `validation` signing profile and one consistent validation updater key.
 Both workflows fail if the configured validation public key or its ID equals
 the production identity. They
@@ -128,6 +128,8 @@ alter either public feed, so producing A and B cannot advertise or promote
 them. The controlled feed/bundle procedure is defined in
 [updater qualification](updater-qualification.md); it does not deploy bytes,
 promote a feed or substitute for real installed A-to-B results.
+The immutable `.2`/`.3` attempt remains failed evidence after its Windows build
+exposed the missing rustls crypto-provider defect; it must never be reused.
 
 ## Independent verification
 
@@ -176,7 +178,7 @@ recorded public key. The key identities are:
 This is not the required second offline, geographically separate recovery
 store. No production-signed matrix or public production distribution may run
 until that independent backup is made and its custody is recorded. The fixed
-`.2`/`.3` qualification pair may run with the disposable validation identity:
+`.4`/`.5` qualification pair may run with the disposable validation identity:
 it is isolated from production, has a tested encrypted restore, cannot promote
 a production feed, and remains subject to its protected-environment approval.
 The private keys and passwords are deliberately absent from this repository

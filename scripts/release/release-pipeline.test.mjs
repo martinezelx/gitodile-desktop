@@ -41,7 +41,7 @@ function writeMetadata(root, version, overrides = {}) {
   fs.writeFileSync(path.join(root, "src-tauri", "tauri.conf.json"), JSON.stringify({ version: versions.tauri }));
 }
 
-function repository(version = "0.2.0-preview.2", overrides = {}) {
+function repository(version = "0.2.0-preview.4", overrides = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-release-test-"));
   git(root, "init", "-b", "main");
   git(root, "config", "user.email", "release-test@example.invalid");
@@ -69,18 +69,18 @@ test("rejects a tagged commit outside approved main ancestry", () => {
   git(repo.root, "branch", "approved-main", repo.sha);
   git(repo.root, "checkout", "--orphan", "untrusted");
   git(repo.root, "rm", "-r", "--cached", ".");
-  writeMetadata(repo.root, "0.2.0-preview.3");
+  writeMetadata(repo.root, "0.2.0-preview.5");
   git(repo.root, "add", ".");
   git(repo.root, "commit", "-m", "untrusted candidate");
   const sha = git(repo.root, "rev-parse", "HEAD");
-  git(repo.root, "tag", "v0.2.0-preview.3");
+  git(repo.root, "tag", "v0.2.0-preview.5");
   expectCode("wrong_ancestry", () =>
-    validateReleaseCandidate({ root: repo.root, tag: "v0.2.0-preview.3", sha, mainRef: "approved-main" }),
+    validateReleaseCandidate({ root: repo.root, tag: "v0.2.0-preview.5", sha, mainRef: "approved-main" }),
   );
 });
 
 test("rejects every version metadata mismatch", () => {
-  const repo = repository("0.2.0-preview.2", { cargo: "0.2.0-preview.3" });
+  const repo = repository("0.2.0-preview.4", { cargo: "0.2.0-preview.5" });
   expectCode("metadata_mismatch", () =>
     validateReleaseCandidate({ root: repo.root, tag: repo.tag, sha: repo.sha, mainRef: "main" }),
   );
@@ -300,7 +300,7 @@ test("only validation matrices may carry explicitly deferred Windows Authenticod
       notarization: { result: "not_applicable" },
     },
   });
-  const validationRepo = repository("0.2.0-preview.2");
+  const validationRepo = repository("0.2.0-preview.4");
   const validation = validateReleaseCandidate({
     root: validationRepo.root,
     tag: validationRepo.tag,
@@ -313,7 +313,7 @@ test("only validation matrices may carry explicitly deferred Windows Authenticod
     makeEvidence(validation, "linux-x86_64", { result: "not_applicable" }),
   ], validation, { requiredPhase: "signed" }).length, 2);
 
-  const productionRepo = repository("0.2.0-preview.4");
+  const productionRepo = repository("0.2.0-preview.6");
   const production = validateReleaseCandidate({
     root: productionRepo.root,
     tag: productionRepo.tag,

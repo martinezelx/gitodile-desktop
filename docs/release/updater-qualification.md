@@ -7,8 +7,8 @@ publish a release.
 
 ## Fixed validation route
 
-The only qualification pair is `0.2.0-preview.2` (A) to
-`0.2.0-preview.3` (B). Both versions use the `validation` signing profile and a
+The active qualification pair is `0.2.0-preview.4` (A) to
+`0.2.0-preview.5` (B). Both versions use the `validation` signing profile and a
 validation updater key distinct from production. A validation build embeds
 three reviewed compile-time values:
 
@@ -31,8 +31,14 @@ artifact. It cannot deploy or promote anything and records
 `publicPromotionAllowed: false`. Deploy the artifact contents without changing
 bytes under the configured controlled origin. The first install packages for A
 and B are in `packages/v<version>/`; the B updater feed and payload are under
-`updates/` and `releases/v0.2.0-preview.3/`. Recompute every recorded SHA-256
+`updates/` and `releases/v0.2.0-preview.5/`. Recompute every recorded SHA-256
 after deployment before testing.
+
+The original `.2` to `.3` pair is retained as immutable failed evidence. Its
+installed Windows `.2` build aborted while constructing the HTTPS preflight
+client because rustls had no crypto provider. Never overwrite, move or reuse
+those tags or packages. The `.4` to `.5` pair contains the correction and is a
+fresh qualification attempt; the later production-key pair is `.6` to `.7`.
 
 The controlled host must be access-limited operationally but anonymously
 readable by the test machines: the application sends no client secret or stable
@@ -94,10 +100,10 @@ Production approval is separate and precedes the first public preview. It
 requires structured working-name clearance plus a real validation-draft report
 proving full-enabled-matrix failure, interrupted retry, immutable assets and an
 unchanged production feed. It must not require anonymous production downloads
-or the `.4` to `.5` update before those releases exist. After publication,
+or the `.6` to `.7` update before those releases exist. After publication,
 `publicPreviewQualification` records both public releases, their shared and
 distinct production updater public-key ID, anonymous asset
-hashes, the final `preview.json` commit/hash and installed `.4` to `.5` reports
+hashes, the final `preview.json` commit/hash and installed `.6` to `.7` reports
 for Windows and Linux. The publisher rejects old shallow schemas,
 duplicate/cross-target claims, incomplete failure matrices, any Darwin row in
 the signed matrix and any evidence attached to a planned-disabled target.

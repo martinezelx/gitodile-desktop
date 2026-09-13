@@ -88,7 +88,7 @@ assert.equal(
   true,
 );
 assert.equal(new Set(contract.targets.map((target) => target.key)).size, contract.targets.length);
-assert.deepEqual(contract.validationBuilds, ["0.2.0-preview.2", "0.2.0-preview.3"]);
+assert.deepEqual(contract.validationBuilds, ["0.2.0-preview.4", "0.2.0-preview.5"]);
 assert.equal(compareVersions(parseVersion(contract.validationBuilds[0]), parseVersion(contract.validationBuilds[1])), -1);
 assert.equal(qualification.schemaVersion, 3);
 const enabledTargets = contract.targets.filter((target) => target.releaseEnabled).map((target) => target.key);
@@ -102,8 +102,8 @@ assert.equal(qualification.releaseMatrix.disabledTargets.every((target) =>
   Array.isArray(target.evidence) && target.evidence.length === 0
 ), true, "disabled release targets need an explicit reason and follow-up owner");
 assert.equal(qualification.validationQualification.signingProfile, "validation");
-assert.equal(qualification.validationQualification.fromVersion, "0.2.0-preview.2");
-assert.equal(qualification.validationQualification.toVersion, "0.2.0-preview.3");
+assert.equal(qualification.validationQualification.fromVersion, "0.2.0-preview.4");
+assert.equal(qualification.validationQualification.toVersion, "0.2.0-preview.5");
 assert.ok(["pending", "qualified"].includes(qualification.validationQualification.status));
 if (qualification.validationQualification.status === "pending") {
   assert.equal(qualification.validationQualification.evidence, null,
@@ -113,16 +113,16 @@ if (qualification.validationQualification.status === "pending") {
   assert.equal(typeof qualification.validationQualification.evidence?.updaterPublicKeyId, "string");
 }
 assert.equal(qualification.publicPreviewQualification.signingProfile, "production");
-assert.equal(qualification.publicPreviewQualification.fromVersion, "0.2.0-preview.4");
-assert.equal(qualification.publicPreviewQualification.toVersion, "0.2.0-preview.5");
+assert.equal(qualification.publicPreviewQualification.fromVersion, "0.2.0-preview.6");
+assert.equal(qualification.publicPreviewQualification.toVersion, "0.2.0-preview.7");
 assert.ok(["pending", "qualified"].includes(qualification.publicPreviewQualification.status));
 assert.equal(validatePublicPreviewQualification(qualification.publicPreviewQualification), true);
 if (qualification.publicPreviewQualification.status === "pending") {
   assert.deepEqual(qualification.publicPreviewQualification, {
     status: "pending",
     signingProfile: "production",
-    fromVersion: "0.2.0-preview.4",
-    toVersion: "0.2.0-preview.5",
+    fromVersion: "0.2.0-preview.6",
+    toVersion: "0.2.0-preview.7",
     productionUpdaterPublicKeyId: null,
     releases: [],
     feed: null,
@@ -132,7 +132,7 @@ if (qualification.publicPreviewQualification.status === "pending") {
   assert.equal(typeof qualification.publicPreviewQualification.productionUpdaterPublicKeyId, "string");
   assert.equal(qualification.publicPreviewQualification.releases.length, 2);
   assert.deepEqual(qualification.publicPreviewQualification.targets.map((target) => target.key), enabledTargets);
-  assert.equal(qualification.publicPreviewQualification.feed.version, "0.2.0-preview.5");
+  assert.equal(qualification.publicPreviewQualification.feed.version, "0.2.0-preview.7");
 }
 assert.deepEqual(qualification.targets.map((target) => target.key), contract.targets.map((target) => target.key));
 assert.equal(new Set(qualification.targets.map((target) => target.key)).size, contract.targets.length);
@@ -169,6 +169,7 @@ const tauriMacosConfig = JSON.parse(fs.readFileSync(path.join(root, "src-tauri",
 const tauriUnsignedConfig = JSON.parse(fs.readFileSync(path.join(root, "src-tauri", "tauri.unsigned.conf.json"), "utf8"));
 const cargoToml = fs.readFileSync(path.join(root, "src-tauri", "Cargo.toml"), "utf8");
 const cargoLock = fs.readFileSync(path.join(root, "src-tauri", "Cargo.lock"), "utf8");
+const nativeUpdater = fs.readFileSync(path.join(root, "src-tauri", "src", "app_updates.rs"), "utf8");
 const cargoVersion = cargoToml.match(/^\[package\][\s\S]*?^version\s*=\s*"([^"]+)"/m)?.[1];
 const lockVersion = cargoLock.match(/^name = "gitodile"\r?\nversion = "([^"]+)"/m)?.[1];
 const currentVersions = [packageJson.version, cargoVersion, lockVersion, tauriConfig.version];
@@ -190,6 +191,21 @@ assert.deepEqual(
   { endpoints: [], pubkey: "" },
   "the registered updater plugin needs a non-null config while release identity stays Rust-owned",
 );
+assert.match(cargoToml, /tauri-plugin-updater\s*=\s*"=2\.11\.0"/,
+  "the configured updater client API requires the exact reviewed plugin version");
+assert.match(cargoToml, /reqwest\s*=\s*\{[^\n]*default-features\s*=\s*false[^\n]*\}/,
+  "GitOdile may name the plugin client's Reqwest types without enabling another default client");
+assert.doesNotMatch(cargoToml, /reqwest\s*=\s*\{[^\n]*,\s*features\s*=/,
+  "GitOdile must not select a direct Reqwest TLS provider");
+assert.doesNotMatch(cargoLock, /^name = "aws-lc-(?:rs|sys)"$/m,
+  "the removed standalone manifest client must not retain AWS-LC dependencies");
+const nativeUpdaterProduction = nativeUpdater.split("\n#[cfg(test)]\nmod tests")[0];
+assert.equal((nativeUpdaterProduction.match(/updater\.check\(\)\.await/g) ?? []).length, 1,
+  "tauri-plugin-updater.check() must be the only feed request authority");
+assert.doesNotMatch(nativeUpdaterProduction, /fetch_bounded_manifest|bytes_stream\(/,
+  "GitOdile must not restore a separate manifest fetch");
+assert.match(nativeUpdaterProduction, /validate_raw_manifest\(/,
+  "the plugin's authoritative raw_json must still pass GitOdile's strict validation");
 
 process.stdout.write(
   `App-update contract check passed (${contract.versionCases.length} version cases, ` +
