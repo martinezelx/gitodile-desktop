@@ -261,6 +261,20 @@ signed matrix was emitted. The signing job now installs the same pinned-runner
 system dependencies used by CI and builds the verifier with Cargo's lockfile
 enforced before signing any final bytes.
 
+Candidate run
+[`34749564195`](https://github.com/martinezelx/project-gitodile/actions/runs/34749564195)
+then passed the complete Windows/Linux matrix at exact source
+`78d5497c69857aec0505e2cfabb10b8267425884`. Downstream signing run
+[`34749958315`](https://github.com/martinezelx/project-gitodile/actions/runs/34749958315)
+passed source reauthorization and both OS-boundary jobs. The downloaded
+unsigned and OS-stage matrices passed local rehashing before the maintainer
+approved only `validation-updater-signing`. The verifier compiled successfully,
+but the signing loop failed closed before signing because CommonJS `require()`
+interpreted the relative `os/.../evidence.json` path returned by `find` as a
+package name. The loop now reads and parses that path explicitly through
+`node:fs`; an executable workflow-contract assertion prevents the unsafe path
+resolution from returning.
+
 # Validation
 
 Record the public-readiness diff and local checks first, without spending or

@@ -289,7 +289,7 @@ jobs:
           cargo build --locked --manifest-path src-tauri/Cargo.toml --example verify_updater_signature
           while IFS= read -r -d '' evidence; do
             directory="$(dirname "$evidence")"
-            updater="$(node -e "const e=require(process.argv[1]); const a=e.artifacts.find(x=>x.role==='updater'||x.role==='first-install-and-updater'); if(!a)process.exit(1); process.stdout.write(a.fileName)" "$evidence")"
+            updater="$(node -e "const fs=require('node:fs'); const e=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const a=e.artifacts.find(x=>x.role==='updater'||x.role==='first-install-and-updater'); if(!a)process.exit(1); process.stdout.write(a.fileName)" "$evidence")"
             pnpm tauri signer sign "$directory/$updater"
             src-tauri/target/debug/examples/verify_updater_signature "$directory/$updater" "$directory/$updater.sig" "$public_key_file"
           done < <(find os -name evidence.json -type f -print0)
