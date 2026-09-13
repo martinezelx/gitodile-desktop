@@ -31,8 +31,8 @@ The repository was inspected rather than treating the planning documents as
 runtime evidence:
 
 - npm, Cargo, Cargo's root lock entry, and Tauri all contain
-  `0.2.0-preview.4`; the version is the unpublished starting candidate for the
-  corrected validation pair;
+  `0.2.0-preview.5`; the version is the unpublished destination candidate for
+  the corrected validation pair;
 - the Tauri identity is `app.gitodile.desktop` and bundling is active. The base
   `bundle.targets` remains `all`, but the mandatory platform overlays restrict
   Windows to `nsis`, Linux to `appimage`, and disable macOS bundling. These

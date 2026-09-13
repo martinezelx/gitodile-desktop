@@ -353,6 +353,22 @@ not installed `.4` to `.5` evidence. The fresh validation pair remains `.4` to
 `.5`; `.6` to `.7` remains reserved for the future production-key/AuthentiCode
 pair.
 
+Candidate run
+[`34782596507`](https://github.com/martinezelx/project-gitodile/actions/runs/34782596507)
+then built the exact `.4` Windows/Linux unsigned matrix at source
+`7ad84078748e324e922e35da2c229e536be139a0` and passed its complete provenance
+gate. The downloaded candidate identity and both packages passed an independent
+local `verify-matrix` rehash before only `validation-updater-signing` was
+approved. Downstream run
+[`34783155007`](https://github.com/martinezelx/project-gitodile/actions/runs/34783155007)
+reauthorized the source and target matrix, retained Windows as
+`authenticode_deferred`, Tauri-signed both final packages with the validation
+updater identity, verified both signatures through the repository's Rust
+verifier, and emitted a non-promoting signed matrix. That final artifact was
+downloaded again and passed the complete local signed-matrix verifier. This is
+valid `.4` build/signing evidence, not installed A-to-B evidence; `.5`, the
+controlled bundle and both real installed transitions are still pending.
+
 # Validation
 
 Record the public-readiness diff and local checks first, without spending or
