@@ -367,7 +367,76 @@ updater identity, verified both signatures through the repository's Rust
 verifier, and emitted a non-promoting signed matrix. That final artifact was
 downloaded again and passed the complete local signed-matrix verifier. This is
 valid `.4` build/signing evidence, not installed A-to-B evidence; `.5`, the
-controlled bundle and both real installed transitions are still pending.
+controlled bundle and both real installed transitions were still pending at
+that checkpoint.
+
+Candidate run
+[`34784539362`](https://github.com/martinezelx/project-gitodile/actions/runs/34784539362)
+then built the exact `.5` Windows/Linux unsigned matrix at source
+`d1b1a5dcb1cc51465abac6cd1c658d346df3e0dc`. Its downloaded artifact passed
+the independent unsigned matrix verifier before only
+`validation-updater-signing` was approved. Protected signing run
+[`34785061690`](https://github.com/martinezelx/project-gitodile/actions/runs/34785061690)
+passed source reauthorization and both OS boundaries, left production
+Authenticode skipped, signed both packages with the validation updater key,
+verified the signatures with the Rust verifier and emitted the complete
+non-promoting signed matrix. The downloaded result passed the local signed
+matrix verifier. CI run
+[`34784530104`](https://github.com/martinezelx/project-gitodile/actions/runs/34784530104)
+and CodeQL run
+[`34784530103`](https://github.com/martinezelx/project-gitodile/actions/runs/34784530103)
+also completed successfully; every job and step was reviewed.
+
+Controlled bundle run
+[`34785483772`](https://github.com/martinezelx/project-gitodile/actions/runs/34785483772)
+verified both signed matrices and produced the fixed `.4` to `.5` bundle with
+`publicPromotionAllowed: false`. Its report records signed-matrix hashes
+`53a92854eca52f96f039a491333957aed93d87e2c5249ef53695a133a7fb1aee`
+and `406e408cf6feeec736bb662a725dfc41dc2d9dee2e34b393a0ee428fe3bbd0d3`.
+The bundle was deployed append-only at controlled-host commit
+`07ca923e7b942e72efefe72be81f7c6d9f2f1b34`; the earlier `.2`/`.3` packages
+and report were rehashed before and after and remained byte-identical. GitHub
+Pages deployment `6427063813` succeeded for that exact commit. An anonymous
+HTTPS client then downloaded the report, feed, all eight `.4`/`.5` package and
+signature files, and both `.5` release destinations. All ten artifacts matched
+their expected sizes and SHA-256 values. The deployed feed advertised exactly
+Windows x86-64 and Linux x86-64 at `.5` and had SHA-256
+`3d2441d977f7ffb6a3bab72d4e2a7c4082c06edaa3de54beb814a0ab7c4b1aae`.
+
+On 2026-09-14 the anonymously downloaded Windows `.4` NSIS, SHA-256
+`903513fd82da78b4bd7066645cf2fa6deeb81a6d787a889e49d77309d6607c77`,
+was installed normally per-user over the retained failed `.2` installation.
+It reported installed version `.4`; all seven encrypted updater-key recovery
+files present beside that test installation remained byte-identical. The real
+installed `.4` renderer reopened two qualification project sessions on a
+physical x86-64 Windows 11 10.0.26200 machine, with a staged change, dirty
+tracked changes and untracked files across both projects, an active repository
+watcher, a dark-theme preference and an identifiable unsaved version-message
+draft. Their HEADs, index trees, porcelain status and file hashes were captured
+before the update.
+
+The installed `.4` process used the in-app command path to check the deployed
+HTTPS feed and returned a structured `.5` `available` candidate for
+`windows-x86_64`, with expected size 2,670,975 bytes, while remaining alive and
+responsive. Its in-app download traversed `downloading` to `ready`; Tauri's
+signature verification accepted the payload. After the explicit second user
+confirmation, GitOdile installed through the official Tauri updater and
+restarted. The installed executable independently reported
+`0.2.0-preview.5`, the UI showed that same running version, and
+`get_startup_update_confirmation` returned structured `confirmed` for `.5`.
+Both project sessions reopened. Their HEADs, index trees, staged/unstaged and
+untracked status, and every sentinel file hash were unchanged. The volatile
+version-message draft reopened editable with its exact title and description,
+and the theme preference remained dark. The process stayed responsive and no
+new Windows Error Reporting dump appeared; the newest dump remained the failed
+`.2` evidence from 2026-09-13 16:45:02 UTC. Windows correctly reports these
+validation binaries as not Authenticode-signed, so this proves the installed
+functional happy path only, not publisher trust.
+
+The Windows failure matrix and the real Linux AppImage installed transition
+remain outstanding. Consequently both enabled targets and the overall
+validation qualification deliberately remain `qualification_required`, and
+production promotion remains disabled.
 
 # Validation
 
