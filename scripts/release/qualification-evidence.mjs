@@ -318,14 +318,28 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
       fail("qualification_invalid", `${target} must remain planned_disabled without evidence or publication`);
     }
   }
+  for (const target of REQUIRED_TARGETS) {
+    const entry = byTarget.get(target);
+    const pending = entry?.status === "qualification_required" && Array.isArray(entry.evidence) && entry.evidence.length === 0;
+    const qualified = entry?.status === "qualified" && Array.isArray(entry.evidence) && entry.evidence.length === 1;
+    if (!pending && !qualified) fail("qualification_invalid", `${target} has an invalid qualification state`);
+  }
   if (mode === "validation-draft") {
     if (candidate.release.signingProfile !== "validation" || candidate.release.purpose !== "qualification") {
       fail("profile_mismatch", "validation drafts require the fixed validation signing profile");
     }
     validateValidationQualification(qualification.validationQualification, false);
-    return { productionAllowed: false, qualifiedTargets: [] };
+    return { productionAllowed: false, previewTestingAllowed: false, qualifiedTargets: [] };
   }
-  if (mode !== "production") fail("invalid_mode", "mode must be validation-draft or production");
+  if (mode === "preview-testing") {
+    if (
+      candidate.release.signingProfile !== "production" ||
+      candidate.release.purpose !== "release_candidate" ||
+      candidate.release.channel !== "preview" || candidate.release.githubPrerelease !== true
+    ) fail("profile_mismatch", "preview testing requires a production-Tauri-signed preview candidate");
+    return { productionAllowed: false, previewTestingAllowed: true, qualifiedTargets: [] };
+  }
+  if (mode !== "production") fail("invalid_mode", "mode must be validation-draft, preview-testing or production");
   if (candidate.release.signingProfile !== "production" || candidate.release.purpose !== "release_candidate") {
     fail("profile_mismatch", "production promotion requires a production-signed release candidate");
   }
@@ -338,5 +352,5 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
     const missing = candidate.matrix.requiredTargets.filter((target) => !qualifiedTargets.includes(target));
     fail("qualification_required", `targets still require real A-to-B evidence: ${missing.join(", ")}`);
   }
-  return { productionAllowed: true, qualifiedTargets };
+  return { productionAllowed: true, previewTestingAllowed: false, qualifiedTargets };
 }

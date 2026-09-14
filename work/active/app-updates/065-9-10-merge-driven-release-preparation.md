@@ -281,6 +281,25 @@ task to publish a stable release or any macOS artifact.
 
 ## Gates still open
 
+### 2026-09-14 downloadable preview policy
+
+- The maintainer clarified that the immediate development path must publish
+  manual-test builds before platform qualification is complete. Automatic
+  publication now derives the narrow `preview-testing` mode for production-
+  Tauri-signed preview candidates: it creates a GitHub prerelease, uploads only
+  the Windows x86-64 NSIS package and Linux x86-64 AppImage, and advances only
+  `preview.json` after the protected publication approval.
+- `preview-testing` records an empty qualified-target set and leaves automatic
+  installation disabled in the packages. It does not change the qualification
+  registry, satisfy Linux A-to-B evidence, claim Windows OS trust, or authorize
+  stable. Windows remains `authenticode_deferred`; macOS assets and targets are
+  rejected.
+- `pnpm run check` and `pnpm run check:publication` both passed after this
+  policy change: 36 release tests, 859 frontend tests and 399 Rust tests, plus
+  documentation/contracts, architecture, TypeScript, frontend build, Rust fmt
+  and Clippy. The publication gate again verified the live public repository
+  settings and idempotent download guidance at `f231076b65484c21307a7ab770ebd02b249bfe61`.
+
 - No real `release/<version>` pull request was merged merely to test the
   coordinator, because that would permanently advance application metadata and
   create a release tag. The two acceptance criteria requiring observed preview

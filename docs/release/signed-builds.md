@@ -65,7 +65,7 @@ These are independent claims and are recorded independently:
 | Layer | Targets | Required proof |
 | --- | --- | --- |
 | Updater signature | Windows and Linux | Tauri signer covers the final update bytes; the repository-owned verifier checks the emitted signature with the configured public key and records its public key ID |
-| Operating-system trust | Windows | Authenticode validation, expected SHA-256 certificate identity, Code Signing EKU, timestamp, non-self-signed trusted chain and certificate subject/issuer |
+| Operating-system trust | Windows | Pre-1.0 and initial 1.0 record `not_checked` / `authenticode_deferred` / null identity; post-1.0 task 065-9-9 must add Authenticode validation before claiming OS trust |
 | Linux OS signing | Linux AppImage | `not_applicable`; this is not represented as an OS-trust success. The updater signature is still mandatory |
 
 Pre-1.0 and initial `1.0.0` Windows packages carry the unchanged unsigned NSIS
@@ -89,7 +89,7 @@ workflow inputs or logs:
 
 | Scope | Names | Current readiness (2026-09-12) |
 | --- | --- | --- |
-| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | Both distinct public identities and the controlled HTTPS validation feed are configured; qualified production targets remain unset |
+| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | Both distinct public identities and the controlled HTTPS validation feed are configured. Empty qualified targets are valid for `preview-testing` and keep automatic installation disabled; only real qualification may set the canonical Windows/Linux value. |
 | `production-windows-signing` environment secrets and variable | Reserved post-1.0 names: secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | Deliberately unconfigured until task 065-9-9 resumes after `1.0.0` |
 | `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Distinct key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before public production use |
 | `validation-updater-signing` environment secrets | same two updater secret names, containing a distinct validation key | Distinct disposable validation key configured; local encrypted restore/sign/verify passed |

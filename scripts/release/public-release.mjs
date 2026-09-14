@@ -12,6 +12,7 @@ export const GUIDANCE_START = "<!-- gitodile-downloads:start -->";
 export const GUIDANCE_END = "<!-- gitodile-downloads:end -->";
 const SOURCE_ARCHIVE = /(?:^|[-_.])(source|src)(?:[-_.]|$)/i;
 const SECRET_NAME = /(?:private[-_.]?key|certificate|credential|secret|token|source[-_.]?archive)/i;
+export const PREVIEW_TESTING_NOTICE = "> Testing preview: Windows and Linux installed-update qualification is not complete. This prerelease does not claim platform qualification. Windows Authenticode is deferred.\n\n> Preview de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión preliminar no declara cualificación de plataforma. Authenticode de Windows está aplazado.";
 
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
@@ -103,11 +104,13 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
   });
   const ordered = verifyCompleteMatrix(evidence, candidate, { requiredPhase: "signed" });
   const gate = validateQualification(qualification, candidate, mode);
-  if (mode === "production") {
+  const publishes = mode === "production" || mode === "preview-testing";
+  const publishedNotes = mode === "preview-testing" ? `${PREVIEW_TESTING_NOTICE}\n\n${notesMarkdown}` : notesMarkdown;
+  if (publishes) {
     const validShape = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(publishedAt ?? "");
     const parsedDate = validShape ? new Date(publishedAt) : null;
     if (!parsedDate || Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().replace(".000Z", "Z") !== publishedAt) {
-      fail("publication_date_invalid", "production publication needs a valid fixed UTC timestamp");
+      fail("publication_date_invalid", "feed publication needs a valid fixed UTC timestamp");
     }
   }
   const names = new Set();
@@ -131,8 +134,8 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
   }
   const manifest = {
     version: candidate.release.version,
-    notes: normalizeNotes(notesMarkdown),
-    pub_date: mode === "production" ? publishedAt : null,
+    notes: normalizeNotes(publishedNotes),
+    pub_date: publishes ? publishedAt : null,
     platforms,
   };
   const manifestBytes = `${JSON.stringify(manifest, null, 2)}\n`;
@@ -156,9 +159,9 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
     mode,
     destination: PUBLIC_REPOSITORY,
     source: { tag: candidate.source.tag, sha: candidate.source.sha },
-    release: { version: candidate.release.version, channel: candidate.release.channel, githubPrerelease: parsed.githubPrerelease, publishedAt: mode === "production" ? publishedAt : null },
+    release: { version: candidate.release.version, channel: candidate.release.channel, githubPrerelease: parsed.githubPrerelease, publishedAt: publishes ? publishedAt : null },
     qualification: gate,
-    notesMarkdown,
+    notesMarkdown: publishedNotes,
     manifest,
     manifestBytes,
     assets,
@@ -166,8 +169,13 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
 }
 
 export function feedsForPromotion(plan, current = {}) {
-  if (plan.mode !== "production" || plan.qualification.productionAllowed !== true) {
-    fail("promotion_forbidden", "only a qualified production plan may advance feeds");
+  const previewTesting = plan.mode === "preview-testing" && plan.qualification.previewTestingAllowed === true;
+  const production = plan.mode === "production" && plan.qualification.productionAllowed === true;
+  if (!previewTesting && !production) {
+    fail("promotion_forbidden", "only an approved preview-testing or qualified production plan may advance feeds");
+  }
+  if (previewTesting && (plan.release.channel !== "preview" || plan.release.githubPrerelease !== true)) {
+    fail("promotion_forbidden", "preview-testing can never publish a stable release or feed");
   }
   const result = {};
   const consider = (channel) => {
@@ -192,7 +200,7 @@ export function feedsForPromotion(plan, current = {}) {
 }
 
 export function updateFeedbackReadme(readme) {
-  const guidance = `${GUIDANCE_START}\n## Downloads / Descargas\n\nTauri updater-signed Windows x86-64 NSIS installers, Linux x86-64 AppImages and their application-update files are attached to each [GitOdile release](https://github.com/${PUBLIC_REPOSITORY}/releases). Windows packages through 1.0.0 intentionally lack Authenticode and may show SmartScreen or unknown-publisher warnings. macOS is not yet qualified and no macOS package is published. Preview releases are marked as prereleases. Existing installers remain available for reinstall; a withdrawn update may stop appearing in the channel feed but is not silently replaced. [Application source](https://github.com/martinezelx/gitodile-desktop) is maintained separately and signing material is never published.\n\nLos instaladores NSIS de Windows x86-64 firmados para el actualizador de Tauri, las AppImage para Linux x86-64 y sus archivos de actualización se adjuntan a cada [versión de GitOdile](https://github.com/${PUBLIC_REPOSITORY}/releases). Los paquetes de Windows hasta 1.0.0 carecen intencionadamente de Authenticode y pueden mostrar avisos de SmartScreen o de editor desconocido. macOS todavía no está cualificado y no se publica ningún paquete para macOS. Las versiones preview se marcan como preliminares. Los instaladores anteriores se conservan para reinstalar; una actualización retirada puede dejar de aparecer en el canal, pero no se sustituye silenciosamente. El [código de la aplicación](https://github.com/martinezelx/gitodile-desktop) se mantiene por separado y el material de firma nunca se publica.\n${GUIDANCE_END}`;
+  const guidance = `${GUIDANCE_START}\n## Downloads / Descargas\n\nTauri updater-signed Windows x86-64 NSIS installers, Linux x86-64 AppImages and their application-update files are attached to each [GitOdile release](https://github.com/${PUBLIC_REPOSITORY}/releases). Preview-testing releases may be public before installed-update qualification is complete; a prerelease label is not a qualification claim. Windows packages through 1.0.0 intentionally lack Authenticode and may show SmartScreen or unknown-publisher warnings. macOS is not yet qualified and no macOS package is published. Preview releases are marked as prereleases. Existing installers remain available for reinstall; a withdrawn update may stop appearing in the channel feed but is not silently replaced. [Application source](https://github.com/martinezelx/gitodile-desktop) is maintained separately and signing material is never published.\n\nLos instaladores NSIS de Windows x86-64 firmados para el actualizador de Tauri, las AppImage para Linux x86-64 y sus archivos de actualización se adjuntan a cada [versión de GitOdile](https://github.com/${PUBLIC_REPOSITORY}/releases). Las versiones preview-testing pueden ser públicas antes de completar la cualificación de actualización instalada; la etiqueta preliminar no declara cualificación. Los paquetes de Windows hasta 1.0.0 carecen intencionadamente de Authenticode y pueden mostrar avisos de SmartScreen o de editor desconocido. macOS todavía no está cualificado y no se publica ningún paquete para macOS. Las versiones preview se marcan como preliminares. Los instaladores anteriores se conservan para reinstalar; una actualización retirada puede dejar de aparecer en el canal, pero no se sustituye silenciosamente. El [código de la aplicación](https://github.com/martinezelx/gitodile-desktop) se mantiene por separado y el material de firma nunca se publica.\n${GUIDANCE_END}`;
   if (readme.includes(GUIDANCE_START)) {
     const pattern = new RegExp(`${GUIDANCE_START}[\\s\\S]*?${GUIDANCE_END}`);
     if (!pattern.test(readme)) fail("readme_contract", "download guidance markers are malformed");

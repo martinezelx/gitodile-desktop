@@ -169,8 +169,9 @@ jobs:
             if (!process.env.GITODILE_VALIDATION_UPDATE_FEED || !validationTarget || qualifiedTargets !== validationTarget) {
               throw new Error("Controlled validation routing must enable only this matrix target.");
             }
-          } else if (validationTarget !== "" || process.env.GITODILE_VALIDATION_UPDATE_FEED !== "" || qualifiedTargets !== "windows-x86_64,linux-x86_64") {
-            throw new Error("Production qualification must be the reviewed canonical Windows/Linux target set.");
+          } else if (validationTarget !== "" || process.env.GITODILE_VALIDATION_UPDATE_FEED !== "" ||
+                     !new Set(["", "windows-x86_64,linux-x86_64"]).has(qualifiedTargets)) {
+            throw new Error("Production eligibility must be empty for testing or the reviewed canonical Windows/Linux target set.");
           }
           NODE
       - name: Install Linux packaging dependencies

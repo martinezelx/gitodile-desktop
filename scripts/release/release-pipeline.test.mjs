@@ -360,14 +360,12 @@ test("workflows expose no branch publication path and pin external actions", () 
     "windows-x86_64",
     "linux-x86_64",
   ]);
-  assert.equal(
-    candidate.parsed.jobs.build.env.GITODILE_QUALIFIED_UPDATE_TARGETS,
-    "${{ needs.validate.outputs.profile == 'validation' && matrix.target || vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}",
-  );
+  assert.equal(candidate.parsed.jobs.build.env.GITODILE_QUALIFIED_UPDATE_TARGETS,
+    "${{ needs.validate.outputs.profile == 'validation' && matrix.target || vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}");
   const identityGuard = candidate.parsed.jobs.build.steps.find((step) => step.name === "Require reviewed public updater identity");
   assert.match(identityGuard.run, /Validation and production updater identities must both exist and be distinct/);
   assert.match(identityGuard.run, /qualifiedTargets !== validationTarget/);
-  assert.match(identityGuard.run, /qualifiedTargets !== "windows-x86_64,linux-x86_64"/);
+  assert.match(identityGuard.run, /new Set\(\["", "windows-x86_64,linux-x86_64"\]\)/);
   const unsignedBuild = candidate.parsed.jobs.build.steps.find((step) => step.name === "Build without signing credentials");
   assert.match(unsignedBuild.run, /--config src-tauri\/tauri\.unsigned\.conf\.json/);
   assert.doesNotMatch(unsignedBuild.run, /--config\s+['"]?\{/,
@@ -425,7 +423,7 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.match(publication.parsed.jobs["authorize-and-stage"].if, /github\.event_name == 'workflow_run'/);
   assert.match(publication.parsed.jobs["authorize-and-stage"].if, /workflow_run\.conclusion == 'success'/);
   assert.equal(publication.parsed.jobs.publish.environment,
-    "${{ needs.authorize-and-stage.outputs.mode == 'production' && 'public-release-production' || 'public-release-validation-draft' }}");
+    "${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || 'public-release-production' }}");
 
   const coordinator = readWorkflow("merge-driven-release.yml");
   assert.deepEqual(Object.keys(coordinator.parsed.on), ["pull_request_target"]);

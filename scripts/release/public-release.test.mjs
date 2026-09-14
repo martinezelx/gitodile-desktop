@@ -202,6 +202,39 @@ test("production is denied while every enabled target remains qualification_requ
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: partial, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 });
 
+test("preview-testing publishes only a Tauri-signed prerelease without claiming qualification", () => {
+  const root = signedMatrix("0.2.0-preview.6");
+  const plan = preparePublication({
+    signedDirectory: root,
+    notesMarkdown: "# Public preview test\n\nWindows and Linux remain unqualified testing downloads.",
+    qualification: qualification(false),
+    mode: "preview-testing",
+    publishedAt: "2026-09-11T12:00:00Z",
+  });
+  assert.equal(plan.release.channel, "preview");
+  assert.equal(plan.release.githubPrerelease, true);
+  assert.equal(plan.qualification.productionAllowed, false);
+  assert.equal(plan.qualification.previewTestingAllowed, true);
+  assert.deepEqual(plan.qualification.qualifiedTargets, []);
+  assert.deepEqual(Object.keys(plan.manifest.platforms), ["windows-x86_64", "linux-x86_64"]);
+  assert.match(plan.notesMarkdown, /does not claim platform qualification/);
+  assert.match(plan.manifest.notes, /does not claim platform qualification/);
+  const feeds = feedsForPromotion(plan, { stable: { version: "0.1.0" } });
+  assert.deepEqual(Object.keys(feeds), ["preview"]);
+  assert.equal(typeof feeds.preview, "string");
+  expectCode("feed_regression", () => feedsForPromotion(plan, { preview: { version: "0.2.0-preview.7" } }));
+});
+
+test("preview-testing rejects stable, validation-key and macOS candidates", () => {
+  const options = { notesMarkdown: "Testing", qualification: qualification(false), mode: "preview-testing", publishedAt: "2026-09-11T12:00:00Z" };
+  expectCode("profile_mismatch", () => preparePublication({ signedDirectory: signedMatrix("0.2.0"), ...options }));
+  expectCode("profile_mismatch", () => preparePublication({ signedDirectory: signedMatrix("0.2.0-preview.4"), ...options }));
+  const advertisedMac = qualification(false);
+  const macIndex = advertisedMac.releaseMatrix.disabledTargets.findIndex(({ key }) => key === "darwin-aarch64");
+  advertisedMac.releaseMatrix.disabledTargets[macIndex] = { key: "darwin-aarch64", status: "qualified", evidence: [{}] };
+  expectCode("qualification_invalid", () => preparePublication({ signedDirectory: signedMatrix("0.2.0-preview.6"), ...options, qualification: advertisedMac }));
+});
+
 test("the controlled qualification bundle binds real A/B matrices without production promotion", () => {
   const from = signedMatrix("0.2.0-preview.4");
   const to = signedMatrix("0.2.0-preview.5");
@@ -373,6 +406,7 @@ test("source workflow and public README contracts reject unsafe provenance and u
   const first = updateFeedbackReadme("# GitOdile — feedback\n\nThere is no source code here, and there are no pull requests to send. Issues,\n\nEl código de la aplicación es privado. Este repositorio no contiene código de\nla aplicación ni descargas.\n");
   assert.match(first, /Tauri updater-signed Windows x86-64/);
   assert.match(first, /intentionally lack Authenticode/);
+  assert.match(first, /prerelease label is not a qualification claim/);
   assert.match(first, /macOS is not yet qualified/);
   assert.equal(updateFeedbackReadme(first), first);
 });
@@ -393,5 +427,8 @@ test("the publication workflow chains successful signing, stays protected, and k
   assert.doesNotMatch(JSON.stringify(workflow.jobs.publish), /GITHUB_TOKEN|github\.token|source-run-id/);
   assert.match(source, /validated-source-run\.json/);
   assert.match(source, /qualification-evidence\.mjs/);
+  assert.match(source, /"preview-testing"/);
+  assert.equal(workflow.jobs.publish.environment,
+    "${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || 'public-release-production' }}");
   for (const match of source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) assert.match(match[1], /@[0-9a-f]{40}$/);
 });

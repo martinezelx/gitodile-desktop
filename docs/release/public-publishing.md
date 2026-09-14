@@ -7,7 +7,11 @@ It consumes the package-only output of the
 application and never accepts a local installer path supplied to the privileged
 job.
 
-No production publication is currently authorized. The qualification registry
+No qualified production or stable publication is currently authorized. A
+narrow `preview-testing` policy may publish a reviewer-approved, Tauri-signed
+preview as a GitHub prerelease and advance only `preview.json`; that exception
+does not change any qualification state or claim that installation succeeded.
+The qualification registry
 [`update-target-qualifications.json`](update-target-qualifications.json) is
 deny-by-default: Windows x86-64 and Linux x86-64 remain
 `qualification_required`, both macOS targets are `planned_disabled`,
@@ -22,16 +26,25 @@ results and platform trust, while separately retaining the pending public
 
 ## Promotion model
 
-`.github/workflows/public-release-publishing.yml` has one automatic production
+`.github/workflows/public-release-publishing.yml` has one automatic release
 entry and one manual validation entry. A successful `Private candidate signing`
 `workflow_run`, evaluated by workflow code loaded from protected `main`, stages
-production promotion from that exact signing run. Ordinary pushes, pull
+the applicable policy from that exact signing run. Ordinary pushes, pull
 requests, merges and tags cannot publish directly. The manual entry supplies
 the numeric signing run ID and is limited to `validation-draft`:
 
 - `validation-draft` accepts only the fixed validation-key pair
   `0.2.0-preview.4` / `0.2.0-preview.5`. It may reconcile a draft release but
   cannot finalize it or write `stable.json` / `preview.json`.
+- automatic `preview-testing` accepts only a production-Tauri-signed preview,
+  requires the complete Windows NSIS/Linux AppImage matrix, preserves
+  `authenticode_deferred`, rejects every macOS target, finalizes the release as
+  a GitHub prerelease and may advance only `preview.json`. It deliberately
+  accepts `qualification_required` targets and returns an empty
+  `qualifiedTargets` list; it is publication-pipeline testing, not target
+  qualification or stable authorization. The publisher prepends a fixed
+  bilingual notice saying exactly that to the public release body and updater
+  notes, independent of the curated change summary.
 - automatic `production` accepts only a production-signing profile, derives a
   deterministic UTC publication timestamp from the exact source commit, and
   requires a registry that approves production plus every
@@ -53,9 +66,11 @@ Only the second job enters a destination environment and receives
 with Contents write access only to `martinezelx/gitodile`; a narrowly
 scoped expiring fine-grained PAT is the temporary fallback. This job does not
 check out the source repository. Source visibility is not an authorization
-boundary. Both destination environments require
-reviewers and no administrator bypass; production additionally requires the
-065-9-7/065-9-8 evidence review and working-name clearance.
+boundary. Both destination environments require reviewers and no administrator
+bypass. `preview-testing` uses the protected `public-release-production`
+environment, so signing alone cannot expose public bytes without maintainer
+approval. Qualified production additionally requires the 065-9-7/065-9-8
+evidence review and working-name clearance.
 
 ## Immutable release sequence
 
@@ -74,11 +89,14 @@ reviewers and no administrator bypass; production additionally requires the
    once to prove reconciliation. Draft assets require authenticated inspection
    because GitHub does not expose draft downloads anonymously. Confirm that no
    production feed moved. This is pipeline validation, not target qualification.
-4. After 065-9-7/065-9-8 have recorded both enabled targets and the release
-   approval, let successful production signing trigger the protected
-   production promotion automatically. Its fixed timestamp comes from the
-   exact source commit. Do not edit the notes or qualification registry during
-   a retry.
+4. Before target qualification is complete, a signed preview automatically
+   enters `preview-testing` and waits at the protected publication environment.
+   Approval may finalize only that prerelease and advance `preview.json`; record
+   it as pipeline evidence, never as an installed-update pass. After 065-9-7/
+   065-9-8 have recorded both enabled targets and production approval, the same
+   automatic entry uses qualified `production`. The fixed timestamp comes from
+   the exact source commit. Do not edit the notes or qualification registry
+   during a retry.
 5. The coordinator creates the public lightweight tag at a commit in the
    feedback repository, reconciles one draft release, and uploads only missing
    assets. Existing bytes are downloaded and hashed. A conflicting byte,
@@ -91,14 +109,18 @@ reviewers and no administrator bypass; production additionally requires the
 
 Every manifest URL names `/releases/download/v<version>/<asset>`. Preview
 versions set GitHub `prerelease: true` and can advance only `preview.json`.
-Stable versions set it to false, advance `stable.json`, and advance preview only
+Stable versions are rejected by `preview-testing`. Only qualified production
+sets the GitHub prerelease flag to false, advances `stable.json`, and advances preview only
 when newer than its current candidate. Equal versions must have byte-identical
 manifests. Older versions fail closed. A stable release is newly built and
 signed; changing a preview release flag is never promotion.
 
 The asset and manifest set is exactly Windows x86-64 NSIS plus Linux x86-64
 AppImage. A Darwin target or macOS-looking asset is an error while task 065-10
-is open. Production approval is the pre-publication gate: it records the real
+is open. Preview-testing approval confirms only the immutable signed matrix,
+curated notes, preview identity, destination and unknown-publisher disclosure;
+it does not satisfy a registry evidence field. Production approval is the
+pre-publication gate: it records the real
 validation draft, interrupted retry, immutable reconciliation, unchanged feed,
 the `.4` to `.5` installed qualification and name clearance. Anonymous
 downloads, preview advancement and the public `.4` to `.5` installed proof are
@@ -143,9 +165,9 @@ private security channel and repository settings before the privileged job.
   The independent offline production backup and real Authenticode identity are
   deferred to task 065-9-9. Apple credentials are deliberately out of scope
   with macOS disabled under task 065-10.
-- The destination environment exists, but no destination-scoped publisher
-  credential is configured or evidenced, and the public feedback repository
-  has no releases.
+- The destination environment and destination-scoped publisher credential must
+  be independently verified before approving `preview-testing`; their presence
+  is not target qualification.
 - The public feedback README has not been changed because this work performs no
   commit or push; the coordinator holds the reviewed idempotent update for the
   first authorized promotion.
