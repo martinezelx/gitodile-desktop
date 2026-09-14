@@ -14,21 +14,24 @@ function sha256(bytes) {
 }
 
 export const RELEASE_PIPELINE = Object.freeze({
-  name: "Release pipeline",
   path: ".github/workflows/release-pipeline.yml",
   event: "workflow_dispatch",
+  // The workflow declares `run-name`, and the Actions API then reports that
+  // per-run title in `name` rather than the workflow name.
+  runName: /^Release v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-preview\.[1-9][0-9]*)? at [0-9a-f]{40}$/,
 });
 
 /** The signed bytes come from the same run that publishes them, so the run is
  * still in progress when this is checked; a completed run is only accepted as
- * a success. Everything else must identify the release pipeline loaded from
- * protected `main`. */
+ * a success. The workflow path, event and branch identify the release
+ * pipeline loaded from protected `main`. */
 export function validateSourceRun(run, expectedRepository) {
   const healthy = (run?.status === "in_progress" && run?.conclusion === null) ||
     (run?.status === "completed" && run?.conclusion === "success");
   if (
     !Number.isSafeInteger(run?.id) || run.id <= 0 ||
-    run?.name !== RELEASE_PIPELINE.name || run?.event !== RELEASE_PIPELINE.event ||
+    typeof run?.name !== "string" || !RELEASE_PIPELINE.runName.test(run.name) ||
+    run?.event !== RELEASE_PIPELINE.event ||
     !healthy || run?.repository?.full_name !== expectedRepository ||
     run?.path !== RELEASE_PIPELINE.path || run?.head_branch !== "main"
   ) fail("source_run_invalid", "artifact source is not a healthy release pipeline run on main");
