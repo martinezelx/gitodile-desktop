@@ -299,6 +299,13 @@ task to publish a stable release or any macOS artifact.
   documentation/contracts, architecture, TypeScript, frontend build, Rust fmt
   and Clippy. The publication gate again verified the live public repository
   settings and idempotent download guidance at `f231076b65484c21307a7ab770ebd02b249bfe61`.
+- Commit `fc6c3ec14c3e8492f41b615f2202224057dca781` contains the policy and was
+  pushed to canonical `main`. Its CI run
+  [`34859130372`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34859130372)
+  passed all seven jobs, and CodeQL run
+  [`34859130654`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34859130654)
+  passed. Neither direct-push run entered candidate build, signing or public
+  publication.
 
 - No real `release/<version>` pull request was merged merely to test the
   coordinator, because that would permanently advance application metadata and
