@@ -40,7 +40,7 @@ notify = { version = "8.2.0", default-features = false, features = ["macos_fseve
 [dev-dependencies]
 # Repository-owned module-direction guard from ADR 0003. Development-only;
 # production artifacts keep no parser dependency.
-syn = { version = "2", features = ["full"] }
+syn = { version = "3", features = ["full"] }
 base64 = "0.22"
 minisign-verify = "0.2"
 
