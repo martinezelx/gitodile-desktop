@@ -13,13 +13,25 @@ function sha256(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
+export const RELEASE_PIPELINE = Object.freeze({
+  name: "Release pipeline",
+  path: ".github/workflows/release-pipeline.yml",
+  event: "workflow_dispatch",
+});
+
+/** The signed bytes come from the same run that publishes them, so the run is
+ * still in progress when this is checked; a completed run is only accepted as
+ * a success. Everything else must identify the release pipeline loaded from
+ * protected `main`. */
 export function validateSourceRun(run, expectedRepository) {
+  const healthy = (run?.status === "in_progress" && run?.conclusion === null) ||
+    (run?.status === "completed" && run?.conclusion === "success");
   if (
     !Number.isSafeInteger(run?.id) || run.id <= 0 ||
-    run?.name !== "Private candidate signing" || run?.event !== "workflow_run" ||
-    run?.conclusion !== "success" || run?.repository?.full_name !== expectedRepository ||
-    run?.path !== ".github/workflows/private-candidate-signing.yml" || run?.head_branch !== "main"
-  ) fail("source_run_invalid", "artifact source is not a successful private signing workflow run");
+    run?.name !== RELEASE_PIPELINE.name || run?.event !== RELEASE_PIPELINE.event ||
+    !healthy || run?.repository?.full_name !== expectedRepository ||
+    run?.path !== RELEASE_PIPELINE.path || run?.head_branch !== "main"
+  ) fail("source_run_invalid", "artifact source is not a healthy release pipeline run on main");
   return true;
 }
 
@@ -190,7 +202,6 @@ export async function publish({ directory, token, sourceRun, sourceRepository, f
   }
   for (const asset of reconcileAssets(plan.assets, release.assets ?? [], hashes, !release.draft)) await uploadAsset(client, release, directory, asset);
   release = await releaseByTag(client, plan.source.tag);
-  if (plan.mode === "validation-draft") return { state: "draft", releaseId: release.id, feedsChanged: [] };
   if (release.draft) release = await client.api(`/releases/${release.id}`, { method: "PATCH", body: JSON.stringify({ draft: false, prerelease: plan.release.githubPrerelease }) }, [200]);
   const freshHashes = await downloadExistingHashes(release, plan.assets, fetchImpl);
   reconcileAssets(plan.assets, release.assets ?? [], freshHashes, true);

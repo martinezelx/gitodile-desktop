@@ -95,7 +95,6 @@ export function verifyCompleteMatrix(evidenceItems, candidate, { requiredPhase =
       evidence.source.sha !== candidate.source.sha ||
       evidence.release.version !== candidate.release.version ||
       evidence.release.channel !== candidate.release.channel ||
-      evidence.release.signingProfile !== candidate.release.signingProfile ||
       evidence.release.publicPromotionAllowed !== false
     ) {
       throw new ReleaseValidationError("provenance_mismatch", `${evidence.target} provenance differs`);

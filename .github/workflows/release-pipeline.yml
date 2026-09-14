@@ -1,0 +1,507 @@
+name: Release pipeline
+run-name: Release ${{ inputs.tag }} at ${{ inputs.sha }}
+
+# One linear pipeline per immutable release identity. The merge coordinator is
+# the only trusted dispatcher. Every stage below is a job of this run: the
+# unsigned build never references a secret, the updater-signing and publication
+# jobs enter their own protected environments, and artifacts never leave the run
+# until the publish job uploads public-only bytes to the destination repository.
+
+on:
+  workflow_dispatch:
+    inputs:
+      authorization_run_id:
+        description: Merge-driven release coordinator run containing the immutable authorization
+        required: true
+        type: string
+      tag:
+        description: Canonical release tag authorized by the coordinator
+        required: true
+        type: string
+      sha:
+        description: Exact protected-main merge revision authorized by the coordinator
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: release-pipeline-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate immutable source identity
+    # The pipeline definition itself must come from protected main; a dispatch
+    # from any other ref cannot enter the signing or publication environments,
+    # and is rejected here before any work starts.
+    if: github.ref == 'refs/heads/main' && github.sha == github.workflow_sha
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.identity.outputs.tag }}
+      version: ${{ steps.identity.outputs.version }}
+      channel: ${{ steps.identity.outputs.channel }}
+      sha: ${{ steps.identity.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.workflow_sha }}
+      - name: Validate the coordinator workflow run
+        env:
+          AUTHORIZATION_RUN_ID: ${{ inputs.authorization_run_id }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          const id = process.env.AUTHORIZATION_RUN_ID ?? "";
+          if (!/^[1-9][0-9]*$/.test(id)) throw new Error("Authorization run ID must be a positive integer.");
+          const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${id}`, {
+            headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "X-GitHub-Api-Version": "2022-11-28" },
+            signal: AbortSignal.timeout(15000), redirect: "error",
+          });
+          if (!response.ok) throw new Error(`Coordinator run lookup failed with HTTP ${response.status}.`);
+          const run = await response.json();
+          const expectedBranch = (process.env.REQUESTED_TAG ?? "").replace(/^v/, "release/");
+          if (run.name !== "Merge-driven release coordinator" || run.event !== "pull_request_target" ||
+              run.repository?.full_name !== process.env.GITHUB_REPOSITORY ||
+              run.path !== ".github/workflows/merge-driven-release.yml" || run.head_branch !== expectedBranch ||
+              !new Set(["in_progress", "completed"]).has(run.status)) {
+            throw new Error("Authorization did not originate in the trusted merge coordinator.");
+          }
+          NODE
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          run-id: ${{ inputs.authorization_run_id }}
+          github-token: ${{ github.token }}
+          name: merge-release-authorization
+          path: merge-authorization
+      - name: Require byte-bound coordinator authorization
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+          REQUESTED_SHA: ${{ inputs.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import { validateAuthorization } from "./scripts/release/merge-release.mjs";
+          const authorization = validateAuthorization(JSON.parse(fs.readFileSync("merge-authorization/authorization.json", "utf8")));
+          if (authorization.tag !== process.env.REQUESTED_TAG || authorization.mergeSha !== process.env.REQUESTED_SHA) {
+            throw new Error("Dispatched release identity differs from the coordinator authorization.");
+          }
+          NODE
+      - name: Fetch the approved main boundary
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - name: Validate tag, ancestry, revision, versions and channel
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_SHA: ${{ inputs.sha }}
+        run: >-
+          node scripts/release/release-candidate.mjs
+          --event coordinator_dispatch
+          --ref-type tag
+          --tag "$RELEASE_TAG"
+          --sha "$RELEASE_SHA"
+          --main-ref refs/remotes/origin/main
+          --metadata-revision "$RELEASE_SHA"
+          --require-head false
+          --output candidate.json
+      - name: Export validated non-secret identity
+        id: identity
+        run: |
+          node -e "const c=require('./candidate.json'); const fs=require('fs'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'tag='+c.source.tag+'\nversion='+c.release.version+'\nchannel='+c.release.channel+'\nsha='+c.source.sha+'\n')"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: candidate-identity
+          path: candidate.json
+          if-no-files-found: error
+          retention-days: 90
+
+  build:
+    name: Build unsigned ${{ matrix.target }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x86_64
+            rustTarget: x86_64-pc-windows-msvc
+            runner: windows-2025
+            bundle: nsis
+          - target: linux-x86_64
+            rustTarget: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            bundle: appimage
+    runs-on: ${{ matrix.runner }}
+    # This job compiles third-party code and runs package hooks. It references
+    # no secret and enters no environment, so GitHub never passes it one.
+    env:
+      GITODILE_UPDATER_PUBLIC_KEY: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
+      GITODILE_UPDATER_PUBLIC_KEY_ID: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
+      GITODILE_RELEASE_CHANNEL: ${{ needs.validate.outputs.channel }}
+      GITODILE_QUALIFIED_UPDATE_TARGETS: ${{ vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}
+      GITODILE_PREVIEW_TEST_UPDATE_TARGETS: ${{ needs.validate.outputs.channel == 'preview' && 'windows-x86_64,linux-x86_64' || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: candidate-identity
+      - name: Require reviewed public updater identity
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const qualifiedTargets = process.env.GITODILE_QUALIFIED_UPDATE_TARGETS ?? "";
+          const previewTestTargets = process.env.GITODILE_PREVIEW_TEST_UPDATE_TARGETS ?? "";
+          const preview = process.env.GITODILE_RELEASE_CHANNEL === "preview";
+          if (!process.env.GITODILE_UPDATER_PUBLIC_KEY || !process.env.GITODILE_UPDATER_PUBLIC_KEY_ID) {
+            throw new Error("The reviewed public updater identity is not configured.");
+          }
+          if (!new Set(["", "windows-x86_64,linux-x86_64"]).has(qualifiedTargets) ||
+              previewTestTargets !== (preview ? "windows-x86_64,linux-x86_64" : "")) {
+            throw new Error("Preview testing and qualified eligibility must use only the canonical Windows/Linux target set.");
+          }
+          NODE
+      - name: Install Linux packaging dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          targets: ${{ matrix.rustTarget }}
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build without signing credentials
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: >-
+          pnpm tauri build --ci --no-sign
+          --target ${{ matrix.rustTarget }}
+          --bundles ${{ matrix.bundle }}
+          --config src-tauri/tauri.unsigned.conf.json
+      - name: Stage Windows package only
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $source = Get-ChildItem "src-tauri/target/${{ matrix.rustTarget }}/release/bundle/nsis" -Filter "*-setup.exe" -File
+          if ($source.Count -ne 1) { throw "Expected exactly one NSIS package" }
+          New-Item -ItemType Directory -Path "candidate/${{ matrix.target }}" | Out-Null
+          Copy-Item -LiteralPath $source.FullName -Destination "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_x64-setup.exe"
+          node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "first-install-and-updater=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_x64-setup.exe" --output "candidate/${{ matrix.target }}/evidence.json"
+      - name: Stage Linux package only
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' packages < <(find "src-tauri/target/${{ matrix.rustTarget }}/release/bundle/appimage" -maxdepth 1 -name '*.AppImage' -type f -print0)
+          test "${#packages[@]}" -eq 1
+          mkdir -p "candidate/${{ matrix.target }}"
+          cp "${packages[0]}" "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_amd64.AppImage"
+          node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "first-install-and-updater=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_amd64.AppImage" --output "candidate/${{ matrix.target }}/evidence.json"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: unsigned-${{ matrix.target }}
+          path: candidate/${{ matrix.target }}
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
+
+  matrix-gate:
+    name: Require the complete unsigned matrix
+    needs: [validate, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: unsigned-*
+          path: unsigned
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: candidate-identity
+      - name: Verify hashes, provenance and complete target set
+        run: node scripts/release/release-evidence.mjs verify-matrix --candidate candidate.json --directory unsigned --phase unsigned
+
+  windows-deferred-boundary:
+    name: Record deferred Windows Authenticode boundary
+    needs: [validate, matrix-gate]
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: candidate-identity
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: unsigned-windows-x86_64
+          path: input
+      - name: Rehash and retain explicitly OS-untrusted Windows bytes
+        shell: pwsh
+        run: |
+          node scripts/release/release-evidence.mjs verify-artifacts --evidence input/evidence.json --directory input
+          $evidence = Get-Content -Raw input/evidence.json | ConvertFrom-Json
+          $source = Join-Path input $evidence.artifacts[0].fileName
+          New-Item -ItemType Directory -Path os-signed/windows-x86_64 | Out-Null
+          $destination = Join-Path os-signed/windows-x86_64 $evidence.artifacts[0].fileName
+          Copy-Item -LiteralPath $source -Destination $destination
+          node scripts/release/make-os-trust.mjs windows-x86_64 authenticode-deferred windows-trust.json
+          node scripts/release/release-evidence.mjs create --candidate candidate.json --target windows-x86_64 --phase os-signed --trust windows-trust.json --artifact "first-install-and-updater=$destination" --output os-signed/windows-x86_64/evidence.json
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: os-signed-windows-x86_64
+          path: os-signed/windows-x86_64
+          if-no-files-found: error
+          retention-days: 30
+
+  linux-os-boundary:
+    name: Record Linux OS-trust boundary
+    needs: [validate, matrix-gate]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: candidate-identity
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: unsigned-linux-x86_64
+          path: input
+      - name: Rehash and retain AppImage final bytes
+        run: |
+          node scripts/release/release-evidence.mjs verify-artifacts --evidence input/evidence.json --directory input
+          mkdir -p os-signed/linux-x86_64
+          package="$(node -e "const e=require('./input/evidence.json'); process.stdout.write(e.artifacts[0].fileName)")"
+          cp "input/$package" "os-signed/linux-x86_64/$package"
+          node scripts/release/make-os-trust.mjs linux-x86_64 not-applicable linux-trust.json
+          node scripts/release/release-evidence.mjs create --candidate candidate.json --target linux-x86_64 --phase os-signed --trust linux-trust.json --artifact "first-install-and-updater=os-signed/linux-x86_64/$package" --output os-signed/linux-x86_64/evidence.json
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: os-signed-linux-x86_64
+          path: os-signed/linux-x86_64
+          if-no-files-found: error
+          retention-days: 30
+
+  updater-sign:
+    name: Updater-sign final bytes and close matrix
+    needs: [validate, windows-deferred-boundary, linux-os-boundary]
+    runs-on: ubuntu-24.04
+    environment: production-updater-signing
+    env:
+      GITODILE_UPDATER_PUBLIC_KEY: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
+      GITODILE_UPDATER_PUBLIC_KEY_ID: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: candidate-identity
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: os-signed-*
+          path: os
+      - name: Rehash and require every OS-stage target
+        run: node scripts/release/release-evidence.mjs verify-matrix --candidate candidate.json --directory os --phase os-signed
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - name: Install Linux verifier dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install trusted locked signing verifier
+        run: pnpm install --frozen-lockfile
+      - name: Require updater credentials without printing values
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: node scripts/release/release-evidence.mjs check-credentials --credential TAURI_SIGNING_PRIVATE_KEY --credential TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+      - name: Sign final bytes and verify every updater signature
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$GITODILE_UPDATER_PUBLIC_KEY" && test -n "$GITODILE_UPDATER_PUBLIC_KEY_ID"
+          public_key_file="$RUNNER_TEMP/gitodile-updater-public-key"
+          trap 'rm -f "$public_key_file"' EXIT
+          printf '%s' "$GITODILE_UPDATER_PUBLIC_KEY" > "$public_key_file"
+          cargo build --locked --manifest-path src-tauri/Cargo.toml --example verify_updater_signature
+          while IFS= read -r -d '' evidence; do
+            directory="$(dirname "$evidence")"
+            updater="$(node -e "const fs=require('node:fs'); const e=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const a=e.artifacts.find(x=>x.role==='updater'||x.role==='first-install-and-updater'); if(!a)process.exit(1); process.stdout.write(a.fileName)" "$evidence")"
+            pnpm tauri signer sign "$directory/$updater"
+            src-tauri/target/debug/examples/verify_updater_signature "$directory/$updater" "$directory/$updater.sig" "$public_key_file"
+          done < <(find os -name evidence.json -type f -print0)
+          node scripts/release/finalize-signed-evidence.mjs candidate.json os signed "$GITODILE_UPDATER_PUBLIC_KEY_ID"
+          node scripts/release/release-evidence.mjs verify-matrix --candidate candidate.json --directory signed --phase signed
+      - name: Write private matrix authorization record
+        run: node -e "const fs=require('fs'); const c=require('./candidate.json'); fs.writeFileSync('signed/matrix.json', JSON.stringify({schemaVersion:1,source:c.source,release:c.release,targets:c.matrix.requiredTargets,result:'passed',publicPromotionAllowed:false},null,2)+'\n',{flag:'wx'})"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: private-signed-${{ needs.validate.outputs.tag }}
+          path: signed
+          if-no-files-found: error
+          retention-days: 90
+          include-hidden-files: false
+
+  stage:
+    name: Verify signed evidence and stage public-only bytes
+    needs: [validate, updater-sign]
+    runs-on: ubuntu-24.04
+    outputs:
+      mode: ${{ steps.release.outputs.mode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: private-signed-${{ needs.validate.outputs.tag }}
+          path: signed
+      - name: Record the pipeline run identity that produced the signed bytes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import { validateSourceRun } from "./scripts/release/github-publication.mjs";
+          const response = await fetch(`https://api.github.com/repos/${process.env.SOURCE_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`, {
+            headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "X-GitHub-Api-Version": "2022-11-28" },
+            signal: AbortSignal.timeout(15000), redirect: "error",
+          });
+          if (!response.ok) throw new Error(`Pipeline run lookup failed with HTTP ${response.status}.`);
+          const run = await response.json();
+          validateSourceRun(run, process.env.SOURCE_REPOSITORY);
+          fs.writeFileSync("validated-source-run.json", `${JSON.stringify({
+            id: run.id,
+            name: run.name,
+            event: run.event,
+            status: run.status,
+            conclusion: run.conclusion,
+            path: run.path,
+            head_branch: run.head_branch,
+            repository: { full_name: run.repository.full_name },
+          }, null, 2)}\n`, { flag: "wx" });
+          NODE
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      # The repository gate (docs, frontend, Rust) already ran in CI on the exact
+      # merge SHA and was required by the coordinator; repeating it here would
+      # test protected main's current tip, not the released bytes. Only the live
+      # destination contract is not covered by that evidence.
+      - name: Require the live public destination contract
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-public-feedback.mjs --publication-plan
+      - name: Derive publication mode and immutable notes path
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const matrix = JSON.parse(fs.readFileSync("signed/matrix.json", "utf8"));
+          const tag = matrix.source?.tag ?? "";
+          if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-preview\.[1-9][0-9]*)?$/.test(tag) || !fs.existsSync(`docs/release/notes/${tag}.md`)) {
+            throw new Error("The signed matrix does not identify reviewed release notes.");
+          }
+          // The mode is derived, never chosen: a preview candidate is
+          // preview-testing and a stable candidate is production.
+          const mode = matrix.release?.channel === "preview" && matrix.release?.githubPrerelease === true ? "preview-testing" : "production";
+          const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/commits/${matrix.source.sha}`, {
+            headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "X-GitHub-Api-Version": "2022-11-28" },
+            signal: AbortSignal.timeout(15000), redirect: "error",
+          });
+          if (!response.ok) throw new Error(`Source commit lookup failed with HTTP ${response.status}.`);
+          const commit = await response.json();
+          const publishedAt = new Date(commit.commit.committer.date).toISOString().replace(".000Z", "Z");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\nmode=${mode}\npublished_at=${publishedAt}\n`);
+          NODE
+      - name: Validate the full signed matrix and prepare public-only bytes
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          PUBLICATION_MODE: ${{ steps.release.outputs.mode }}
+          PUBLISHED_AT: ${{ steps.release.outputs.published_at }}
+        run: |
+          test -n "$PUBLISHED_AT"
+          node scripts/release/public-release.mjs --signed signed --notes "docs/release/notes/$RELEASE_TAG.md" --qualification docs/release/update-target-qualifications.json --mode "$PUBLICATION_MODE" --published-at "$PUBLISHED_AT" --public-file license=LICENSE --public-file third-party-notices=THIRD_PARTY_LICENSES.md --output public-bundle
+      - name: Add reviewed publisher runtime without application source
+        run: |
+          mkdir -p public-bundle/runtime/scripts/release public-bundle/runtime/docs/architecture
+          cp scripts/release/github-publication.mjs scripts/release/public-release.mjs scripts/release/qualification-evidence.mjs scripts/release/release-candidate.mjs scripts/release/release-evidence.mjs public-bundle/runtime/scripts/release/
+          cp docs/architecture/065-9-1-app-update-contract.json public-bundle/runtime/docs/architecture/
+          cp validated-source-run.json public-bundle/runtime/
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-publication-bundle
+          path: public-bundle
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+
+  publish:
+    name: Serialize destination release and feeds
+    needs: stage
+    runs-on: ubuntu-24.04
+    # Publication is serialized across every release, not only per tag, so an
+    # older run can never race a newer one at the destination feeds.
+    concurrency:
+      group: gitodile-publication
+      cancel-in-progress: false
+    environment: ${{ needs.stage.outputs.mode == 'preview-testing' && 'public-release-preview' || 'public-release-stable' }}
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-publication-bundle
+          path: public-bundle
+      - name: Require destination-scoped credential without printing it
+        env:
+          GITODILE_PUBLIC_RELEASE_TOKEN: ${{ secrets.GITODILE_PUBLIC_RELEASE_TOKEN }}
+        run: test -n "$GITODILE_PUBLIC_RELEASE_TOKEN"
+      - name: Reconcile immutable release under the validated publication policy
+        working-directory: public-bundle/runtime
+        env:
+          GITODILE_PUBLIC_RELEASE_TOKEN: ${{ secrets.GITODILE_PUBLIC_RELEASE_TOKEN }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        run: >-
+          node scripts/release/github-publication.mjs
+          --directory ..
+          --source-repository "$SOURCE_REPOSITORY"
+          --source-run validated-source-run.json

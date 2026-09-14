@@ -150,11 +150,12 @@ current release matrix enables only Windows x86-64 per-user NSIS and Linux
 x86-64 AppImage candidates, but neither is enabled for automatic installation
 until its real Tauri-signed A-to-B qualification succeeds. Both macOS targets
 are post-1.0 work under task 065-10; they are not advertised in feeds or
-published as supported packages. Signed-build validation, protected
-evidence and protected signing workflows are implemented. Distinct validation
-and production Tauri updater keys are configured; the fixed validation pair may
-defer Windows Authenticode only while remaining clearly marked as an internal,
-OS-untrusted test. Source-repository visibility grants no access to signing
+published as supported packages. The single release pipeline (validate, build,
+OS-trust boundary, updater signing, staging and publication as jobs of one
+run) and its protected evidence are implemented. One production Tauri updater
+key is configured; there is no test-only key, feed or build profile, and
+qualification evidence comes from real consecutive public preview releases.
+Source-repository visibility grants no access to signing
 material or publisher credentials. The merge-driven coordinator, automatic
 protected public publisher,
 immutable-asset reconciliation and stable/preview feed gates are implemented
@@ -164,14 +165,16 @@ gate, so Windows downloads must disclose that the operating system does not
 know their publisher. Maintainers must follow the
 [signed-build](docs/release/signed-builds.md) and
 [public publishing](docs/release/public-publishing.md) runbooks; a private
-artifact is not a release and validation drafts cannot modify a production
-feed. The validation updater identity is distinct from production.
+artifact is not a release and a preview publication cannot modify the stable
+feed.
 
 Before publishing a desktop build, run `pnpm run check:publication`. It runs
 the complete local gate plus `check:feedback`, which checks the live public
 repository settings and both languages' forms against
-`src/app/issueReportContract.json`. CI runs that public contract check separately;
-ordinary `pnpm run check` does not depend on GitHub availability. For prepared
+`src/app/issueReportContract.json`. CI runs that public contract check separately,
+and the release pipeline's staging job repeats only the live contract part
+(the repository gate already ran on the exact merge SHA); ordinary
+`pnpm run check` does not depend on GitHub availability. For prepared
 tracker changes, use `pnpm run check:feedback --local <feedback-checkout>` to
 validate form files before publishing them. Preserve form filenames and field
 IDs used by already released app versions.

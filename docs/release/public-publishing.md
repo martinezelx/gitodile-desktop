@@ -19,24 +19,24 @@ working-name clearance is not evidenced, and `productionPromotion.enabled` is
 false. Tasks 065-9-7 and 065-9-8 may replace the enabled-target states only
 after recording the real
 signed A-to-B evidence described by the
-[updater qualification runbook](updater-qualification.md). Schema version 3
-binds each record to its target, both signed builds, preservation/failure
-results and platform trust, while separately retaining the pending public
-`.4` to `.5` proof; older shallow forms are rejected.
+[updater qualification runbook](updater-qualification.md). Schema version 4
+binds each record to its target, two real consecutive public preview releases,
+the public feed that served the update, preservation/failure results and
+platform trust; the retired schema-3 records and older shallow forms are
+rejected.
 
 ## Promotion model
 
-`.github/workflows/public-release-publishing.yml` has one automatic release
-entry and one manual validation entry. A successful `Private candidate signing`
-`workflow_run`, evaluated by workflow code loaded from protected `main`, stages
-the applicable policy from that exact signing run. Ordinary pushes, pull
-requests, merges and tags cannot publish directly. The manual entry supplies
-the numeric signing run ID and is limited to `validation-draft`:
+Publication is the last two jobs, `stage` and `publish`, of
+`.github/workflows/release-pipeline.yml`; there is no separate publication
+trigger. They run only after `updater-sign` succeeded in the same run and
+consume only that run's `private-signed-<tag>` artifact. The publication mode
+is derived from the signed matrix, never chosen: a preview candidate is
+`preview-testing` and a stable candidate is `production`. Ordinary pushes,
+pull requests, merges and tags cannot publish directly, and there is no
+draft-only or test-only mode.
 
-- `validation-draft` accepts only the fixed validation-key pair
-  `0.2.0-preview.4` / `0.2.0-preview.5`. It may reconcile a draft release but
-  cannot finalize it or write `stable.json` / `preview.json`.
-- automatic `preview-testing` accepts only a production-Tauri-signed preview,
+- automatic `preview-testing` accepts only a Tauri-signed preview,
   requires the complete Windows NSIS/Linux AppImage matrix, preserves
   `authenticode_deferred`, rejects every macOS target, finalizes the release as
   a GitHub prerelease and may advance only `preview.json`. It deliberately
@@ -52,7 +52,9 @@ the numeric signing run ID and is limited to `validation-draft`:
   the entire release; the publisher never drops the failed row to make a
   partial manifest.
 
-The unprivileged staging job checks the live feedback contract, rehashes the
+The unprivileged `stage` job records the identity of its own pipeline run
+(release pipeline, `workflow_dispatch`, protected `main`, healthy), checks the
+live feedback contract, rehashes the
 complete enabled signed matrix, checks updater and OS-trust evidence independently,
 derives the channel and GitHub prerelease flag from the version, and creates a
 public-only bundle. That bundle contains packages, updater signatures,
@@ -61,17 +63,22 @@ and the reviewed publisher runtime. It does not expose the source SHA as an asse
 as a public asset, evidence files, candidate archives, signing material or a
 credential.
 
-Only the second job enters a destination environment and receives
+Only the `publish` job enters a destination environment and receives
 `GITODILE_PUBLIC_RELEASE_TOKEN`. Use a short-lived GitHub App installation token
 with Contents write access only to `martinezelx/gitodile`; a narrowly
 scoped expiring fine-grained PAT is the temporary fallback. This job does not
-check out the source repository. Source visibility is not an authorization
-boundary. `preview-testing` uses `public-release-production`, restricted to
-protected branches but intentionally without a required reviewer, so a merged
-preview completes without maintainer intervention. Stable publication uses the
-separate `public-release-stable` environment, which always requires a reviewer,
-disallows administrator bypass and additionally requires the 065-9-7/065-9-8
-evidence review and working-name clearance.
+check out the source repository, and it is serialized across every release
+through the `gitodile-publication` concurrency group so an older run can never
+race a newer one at the feeds. Source visibility is not an authorization
+boundary. The environment is named after the channel it may write:
+
+| Mode | Environment | Protection |
+| --- | --- | --- |
+| `preview-testing` | `public-release-preview` | protected branches only, intentionally no reviewer, so a merged preview completes without maintainer intervention |
+| `production` | `public-release-stable` | required reviewer, no administrator bypass, plus the 065-9-7/065-9-8 evidence review and working-name clearance |
+
+Each environment holds its own copy of `GITODILE_PUBLIC_RELEASE_TOKEN`; an
+environment without the secret fails closed before any destination request.
 
 ## Immutable release sequence
 
@@ -80,33 +87,39 @@ evidence review and working-name clearance.
    Do not generate
    them from source or feedback commits and do not include private links,
    authenticated URLs, local paths, credentials or signing details.
-2. Verify the referenced signing run and its single `private-signed-v<version>`
-   artifact. `matrix.json` must remain `publicPromotionAllowed: false`; the
-   public publisher supplies the separate promotion decision. Verify that all
-   targets record the same updater public-key ID and that validation and
-   production identities are different.
-3. Dispatch the public workflow in `validation-draft` first. Inspect the draft,
-   asset names, hashes, flags, public tag and curated notes; interrupt and retry
-   once to prove reconciliation. Draft assets require authenticated inspection
-   because GitHub does not expose draft downloads anonymously. Confirm that no
-   production feed moved. This is pipeline validation, not target qualification.
+2. Merging the release pull request starts the coordinator, which tags and
+   dispatches one `Release <tag> at <sha>` pipeline run. Its `updater-sign` job
+   produces the single `private-signed-v<version>` artifact; `matrix.json`
+   remains `publicPromotionAllowed: false` and the `stage` job supplies the
+   separate promotion decision. All targets record the same updater public-key
+   ID.
+3. On the first public previews, inspect the published release, asset names,
+   hashes, flags, public tag and curated notes; re-run the `publish` job once
+   to prove reconciliation without change. Confirm that `stable.json` did not
+   move. This is publisher evidence for the production approval, not target
+   qualification.
 4. Before target qualification is complete, a signed preview automatically
    enters `preview-testing`, finalizes only that prerelease and advances
    `preview.json`; record it as pipeline evidence, never as an installed-update
    pass. After 065-9-7/
-   065-9-8 have recorded both enabled targets and production approval, the same
-   automatic entry uses qualified `production`. The fixed timestamp comes from
-   the exact source commit. Do not edit the notes or qualification registry
-   during a retry.
-5. The coordinator creates the public lightweight tag at a commit in the
+   065-9-8 have recorded both enabled targets and production approval, a stable
+   candidate enters reviewer-approved `production`. The fixed timestamp comes
+   from the exact source commit. Do not edit the notes or qualification
+   registry during a retry.
+5. The `publish` job creates the public lightweight tag at a commit in the
    feedback repository, reconciles one draft release, and uploads only missing
    assets. Existing bytes are downloaded and hashed. A conflicting byte,
    unexpected asset or finalized release missing an asset stops the run; no
    asset is deleted, renamed or replaced.
-6. Only after the full release is final does the coordinator download every
+6. Only after the full release is final does the `publish` job download every
    asset anonymously and recheck SHA-256. It then prepares complete channel
    manifests and updates the public `main` tree with one compare-and-swap Git
    commit. A concurrent move of `main` fails rather than overwriting it.
+7. To retry an uncertain publication, re-run the failed jobs of the same
+   pipeline run; the `publish` job is idempotent against the destination. Do
+   not dispatch a second pipeline for a tag whose run succeeded; the
+   coordinator refuses to, and a manual dispatch would only reconcile the same
+   immutable release.
 
 Every manifest URL names `/releases/download/v<version>/<asset>`. Preview
 versions set GitHub `prerelease: true` and can advance only `preview.json`.
@@ -120,13 +133,13 @@ The asset and manifest set is exactly Windows x86-64 NSIS plus Linux x86-64
 AppImage. A Darwin target or macOS-looking asset is an error while task 065-10
 is open. Preview-testing publication confirms only the immutable signed matrix,
 curated notes, preview identity, destination and unknown-publisher disclosure;
-it does not satisfy a registry evidence field. Production approval is the
-pre-publication gate: it records the real
-validation draft, interrupted retry, immutable reconciliation, unchanged feed,
-the `.4` to `.5` installed qualification and name clearance. Anonymous
-downloads, preview advancement and the public `.4` to `.5` installed proof are
-recorded afterward in `publicPreviewQualification`; they cannot be prerequisites
-for their own first publication.
+it does not satisfy a registry evidence field by itself. Production approval
+is the pre-stable gate: it records name clearance and the publisher behaviour
+observed on real preview publications (a completed preview publication, an
+interrupted retry that reconciled without change, immutable assets, anonymous
+downloads and the advanced feed), and names the updater key identity it
+covers. Each enabled target's installed A-to-B proof between two of those
+public previews is recorded separately in its own registry entry.
 
 ## Retry and recovery
 
@@ -152,28 +165,31 @@ version or promise rollback. Publish a higher-version repair when possible.
 Old signed installers remain available for manual reinstall and updater-key
 rotation bridges.
 
-The coordinator updates the feedback README download block in the same
+The `publish` job updates the feedback README download block in the same
 conflict-checked commit as the first feed change. The issue forms are never
-written. `pnpm run check:publication` checks their filenames, IDs, labels,
-private security channel and repository settings before the privileged job.
+written. The `stage` job runs `check-public-feedback.mjs --publication-plan`,
+which checks their filenames, IDs, labels, private security channel,
+repository settings and the planned README guidance against the live
+destination before the privileged job. It does not repeat the repository gate
+(`pnpm run check`): that gate already ran in CI on the exact merge SHA and the
+coordinator required it, whereas the staging job checks out protected `main`'s
+current tip. `pnpm run check:publication` remains the local pre-release
+command that combines both.
 
 ## Current external blockers
 
-- No real complete production matrix from 065-9-5 exists. The five required
-  reviewer-protected environments and distinct validation/production updater
-  identities were configured on 2026-09-12.
-- Both local encrypted updater-key recovery copies passed restore/sign/verify.
+- The protected environments and the production updater identity were
+  configured on 2026-09-12; the retired validation identity and its
+  environment are no longer referenced and should be deleted.
+- The local encrypted updater-key recovery copy passed restore/sign/verify.
   The independent offline production backup and real Authenticode identity are
   deferred to task 065-9-9. Apple credentials are deliberately out of scope
   with macOS disabled under task 065-10.
 - The destination environment and destination-scoped publisher credential must
-  be independently verified before approving `preview-testing`; their presence
-  is not target qualification.
-- The public feedback README has not been changed because this work performs no
-  commit or push; the coordinator holds the reviewed idempotent update for the
-  first authorized promotion.
-- Neither enabled target has the two real installed validation packages and
-  failure evidence required by 065-9-7/065-9-8. macOS retains its separate
+  be independently verified before the first `preview-testing` publication;
+  their presence is not target qualification.
+- Neither enabled target has the installed A-to-B evidence between two real
+  public previews required by 065-9-7/065-9-8. macOS retains its separate
   replacement-safety blocker without entering this release matrix.
 - Written clearance for the working name is not evidenced.
 

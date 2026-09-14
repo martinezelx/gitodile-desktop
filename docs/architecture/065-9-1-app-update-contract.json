@@ -1,6 +1,9 @@
 {
   "schemaVersion": 2,
-  "channels": ["stable", "preview"],
+  "channels": [
+    "stable",
+    "preview"
+  ],
   "version": {
     "stablePattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
     "previewPattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-preview\\.([1-9][0-9]*)$",
@@ -120,7 +123,6 @@
     "redirects": 5,
     "retainedCandidates": 1
   },
-  "validationBuilds": ["0.2.0-preview.4", "0.2.0-preview.5"],
   "versionCases": [
     {
       "name": "same stable version",
@@ -216,7 +218,12 @@
   "metadataCases": [
     {
       "name": "preview metadata agrees",
-      "versions": ["0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2"],
+      "versions": [
+        "0.2.0-preview.2",
+        "0.2.0-preview.2",
+        "0.2.0-preview.2",
+        "0.2.0-preview.2"
+      ],
       "tag": "v0.2.0-preview.2",
       "feedVersion": "0.2.0-preview.2",
       "githubPrerelease": true,
@@ -224,7 +231,12 @@
     },
     {
       "name": "stable metadata agrees",
-      "versions": ["0.2.0", "0.2.0", "0.2.0", "0.2.0"],
+      "versions": [
+        "0.2.0",
+        "0.2.0",
+        "0.2.0",
+        "0.2.0"
+      ],
       "tag": "v0.2.0",
       "feedVersion": "0.2.0",
       "githubPrerelease": false,
@@ -232,7 +244,12 @@
     },
     {
       "name": "npm and Cargo mismatch",
-      "versions": ["0.2.0-preview.2", "0.2.0-preview.3", "0.2.0-preview.2", "0.2.0-preview.2"],
+      "versions": [
+        "0.2.0-preview.2",
+        "0.2.0-preview.3",
+        "0.2.0-preview.2",
+        "0.2.0-preview.2"
+      ],
       "tag": "v0.2.0-preview.2",
       "feedVersion": "0.2.0-preview.2",
       "githubPrerelease": true,
@@ -240,7 +257,12 @@
     },
     {
       "name": "tag mismatch",
-      "versions": ["0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2"],
+      "versions": [
+        "0.2.0-preview.2",
+        "0.2.0-preview.2",
+        "0.2.0-preview.2",
+        "0.2.0-preview.2"
+      ],
       "tag": "v0.2.0-preview.3",
       "feedVersion": "0.2.0-preview.2",
       "githubPrerelease": true,
@@ -248,7 +270,12 @@
     },
     {
       "name": "preview flag mismatch",
-      "versions": ["0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2", "0.2.0-preview.2"],
+      "versions": [
+        "0.2.0-preview.2",
+        "0.2.0-preview.2",
+        "0.2.0-preview.2",
+        "0.2.0-preview.2"
+      ],
       "tag": "v0.2.0-preview.2",
       "feedVersion": "0.2.0-preview.2",
       "githubPrerelease": false,

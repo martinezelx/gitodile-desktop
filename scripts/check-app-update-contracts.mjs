@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validatePublicPreviewQualification } from "./release/qualification-evidence.mjs";
+import { QUALIFICATION_SCHEMA_VERSION } from "./release/qualification-evidence.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contractPath = path.join(root, "docs", "architecture", "065-9-1-app-update-contract.json");
@@ -88,9 +88,11 @@ assert.equal(
   true,
 );
 assert.equal(new Set(contract.targets.map((target) => target.key)).size, contract.targets.length);
-assert.deepEqual(contract.validationBuilds, ["0.2.0-preview.4", "0.2.0-preview.5"]);
-assert.equal(compareVersions(parseVersion(contract.validationBuilds[0]), parseVersion(contract.validationBuilds[1])), -1);
-assert.equal(qualification.schemaVersion, 3);
+assert.equal(Object.hasOwn(contract, "validationBuilds"), false, "the contract carries no fixed test-build versions");
+assert.equal(qualification.schemaVersion, QUALIFICATION_SCHEMA_VERSION);
+for (const retired of ["validationQualification", "publicPreviewQualification"]) {
+  assert.equal(Object.hasOwn(qualification, retired), false, `the registry no longer carries ${retired}`);
+}
 const enabledTargets = contract.targets.filter((target) => target.releaseEnabled).map((target) => target.key);
 const disabledTargets = contract.targets.filter((target) => !target.releaseEnabled).map((target) => target.key);
 assert.deepEqual(qualification.releaseMatrix.enabledTargets, enabledTargets);
@@ -101,39 +103,6 @@ assert.equal(qualification.releaseMatrix.disabledTargets.every((target) =>
   target.followUpTask === "065-10" &&
   Array.isArray(target.evidence) && target.evidence.length === 0
 ), true, "disabled release targets need an explicit reason and follow-up owner");
-assert.equal(qualification.validationQualification.signingProfile, "validation");
-assert.equal(qualification.validationQualification.fromVersion, "0.2.0-preview.4");
-assert.equal(qualification.validationQualification.toVersion, "0.2.0-preview.5");
-assert.ok(["pending", "qualified"].includes(qualification.validationQualification.status));
-if (qualification.validationQualification.status === "pending") {
-  assert.equal(qualification.validationQualification.evidence, null,
-    "pending validation qualification cannot contain inferred evidence");
-} else {
-  assert.equal(qualification.validationQualification.evidence?.schemaVersion, 1);
-  assert.equal(typeof qualification.validationQualification.evidence?.updaterPublicKeyId, "string");
-}
-assert.equal(qualification.publicPreviewQualification.signingProfile, "production");
-assert.equal(qualification.publicPreviewQualification.fromVersion, "0.2.0-preview.6");
-assert.equal(qualification.publicPreviewQualification.toVersion, "0.2.0-preview.7");
-assert.ok(["pending", "qualified"].includes(qualification.publicPreviewQualification.status));
-assert.equal(validatePublicPreviewQualification(qualification.publicPreviewQualification), true);
-if (qualification.publicPreviewQualification.status === "pending") {
-  assert.deepEqual(qualification.publicPreviewQualification, {
-    status: "pending",
-    signingProfile: "production",
-    fromVersion: "0.2.0-preview.6",
-    toVersion: "0.2.0-preview.7",
-    productionUpdaterPublicKeyId: null,
-    releases: [],
-    feed: null,
-    targets: [],
-  }, "pending public preview qualification cannot contain inferred evidence");
-} else {
-  assert.equal(typeof qualification.publicPreviewQualification.productionUpdaterPublicKeyId, "string");
-  assert.equal(qualification.publicPreviewQualification.releases.length, 2);
-  assert.deepEqual(qualification.publicPreviewQualification.targets.map((target) => target.key), enabledTargets);
-  assert.equal(qualification.publicPreviewQualification.feed.version, "0.2.0-preview.7");
-}
 assert.deepEqual(qualification.targets.map((target) => target.key), contract.targets.map((target) => target.key));
 assert.equal(new Set(qualification.targets.map((target) => target.key)).size, contract.targets.length);
 assert.equal(qualification.targets.every((target) => {
@@ -144,7 +113,7 @@ assert.equal(qualification.targets.every((target) => {
 }), true, "enabled targets require one real evidence record; disabled targets must remain explicitly empty");
 if (qualification.productionPromotion.enabled) {
   assert.equal(qualification.productionPromotion.workingNameClearance, "evidenced");
-  assert.equal(qualification.productionPromotion.evidence?.schemaVersion, 1);
+  assert.equal(qualification.productionPromotion.evidence?.schemaVersion, 2);
 } else {
   assert.deepEqual(qualification.productionPromotion, {
     enabled: false,

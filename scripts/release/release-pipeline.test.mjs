@@ -42,7 +42,7 @@ function writeMetadata(root, version, overrides = {}) {
   fs.writeFileSync(path.join(root, "src-tauri", "tauri.conf.json"), JSON.stringify({ version: versions.tauri }));
 }
 
-function repository(version = "0.2.0-preview.4", overrides = {}) {
+function repository(version = "0.2.0-preview.9", overrides = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-release-test-"));
   git(root, "init", "-b", "main");
   git(root, "config", "user.email", "release-test@example.invalid");
@@ -70,18 +70,18 @@ test("rejects a tagged commit outside approved main ancestry", () => {
   git(repo.root, "branch", "approved-main", repo.sha);
   git(repo.root, "checkout", "--orphan", "untrusted");
   git(repo.root, "rm", "-r", "--cached", ".");
-  writeMetadata(repo.root, "0.2.0-preview.5");
+  writeMetadata(repo.root, "0.2.0-preview.10");
   git(repo.root, "add", ".");
   git(repo.root, "commit", "-m", "untrusted candidate");
   const sha = git(repo.root, "rev-parse", "HEAD");
-  git(repo.root, "tag", "v0.2.0-preview.5");
+  git(repo.root, "tag", "v0.2.0-preview.10");
   expectCode("wrong_ancestry", () =>
-    validateReleaseCandidate({ root: repo.root, tag: "v0.2.0-preview.5", sha, mainRef: "approved-main" }),
+    validateReleaseCandidate({ root: repo.root, tag: "v0.2.0-preview.10", sha, mainRef: "approved-main" }),
   );
 });
 
 test("rejects every version metadata mismatch", () => {
-  const repo = repository("0.2.0-preview.4", { cargo: "0.2.0-preview.5" });
+  const repo = repository("0.2.0-preview.9", { cargo: "0.2.0-preview.10" });
   expectCode("metadata_mismatch", () =>
     validateReleaseCandidate({ root: repo.root, tag: repo.tag, sha: repo.sha, mainRef: "main" }),
   );
@@ -117,8 +117,8 @@ test("binds tag, exact revision, metadata, channel and matrix", () => {
   assert.equal(candidate.source.sha, repo.sha);
   assert.equal(candidate.release.channel, "preview");
   assert.equal(candidate.release.githubPrerelease, true);
-  assert.equal(candidate.release.purpose, "qualification");
-  assert.equal(candidate.release.signingProfile, "validation");
+  assert.deepEqual(Object.keys(candidate.release).sort(), ["channel", "githubPrerelease", "publicPromotionAllowed", "version"],
+    "the release identity carries no build profile or purpose beyond the version-derived channel");
   assert.equal(candidate.release.publicPromotionAllowed, false);
   assert.deepEqual(candidate.matrix.requiredTargets, [
     "windows-x86_64",
@@ -296,35 +296,20 @@ test("Windows matrices remain explicitly authenticode_deferred through the initi
       },
     ],
     trust: {
-      updater: { result: "passed", publicIdentity: "validation-key" },
+      updater: { result: "passed", publicIdentity: "production-key" },
       operatingSystem,
       notarization: { result: "not_applicable" },
     },
   });
-  const validationRepo = repository("0.2.0-preview.4");
-  const validation = validateReleaseCandidate({
-    root: validationRepo.root,
-    tag: validationRepo.tag,
-    sha: validationRepo.sha,
-    mainRef: "main",
-  });
   const deferred = { result: "not_checked", reason: "authenticode_deferred", publicIdentity: null };
-  assert.equal(verifyCompleteMatrix([
-    makeEvidence(validation, "windows-x86_64", deferred),
-    makeEvidence(validation, "linux-x86_64", { result: "not_applicable" }),
-  ], validation, { requiredPhase: "signed" }).length, 2);
-
-  const productionRepo = repository("0.2.0-preview.6");
-  const production = validateReleaseCandidate({
-    root: productionRepo.root,
-    tag: productionRepo.tag,
-    sha: productionRepo.sha,
-    mainRef: "main",
-  });
-  assert.equal(verifyCompleteMatrix([
-    makeEvidence(production, "windows-x86_64", deferred),
-    makeEvidence(production, "linux-x86_64", { result: "not_applicable" }),
-  ], production, { requiredPhase: "signed" }).length, 2);
+  for (const version of ["0.2.0-preview.9", "0.2.0"]) {
+    const repo = repository(version);
+    const candidate = validateReleaseCandidate({ root: repo.root, tag: repo.tag, sha: repo.sha, mainRef: "main" });
+    assert.equal(verifyCompleteMatrix([
+      makeEvidence(candidate, "windows-x86_64", deferred),
+      makeEvidence(candidate, "linux-x86_64", { result: "not_applicable" }),
+    ], candidate, { requiredPhase: "signed" }).length, 2, version);
+  }
 });
 
 test("workflows expose no branch publication path and pin external actions", () => {
@@ -350,84 +335,120 @@ test("workflows expose no branch publication path and pin external actions", () 
       }
     }
   }
-  const candidate = readWorkflow("private-candidate-build.yml");
-  assert.match(candidate.source, /replace\(\/\^v\/, "release\/"\)/,
+  const pipeline = readWorkflow("release-pipeline.yml");
+  assert.match(pipeline.source, /replace\(\/\^v\/, "release\/"\)/,
     "a pull_request_target coordinator reports the same-repository release head branch, not main");
-  assert.deepEqual(Object.keys(candidate.parsed.on), ["workflow_dispatch"]);
-  assert.deepEqual(candidate.parsed.permissions, { actions: "read", contents: "read" });
-  assert.equal(candidate.parsed["run-name"], "Private candidate ${{ inputs.tag }} at ${{ inputs.sha }}");
-  assert.equal(candidate.parsed.concurrency.group, "private-candidate-${{ inputs.tag }}");
-  assert.doesNotMatch(candidate.source, /secrets\./);
-  assert.deepEqual(candidate.parsed.jobs.build.strategy.matrix.include.map((item) => item.target), [
+  assert.deepEqual(Object.keys(pipeline.parsed.on), ["workflow_dispatch"]);
+  assert.deepEqual(pipeline.parsed.permissions, { actions: "read", contents: "read" });
+  assert.equal(pipeline.parsed["run-name"], "Release ${{ inputs.tag }} at ${{ inputs.sha }}");
+  assert.equal(pipeline.parsed.concurrency.group, "release-pipeline-${{ inputs.tag }}");
+  assert.equal(pipeline.parsed.concurrency["cancel-in-progress"], false);
+  assert.equal(pipeline.parsed.jobs.validate.if, "github.ref == 'refs/heads/main' && github.sha == github.workflow_sha");
+  // One linear run: every stage is a job of the same run, ordered by needs.
+  assert.deepEqual(Object.keys(pipeline.parsed.jobs), [
+    "validate", "build", "matrix-gate", "windows-deferred-boundary", "linux-os-boundary", "updater-sign", "stage", "publish",
+  ]);
+  assert.deepEqual(pipeline.parsed.jobs["windows-deferred-boundary"].needs, ["validate", "matrix-gate"]);
+  assert.deepEqual(pipeline.parsed.jobs["linux-os-boundary"].needs, ["validate", "matrix-gate"]);
+  assert.deepEqual(pipeline.parsed.jobs["updater-sign"].needs, ["validate", "windows-deferred-boundary", "linux-os-boundary"]);
+  assert.deepEqual(pipeline.parsed.jobs.stage.needs, ["validate", "updater-sign"]);
+  assert.equal(pipeline.parsed.jobs.publish.needs, "stage");
+  assert.equal(pipeline.parsed.jobs["macos-os-sign"], undefined);
+  assert.equal(pipeline.parsed.jobs["windows-os-sign"], undefined);
+  // Artifacts never cross runs: no job downloads by run-id except the
+  // coordinator authorization consumed by validate.
+  for (const [jobName, job] of Object.entries(pipeline.parsed.jobs)) {
+    for (const step of job.steps ?? []) {
+      if (step.uses?.startsWith("actions/download-artifact@") && step.with?.["run-id"] !== undefined) {
+        assert.equal(jobName, "validate", `${jobName} downloads artifacts from another run`);
+        assert.equal(step.with.name, "merge-release-authorization");
+      }
+    }
+  }
+  assert.deepEqual(pipeline.parsed.jobs.build.strategy.matrix.include.map((item) => item.target), [
     "windows-x86_64",
     "linux-x86_64",
   ]);
-  assert.equal(candidate.parsed.jobs.build.env.GITODILE_QUALIFIED_UPDATE_TARGETS,
-    "${{ needs.validate.outputs.profile == 'validation' && matrix.target || vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}");
-  assert.equal(candidate.parsed.jobs.build.env.GITODILE_PREVIEW_TEST_UPDATE_TARGETS,
-    "${{ needs.validate.outputs.profile == 'production' && needs.validate.outputs.channel == 'preview' && 'windows-x86_64,linux-x86_64' || '' }}");
-  const identityGuard = candidate.parsed.jobs.build.steps.find((step) => step.name === "Require reviewed public updater identity");
-  assert.match(identityGuard.run, /Validation and production updater identities must both exist and be distinct/);
-  assert.match(identityGuard.run, /qualifiedTargets !== validationTarget/);
+  // One build identity: the reviewed production updater key and the two
+  // compile-time target gates. No alternate profile, feed or key exists.
+  assert.deepEqual(Object.keys(pipeline.parsed.jobs.build.env).sort(), [
+    "GITODILE_PREVIEW_TEST_UPDATE_TARGETS", "GITODILE_QUALIFIED_UPDATE_TARGETS", "GITODILE_RELEASE_CHANNEL",
+    "GITODILE_UPDATER_PUBLIC_KEY", "GITODILE_UPDATER_PUBLIC_KEY_ID",
+  ]);
+  assert.equal(pipeline.parsed.jobs.build.env.GITODILE_UPDATER_PUBLIC_KEY, "${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}");
+  assert.equal(pipeline.parsed.jobs.build.env.GITODILE_QUALIFIED_UPDATE_TARGETS, "${{ vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}");
+  assert.equal(pipeline.parsed.jobs.build.env.GITODILE_PREVIEW_TEST_UPDATE_TARGETS,
+    "${{ needs.validate.outputs.channel == 'preview' && 'windows-x86_64,linux-x86_64' || '' }}");
+  assert.doesNotMatch(pipeline.source, /VALIDATION|UPDATE_PROFILE|validation-draft|signingProfile/,
+    "no test-only signing profile, feed, key or publication mode may remain");
+  const identityGuard = pipeline.parsed.jobs.build.steps.find((step) => step.name === "Require reviewed public updater identity");
   assert.match(identityGuard.run, /new Set\(\["", "windows-x86_64,linux-x86_64"\]\)/);
-  const unsignedBuild = candidate.parsed.jobs.build.steps.find((step) => step.name === "Build without signing credentials");
+  const unsignedBuild = pipeline.parsed.jobs.build.steps.find((step) => step.name === "Build without signing credentials");
   assert.match(unsignedBuild.run, /--config src-tauri\/tauri\.unsigned\.conf\.json/);
   assert.doesNotMatch(unsignedBuild.run, /--config\s+['"]?\{/,
     "inline JSON config is not shell-portable across the Windows and Linux matrix");
-
-  const signing = readWorkflow("private-candidate-signing.yml");
-  assert.deepEqual(Object.keys(signing.parsed.on), ["workflow_run"]);
-  assert.deepEqual(signing.parsed.permissions, { actions: "read", contents: "read" });
-  assert.equal(signing.parsed.jobs["macos-os-sign"], undefined);
-  assert.deepEqual(signing.parsed.jobs["updater-sign-and-gate"].needs, [
-    "authorize",
-    "windows-deferred-boundary",
-    "linux-os-boundary",
-  ]);
-  assert.equal(signing.parsed.jobs["windows-os-sign"], undefined);
-  assert.match(signing.parsed.jobs["updater-sign-and-gate"].if, /windows-deferred-boundary\.result == 'success'/);
-  const signingRevalidation = signing.parsed.jobs.authorize.steps.find(
-    (step) => step.name === "Revalidate metadata directly from the tagged object",
-  );
-  assert.match(signingRevalidation.run, /--ref-type tag/);
-  assert.match(signingRevalidation.run, /--tag "\$RELEASE_TAG"/);
-  assert.match(signingRevalidation.run, /--sha "\$SOURCE_SHA"/);
-  const candidateValidation = candidate.parsed.jobs.validate.steps.find(
+  const candidateValidation = pipeline.parsed.jobs.validate.steps.find(
     (step) => step.name === "Validate tag, ancestry, revision, versions and channel",
   );
   assert.match(candidateValidation.run, /--ref-type tag/);
-  const signingVerifierDependencies = signing.parsed.jobs["updater-sign-and-gate"].steps.find(
+  assert.match(candidateValidation.run, /--tag "\$RELEASE_TAG"/);
+  assert.match(candidateValidation.run, /--sha "\$RELEASE_SHA"/);
+
+  // Secret and environment isolation is per job: only the updater-signing and
+  // publish jobs reference a secret, and each enters its own environment.
+  const secretJobs = Object.entries(pipeline.parsed.jobs)
+    .filter(([, job]) => /secrets\./.test(JSON.stringify(job)))
+    .map(([name]) => name);
+  assert.deepEqual(secretJobs, ["updater-sign", "publish"]);
+  const environmentJobs = Object.entries(pipeline.parsed.jobs)
+    .filter(([, job]) => job.environment !== undefined)
+    .map(([name]) => name);
+  assert.deepEqual(environmentJobs, ["updater-sign", "publish"]);
+  assert.equal(pipeline.parsed.jobs["updater-sign"].environment, "production-updater-signing");
+  assert.equal(pipeline.parsed.jobs.publish.environment,
+    "${{ needs.stage.outputs.mode == 'preview-testing' && 'public-release-preview' || 'public-release-stable' }}");
+  assert.doesNotMatch(pipeline.source, /public-release-production/);
+  assert.deepEqual(pipeline.parsed.jobs.publish.concurrency, { group: "gitodile-publication", "cancel-in-progress": false });
+  for (const jobName of ["validate", "build", "matrix-gate", "windows-deferred-boundary", "linux-os-boundary", "stage"]) {
+    assert.doesNotMatch(JSON.stringify(pipeline.parsed.jobs[jobName]), /GITODILE_PUBLIC_RELEASE_TOKEN|TAURI_SIGNING_PRIVATE_KEY|contents.:.write/,
+      `${jobName} must not see signing or destination credentials`);
+  }
+  assert.doesNotMatch(pipeline.source, /contents:\s*write|create-release|upload-release-asset/i);
+  assert.equal(pipeline.parsed.jobs.publish.steps.some((step) => step.uses?.startsWith("actions/checkout@")), false);
+  assert.match(JSON.stringify(pipeline.parsed.jobs.publish), /GITODILE_PUBLIC_RELEASE_TOKEN/);
+  assert.doesNotMatch(JSON.stringify(pipeline.parsed.jobs.publish), /GITHUB_TOKEN|github\.token|source-run-id/);
+
+  const signingVerifierDependencies = pipeline.parsed.jobs["updater-sign"].steps.find(
     (step) => step.name === "Install Linux verifier dependencies",
   );
   assert.match(signingVerifierDependencies.run, /libwebkit2gtk-4\.1-dev/);
-  const updaterSigning = signing.parsed.jobs["updater-sign-and-gate"].steps.find(
+  const updaterSigning = pipeline.parsed.jobs["updater-sign"].steps.find(
     (step) => step.name === "Sign final bytes and verify every updater signature",
   );
   assert.match(updaterSigning.run, /cargo build --locked .*--example verify_updater_signature/);
   assert.match(updaterSigning.run, /fs\.readFileSync\(process\.argv\[1\],'utf8'\)/);
   assert.doesNotMatch(updaterSigning.run, /require\(process\.argv\[1\]\)/,
     "filesystem paths from find must not be resolved as Node package names");
-  for (const source of [candidate.source, signing.source]) {
-    assert.doesNotMatch(source, /GITODILE_PUBLIC_RELEASE_TOKEN|contents:\s*write|create-release|upload-release-asset/i);
-  }
-  for (const job of Object.values(signing.parsed.jobs)) {
-    for (const step of job.steps ?? []) {
-      if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, "${{ github.workflow_sha }}");
+  const modeDerivation = pipeline.parsed.jobs.stage.steps.find((step) => step.id === "release");
+  assert.match(modeDerivation.run, /"preview-testing" : "production"/);
+  assert.match(pipeline.source, /validated-source-run\.json/);
+  assert.match(pipeline.source, /qualification-evidence\.mjs/);
+  // The staging job re-checks only the live destination contract; the
+  // repository gate already ran on the exact merge SHA and was required by the
+  // coordinator, so repeating it here would test main's tip, not the release.
+  const stageContract = pipeline.parsed.jobs.stage.steps.find((step) => step.name === "Require the live public destination contract");
+  assert.equal(stageContract.run, "node scripts/check-public-feedback.mjs --publication-plan");
+  assert.equal(stageContract.env.GITHUB_TOKEN, "${{ github.token }}");
+  assert.doesNotMatch(JSON.stringify(pipeline.parsed.jobs.stage), /check:publication|pnpm run check\b|libwebkit2gtk|apt-get|rust-toolchain/,
+    "stage must not repeat the repository gate against protected main's current tip");
+  for (const jobName of ["validate", "matrix-gate", "windows-deferred-boundary", "linux-os-boundary", "updater-sign", "stage"]) {
+    for (const step of pipeline.parsed.jobs[jobName].steps ?? []) {
+      if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, "${{ github.workflow_sha }}", `${jobName} must run scripts from the pipeline definition revision`);
     }
   }
-
-  const qualification = readWorkflow("qualification-validation-bundle.yml");
-  assert.deepEqual(Object.keys(qualification.parsed.on), ["workflow_dispatch"]);
-  assert.deepEqual(qualification.parsed.permissions, { actions: "read", contents: "read" });
-  assert.equal(qualification.parsed.jobs.prepare.if, "github.ref == 'refs/heads/main' && github.sha == github.workflow_sha");
-  assert.doesNotMatch(qualification.source, /secrets\.|contents:\s*write|GITODILE_PUBLIC_RELEASE_TOKEN/i);
-  assert.match(qualification.source, /GITODILE_VALIDATION_UPDATE_FEED/);
-
-  const publication = readWorkflow("public-release-publishing.yml");
-  assert.match(publication.parsed.jobs["authorize-and-stage"].if, /github\.event_name == 'workflow_run'/);
-  assert.match(publication.parsed.jobs["authorize-and-stage"].if, /workflow_run\.conclusion == 'success'/);
-  assert.equal(publication.parsed.jobs.publish.environment,
-    "${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || needs.authorize-and-stage.outputs.mode == 'preview-testing' && 'public-release-production' || 'public-release-stable' }}");
+  for (const step of pipeline.parsed.jobs.build.steps) {
+    if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, "${{ needs.validate.outputs.sha }}");
+  }
 
   const coordinator = readWorkflow("merge-driven-release.yml");
   assert.deepEqual(Object.keys(coordinator.parsed.on), ["pull_request_target"]);
@@ -441,6 +462,8 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.doesNotMatch(JSON.stringify(coordinator.parsed.jobs.authorize), /GITODILE_RELEASE_TAG_DEPLOY_KEY|actions.:.write/);
   assert.match(JSON.stringify(coordinator.parsed.jobs["tag-and-dispatch"]), /GITODILE_RELEASE_TAG_DEPLOY_KEY/);
   assert.match(coordinator.source, /actions\/workflows\/\$\{workflow\}\/dispatches/);
+  assert.match(coordinator.source, /const workflow = "release-pipeline\.yml"/);
+  assert.match(coordinator.source, /`Release \$\{process\.env\.RELEASE_TAG\} at \$\{process\.env\.RELEASE_SHA\}`/);
   assert.match(coordinator.source, /display_title === title/);
   assert.match(coordinator.source, /github\.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl/);
   assert.doesNotMatch(coordinator.source, /ssh-keyscan/);

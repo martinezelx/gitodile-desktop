@@ -9,8 +9,9 @@ qualification and automatic-target enablement remain tasks 065-9-7 and 065-9-8.
 
 ## Trust boundary
 
-Release preparation and protected signing are split across three workflows with
-different authority:
+Release preparation and the release itself are split across two workflows with
+different authority; the second is one linear run per immutable release
+identity:
 
 1. `merge-driven-release.yml` is loaded from the protected default branch and
    reacts only to a merged pull request from the same repository. Its
@@ -19,37 +20,47 @@ different authority:
    the release diff is narrowly allowlisted, and all version metadata and
    reviewed notes agree. Only its environment-protected job receives the
    dedicated deploy key used to create the lightweight `v<version>` tag at that
-   exact merge SHA. It then idempotently dispatches the candidate workflow.
-2. `private-candidate-build.yml` accepts only that coordinator dispatch. Its
-   first job verifies the authorization artifact and coordinator run, the exact
-   tag object and checked-out SHA, proves that SHA is in `origin/main`, and
-   re-reads npm, Cargo, Cargo lock and Tauri versions. Only after those checks
-   does the enabled two-target matrix (Windows x86-64 NSIS and Linux x86-64
-   AppImage) compile. It receives reviewed updater **public** identity
-   variables, but no signing or publishing secret.
-3. `private-candidate-signing.yml` is a `workflow_run` workflow loaded from the
-   default branch. It accepts only a successful same-repository coordinator-
-   dispatched candidate run,
-   fetches the tag without checking out candidate source, re-reads metadata
-   from the exact Git object, rehashes both staged packages, and then enters
-   protected signing environments. Candidate build scripts and package hooks
-   therefore never receive production secrets. The workflow runtime is pinned
-   to its immutable workflow SHA, not a later moving `main`.
+   exact merge SHA. It then idempotently dispatches `release-pipeline.yml`
+   with the authorization run ID, tag and SHA.
+2. `release-pipeline.yml` accepts only that coordinator dispatch and only from
+   protected `main`. Its `validate` job verifies the authorization artifact and
+   coordinator run, the exact tag object and SHA, proves that SHA is in
+   `origin/main`, and re-reads npm, Cargo, Cargo lock and Tauri versions. Every
+   later stage is a job of the same run, ordered by `needs`, and consumes only
+   artifacts uploaded earlier in that run:
+   - `build` compiles the enabled two-target matrix (Windows x86-64 NSIS and
+     Linux x86-64 AppImage) from the tagged SHA. It receives reviewed updater
+     **public** identity variables, references no secret and enters no
+     environment, so GitHub passes it none; package hooks and third-party
+     build code therefore never see signing or publishing credentials.
+   - `matrix-gate`, `windows-deferred-boundary` and `linux-os-boundary` rehash
+     the staged packages and record the OS-trust boundary for each target.
+   - `updater-sign` is the only job that enters an updater-signing
+     environment. It rehashes every OS-stage package, signs the final bytes,
+     verifies each signature with the repository-owned verifier and closes the
+     private matrix record.
+   - `stage` and `publish` are described in
+     [public release publishing](public-publishing.md); only `publish` enters a
+     destination environment.
+
+   Validation, signing and publication scripts run from the pipeline
+   definition revision (`github.workflow_sha`, protected `main` at dispatch
+   time); only `build` checks out the tagged application source.
 
 Source visibility is not an authority boundary. A public clone can read the
 workflows and scripts but cannot read environment secrets, approve a protected
 environment, create a protected release tag, or use the destination-scoped
 publisher credential.
 
-All actions used by these workflows are pinned to exact commits. Candidate and
-signing jobs have read-only source-repository permissions. The coordinator has
+All actions used by these workflows are pinned to exact commits. Every
+pipeline job has read-only source-repository permissions. The coordinator has
 only the Actions read/write access needed to inspect checks and dispatch the
-candidate; protected-tag creation uses a repository-specific deploy key only
-inside `release-tagging`. There is no destination token and no publication
-step in these workflows. Environment protection must require a maintainer
-reviewer and disallow administrator bypass; approve only after comparing the
-tag, SHA, version, matrix and run link. A rejected or absent environment leaves
-the run blocked, not partially authorized.
+pipeline; protected-tag creation uses a repository-specific deploy key only
+inside `release-tagging`. The destination token is visible only to the
+`publish` job through its environment. `public-release-stable` requires a
+reviewer and must disallow administrator bypass; approve only after comparing
+the tag, SHA, version, matrix and run link. A rejected or absent environment
+leaves the run blocked, not partially authorized.
 
 The final matrix gate requires both enabled target evidence records to have the
 same tag, source SHA, version, channel, signing profile and updater public-key
@@ -89,10 +100,15 @@ workflow inputs or logs:
 
 | Scope | Names | Current readiness (2026-09-12) |
 | --- | --- | --- |
-| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY`, `GITODILE_VALIDATION_UPDATER_PUBLIC_KEY_ID`, `GITODILE_VALIDATION_UPDATE_FEED`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | Both distinct public identities and the controlled HTTPS validation feed are configured. Empty qualified targets remain valid for `preview-testing`; the build workflow supplies the separate canonical `GITODILE_PREVIEW_TEST_UPDATE_TARGETS` pair only to production-key preview builds so real preview updates can be tested without claiming qualification. |
+| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | The one reviewed public identity is configured. Empty qualified targets remain valid for `preview-testing`; the pipeline supplies the separate canonical `GITODILE_PREVIEW_TEST_UPDATE_TARGETS` pair only to preview builds so real preview updates can be tested without claiming qualification. |
 | `production-windows-signing` environment secrets and variable | Reserved post-1.0 names: secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | Deliberately unconfigured until task 065-9-9 resumes after `1.0.0` |
-| `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Distinct key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before public production use |
-| `validation-updater-signing` environment secrets | same two updater secret names, containing a distinct validation key | Distinct disposable validation key configured; local encrypted restore/sign/verify passed |
+| `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before the first stable release |
+
+There is exactly one updater signing identity. The earlier disposable
+validation key, its `validation-updater-signing` environment, the
+`GITODILE_VALIDATION_*` variables and the controlled validation feed are
+retired: no build, workflow or contract refers to them, and the GitHub
+environment and variables should be deleted.
 
 The credential guard reports missing **names** only. Scripts do not print
 values. Private key/certificate files exist only in an OS temporary directory,
@@ -104,11 +120,10 @@ be restricted to release maintainers.
 Windows depends on `windows-2025`; Linux depends on `ubuntu-24.04`
 and its AppImage packages. Availability in a YAML matrix is not platform
 validation. If a runner image or updater credential is missing, the
-corresponding validation job must fail or remain awaiting approval. Windows
-Authenticode is deliberately deferred through `1.0.0`. Both validation and
-production Windows evidence must therefore record `not_checked` with reason
-`authenticode_deferred`; public delivery must show the unknown-publisher
-warning. A certificate becomes a gate only when post-1.0 task 065-9-9 enables
+corresponding job must fail or remain awaiting approval. Windows
+Authenticode is deliberately deferred through `1.0.0`. Windows evidence must
+therefore record `not_checked` with reason `authenticode_deferred`; public
+delivery must show the unknown-publisher warning. A certificate becomes a gate only when post-1.0 task 065-9-9 enables
 that signing layer.
 
 ## Preparing a candidate
@@ -124,33 +139,24 @@ that signing layer.
    requests, manual tags and other branch names do not enter this release path.
    The default-branch coordinator revalidates the merge and creates
    `v<version>` idempotently at the exact merge SHA before dispatching the
-   candidate build. A pre-existing tag at any other SHA fails closed.
-3. Review the unprivileged validation jobs before approving any protected
-   environment. Compare its tag and full SHA with `main`; confirm the derived
-   channel (`preview` only for `-preview.N`) and both unsigned evidence
-   hashes.
-4. Approve each signing environment only if its public identity matches the
-   recorded certificate/key inventory. A signing job rehashes its input before
-   using credentials.
-5. Download the single `private-signed-v<version>` Actions artifact. Verify its
-   `matrix.json` says `publicPromotionAllowed: false`; verify each target's
-   `evidence.json` and hashes with `release-evidence.mjs verify-matrix`.
-6. Store the protected evidence with the restricted release record. Do not copy
+   release pipeline. A pre-existing tag at any other SHA fails closed.
+3. Where an environment requires a reviewer, review the unprivileged jobs
+   before approving it. Compare the run's tag and full SHA with `main`;
+   confirm the derived channel (`preview` only for `-preview.N`) and both
+   unsigned evidence hashes. A signing job rehashes its input before using
+   credentials.
+4. After the run, the single `private-signed-v<version>` Actions artifact
+   remains available for 90 days. Its `matrix.json` says
+   `publicPromotionAllowed: false`; each target's `evidence.json` and hashes
+   verify with `release-evidence.mjs verify-matrix`.
+5. Store the protected evidence with the restricted release record. Do not copy
    source archives, workflow checkout archives, credentials, key material,
    notary passwords or raw authenticated responses into the retained artifact.
 
-The active protected qualification pair is fixed by the executable contract:
-`0.2.0-preview.4` (A) and `0.2.0-preview.5` (B). Their candidate identities use
-the `validation` signing profile and one consistent validation updater key.
-Both workflows fail if the configured validation public key or its ID equals
-the production identity. They
-still require valid tags on `main` and the complete matrix. The workflows never
-alter either public feed, so producing A and B cannot advertise or promote
-them. The controlled feed/bundle procedure is defined in
-[updater qualification](updater-qualification.md); it does not deploy bytes,
-promote a feed or substitute for real installed A-to-B results.
-The immutable `.2`/`.3` attempt remains failed evidence after its Windows build
-exposed the missing rustls crypto-provider defect; it must never be reused.
+Qualification uses these same builds: the installed A-to-B evidence described
+in [updater qualification](updater-qualification.md) comes from two real
+consecutive public previews, never from a separately keyed or separately fed
+build.
 
 ## Independent verification
 
@@ -168,8 +174,8 @@ For every retained target, verify rather than infer:
 
 The protected artifact is candidate evidence, not a public release and not proof
 that installation works. Do not enable `GITODILE_QUALIFIED_UPDATE_TARGETS`
-until task 065-9-7 supplies real consecutive installed-build evidence for that
-exact target and mode.
+until tasks 065-9-7/065-9-8 supply real consecutive installed-build evidence
+for that exact target and mode.
 
 ## Backup, rotation and loss
 
@@ -184,26 +190,20 @@ fixture, verify it with the recorded public key, and destroy the restored copy.
 
 ### Readiness record — 2026-09-12
 
-Distinct validation and production Tauri updater identities are configured in
-their separate protected GitHub environments. Encrypted CurrentUser-DPAPI
-recovery copies exist on the controlled Windows maintainer machine with
-user-only filesystem access. Each recovery copy was restored, used to sign a
-new harmless fixture and verified with the application's Rust verifier and its
-recorded public key. The key identities are:
-
-- validation:
-  `sha256-2ee9c46df4787edce38ccbf947056e6af541a5ed5a37f1532857cd6e9115a8fa`;
-- production:
-  `sha256-074b4317dbc734a346c9efcdcb0b1e075febcb6b711c8fe7adfbab732f0d2ff1`.
+The production Tauri updater identity is configured in its protected GitHub
+environment. An encrypted CurrentUser-DPAPI recovery copy exists on the
+controlled Windows maintainer machine with user-only filesystem access. It was
+restored, used to sign a new harmless fixture and verified with the
+application's Rust verifier and its recorded public key. The key identity is
+`sha256-074b4317dbc734a346c9efcdcb0b1e075febcb6b711c8fe7adfbab732f0d2ff1`.
 
 This is not the required second offline, geographically separate recovery
-store. No production-signed matrix or public production distribution may run
-until that independent backup is made and its custody is recorded. The fixed
-`.4`/`.5` qualification pair may run with the disposable validation identity:
-it is isolated from production, has a tested encrypted restore, cannot promote
-a production feed, and remains subject to its protected-environment approval.
-The private keys and passwords are deliberately absent from this repository
-and its evidence.
+store. No stable release may run until that independent backup is made and its
+custody is recorded. The private key and password are deliberately absent from
+this repository and its evidence. The disposable validation identity used by
+the retired internal test builds is no longer referenced anywhere; delete its
+environment and destroy its recovery copy once those builds are no longer
+needed for any inspection.
 
 For planned rotation, generate and back up the new key first. Build and qualify
 a bridge version signed by the old key whose application trusts the new public

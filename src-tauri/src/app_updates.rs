@@ -377,21 +377,13 @@ enum ActiveOperationKind {
     Download,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum BuildUpdateProfile {
-    Production,
-    Validation,
-}
-
 #[derive(Clone)]
 struct BuildUpdateIdentity {
     version: Version,
     channel: ReleaseChannel,
-    profile: BuildUpdateProfile,
-    feed: String,
+    feed: &'static str,
     public_key: String,
     public_key_id: String,
-    validation_target: Option<UpdateTarget>,
 }
 
 enum CheckOutcome {
@@ -1056,27 +1048,22 @@ impl BuildUpdateIdentity {
         debug_assert_eq!(UPDATER_PLUGIN_VERSION, "2.11.0");
         build_update_identity(
             env!("CARGO_PKG_VERSION"),
-            option_env!("GITODILE_UPDATE_PROFILE").unwrap_or("production"),
-            option_env!("GITODILE_VALIDATION_UPDATE_FEED").unwrap_or(""),
-            option_env!("GITODILE_VALIDATION_UPDATE_TARGET").unwrap_or(""),
             option_env!("GITODILE_UPDATER_PUBLIC_KEY").unwrap_or(""),
             option_env!("GITODILE_UPDATER_PUBLIC_KEY_ID").unwrap_or(""),
         )
     }
 
     fn target_is_enabled(&self, target: UpdateTarget) -> bool {
-        match self.profile {
-            BuildUpdateProfile::Validation => self.validation_target == Some(target),
-            BuildUpdateProfile::Production => production_target_is_enabled(self.channel, target),
-        }
+        production_target_is_enabled(self.channel, target)
     }
 }
 
+/// The installed feed is derived from the compiled version's channel and the
+/// reviewed public key baked in at build time. There is no other routing: a
+/// build cannot be pointed at another feed or key by configuration or by the
+/// renderer.
 fn build_update_identity(
     version_text: &str,
-    profile_text: &str,
-    validation_feed: &str,
-    validation_target: &str,
     public_key: &str,
     public_key_id: &str,
 ) -> Result<BuildUpdateIdentity, UpdateError> {
@@ -1096,80 +1083,16 @@ fn build_update_identity(
                 .detail("Update verification is not configured for this build."),
         );
     }
-    let (profile, feed, validation_target) = match profile_text {
-        "production" => {
-            if !validation_feed.is_empty() || !validation_target.is_empty() {
-                return Err(
-                    UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false)
-                        .detail("Production builds cannot contain validation update routing."),
-                );
-            }
-            let feed = match channel {
-                ReleaseChannel::Stable => STABLE_FEED,
-                ReleaseChannel::Preview => PREVIEW_FEED,
-            };
-            (BuildUpdateProfile::Production, feed.to_string(), None)
-        }
-        "validation" => {
-            if !matches!(version_text, "0.2.0-preview.4" | "0.2.0-preview.5") {
-                return Err(
-                    UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false).detail(
-                        "Validation routing is restricted to the fixed qualification pair.",
-                    ),
-                );
-            }
-            if !valid_validation_feed(validation_feed) {
-                return Err(
-                    UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false)
-                        .detail("The controlled validation feed is not configured safely."),
-                );
-            }
-            let target = UpdateTarget::from_key(validation_target)
-                .filter(|target| {
-                    matches!(
-                        target,
-                        UpdateTarget::WindowsX86_64 | UpdateTarget::LinuxX86_64
-                    )
-                })
-                .ok_or_else(|| {
-                    UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false)
-                        .detail("The validation build target is invalid.")
-                })?;
-            (
-                BuildUpdateProfile::Validation,
-                validation_feed.to_string(),
-                Some(target),
-            )
-        }
-        _ => {
-            return Err(
-                UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false)
-                    .detail("The update build profile is invalid."),
-            )
-        }
+    let feed = match channel {
+        ReleaseChannel::Stable => STABLE_FEED,
+        ReleaseChannel::Preview => PREVIEW_FEED,
     };
     Ok(BuildUpdateIdentity {
         version,
         channel,
-        profile,
         feed,
         public_key: public_key.to_string(),
         public_key_id: public_key_id.to_string(),
-        validation_target,
-    })
-}
-
-fn valid_validation_feed(value: &str) -> bool {
-    reqwest::Url::parse(value).is_ok_and(|url| {
-        url.scheme() == "https"
-            && url.port().is_none()
-            && !url.cannot_be_a_base()
-            && url.username().is_empty()
-            && url.password().is_none()
-            && url.query().is_none()
-            && url.fragment().is_none()
-            && url.host_str().is_some()
-            && url.path().ends_with(".json")
     })
 }
 
@@ -1190,14 +1113,11 @@ fn configure_http_client(client: reqwest::ClientBuilder) -> reqwest::ClientBuild
 }
 
 fn allowed_redirect_url(url: &reqwest::Url) -> bool {
-    let controlled_validation_origin = option_env!("GITODILE_VALIDATION_UPDATE_FEED")
-        .and_then(|feed| reqwest::Url::parse(feed).ok())
-        .map(|feed| feed.origin());
     url.scheme() == "https"
         && url.port().is_none()
         && url.username().is_empty()
         && url.password().is_none()
-        && (matches!(
+        && matches!(
             url.host_str(),
             Some(
                 "raw.githubusercontent.com"
@@ -1205,7 +1125,7 @@ fn allowed_redirect_url(url: &reqwest::Url) -> bool {
                     | "objects.githubusercontent.com"
                     | "release-assets.githubusercontent.com"
             )
-        ) || controlled_validation_origin.is_some_and(|origin| origin == url.origin()))
+        )
 }
 
 fn validate_candidate(
@@ -1214,7 +1134,6 @@ fn validate_candidate(
     update: Update,
 ) -> CheckOutcome {
     let validated_manifest = match validate_raw_manifest(
-        &identity,
         target,
         &update.raw_json,
         PluginManifestSelection {
@@ -1239,7 +1158,7 @@ fn validate_candidate(
         Ok(notes) => notes,
         Err(error) => return CheckOutcome::Failed(error),
     };
-    if !valid_artifact_url(&identity, &update.download_url, &update.version) {
+    if !valid_artifact_url(&update.download_url, &update.version) {
         return CheckOutcome::Failed(UpdateError::new(
             UpdateErrorCode::InvalidManifest,
             UpdateStage::Check,
@@ -1301,7 +1220,6 @@ fn invalid_manifest() -> UpdateError {
 }
 
 fn validate_raw_manifest(
-    identity: &BuildUpdateIdentity,
     target: UpdateTarget,
     raw_json: &serde_json::Value,
     parsed: PluginManifestSelection<'_>,
@@ -1360,7 +1278,7 @@ fn validate_raw_manifest(
             .and_then(serde_json::Value::as_str)
             .ok_or_else(invalid_manifest)?;
         let url = reqwest::Url::parse(url_text).map_err(|_| invalid_manifest())?;
-        if !valid_artifact_url(identity, &url, parsed.version) {
+        if !valid_artifact_url(&url, parsed.version) {
             return Err(invalid_manifest());
         }
         let signature = platform
@@ -1400,7 +1318,7 @@ fn validate_raw_manifest(
     })
 }
 
-fn valid_artifact_url(identity: &BuildUpdateIdentity, url: &reqwest::Url, version: &str) -> bool {
+fn valid_artifact_url(url: &reqwest::Url, version: &str) -> bool {
     if url.scheme() != "https"
         || url.port().is_some()
         || !url.username().is_empty()
@@ -1410,27 +1328,10 @@ fn valid_artifact_url(identity: &BuildUpdateIdentity, url: &reqwest::Url, versio
     {
         return false;
     }
-    match identity.profile {
-        BuildUpdateProfile::Production => {
-            let expected = format!("{RELEASE_PREFIX}v{version}/");
-            url.host_str() == Some("github.com")
-                && url.path().starts_with(&expected)
-                && url.path().len() > expected.len()
-        }
-        BuildUpdateProfile::Validation => {
-            let Ok(feed) = reqwest::Url::parse(&identity.feed) else {
-                return false;
-            };
-            let version_segment = format!("v{version}");
-            feed.origin() == url.origin()
-                && url.path_segments().is_some_and(|segments| {
-                    segments
-                        .into_iter()
-                        .any(|segment| segment == version_segment)
-                })
-                && !url.path().ends_with('/')
-        }
-    }
+    let expected = format!("{RELEASE_PREFIX}v{version}/");
+    url.host_str() == Some("github.com")
+        && url.path().starts_with(&expected)
+        && url.path().len() > expected.len()
 }
 
 fn parse_release_version(value: &str) -> Option<(Version, ReleaseChannel)> {
@@ -2165,106 +2066,44 @@ mod tests {
 
     #[test]
     fn artifact_origin_and_version_are_locked() {
-        let production = build_update_identity(
-            "0.2.0-preview.1",
-            "production",
-            "",
-            "",
-            "public-key",
-            "public-key-id",
-        )
-        .unwrap();
         let valid = reqwest::Url::parse(
             "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/GitOdile.exe").unwrap();
-        assert!(valid_artifact_url(&production, &valid, "0.2.0-preview.2"));
+        assert!(valid_artifact_url(&valid, "0.2.0-preview.2"));
         for invalid in [
             "http://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x",
             "https://evil.invalid/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x",
             "https://github.com/martinezelx/gitodile/releases/latest/download/x",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.3/x",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/",
+            "https://user:pw@github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x?token=1",
         ] {
-            assert!(!valid_artifact_url(
-                &production,
-                &reqwest::Url::parse(invalid).unwrap(),
-                "0.2.0-preview.2"
-            ));
+            assert!(
+                !valid_artifact_url(&reqwest::Url::parse(invalid).unwrap(), "0.2.0-preview.2"),
+                "{invalid}"
+            );
         }
-
-        let validation = build_update_identity(
-            "0.2.0-preview.4",
-            "validation",
-            "https://updates.validation.example/gitodile/preview.json",
-            "windows-x86_64",
-            "validation-public-key",
-            "validation-key-id",
-        )
-        .unwrap();
-        let controlled = reqwest::Url::parse(
-            "https://updates.validation.example/gitodile/v0.2.0-preview.5/GitOdile.exe",
-        )
-        .unwrap();
-        assert!(valid_artifact_url(
-            &validation,
-            &controlled,
-            "0.2.0-preview.5"
-        ));
-        assert!(!valid_artifact_url(&validation, &valid, "0.2.0-preview.2"));
     }
 
     #[test]
-    fn validation_routing_is_build_time_bounded_to_the_fixed_pair_and_target() {
-        let identity = build_update_identity(
-            "0.2.0-preview.4",
-            "validation",
-            "https://updates.validation.example/gitodile/preview.json",
-            "windows-x86_64",
-            "validation-public-key",
-            "validation-key-id",
-        )
-        .unwrap();
-        assert_eq!(identity.profile, BuildUpdateProfile::Validation);
-        assert!(identity.target_is_enabled(UpdateTarget::WindowsX86_64));
-        assert!(!identity.target_is_enabled(UpdateTarget::LinuxX86_64));
-        for (version, feed, target) in [
-            (
-                "0.2.0-preview.2",
-                "https://updates.validation.example/feed.json",
-                "windows-x86_64",
-            ),
-            (
-                "0.2.0-preview.4",
-                "http://updates.validation.example/feed.json",
-                "windows-x86_64",
-            ),
-            (
-                "0.2.0-preview.4",
-                "https://updates.validation.example/feed.json?token=x",
-                "windows-x86_64",
-            ),
-            (
-                "0.2.0-preview.4",
-                "https://updates.validation.example/feed.json",
-                "unknown",
-            ),
+    fn build_identity_is_derived_only_from_version_and_reviewed_key() {
+        let preview = build_update_identity("0.2.0-preview.9", "public-key", "key-id").unwrap();
+        assert_eq!(preview.channel, ReleaseChannel::Preview);
+        assert_eq!(preview.feed, PREVIEW_FEED);
+        let stable = build_update_identity("0.2.0", "public-key", "key-id").unwrap();
+        assert_eq!(stable.channel, ReleaseChannel::Stable);
+        assert_eq!(stable.feed, STABLE_FEED);
+        for (version, key, key_id) in [
+            ("0.2.0-alpha.1", "public-key", "key-id"),
+            ("0.2.0-preview.9", "", "key-id"),
+            ("0.2.0-preview.9", "public-key", ""),
+            ("0.2.0-preview.9", "public-key", "key id with spaces"),
         ] {
-            assert!(build_update_identity(
-                version,
-                "validation",
-                feed,
-                target,
-                "validation-public-key",
-                "validation-key-id",
-            )
-            .is_err());
+            assert!(
+                build_update_identity(version, key, key_id).is_err(),
+                "{version}"
+            );
         }
-        assert!(build_update_identity(
-            "0.2.0-preview.4",
-            "production",
-            "https://updates.validation.example/feed.json",
-            "darwin-aarch64",
-            "production-public-key",
-            "production-key-id",
-        )
-        .is_err());
     }
 
     #[test]
@@ -2310,21 +2149,12 @@ mod tests {
                 ..
             })
         ));
-        let identity = build_update_identity(
-            "0.2.0-preview.4",
-            "validation",
-            "https://updates.validation.example/gitodile/preview.json",
-            "windows-x86_64",
-            "validation-public-key",
-            "validation-key-id",
-        )
-        .unwrap();
         let url = reqwest::Url::parse(
-            "https://updates.validation.example/gitodile/releases/v0.2.0-preview.5/GitOdile.exe",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_0.2.0-preview.10_x64-setup.exe",
         )
         .unwrap();
         let manifest = serde_json::json!({
-            "version": "0.2.0-preview.5",
+            "version": "0.2.0-preview.10",
             "notes": "Corrected updater path",
             "pub_date": null,
             "platforms": {
@@ -2334,18 +2164,17 @@ mod tests {
                     "size": 7
                 },
                 "linux-x86_64": {
-                    "url": "https://updates.validation.example/gitodile/releases/v0.2.0-preview.5/GitOdile.AppImage",
+                    "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_0.2.0-preview.10_amd64.AppImage",
                     "signature": "linux-signature",
                     "size": 9
                 }
             }
         });
         let validated = validate_raw_manifest(
-            &identity,
             UpdateTarget::WindowsX86_64,
             &manifest,
             PluginManifestSelection {
-                version: "0.2.0-preview.5",
+                version: "0.2.0-preview.10",
                 target: "windows-x86_64",
                 notes: Some("Corrected updater path"),
                 date: None,
@@ -2377,8 +2206,14 @@ mod tests {
             },
             {
                 let mut value = manifest.clone();
+                value["platforms"]["windows-x86_64"]["url"] =
+                    "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.9/GitOdile.exe".into();
+                value
+            },
+            {
+                let mut value = manifest.clone();
                 value["platforms"]["darwin-aarch64"] = serde_json::json!({
-                    "url": "https://updates.validation.example/gitodile/releases/v0.2.0-preview.5/GitOdile.app.tar.gz",
+                    "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile.app.tar.gz",
                     "signature": "mac-signature",
                     "size": 9
                 });
@@ -2387,11 +2222,10 @@ mod tests {
         ] {
             assert_eq!(
                 validate_raw_manifest(
-                    &identity,
                     UpdateTarget::WindowsX86_64,
                     &invalid,
                     PluginManifestSelection {
-                        version: "0.2.0-preview.5",
+                        version: "0.2.0-preview.10",
                         target: "windows-x86_64",
                         notes: Some("Corrected updater path"),
                         date: None,
@@ -2413,9 +2247,17 @@ mod tests {
         ] {
             assert!(allowed_redirect_url(&reqwest::Url::parse(allowed).unwrap()));
         }
-        assert!(!allowed_redirect_url(
-            &reqwest::Url::parse("https://example.invalid/x").unwrap()
-        ));
+        for denied in [
+            "https://example.invalid/x",
+            "http://github.com/x",
+            "https://github.com:8443/x",
+            "https://user:pw@github.com/x",
+        ] {
+            assert!(
+                !allowed_redirect_url(&reqwest::Url::parse(denied).unwrap()),
+                "{denied}"
+            );
+        }
     }
 
     #[test]

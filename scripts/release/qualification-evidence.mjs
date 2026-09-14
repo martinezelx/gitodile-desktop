@@ -1,12 +1,15 @@
 import {
   ALL_TARGETS,
-  QUALIFICATION_PAIR,
+  compareReleaseVersions,
+  parseReleaseVersion,
   REQUIRED_TARGETS,
   TARGET_CONTRACTS,
   ReleaseValidationError,
 } from "./release-candidate.mjs";
 
-export const QUALIFICATION_SCHEMA_VERSION = 3;
+export const QUALIFICATION_SCHEMA_VERSION = 4;
+export const PUBLIC_REPOSITORY = "martinezelx/gitodile";
+export const PREVIEW_FEED_URL = `https://raw.githubusercontent.com/${PUBLIC_REPOSITORY}/main/updates/preview.json`;
 
 export const REQUIRED_PRESERVATION_CHECKS = Object.freeze([
   "settings",
@@ -35,12 +38,21 @@ export const REQUIRED_FAILURE_CASES = Object.freeze([
   "managed_package_fallback",
 ]);
 
+/** Publisher behaviours a production approval must have observed on real
+ * public preview publications before the first stable release. */
+export const REQUIRED_PUBLISHER_CHECKS = Object.freeze([
+  "previewPublication",
+  "interruptedRetry",
+  "immutableAssets",
+  "anonymousDownloads",
+  "feedAdvanced",
+]);
+
 const SHA256 = /^[0-9a-f]{64}$/;
 const SOURCE_SHA = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 const RUN_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-desktop\/actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?$/;
 const HTTPS_URL = /^https:\/\//;
-const PUBLIC_RELEASE_URL = /^https:\/\/github\.com\/martinezelx\/gitodile\/releases\/tag\/v0\.2\.0-preview\.[67]$/;
-const PUBLIC_ASSET_URL = /^https:\/\/github\.com\/martinezelx\/gitodile\/releases\/download\/v0\.2\.0-preview\.[67]\/[A-Za-z0-9._-]+$/;
+const ASSET_NAME = /^[A-Za-z0-9._-]+$/;
 
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
@@ -56,22 +68,33 @@ function requirePassed(value, label) {
   if (value?.result !== "passed") fail("qualification_invalid", `${label} is not passed`);
 }
 
-function validateArtifact(artifact, label) {
+function publicReleaseUrl(version) {
+  return `https://github.com/${PUBLIC_REPOSITORY}/releases/tag/v${version}`;
+}
+
+function publicAssetUrl(version, fileName) {
+  return `https://github.com/${PUBLIC_REPOSITORY}/releases/download/v${version}/${fileName}`;
+}
+
+function validateArtifact(artifact, version, label) {
   if (
-    typeof artifact?.fileName !== "string" || artifact.fileName.length === 0 ||
-    artifact.fileName !== artifact.fileName.split(/[\\/]/).at(-1) ||
-    !SHA256.test(artifact?.sha256 ?? "") || !Number.isSafeInteger(artifact?.size) || artifact.size <= 0
+    typeof artifact?.fileName !== "string" || !ASSET_NAME.test(artifact.fileName) ||
+    !SHA256.test(artifact?.sha256 ?? "") || !Number.isSafeInteger(artifact?.size) || artifact.size <= 0 ||
+    artifact?.anonymousUrl !== publicAssetUrl(version, artifact.fileName)
   ) fail("qualification_invalid", `${label} artifact identity is invalid`);
 }
 
+/** A qualified transition is proven by two real public preview releases, each
+ * published by one release-pipeline run on protected main. */
 function validateBuild(build, expectedVersion, target, label) {
   if (
     build?.version !== expectedVersion || build?.tag !== `v${expectedVersion}` ||
     !SOURCE_SHA.test(build?.sourceSha ?? "") || !SHA256.test(build?.signedMatrixSha256 ?? "") ||
-    !RUN_URL.test(build?.buildRunUrl ?? "") || !RUN_URL.test(build?.signingRunUrl ?? "")
+    !RUN_URL.test(build?.pipelineRunUrl ?? "") || build?.publicReleaseUrl !== publicReleaseUrl(expectedVersion) ||
+    !SOURCE_SHA.test(build?.publicTagCommit ?? "") || !SHA256.test(build?.manifestSha256 ?? "")
   ) fail("qualification_invalid", `${label} build provenance is invalid`);
-  validateArtifact(build.installerArtifact, `${label} installer`);
-  validateArtifact(build.updaterArtifact, `${label} updater`);
+  validateArtifact(build.installerArtifact, expectedVersion, `${label} installer`);
+  validateArtifact(build.updaterArtifact, expectedVersion, `${label} updater`);
   requirePassed(build.updaterSignature, `${label} updater signature`);
   if (typeof build.updaterSignature?.publicKeyId !== "string" || build.updaterSignature.publicKeyId.length === 0) {
     fail("qualification_invalid", `${label} updater key identity is missing`);
@@ -103,33 +126,55 @@ function expectedEnvironment(target) {
   return { os: "macos", architecture: target.endsWith("aarch64") ? "aarch64" : "x86_64" };
 }
 
-function validateTargetEvidence(entry, target, expectedUpdaterPublicKeyId) {
-  if (entry.status !== "qualified" || !Array.isArray(entry.evidence) || entry.evidence.length !== 1) return false;
+function validateTransition(transition, label) {
+  const from = transition?.fromVersion;
+  const to = transition?.toVersion;
+  let ordered = false;
+  try {
+    ordered = parseReleaseVersion(from).channel === "preview" && parseReleaseVersion(to).channel === "preview" &&
+      compareReleaseVersions(from, to) < 0;
+  } catch (error) {
+    if (!(error instanceof ReleaseValidationError)) throw error;
+  }
+  if (
+    !ordered || transition?.runningVersionBefore !== from || transition?.runningVersionAfter !== to ||
+    transition?.result !== "passed" || transition?.falseSuccessObserved !== false ||
+    transition?.forcedDowngradeObserved !== false
+  ) fail("qualification_invalid", `${label} does not prove a real public preview A-to-B transition`);
+  return { from, to };
+}
+
+function validateFeed(feed, toVersion, label) {
+  if (
+    feed?.url !== PREVIEW_FEED_URL || feed?.version !== toVersion || !SHA256.test(feed?.sha256 ?? "") ||
+    !SOURCE_SHA.test(feed?.commitSha ?? "") || !isCanonicalTimestamp(feed?.observedAt)
+  ) fail("qualification_invalid", `${label} public feed evidence is incomplete`);
+}
+
+/** Returns the updater public-key identity a qualified target proves, or
+ * `null` when the entry carries no valid qualification. */
+export function validateTargetEvidence(entry, target) {
+  if (entry?.status !== "qualified" || !Array.isArray(entry.evidence) || entry.evidence.length !== 1) return null;
   const proof = entry.evidence[0];
   try {
     const expected = expectedEnvironment(target);
     if (
-      proof?.schemaVersion !== 1 || proof?.target !== target || proof?.result !== "passed" ||
-      !isCanonicalTimestamp(proof?.observedAt) || !RUN_URL.test(proof?.qualificationRunUrl ?? "") ||
-      !SHA256.test(proof?.reportSha256 ?? "") || proof?.environment?.os !== expected.os ||
+      proof?.schemaVersion !== 2 || proof?.target !== target || proof?.result !== "passed" ||
+      !isCanonicalTimestamp(proof?.observedAt) || !HTTPS_URL.test(proof?.report?.url ?? "") ||
+      !SHA256.test(proof?.report?.sha256 ?? "") || proof?.environment?.os !== expected.os ||
       proof?.environment?.architecture !== expected.architecture ||
       typeof proof?.environment?.osVersion !== "string" || proof.environment.osVersion.length === 0 ||
       proof?.environment?.installationMode !== TARGET_CONTRACTS[target].installation
     ) fail("qualification_invalid", `${target} environment or report provenance is invalid`);
 
-    const [fromVersion, toVersion] = QUALIFICATION_PAIR;
-    if (
-      proof?.transition?.fromVersion !== fromVersion || proof?.transition?.toVersion !== toVersion ||
-      proof?.transition?.runningVersionBefore !== fromVersion || proof?.transition?.runningVersionAfter !== toVersion ||
-      proof?.transition?.result !== "passed" || proof?.transition?.falseSuccessObserved !== false ||
-      proof?.transition?.forcedDowngradeObserved !== false
-    ) fail("qualification_invalid", `${target} does not prove the fixed A-to-B transition`);
-    validateBuild(proof.builds?.from, fromVersion, target, `${target} build A`);
-    validateBuild(proof.builds?.to, toVersion, target, `${target} build B`);
-    if (
-      proof.builds.from.updaterSignature.publicKeyId !== expectedUpdaterPublicKeyId ||
-      proof.builds.to.updaterSignature.publicKeyId !== expectedUpdaterPublicKeyId
-    ) fail("qualification_invalid", `${target} validation builds use an unexpected updater identity`);
+    const { from, to } = validateTransition(proof.transition, target);
+    validateBuild(proof.builds?.from, from, target, `${target} build A`);
+    validateBuild(proof.builds?.to, to, target, `${target} build B`);
+    const publicKeyId = proof.builds.from.updaterSignature.publicKeyId;
+    if (proof.builds.to.updaterSignature.publicKeyId !== publicKeyId) {
+      fail("qualification_invalid", `${target} builds use different updater identities`);
+    }
+    validateFeed(proof.feed, to, target);
 
     for (const check of REQUIRED_PRESERVATION_CHECKS) {
       const required = check === "gitHistory" ? "unchanged" : "passed";
@@ -156,9 +201,9 @@ function validateTargetEvidence(entry, target, expectedUpdaterPublicKeyId) {
     } else if (proof?.replacementSafety?.result !== "not_applicable") {
       fail("qualification_invalid", `${target} replacement safety must be not_applicable`);
     }
-    return true;
+    return publicKeyId;
   } catch (error) {
-    if (error instanceof ReleaseValidationError) return false;
+    if (error instanceof ReleaseValidationError) return null;
     throw error;
   }
 }
@@ -166,19 +211,23 @@ function validateTargetEvidence(entry, target, expectedUpdaterPublicKeyId) {
 function validateProductionApproval(approval) {
   if (
     approval?.enabled !== true || approval?.workingNameClearance !== "evidenced" ||
-    !isCanonicalTimestamp(approval?.approvedAt) || approval?.evidence?.schemaVersion !== 1
+    !isCanonicalTimestamp(approval?.approvedAt) || approval?.evidence?.schemaVersion !== 2
   ) fail("production_not_approved", "production promotion and working-name clearance are not evidenced");
   const clearance = approval.evidence.workingNameClearance;
   if (clearance?.result !== "passed" || !isCanonicalTimestamp(clearance?.reviewedAt) || !HTTPS_URL.test(clearance?.referenceUrl ?? "")) {
     fail("production_not_approved", "working-name clearance evidence is incomplete");
   }
   const publisher = approval.evidence.publisher;
-  if (publisher?.result !== "passed" || !RUN_URL.test(publisher?.qualificationRunUrl ?? "") || !SHA256.test(publisher?.reportSha256 ?? "")) {
+  if (publisher?.result !== "passed" || !RUN_URL.test(publisher?.pipelineRunUrl ?? "") || !SHA256.test(publisher?.reportSha256 ?? "")) {
     fail("production_not_approved", "publisher qualification provenance is incomplete");
   }
-  for (const check of ["validationDraft", "fullMatrixFailure", "retry", "immutableAssets", "feedUnchanged"]) {
+  for (const check of REQUIRED_PUBLISHER_CHECKS) {
     if (publisher?.[check] !== "passed") fail("production_not_approved", `publisher check ${check} is incomplete`);
   }
+  if (typeof approval.evidence.updaterPublicKeyId !== "string" || approval.evidence.updaterPublicKeyId.length === 0) {
+    fail("production_not_approved", "production approval does not name the updater key identity it covers");
+  }
+  return approval.evidence.updaterPublicKeyId;
 }
 
 function validateReleaseMatrix(qualification) {
@@ -199,107 +248,15 @@ function validateReleaseMatrix(qualification) {
   }
 }
 
-function validateValidationQualification(record, required) {
-  const [fromVersion, toVersion] = QUALIFICATION_PAIR;
-  if (
-    record?.signingProfile !== "validation" || record?.fromVersion !== fromVersion ||
-    record?.toVersion !== toVersion
-  ) fail("qualification_invalid", "validation qualification pair or signing profile is invalid");
-  if (record.status === "pending") {
-    if (record.evidence !== null) fail("qualification_invalid", "pending validation qualification cannot contain evidence");
-    if (required) fail("qualification_required", "the controlled validation qualification is still pending");
-    return;
-  }
-  if (
-    record.status !== "qualified" || record.evidence?.schemaVersion !== 1 ||
-    !RUN_URL.test(record.evidence?.controlledBundleRunUrl ?? "") ||
-    !SHA256.test(record.evidence?.bundleReportSha256 ?? "") ||
-    typeof record.evidence?.updaterPublicKeyId !== "string" ||
-    record.evidence.updaterPublicKeyId.length === 0
-  ) fail("qualification_required", "the controlled validation qualification is not evidenced");
-}
-
-export function validatePublicPreviewQualification(record) {
-  if (
-    record?.signingProfile !== "production" || record?.fromVersion !== "0.2.0-preview.6" ||
-    record?.toVersion !== "0.2.0-preview.7" || !["pending", "qualified"].includes(record?.status)
-  ) fail("qualification_invalid", "public preview qualification record is malformed");
-  if (record.status === "pending" && (
-    record.productionUpdaterPublicKeyId !== null || record.feed !== null ||
-    !Array.isArray(record.releases) || record.releases.length !== 0 ||
-    !Array.isArray(record.targets) || record.targets.length !== 0
-  )) fail("qualification_invalid", "pending public preview qualification must not contain inferred evidence");
-  if (record.status === "pending") return true;
-  if (typeof record.productionUpdaterPublicKeyId !== "string" || record.productionUpdaterPublicKeyId.length === 0) {
-    fail("qualification_invalid", "qualified public previews need the production updater key identity");
-  }
-  if (!Array.isArray(record.releases) || record.releases.length !== 2) {
-    fail("qualification_invalid", "public preview qualification needs exactly two release records");
-  }
-  const expectedVersions = [record.fromVersion, record.toVersion];
-  for (let index = 0; index < expectedVersions.length; index += 1) {
-    const release = record.releases[index];
-    const version = expectedVersions[index];
-    if (
-      release?.version !== version || release?.tag !== `v${version}` || !SOURCE_SHA.test(release?.sourceSha ?? "") ||
-      !RUN_URL.test(release?.signingRunUrl ?? "") || !RUN_URL.test(release?.publishingRunUrl ?? "") ||
-      !PUBLIC_RELEASE_URL.test(release?.publicReleaseUrl ?? "") || !SOURCE_SHA.test(release?.publicTagCommit ?? "") ||
-      release?.updaterPublicKeyId !== record.productionUpdaterPublicKeyId ||
-      !SHA256.test(release?.manifestSha256 ?? "") || !Array.isArray(release?.assets) ||
-      release.assets.length !== REQUIRED_TARGETS.length
-    ) fail("qualification_invalid", `public release evidence for ${version} is incomplete`);
-    const assets = new Map(release.assets.map((asset) => [asset.target, asset]));
-    if (assets.size !== release.assets.length) fail("qualification_invalid", `${version} public assets contain duplicate targets`);
-    for (const target of REQUIRED_TARGETS) {
-      const asset = assets.get(target);
-      for (const [kind, value] of [["package", asset?.package], ["signature", asset?.signature]]) {
-        if (
-          typeof value?.fileName !== "string" || value.fileName !== value.fileName.split(/[\\/]/).at(-1) ||
-          !Number.isSafeInteger(value?.size) || value.size <= 0 || !SHA256.test(value?.sha256 ?? "") ||
-          !PUBLIC_ASSET_URL.test(value?.anonymousUrl ?? "")
-        ) fail("qualification_invalid", `${version} ${target} ${kind} anonymous asset evidence is invalid`);
-      }
-    }
-  }
-  if (
-    record.feed?.url !== "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json" ||
-    record.feed?.version !== record.toVersion || !SHA256.test(record.feed?.sha256 ?? "") ||
-    !SOURCE_SHA.test(record.feed?.commitSha ?? "") || !isCanonicalTimestamp(record.feed?.observedAt)
-  ) fail("qualification_invalid", "public preview feed evidence is incomplete");
-  if (!Array.isArray(record.targets) || record.targets.length !== REQUIRED_TARGETS.length) {
-    fail("qualification_invalid", "public preview installed evidence is incomplete");
-  }
-  const targetReports = new Map(record.targets.map((target) => [target.key, target]));
-  if (targetReports.size !== record.targets.length) fail("qualification_invalid", "public preview target evidence contains duplicates");
-  for (const target of REQUIRED_TARGETS) {
-    const report = targetReports.get(target);
-    const expected = expectedEnvironment(target);
-    if (
-      report?.environment?.os !== expected.os || report?.environment?.architecture !== expected.architecture ||
-      report?.environment?.installationMode !== TARGET_CONTRACTS[target].installation ||
-      typeof report?.environment?.osVersion !== "string" || report.environment.osVersion.length === 0 ||
-      report?.transition?.runningVersionBefore !== record.fromVersion ||
-      report?.transition?.runningVersionAfter !== record.toVersion || report?.transition?.result !== "passed" ||
-      report?.transition?.falseSuccessObserved !== false || report?.transition?.forcedDowngradeObserved !== false ||
-      !HTTPS_URL.test(report?.report?.url ?? "") || !SHA256.test(report?.report?.sha256 ?? "")
-    ) fail("qualification_invalid", `${target} public installed transition evidence is incomplete`);
-  }
-  return true;
-}
-
 export function validateQualificationRegistry(qualification, candidate, mode) {
   if (qualification?.schemaVersion !== QUALIFICATION_SCHEMA_VERSION || !Array.isArray(qualification.targets)) {
     fail("qualification_invalid", "qualification registry is malformed");
   }
+  for (const legacy of ["validationQualification", "publicPreviewQualification"]) {
+    if (Object.hasOwn(qualification, legacy)) fail("qualification_invalid", `qualification registry carries the retired ${legacy} record`);
+  }
   const byTarget = new Map(qualification.targets.map((item) => [item.key, item]));
   validateReleaseMatrix(qualification);
-  validatePublicPreviewQualification(qualification.publicPreviewQualification);
-  if (
-    qualification.validationQualification?.status === "qualified" &&
-    qualification.publicPreviewQualification?.status === "qualified" &&
-    qualification.validationQualification.evidence?.updaterPublicKeyId ===
-      qualification.publicPreviewQualification.productionUpdaterPublicKeyId
-  ) fail("qualification_invalid", "validation and production updater identities must be distinct");
   if (byTarget.size !== qualification.targets.length || qualification.targets.length !== ALL_TARGETS.length) {
     fail("qualification_invalid", "qualification registry contains duplicate or unexpected targets");
   }
@@ -324,33 +281,21 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
     const qualified = entry?.status === "qualified" && Array.isArray(entry.evidence) && entry.evidence.length === 1;
     if (!pending && !qualified) fail("qualification_invalid", `${target} has an invalid qualification state`);
   }
-  if (mode === "validation-draft") {
-    if (candidate.release.signingProfile !== "validation" || candidate.release.purpose !== "qualification") {
-      fail("profile_mismatch", "validation drafts require the fixed validation signing profile");
-    }
-    validateValidationQualification(qualification.validationQualification, false);
-    return { productionAllowed: false, previewTestingAllowed: false, qualifiedTargets: [] };
-  }
   if (mode === "preview-testing") {
-    if (
-      candidate.release.signingProfile !== "production" ||
-      candidate.release.purpose !== "release_candidate" ||
-      candidate.release.channel !== "preview" || candidate.release.githubPrerelease !== true
-    ) fail("profile_mismatch", "preview testing requires a production-Tauri-signed preview candidate");
+    if (candidate.release.channel !== "preview" || candidate.release.githubPrerelease !== true) {
+      fail("profile_mismatch", "preview testing requires a preview candidate flagged as a GitHub prerelease");
+    }
     return { productionAllowed: false, previewTestingAllowed: true, qualifiedTargets: [] };
   }
-  if (mode !== "production") fail("invalid_mode", "mode must be validation-draft, preview-testing or production");
-  if (candidate.release.signingProfile !== "production" || candidate.release.purpose !== "release_candidate") {
-    fail("profile_mismatch", "production promotion requires a production-signed release candidate");
+  if (mode !== "production") fail("invalid_mode", "mode must be preview-testing or production");
+  const approvedKeyId = validateProductionApproval(qualification.productionPromotion);
+  const keyIds = new Map(candidate.matrix.requiredTargets.map((target) => [target, validateTargetEvidence(byTarget.get(target), target)]));
+  const missing = [...keyIds].filter(([, keyId]) => keyId === null).map(([target]) => target);
+  if (missing.length > 0) {
+    fail("qualification_required", `targets still require real public preview A-to-B evidence: ${missing.join(", ")}`);
   }
-  validateValidationQualification(qualification.validationQualification, true);
-  validateProductionApproval(qualification.productionPromotion);
-  const validationUpdaterPublicKeyId = qualification.validationQualification.evidence.updaterPublicKeyId;
-  const qualifiedTargets = candidate.matrix.requiredTargets.filter((target) =>
-    validateTargetEvidence(byTarget.get(target), target, validationUpdaterPublicKeyId));
-  if (qualifiedTargets.length !== candidate.matrix.requiredTargets.length) {
-    const missing = candidate.matrix.requiredTargets.filter((target) => !qualifiedTargets.includes(target));
-    fail("qualification_required", `targets still require real A-to-B evidence: ${missing.join(", ")}`);
+  if (new Set([...keyIds.values(), approvedKeyId]).size !== 1) {
+    fail("qualification_invalid", "qualified targets and the production approval must share one updater key identity");
   }
-  return { productionAllowed: true, previewTestingAllowed: false, qualifiedTargets };
+  return { productionAllowed: true, previewTestingAllowed: false, qualifiedTargets: [...keyIds.keys()] };
 }

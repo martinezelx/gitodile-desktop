@@ -22,10 +22,9 @@ owns the post-1.0 provider choice and Authenticode qualification. The provider
 must remain suitable if future source development becomes private. No SignPath
 application was submitted.
 
-The earlier `.2` to `.3` validation packages remain immutable failed evidence
-and are not an active qualification pair. Any production-key qualification must
-preserve the same honest deferred state; `.6` to `.7` is not evidence of
-Authenticode unless task 065-9-9 is explicitly resumed after `1.0.0`.
+Qualification between two public preview releases must preserve the same
+honest deferred state; no preview pair is evidence of Authenticode unless task
+065-9-9 is explicitly resumed after `1.0.0`.
 
 ## Authorized roles and source
 
