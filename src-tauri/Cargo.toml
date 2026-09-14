@@ -1,6 +1,6 @@
 [package]
 name = "gitodile"
-version = "0.2.0-preview.9"
+version = "0.2.0-preview.10"
 description = "A friendly Git desktop client"
 authors = ["Luis M. Martínez"]
 edition = "2021"
