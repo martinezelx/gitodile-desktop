@@ -166,7 +166,7 @@ jobs:
     name: Serialize destination release and feeds
     needs: authorize-and-stage
     runs-on: ubuntu-24.04
-    environment: ${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || 'public-release-production' }}
+    environment: ${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || needs.authorize-and-stage.outputs.mode == 'preview-testing' && 'public-release-production' || 'public-release-stable' }}
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:

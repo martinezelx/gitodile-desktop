@@ -427,7 +427,7 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.match(publication.parsed.jobs["authorize-and-stage"].if, /github\.event_name == 'workflow_run'/);
   assert.match(publication.parsed.jobs["authorize-and-stage"].if, /workflow_run\.conclusion == 'success'/);
   assert.equal(publication.parsed.jobs.publish.environment,
-    "${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || 'public-release-production' }}");
+    "${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || needs.authorize-and-stage.outputs.mode == 'preview-testing' && 'public-release-production' || 'public-release-stable' }}");
 
   const coordinator = readWorkflow("merge-driven-release.yml");
   assert.deepEqual(Object.keys(coordinator.parsed.on), ["pull_request_target"]);

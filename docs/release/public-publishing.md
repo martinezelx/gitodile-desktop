@@ -8,7 +8,7 @@ application and never accepts a local installer path supplied to the privileged
 job.
 
 No qualified production or stable publication is currently authorized. A
-narrow `preview-testing` policy may publish a reviewer-approved, Tauri-signed
+narrow `preview-testing` policy may automatically publish a Tauri-signed
 preview as a GitHub prerelease and advance only `preview.json`; that exception
 does not change any qualification state or claim that installation succeeded.
 The qualification registry
@@ -66,10 +66,11 @@ Only the second job enters a destination environment and receives
 with Contents write access only to `martinezelx/gitodile`; a narrowly
 scoped expiring fine-grained PAT is the temporary fallback. This job does not
 check out the source repository. Source visibility is not an authorization
-boundary. Both destination environments require reviewers and no administrator
-bypass. `preview-testing` uses the protected `public-release-production`
-environment, so signing alone cannot expose public bytes without maintainer
-approval. Qualified production additionally requires the 065-9-7/065-9-8
+boundary. `preview-testing` uses `public-release-production`, restricted to
+protected branches but intentionally without a required reviewer, so a merged
+preview completes without maintainer intervention. Stable publication uses the
+separate `public-release-stable` environment, which always requires a reviewer,
+disallows administrator bypass and additionally requires the 065-9-7/065-9-8
 evidence review and working-name clearance.
 
 ## Immutable release sequence
@@ -90,9 +91,9 @@ evidence review and working-name clearance.
    because GitHub does not expose draft downloads anonymously. Confirm that no
    production feed moved. This is pipeline validation, not target qualification.
 4. Before target qualification is complete, a signed preview automatically
-   enters `preview-testing` and waits at the protected publication environment.
-   Approval may finalize only that prerelease and advance `preview.json`; record
-   it as pipeline evidence, never as an installed-update pass. After 065-9-7/
+   enters `preview-testing`, finalizes only that prerelease and advances
+   `preview.json`; record it as pipeline evidence, never as an installed-update
+   pass. After 065-9-7/
    065-9-8 have recorded both enabled targets and production approval, the same
    automatic entry uses qualified `production`. The fixed timestamp comes from
    the exact source commit. Do not edit the notes or qualification registry
@@ -117,7 +118,7 @@ signed; changing a preview release flag is never promotion.
 
 The asset and manifest set is exactly Windows x86-64 NSIS plus Linux x86-64
 AppImage. A Darwin target or macOS-looking asset is an error while task 065-10
-is open. Preview-testing approval confirms only the immutable signed matrix,
+is open. Preview-testing publication confirms only the immutable signed matrix,
 curated notes, preview identity, destination and unknown-publisher disclosure;
 it does not satisfy a registry evidence field. Production approval is the
 pre-publication gate: it records the real

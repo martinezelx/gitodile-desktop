@@ -177,8 +177,9 @@ Task 065-9-9 is deliberately post-1.0 and does not block this automation.
    cross-repository credential scopes. Verify both repositories anonymously
    and through the GitHub API after each rename.
 7. Provide a non-promoting end-to-end dry run and negative-event fixtures.
-   Preserve protected approval for preview publication initially and always for
-   stable publication. Do not enable stable or macOS publication in this task.
+   Publish previews automatically after the protected merge, while preserving
+   protected approval always for stable publication. Do not enable stable or
+   macOS publication in this task.
 8. Run `pnpm run check` and `pnpm run check:publication`, inspect every Actions
    run caused by the migration, and correct failures without weakening gates.
    Record exact commits, runs, repository settings and remaining Linux blocker.
@@ -203,12 +204,11 @@ git push -u origin release/0.2.0-preview.10
 
 The maintainer replaces and reviews the generated notes before committing,
 opens the pull request, waits for
-required checks, merges it and approves the protected publication prompt. Tag
+required checks and merges it. Tag
 creation, Windows/Linux candidate builds, Tauri signing, evidence assembly,
 publication to `martinezelx/gitodile`, feed promotion and anonymous
-post-publication verification then run automatically. Preview approval may be
-removed only after several successful observed releases and a separate policy
-change; stable approval remains mandatory.
+post-publication verification then run automatically without another maintainer
+step. Stable approval remains mandatory.
 
 # Explicit safety invariants
 
@@ -288,9 +288,11 @@ task to publish a stable release or any macOS artifact.
   publication now derives the narrow `preview-testing` mode for production-
   Tauri-signed preview candidates: it creates a GitHub prerelease, uploads only
   the Windows x86-64 NSIS package and Linux x86-64 AppImage, and advances only
-  `preview.json` after the protected publication approval.
-- `preview-testing` records an empty qualified-target set and leaves automatic
-  installation disabled in the packages. It does not change the qualification
+  `preview.json` automatically after a protected merge.
+- `preview-testing` records an empty qualified-target set. Production-key
+  preview packages nevertheless use the separate canonical preview test target
+  route so real installed updates can be exercised without claiming
+  qualification. It does not change the qualification
   registry, satisfy Linux A-to-B evidence, claim Windows OS trust, or authorize
   stable. Windows remains `authenticode_deferred`; macOS assets and targets are
   rejected.
@@ -315,11 +317,13 @@ task to publish a stable release or any macOS artifact.
   Windows failure-matrix completion and the real Linux AppImage A-to-B result
   still keep both targets `qualification_required` and
   `productionPromotion.enabled` false.
-- The destination-scoped `GITODILE_PUBLIC_RELEASE_TOKEN` is not configured. No
-  broad maintainer credential was copied into Actions. Publication therefore
-  fails closed until a GitHub App installation token or fine-grained token with
-  Contents write only to `martinezelx/gitodile` is installed in the protected
-  publication environment.
+- The destination-scoped `GITODILE_PUBLIC_RELEASE_TOKEN` is configured in
+  `public-release-production`; its value was never read or copied. On
+  2026-09-14, preview signing and publication environments were restricted to
+  protected branches but changed to require no reviewer, while the new
+  `public-release-stable` environment retained maintainer review with no
+  administrator bypass. Stable remains disabled and additionally fails closed
+  until its separately scoped secret is deliberately provisioned.
 - macOS remains disabled. Windows evidence remains
   `authenticode_deferred` through `1.0.0`; neither limitation is represented as
   successful OS trust.
@@ -359,8 +363,8 @@ Windows continúa sin Authenticode y debe registrar
 `authenticode_deferred`; macOS sigue deshabilitado hasta post-1.0. La prueba
 real Linux pendiente no impide implementar y validar la automatización, pero sí
 impide declarar su cualificación o cerrar criterios que dependan de ella. No
-publiques stable ni artefactos macOS. Mantén aprobación protegida para publicar
-previews inicialmente y siempre para stable.
+publiques stable ni artefactos macOS. Publica previews automáticamente después
+del merge protegido y mantén aprobación protegida siempre para stable.
 
 Haz todas las operaciones posibles, incluidas las migraciones GitHub y la
 actualización del remoto local, sin pedir secretos ni mostrarlos. Pide

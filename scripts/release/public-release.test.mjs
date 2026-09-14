@@ -431,6 +431,6 @@ test("the publication workflow chains successful signing, stays protected, and k
     "the privileged publication gate must install the Linux libraries required by pnpm run check");
   assert.match(source, /"preview-testing"/);
   assert.equal(workflow.jobs.publish.environment,
-    "${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || 'public-release-production' }}");
+    "${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || needs.authorize-and-stage.outputs.mode == 'preview-testing' && 'public-release-production' || 'public-release-stable' }}");
   for (const match of source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) assert.match(match[1], /@[0-9a-f]{40}$/);
 });
