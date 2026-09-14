@@ -1067,7 +1067,7 @@ impl BuildUpdateIdentity {
     fn target_is_enabled(&self, target: UpdateTarget) -> bool {
         match self.profile {
             BuildUpdateProfile::Validation => self.validation_target == Some(target),
-            BuildUpdateProfile::Production => production_target_is_qualified(target),
+            BuildUpdateProfile::Production => production_target_is_enabled(self.channel, target),
         }
     }
 }
@@ -1710,12 +1710,30 @@ fn installation_is_writable(mode: InstallationMode) -> bool {
     }
 }
 
-fn production_target_is_qualified(target: UpdateTarget) -> bool {
-    option_env!("GITODILE_QUALIFIED_UPDATE_TARGETS")
-        .unwrap_or("")
-        .split(',')
+fn target_list_contains(list: &str, target: UpdateTarget) -> bool {
+    list.split(',')
         .map(str::trim)
         .any(|entry| entry == target.as_str())
+}
+
+fn production_target_is_enabled(channel: ReleaseChannel, target: UpdateTarget) -> bool {
+    production_target_is_enabled_for_lists(
+        channel,
+        target,
+        option_env!("GITODILE_QUALIFIED_UPDATE_TARGETS").unwrap_or(""),
+        option_env!("GITODILE_PREVIEW_TEST_UPDATE_TARGETS").unwrap_or(""),
+    )
+}
+
+fn production_target_is_enabled_for_lists(
+    channel: ReleaseChannel,
+    target: UpdateTarget,
+    qualified_targets: &str,
+    preview_test_targets: &str,
+) -> bool {
+    target_list_contains(qualified_targets, target)
+        || (channel == ReleaseChannel::Preview
+            && target_list_contains(preview_test_targets, target))
 }
 
 fn map_reqwest_check_error(error: reqwest::Error) -> UpdateError {
@@ -2247,6 +2265,37 @@ mod tests {
             "production-key-id",
         )
         .is_err());
+    }
+
+    #[test]
+    fn preview_testing_targets_do_not_imply_stable_qualification() {
+        let targets = "windows-x86_64,linux-x86_64";
+        for target in [UpdateTarget::WindowsX86_64, UpdateTarget::LinuxX86_64] {
+            assert!(production_target_is_enabled_for_lists(
+                ReleaseChannel::Preview,
+                target,
+                "",
+                targets,
+            ));
+            assert!(!production_target_is_enabled_for_lists(
+                ReleaseChannel::Stable,
+                target,
+                "",
+                targets,
+            ));
+            assert!(production_target_is_enabled_for_lists(
+                ReleaseChannel::Stable,
+                target,
+                targets,
+                "",
+            ));
+        }
+        assert!(!production_target_is_enabled_for_lists(
+            ReleaseChannel::Preview,
+            UpdateTarget::DarwinAarch64,
+            "",
+            targets,
+        ));
     }
 
     #[test]

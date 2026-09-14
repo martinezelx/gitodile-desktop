@@ -83,6 +83,11 @@ unavailable rather than accepting a placeholder. Automatic installation is a
 second compile-time deny-by-default gate,
 `GITODILE_QUALIFIED_UPDATE_TARGETS`. It must remain empty in ordinary builds
 until task 065-9-7 qualifies an exact target/mode with real signed packages.
+Public preview-testing builds use the separate compile-time
+`GITODILE_PREVIEW_TEST_UPDATE_TARGETS` gate for the canonical Windows/Linux
+pair. That gate is accepted only on the preview channel and enables real
+preview-feed A-to-B testing without changing or claiming qualification; stable
+builds never consult it.
 The fixed A/B pair instead uses a compile-time `validation` profile, controlled
 HTTPS feed and exact enabled target. That profile is rejected outside
 preview.4 and preview.5, cannot carry URL credentials, and cannot enable a

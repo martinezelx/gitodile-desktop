@@ -133,9 +133,11 @@ jobs:
       GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
       GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
       GITODILE_UPDATE_PROFILE: ${{ needs.validate.outputs.profile }}
+      GITODILE_RELEASE_CHANNEL: ${{ needs.validate.outputs.channel }}
       GITODILE_VALIDATION_UPDATE_FEED: ${{ needs.validate.outputs.profile == 'validation' && vars.GITODILE_VALIDATION_UPDATE_FEED || '' }}
       GITODILE_VALIDATION_UPDATE_TARGET: ${{ needs.validate.outputs.profile == 'validation' && matrix.target || '' }}
       GITODILE_QUALIFIED_UPDATE_TARGETS: ${{ needs.validate.outputs.profile == 'validation' && matrix.target || vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}
+      GITODILE_PREVIEW_TEST_UPDATE_TARGETS: ${{ needs.validate.outputs.profile == 'production' && needs.validate.outputs.channel == 'preview' && 'windows-x86_64,linux-x86_64' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -151,6 +153,8 @@ jobs:
           const validation = process.env.GITODILE_UPDATE_PROFILE === "validation";
           const validationTarget = process.env.GITODILE_VALIDATION_UPDATE_TARGET ?? "";
           const qualifiedTargets = process.env.GITODILE_QUALIFIED_UPDATE_TARGETS ?? "";
+          const previewTestTargets = process.env.GITODILE_PREVIEW_TEST_UPDATE_TARGETS ?? "";
+          const previewTesting = process.env.GITODILE_UPDATE_PROFILE === "production" && process.env.GITODILE_RELEASE_CHANNEL === "preview";
           if (!process.env.GITODILE_UPDATER_PUBLIC_KEY || !process.env.GITODILE_UPDATER_PUBLIC_KEY_ID) {
             throw new Error("Required public update identity is not configured for this build profile.");
           }
@@ -168,12 +172,13 @@ jobs:
             throw new Error("The selected updater identity does not match the build profile.");
           }
           if (validation) {
-            if (!process.env.GITODILE_VALIDATION_UPDATE_FEED || !validationTarget || qualifiedTargets !== validationTarget) {
+            if (!process.env.GITODILE_VALIDATION_UPDATE_FEED || !validationTarget || qualifiedTargets !== validationTarget || previewTestTargets !== "") {
               throw new Error("Controlled validation routing must enable only this matrix target.");
             }
           } else if (validationTarget !== "" || process.env.GITODILE_VALIDATION_UPDATE_FEED !== "" ||
-                     !new Set(["", "windows-x86_64,linux-x86_64"]).has(qualifiedTargets)) {
-            throw new Error("Production eligibility must be empty for testing or the reviewed canonical Windows/Linux target set.");
+                     !new Set(["", "windows-x86_64,linux-x86_64"]).has(qualifiedTargets) ||
+                     previewTestTargets !== (previewTesting ? "windows-x86_64,linux-x86_64" : "")) {
+            throw new Error("Production preview testing and qualified eligibility must use only the canonical Windows/Linux target set.");
           }
           NODE
       - name: Install Linux packaging dependencies

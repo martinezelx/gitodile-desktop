@@ -364,6 +364,8 @@ test("workflows expose no branch publication path and pin external actions", () 
   ]);
   assert.equal(candidate.parsed.jobs.build.env.GITODILE_QUALIFIED_UPDATE_TARGETS,
     "${{ needs.validate.outputs.profile == 'validation' && matrix.target || vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}");
+  assert.equal(candidate.parsed.jobs.build.env.GITODILE_PREVIEW_TEST_UPDATE_TARGETS,
+    "${{ needs.validate.outputs.profile == 'production' && needs.validate.outputs.channel == 'preview' && 'windows-x86_64,linux-x86_64' || '' }}");
   const identityGuard = candidate.parsed.jobs.build.steps.find((step) => step.name === "Require reviewed public updater identity");
   assert.match(identityGuard.run, /Validation and production updater identities must both exist and be distinct/);
   assert.match(identityGuard.run, /qualifiedTargets !== validationTarget/);
