@@ -43,6 +43,7 @@ jobs:
       - name: Validate the coordinator workflow run
         env:
           AUTHORIZATION_RUN_ID: ${{ inputs.authorization_run_id }}
+          REQUESTED_TAG: ${{ inputs.tag }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           node --input-type=module <<'NODE'
@@ -54,9 +55,10 @@ jobs:
           });
           if (!response.ok) throw new Error(`Coordinator run lookup failed with HTTP ${response.status}.`);
           const run = await response.json();
+          const expectedBranch = (process.env.REQUESTED_TAG ?? "").replace(/^v/, "release/");
           if (run.name !== "Merge-driven release coordinator" || run.event !== "pull_request_target" ||
               run.repository?.full_name !== process.env.GITHUB_REPOSITORY ||
-              run.path !== ".github/workflows/merge-driven-release.yml" || run.head_branch !== "main" ||
+              run.path !== ".github/workflows/merge-driven-release.yml" || run.head_branch !== expectedBranch ||
               !new Set(["in_progress", "completed"]).has(run.status)) {
             throw new Error("Authorization did not originate in the trusted merge coordinator.");
           }

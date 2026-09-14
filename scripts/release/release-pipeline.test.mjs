@@ -351,6 +351,8 @@ test("workflows expose no branch publication path and pin external actions", () 
     }
   }
   const candidate = readWorkflow("private-candidate-build.yml");
+  assert.match(candidate.source, /replace\(\/\^v\/, "release\/"\)/,
+    "a pull_request_target coordinator reports the same-repository release head branch, not main");
   assert.deepEqual(Object.keys(candidate.parsed.on), ["workflow_dispatch"]);
   assert.deepEqual(candidate.parsed.permissions, { actions: "read", contents: "read" });
   assert.equal(candidate.parsed["run-name"], "Private candidate ${{ inputs.tag }} at ${{ inputs.sha }}");
