@@ -98,6 +98,10 @@ jobs:
           cache: pnpm
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install Linux system dependencies for the full Rust gate
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Require the full repository and live feedback contracts
         run: pnpm run check:publication
       - name: Derive the immutable notes path

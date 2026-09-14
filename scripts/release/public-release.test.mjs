@@ -427,6 +427,8 @@ test("the publication workflow chains successful signing, stays protected, and k
   assert.doesNotMatch(JSON.stringify(workflow.jobs.publish), /GITHUB_TOKEN|github\.token|source-run-id/);
   assert.match(source, /validated-source-run\.json/);
   assert.match(source, /qualification-evidence\.mjs/);
+  assert.match(source, /libwebkit2gtk-4\.1-dev/,
+    "the privileged publication gate must install the Linux libraries required by pnpm run check");
   assert.match(source, /"preview-testing"/);
   assert.equal(workflow.jobs.publish.environment,
     "${{ needs.authorize-and-stage.outputs.mode == 'validation-draft' && 'public-release-validation-draft' || 'public-release-production' }}");
