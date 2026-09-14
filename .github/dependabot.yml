@@ -1,19 +1,52 @@
 version: 2
+
+# Dependency updates arrive once a week, in one grouped pull request per
+# ecosystem, and never rebase themselves. Every rebase re-runs the full CI
+# matrix, so an ungrouped, auto-rebasing configuration multiplies runner
+# contention exactly when `main` moves most: while a release is in flight.
+# Major updates stay individual so they are reviewed on their own.
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+      day: monday
+      time: "07:00"
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 3
+    rebase-strategy: disabled
+    groups:
+      npm-minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+      day: monday
+      time: "07:00"
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 3
+    rebase-strategy: disabled
+    groups:
+      cargo-minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # The updater plugin is pinned exactly and reviewed by hand; see
+      # docs/architecture/app-update-contracts.md.
+      - dependency-name: tauri-plugin-updater
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+      day: monday
+      time: "07:00"
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 3
+    rebase-strategy: disabled
+    groups:
+      actions:
+        patterns: ["*"]

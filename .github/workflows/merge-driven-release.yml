@@ -95,7 +95,7 @@ jobs:
             git tag "$RELEASE_TAG" "$RELEASE_SHA"
             git push release-origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
           fi
-      - name: Dispatch the secretless Windows/Linux candidate build explicitly
+      - name: Dispatch the release pipeline explicitly
         env:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
@@ -103,19 +103,19 @@ jobs:
           AUTHORIZATION_RUN_ID: ${{ github.run_id }}
         run: |
           node --input-type=module <<'NODE'
-          const workflow = "private-candidate-build.yml";
-          const title = `Private candidate ${process.env.RELEASE_TAG} at ${process.env.RELEASE_SHA}`;
+          const workflow = "release-pipeline.yml";
+          const title = `Release ${process.env.RELEASE_TAG} at ${process.env.RELEASE_SHA}`;
           const headers = { Accept: "application/vnd.github+json", Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "Content-Type": "application/json", "X-GitHub-Api-Version": "2022-11-28" };
           const runsResponse = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?event=workflow_dispatch&per_page=100`, {
             headers, signal: AbortSignal.timeout(30000), redirect: "error",
           });
-          if (!runsResponse.ok) throw new Error(`Candidate run lookup failed with HTTP ${runsResponse.status}.`);
+          if (!runsResponse.ok) throw new Error(`Release pipeline run lookup failed with HTTP ${runsResponse.status}.`);
           const runs = (await runsResponse.json()).workflow_runs ?? [];
           const existing = runs.find((run) => run.display_title === title &&
             (new Set(["queued", "in_progress", "waiting", "requested", "pending"]).has(run.status) ||
              (run.status === "completed" && run.conclusion === "success")));
           if (existing) {
-            process.stdout.write(`Candidate run ${existing.id} already covers this immutable tag and SHA.\n`);
+            process.stdout.write(`Release pipeline run ${existing.id} already covers this immutable tag and SHA.\n`);
             process.exit(0);
           }
           const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches`, {
@@ -124,7 +124,7 @@ jobs:
             body: JSON.stringify({ ref: "main", inputs: { authorization_run_id: process.env.AUTHORIZATION_RUN_ID, tag: process.env.RELEASE_TAG, sha: process.env.RELEASE_SHA } }),
             signal: AbortSignal.timeout(30000), redirect: "error",
           });
-          if (response.status !== 204) throw new Error(`Candidate dispatch failed with HTTP ${response.status}.`);
+          if (response.status !== 204) throw new Error(`Release pipeline dispatch failed with HTTP ${response.status}.`);
           NODE
       - name: Remove the in-memory key file
         if: always()

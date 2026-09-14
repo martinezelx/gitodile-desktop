@@ -22,6 +22,20 @@ issues, releases, downloads and feeds to `martinezelx/gitodile`. The earlier
 names below describe the historical observation only; no runtime or publication
 contract relies on their redirects.
 
+An amendment on 2026-09-14 retires the internal test route that preceded the
+first public preview: the separate `validation` signing key and build profile,
+the controlled validation feed, the fixed `0.2.0-preview.4`/`.5` and
+`.6`/`.7` qualification pairs, the `validation-draft` publication mode and the
+controlled qualification bundle. "Development tests use a separate key and
+feed" below is therefore historical. Every build now embeds the one production
+updater key and is routed only by its version's channel; the candidate build,
+OS-trust boundary, updater signing, staging and publication run as jobs of one
+`release-pipeline.yml` run dispatched by the merge coordinator; and installed
+A-to-B qualification evidence is taken from two real consecutive public
+preview releases whose versions are recorded as data in the qualification
+registry, never fixed in code. Tags `v0.2.0-preview.2` through `.5` remain in
+the source repository as history but certify nothing.
+
 ## Context
 
 GitOdile needs to update its installed desktop application without interrupting

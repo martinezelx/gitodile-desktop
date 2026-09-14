@@ -14,7 +14,6 @@ export const REQUIRED_TARGETS = Object.freeze(
 export const TARGET_CONTRACTS = Object.freeze(
   Object.fromEntries(updateContract.targets.map((target) => [target.key, Object.freeze({ ...target })])),
 );
-export const QUALIFICATION_PAIR = Object.freeze([...updateContract.validationBuilds]);
 
 const STABLE = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 const PREVIEW = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-preview\.([1-9][0-9]*)$/;
@@ -32,6 +31,26 @@ export function parseReleaseVersion(version) {
   if (STABLE.test(version)) return { version, channel: "stable", githubPrerelease: false };
   if (PREVIEW.test(version)) return { version, channel: "preview", githubPrerelease: true };
   throw new ReleaseValidationError("invalid_tag", `unsupported release version: ${version}`);
+}
+
+/** SemVer order restricted to the two supported shapes: every `X.Y.Z-preview.N`
+ * precedes its `X.Y.Z` stable successor. */
+export function compareReleaseVersions(left, right) {
+  const parse = (version) => {
+    const release = parseReleaseVersion(version);
+    const [core, prerelease] = version.split("-preview.");
+    return { release, core: core.split(".").map(BigInt), preview: prerelease ? BigInt(prerelease) : null };
+  };
+  const a = parse(left);
+  const b = parse(right);
+  for (let index = 0; index < 3; index += 1) {
+    if (a.core[index] < b.core[index]) return -1;
+    if (a.core[index] > b.core[index]) return 1;
+  }
+  if (a.preview === b.preview) return 0;
+  if (a.preview === null) return 1;
+  if (b.preview === null) return -1;
+  return a.preview < b.preview ? -1 : 1;
 }
 
 export function parseReleaseTag(tag) {
@@ -125,8 +144,6 @@ export function validateReleaseCandidate({
     source: { tag, sha, approvedMainRef: mainRef },
     release: {
       ...release,
-      purpose: QUALIFICATION_PAIR.includes(release.version) ? "qualification" : "release_candidate",
-      signingProfile: QUALIFICATION_PAIR.includes(release.version) ? "validation" : "production",
       publicPromotionAllowed: false,
     },
     matrix: {

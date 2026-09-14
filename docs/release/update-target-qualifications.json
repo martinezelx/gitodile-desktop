@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "releaseMatrix": {
     "enabledTargets": [
       "windows-x86_64",
@@ -21,23 +21,6 @@
         "evidence": []
       }
     ]
-  },
-  "validationQualification": {
-    "status": "pending",
-    "signingProfile": "validation",
-    "fromVersion": "0.2.0-preview.4",
-    "toVersion": "0.2.0-preview.5",
-    "evidence": null
-  },
-  "publicPreviewQualification": {
-    "status": "pending",
-    "signingProfile": "production",
-    "fromVersion": "0.2.0-preview.6",
-    "toVersion": "0.2.0-preview.7",
-    "productionUpdaterPublicKeyId": null,
-    "releases": [],
-    "feed": null,
-    "targets": []
   },
   "productionPromotion": {
     "enabled": false,

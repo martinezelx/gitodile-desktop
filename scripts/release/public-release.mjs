@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseReleaseVersion, ReleaseValidationError, REQUIRED_TARGETS } from "./release-candidate.mjs";
+import { compareReleaseVersions, parseReleaseVersion, ReleaseValidationError, REQUIRED_TARGETS } from "./release-candidate.mjs";
 import { verifyCompleteMatrix, verifyEvidenceArtifacts } from "./release-evidence.mjs";
 import { validateQualificationRegistry } from "./qualification-evidence.mjs";
 
@@ -32,23 +32,7 @@ function collectEvidenceFiles(directory) {
   return result;
 }
 
-export function compareReleaseVersions(left, right) {
-  const parse = (version) => {
-    const release = parseReleaseVersion(version);
-    const [core, prerelease] = version.split("-preview.");
-    return { release, core: core.split(".").map(BigInt), preview: prerelease ? BigInt(prerelease) : null };
-  };
-  const a = parse(left);
-  const b = parse(right);
-  for (let index = 0; index < 3; index += 1) {
-    if (a.core[index] < b.core[index]) return -1;
-    if (a.core[index] > b.core[index]) return 1;
-  }
-  if (a.preview === b.preview) return 0;
-  if (a.preview === null) return 1;
-  if (b.preview === null) return -1;
-  return a.preview < b.preview ? -1 : 1;
-}
+export { compareReleaseVersions };
 
 export function validateQualification(qualification, candidate, mode) {
   return validateQualificationRegistry(qualification, candidate, mode);
@@ -104,14 +88,11 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
   });
   const ordered = verifyCompleteMatrix(evidence, candidate, { requiredPhase: "signed" });
   const gate = validateQualification(qualification, candidate, mode);
-  const publishes = mode === "production" || mode === "preview-testing";
   const publishedNotes = mode === "preview-testing" ? `${PREVIEW_TESTING_NOTICE}\n\n${notesMarkdown}` : notesMarkdown;
-  if (publishes) {
-    const validShape = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(publishedAt ?? "");
-    const parsedDate = validShape ? new Date(publishedAt) : null;
-    if (!parsedDate || Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().replace(".000Z", "Z") !== publishedAt) {
-      fail("publication_date_invalid", "feed publication needs a valid fixed UTC timestamp");
-    }
+  const validShape = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(publishedAt ?? "");
+  const parsedDate = validShape ? new Date(publishedAt) : null;
+  if (!parsedDate || Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().replace(".000Z", "Z") !== publishedAt) {
+    fail("publication_date_invalid", "feed publication needs a valid fixed UTC timestamp");
   }
   const names = new Set();
   const assets = [];
@@ -135,7 +116,7 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
   const manifest = {
     version: candidate.release.version,
     notes: normalizeNotes(publishedNotes),
-    pub_date: publishes ? publishedAt : null,
+    pub_date: publishedAt,
     platforms,
   };
   const manifestBytes = `${JSON.stringify(manifest, null, 2)}\n`;
@@ -159,7 +140,7 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
     mode,
     destination: PUBLIC_REPOSITORY,
     source: { tag: candidate.source.tag, sha: candidate.source.sha },
-    release: { version: candidate.release.version, channel: candidate.release.channel, githubPrerelease: parsed.githubPrerelease, publishedAt: publishes ? publishedAt : null },
+    release: { version: candidate.release.version, channel: candidate.release.channel, githubPrerelease: parsed.githubPrerelease, publishedAt },
     qualification: gate,
     notesMarkdown: publishedNotes,
     manifest,

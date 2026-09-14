@@ -30,9 +30,8 @@ flag or screen-local draft check.
 The repository was inspected rather than treating the planning documents as
 runtime evidence:
 
-- npm, Cargo, Cargo's root lock entry, and Tauri all contain
-  `0.2.0-preview.5`; the version is the unpublished destination candidate for
-  the corrected validation pair;
+- npm, Cargo, Cargo's root lock entry, and Tauri all contain the current
+  preview version; the release pipeline refuses any disagreement between them;
 - the Tauri identity is `app.gitodile.desktop` and bundling is active. The base
   `bundle.targets` remains `all`, but the mandatory platform overlays restrict
   Windows to `nsis`, Linux to `appimage`, and disable macOS bundling. These
@@ -87,11 +86,8 @@ Public preview-testing builds use the separate compile-time
 `GITODILE_PREVIEW_TEST_UPDATE_TARGETS` gate for the canonical Windows/Linux
 pair. That gate is accepted only on the preview channel and enables real
 preview-feed A-to-B testing without changing or claiming qualification; stable
-builds never consult it.
-The fixed A/B pair instead uses a compile-time `validation` profile, controlled
-HTTPS feed and exact enabled target. That profile is rejected outside
-preview.4 and preview.5, cannot carry URL credentials, and cannot enable a
-different target or either disabled macOS target.
+builds never consult it. There is no other build profile: every build embeds
+the one reviewed public key and can only be routed to the two public feeds.
 
 The renderer-facing feature exposes only typed GitOdile commands and opaque
 candidate/operation IDs. There is no JavaScript updater dependency and the
@@ -154,18 +150,15 @@ The two production feed identities are fixed in native build metadata:
 struct BuildUpdateIdentity {
     version: ReleaseVersion,
     channel: ReleaseChannel,
-    profile: Production | Validation,
     feed: KnownFeed,
     public_key_id: UpdaterPublicKeyId,
 }
 ```
 
-`ReleaseChannel` and `KnownFeed` are closed enums. Production values come from
-the validated version and checked release configuration. A validation build
-uses a compile-time controlled feed, exact build target and distinct validation
-public key, but it cannot promote either production feed. The renderer can request a
-check; it cannot provide a channel, URL, public key, installer path, target, or
-arbitrary request headers.
+`ReleaseChannel` and `KnownFeed` are closed enums. Every value comes from
+the validated version and the reviewed public key compiled into the build. The
+renderer can request a check; it cannot provide a channel, URL, public key,
+installer path, target, or arbitrary request headers.
 
 ## Target and installation matrix
 
@@ -372,35 +365,31 @@ authorize the default-branch coordinator. It requires the exact merge SHA at
 the current `main` tip, the complete named check set, a release-only diff and
 matching metadata before an environment-protected deploy key creates the exact
 lightweight tag and dispatches the non-secret build. Manual tags, direct pushes
-and fork pull requests cannot authorize it. The build
-matrix exports packages and hashes only. A later `workflow_run`, loaded from
-protected `main`, repeats object-level validation and complete-matrix checks
-before environment-protected jobs receive narrowly scoped OS/updater signing
-credentials. Those jobs do not check out candidate source. The final evidence
+and fork pull requests cannot authorize it. Within that one pipeline run the
+build matrix exports packages and hashes only; later jobs repeat object-level
+validation and complete-matrix checks before the environment-protected
+updater-signing job receives its narrowly scoped credentials. Those jobs do
+not check out candidate source. The final evidence
 records updater, OS-trust and notarization results separately and always sets
 `publicPromotionAllowed` to false. Operational setup, backups, rotation and
 loss response are owned by the [runbook](../release/signed-builds.md).
 
 ## Two-build qualification plan
 
-The controlled forward pair is:
-
-```text
-A = 0.2.0-preview.4 / v0.2.0-preview.4
-B = 0.2.0-preview.5 / v0.2.0-preview.5
-```
-
-Build A is the current unpublished candidate and build B is its planned
-successor. They use a separate validation key and feed and must not advance
-`preview.json` or `stable.json`. For each enabled target:
+Qualification proves one forward transition between two real, consecutive
+public preview releases (A then B) built, signed and published by the normal
+release pipeline with the production key and the public `preview.json` feed.
+The versions are recorded in the evidence, not fixed in code. For each enabled
+target:
 
 1. prepare each exact version with `pnpm run release:prepare -- <version>` on
    the required `release/<version>` branch, merge its reviewed pull request into
    `main`, let the protected coordinator tag that exact checked merge commit,
    and prove npm/Cargo/lock/Tauri,
    tag, manifest, target, and GitHub prerelease agreement;
-2. build final packages in the intended trusted platform job, apply OS signing
-   and notarization where applicable, then updater-sign the final bytes;
+2. let the pipeline build final packages, record the OS-trust boundary,
+   updater-sign the final bytes and publish the prerelease with its advanced
+   `preview.json`;
 3. install A through its normal first-install artifact in the normal location,
    including one path with spaces/non-ASCII characters;
 4. create settings/session/draft evidence and dirty tracked and untracked files,
@@ -413,14 +402,15 @@ successor. They use a separate validation key and feed and must not advance
    interrupted handoff cases; verify manual reinstall guidance without
    downgrade or success loops;
 7. retain package hashes, updater/OS signature verification, notary result,
-   source SHA/tag, CI run, installation mode/path class, OS/architecture, and
-   observed result in task 065-9-7.
+   source SHA/tag, pipeline run, public release and feed identities,
+   installation mode/path class, OS/architecture, and observed result in
+   tasks 065-9-7/065-9-8.
 
 A release-enabled target remains unadvertised and `qualification_required`
-until all of its real package evidence is complete. The schema-version-3
-registry additionally binds
-both signed matrix identities, platform trust, preservation, failure cases and
-the installed transition to the exact target. See
+until all of its real package evidence is complete. The schema-version-4
+registry additionally binds both public release identities, the feed that
+served B, platform trust, preservation, failure cases and the installed
+transition to the exact target. See
 [`docs/release/updater-qualification.md`](../release/updater-qualification.md).
 The contract fixtures validate selection and metadata now; they are not
 substitutes for the two installations. Darwin remains `planned_disabled` with
