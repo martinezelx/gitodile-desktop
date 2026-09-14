@@ -379,9 +379,11 @@ test("feed publication uses one non-forced compare-and-swap ref update", async (
 });
 
 test("source workflow and public README contracts reject unsafe provenance and update guidance idempotently", () => {
+  // Shape observed from GET /actions/runs/34905088346: with `run-name` set,
+  // the API reports the per-run title in `name`, not the workflow name.
   const run = {
-    id: 42,
-    name: "Release pipeline",
+    id: 34905088346,
+    name: "Release v0.2.0-preview.10 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5",
     event: "workflow_dispatch",
     status: "in_progress",
     conclusion: null,
@@ -390,6 +392,9 @@ test("source workflow and public README contracts reject unsafe provenance and u
     repository: { full_name: "martinezelx/gitodile-desktop" },
   };
   assert.equal(validateSourceRun(run, "martinezelx/gitodile-desktop"), true);
+  assert.equal(validateSourceRun({ ...run, name: "Release v0.2.0 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5" }, "martinezelx/gitodile-desktop"), true);
+  expectCode("source_run_invalid", () => validateSourceRun({ ...run, name: "Release pipeline" }, "martinezelx/gitodile-desktop"));
+  expectCode("source_run_invalid", () => validateSourceRun({ ...run, name: "Release v0.2.0-alpha.1 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5" }, "martinezelx/gitodile-desktop"));
   assert.equal(validateSourceRun({ ...run, status: "completed", conclusion: "success" }, "martinezelx/gitodile-desktop"), true);
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, status: "completed", conclusion: "failure" }, "martinezelx/gitodile-desktop"));
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, status: "completed", conclusion: null }, "martinezelx/gitodile-desktop"));
