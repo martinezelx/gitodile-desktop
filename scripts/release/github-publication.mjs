@@ -105,13 +105,19 @@ export async function anonymousHash(url, fetchImpl = fetch) {
   return sha256(Buffer.from(await response.arrayBuffer()));
 }
 
+/** `GET /releases/tags/{tag}` only resolves published releases: a draft is
+ * not bound to its tag until it is published, so reconciling an interrupted
+ * publication has to list releases (drafts included, which the destination
+ * credential can read) and match the tag name. */
 async function releaseByTag(client, tag) {
-  try {
-    return await client.api(`/releases/tags/${encodeURIComponent(tag)}`);
-  } catch (error) {
-    if (error instanceof ReleaseValidationError && /HTTP 404/.test(error.message)) return null;
-    throw error;
+  for (let page = 1; page <= 10; page += 1) {
+    const releases = await client.api(`/releases?per_page=100&page=${page}`);
+    const matches = releases.filter((release) => release.tag_name === tag);
+    if (matches.length > 1) fail("release_conflict", `destination holds ${matches.length} releases named ${tag}`);
+    if (matches.length === 1) return matches[0];
+    if (releases.length < 100) return null;
   }
+  fail("release_conflict", "destination release list is unexpectedly long");
 }
 
 async function publicMain(client) {
@@ -204,7 +210,7 @@ export async function publish({ directory, token, sourceRun, sourceRepository, f
     }
   }
   for (const asset of reconcileAssets(plan.assets, release.assets ?? [], hashes, !release.draft)) await uploadAsset(client, release, directory, asset);
-  release = await releaseByTag(client, plan.source.tag);
+  release = await client.api(`/releases/${release.id}`);
   if (release.draft) release = await client.api(`/releases/${release.id}`, { method: "PATCH", body: JSON.stringify({ draft: false, prerelease: plan.release.githubPrerelease }) }, [200]);
   const freshHashes = await downloadExistingHashes(release, plan.assets, fetchImpl);
   reconcileAssets(plan.assets, release.assets ?? [], freshHashes, true);

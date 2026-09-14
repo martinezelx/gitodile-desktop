@@ -20,8 +20,8 @@ import {
   REQUIRED_PUBLISHER_CHECKS,
   validateTargetEvidence,
 } from "./qualification-evidence.mjs";
-import { compareReleaseVersions, feedsForPromotion, preparePublication, updateFeedbackReadme } from "./public-release.mjs";
-import { anonymousHash, atomicPublicCommit, reconcileAssets, validateSourceRun } from "./github-publication.mjs";
+import { compareReleaseVersions, feedsForPromotion, preparePublication, runPrepareCli, updateFeedbackReadme } from "./public-release.mjs";
+import { anonymousHash, atomicPublicCommit, publish, reconcileAssets, validateSourceRun } from "./github-publication.mjs";
 
 function expectCode(code, callback) {
   assert.throws(callback, (error) => error instanceof ReleaseValidationError && error.code === code);
@@ -376,6 +376,159 @@ test("feed publication uses one non-forced compare-and-swap ref update", async (
   assert.equal(update.endpoint, "/git/refs/heads/main");
   assert.deepEqual(JSON.parse(update.options.body), { sha: "next-commit", force: false });
   assert.equal(calls.filter((call) => call.endpoint === "/git/commits").length, 1);
+});
+
+
+/** A destination that behaves like GitHub: drafts are absent from
+ * `/releases/tags/{tag}` and present in `/releases`; asset bytes are served
+ * authenticated by API URL while draft and anonymously by browser URL once
+ * published; `main` advances through the Git data API. */
+function fakeDestination({ initialRelease = null, initialFiles = {} } = {}) {
+  const state = {
+    mainSha: "c".repeat(40),
+    tagSha: null,
+    releases: initialRelease ? [initialRelease] : [],
+    files: { ...initialFiles },
+    blobs: new Map(),
+    trees: new Map(),
+    commits: new Map(),
+    calls: [],
+    nextId: 1000,
+  };
+  const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
+  const fetchImpl = async (url, options = {}) => {
+    const method = options.method ?? "GET";
+    const { pathname, searchParams } = new URL(url);
+    state.calls.push(`${method} ${pathname}`);
+    const api = pathname.replace("/repos/martinezelx/gitodile", "");
+    if (pathname.startsWith("/assets/")) {
+      const asset = state.releases.flatMap((release) => release.assets).find((item) => item.url === url || item.browser_download_url === url);
+      if (!asset) return new Response("missing", { status: 404 });
+      const release = state.releases.find((item) => item.assets.includes(asset));
+      const anonymous = !options.headers?.Authorization;
+      if (anonymous && release.draft) return new Response("draft assets are not public", { status: 404 });
+      return new Response(asset.bytes, { status: 200 });
+    }
+    if (api === "" && method === "GET") return json({ visibility: "public", archived: false, default_branch: "main" });
+    if (api === "/git/ref/heads/main") return json({ object: { sha: state.mainSha } });
+    if (api.startsWith("/git/ref/tags/")) return state.tagSha ? json({ object: { type: "commit", sha: state.tagSha } }) : json({ message: "Not Found" }, 404);
+    if (api === "/git/refs" && method === "POST") { state.tagSha = JSON.parse(options.body).sha; return json({}, 201); }
+    if (api.startsWith("/releases/tags/")) {
+      const release = state.releases.find((item) => item.tag_name === decodeURIComponent(api.slice("/releases/tags/".length)) && !item.draft);
+      return release ? json(release) : json({ message: "Not Found" }, 404);
+    }
+    if (api === "/releases" && method === "GET") return json(searchParams.get("page") === "1" ? state.releases : []);
+    if (api === "/releases" && method === "POST") {
+      const body = JSON.parse(options.body);
+      const release = { id: state.nextId++, tag_name: body.tag_name, draft: body.draft, prerelease: body.prerelease, body: body.body, assets: [],
+        upload_url: `https://uploads.example/releases/${state.nextId - 1}/assets{?name,label}` };
+      state.releases.push(release);
+      return json(release, 201);
+    }
+    if (pathname.startsWith("/releases/") && url.startsWith("https://uploads.example/")) {
+      const release = state.releases.find((item) => item.upload_url.startsWith(`https://uploads.example/releases/${item.id}`));
+      const name = searchParams.get("name");
+      const bytes = Buffer.from(options.body);
+      release.assets.push({ name, size: bytes.length, bytes, url: `https://api.example/assets/${state.nextId}`, browser_download_url: `https://public.example/assets/${state.nextId++}/${name}` });
+      return json({}, 201);
+    }
+    const releaseById = api.match(/^\/releases\/(\d+)$/);
+    if (releaseById) {
+      const release = state.releases.find((item) => item.id === Number(releaseById[1]));
+      if (!release) return json({ message: "Not Found" }, 404);
+      if (method === "PATCH") Object.assign(release, JSON.parse(options.body));
+      return json(release);
+    }
+    if (api.startsWith("/contents/")) {
+      const file = decodeURIComponent(api.slice("/contents/".length).split("?")[0]);
+      return state.files[file] === undefined
+        ? json({ message: "Not Found" }, 404)
+        : json({ encoding: "base64", content: Buffer.from(state.files[file]).toString("base64"), sha: "f".repeat(40) });
+    }
+    if (api.startsWith("/git/commits/") && method === "GET") return json({ tree: { sha: "t".repeat(40) } });
+    if (api === "/git/blobs") { const sha = `b${state.blobs.size}`.padEnd(40, "0"); state.blobs.set(sha, Buffer.from(JSON.parse(options.body).content, "base64").toString("utf8")); return json({ sha }, 201); }
+    if (api === "/git/trees") { const sha = `e${state.trees.size}`.padEnd(40, "0"); state.trees.set(sha, JSON.parse(options.body).tree); return json({ sha }, 201); }
+    if (api === "/git/commits" && method === "POST") { const sha = `d${state.commits.size}`.padEnd(40, "0"); state.commits.set(sha, JSON.parse(options.body)); return json({ sha }, 201); }
+    if (api === "/git/refs/heads/main" && method === "PATCH") {
+      const commit = state.commits.get(JSON.parse(options.body).sha);
+      for (const entry of state.trees.get(commit.tree)) state.files[entry.path] = state.blobs.get(entry.sha);
+      state.mainSha = JSON.parse(options.body).sha;
+      return json({});
+    }
+    throw new Error(`unexpected ${method} ${url}`);
+  };
+  return { state, fetchImpl };
+}
+
+function stagedPublication(version, mode) {
+  const signed = signedMatrix(version);
+  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-publish-")), "bundle");
+  const notes = path.join(path.dirname(output), "notes.md");
+  fs.writeFileSync(notes, `# GitOdile ${version}\n\nFirst public preview.\n`);
+  const qualificationFile = path.join(path.dirname(output), "qualification.json");
+  fs.writeFileSync(qualificationFile, JSON.stringify(qualification(false)));
+  runPrepareCli(["--signed", signed, "--notes", notes, "--qualification", qualificationFile, "--mode", mode, "--published-at", "2026-09-14T22:00:00Z", "--output", output]);
+  return output;
+}
+
+const SOURCE_RUN = {
+  id: 34907058498,
+  name: "Release v0.2.0-preview.10 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5",
+  event: "workflow_dispatch",
+  status: "in_progress",
+  conclusion: null,
+  path: ".github/workflows/release-pipeline.yml",
+  head_branch: "main",
+  repository: { full_name: "martinezelx/gitodile-desktop" },
+};
+const README = "# GitOdile — feedback\n\nThere is no source code here, and there are no pull requests to send. Issues,\n\nEl código de la aplicación es privado. Este repositorio no contiene código de\nla aplicación ni descargas.\n";
+
+test("a first preview publication creates the draft, publishes it, verifies anonymous bytes and advances preview.json", async () => {
+  const directory = stagedPublication("0.2.0-preview.10", "preview-testing");
+  const { state, fetchImpl } = fakeDestination({ initialFiles: { "README.md": README } });
+  const result = await publish({ directory, token: "destination-token", sourceRun: SOURCE_RUN, sourceRepository: "martinezelx/gitodile-desktop", fetchImpl });
+  assert.equal(result.state, "published");
+  assert.deepEqual(result.feedsChanged, ["preview"]);
+  const [release] = state.releases;
+  assert.equal(release.draft, false);
+  assert.equal(release.prerelease, true);
+  assert.deepEqual(release.assets.map((asset) => asset.name).sort(), [
+    "GitOdile_0.2.0-preview.10.AppImage", "GitOdile_0.2.0-preview.10.AppImage.sig", "GitOdile_0.2.0-preview.10_setup.exe", "GitOdile_0.2.0-preview.10_setup.exe.sig", "SHA256SUMS", "latest.json",
+  ]);
+  assert.equal(JSON.parse(state.files["updates/preview.json"]).version, "0.2.0-preview.10");
+  assert.equal(state.files["updates/stable.json"], undefined);
+  assert.match(state.files["README.md"], /gitodile-downloads:start/);
+  assert.equal(state.tagSha, "c".repeat(40));
+  assert.equal(state.mainSha, result.publicCommit);
+});
+
+test("an interrupted publication resumes from an existing draft that the tag lookup cannot see", async () => {
+  // The exact state left by run 34907058498: the draft exists with every
+  // asset uploaded, and GET /releases/tags/{tag} answers 404 for it.
+  const first = stagedPublication("0.2.0-preview.10", "preview-testing");
+  const seeded = fakeDestination({ initialFiles: { "README.md": README } });
+  await assert.rejects(publish({ directory: first, token: "t", sourceRun: SOURCE_RUN, sourceRepository: "martinezelx/gitodile-desktop",
+    fetchImpl: async (url, options) => {
+      if (String(url).includes("/releases/") && options?.method === "PATCH") throw new Error("network interrupted before publishing the draft");
+      return seeded.fetchImpl(url, options);
+    } }));
+  assert.equal(seeded.state.releases[0].draft, true);
+  assert.equal(seeded.state.releases[0].assets.length, 6);
+  assert.equal(seeded.state.files["updates/preview.json"], undefined);
+
+  const uploadsBefore = seeded.state.calls.filter((call) => call.includes("uploads.example") || call.startsWith("POST /releases/")).length;
+  const retry = stagedPublication("0.2.0-preview.10", "preview-testing");
+  const result = await publish({ directory: retry, token: "t", sourceRun: SOURCE_RUN, sourceRepository: "martinezelx/gitodile-desktop", fetchImpl: seeded.fetchImpl });
+  assert.equal(result.state, "published");
+  assert.equal(seeded.state.releases.length, 1, "the retry reuses the draft instead of creating a second release");
+  assert.equal(seeded.state.releases[0].draft, false);
+  assert.equal(seeded.state.calls.filter((call) => call.includes("uploads.example") || call.startsWith("POST /releases/")).length, uploadsBefore,
+    "nothing is re-uploaded when every asset already matches");
+  assert.equal(JSON.parse(seeded.state.files["updates/preview.json"]).version, "0.2.0-preview.10");
+
+  const again = await publish({ directory: stagedPublication("0.2.0-preview.10", "preview-testing"), token: "t", sourceRun: SOURCE_RUN, sourceRepository: "martinezelx/gitodile-desktop", fetchImpl: seeded.fetchImpl });
+  assert.equal(again.state, "published");
+  assert.deepEqual(again.feedsChanged, [], "a completed publication reconciles without changing the feed");
 });
 
 test("source workflow and public README contracts reject unsafe provenance and update guidance idempotently", () => {
