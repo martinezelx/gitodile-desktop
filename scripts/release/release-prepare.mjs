@@ -116,8 +116,12 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   const updated = readReleaseMetadata(repositoryRoot);
   if (Object.values(updated).some((value) => value !== version)) fail("metadata_mismatch", "prepared version metadata is inconsistent");
   if (runChecks) {
-    const executable = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-    const result = spawnSync(executable, ["run", "check:docs"], { cwd: repositoryRoot, stdio: "inherit", windowsHide: true });
+    // Node refuses to spawn a `.cmd` shim directly (EINVAL since 18.20), so
+    // Windows goes through cmd.exe with a fixed, non-interpolated command line.
+    const [executable, args] = process.platform === "win32"
+      ? ["cmd.exe", ["/d", "/s", "/c", "pnpm run check:docs"]]
+      : ["pnpm", ["run", "check:docs"]];
+    const result = spawnSync(executable, args, { cwd: repositoryRoot, stdio: "inherit", windowsHide: true });
     if (result.status !== 0) fail("consistency_check_failed", "release consistency checks failed");
   }
   return { branch, version, channel: release.channel, notes: path.relative(repositoryRoot, files.notes).replaceAll("\\", "/") };
