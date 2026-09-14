@@ -589,17 +589,22 @@ default target allowlist, so mocks or compilation cannot advertise a platform.
 
 Release packaging follows the two-workflow trust split documented in the
 [signed-build runbook](release/signed-builds.md). Source visibility is not a
-security boundary: a tag-only, secretless matrix builds exact-source packages;
-a `workflow_run` loaded from the protected default branch revalidates the Git
-object and complete enabled matrix before protected jobs can see signing
-credentials. Those jobs never execute candidate-source scripts with secrets.
+security boundary: a default-branch coordinator authorizes only a merged,
+same-repository `release/<version>` pull request with the exact required checks
+and a release-only diff. It creates the protected tag at the exact merge SHA,
+then dispatches the secretless matrix. A later `workflow_run` loaded from the
+protected default branch revalidates the Git object and complete enabled matrix
+before protected jobs can see signing credentials. Those jobs never execute
+candidate-source scripts with secrets.
 Updater and OS-trust results remain separate evidence fields, and the final
 matrix record is explicitly non-promotable. The enabled matrix is Windows
 x86-64 NSIS plus Linux x86-64 AppImage. Both macOS targets remain planned and
 disabled under task 065-10 and cannot appear in feeds or release assets.
 
-Public promotion is a third, manual-only workflow and a separate trust domain,
-documented in the [public publishing runbook](release/public-publishing.md).
+Public promotion is a third workflow and a separate trust domain, documented
+in the [public publishing runbook](release/public-publishing.md). Production is
+chained automatically from successful protected signing; only the fixed
+validation draft remains manual.
 Its unprivileged half consumes and rehashes only the complete protected signed
 artifact, runs the public feedback contract and stages a package-only bundle.
 Its serialized privileged half receives the destination-scoped credential but
@@ -644,8 +649,8 @@ assets, and browser preferences use **GitOdile** / `gitodile`:
 - browser preferences use `gitodile-*`, without a brand-compatibility reader;
 - recovery schema v1 uses `refs/gitodile/recovery/...` and
   `<git-dir>/gitodile/...`;
-- source links target `https://github.com/martinezelx/project-gitodile`; user
-  feedback targets the public `https://github.com/martinezelx/gitodile-feedback`.
+- source links target `https://github.com/martinezelx/gitodile-desktop`; user
+  feedback, releases and downloads target the public `https://github.com/martinezelx/gitodile`.
 
 The owner explicitly authorized a breaking pre-release identity reset, recorded
 in [ADR 0009](adr/0009-use-only-the-canonical-product-identity.md). Previous-brand

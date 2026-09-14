@@ -41,12 +41,14 @@ function qualification(enabled = false) {
     tag: `v${version}`,
     sourceSha: hash(index, 40),
     signedMatrixSha256: hash(index + 2, 64),
-    buildRunUrl: `https://github.com/martinezelx/project-gitodile/actions/runs/${index + 10}`,
-    signingRunUrl: `https://github.com/martinezelx/project-gitodile/actions/runs/${index + 20}`,
+    buildRunUrl: `https://github.com/martinezelx/gitodile-desktop/actions/runs/${index + 10}`,
+    signingRunUrl: `https://github.com/martinezelx/gitodile-desktop/actions/runs/${index + 20}`,
     installerArtifact: { fileName: `GitOdile-${key}-${version}-installer`, size: 1024, sha256: hash(index + 4, 64) },
     updaterArtifact: { fileName: `GitOdile-${key}-${version}-updater`, size: 2048, sha256: hash(index + 6, 64) },
     updaterSignature: { result: "passed", publicKeyId: "validation-key-1" },
-    operatingSystemTrust: key === "linux-x86_64" ? { result: "not_applicable" } : { result: "passed", publicIdentity: "test-os-identity" },
+    operatingSystemTrust: key === "linux-x86_64"
+      ? { result: "not_applicable" }
+      : { result: "not_checked", reason: "authenticode_deferred", publicIdentity: null },
     notarization: key.startsWith("darwin-") ? { result: "passed" } : { result: "not_applicable" },
   });
   return {
@@ -68,7 +70,7 @@ function qualification(enabled = false) {
       toVersion: "0.2.0-preview.5",
       evidence: {
         schemaVersion: 1,
-        controlledBundleRunUrl: "https://github.com/martinezelx/project-gitodile/actions/runs/98",
+        controlledBundleRunUrl: "https://github.com/martinezelx/gitodile-desktop/actions/runs/98",
         bundleReportSha256: "8".repeat(64),
         updaterPublicKeyId: "validation-key-1",
       },
@@ -98,7 +100,7 @@ function qualification(enabled = false) {
         workingNameClearance: { result: "passed", reviewedAt: "2026-09-11T11:00:00Z", referenceUrl: "https://example.com/clearance/065-9-7" },
         publisher: {
           result: "passed",
-          qualificationRunUrl: "https://github.com/martinezelx/project-gitodile/actions/runs/99",
+          qualificationRunUrl: "https://github.com/martinezelx/gitodile-desktop/actions/runs/99",
           reportSha256: "9".repeat(64),
           validationDraft: "passed",
           fullMatrixFailure: "passed",
@@ -118,7 +120,7 @@ function qualification(enabled = false) {
         target: key,
         result: "passed",
         observedAt: `2026-09-${String(targetIndex + 11).padStart(2, "0")}T12:00:00Z`,
-        qualificationRunUrl: `https://github.com/martinezelx/project-gitodile/actions/runs/${targetIndex + 100}`,
+        qualificationRunUrl: `https://github.com/martinezelx/gitodile-desktop/actions/runs/${targetIndex + 100}`,
         reportSha256: String(targetIndex + 1).repeat(64),
         environment: {
           os: key === "windows-x86_64" ? "windows" : key === "linux-x86_64" ? "linux" : "macos",
@@ -167,12 +169,12 @@ function signedMatrix(version) {
     fs.writeFileSync(updater, `signed-${target}-${version}`);
     fs.writeFileSync(signature, `signature-${target}`);
     artifacts.push({ role: target.startsWith("darwin-") ? "updater" : "first-install-and-updater", file: updater }, { role: "updater-signature", file: signature });
-    const validationWindows = identity.release.signingProfile === "validation" && target === "windows-x86_64";
+    const deferredWindows = target === "windows-x86_64";
     const evidence = createEvidence({ candidate: identity, target, phase: "signed", artifacts, trust: {
       updater: { result: "passed", publicIdentity: "test-key" },
       operatingSystem: target === "linux-x86_64"
         ? { result: "not_applicable" }
-        : validationWindows
+        : deferredWindows
           ? { result: "not_checked", reason: "authenticode_deferred", publicIdentity: null }
           : { result: "passed", publicIdentity: "test-os" },
       notarization: { result: target.startsWith("darwin-") ? "passed" : "not_applicable" },
@@ -249,7 +251,7 @@ test("production rejects shallow, cross-target and incomplete qualification clai
     observedAt: "2026-09-11T12:00:00Z",
     installationMode: "windows_nsis_per_user",
     signedMatrixSha256: "1".repeat(64),
-    runUrl: "https://github.com/martinezelx/project-gitodile/actions/runs/1",
+    runUrl: "https://github.com/martinezelx/gitodile-desktop/actions/runs/1",
   }];
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: shallow, mode: "production", publishedAt: "2026-09-11T12:00:00Z" }));
 
@@ -363,23 +365,27 @@ test("source workflow and public README contracts reject unsafe provenance and u
     conclusion: "success",
     path: ".github/workflows/private-candidate-signing.yml",
     head_branch: "main",
-    repository: { full_name: "martinezelx/project-gitodile" },
+    repository: { full_name: "martinezelx/gitodile-desktop" },
   };
-  assert.equal(validateSourceRun(run, "martinezelx/project-gitodile"), true);
-  expectCode("source_run_invalid", () => validateSourceRun({ ...run, conclusion: "failure" }, "martinezelx/project-gitodile"));
-  expectCode("source_run_invalid", () => validateSourceRun({ ...run, path: ".github/workflows/ci.yml" }, "martinezelx/project-gitodile"));
+  assert.equal(validateSourceRun(run, "martinezelx/gitodile-desktop"), true);
+  expectCode("source_run_invalid", () => validateSourceRun({ ...run, conclusion: "failure" }, "martinezelx/gitodile-desktop"));
+  expectCode("source_run_invalid", () => validateSourceRun({ ...run, path: ".github/workflows/ci.yml" }, "martinezelx/gitodile-desktop"));
   const first = updateFeedbackReadme("# GitOdile — feedback\n\nThere is no source code here, and there are no pull requests to send. Issues,\n\nEl código de la aplicación es privado. Este repositorio no contiene código de\nla aplicación ni descargas.\n");
-  assert.match(first, /Signed Windows x86-64/);
+  assert.match(first, /Tauri updater-signed Windows x86-64/);
+  assert.match(first, /intentionally lack Authenticode/);
   assert.match(first, /macOS is not yet qualified/);
   assert.equal(updateFeedbackReadme(first), first);
 });
 
-test("the publication workflow is manual, serialized, pinned and keeps destination credentials out of staging", () => {
+test("the publication workflow chains successful signing, stays protected, and keeps destination credentials out of staging", () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
   const source = fs.readFileSync(path.join(root, ".github", "workflows", "public-release-publishing.yml"), "utf8");
   const workflow = yaml.load(source, { schema: yaml.JSON_SCHEMA });
-  assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
-  assert.equal(workflow.concurrency.group, "gitodile-feedback-publication");
+  assert.deepEqual(Object.keys(workflow.on), ["workflow_run", "workflow_dispatch"]);
+  assert.deepEqual(workflow.on.workflow_run.workflows, ["Private candidate signing"]);
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.mode.options, ["validation-draft"]);
+  assert.equal(Object.hasOwn(workflow.on.workflow_dispatch.inputs, "published_at"), false);
+  assert.equal(workflow.concurrency.group, "gitodile-publication");
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.doesNotMatch(JSON.stringify(workflow.jobs["authorize-and-stage"]), /GITODILE_PUBLIC_RELEASE_TOKEN|contents.:.write/);
   assert.equal(workflow.jobs.publish.steps.some((step) => step.uses?.startsWith("actions/checkout@")), false);

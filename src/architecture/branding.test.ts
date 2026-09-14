@@ -32,7 +32,7 @@ describe("product identity", () => {
   });
 
   it("points issue reporting at the dedicated public tracker, never the source repository", () => {
-    expect(FEEDBACK_REPOSITORY_URL).toBe("https://github.com/martinezelx/gitodile-feedback");
+    expect(FEEDBACK_REPOSITORY_URL).toBe("https://github.com/martinezelx/gitodile");
     // Source visibility may change; reporting remains on the stable public
     // tracker so released builds do not depend on that operational choice.
     expect(readSource("src/app/issueReport.ts")).not.toContain("project-gitodile");
@@ -122,7 +122,7 @@ describe("desktop link permissions", () => {
     expect(openerPermissions).toEqual([{
       identifier: "opener:allow-open-url",
       allow: [
-        { url: "https://github.com/martinezelx/gitodile-feedback/*" },
+        { url: "https://github.com/martinezelx/gitodile/*" },
         { url: "https://git-scm.com/download/*" },
         { url: "https://tauri.app/*" },
         { url: "https://react.dev/*" },
@@ -131,7 +131,7 @@ describe("desktop link permissions", () => {
       ],
     }]);
     for (const url of [
-      "https://example.com/", "http://github.com/martinezelx/gitodile-feedback/issues/new",
+      "https://example.com/", "http://github.com/martinezelx/gitodile/issues/new",
       "https://github.com/other/tracker/issues/new", "file:///C:/private.txt", "mailto:user@example.com",
     ]) {
       expect(scopeAllows(openerScope(), url)).toBe(false);

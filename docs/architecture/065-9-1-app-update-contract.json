@@ -13,8 +13,8 @@
     ]
   },
   "feeds": {
-    "stable": "https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/stable.json",
-    "preview": "https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/preview.json"
+    "stable": "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/stable.json",
+    "preview": "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json"
   },
   "targets": [
     {

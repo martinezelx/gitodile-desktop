@@ -3,23 +3,33 @@
 This runbook implements the protected build boundary from
 [ADR 0010](../adr/0010-distribute-signed-app-updates-through-public-github-releases.md).
 It prepares candidate artifacts and access-controlled evidence only. It does not create a
-GitHub Release, upload to `gitodile-feedback`, or write `stable.json` or
+GitHub Release, upload to `gitodile`, or write `stable.json` or
 `preview.json`; those remain task 065-9-6. Real A-to-B installation
 qualification and automatic-target enablement remain tasks 065-9-7 and 065-9-8.
 
 ## Trust boundary
 
-The pipeline is two workflows with different authority:
+Release preparation and protected signing are split across three workflows with
+different authority:
 
-1. `private-candidate-build.yml` runs only for a pushed `v*` tag. Its first job
-   rejects anything except `vX.Y.Z` or `vX.Y.Z-preview.N`, verifies the exact
+1. `merge-driven-release.yml` is loaded from the protected default branch and
+   reacts only to a merged pull request from the same repository. Its
+   unprivileged job proves the head branch is exactly `release/<version>`, the
+   merge SHA is the exact current `main` tip, every required check succeeded,
+   the release diff is narrowly allowlisted, and all version metadata and
+   reviewed notes agree. Only its environment-protected job receives the
+   dedicated deploy key used to create the lightweight `v<version>` tag at that
+   exact merge SHA. It then idempotently dispatches the candidate workflow.
+2. `private-candidate-build.yml` accepts only that coordinator dispatch. Its
+   first job verifies the authorization artifact and coordinator run, the exact
    tag object and checked-out SHA, proves that SHA is in `origin/main`, and
-   reads npm, Cargo, Cargo lock and Tauri versions. Only after those checks does
-   the enabled two-target matrix (Windows x86-64 NSIS and Linux x86-64
-   AppImage) compile. It receives reviewed updater **public**
-   identity variables, but no signing or publishing secret.
-2. `private-candidate-signing.yml` is a `workflow_run` workflow loaded from the
-   default branch. It accepts only a successful same-repository tag-push run,
+   re-reads npm, Cargo, Cargo lock and Tauri versions. Only after those checks
+   does the enabled two-target matrix (Windows x86-64 NSIS and Linux x86-64
+   AppImage) compile. It receives reviewed updater **public** identity
+   variables, but no signing or publishing secret.
+3. `private-candidate-signing.yml` is a `workflow_run` workflow loaded from the
+   default branch. It accepts only a successful same-repository coordinator-
+   dispatched candidate run,
    fetches the tag without checking out candidate source, re-reads metadata
    from the exact Git object, rehashes both staged packages, and then enters
    protected signing environments. Candidate build scripts and package hooks
@@ -31,9 +41,12 @@ workflows and scripts but cannot read environment secrets, approve a protected
 environment, create a protected release tag, or use the destination-scoped
 publisher credential.
 
-All actions used by these workflows are pinned to exact commits. Both
-workflows have read-only repository permissions. There is no destination token
-and no publication step. Environment protection must require a maintainer
+All actions used by these workflows are pinned to exact commits. Candidate and
+signing jobs have read-only source-repository permissions. The coordinator has
+only the Actions read/write access needed to inspect checks and dispatch the
+candidate; protected-tag creation uses a repository-specific deploy key only
+inside `release-tagging`. There is no destination token and no publication
+step in these workflows. Environment protection must require a maintainer
 reviewer and disallow administrator bypass; approve only after comparing the
 tag, SHA, version, matrix and run link. A rejected or absent environment leaves
 the run blocked, not partially authorized.
@@ -91,19 +104,28 @@ be restricted to release maintainers.
 Windows depends on `windows-2025`; Linux depends on `ubuntu-24.04`
 and its AppImage packages. Availability in a YAML matrix is not platform
 validation. If a runner image or updater credential is missing, the
-corresponding validation job must fail or remain awaiting approval. A missing
-certificate or timestamp service blocks production Windows signing; only the
-fixed validation pair may retain an explicitly OS-untrusted artifact.
+corresponding validation job must fail or remain awaiting approval. Windows
+Authenticode is deliberately deferred through `1.0.0`. Both validation and
+production Windows evidence must therefore record `not_checked` with reason
+`authenticode_deferred`; public delivery must show the unknown-publisher
+warning. A certificate becomes a gate only when post-1.0 task 065-9-9 enables
+that signing layer.
 
 ## Preparing a candidate
 
-1. Merge the reviewed version preparation into `main` and run the complete
-   repository gate there. Confirm npm, Cargo, Cargo lock and Tauri contain the
-   exact same version.
-2. Create `v<version>` at that exact merged commit and verify locally that the
-   tag resolves to the intended SHA. Push that tag only. A branch push, pull
-   request or ordinary merge cannot start this workflow.
-3. Review the unprivileged validation job before approving any protected
+1. From a clean, up-to-date `main`, run
+   `pnpm run release:prepare -- <version>`. The command creates only
+   `release/<version>`, updates npm, Cargo, Cargo lock, Tauri and README version
+   metadata, and creates the required notes file. Review and replace every
+   notes placeholder, run the complete repository gate, commit, push the one
+   release branch and open a same-repository pull request to `main`.
+2. Require the complete named check set to succeed, review the allowlisted
+   release-only diff and merge the pull request. Direct pushes, fork pull
+   requests, manual tags and other branch names do not enter this release path.
+   The default-branch coordinator revalidates the merge and creates
+   `v<version>` idempotently at the exact merge SHA before dispatching the
+   candidate build. A pre-existing tag at any other SHA fails closed.
+3. Review the unprivileged validation jobs before approving any protected
    environment. Compare its tag and full SHA with `main`; confirm the derived
    channel (`preview` only for `-preview.N`) and both unsigned evidence
    hashes.

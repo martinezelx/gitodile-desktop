@@ -1,5 +1,5 @@
 {
-  "repository": "martinezelx/gitodile-feedback",
+  "repository": "martinezelx/gitodile",
   "diagnosticsField": "diagnostics",
   "bugTemplates": { "en": "bug.yml", "es": "bug-es.yml" },
   "featureTemplates": { "en": "feature.yml", "es": "feature-es.yml" }

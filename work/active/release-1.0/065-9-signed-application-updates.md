@@ -77,7 +77,7 @@ and controlled feeds are used first so testing does not depend on publication.
 - Establish app-wide native install admission and frontend draft protection.
   Inventory every operation before relying on the current session busy helper.
 - Add protected release CI, protected signing, one publication coordinator, public
-  release assets, and stable/preview manifests in `gitodile-feedback`.
+  release assets, and stable/preview manifests in `gitodile`.
 - Implement version-tag-triggered publication from `main`'s history, with
   `X.Y.Z-preview.N` selecting preview and `X.Y.Z` selecting stable. Derive the
   GitHub prerelease flag from that same checked version.

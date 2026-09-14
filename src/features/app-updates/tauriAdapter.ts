@@ -14,5 +14,5 @@ export const appUpdatesPort: AppUpdatesPort = {
   install: (candidateId, drafts) => invoke("install_app_update", {
     request: { candidateId, consent: true, drafts },
   }),
-  openManualDownload: () => openUrl("https://github.com/martinezelx/gitodile-feedback/releases"),
+  openManualDownload: () => openUrl("https://github.com/martinezelx/gitodile/releases"),
 };

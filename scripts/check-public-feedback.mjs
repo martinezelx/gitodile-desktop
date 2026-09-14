@@ -50,10 +50,13 @@ export function validateFeedbackSettings(repository, reporting, labels) {
 export function validatePublicationReadme(readme) {
   assert.equal((readme.match(new RegExp(GUIDANCE_START, "g")) ?? []).length, 1, "Missing or duplicate download guidance start marker");
   assert.equal((readme.match(new RegExp(GUIDANCE_END, "g")) ?? []).length, 1, "Missing or duplicate download guidance end marker");
-  assert.match(readme, /Signed Windows x86-64 NSIS installers, Linux x86-64 AppImages and their application-update files/);
-  assert.match(readme, /Los instaladores NSIS firmados para Windows x86-64, las AppImage para Linux x86-64 y sus archivos de actualización/);
+  assert.match(readme, /Tauri updater-signed Windows x86-64 NSIS installers, Linux x86-64 AppImages and their application-update files/);
+  assert.match(readme, /Windows packages through 1\.0\.0 intentionally lack Authenticode/);
+  assert.match(readme, /Los instaladores NSIS de Windows x86-64 firmados para el actualizador de Tauri/);
+  assert.match(readme, /Los paquetes de Windows hasta 1\.0\.0 carecen intencionadamente de Authenticode/);
   assert.match(readme, /macOS is not yet qualified and no macOS package is published/);
   assert.match(readme, /macOS todavía no está cualificado y no se publica ningún paquete para macOS/);
+  assert.match(readme, /https:\/\/github\.com\/martinezelx\/gitodile-desktop/);
   assert.doesNotMatch(readme, /project-gitodile/);
 }
 

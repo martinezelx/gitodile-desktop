@@ -46,7 +46,7 @@ runtime evidence:
   executable on macOS/Linux with `--no-bundle`. Separate private candidate
   workflows can package and verify a complete matrix from an eligible tag, but
   no real signing/notarization run or installed update is currently evidenced;
-- the public `martinezelx/gitodile-feedback` repository exists, is public, uses
+- the public `martinezelx/gitodile` repository exists, is public, uses
   `main`, and had no releases on 2026-09-09. Both planned feed URLs returned
   HTTP 404;
 - the source repository exposed no Actions secret names, variables, or
@@ -140,8 +140,8 @@ The two production feed identities are fixed in native build metadata:
 
 | Build channel | Feed |
 | --- | --- |
-| `stable` | `https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/stable.json` |
-| `preview` | `https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/preview.json` |
+| `stable` | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/stable.json` |
+| `preview` | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json` |
 
 `BuildUpdateIdentity` is generated and validated while building:
 
@@ -298,7 +298,7 @@ native handoff. Late events for a cancelled/superseded operation are inert.
 
 Only HTTPS is allowed. Production feed origins are the two compiled constants
 above; selected asset URLs must be version-specific GitHub Release URLs for
-`martinezelx/gitodile-feedback`, with the exact validated `vV` path. Standard
+`martinezelx/gitodile`, with the exact validated `vV` path. Standard
 GitHub HTTPS redirects may be followed within the cap. The app sends no project
 data, cookies, authentication token, persistent installation identifier, or
 renderer-supplied headers. The normal HTTP stack may expose IP address, user
@@ -346,11 +346,11 @@ Apple's [notarization requirements](https://developer.apple.com/documentation/se
 
 | Resource | Owner / required scope | Observed availability on 2026-09-09 |
 | --- | --- | --- |
-| Public feeds and versioned release assets | `martinezelx/gitodile-feedback`; repository owner `martinezelx` | Repository available; feeds 404; no releases |
+| Public feeds and versioned release assets | `martinezelx/gitodile`; repository owner `martinezelx` | Repository available; feeds 404; no releases |
 | Production updater private key/password | Release maintainer; protected release environment only | Not created/configured; no Actions secret or offline-backup evidence |
 | Production updater public key and key ID | Source config, reviewed and shipped with the app | Not created/configured |
 | Offline updater-key backup | Release maintainer plus a separately stored recovery copy | Not evidenced |
-| Cross-repository publisher credential | Prefer GitHub App installation token, Contents write only on `gitodile-feedback`; fine-grained expiring PAT is temporary fallback | Not configured; source `GITHUB_TOKEN` is repository-scoped and insufficient |
+| Cross-repository publisher credential | Prefer GitHub App installation token, Contents write only on `gitodile`; fine-grained expiring PAT is temporary fallback | Not configured; source `GITHUB_TOKEN` is repository-scoped and insufficient |
 | Windows Authenticode identity | Release maintainer; trusted Windows signing job only | Certificate/service identity and access not evidenced |
 | Apple Developer ID Application and notarization access | Future task 065-10; protected macOS environment only | Deliberately not configured for this phase; macOS is planned and disabled |
 | Linux packaging baseline | Release maintainer; protected Linux build job | Compile-only CI exists; oldest supported glibc/distro and real AppImage QA not evidenced |
@@ -362,9 +362,12 @@ needs an old-key-signed bridge build. Loss before a bridge requires manual
 reinstallation; verification is never disabled.
 
 The release workflow boundary is deny-by-default and independent of source
-visibility. A broad `v*` event only
-starts a non-secret validation job; the exact release grammar, source SHA,
-`main` ancestry and metadata agreement must pass before compilation. The build
+visibility. Only a merged same-repository `release/<version>` pull request can
+authorize the default-branch coordinator. It requires the exact merge SHA at
+the current `main` tip, the complete named check set, a release-only diff and
+matching metadata before an environment-protected deploy key creates the exact
+lightweight tag and dispatches the non-secret build. Manual tags, direct pushes
+and fork pull requests cannot authorize it. The build
 matrix exports packages and hashes only. A later `workflow_run`, loaded from
 protected `main`, repeats object-level validation and complete-matrix checks
 before environment-protected jobs receive narrowly scoped OS/updater signing
@@ -386,8 +389,10 @@ Build A is the current unpublished candidate and build B is its planned
 successor. They use a separate validation key and feed and must not advance
 `preview.json` or `stable.json`. For each enabled target:
 
-1. prepare each exact version on a short-lived version branch, merge it into
-   `main`, tag that exact checked merge commit, and prove npm/Cargo/lock/Tauri,
+1. prepare each exact version with `pnpm run release:prepare -- <version>` on
+   the required `release/<version>` branch, merge its reviewed pull request into
+   `main`, let the protected coordinator tag that exact checked merge commit,
+   and prove npm/Cargo/lock/Tauri,
    tag, manifest, target, and GitHub prerelease agreement;
 2. build final packages in the intended trusted platform job, apply OS signing
    and notarization where applicable, then updater-sign the final bytes;

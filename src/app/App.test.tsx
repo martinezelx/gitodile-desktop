@@ -427,7 +427,7 @@ describe("App project restoration", () => {
 
     expect(openUrl).toHaveBeenCalledOnce();
     const url = new URL(vi.mocked(openUrl).mock.calls[0][0]);
-    expect(url.pathname).toBe("/martinezelx/gitodile-feedback/issues/new");
+    expect(url.pathname).toBe("/martinezelx/gitodile/issues/new");
     expect(url.searchParams.get("template")).toBe("bug-es.yml");
     expect(url.searchParams.get("diagnostics")).toContain("Git: 2.50.0");
     expect(screen.queryByRole("menu")).toBeNull();

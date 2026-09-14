@@ -22,16 +22,19 @@ results and platform trust, while separately retaining the pending public
 
 ## Promotion model
 
-`.github/workflows/public-release-publishing.yml` is manual-only. Pushes, pull
-requests, merges, tags and completion of the private workflows cannot publish.
-Its input is the numeric run ID of one successful `Private candidate signing`
-workflow and one closed mode:
+`.github/workflows/public-release-publishing.yml` has one automatic production
+entry and one manual validation entry. A successful `Private candidate signing`
+`workflow_run`, evaluated by workflow code loaded from protected `main`, stages
+production promotion from that exact signing run. Ordinary pushes, pull
+requests, merges and tags cannot publish directly. The manual entry supplies
+the numeric signing run ID and is limited to `validation-draft`:
 
 - `validation-draft` accepts only the fixed validation-key pair
   `0.2.0-preview.4` / `0.2.0-preview.5`. It may reconcile a draft release but
   cannot finalize it or write `stable.json` / `preview.json`.
-- `production` accepts only a production-signing profile, a fixed UTC
-  publication timestamp and a registry that approves production plus every
+- automatic `production` accepts only a production-signing profile, derives a
+  deterministic UTC publication timestamp from the exact source commit, and
+  requires a registry that approves production plus every
   exact enabled target in the signed matrix. A missing or malformed A/B proof blocks
   the entire release; the publisher never drops the failed row to make a
   partial manifest.
@@ -47,7 +50,7 @@ credential.
 
 Only the second job enters a destination environment and receives
 `GITODILE_PUBLIC_RELEASE_TOKEN`. Use a short-lived GitHub App installation token
-with Contents write access only to `martinezelx/gitodile-feedback`; a narrowly
+with Contents write access only to `martinezelx/gitodile`; a narrowly
 scoped expiring fine-grained PAT is the temporary fallback. This job does not
 check out the source repository. Source visibility is not an authorization
 boundary. Both destination environments require
@@ -56,7 +59,9 @@ reviewers and no administrator bypass; production additionally requires the
 
 ## Immutable release sequence
 
-1. Add reviewed notes at `docs/release/notes/v<version>.md`. Do not generate
+1. Add reviewed notes at `docs/release/notes/v<version>.md` on the one
+   `release/<version>` branch created by `pnpm run release:prepare -- <version>`.
+   Do not generate
    them from source or feedback commits and do not include private links,
    authenticated URLs, local paths, credentials or signing details.
 2. Verify the referenced signing run and its single `private-signed-v<version>`
@@ -69,9 +74,11 @@ reviewers and no administrator bypass; production additionally requires the
    once to prove reconciliation. Draft assets require authenticated inspection
    because GitHub does not expose draft downloads anonymously. Confirm that no
    production feed moved. This is pipeline validation, not target qualification.
-4. After 065-9-7/065-9-8 have recorded both enabled targets and the release approval, dispatch
-   `production` with the same signing run and fixed UTC timestamp. Do not edit
-   the notes, timestamp or qualification registry during a retry.
+4. After 065-9-7/065-9-8 have recorded both enabled targets and the release
+   approval, let successful production signing trigger the protected
+   production promotion automatically. Its fixed timestamp comes from the
+   exact source commit. Do not edit the notes or qualification registry during
+   a retry.
 5. The coordinator creates the public lightweight tag at a commit in the
    feedback repository, reconciles one draft release, and uploads only missing
    assets. Existing bytes are downloaded and hashed. A conflicting byte,

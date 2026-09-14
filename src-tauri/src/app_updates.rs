@@ -40,10 +40,10 @@ const DOWNLOAD_TOTAL_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const READ_DRAIN_TIMEOUT: Duration = Duration::from_secs(5);
 const REDIRECT_LIMIT: usize = 5;
 const STABLE_FEED: &str =
-    "https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/stable.json";
+    "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/stable.json";
 const PREVIEW_FEED: &str =
-    "https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/preview.json";
-const RELEASE_PREFIX: &str = "/martinezelx/gitodile-feedback/releases/download/";
+    "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json";
+const RELEASE_PREFIX: &str = "/martinezelx/gitodile/releases/download/";
 const HANDOFF_FILE: &str = "app-update-handoff-v1.json";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2157,14 +2157,18 @@ mod tests {
         )
         .unwrap();
         let valid = reqwest::Url::parse(
-            "https://github.com/martinezelx/gitodile-feedback/releases/download/v0.2.0-preview.2/GitOdile.exe").unwrap();
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/GitOdile.exe").unwrap();
         assert!(valid_artifact_url(&production, &valid, "0.2.0-preview.2"));
         for invalid in [
-            "http://github.com/martinezelx/gitodile-feedback/releases/download/v0.2.0-preview.2/x",
-            "https://evil.invalid/martinezelx/gitodile-feedback/releases/download/v0.2.0-preview.2/x",
-            "https://github.com/martinezelx/gitodile-feedback/releases/latest/download/x",
+            "http://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x",
+            "https://evil.invalid/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x",
+            "https://github.com/martinezelx/gitodile/releases/latest/download/x",
         ] {
-            assert!(!valid_artifact_url(&production, &reqwest::Url::parse(invalid).unwrap(), "0.2.0-preview.2"));
+            assert!(!valid_artifact_url(
+                &production,
+                &reqwest::Url::parse(invalid).unwrap(),
+                "0.2.0-preview.2"
+            ));
         }
 
         let validation = build_update_identity(
@@ -2542,13 +2546,14 @@ mod tests {
 
     #[test]
     fn immutable_identity_includes_signature() {
-        let make = |signature| {
-            candidate_identity(
+        let make =
+            |signature| {
+                candidate_identity(
             ReleaseChannel::Preview, "0.2.0-preview.2", UpdateTarget::WindowsX86_64,
             InstallationMode::WindowsNsisPerUser, "v0.2.0-preview.2", "manifest",
-            "https://github.com/martinezelx/gitodile-feedback/releases/download/v0.2.0-preview.2/a.exe",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/a.exe",
             signature)
-        };
+            };
         assert_ne!(make("signature"), make("changed"));
     }
 

@@ -14,7 +14,7 @@
     {
       "identifier": "opener:allow-open-url",
       "allow": [
-        { "url": "https://github.com/martinezelx/gitodile-feedback/*" },
+        { "url": "https://github.com/martinezelx/gitodile/*" },
         { "url": "https://git-scm.com/download/*" },
         { "url": "https://tauri.app/*" },
         { "url": "https://react.dev/*" },

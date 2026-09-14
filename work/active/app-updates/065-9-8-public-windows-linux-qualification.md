@@ -147,7 +147,7 @@ submitted.
 - [ ] The controlled GitHub Pages bundle exposes only immutable validation
       paths, downloads anonymously with recorded hashes and advances only from
       `.4` to `.5`. The failed `.2`/`.3` paths remain byte-for-byte immutable.
-      It does not modify `gitodile-feedback`, production
+      It does not modify `gitodile`, production
       `preview.json` or `stable.json`.
 - [ ] A normal Windows NSIS installation updates end to end from `.4` to `.5`
       through GitOdile and truthfully reports the running version after restart.
@@ -206,7 +206,7 @@ and Rust-verifier test. The separate offline backup required before production
 distribution is still missing. The controlled validation host now exists at
 `https://martinezelx.github.io/gitodile-validation/065-9-7/updates/preview.json`.
 Bundle run
-[`34764363010`](https://github.com/martinezelx/project-gitodile/actions/runs/34764363010)
+[`34764363010`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34764363010)
 published the immutable `.2`/`.3` validation packages and feed at validation
 host commit `fbbff79`. Anonymous downloads and their expected hashes were
 verified outside an authenticated GitHub session. Windows Authenticode and the
@@ -226,7 +226,7 @@ substitute for the protected validation-key workflow or installed updater
 evidence.
 
 The first protected candidate attempt is retained as failed run
-[`34702455447`](https://github.com/martinezelx/project-gitodile/actions/runs/34702455447).
+[`34702455447`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34702455447).
 Its immutable identity validation passed, but the secretless Windows build
 failed before packaging because PowerShell removed the quotes from an inline
 JSON `--config` value. No protected signing job ran. The workflow now uses the
@@ -234,17 +234,17 @@ checked `src-tauri/tauri.unsigned.conf.json` path on both shells, and executable
 tests reject a return to inline JSON configuration.
 
 The corrected candidate run
-[`34717984524`](https://github.com/martinezelx/project-gitodile/actions/runs/34717984524)
+[`34717984524`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34717984524)
 then built the complete unsigned Windows/Linux matrix and passed its independent
 hash and provenance gate. Its downstream signing run
-[`34718448366`](https://github.com/martinezelx/project-gitodile/actions/runs/34718448366)
+[`34718448366`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34718448366)
 failed closed before accessing a protected environment: GitHub exposes
 `GITHUB_REF_TYPE=branch` to a `workflow_run`, while the revalidation command is
 checking the exact candidate tag fetched from the triggering run. The trusted
 signing workflow first attempted to supply an explicit `tag` context only to
 that step. GitHub does not permit a workflow to override its default
 `GITHUB_*` variables, so run
-[`34719287176`](https://github.com/martinezelx/project-gitodile/actions/runs/34719287176)
+[`34719287176`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34719287176)
 also failed closed at the same check even though the step log displayed the
 attempted override. The validator therefore accepts a dedicated `--ref-type`
 argument: the tag-push workflow passes GitHub's actual ref type, while the
@@ -255,9 +255,9 @@ before any signing material is reachable. Executable tests cover both the
 valid downstream revalidation and rejection of an explicit non-tag type.
 
 The next exact candidate run
-[`34719884465`](https://github.com/martinezelx/project-gitodile/actions/runs/34719884465)
+[`34719884465`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34719884465)
 passed the complete Windows/Linux build matrix. Signing run
-[`34720357070`](https://github.com/martinezelx/project-gitodile/actions/runs/34720357070)
+[`34720357070`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34720357070)
 then passed source reauthorization and both OS-boundary jobs, and the maintainer
 approved only `validation-updater-signing` after independently rehashing the
 downloaded matrices. It failed while compiling the repository-owned signature
@@ -268,10 +268,10 @@ system dependencies used by CI and builds the verifier with Cargo's lockfile
 enforced before signing any final bytes.
 
 Candidate run
-[`34749564195`](https://github.com/martinezelx/project-gitodile/actions/runs/34749564195)
+[`34749564195`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34749564195)
 then passed the complete Windows/Linux matrix at exact source
 `78d5497c69857aec0505e2cfabb10b8267425884`. Downstream signing run
-[`34749958315`](https://github.com/martinezelx/project-gitodile/actions/runs/34749958315)
+[`34749958315`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34749958315)
 passed source reauthorization and both OS-boundary jobs. The downloaded
 unsigned and OS-stage matrices passed local rehashing before the maintainer
 approved only `validation-updater-signing`. The verifier compiled successfully,
@@ -282,10 +282,10 @@ package name. The loop now reads and parses that path explicitly through
 resolution from returning.
 
 The corrected exact candidate run
-[`34750914140`](https://github.com/martinezelx/project-gitodile/actions/runs/34750914140)
+[`34750914140`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34750914140)
 passed the complete Windows/Linux build and provenance matrix at source
 `3e8f04fb1ac312b2242eccca896151b4d6ecde73`. Signing run
-[`34751381157`](https://github.com/martinezelx/project-gitodile/actions/runs/34751381157)
+[`34751381157`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34751381157)
 then passed source reauthorization and both OS boundaries. Before approving
 `validation-updater-signing`, the exact unsigned and OS-stage artifacts were
 downloaded, rehashed and accepted by the repository verifier. The protected
@@ -298,9 +298,9 @@ local verification. Windows remains explicitly `authenticode_deferred`; this
 is functional qualification evidence, not a trusted public Windows release.
 
 Candidate run
-[`34752710080`](https://github.com/martinezelx/project-gitodile/actions/runs/34752710080)
+[`34752710080`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34752710080)
 and protected signing run
-[`34753158343`](https://github.com/martinezelx/project-gitodile/actions/runs/34753158343)
+[`34753158343`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34753158343)
 produced and independently verified the corresponding `.3` Windows NSIS and
 Linux AppImage packages with the same validation updater identity. Bundle run
 `34764363010` combined both signed matrices without changing their bytes and
@@ -354,13 +354,13 @@ not installed `.4` to `.5` evidence. The fresh validation pair remains `.4` to
 pair.
 
 Candidate run
-[`34782596507`](https://github.com/martinezelx/project-gitodile/actions/runs/34782596507)
+[`34782596507`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34782596507)
 then built the exact `.4` Windows/Linux unsigned matrix at source
 `7ad84078748e324e922e35da2c229e536be139a0` and passed its complete provenance
 gate. The downloaded candidate identity and both packages passed an independent
 local `verify-matrix` rehash before only `validation-updater-signing` was
 approved. Downstream run
-[`34783155007`](https://github.com/martinezelx/project-gitodile/actions/runs/34783155007)
+[`34783155007`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34783155007)
 reauthorized the source and target matrix, retained Windows as
 `authenticode_deferred`, Tauri-signed both final packages with the validation
 updater identity, verified both signatures through the repository's Rust
@@ -371,24 +371,24 @@ controlled bundle and both real installed transitions were still pending at
 that checkpoint.
 
 Candidate run
-[`34784539362`](https://github.com/martinezelx/project-gitodile/actions/runs/34784539362)
+[`34784539362`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34784539362)
 then built the exact `.5` Windows/Linux unsigned matrix at source
 `d1b1a5dcb1cc51465abac6cd1c658d346df3e0dc`. Its downloaded artifact passed
 the independent unsigned matrix verifier before only
 `validation-updater-signing` was approved. Protected signing run
-[`34785061690`](https://github.com/martinezelx/project-gitodile/actions/runs/34785061690)
+[`34785061690`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34785061690)
 passed source reauthorization and both OS boundaries, left production
 Authenticode skipped, signed both packages with the validation updater key,
 verified the signatures with the Rust verifier and emitted the complete
 non-promoting signed matrix. The downloaded result passed the local signed
 matrix verifier. CI run
-[`34784530104`](https://github.com/martinezelx/project-gitodile/actions/runs/34784530104)
+[`34784530104`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34784530104)
 and CodeQL run
-[`34784530103`](https://github.com/martinezelx/project-gitodile/actions/runs/34784530103)
+[`34784530103`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34784530103)
 also completed successfully; every job and step was reviewed.
 
 Controlled bundle run
-[`34785483772`](https://github.com/martinezelx/project-gitodile/actions/runs/34785483772)
+[`34785483772`](https://github.com/martinezelx/gitodile-desktop/actions/runs/34785483772)
 verified both signed matrices and produced the fixed `.4` to `.5` bundle with
 `publicPromotionAllowed: false`. Its report records signed-matrix hashes
 `53a92854eca52f96f039a491333957aed93d87e2c5249ef53695a133a7fb1aee`

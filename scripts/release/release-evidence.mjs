@@ -111,23 +111,22 @@ export function verifyCompleteMatrix(evidenceItems, candidate, { requiredPhase =
       if (evidence.trust?.updater?.result !== "passed" || !evidence.trust.updater.publicIdentity) {
         throw new ReleaseValidationError("verification_incomplete", `${evidence.target} lacks updater verification`);
       }
-      const validationWindows =
-        candidate.release.signingProfile === "validation" && evidence.target === "windows-x86_64";
+      const deferredWindows = evidence.target === "windows-x86_64";
       const expectedOsResult = evidence.target === "linux-x86_64"
         ? "not_applicable"
-        : validationWindows
+        : deferredWindows
           ? "not_checked"
           : "passed";
       if (evidence.trust?.operatingSystem?.result !== expectedOsResult) {
         throw new ReleaseValidationError("verification_incomplete", `${evidence.target} lacks OS trust verification`);
       }
-      if (validationWindows && (
+      if (deferredWindows && (
         evidence.trust.operatingSystem.reason !== "authenticode_deferred" ||
         evidence.trust.operatingSystem.publicIdentity !== null
       )) {
         throw new ReleaseValidationError(
           "verification_incomplete",
-          "Windows validation without Authenticode must remain explicitly untrusted",
+          "Windows without Authenticode must remain explicitly marked authenticode_deferred",
         );
       }
       const expectedNotary = evidence.target.startsWith("darwin-") ? "passed" : "not_applicable";

@@ -37,10 +37,10 @@ export const REQUIRED_FAILURE_CASES = Object.freeze([
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const SOURCE_SHA = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
-const RUN_URL = /^https:\/\/github\.com\/martinezelx\/project-gitodile\/actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?$/;
+const RUN_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-desktop\/actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?$/;
 const HTTPS_URL = /^https:\/\//;
-const PUBLIC_RELEASE_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-feedback\/releases\/tag\/v0\.2\.0-preview\.[67]$/;
-const PUBLIC_ASSET_URL = /^https:\/\/github\.com\/martinezelx\/gitodile-feedback\/releases\/download\/v0\.2\.0-preview\.[67]\/[A-Za-z0-9._-]+$/;
+const PUBLIC_RELEASE_URL = /^https:\/\/github\.com\/martinezelx\/gitodile\/releases\/tag\/v0\.2\.0-preview\.[67]$/;
+const PUBLIC_ASSET_URL = /^https:\/\/github\.com\/martinezelx\/gitodile\/releases\/download\/v0\.2\.0-preview\.[67]\/[A-Za-z0-9._-]+$/;
 
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
@@ -78,8 +78,15 @@ function validateBuild(build, expectedVersion, target, label) {
   }
   const mac = target.startsWith("darwin-");
   const linux = target === "linux-x86_64";
+  const windows = target === "windows-x86_64";
   if (linux) {
     if (build.operatingSystemTrust?.result !== "not_applicable") fail("qualification_invalid", `${label} Linux OS trust must be not_applicable`);
+  } else if (windows) {
+    if (build.operatingSystemTrust?.result !== "not_checked" ||
+        build.operatingSystemTrust?.reason !== "authenticode_deferred" ||
+        build.operatingSystemTrust?.publicIdentity !== null) {
+      fail("qualification_invalid", `${label} Windows trust must remain authenticode_deferred`);
+    }
   } else {
     requirePassed(build.operatingSystemTrust, `${label} operating-system trust`);
     if (typeof build.operatingSystemTrust?.publicIdentity !== "string" || build.operatingSystemTrust.publicIdentity.length === 0) {
@@ -255,7 +262,7 @@ export function validatePublicPreviewQualification(record) {
     }
   }
   if (
-    record.feed?.url !== "https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/preview.json" ||
+    record.feed?.url !== "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json" ||
     record.feed?.version !== record.toVersion || !SHA256.test(record.feed?.sha256 ?? "") ||
     !SOURCE_SHA.test(record.feed?.commitSha ?? "") || !isCanonicalTimestamp(record.feed?.observedAt)
   ) fail("qualification_invalid", "public preview feed evidence is incomplete");

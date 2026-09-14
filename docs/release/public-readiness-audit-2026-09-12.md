@@ -7,7 +7,7 @@ certificate, private key or authenticated response.
 ## Scope and accepted disclosure
 
 The maintainer explicitly accepted public distribution of the
-reachable `martinezelx/project-gitodile` source under MIT, including the
+reachable `martinezelx/gitodile-desktop` source under MIT, including the
 tracked `work/` history, product strategy, design critiques and existing audit
 records. On 2026-09-12 the maintainer decided to keep the source public during
 the GitHub Actions qualification phase. Any later return to private cannot
@@ -75,8 +75,8 @@ allows only GitHub-owned Actions plus the exact pinned `pnpm/action-setup`,
 repository-wide SHA pinning is required. The default workflow token is
 read-only and cannot approve pull requests.
 
-Repository rulesets [Protect main](https://github.com/martinezelx/project-gitodile/settings/rules/22979730)
-and [Protect release tags](https://github.com/martinezelx/project-gitodile/settings/rules/22979731)
+Repository rulesets [Protect main](https://github.com/martinezelx/gitodile-desktop/settings/rules/22979730)
+and [Protect release tags](https://github.com/martinezelx/gitodile-desktop/settings/rules/22979731)
 are active. `main` rejects deletion and non-fast-forward changes and requires a
 pull request, one approval, resolved review threads and the complete CI/CodeQL
 status set for contributors without the repository-administrator bypass. Tags
@@ -95,7 +95,7 @@ stage.
 
 Secret Scanning and Push Protection are enabled and reported zero open secret
 alerts. Public-repository code scanning became available without a separate
-Advanced Security entitlement; [CodeQL run 34656016863](https://github.com/martinezelx/project-gitodile/actions/runs/34656016863)
+Advanced Security entitlement; [CodeQL run 34656016863](https://github.com/martinezelx/gitodile-desktop/actions/runs/34656016863)
 then completed successfully. It exposed two instances of an incorrectly
 escaped dynamic regular expression in a style architecture test; both were
 corrected rather than dismissed. Secret-scanning validity checks remained
@@ -111,7 +111,7 @@ vulnerabilities. The initial automatic jobs that said a security update was not
 possible ran against the preceding lockfile and are retained as evidence rather
 than concealed.
 
-[Dependabot alert 9](https://github.com/martinezelx/project-gitodile/security/dependabot/9)
+[Dependabot alert 9](https://github.com/martinezelx/gitodile-desktop/security/dependabot/9)
 also identified the `glib::VariantStrIter` unsoundness in the Linux runtime
 graph. The current Tauri 2.11.5 stack requires GTK/glib 0.18 and even Wry 0.57.0
 still depends on GTK 0.18, so no patched version is resolvable. A source search

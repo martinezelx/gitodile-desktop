@@ -46,7 +46,7 @@ remains mandatory and is not equivalent to Authenticode. See ADR 0011.
   least-privileged.
 - Produce two consecutive post-1.0 production-key previews, verify Authenticode chain,
   revocation and timestamp evidence, publish immutable assets to
-  `martinezelx/gitodile-feedback`, and prove anonymous downloads plus the real
+  `martinezelx/gitodile`, and prove anonymous downloads plus the real
   public `.4` to `.5` updater transition.
 - Update public download guidance only after the evidence passes.
 
@@ -80,4 +80,4 @@ remains mandatory and is not equivalent to Authenticode. See ADR 0011.
 - Completed controlled updater qualification from 065-9-8.
 - A real Windows x86-64 test device.
 - A publicly trusted code-signing provider and protected credentials.
-- A destination-scoped publisher credential for `gitodile-feedback`.
+- A destination-scoped publisher credential for `gitodile`.

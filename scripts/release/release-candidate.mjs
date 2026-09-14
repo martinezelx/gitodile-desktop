@@ -64,7 +64,7 @@ function readAtRevision(root, revision, relativePath) {
   return result.stdout;
 }
 
-function readMetadata(root, revision) {
+export function readReleaseMetadata(root, revision = null) {
   const read = revision
     ? (relativePath) => readAtRevision(root, revision, relativePath)
     : (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -107,7 +107,7 @@ export function validateReleaseCandidate({
     throw new ReleaseValidationError("wrong_ancestry", "tagged source revision is not in approved main history");
   }
 
-  const metadata = readMetadata(root, metadataRevision ?? (requireHead ? null : sha));
+  const metadata = readReleaseMetadata(root, metadataRevision ?? (requireHead ? null : sha));
   for (const [owner, version] of Object.entries(metadata)) {
     if (version !== release.version) {
       throw new ReleaseValidationError(
@@ -152,8 +152,8 @@ function parseArgs(argv) {
 export function runCandidateCli(argv, environment = process.env) {
   const args = parseArgs(argv);
   const event = args.get("event");
-  if (event !== "push") {
-    throw new ReleaseValidationError("invalid_event", "release candidates can only originate from a tag push");
+  if (event !== "coordinator_dispatch") {
+    throw new ReleaseValidationError("invalid_event", "release candidates require a trusted merge-coordinator dispatch");
   }
   const tag = args.get("tag");
   const refType = args.get("ref-type") ?? environment.GITHUB_REF_TYPE;

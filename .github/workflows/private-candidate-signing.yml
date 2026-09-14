@@ -18,7 +18,7 @@ jobs:
     name: Re-authorize source and complete matrix
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.event == 'workflow_dispatch' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-24.04
     outputs:
@@ -47,9 +47,7 @@ jobs:
       - name: Read candidate identity
         id: identity
         run: |
-          node -e "const c=require('./authorization/candidate.json'); const fs=require('fs'); if(c.source.sha!==process.env.HEAD_SHA) process.exit(1); fs.appendFileSync(process.env.GITHUB_OUTPUT,'tag='+c.source.tag+'\nversion='+c.release.version+'\nprofile='+c.release.signingProfile+'\nsha='+c.source.sha+'\n')"
-        env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          node -e "const c=require('./authorization/candidate.json'); const fs=require('fs'); fs.appendFileSync(process.env.GITHUB_OUTPUT,'tag='+c.source.tag+'\nversion='+c.release.version+'\nprofile='+c.release.signingProfile+'\nsha='+c.source.sha+'\n')"
       - name: Fetch exact tag and approved main boundary
         env:
           RELEASE_TAG: ${{ steps.identity.outputs.tag }}
@@ -62,7 +60,7 @@ jobs:
           SOURCE_SHA: ${{ steps.identity.outputs.sha }}
         run: >-
           node scripts/release/release-candidate.mjs
-          --event push
+          --event coordinator_dispatch
           --ref-type tag
           --tag "$RELEASE_TAG"
           --sha "$SOURCE_SHA"
@@ -75,10 +73,9 @@ jobs:
       - name: Rehash every package and require all targets
         run: node scripts/release/release-evidence.mjs verify-matrix --candidate authorization/candidate.json --directory authorization/unsigned --phase unsigned
 
-  windows-validation-boundary:
-    name: Record unsigned Windows validation boundary
+  windows-deferred-boundary:
+    name: Record deferred Windows Authenticode boundary
     needs: authorize
-    if: needs.authorize.outputs.profile == 'validation'
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -96,7 +93,7 @@ jobs:
           github-token: ${{ github.token }}
           name: unsigned-windows-x86_64
           path: input
-      - name: Rehash and retain explicitly untrusted validation bytes
+      - name: Rehash and retain explicitly OS-untrusted Windows bytes
         shell: pwsh
         run: |
           node scripts/release/release-evidence.mjs verify-artifacts --evidence input/evidence.json --directory input
@@ -105,64 +102,8 @@ jobs:
           New-Item -ItemType Directory -Path os-signed/windows-x86_64 | Out-Null
           $destination = Join-Path os-signed/windows-x86_64 $evidence.artifacts[0].fileName
           Copy-Item -LiteralPath $source -Destination $destination
-          node scripts/release/make-os-trust.mjs windows-x86_64 validation-unsigned windows-trust.json
+          node scripts/release/make-os-trust.mjs windows-x86_64 authenticode-deferred windows-trust.json
           node scripts/release/release-evidence.mjs create --candidate candidate.json --target windows-x86_64 --phase os-signed --trust windows-trust.json --artifact "first-install-and-updater=$destination" --output os-signed/windows-x86_64/evidence.json
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: os-signed-windows-x86_64
-          path: os-signed/windows-x86_64
-          if-no-files-found: error
-          retention-days: 30
-
-  windows-os-sign:
-    name: Authenticode sign production Windows
-    needs: authorize
-    if: needs.authorize.outputs.profile == 'production'
-    runs-on: windows-2025
-    environment: production-windows-signing
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          name: candidate-identity
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          name: unsigned-windows-x86_64
-          path: input
-      - name: Rehash staged Windows package
-        run: node scripts/release/release-evidence.mjs verify-artifacts --evidence input/evidence.json --directory input
-      - name: Require Windows credentials without printing values
-        env:
-          GITODILE_WINDOWS_CERTIFICATE_BASE64: ${{ secrets.GITODILE_WINDOWS_CERTIFICATE_BASE64 }}
-          GITODILE_WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.GITODILE_WINDOWS_CERTIFICATE_PASSWORD }}
-          GITODILE_WINDOWS_CERTIFICATE_SHA256: ${{ vars.GITODILE_WINDOWS_CERTIFICATE_SHA256 }}
-        run: node scripts/release/release-evidence.mjs check-credentials --credential GITODILE_WINDOWS_CERTIFICATE_BASE64 --credential GITODILE_WINDOWS_CERTIFICATE_PASSWORD --credential GITODILE_WINDOWS_CERTIFICATE_SHA256
-      - name: Sign and independently verify Authenticode
-        shell: pwsh
-        env:
-          GITODILE_WINDOWS_CERTIFICATE_BASE64: ${{ secrets.GITODILE_WINDOWS_CERTIFICATE_BASE64 }}
-          GITODILE_WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.GITODILE_WINDOWS_CERTIFICATE_PASSWORD }}
-          GITODILE_WINDOWS_CERTIFICATE_SHA256: ${{ vars.GITODILE_WINDOWS_CERTIFICATE_SHA256 }}
-        run: |
-          $evidence = Get-Content -Raw input/evidence.json | ConvertFrom-Json
-          $source = Join-Path input $evidence.artifacts[0].fileName
-          New-Item -ItemType Directory -Path os-signed/windows-x86_64 | Out-Null
-          $destination = Join-Path os-signed/windows-x86_64 $evidence.artifacts[0].fileName
-          ./scripts/release/sign-windows.ps1 -InputFile $source -OutputFile $destination -IdentityOutput windows-identity.json
-      - name: Record public signer identity and final-byte hash
-        shell: pwsh
-        run: |
-          node scripts/release/make-os-trust.mjs windows-x86_64 windows-identity.json windows-trust.json
-          $package = Get-ChildItem os-signed/windows-x86_64 -Filter *.exe -File
-          if ($package.Count -ne 1) { throw "Expected one signed NSIS package" }
-          node scripts/release/release-evidence.mjs create --candidate candidate.json --target windows-x86_64 --phase os-signed --trust windows-trust.json --artifact "first-install-and-updater=$($package.FullName)" --output os-signed/windows-x86_64/evidence.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: os-signed-windows-x86_64
@@ -207,19 +148,12 @@ jobs:
 
   updater-sign-and-gate:
     name: Updater-sign final bytes and close matrix
-    needs: [authorize, windows-validation-boundary, windows-os-sign, linux-os-boundary]
+    needs: [authorize, windows-deferred-boundary, linux-os-boundary]
     if: >-
       always() &&
       needs.authorize.result == 'success' &&
       needs.linux-os-boundary.result == 'success' &&
-      (
-        (needs.authorize.outputs.profile == 'validation' &&
-         needs.windows-validation-boundary.result == 'success' &&
-         needs.windows-os-sign.result == 'skipped') ||
-        (needs.authorize.outputs.profile == 'production' &&
-         needs.windows-validation-boundary.result == 'skipped' &&
-         needs.windows-os-sign.result == 'success')
-      )
+      needs.windows-deferred-boundary.result == 'success'
     runs-on: ubuntu-24.04
     environment: ${{ needs.authorize.outputs.profile == 'validation' && 'validation-updater-signing' || 'production-updater-signing' }}
     env:

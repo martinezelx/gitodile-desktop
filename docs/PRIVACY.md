@@ -28,4 +28,4 @@ repository and account settings.
 
 Privacy or security questions may be reported through the private vulnerability
 reporting channel in
-[martinezelx/gitodile-feedback](https://github.com/martinezelx/gitodile-feedback/security/advisories/new).
+[martinezelx/gitodile](https://github.com/martinezelx/gitodile/security/advisories/new).

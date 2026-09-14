@@ -16,6 +16,12 @@ For the first qualified preview phase, the enabled updater matrix is exactly
 Windows x86-64 NSIS and Linux x86-64 AppImage. Both macOS targets are planned
 but disabled and are owned by follow-up task 065-10.
 
+The repository-name migration approved on 2026-09-14 assigns application
+source, builds and automation to `martinezelx/gitodile-desktop`, and public
+issues, releases, downloads and feeds to `martinezelx/gitodile`. The earlier
+names below describe the historical observation only; no runtime or publication
+contract relies on their redirects.
+
 ## Context
 
 GitOdile needs to update its installed desktop application without interrupting
@@ -25,8 +31,9 @@ from the existing system-Git update command.
 
 Inspection on 2026-09-03 found:
 
-- `martinezelx/project-gitodile` is private; `martinezelx/gitodile-feedback` is
-  public and has no releases yet. Task 108 established the public issue forms.
+- At the original observation, the repositories still used the temporary names
+  `project-gitodile` and `gitodile-feedback`; the latter was public and had no
+  releases. Task 108 established the public issue forms.
 - Tauri is on v2. The updater is not installed, there is no updater key or
   endpoint in the app configuration, and CI does not publish installers.
 - At the start of planning the installed version was `0.1.0`; its separate alpha label was renamed to
@@ -52,8 +59,8 @@ design, not a claim that update infrastructure exists. Implementation belongs to
 ### Hosting and channels
 
 Use the official Tauri 2 updater from Rust and publish its signed artifacts as
-GitHub Release assets in `martinezelx/gitodile-feedback`. Source and reviewed
-non-secret release configuration live in `project-gitodile`; Actions artifacts,
+GitHub Release assets in `martinezelx/gitodile`. Source and reviewed non-secret
+release configuration live in `martinezelx/gitodile-desktop`; Actions artifacts,
 signing material and protected build evidence remain access-controlled
 regardless of that repository's visibility.
 Installers are release assets, never binary commits or Git LFS objects.
@@ -70,8 +77,8 @@ Use two small static Tauri manifests in the public repository:
 
 | Feed | Planned HTTPS endpoint | Selection |
 | --- | --- | --- |
-| Stable | `https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/stable.json` | Full releases only |
-| Preview | `https://raw.githubusercontent.com/martinezelx/gitodile-feedback/main/updates/preview.json` | Preview builds and their stable successor |
+| Stable | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/stable.json` | Full releases only |
+| Preview | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json` | Preview builds and their stable successor |
 
 These endpoints are planned and do not exist yet. Each is a complete Tauri
 static manifest with version, notes/date, and URL/signature entries for the
@@ -122,18 +129,21 @@ changes later; a future owned domain can be introduced through a bridge build.
 Both channels live in `main`'s history. There is no permanent `stable`,
 `preview`, or `develop` branch. The user-requested release workflow is:
 
-1. Create a short-lived branch from `main` named for the exact version, for
-   example `0.2.0-preview.1`. Routine work can continue to follow the existing
-   direct-to-main convention; this branch is release preparation.
+1. Create a short-lived branch from `main` named `release/<exact-version>`, for
+   example `release/0.2.0-preview.1`. Routine work can continue to follow the
+   existing direct-to-main convention; this branch is release preparation.
 2. Prepare that version and its notes, run the required checks, and merge the
    release PR into `main`.
-3. Tag the exact merged commit `v0.2.0-preview.1`. Create/push the tag only
-   after the merged result passes the gate. Tagging a moving branch head later
-   must not accidentally include unreviewed intervening changes.
-4. The private publication workflow runs on the version tag. It checks that
-   the tagged commit belongs to `main`'s history and that all version metadata
-   matches, then derives the release channel and GitHub prerelease flag from
-   the version. Ordinary pushes/merges into `main` do not publish a release.
+3. A default-branch coordinator validates the closed, merged same-repository
+   pull request, exact protected-`main` merge SHA, required checks, canonical
+   branch, synchronized metadata and curated notes. It then creates
+   `v0.2.0-preview.1` idempotently at that exact SHA.
+4. The coordinator explicitly dispatches the private candidate workflow after
+   tag creation; a tag created with the repository workflow token does not emit
+   another workflow-triggering push event. Candidate, signing and publication
+   stages revalidate the immutable identity and derive channel and GitHub flags
+   from the version. Direct pushes, manual tags and ordinary merges do not enter
+   this path.
 5. Repeat for `0.2.0-preview.2`, then prepare and tag `0.2.0` when ready for a
    stable release. These are illustrative versions, not a release schedule.
 
@@ -143,7 +153,8 @@ Both channels live in `main`'s history. There is no permanent `stable`,
 | `0.2.0-preview.2` / `v0.2.0-preview.2` | `preview` | `true` | `preview.json` only |
 | `0.2.0` / `v0.2.0` | `stable` | `false` | `stable.json`; also preview if newer than its current candidate |
 
-The branch name helps humans; the checked version tag is the release identity.
+The canonical branch is part of authorization and the checked version tag is
+the immutable release identity.
 There is no separate free-form channel input or manual GitHub flag that may
 contradict it. Reject other prerelease suffixes, malformed versions, mismatched
 metadata, and tags outside `main` before signing or publication.
@@ -183,6 +194,9 @@ Windows Authenticode and macOS Developer ID/notarization are not supplied by
 the updater key. Sign/package in the correct order so the updater signature
 covers the final bytes. Follow the [Windows signing guide](https://v2.tauri.app/distribute/sign/windows/)
 and [macOS signing guide](https://v2.tauri.app/distribute/sign/macos/).
+ADR 0011 defers Windows Authenticode and all macOS delivery until after
+`1.0.0`; eligible Windows packages through that boundary retain unchanged
+bytes and record `authenticode_deferred` before updater signing.
 
 Build in CI from a verified source tag. Repository visibility grants no signing
 or publishing authority. Restrict credentials to trusted, reviewer-protected

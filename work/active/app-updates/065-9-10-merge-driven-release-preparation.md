@@ -190,10 +190,18 @@ After this task, the maintainer's normal preview operation is:
 git switch main
 git pull --ff-only
 pnpm run release:prepare -- 0.2.0-preview.10
+@'
+# GitOdile 0.2.0-preview.10
+
+Describe the reviewed user-visible changes here.
+'@ | Set-Content docs/release/notes/v0.2.0-preview.10.md
+git add README.md package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json docs/release/notes/v0.2.0-preview.10.md
+git commit -m "chore(release): prepare 0.2.0-preview.10"
 git push -u origin release/0.2.0-preview.10
 ```
 
-The maintainer reviews the generated notes, opens the pull request, waits for
+The maintainer replaces and reviews the generated notes before committing,
+opens the pull request, waits for
 required checks, merges it and approves the protected publication prompt. Tag
 creation, Windows/Linux candidate builds, Tauri signing, evidence assembly,
 publication to `martinezelx/gitodile`, feed promotion and anonymous

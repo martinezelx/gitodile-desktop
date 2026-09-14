@@ -1,15 +1,28 @@
 name: Private signed-build candidate
+run-name: Private candidate ${{ inputs.tag }} at ${{ inputs.sha }}
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      authorization_run_id:
+        description: Merge-driven release coordinator run containing the immutable authorization
+        required: true
+        type: string
+      tag:
+        description: Canonical release tag authorized by the coordinator
+        required: true
+        type: string
+      sha:
+        description: Exact protected-main merge revision authorized by the coordinator
+        required: true
+        type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
-  group: private-candidate-${{ github.ref }}
+  group: private-candidate-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
@@ -26,16 +39,62 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.workflow_sha }}
+      - name: Validate the coordinator workflow run
+        env:
+          AUTHORIZATION_RUN_ID: ${{ inputs.authorization_run_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          const id = process.env.AUTHORIZATION_RUN_ID ?? "";
+          if (!/^[1-9][0-9]*$/.test(id)) throw new Error("Authorization run ID must be a positive integer.");
+          const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${id}`, {
+            headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "X-GitHub-Api-Version": "2022-11-28" },
+            signal: AbortSignal.timeout(15000), redirect: "error",
+          });
+          if (!response.ok) throw new Error(`Coordinator run lookup failed with HTTP ${response.status}.`);
+          const run = await response.json();
+          if (run.name !== "Merge-driven release coordinator" || run.event !== "pull_request_target" ||
+              run.repository?.full_name !== process.env.GITHUB_REPOSITORY ||
+              run.path !== ".github/workflows/merge-driven-release.yml" || run.head_branch !== "main" ||
+              !new Set(["in_progress", "completed"]).has(run.status)) {
+            throw new Error("Authorization did not originate in the trusted merge coordinator.");
+          }
+          NODE
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          run-id: ${{ inputs.authorization_run_id }}
+          github-token: ${{ github.token }}
+          name: merge-release-authorization
+          path: merge-authorization
+      - name: Require byte-bound coordinator authorization
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+          REQUESTED_SHA: ${{ inputs.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import { validateAuthorization } from "./scripts/release/merge-release.mjs";
+          const authorization = validateAuthorization(JSON.parse(fs.readFileSync("merge-authorization/authorization.json", "utf8")));
+          if (authorization.tag !== process.env.REQUESTED_TAG || authorization.mergeSha !== process.env.REQUESTED_SHA) {
+            throw new Error("Dispatched candidate identity differs from the coordinator authorization.");
+          }
+          NODE
       - name: Fetch the approved main boundary
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - name: Validate tag, ancestry, revision, versions and channel
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_SHA: ${{ inputs.sha }}
         run: >-
           node scripts/release/release-candidate.mjs
-          --event push
-          --ref-type "$GITHUB_REF_TYPE"
-          --tag "$GITHUB_REF_NAME"
-          --sha "$GITHUB_SHA"
+          --event coordinator_dispatch
+          --ref-type tag
+          --tag "$RELEASE_TAG"
+          --sha "$RELEASE_SHA"
           --main-ref refs/remotes/origin/main
+          --metadata-revision "$RELEASE_SHA"
+          --require-head false
           --output candidate.json
       - name: Export validated non-secret identity
         id: identity

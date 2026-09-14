@@ -11,9 +11,9 @@ technical truth.
 Current development version: **0.2.0-preview.5**, **preview** channel.
 This candidate has not been tagged or published yet.
 
-Official repository: [martinezelx/project-gitodile](https://github.com/martinezelx/project-gitodile).
+Source repository: [martinezelx/gitodile-desktop](https://github.com/martinezelx/gitodile-desktop).
 
-Public feedback: [martinezelx/gitodile-feedback](https://github.com/martinezelx/gitodile-feedback).
+Downloads, releases and issues: [martinezelx/gitodile](https://github.com/martinezelx/gitodile).
 Use **More actions → Report an issue** to open an English or Spanish bug form
 with the available app, system, WebView and Git versions. Reporting requires a
 GitHub account. You review the public report before submitting it. Project
@@ -136,8 +136,13 @@ The completed History implementation and its validation are recorded in
 ## Publication checks
 
 The planned updater uses two channels, `stable` and `preview`, both released
-from tagged commits on `main`. Short-lived version branches prepare releases;
-the version/tag selects the channel. See
+from tagged commits on `main`. Start only from a clean, current `main` with
+`pnpm run release:prepare -- <semver>`; it creates the sole valid
+`release/<semver>` branch and prepares the authoritative metadata and notes.
+After its same-repository pull request passes the complete check set and is
+merged, protected default-branch automation creates the tag at the exact merge
+SHA and dispatches the candidate build. Direct pushes and manual tags cannot
+authorize a release. The version/tag selects the channel. See
 [ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
 The native updater lifecycle and its visual controls are implemented. The
@@ -150,7 +155,8 @@ evidence and protected signing workflows are implemented. Distinct validation
 and production Tauri updater keys are configured; the fixed validation pair may
 defer Windows Authenticode only while remaining clearly marked as an internal,
 OS-untrusted test. Source-repository visibility grants no access to signing
-material or publisher credentials. The manual public publisher,
+material or publisher credentials. The merge-driven coordinator, automatic
+protected public publisher,
 immutable-asset reconciliation and stable/preview feed gates are implemented
 and locally tested. Production remains closed until the enabled Windows/Linux
 matrix is qualified and published. Authenticode is deliberately not a pre-1.0

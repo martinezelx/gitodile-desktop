@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
+import { REQUIRED_RELEASE_CHECKS } from "./merge-release.mjs";
 import {
   ReleaseValidationError,
   parseReleaseTag,
@@ -135,7 +136,7 @@ test("explicit trusted ref type supports workflow-run tag revalidation", () => {
     "--root",
     repo.root,
     "--event",
-    "push",
+    "coordinator_dispatch",
     "--ref-type",
     "tag",
     "--tag",
@@ -230,7 +231,7 @@ test("Windows trust evidence rejects self-signed or unpinned Authenticode identi
   const validationRun = spawnSync(process.execPath, [
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), "make-os-trust.mjs"),
     "windows-x86_64",
-    "validation-unsigned",
+    "authenticode-deferred",
     validationOutput,
   ], { encoding: "utf8", windowsHide: true });
   assert.equal(validationRun.status, 0, validationRun.stderr);
@@ -272,7 +273,7 @@ test("Windows trust evidence rejects self-signed or unpinned Authenticode identi
   assert.match(signingScript, /self-signed certificate is not accepted/);
 });
 
-test("only validation matrices may carry explicitly deferred Windows Authenticode", () => {
+test("Windows matrices remain explicitly authenticode_deferred through the initial 1.0 policy", () => {
   const makeEvidence = (candidate, target, operatingSystem) => ({
     schemaVersion: 1,
     phase: "signed",
@@ -320,10 +321,10 @@ test("only validation matrices may carry explicitly deferred Windows Authenticod
     sha: productionRepo.sha,
     mainRef: "main",
   });
-  expectCode("verification_incomplete", () => verifyCompleteMatrix([
+  assert.equal(verifyCompleteMatrix([
     makeEvidence(production, "windows-x86_64", deferred),
     makeEvidence(production, "linux-x86_64", { result: "not_applicable" }),
-  ], production, { requiredPhase: "signed" }));
+  ], production, { requiredPhase: "signed" }).length, 2);
 });
 
 test("workflows expose no branch publication path and pin external actions", () => {
@@ -350,9 +351,10 @@ test("workflows expose no branch publication path and pin external actions", () 
     }
   }
   const candidate = readWorkflow("private-candidate-build.yml");
-  assert.deepEqual(Object.keys(candidate.parsed.on), ["push"]);
-  assert.deepEqual(candidate.parsed.on.push, { tags: ["v*"] });
-  assert.deepEqual(candidate.parsed.permissions, { contents: "read" });
+  assert.deepEqual(Object.keys(candidate.parsed.on), ["workflow_dispatch"]);
+  assert.deepEqual(candidate.parsed.permissions, { actions: "read", contents: "read" });
+  assert.equal(candidate.parsed["run-name"], "Private candidate ${{ inputs.tag }} at ${{ inputs.sha }}");
+  assert.equal(candidate.parsed.concurrency.group, "private-candidate-${{ inputs.tag }}");
   assert.doesNotMatch(candidate.source, /secrets\./);
   assert.deepEqual(candidate.parsed.jobs.build.strategy.matrix.include.map((item) => item.target), [
     "windows-x86_64",
@@ -377,13 +379,11 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.equal(signing.parsed.jobs["macos-os-sign"], undefined);
   assert.deepEqual(signing.parsed.jobs["updater-sign-and-gate"].needs, [
     "authorize",
-    "windows-validation-boundary",
-    "windows-os-sign",
+    "windows-deferred-boundary",
     "linux-os-boundary",
   ]);
-  assert.equal(signing.parsed.jobs["windows-validation-boundary"].if, "needs.authorize.outputs.profile == 'validation'");
-  assert.equal(signing.parsed.jobs["windows-os-sign"].if, "needs.authorize.outputs.profile == 'production'");
-  assert.match(signing.parsed.jobs["updater-sign-and-gate"].if, /windows-validation-boundary\.result == 'success'/);
+  assert.equal(signing.parsed.jobs["windows-os-sign"], undefined);
+  assert.match(signing.parsed.jobs["updater-sign-and-gate"].if, /windows-deferred-boundary\.result == 'success'/);
   const signingRevalidation = signing.parsed.jobs.authorize.steps.find(
     (step) => step.name === "Revalidate metadata directly from the tagged object",
   );
@@ -393,7 +393,7 @@ test("workflows expose no branch publication path and pin external actions", () 
   const candidateValidation = candidate.parsed.jobs.validate.steps.find(
     (step) => step.name === "Validate tag, ancestry, revision, versions and channel",
   );
-  assert.match(candidateValidation.run, /--ref-type "\$GITHUB_REF_TYPE"/);
+  assert.match(candidateValidation.run, /--ref-type tag/);
   const signingVerifierDependencies = signing.parsed.jobs["updater-sign-and-gate"].steps.find(
     (step) => step.name === "Install Linux verifier dependencies",
   );
@@ -406,7 +406,7 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.doesNotMatch(updaterSigning.run, /require\(process\.argv\[1\]\)/,
     "filesystem paths from find must not be resolved as Node package names");
   for (const source of [candidate.source, signing.source]) {
-    assert.doesNotMatch(source, /gitodile-feedback|contents:\s*write|create-release|upload-release-asset/i);
+    assert.doesNotMatch(source, /GITODILE_PUBLIC_RELEASE_TOKEN|contents:\s*write|create-release|upload-release-asset/i);
   }
   for (const job of Object.values(signing.parsed.jobs)) {
     for (const step of job.steps ?? []) {
@@ -418,9 +418,35 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.deepEqual(Object.keys(qualification.parsed.on), ["workflow_dispatch"]);
   assert.deepEqual(qualification.parsed.permissions, { actions: "read", contents: "read" });
   assert.equal(qualification.parsed.jobs.prepare.if, "github.ref == 'refs/heads/main' && github.sha == github.workflow_sha");
-  assert.doesNotMatch(qualification.source, /secrets\.|contents:\s*write|gitodile-feedback/i);
+  assert.doesNotMatch(qualification.source, /secrets\.|contents:\s*write|GITODILE_PUBLIC_RELEASE_TOKEN/i);
   assert.match(qualification.source, /GITODILE_VALIDATION_UPDATE_FEED/);
 
   const publication = readWorkflow("public-release-publishing.yml");
-  assert.equal(publication.parsed.jobs["authorize-and-stage"].if, "github.ref == 'refs/heads/main' && github.sha == github.workflow_sha");
+  assert.match(publication.parsed.jobs["authorize-and-stage"].if, /github\.event_name == 'workflow_run'/);
+  assert.match(publication.parsed.jobs["authorize-and-stage"].if, /workflow_run\.conclusion == 'success'/);
+  assert.equal(publication.parsed.jobs.publish.environment,
+    "${{ needs.authorize-and-stage.outputs.mode == 'production' && 'public-release-production' || 'public-release-validation-draft' }}");
+
+  const coordinator = readWorkflow("merge-driven-release.yml");
+  assert.deepEqual(Object.keys(coordinator.parsed.on), ["pull_request_target"]);
+  assert.deepEqual(coordinator.parsed.on.pull_request_target.types, ["closed"]);
+  assert.equal(coordinator.parsed.concurrency.group, "merge-driven-release");
+  assert.deepEqual(coordinator.parsed.permissions, { contents: "read", checks: "read", "pull-requests": "read" });
+  assert.deepEqual(coordinator.parsed.jobs["tag-and-dispatch"].permissions, { actions: "write", contents: "read" });
+  assert.equal(coordinator.parsed.jobs["tag-and-dispatch"].environment, "release-tagging");
+  assert.doesNotMatch(JSON.stringify(coordinator.parsed.jobs.authorize), /GITODILE_RELEASE_TAG_DEPLOY_KEY|actions.:.write/);
+  assert.match(JSON.stringify(coordinator.parsed.jobs["tag-and-dispatch"]), /GITODILE_RELEASE_TAG_DEPLOY_KEY/);
+  assert.match(coordinator.source, /actions\/workflows\/\$\{workflow\}\/dispatches/);
+  assert.match(coordinator.source, /display_title === title/);
+  assert.match(coordinator.source, /github\.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl/);
+  assert.doesNotMatch(coordinator.source, /ssh-keyscan/);
+  assert.doesNotMatch(coordinator.source, /refs\/heads\/release\/|github\.event\.pull_request\.head\.sha/);
+  const ci = readWorkflow("ci.yml");
+  const codeql = readWorkflow("codeql.yml");
+  assert.deepEqual([...REQUIRED_RELEASE_CHECKS].sort(), [
+    ...Object.values(ci.parsed.jobs).flatMap((job) => job.name.includes("${{ matrix.os }}")
+      ? job.strategy.matrix.os.map((os) => job.name.replace("${{ matrix.os }}", os))
+      : [job.name]),
+    codeql.parsed.jobs["javascript-typescript"].name,
+  ].sort());
 });
