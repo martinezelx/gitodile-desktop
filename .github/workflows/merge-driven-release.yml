@@ -72,7 +72,9 @@ jobs:
         run: |
           test -n "$GITODILE_RELEASE_TAG_DEPLOY_KEY"
           install -m 700 -d "$RUNNER_TEMP/release-tag-key"
-          printf '%s' "$GITODILE_RELEASE_TAG_DEPLOY_KEY" | tr -d '\r' > "$RUNNER_TEMP/release-tag-key/id_ed25519"
+          # GitHub may omit the secret's trailing newline; OpenSSH/libcrypto
+          # requires a complete final PEM line.
+          printf '%s\n' "$GITODILE_RELEASE_TAG_DEPLOY_KEY" | tr -d '\r' > "$RUNNER_TEMP/release-tag-key/id_ed25519"
           chmod 600 "$RUNNER_TEMP/release-tag-key/id_ed25519"
           # Pinned GitHub Ed25519 host key published at:
           # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints

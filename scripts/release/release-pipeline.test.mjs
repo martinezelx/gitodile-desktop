@@ -427,6 +427,8 @@ test("workflows expose no branch publication path and pin external actions", () 
 
   const coordinator = readWorkflow("merge-driven-release.yml");
   assert.deepEqual(Object.keys(coordinator.parsed.on), ["pull_request_target"]);
+  assert.match(coordinator.source, /printf '%s\\n' "\$GITODILE_RELEASE_TAG_DEPLOY_KEY"/,
+    "the deploy key must regain its final PEM newline after GitHub secret transport");
   assert.deepEqual(coordinator.parsed.on.pull_request_target.types, ["closed"]);
   assert.equal(coordinator.parsed.concurrency.group, "merge-driven-release");
   assert.deepEqual(coordinator.parsed.permissions, { contents: "read", checks: "read", "pull-requests": "read" });
