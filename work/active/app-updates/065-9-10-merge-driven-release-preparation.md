@@ -2,7 +2,7 @@
 id: 065-9-10
 title: Prepare releases automatically after approved version-branch merges
 status: active
-priority: medium
+priority: high
 type: feature
 areas:
   - release
@@ -12,7 +12,7 @@ areas:
 created: 2026-09-13
 completed:
 parent: "065-9"
-queue: "23"
+queue: "05"
 ---
 
 # Goal
@@ -134,6 +134,90 @@ still require every enabled target to satisfy the qualification registry.
 
 Task 065-9-9 is deliberately post-1.0 and does not block this automation.
 
+# Current implementation baseline
+
+- Starting commit: `a13cbc43b3d9848880a3f9d7b07034418fef884b` on `main`, equal
+  to `origin/main` when this execution specification was finalized.
+- Current application version: `0.2.0-preview.5`.
+- Existing workflows are manual/tag-oriented and named
+  `private-candidate-build.yml`, `private-candidate-signing.yml`,
+  `qualification-validation-bundle.yml` and
+  `public-release-publishing.yml`.
+- Existing release logic lives under `scripts/release/`; extend its pure,
+  executable validators rather than embedding policy in workflow YAML.
+- The production updater key exists, but Windows Authenticode is deliberately
+  deferred through `1.0.0`. The remaining real Linux qualification is not
+  evidence this task may fabricate.
+- The repository renames have not yet been performed. Treat both rename
+  operations and every dependent URL/permission migration as part of this task.
+
+# Implementation sequence
+
+1. Inventory both live repositories, rulesets, environments, variables,
+   secrets by name, issue settings, Pages/releases, current remotes and all old
+   repository-name references. Save a non-secret before-state report.
+2. Add pure parsers and tests for canonical `release/<version>` branches,
+   preview/stable channel derivation, same-repository merged-PR events, exact
+   merge SHA binding and idempotent tag decisions.
+3. Add `pnpm run release:prepare -- <version>`. It must start from a clean,
+   current `main`, create `release/<version>`, update every authoritative
+   version file through one implementation, create a curated-notes template,
+   and finish by running consistency checks. It must never push or publish.
+4. Add the least-privileged merged-PR coordinator. It reads only workflow code
+   from protected `main`, rejects untrusted event data before granting write
+   authority, creates `v<version>` at the exact merge SHA and treats a matching
+   existing tag as a successful retry while rejecting any mismatch.
+5. Chain the generated tag into the existing candidate build, Tauri signing,
+   evidence and publication workflows. Build once per platform; pass immutable
+   artifacts and verified metadata forward rather than rebuilding later.
+6. Rename the public product repository to `gitodile`, then the source
+   repository to `gitodile-desktop`. Immediately update the local remote and
+   all canonical URLs, rules, environments, application capabilities, tests and
+   cross-repository credential scopes. Verify both repositories anonymously
+   and through the GitHub API after each rename.
+7. Provide a non-promoting end-to-end dry run and negative-event fixtures.
+   Preserve protected approval for preview publication initially and always for
+   stable publication. Do not enable stable or macOS publication in this task.
+8. Run `pnpm run check` and `pnpm run check:publication`, inspect every Actions
+   run caused by the migration, and correct failures without weakening gates.
+   Record exact commits, runs, repository settings and remaining Linux blocker.
+
+# Developer release experience
+
+After this task, the maintainer's normal preview operation is:
+
+```powershell
+git switch main
+git pull --ff-only
+pnpm run release:prepare -- 0.2.0-preview.10
+git push -u origin release/0.2.0-preview.10
+```
+
+The maintainer reviews the generated notes, opens the pull request, waits for
+required checks, merges it and approves the protected publication prompt. Tag
+creation, Windows/Linux candidate builds, Tauri signing, evidence assembly,
+publication to `martinezelx/gitodile`, feed promotion and anonymous
+post-publication verification then run automatically. Preview approval may be
+removed only after several successful observed releases and a separate policy
+change; stable approval remains mandatory.
+
+# Explicit safety invariants
+
+- A branch name, commit message, PR title or version file alone grants no
+  release authority.
+- Direct pushes and manually created tags do not enter the merge-driven path.
+- Privileged jobs never execute pull-request-head scripts or interpolate
+  untrusted event strings into a shell command.
+- The ordinary source-repository token cannot write `martinezelx/gitodile`.
+- Build jobs cannot access the destination publisher credential; publisher jobs
+  cannot rebuild or alter packages.
+- Tags, finalized release assets and versioned feed inputs are append-only.
+- Preview cannot update stable; stable cannot relabel or overwrite a preview.
+- Windows remains `authenticode_deferred`, Linux retains its real qualification
+  gate, and both macOS targets remain rejected.
+- No secret value is printed, copied into an artifact or requested from the
+  maintainer in chat.
+
 # Validation
 
 Retain the merged pull-request event, exact merge SHA, generated tag identity,
@@ -141,3 +225,50 @@ candidate/signing run links, repository rename audit, canonical endpoint checks
 and rejection-test output. Exercise a preview through a non-promoting or
 reviewer-approved dry run before enabling normal publication. Do not use this
 task to publish a stable release or any macOS artifact.
+
+# Fresh-session execution prompt
+
+```text
+Continúa GitOdile implementando íntegramente la tarea 065-9-10:
+
+C:\workspace\project-gitodile\work\active\app-updates\065-9-10-merge-driven-release-preparation.md
+
+Trabaja directamente en C:\workspace\project-gitodile, rama main. Sigue
+AGENTS.md y lee completos README.md, DESIGN.md, docs/PRODUCT_STRATEGY.md, los
+ADR 0010 y 0011, y los runbooks de release referenciados por la tarea antes de
+modificar nada. El baseline al preparar este prompt era el commit
+a13cbc43b3d9848880a3f9d7b07034418fef884b, coincidente con origin/main; empieza
+comprobando git status, HEAD/origin/main y cambios posteriores, y conserva
+cualquier cambio legítimo que encuentres.
+
+La decisión cerrada es mantener exactamente dos repositorios operativos:
+martinezelx/gitodile-desktop para código/builds/automatización y
+martinezelx/gitodile para issues, releases, descargas y feeds. Los nombres
+project-gitodile y gitodile-feedback deben migrarse dentro de esta tarea. El
+host gitodile-validation no recibirá versiones nuevas; no modifiques, muevas ni
+sobrescribas su evidencia inmutable .2/.3 y .4/.5.
+
+Implementa el comando `pnpm run release:prepare -- <semver>` y el flujo seguro
+descrito en la tarea. La única rama válida es `release/<semver>`; por ejemplo,
+`release/0.2.0-preview.10`. Tras una PR del mismo repositorio, checks verdes y
+merge en main, crea idempotentemente `v<semver>` en el merge SHA exacto y
+encadena automáticamente build Windows/Linux, firma Tauri, evidencia,
+promoción protegida, publicación en martinezelx/gitodile, actualización del
+feed correcto y verificación anónima. El código privilegiado debe proceder de
+main y nunca ejecutar código de la rama con permisos de escritura.
+
+Windows continúa sin Authenticode y debe registrar
+`authenticode_deferred`; macOS sigue deshabilitado hasta post-1.0. La prueba
+real Linux pendiente no impide implementar y validar la automatización, pero sí
+impide declarar su cualificación o cerrar criterios que dependan de ella. No
+publiques stable ni artefactos macOS. Mantén aprobación protegida para publicar
+previews inicialmente y siempre para stable.
+
+Haz todas las operaciones posibles, incluidas las migraciones GitHub y la
+actualización del remoto local, sin pedir secretos ni mostrarlos. Pide
+intervención solo para una aprobación protegida o interacción realmente
+imprescindible. Verifica cada cambio con tests ejecutables, `pnpm run check` y
+`pnpm run check:publication`; revisa todas las ejecuciones de Actions causadas
+por el cambio y corrige sus fallos sin debilitar controles. Actualiza la tarea
+con commits, runs y evidencia real, y pushea los cambios necesarios a main.
+```

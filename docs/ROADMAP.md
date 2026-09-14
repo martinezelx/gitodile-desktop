@@ -82,41 +82,43 @@ references and therefore do not change when priorities move.
 
 | Queue | Task | Outcome |
 | --- | --- | --- |
-| Q01 | 065-9-1 | Define updater contracts and supported installations |
-| Q02 | 065-9-2 | Protect operations and drafts before app installation |
-| Q03 | 065-9-3 | Implement the native signed updater lifecycle |
-| Q04 | 065-9-4 | Integrate update controls and preferences |
-| Q05 | 065-9-5 | Build signed release artifacts in private CI |
-| Q06 | 065-9-6 | Publish public releases and stable preview feeds |
-| Q07 | 065-9-7 | Qualify signed upgrades and release operations |
-| Q08 | 037-1 | Establish conflict truth and recovery |
-| Q09 | 037-2 | Select the editor foundation |
-| Q10 | 037-3 | Add the read-only conflict workspace |
-| Q11 | 037-4 | Resolve text conflicts safely |
-| Q12 | 037-5 | Complete or abort a merge |
-| Q13 | 037-6 | Handle non-text and structural conflicts |
-| Q14 | 037-7 | Audit the conflict workflow |
-| Q15 | 065-4 | Integrate local lines and diverged project changes |
-| Q16 | 065-5 | Make recovery records visible/actionable |
-| Q17 | 065-6 | Undo or reverse a saved version |
-| Q18 | 064-1 | Discover and inspect saved sets |
-| Q19 | 064-2 | Set all or selected changes aside |
-| Q20 | 064-3 | Restore a saved set and keep its copy |
-| Q21 | 064-4 | Remove one saved set with recovery |
-| Q22 | 064-5 | Audit the set-aside workflow |
-| Q23 | 065-7 | Harden credential and remote diagnostics |
-| Q24 | 065-8 | Verify and distribute `1.0.0` |
+| Q01 | 065-9-5 | Build signed release artifacts in private CI |
+| Q02 | 065-9-6 | Publish public releases and stable preview feeds |
+| Q03 | 065-9-7 | Qualify signed upgrades and release operations |
+| Q04 | 065-9-8 | Complete controlled Windows/Linux qualification evidence |
+| Q05 | 065-9-10 | Consolidate repositories and automate merge-driven releases |
+| Q06 | 037-1 | Establish conflict truth and recovery |
+| Q07 | 037-2 | Select the editor foundation |
+| Q08 | 037-3 | Add the read-only conflict workspace |
+| Q09 | 037-4 | Resolve text conflicts safely |
+| Q10 | 037-5 | Complete or abort a merge |
+| Q11 | 037-6 | Handle non-text and structural conflicts |
+| Q12 | 037-7 | Audit the conflict workflow |
+| Q13 | 065-4 | Integrate local lines and diverged project changes |
+| Q14 | 065-5 | Make recovery records visible/actionable |
+| Q15 | 065-6 | Undo or reverse a saved version |
+| Q16 | 064-1 | Discover and inspect saved sets |
+| Q17 | 064-2 | Set all or selected changes aside |
+| Q18 | 064-3 | Restore a saved set and keep its copy |
+| Q19 | 064-4 | Remove one saved set with recovery |
+| Q20 | 064-5 | Audit the set-aside workflow |
+| Q21 | 065-7 | Harden credential and remote diagnostics |
+| Q22 | 065-8 | Verify and distribute `1.0.0` |
+| Q23 | 102 | Refine the crocodile brand mark |
+| Q24 | 065-9-9 | Add trusted Windows signing after `1.0.0` |
+| Q25 | 065-10 | Qualify macOS updater delivery after `1.0.0` |
 
 ### Preview distribution — current priority
 
-- **Q01–Q07 / 065-9: Signed application updates.** Complete the seven children of
+- **Q01–Q05 / 065-9: Signed application updates.** Complete the remaining children of
   [epic 065-9](../work/active/release-1.0/065-9-signed-application-updates.md)
-  in order: contracts, install protection, native updater, interface, signed
-  builds, public publishing, and real upgrade qualification.
+  in order: signed builds, public publishing, real upgrade qualification,
+  controlled platform evidence, and merge-driven release automation. Contracts,
+  install protection, the native updater and its interface are already done.
 - This enables preview distribution before the rest of the 1.0.0 feature set.
   New operations and drafts must integrate with install protection as they land.
-  Git credential diagnostics remain Q23 / 065-7; final product qualification
-  remains Q24 / 065-8. Completing this epic does not establish 1.0.0 readiness.
+  Git credential diagnostics remain Q21 / 065-7; final product qualification
+  remains Q22 / 065-8. Completing this epic does not establish 1.0.0 readiness.
   ADR 0011 defers Windows Authenticode and all macOS delivery until after
   `1.0.0`; the initial release matrix is Windows x86-64 plus Linux x86-64.
 
