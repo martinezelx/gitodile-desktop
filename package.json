@@ -37,7 +37,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@iconify-json/vscode-icons": "^1.2.67",
+    "@iconify-json/vscode-icons": "^1.2.77",
     "@svgr/core": "^8.1.0",
     "@svgr/plugin-jsx": "^8.1.0",
     "@tauri-apps/cli": "^2.11.4",
