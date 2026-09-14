@@ -102,7 +102,7 @@ jobs:
         id: identity
         run: |
           node -e "const c=require('./candidate.json'); const fs=require('fs'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version='+c.release.version+'\nchannel='+c.release.channel+'\nprofile='+c.release.signingProfile+'\nsha='+c.source.sha+'\n')"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: candidate-identity
           path: candidate.json
@@ -225,7 +225,7 @@ jobs:
           mkdir -p "candidate/${{ matrix.target }}"
           cp "${packages[0]}" "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_amd64.AppImage"
           node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "first-install-and-updater=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_amd64.AppImage" --output "candidate/${{ matrix.target }}/evidence.json"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unsigned-${{ matrix.target }}
           path: candidate/${{ matrix.target }}
@@ -254,7 +254,7 @@ jobs:
         run: node scripts/release/release-evidence.mjs verify-matrix --candidate candidate.json --directory unsigned --phase unsigned
       - name: Record complete private candidate gate
         run: node -e "const fs=require('fs'); const c=require('./candidate.json'); fs.writeFileSync('matrix-gate.json', JSON.stringify({schemaVersion:1,source:c.source,release:c.release,result:'passed',publicPromotionAllowed:false},null,2)+'\n',{flag:'wx'})"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: complete-unsigned-matrix
           path: matrix-gate.json

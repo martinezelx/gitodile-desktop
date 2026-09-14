@@ -104,7 +104,7 @@ jobs:
           Copy-Item -LiteralPath $source -Destination $destination
           node scripts/release/make-os-trust.mjs windows-x86_64 authenticode-deferred windows-trust.json
           node scripts/release/release-evidence.mjs create --candidate candidate.json --target windows-x86_64 --phase os-signed --trust windows-trust.json --artifact "first-install-and-updater=$destination" --output os-signed/windows-x86_64/evidence.json
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: os-signed-windows-x86_64
           path: os-signed/windows-x86_64
@@ -139,7 +139,7 @@ jobs:
           cp "input/$package" "os-signed/linux-x86_64/$package"
           node scripts/release/make-os-trust.mjs linux-x86_64 not-applicable linux-trust.json
           node scripts/release/release-evidence.mjs create --candidate candidate.json --target linux-x86_64 --phase os-signed --trust linux-trust.json --artifact "first-install-and-updater=os-signed/linux-x86_64/$package" --output os-signed/linux-x86_64/evidence.json
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: os-signed-linux-x86_64
           path: os-signed/linux-x86_64
@@ -231,7 +231,7 @@ jobs:
           node scripts/release/release-evidence.mjs verify-matrix --candidate candidate.json --directory signed --phase signed
       - name: Write private matrix authorization record
         run: node -e "const fs=require('fs'); const c=require('./candidate.json'); fs.writeFileSync('signed/matrix.json', JSON.stringify({schemaVersion:1,source:c.source,release:c.release,targets:c.matrix.requiredTargets,result:'passed',publicPromotionAllowed:false},null,2)+'\n',{flag:'wx'})"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: private-signed-${{ needs.authorize.outputs.tag }}
           path: signed
