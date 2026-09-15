@@ -14,11 +14,11 @@ export const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
 export const REQUIRED_RELEASE_CHECKS = Object.freeze([
   "Frontend checks",
   "Public feedback contract",
-  "Rust checks (ubuntu-latest)",
-  "Rust checks (windows-latest)",
-  "Rust checks (macos-latest)",
-  "Desktop release compile (ubuntu-latest)",
-  "Desktop release compile (macos-latest)",
+  "Rust checks (linux)",
+  "Rust checks (windows)",
+  "Rust checks (macos)",
+  "Desktop release compile (linux)",
+  "Desktop release compile (windows)",
   "JavaScript and TypeScript analysis",
 ]);
 

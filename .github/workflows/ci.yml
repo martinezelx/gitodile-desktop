@@ -8,10 +8,18 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull-request branch supersedes the run in flight. A push to
+# main never cancels: the merge coordinator waits for these exact checks on
+# the merge SHA before it tags a release.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   public-feedback:
     name: Public feedback contract
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -30,7 +38,8 @@ jobs:
 
   frontend:
     name: Frontend checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -46,13 +55,24 @@ jobs:
       - run: pnpm run check:docs
       - run: pnpm run check:frontend
 
+  # Runner images are pinned to the same generations the release pipeline
+  # uses, so CI and releases stop proving the same thing the day `-latest`
+  # moves. Check names carry the platform, not the image, so a pin bump does
+  # not rename a required check.
   rust:
-    name: Rust checks (${{ matrix.os }})
+    name: Rust checks (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+        include:
+          - platform: linux
+            runner: ubuntu-24.04
+          - platform: windows
+            runner: windows-2025
+          - platform: macos
+            runner: macos-26
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -72,13 +92,23 @@ jobs:
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
 
+  # Compiles the renderer and the release-profile desktop executable (LTO,
+  # single codegen unit) on the two platforms the release pipeline ships.
+  # macOS delivery is deferred past 1.0 (ADR 0011); its code still compiles
+  # and tests in the Rust matrix above. This does not launch a WebView or
+  # validate packaging/signing.
   desktop-release-compile:
-    name: Desktop release compile (${{ matrix.os }})
+    name: Desktop release compile (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+        include:
+          - platform: linux
+            runner: ubuntu-24.04
+          - platform: windows
+            runner: windows-2025
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -100,6 +130,4 @@ jobs:
         with:
           workspaces: src-tauri
       - run: pnpm install --frozen-lockfile
-      # Compiles the renderer and the release desktop executable together.
-      # This does not launch a WebView or validate packaging/signing.
       - run: pnpm tauri build --no-bundle
