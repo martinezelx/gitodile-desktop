@@ -376,6 +376,11 @@ export function AppOverlays({
               )}
             </p>
             <p>{t.aboutDescription}</p>
+            <div className="about-dialog__legal">
+              <span>{t.aboutLicense}</span>
+              <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE").catch(() => undefined)}>{t.aboutViewLicense}</button>
+              <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop").catch(() => undefined)}>{t.aboutViewSource}</button>
+            </div>
             {(systemInfo || webviewVersion || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">
                 <h3 id="about-technical-title">{t.aboutTechnicalDetails}</h3>

@@ -136,8 +136,8 @@ needed, does not require adopting its JavaScript wrapper.
   removing the Git prerequisite is not a promise to bundle every project tool.
 - Pin artifact versions and trusted checksums in the build inputs, verify
   provenance, and include the applicable licenses, notices, and corresponding
-  source distribution required by the redistributed components. The MIT license
-  of a wrapper does not cover every bundled component.
+  source distribution required by the redistributed components. GitOdile's
+  project license does not cover every bundled component.
 
 ## Validation before implementation rollout
 

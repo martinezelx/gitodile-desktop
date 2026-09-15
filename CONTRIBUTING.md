@@ -95,3 +95,9 @@ whether it breaks the person upgrading.
 
 Do not publish a sensitive vulnerability in a public issue. Follow
 [`SECURITY.md`](SECURITY.md).
+
+## Licensing of contributions
+
+By submitting a contribution to GitOdile, you agree that your contribution
+may be distributed as part of GitOdile under the GNU Affero General Public
+License v3.0 only (`AGPL-3.0-only`).

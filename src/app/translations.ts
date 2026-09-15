@@ -159,6 +159,9 @@ export interface AppTranslations {
   aboutGitOdile: string;
   aboutHeading: string;
   aboutDescription: string;
+  aboutLicense: string;
+  aboutViewLicense: string;
+  aboutViewSource: string;
   aboutTechnicalDetails: string;
   aboutSystem: string;
   aboutSystemVersion: string;
@@ -353,6 +356,9 @@ const en: AppTranslations = {
   aboutGitOdile: "About",
   aboutHeading: "Git without the bite.",
   aboutDescription: "Turns version control into clear, worry-free steps.",
+  aboutLicense: "GNU AGPL v3.0 only",
+  aboutViewLicense: "View license",
+  aboutViewSource: "View source code",
   aboutTechnicalDetails: "Technical details",
   aboutSystem: "System",
   aboutSystemVersion: "System version",
@@ -540,6 +546,9 @@ const es: AppTranslations = {
   aboutGitOdile: "Acerca de",
   aboutHeading: "Git sin mordiscos.",
   aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
+  aboutLicense: "GNU AGPL v3.0 únicamente",
+  aboutViewLicense: "Ver licencia",
+  aboutViewSource: "Ver código fuente",
   aboutTechnicalDetails: "Detalles técnicos",
   aboutSystem: "Sistema",
   aboutSystemVersion: "Versión del sistema",

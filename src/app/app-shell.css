@@ -1118,6 +1118,9 @@
 .about-dialog__copy svg { width: 15px; height: 15px; }
 .about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center; }
 .about-dialog__heart { color: var(--accent-heart); }
+.about-dialog__legal { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 10px; color: var(--text-secondary-color); font-size: var(--text-label); }
+.about-dialog__legal button { padding: 2px 0; border: 0; background: transparent; color: var(--accent-primary); font: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.about-dialog__legal button:hover { color: var(--text-primary-color); }
 /* `--text-hero` is a *name*, not a heading, so this reads like the project name
    on Overview rather than like the `h2` it happens to be: the title weight and
    the hero tracking, both of which large type needs. It had been relying on the

@@ -262,6 +262,15 @@ describe("readSystemInfo", () => {
 });
 
 describe("About dialog", () => {
+  it("shows the project license and opens its license and source in the browser", async () => {
+    renderOverlays();
+    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    expect(dialog).toHaveTextContent("GNU AGPL v3.0 only");
+    await userEvent.click(screen.getByRole("button", { name: "View license" }));
+    await userEvent.click(screen.getByRole("button", { name: "View source code" }));
+    expect(openUrl).toHaveBeenNthCalledWith(1, "https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE");
+    expect(openUrl).toHaveBeenNthCalledWith(2, "https://github.com/martinezelx/gitodile-desktop");
+  });
   it("reports the product and the machine, and leaves release notes to the changelog", () => {
     renderOverlays();
 

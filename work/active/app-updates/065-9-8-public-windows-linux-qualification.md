@@ -31,7 +31,7 @@ matrix. This task amends both assumptions. The maintainer initially decided on
 GitHub-hosted qualification runs do not consume the private-repository minutes
 allowance, then decided on 2026-09-12 to keep it public throughout this testing
 phase. This publication is an intentional source distribution under the
-repository's MIT license: any later visibility change cannot revoke rights to,
+repository's then-current MIT license: any later visibility change cannot revoke rights to,
 or erase copies of, versions already obtained.
 
 The maintainer has a real Windows device and can provide a Linux virtual
