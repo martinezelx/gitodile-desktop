@@ -471,9 +471,20 @@ test("workflows expose no branch publication path and pin external actions", () 
   const ci = readWorkflow("ci.yml");
   const codeql = readWorkflow("codeql.yml");
   assert.deepEqual([...REQUIRED_RELEASE_CHECKS].sort(), [
-    ...Object.values(ci.parsed.jobs).flatMap((job) => job.name.includes("${{ matrix.os }}")
-      ? job.strategy.matrix.os.map((os) => job.name.replace("${{ matrix.os }}", os))
+    ...Object.values(ci.parsed.jobs).flatMap((job) => job.name.includes("${{ matrix.platform }}")
+      ? job.strategy.matrix.include.map(({ platform }) => job.name.replace("${{ matrix.platform }}", platform))
       : [job.name]),
     codeql.parsed.jobs["javascript-typescript"].name,
   ].sort());
+  // CI proves the same images the release pipeline builds on, never a moving
+  // `-latest`, and the shipped platforms compile in release profile.
+  const runners = new Set(Object.values(ci.parsed.jobs).flatMap((job) =>
+    job.strategy?.matrix?.include?.map((entry) => entry.runner) ?? [job["runs-on"]]));
+  for (const runner of runners) assert.doesNotMatch(runner, /-latest$/, `${runner} is a moving runner image`);
+  assert.deepEqual(ci.parsed.jobs["desktop-release-compile"].strategy.matrix.include.map(({ platform }) => platform), ["linux", "windows"]);
+  assert.equal(ci.parsed.concurrency["cancel-in-progress"], "${{ github.event_name == 'pull_request' }}",
+    "a push to main must never cancel the checks the coordinator waits for");
+  for (const [name, job] of Object.entries(ci.parsed.jobs)) {
+    assert.ok(Number.isInteger(job["timeout-minutes"]), `${name} needs a timeout`);
+  }
 });
