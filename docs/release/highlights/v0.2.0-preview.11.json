@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0-preview.11",
+  "date": "2026-09-15",
+  "highlights": [
+    {
+      "id": "inAppUpdates",
+      "icon": "cloud-download",
+      "en": "Update from inside the app. A startup check tells you when a newer version is out; Settings → Updates downloads and installs it when you choose.",
+      "es": "Actualiza desde la propia aplicación. Una comprobación al iniciar te avisa cuando hay una versión nueva; en Ajustes → Actualizaciones la descargas e instalas cuando tú decidas."
+    },
+    {
+      "id": "releaseHighlights",
+      "icon": "sparkles",
+      "en": "What's new now keeps every version's highlights, so you can look back at what earlier releases changed.",
+      "es": "Novedades conserva ahora las novedades de cada versión, para que puedas repasar qué cambió en las anteriores."
+    }
+  ]
+}
