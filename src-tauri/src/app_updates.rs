@@ -1530,6 +1530,7 @@ struct WindowsInstallLocations {
 }
 
 /// Tauri names the key after `productName`; a test pins it to the config.
+#[cfg(windows)]
 const WINDOWS_UNINSTALL_KEY: &str =
     "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GitOdile";
 
@@ -2551,6 +2552,7 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    #[cfg(windows)]
     #[test]
     fn windows_uninstall_key_names_the_configured_product() {
         let config: serde_json::Value =
