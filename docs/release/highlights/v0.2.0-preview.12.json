@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0-preview.12",
+  "date": "2026-09-15",
+  "highlights": [
+    {
+      "id": "updateNotesAndDate",
+      "icon": "cloud-download",
+      "en": "The update dialog now shows release notes with their paragraphs and bullets, and the date a version was actually published.",
+      "es": "El diálogo de actualización muestra ahora las notas con sus párrafos y viñetas, y la fecha en la que la versión se publicó de verdad."
+    },
+    {
+      "id": "updateBlockedUpFront",
+      "icon": "shield-check",
+      "en": "If this build can't install an update by itself, it says so as soon as it checks and points you to the manual download, before downloading anything.",
+      "es": "Si esta build no puede instalar una actualización por sí misma, lo dice al comprobar y te lleva a la descarga manual, antes de descargar nada."
+    }
+  ]
+}
