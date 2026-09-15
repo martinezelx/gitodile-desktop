@@ -372,13 +372,25 @@ test("workflows expose no branch publication path and pin external actions", () 
   // One build identity: the reviewed production updater key and the two
   // compile-time target gates. No alternate profile, feed or key exists.
   assert.deepEqual(Object.keys(pipeline.parsed.jobs.build.env).sort(), [
-    "GITODILE_PREVIEW_TEST_UPDATE_TARGETS", "GITODILE_QUALIFIED_UPDATE_TARGETS", "GITODILE_RELEASE_CHANNEL",
+    "GITODILE_QUALIFIED_UPDATE_TARGETS", "GITODILE_RELEASE_CHANNEL", "GITODILE_TEST_UPDATE_TARGETS",
     "GITODILE_UPDATER_PUBLIC_KEY", "GITODILE_UPDATER_PUBLIC_KEY_ID",
   ]);
   assert.equal(pipeline.parsed.jobs.build.env.GITODILE_UPDATER_PUBLIC_KEY, "${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}");
   assert.equal(pipeline.parsed.jobs.build.env.GITODILE_QUALIFIED_UPDATE_TARGETS, "${{ vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}");
-  assert.equal(pipeline.parsed.jobs.build.env.GITODILE_PREVIEW_TEST_UPDATE_TARGETS,
-    "${{ needs.validate.outputs.channel == 'preview' && 'windows-x86_64,linux-x86_64' || '' }}");
+  // Both channels publish under the testing policy, so every build carries
+  // the canonical test pair; it is a constant, not a channel expression.
+  assert.equal(pipeline.parsed.jobs.build.env.GITODILE_TEST_UPDATE_TARGETS, "windows-x86_64,linux-x86_64");
+  assert.doesNotMatch(pipeline.source, /PREVIEW_TEST_UPDATE_TARGETS/);
+  // The bundled changelog dates every version by its tag: the build checkout
+  // fetches tags and refuses a release whose own tag did not resolve.
+  const buildCheckout = pipeline.parsed.jobs.build.steps.find((step) => step.uses?.startsWith("actions/checkout@"));
+  assert.equal(buildCheckout.with["fetch-tags"], true);
+  const tagGuard = pipeline.parsed.jobs.build.steps.find((step) => step.name === "Require the release tag for the bundled changelog date");
+  assert.equal(tagGuard.env.RELEASE_TAG, "${{ needs.validate.outputs.tag }}");
+  assert.equal(tagGuard.env.RELEASE_SHA, "${{ needs.validate.outputs.sha }}");
+  assert.match(tagGuard.run, /refs\/tags\/\$\{tag\}\^\{commit\}/);
+  assert.match(tagGuard.run, /--format=%cs/);
+  assert.ok(pipeline.parsed.jobs.build.steps.indexOf(tagGuard) < pipeline.parsed.jobs.build.steps.findIndex((step) => step.name === "Build without signing credentials"));
   assert.doesNotMatch(pipeline.source, /VALIDATION|UPDATE_PROFILE|validation-draft|signingProfile/,
     "no test-only signing profile, feed, key or publication mode may remain");
   const identityGuard = pipeline.parsed.jobs.build.steps.find((step) => step.name === "Require reviewed public updater identity");
@@ -405,9 +417,8 @@ test("workflows expose no branch publication path and pin external actions", () 
     .map(([name]) => name);
   assert.deepEqual(environmentJobs, ["updater-sign", "publish"]);
   assert.equal(pipeline.parsed.jobs["updater-sign"].environment, "production-updater-signing");
-  assert.equal(pipeline.parsed.jobs.publish.environment,
-    "${{ needs.stage.outputs.mode == 'production' && 'public-release-stable' || 'public-release-preview' }}",
-    "only a stable candidate enters the reviewed stable environment; a qualified preview stays on the preview environment");
+  assert.equal(pipeline.parsed.jobs.publish.environment, "${{ (needs.stage.outputs.mode == 'production' || needs.stage.outputs.mode == 'stable-testing') && 'public-release-stable' || 'public-release-preview' }}",
+    "only a stable candidate enters the reviewed stable environment, in either stable mode; both preview modes stay on the preview environment");
   assert.doesNotMatch(pipeline.source, /public-release-production/);
   assert.deepEqual(pipeline.parsed.jobs.publish.concurrency, { group: "gitodile-publication", "cancel-in-progress": false });
   for (const jobName of ["validate", "build", "matrix-gate", "windows-deferred-boundary", "linux-os-boundary", "stage"]) {

@@ -17,7 +17,7 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { useModalFocus } from "../../shared/ui";
+import { moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { UpdateCandidate, UpdateChannel, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -164,11 +164,66 @@ function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate;
   );
 }
 
+const CHANNEL_OPTIONS: readonly UpdateChannel[] = ["stable", "preview"];
+
+/** Which feed to follow, as a two-option group under the installed build.
+ * It shows the channel a check will actually use — a build that has never
+ * been told otherwise reads as its own channel, not as a third "default"
+ * option — and one sentence per option says what choosing it means. Picking
+ * the other option forgets whatever the old feed offered, so the row above
+ * goes back to "Check for updates". */
+function ChannelControl({
+  snapshot,
+  controller,
+  busy,
+  language,
+}: {
+  snapshot: AppUpdatesSnapshot;
+  controller: AppUpdatesController;
+  busy: boolean;
+  language: Language;
+}) {
+  const t = appUpdateTranslations(language);
+  const setting = snapshot.channel;
+  return (
+    <div className="settings-row">
+      <div>
+        <strong>{t.channelLabel}</strong>
+        <p>{t.channelStableDescription} {t.channelPreviewDescription}</p>
+      </div>
+      <div
+        className="segmented-control"
+        role="radiogroup"
+        aria-label={t.channelLabel}
+        onKeyDown={moveFocusWithinRadioGroup}
+      >
+        {CHANNEL_OPTIONS.map((option, index) => {
+          const isActive = setting?.channel === option;
+          return (
+            <button
+              key={option}
+              className={`segmented-control__option${isActive ? " segmented-control__option--active" : ""}`}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              disabled={busy || setting === null}
+              tabIndex={(setting ? isActive : index === 0) ? 0 : -1}
+              onClick={() => void controller.setChannel(option)}
+            >
+              {t.channel[option]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** The Updates section of Settings: the installed build with its status and
- * actions, then the one switch for the startup check — with the disclosure
- * (GitHub, the 24-hour repeat for long sessions, what is sent) beside it, as
- * DESIGN.md requires. Checking is never started from here on mount; only the
- * button and the switch act. */
+ * actions, the channel to follow, then the one switch for the startup check
+ * — with the disclosure (GitHub, the 24-hour repeat for long sessions, what
+ * is sent) beside it, as DESIGN.md requires. Checking is never started from
+ * here on mount; only the button and the switch act. */
 export function AppUpdateSettingsControl({
   snapshot,
   controller,
@@ -219,6 +274,7 @@ export function AppUpdateSettingsControl({
               </button>
             </div>
           </div>
+          <ChannelControl snapshot={snapshot} controller={controller} busy={busy} language={language} />
         </div>
       </section>
       <section className="settings-group">

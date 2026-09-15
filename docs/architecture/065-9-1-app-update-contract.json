@@ -4,6 +4,11 @@
     "stable",
     "preview"
   ],
+  "channelPreferences": [
+    "follow_build",
+    "stable",
+    "preview"
+  ],
   "version": {
     "stablePattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
     "previewPattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-preview\\.([1-9][0-9]*)$",
@@ -214,6 +219,86 @@
       "feedChannel": "preview",
       "targetPresent": true,
       "expected": "invalid_version"
+    },
+    {
+      "name": "an explicit follow_build is the build channel",
+      "installedVersion": "0.2.0-preview.12",
+      "installedChannel": "preview",
+      "preferredChannel": "follow_build",
+      "candidateVersion": "0.2.0-preview.13",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "available"
+    },
+    {
+      "name": "stable build opted into previews is offered a newer preview",
+      "installedVersion": "0.2.0",
+      "installedChannel": "stable",
+      "preferredChannel": "preview",
+      "candidateVersion": "0.3.0-preview.1",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "available"
+    },
+    {
+      "name": "stable build opted into previews still refuses an older preview",
+      "installedVersion": "0.2.0",
+      "installedChannel": "stable",
+      "preferredChannel": "preview",
+      "candidateVersion": "0.2.0-preview.12",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "current"
+    },
+    {
+      "name": "stable build opted into previews accepts a newer stable from the preview feed",
+      "installedVersion": "0.2.0",
+      "installedChannel": "stable",
+      "preferredChannel": "preview",
+      "candidateVersion": "0.2.1",
+      "feedChannel": "preview",
+      "targetPresent": true,
+      "expected": "available"
+    },
+    {
+      "name": "preview build restricted to stable is offered its stable successor",
+      "installedVersion": "0.2.0-preview.12",
+      "installedChannel": "preview",
+      "preferredChannel": "stable",
+      "candidateVersion": "0.2.0",
+      "feedChannel": "stable",
+      "targetPresent": true,
+      "expected": "available"
+    },
+    {
+      "name": "preview build restricted to stable reports current when only an older stable exists",
+      "installedVersion": "0.2.0-preview.12",
+      "installedChannel": "preview",
+      "preferredChannel": "stable",
+      "candidateVersion": "0.1.0",
+      "feedChannel": "stable",
+      "targetPresent": true,
+      "expected": "current"
+    },
+    {
+      "name": "preview build restricted to stable ignores a preview candidate",
+      "installedVersion": "0.2.0-preview.12",
+      "installedChannel": "preview",
+      "preferredChannel": "stable",
+      "candidateVersion": "0.2.0-preview.13",
+      "feedChannel": "stable",
+      "targetPresent": true,
+      "expected": "current"
+    },
+    {
+      "name": "stable build following its build still rejects a preview in its feed",
+      "installedVersion": "0.2.0",
+      "installedChannel": "stable",
+      "preferredChannel": "stable",
+      "candidateVersion": "0.2.1-preview.1",
+      "feedChannel": "stable",
+      "targetPresent": true,
+      "expected": "channel_mismatch"
     }
   ],
   "metadataCases": [

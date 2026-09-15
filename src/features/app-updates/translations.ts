@@ -1,5 +1,5 @@
 import type { Language } from "../../i18n";
-import type { UpdateError, UpdateState } from "./domain";
+import type { UpdateChannel, UpdateError, UpdateState } from "./domain";
 
 /* The product name appears nowhere in this copy: the window is already the
  * product, and every other surface follows that rule (DESIGN.md, status
@@ -36,6 +36,10 @@ const dictionaries = {
     progress: (received: string, total: string) => `${received} of ${total}`,
     installing: "Installing… The app will close.",
     cancelled: "Cancelled. Nothing was installed.",
+    channelLabel: "Channel",
+    channel: { stable: "Stable", preview: "Preview" } satisfies Record<UpdateChannel, string>,
+    channelStableDescription: "Stable is what most people should run.",
+    channelPreviewDescription: "Previews arrive earlier and may break.",
     automaticTitle: "Startup check",
     automaticLabel: "Check for updates at startup",
     automaticDescription: "Asks GitHub for a newer version when the app opens, and again every 24 hours if it stays open. Sends no project data and doesn't identify your installation. Downloading and installing is always up to you.",
@@ -97,6 +101,11 @@ const dictionaries = {
     progress: (received: string, total: string) => `${received} de ${total}`,
     installing: "Instalando… La aplicación se cerrará.",
     cancelled: "Cancelado. No se ha instalado nada.",
+    channelLabel: "Canal",
+    // The channel names stay `stable` and `preview` in both locales (DESIGN.md).
+    channel: { stable: "Stable", preview: "Preview" } satisfies Record<UpdateChannel, string>,
+    channelStableDescription: "Stable es la opción para casi todo el mundo.",
+    channelPreviewDescription: "Las versiones preview llegan antes y pueden fallar.",
     automaticTitle: "Comprobación al iniciar",
     automaticLabel: "Buscar actualizaciones al iniciar",
     automaticDescription: "Consulta GitHub al abrir la aplicación, y de nuevo cada 24 horas si la dejas abierta. No envía datos de tus proyectos ni identifica tu instalación. Descargar e instalar siempre lo decides tú.",

@@ -9,7 +9,7 @@ import {
   ReleaseValidationError,
 } from "./release-candidate.mjs";
 import { NOTES_PLACEHOLDER } from "./release-prepare.mjs";
-import { highlightsFileName, parseHighlights } from "./highlights.mjs";
+import { extractHighlightsBlock, highlightsFileName, parseHighlights, renderHighlightsBlock } from "./highlights.mjs";
 
 export const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
 export const REQUIRED_RELEASE_CHECKS = Object.freeze([
@@ -114,7 +114,12 @@ export function validateReleasePreparation({ root, authorization, changedFiles }
   if (notes.includes(NOTES_PLACEHOLDER) || withoutComments === `# GitOdile ${authorization.version}` || !withoutComments.startsWith(`# GitOdile ${authorization.version}\n`)) fail("notes_incomplete", "curated release notes are missing or still contain the preparation placeholder");
   // The app's own What's new for this version ships from the same commit the
   // tag names, so a missing or malformed file is caught here, not by users.
-  parseHighlights(highlightsFileName(authorization.version), readAtRevision(root, authorization.mergeSha, `docs/release/highlights/${authorization.tag}.json`));
+  const highlights = parseHighlights(highlightsFileName(authorization.version), readAtRevision(root, authorization.mergeSha, `docs/release/highlights/${authorization.tag}.json`));
+  // The public notes' Highlights section is rendered from that same file,
+  // so a release whose notes and What's new disagree is not tagged.
+  if (extractHighlightsBlock(notes) !== renderHighlightsBlock(highlights.highlights)) {
+    fail("notes_incomplete", "the release notes' highlights block is missing or does not match the highlights file; run pnpm run release:notes");
+  }
   return { metadata, notesSha256: crypto.createHash("sha256").update(notes).digest("hex") };
 }
 

@@ -32,9 +32,12 @@ export type ReleaseHighlight = Readonly<{
 export type AppReleaseEntry = Readonly<{
   version: string;
   channel: AppReleaseChannel;
-  /** The day the release was cut, ISO `YYYY-MM-DD`, formatted for the reader's
-   * language at render time. Null only for a build whose highlights file does
-   * not exist yet — a development checkout between two releases. */
+  /** The day the release was published — its tag's date — as ISO
+   * `YYYY-MM-DD`, formatted for the reader's language at render time. A
+   * version whose tag the build could not see (a development checkout, or
+   * the candidate before it is tagged) falls back to the day its release
+   * branch was cut. Null only for a build whose highlights file does not
+   * exist yet — a development checkout between two releases. */
   date: string | null;
   highlights: readonly ReleaseHighlight[];
 }>;
@@ -93,13 +96,14 @@ export function compareAppReleaseVersions(left: string, right: string): number {
 export function buildAppChangelog(
   files: readonly ReleaseHighlightsFile[],
   currentVersion: string,
+  tagDates: Readonly<Record<string, string>> = {},
 ): readonly AppReleaseEntry[] {
   const entries: AppReleaseEntry[] = files
     .filter((file) => file.highlights.length > 0 || file.version === currentVersion)
     .map((file) => ({
       version: file.version,
       channel: appReleaseChannel(file.version),
-      date: file.date,
+      date: tagDates[file.version] ?? file.date,
       highlights: file.highlights,
     }));
   if (!entries.some((entry) => entry.version === currentVersion)) {
@@ -120,7 +124,11 @@ const HIGHLIGHT_FILES = Object.values(
   import.meta.glob<ReleaseHighlightsFile>("/docs/release/highlights/v*.json", { eager: true, import: "default" }),
 );
 
-export const APP_CHANGELOG: readonly AppReleaseEntry[] = buildAppChangelog(HIGHLIGHT_FILES, __APP_VERSION__);
+export const APP_CHANGELOG: readonly AppReleaseEntry[] = buildAppChangelog(
+  HIGHLIGHT_FILES,
+  __APP_VERSION__,
+  __APP_RELEASE_DATES__,
+);
 
 /** The build the user is running. The status bar, About's diagnostics, and
  * the changelog's "you are here" marker all have to agree on one version, and

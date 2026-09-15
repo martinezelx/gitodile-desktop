@@ -22,6 +22,7 @@ import {
 } from "./qualification-evidence.mjs";
 import {
   PREVIEW_TESTING_NOTICE,
+  STABLE_TESTING_NOTICE,
   compareReleaseVersions,
   derivePublicationMode,
   feedsForPromotion,
@@ -210,8 +211,12 @@ test("the manifest is rendered from the release's real publication time and no d
 
 test("the publication mode is derived from the version and the qualification registry", () => {
   const preview = { channel: "preview", githubPrerelease: true };
-  assert.equal(derivePublicationMode({ channel: "stable", githubPrerelease: false }, qualification(false)), "production");
+  // A stable candidate is production only once the registry proves every
+  // enabled target and production approval; until then it publishes under
+  // the same testing policy as a preview.
+  assert.equal(derivePublicationMode({ channel: "stable", githubPrerelease: false }, qualification(false)), "stable-testing");
   assert.equal(derivePublicationMode({ channel: "stable", githubPrerelease: false }, qualification(true)), "production");
+  assert.equal(derivePublicationMode({ channel: "stable", githubPrerelease: false }, null), "stable-testing");
   assert.equal(derivePublicationMode(preview, qualification(false)), "preview-testing");
   assert.equal(derivePublicationMode(preview, qualification(true)), "preview-qualified");
   // Deny by default: anything short of a fully qualified registry keeps the notice.
@@ -234,7 +239,7 @@ test("the publication mode is derived from the version and the qualification reg
   const plan = preparePublication({ signedDirectory: root, notesMarkdown: "# Qualified\n\nBoth targets proven.", qualification: qualification(true), mode: "preview-qualified" });
   assert.equal(plan.mode, "preview-qualified");
   assert.equal(plan.release.githubPrerelease, true);
-  assert.deepEqual(plan.qualification, { productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: true, qualifiedTargets: [...REQUIRED_TARGETS] });
+  assert.deepEqual(plan.qualification, { productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: true, stableTestingAllowed: false, qualifiedTargets: [...REQUIRED_TARGETS] });
   assert.doesNotMatch(plan.notesMarkdown, /Testing preview/);
   assert.doesNotMatch(plan.manifest.notes, /does not claim platform qualification/);
   assert.equal(plan.notesMarkdown, "# Qualified\n\nBoth targets proven.");
@@ -287,6 +292,38 @@ test("production is denied while every enabled target remains qualification_requ
   const linuxIndex = partial.targets.findIndex(({ key }) => key === "linux-x86_64");
   partial.targets[linuxIndex] = { key: "linux-x86_64", status: "qualification_required", evidence: [] };
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: partial, mode: "production" }));
+});
+
+test("stable-testing publishes a Tauri-signed stable release without claiming qualification and advances both feeds", () => {
+  const root = signedMatrix("0.2.0");
+  const plan = preparePublication({
+    signedDirectory: root,
+    notesMarkdown: "# First stable test\n\n<!-- gitodile-highlights:start -->\n## Highlights\n\n- Channels can be chosen.\n<!-- gitodile-highlights:end -->\n\nWindows and Linux remain unqualified testing downloads.",
+    qualification: qualification(false),
+    mode: "stable-testing",
+  });
+  assert.equal(plan.mode, "stable-testing");
+  assert.equal(plan.release.channel, "stable");
+  assert.equal(plan.release.githubPrerelease, false);
+  assert.deepEqual(plan.qualification, { productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: false, stableTestingAllowed: true, qualifiedTargets: [] });
+  assert.deepEqual(Object.keys(plan.manifest.platforms), ["windows-x86_64", "linux-x86_64"]);
+  assert.equal(plan.notesMarkdown, `${STABLE_TESTING_NOTICE}\n\n# First stable test\n\n<!-- gitodile-highlights:start -->\n## Highlights\n\n- Channels can be chosen.\n<!-- gitodile-highlights:end -->\n\nWindows and Linux remain unqualified testing downloads.`);
+  assert.match(plan.manifest.notes, /^Testing release: .*does not claim platform qualification\. Windows Authenticode is deferred\.\n\nVersión de prueba/);
+  // The block markers never reach the manifest; the rendered lines do.
+  assert.doesNotMatch(plan.manifest.notes, /gitodile-highlights|<!--/);
+  assert.match(plan.manifest.notes, /Highlights\n\n- Channels can be chosen\.\n\nWindows and Linux/);
+  const feeds = feedsForPromotion(rendered(plan), { stable: { version: "0.1.0" }, preview: { version: "0.2.0-preview.12" } });
+  assert.deepEqual(Object.keys(feeds), ["stable", "preview"]);
+  assert.equal(typeof feeds.stable, "string");
+  assert.equal(typeof feeds.preview, "string");
+  assert.equal(JSON.parse(feeds.stable).pub_date, PUBLISHED_AT);
+  // A newer preview keeps its feed; an older stable is a regression.
+  assert.equal(feedsForPromotion(rendered(plan), { preview: { version: "0.3.0-preview.1" } }).preview, null);
+  expectCode("feed_regression", () => feedsForPromotion(rendered(plan), { stable: { version: "0.2.1" } }));
+  // Stable testing accepts only a stable candidate; a preview keeps its own modes.
+  expectCode("profile_mismatch", () => preparePublication({ signedDirectory: signedMatrix("0.2.0-preview.12"), notesMarkdown: "Notes", qualification: qualification(false), mode: "stable-testing" }));
+  const forged = { ...rendered(plan), release: { ...plan.release, channel: "preview", githubPrerelease: true } };
+  expectCode("promotion_forbidden", () => feedsForPromotion(forged, {}));
 });
 
 test("preview-testing publishes only a Tauri-signed prerelease without claiming qualification", () => {
@@ -859,7 +896,6 @@ test("publication is the final job of the single release pipeline, derives its m
     "the publication time is GitHub's published_at, read by the publish job; staging must not invent one");
   assert.doesNotMatch(source, /validation-draft|validation-updater-signing|VALIDATION/,
     "no test-only publication mode, signing environment or feed routing may remain");
-  assert.equal(workflow.jobs.publish.environment,
-    "${{ needs.stage.outputs.mode == 'production' && 'public-release-stable' || 'public-release-preview' }}");
+  assert.equal(workflow.jobs.publish.environment, "${{ (needs.stage.outputs.mode == 'production' || needs.stage.outputs.mode == 'stable-testing') && 'public-release-stable' || 'public-release-preview' }}");
   for (const match of source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) assert.match(match[1], /@[0-9a-f]{40}$/);
 });

@@ -3,8 +3,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 import type { AppUpdatesPort } from "./port";
 
-/** The renderer supplies only opaque IDs, source intent and a bounded draft
- * summary. Feeds, URLs, keys, targets, headers and install paths are native. */
+/** The renderer supplies only opaque IDs, source intent, a bounded draft
+ * summary and a closed-enum channel choice. Feeds, URLs, keys, targets,
+ * headers and install paths are native. */
 export const appUpdatesPort: AppUpdatesPort = {
   readState: () => invoke("get_app_update_state"),
   readStartupConfirmation: () => invoke("get_startup_update_confirmation"),
@@ -15,4 +16,6 @@ export const appUpdatesPort: AppUpdatesPort = {
     request: { candidateId, consent: true, drafts },
   }),
   openManualDownload: () => openUrl("https://github.com/martinezelx/gitodile/releases"),
+  readChannel: () => invoke("get_app_update_channel"),
+  setChannel: (channel) => invoke("set_app_update_channel", { channel }),
 };

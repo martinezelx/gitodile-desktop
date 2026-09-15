@@ -9,6 +9,8 @@
     { "name": "download_app_update", "arguments": ["candidateId"], "response": "UpdateAction" },
     { "name": "cancel_app_update", "arguments": ["operationId"], "response": "UpdateState" },
     { "name": "install_app_update", "arguments": ["request"], "response": "UpdateState" },
+    { "name": "get_app_update_channel", "arguments": [], "response": "UpdateChannelSetting" },
+    { "name": "set_app_update_channel", "arguments": ["channel"], "response": "UpdateChannelSetting" },
     { "name": "open_repository", "arguments": ["path", "sessionEpoch?"], "response": "RepositoryInfo" },
     { "name": "reveal_project_file", "arguments": ["path", "filePath", "sessionEpoch"], "response": "void" },
     { "name": "plan_clone", "arguments": ["source", "destinationParent", "destinationName"], "response": "ClonePlan" },
@@ -110,7 +112,7 @@
     "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
     "recovery_unavailable", "recovery_conflict", "recovery_failed",
     "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed",
-    "install_blocked"
+    "install_blocked", "update_operation_busy"
   ],
   "watchEvent": {
     "name": "repository-changed",

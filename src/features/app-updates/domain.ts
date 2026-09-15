@@ -1,4 +1,17 @@
 export type UpdateChannel = "stable" | "preview";
+
+/** The stored choice between the two compiled feeds. `follow_build` is the
+ * default — the channel the running version belongs to — and is what every
+ * build did before the choice existed. The renderer never names a feed. */
+export type UpdateChannelPreference = "follow_build" | UpdateChannel;
+
+export type UpdateChannelSetting = Readonly<{
+  preferred: UpdateChannelPreference;
+  /** The channel the running build belongs to. */
+  buildChannel: UpdateChannel;
+  /** The channel a check will follow: the preference when set, else the build's. */
+  channel: UpdateChannel;
+}>;
 export type UpdateTarget = "windows-x86_64" | "darwin-aarch64" | "darwin-x86_64" | "linux-x86_64";
 
 export type UpdateCandidate = Readonly<{

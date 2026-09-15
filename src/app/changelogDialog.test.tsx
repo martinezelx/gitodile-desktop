@@ -66,6 +66,13 @@ describe("Changelog dialog", () => {
     // A checkout between releases has no file yet: listed, undated, empty.
     const between = buildAppChangelog(files, "0.2.0-preview.11");
     expect(between[0]).toEqual({ version: "0.2.0-preview.11", channel: "preview", date: null, highlights: [] });
+    // The tag's date wins over the day the branch was cut; a version whose
+    // tag the build did not see keeps the file's date.
+    const dated = buildAppChangelog(files, "0.2.0-preview.9", { "0.2.0-preview.9": "2026-09-16" });
+    expect(dated.map((entry) => [entry.version, entry.date])).toEqual([["0.2.0-preview.9", "2026-09-16"], ["0.1.0", "2026-08-27"]]);
+    for (const entry of APP_CHANGELOG) {
+      if (entry.version in __APP_RELEASE_DATES__) expect(entry.date).toBe(__APP_RELEASE_DATES__[entry.version]);
+    }
     expect(compareAppReleaseVersions("0.2.0-preview.9", "0.2.0-preview.10")).toBeLessThan(0);
     expect(compareAppReleaseVersions("0.2.0-preview.10", "0.2.0")).toBeLessThan(0);
     expect(compareAppReleaseVersions("0.2.0", "0.1.0")).toBeGreaterThan(0);

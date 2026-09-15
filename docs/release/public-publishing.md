@@ -7,10 +7,15 @@ It consumes the package-only output of the
 application and never accepts a local installer path supplied to the privileged
 job.
 
-No qualified production or stable publication is currently authorized. A
-narrow `preview-testing` policy may automatically publish a Tauri-signed
-preview as a GitHub prerelease and advance only `preview.json`; that exception
-does not change any qualification state or claim that installation succeeded.
+No qualified production publication is currently authorized. Two narrow
+testing policies may automatically publish a Tauri-signed candidate without
+platform qualification: `preview-testing` publishes a preview as a GitHub
+prerelease and advances only `preview.json`; `stable-testing` (since task
+065-9-12, 2026-09-15) publishes a stable candidate as a non-prerelease
+release and advances `stable.json` and, when newer, `preview.json`, so both
+channels can be exercised end to end before the registry is complete. Neither
+exception changes any qualification state or claims that installation
+succeeded.
 The qualification registry
 [`update-target-qualifications.json`](update-target-qualifications.json) is
 deny-by-default: Windows x86-64 and Linux x86-64 remain
@@ -33,11 +38,11 @@ trigger. They run only after `updater-sign` succeeded in the same run and
 consume only that run's `private-signed-<tag>` artifact. The publication mode
 is derived from the signed matrix and the reviewed qualification registry
 (`derivePublicationMode` in `scripts/release/public-release.mjs`), never
-chosen: a stable candidate is `production`; a preview candidate is
-`preview-qualified` when the registry already proves both enabled targets and
-production approval, and `preview-testing` otherwise. Ordinary pushes, pull
-requests, merges and tags cannot publish directly, and there is no draft-only
-or test-only mode.
+chosen: a candidate is `production` (stable) or `preview-qualified`
+(preview) when the registry already proves both enabled targets and
+production approval, and `stable-testing` or `preview-testing` otherwise.
+Ordinary pushes, pull requests, merges and tags cannot publish directly, and
+there is no draft-only mode or dispatch input that selects a mode.
 
 - automatic `preview-testing` accepts only a Tauri-signed preview,
   requires the complete Windows NSIS/Linux AppImage matrix, preserves
@@ -48,6 +53,16 @@ or test-only mode.
   qualification or stable authorization. The publisher prepends a fixed
   bilingual notice saying exactly that to the public release body and updater
   notes, independent of the curated change summary.
+- automatic `stable-testing` is the stable counterpart of `preview-testing`:
+  a Tauri-signed stable candidate, the complete Windows NSIS/Linux AppImage
+  matrix, `authenticode_deferred` preserved, every macOS target rejected, a
+  fixed bilingual "Testing release" notice prepended to the body and updater
+  notes, an empty `qualifiedTargets` list. It finalizes a non-prerelease
+  GitHub release and advances `stable.json`, plus `preview.json` when the
+  version is newer than the preview feed's current candidate. It enters the
+  reviewed stable environment. It exists so the stable channel — and the
+  channel choice in Settings — can be tested with real installations; it is
+  not qualification and not the `production` mode.
 - automatic `preview-qualified` is the same preview publication once the
   registry approves production and records a valid A-to-B proof for every
   enabled target under one updater key: still a GitHub prerelease, still only
@@ -88,7 +103,7 @@ boundary. The environment is named after the channel it may write:
 | Mode | Environment | Protection |
 | --- | --- | --- |
 | `preview-testing`, `preview-qualified` | `public-release-preview` | protected branches only, intentionally no reviewer, so a merged preview completes without maintainer intervention |
-| `production` | `public-release-stable` | required reviewer, no administrator bypass, plus the 065-9-7/065-9-8 evidence review and working-name clearance |
+| `stable-testing`, `production` | `public-release-stable` | required reviewer, no administrator bypass; for `production` additionally the 065-9-7/065-9-8 evidence review and working-name clearance |
 
 Each environment holds its own copy of `GITODILE_PUBLIC_RELEASE_TOKEN`; an
 environment without the secret fails closed before any destination request.
@@ -98,7 +113,9 @@ environment without the secret fails closed before any destination request.
 1. Add reviewed notes at `docs/release/notes/v<version>.md`, and the
    bilingual in-app highlights at `docs/release/highlights/v<version>.json`,
    on the one `release/<version>` branch created by
-   `pnpm run release:prepare <version>`.
+   `pnpm run release:prepare <version>`; then run `pnpm run release:notes`
+   so the notes' `## Highlights` block is rendered from the highlights file
+   (the coordinator refuses a release whose two descriptions disagree).
    Do not generate
    them from source or feedback commits and do not include private links,
    authenticated URLs, local paths, credentials or signing details.
@@ -115,8 +132,10 @@ environment without the secret fails closed before any destination request.
    qualification.
 4. Before target qualification is complete, a signed preview automatically
    enters `preview-testing`, finalizes only that prerelease and advances
-   `preview.json`; record it as pipeline evidence, never as an installed-update
-   pass. After 065-9-7/
+   `preview.json`, and a signed stable candidate enters `stable-testing`
+   through the reviewer-protected stable environment, finalizes a
+   non-prerelease release and advances both feeds; record either as pipeline
+   evidence, never as an installed-update pass. After 065-9-7/
    065-9-8 have recorded both enabled targets and production approval, later
    previews enter `preview-qualified` and a stable candidate enters
    reviewer-approved `production`. Do not edit the notes or qualification
@@ -154,7 +173,8 @@ environment without the secret fails closed before any destination request.
 
 Every manifest URL names `/releases/download/v<version>/<asset>`. Preview
 versions set GitHub `prerelease: true` and can advance only `preview.json`.
-Stable versions are rejected by both preview modes. Only qualified production
+Stable versions are rejected by both preview modes, and preview versions by
+both stable modes. A stable mode (`stable-testing` or qualified `production`)
 sets the GitHub prerelease flag to false, advances `stable.json`, and advances preview only
 when newer than its current candidate. Equal versions must have byte-identical
 manifests. Older versions fail closed. A stable release is newly built and

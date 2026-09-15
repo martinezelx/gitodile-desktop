@@ -40,7 +40,7 @@ export const APP_ERROR_CODES = [
   "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
   "recovery_unavailable", "recovery_conflict", "recovery_failed",
   "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed",
-  "install_blocked",
+  "install_blocked", "update_operation_busy",
 ] as const;
 
 export type AppError = {
@@ -170,6 +170,7 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     stale_ignore_file: t.errorStaleIgnoreFile,
     ignore_file_write_failed: t.errorIgnoreFileWriteFailed,
     install_blocked: fallback,
+    update_operation_busy: fallback,
   };
   return messages[error.code] ?? fallback;
 }

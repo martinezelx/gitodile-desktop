@@ -142,33 +142,62 @@ jobs:
     runs-on: ${{ matrix.runner }}
     # This job compiles third-party code and runs package hooks. It references
     # no secret and enters no environment, so GitHub never passes it one.
+    # Both channels publish under the testing policy (Tauri-signed, no
+    # platform qualification) until the registry is complete, so every build
+    # carries the canonical test-target pair; the qualified list stays a
+    # separate repository variable that only real A-to-B evidence may set.
     env:
       GITODILE_UPDATER_PUBLIC_KEY: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
       GITODILE_UPDATER_PUBLIC_KEY_ID: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
       GITODILE_RELEASE_CHANNEL: ${{ needs.validate.outputs.channel }}
       GITODILE_QUALIFIED_UPDATE_TARGETS: ${{ vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}
-      GITODILE_PREVIEW_TEST_UPDATE_TARGETS: ${{ needs.validate.outputs.channel == 'preview' && 'windows-x86_64,linux-x86_64' || '' }}
+      GITODILE_TEST_UPDATE_TARGETS: windows-x86_64,linux-x86_64
     steps:
+      # Tags are fetched because the bundled What's new dates each version
+      # by its tag; the step below refuses to build a release whose own tag
+      # is not there, so a published build never silently falls back to the
+      # day its branch was cut.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.validate.outputs.sha }}
+          fetch-tags: true
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: candidate-identity
+      - name: Require the release tag for the bundled changelog date
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { spawnSync } from "node:child_process";
+          const git = (...args) => {
+            const result = spawnSync("git", args, { encoding: "utf8" });
+            if (result.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${result.stderr.trim()}`);
+            return result.stdout.trim();
+          };
+          const tag = process.env.RELEASE_TAG;
+          if (git("rev-parse", "--verify", `refs/tags/${tag}^{commit}`) !== process.env.RELEASE_SHA) {
+            throw new Error(`Tag ${tag} does not name the validated release revision.`);
+          }
+          const date = git("log", "-1", "--format=%cs", `refs/tags/${tag}`);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`Tag ${tag} has no resolvable date.`);
+          console.log(`${tag} was tagged on ${date}.`);
+          NODE
       - name: Require reviewed public updater identity
         shell: bash
         run: |
           node --input-type=module <<'NODE'
           const qualifiedTargets = process.env.GITODILE_QUALIFIED_UPDATE_TARGETS ?? "";
-          const previewTestTargets = process.env.GITODILE_PREVIEW_TEST_UPDATE_TARGETS ?? "";
-          const preview = process.env.GITODILE_RELEASE_CHANNEL === "preview";
+          const testTargets = process.env.GITODILE_TEST_UPDATE_TARGETS ?? "";
           if (!process.env.GITODILE_UPDATER_PUBLIC_KEY || !process.env.GITODILE_UPDATER_PUBLIC_KEY_ID) {
             throw new Error("The reviewed public updater identity is not configured.");
           }
           if (!new Set(["", "windows-x86_64,linux-x86_64"]).has(qualifiedTargets) ||
-              previewTestTargets !== (preview ? "windows-x86_64,linux-x86_64" : "")) {
-            throw new Error("Preview testing and qualified eligibility must use only the canonical Windows/Linux target set.");
+              testTargets !== "windows-x86_64,linux-x86_64") {
+            throw new Error("Testing and qualified eligibility must use only the canonical Windows/Linux target set.");
           }
           NODE
       - name: Install Linux packaging dependencies
@@ -446,11 +475,12 @@ jobs:
           if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-preview\.[1-9][0-9]*)?$/.test(tag) || !fs.existsSync(`docs/release/notes/${tag}.md`)) {
             throw new Error("The signed matrix does not identify reviewed release notes.");
           }
-          // The mode is derived, never chosen: a stable candidate is
-          // production; a preview is preview-qualified only when the reviewed
-          // registry already proves every enabled target, and preview-testing
-          // otherwise. The publication time is not derived here: it is the
-          // instant GitHub records when the publish job publishes the release.
+          // The mode is derived, never chosen: a candidate is production
+          // (stable) or preview-qualified (preview) only when the reviewed
+          // registry already proves every enabled target, and stable-testing
+          // or preview-testing otherwise. The publication time is not derived
+          // here: it is the instant GitHub records when the publish job
+          // publishes the release.
           const qualification = JSON.parse(fs.readFileSync("docs/release/update-target-qualifications.json", "utf8"));
           const mode = derivePublicationMode(matrix.release, qualification);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\nmode=${mode}\n`);
@@ -484,9 +514,10 @@ jobs:
     concurrency:
       group: gitodile-publication
       cancel-in-progress: false
-    # Only a stable candidate enters the reviewed stable environment; both
-    # preview modes publish through the preview environment.
-    environment: ${{ needs.stage.outputs.mode == 'production' && 'public-release-stable' || 'public-release-preview' }}
+    # Only a stable candidate enters the reviewed stable environment, whether
+    # it publishes as production or under the testing policy; both preview
+    # modes publish through the preview environment.
+    environment: ${{ (needs.stage.outputs.mode == 'production' || needs.stage.outputs.mode == 'stable-testing') && 'public-release-stable' || 'public-release-preview' }}
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

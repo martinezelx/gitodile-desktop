@@ -15,7 +15,7 @@ import {
   validateRequiredChecks,
 } from "./merge-release.mjs";
 import { NOTES_PLACEHOLDER, parseCommandLine, prepareRelease } from "./release-prepare.mjs";
-import { scaffoldHighlights } from "./highlights.mjs";
+import { applyHighlightsBlock, renderHighlightsBlock, scaffoldHighlights } from "./highlights.mjs";
 import { ReleaseValidationError } from "./release-candidate.mjs";
 
 function git(root, ...args) {
@@ -118,7 +118,11 @@ test("release preparation writes every authority on a new clean current branch a
   const result = prepareRelease({ root: repo.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: repo.bare });
   assert.equal(result.branch, "release/0.2.0-preview.10");
   assert.equal(git(repo.root, "branch", "--show-current"), result.branch);
-  assert.match(fs.readFileSync(path.join(repo.root, result.notes), "utf8"), new RegExp(NOTES_PLACEHOLDER));
+  const notes = fs.readFileSync(path.join(repo.root, result.notes), "utf8");
+  assert.match(notes, new RegExp(NOTES_PLACEHOLDER));
+  // The notes start with the block for the empty list, so the coordinator's
+  // notes/highlights agreement holds from the first commit on the branch.
+  assert.equal(notes, `# GitOdile 0.2.0-preview.10\n\n${renderHighlightsBlock([])}\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`);
   const highlights = JSON.parse(fs.readFileSync(path.join(repo.root, result.highlights), "utf8"));
   assert.equal(highlights.version, "0.2.0-preview.10");
   assert.match(highlights.date, /^\d{4}-\d{2}-\d{2}$/);
@@ -155,7 +159,7 @@ test("release preparation rejects dirty, non-main and unchanged starts", () => {
 test("merge preparation binds metadata, scope, curated notes and authorization bytes", () => {
   const repo = repository();
   git(repo.root, "switch", "-c", "release/0.2.0-preview.10");
-  const notes = "# GitOdile 0.2.0-preview.10\n\nA reviewed preview with safer release automation.\n";
+  const notes = applyHighlightsBlock("# GitOdile 0.2.0-preview.10\n\nA reviewed preview with safer release automation.\n", []);
   writeVersion(repo.root, "0.2.0-preview.10", notes);
   git(repo.root, "add", ".");
   git(repo.root, "commit", "-m", "chore(release): prepare 0.2.0-preview.10");
@@ -170,6 +174,20 @@ test("merge preparation binds metadata, scope, curated notes and authorization b
   writeVersion(repo.root, "0.2.0-preview.10", notes, `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [{ id: "x", icon: "nope", en: "a", es: "b" }] })}\n`);
   git(repo.root, "add", "."); git(repo.root, "commit", "-m", "broken highlights");
   expectCode("highlights_invalid", () => validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }));
+  // The notes' Highlights section is rendered from the highlights file; a
+  // release whose two descriptions disagree, or whose notes lack the block,
+  // is not tagged.
+  git(repo.root, "switch", "-c", "release/drifted");
+  const line = { id: "channelChoice", icon: "cloud-download", en: "Choose the update channel.", es: "Elige el canal de actualizaciones." };
+  writeVersion(repo.root, "0.2.0-preview.10", notes, `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [line] })}\n`);
+  git(repo.root, "add", "."); git(repo.root, "commit", "-m", "highlights without notes");
+  expectCode("notes_incomplete", () => validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }));
+  writeVersion(repo.root, "0.2.0-preview.10", applyHighlightsBlock(notes, [line]), `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [line] })}\n`);
+  git(repo.root, "add", "."); git(repo.root, "commit", "-m", "notes rendered");
+  assert.match(validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }).notesSha256, /^[0-9a-f]{64}$/);
+  writeVersion(repo.root, "0.2.0-preview.10", "# GitOdile 0.2.0-preview.10\n\n## Highlights\n\n- Choose the update channel.\n", `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [line] })}\n`);
+  git(repo.root, "add", "."); git(repo.root, "commit", "-m", "block without markers");
+  expectCode("notes_incomplete", () => validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }));
   git(repo.root, "switch", "release/0.2.0-preview.10");
   expectCode("release_scope_invalid", () => validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: [...files, "scripts/release/evil.mjs"] }));
   expectCode("release_scope_invalid", () => validateReleasePreparation({

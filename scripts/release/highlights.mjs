@@ -49,6 +49,47 @@ export function highlightsFileName(version) {
   return `v${version}.json`;
 }
 
+/** The public notes' `## Highlights` section is rendered from the English
+ * lines of the highlights file, between these two markers. The script owns
+ * everything between them and replaces it on every run; the rest of the
+ * notes stays hand-written. HTML comments do not render on GitHub and are
+ * stripped before the text reaches the updater manifest. */
+export const HIGHLIGHTS_BLOCK_START = "<!-- gitodile-highlights:start -->";
+export const HIGHLIGHTS_BLOCK_END = "<!-- gitodile-highlights:end -->";
+
+export function renderHighlightsBlock(highlights) {
+  const body = highlights.length === 0
+    ? ["<!-- This version has no user-facing highlights; What's new lists it without lines. -->"]
+    : ["## Highlights", "", ...highlights.map((entry) => `- ${entry.en}`)];
+  return [HIGHLIGHTS_BLOCK_START, ...body, HIGHLIGHTS_BLOCK_END].join("\n");
+}
+
+/** The marked block as it stands in the notes, or `null` when there is none.
+ * Half a pair of markers is an error rather than "none": the script would
+ * otherwise insert a second block beside the broken one. */
+export function extractHighlightsBlock(notes) {
+  const text = notes.replace(/\r\n?/g, "\n");
+  const start = text.indexOf(HIGHLIGHTS_BLOCK_START);
+  const end = text.indexOf(HIGHLIGHTS_BLOCK_END);
+  if (start < 0 && end < 0) return null;
+  if (start < 0 || end < start) fail("notes_invalid", "the highlights markers in the release notes are malformed");
+  return text.slice(start, end + HIGHLIGHTS_BLOCK_END.length);
+}
+
+/** Notes with the block rendered from `highlights`: replaced in place when
+ * the markers exist, inserted under the title otherwise. Re-running changes
+ * only the marked block. */
+export function applyHighlightsBlock(notes, highlights) {
+  const text = notes.replace(/\r\n?/g, "\n");
+  const block = renderHighlightsBlock(highlights);
+  const existing = extractHighlightsBlock(text);
+  if (existing !== null) return text.replace(existing, block);
+  const title = text.match(/^# [^\n]*\n/);
+  if (!title) fail("notes_invalid", "release notes must start with a `# GitOdile <version>` title line");
+  const rest = text.slice(title[0].length).replace(/^\n+/, "");
+  return `${title[0]}\n${block}\n${rest === "" ? "" : `\n${rest}`}`;
+}
+
 /** Local calendar date, the day the release was cut: the one fact the
  * preparation step knows without the network, a tag or the pipeline. */
 export function todayIsoDate(now = new Date()) {
@@ -119,8 +160,11 @@ export function readHighlightsDirectory(root = moduleRoot) {
 }
 
 /** The repository-wide rules on top of each file's own: the version being
- * developed has its file, and no highlights describe a version that has no
- * public notes. */
+ * developed has its file, no highlights describe a version that has no
+ * public notes, and notes that carry the highlights block carry the one
+ * their highlights file renders. Notes written before the block existed
+ * have no markers and are left alone; the merge coordinator is what
+ * requires the block for a release being prepared. */
 export function checkHighlights(root = moduleRoot) {
   const entries = readHighlightsDirectory(root);
   const current = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version;
@@ -128,8 +172,13 @@ export function checkHighlights(root = moduleRoot) {
     fail("highlights_missing", `${HIGHLIGHTS_DIRECTORY}/${highlightsFileName(current)} is missing for the current version`);
   }
   for (const entry of entries) {
-    if (!fs.existsSync(path.join(root, NOTES_DIRECTORY, `v${entry.version}.md`))) {
+    const notesPath = path.join(root, NOTES_DIRECTORY, `v${entry.version}.md`);
+    if (!fs.existsSync(notesPath)) {
       fail("highlights_invalid", `${highlightsFileName(entry.version)}: no public notes exist at ${NOTES_DIRECTORY}/v${entry.version}.md`);
+    }
+    const block = extractHighlightsBlock(fs.readFileSync(notesPath, "utf8"));
+    if (block !== null && block !== renderHighlightsBlock(entry.highlights)) {
+      fail("notes_stale", `${NOTES_DIRECTORY}/v${entry.version}.md: the highlights block differs from ${highlightsFileName(entry.version)}; run pnpm run release:notes ${entry.version}`);
     }
   }
   return entries;

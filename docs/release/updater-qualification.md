@@ -21,12 +21,13 @@ the evidence, not a value in code: the validator only requires that both are
 newer than A, and that B was served to the installed A through the public
 `preview.json` feed.
 
-Preview builds carry the compile-time
-`GITODILE_PREVIEW_TEST_UPDATE_TARGETS=windows-x86_64,linux-x86_64` gate so an
-installed preview can perform a real update before either target is
-qualified. Stable builds never consult that gate; they require
-`GITODILE_QUALIFIED_UPDATE_TARGETS`, which stays empty until the registry
-below records both enabled targets as qualified.
+Every build carries the compile-time
+`GITODILE_TEST_UPDATE_TARGETS=windows-x86_64,linux-x86_64` gate so an
+installed preview — and, since task 065-9-12, an installed `stable-testing`
+release — can perform a real update before either target is qualified. That
+gate claims nothing; `GITODILE_QUALIFIED_UPDATE_TARGETS` stays empty until
+the registry below records both enabled targets as qualified, and the
+`production` mode stays reserved for that registry.
 
 ## Per-target execution
 
