@@ -107,10 +107,14 @@ environment without the secret fails closed before any destination request.
    from the exact source commit. Do not edit the notes or qualification
    registry during a retry.
 5. The `publish` job creates the public lightweight tag at a commit in the
-   feedback repository, reconciles one draft release, and uploads only missing
-   assets. Existing bytes are downloaded and hashed. A conflicting byte,
-   unexpected asset or finalized release missing an asset stops the run; no
-   asset is deleted, renamed or replaced.
+   feedback repository and reconciles one draft release. Drafts are found by
+   listing releases, because GitHub does not resolve a draft by its tag.
+   Existing bytes are downloaded and hashed. While the release is still a
+   draft, nobody could download it, so a missing asset is uploaded and a
+   differing one is replaced: a re-dispatched pipeline rebuilds installers
+   that are not byte-reproducible. Once the release is published it is
+   immutable: a conflicting byte, unexpected asset or missing asset stops the
+   run, and nothing is deleted, renamed or replaced.
 6. Only after the full release is final does the `publish` job download every
    asset anonymously and recheck SHA-256. It then prepares complete channel
    manifests and updates the public `main` tree with one compare-and-swap Git

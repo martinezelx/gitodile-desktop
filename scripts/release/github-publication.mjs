@@ -38,6 +38,11 @@ export function validateSourceRun(run, expectedRepository) {
   return true;
 }
 
+/** Returns the assets to upload. A finalized release is immutable: every
+ * expected asset must already exist with identical bytes. A draft is staging
+ * for a release nobody could download yet: a missing asset is uploaded and a
+ * differing one (a re-dispatched pipeline rebuilds non-reproducible
+ * installers) is replaced, reported through `replaces`. */
 export function reconcileAssets(expected, existing, downloadedHashes, finalized) {
   const byName = new Map(existing.map((asset) => [asset.name, asset]));
   if (byName.size !== existing.length) fail("asset_conflict", "release contains duplicate asset names");
@@ -54,7 +59,8 @@ export function reconcileAssets(expected, existing, downloadedHashes, finalized)
       continue;
     }
     if (remote.size !== asset.size || downloadedHashes.get(asset.fileName) !== asset.sha256) {
-      fail("immutable_asset_conflict", `published asset differs: ${asset.fileName}`);
+      if (finalized) fail("immutable_asset_conflict", `published asset differs: ${asset.fileName}`);
+      upload.push({ ...asset, replaces: remote });
     }
   }
   return upload;
@@ -209,7 +215,10 @@ export async function publish({ directory, token, sourceRun, sourceRepository, f
       if (plan.assets.some((item) => item.fileName === asset.name)) hashes.set(asset.name, await client.assetHash(asset.url));
     }
   }
-  for (const asset of reconcileAssets(plan.assets, release.assets ?? [], hashes, !release.draft)) await uploadAsset(client, release, directory, asset);
+  for (const asset of reconcileAssets(plan.assets, release.assets ?? [], hashes, !release.draft)) {
+    if (asset.replaces) await client.api(`/releases/assets/${asset.replaces.id}`, { method: "DELETE" }, [204]);
+    await uploadAsset(client, release, directory, asset);
+  }
   release = await client.api(`/releases/${release.id}`);
   if (release.draft) release = await client.api(`/releases/${release.id}`, { method: "PATCH", body: JSON.stringify({ draft: false, prerelease: plan.release.githubPrerelease }) }, [200]);
   const freshHashes = await downloadExistingHashes(release, plan.assets, fetchImpl);

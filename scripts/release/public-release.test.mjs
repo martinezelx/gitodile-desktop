@@ -335,11 +335,14 @@ test("feed promotion follows preview/stable ordering without regression or relab
   assert.equal(compareReleaseVersions("0.2.0", "0.2.0-preview.9"), 1);
 });
 
-test("immutable assets reconcile missing draft files but never overwrite or repair finalized releases", () => {
+test("draft assets are uploaded or replaced; finalized releases are never repaired or overwritten", () => {
   const expected = [{ fileName: "GitOdile.exe", size: 4, sha256: "a".repeat(64) }];
   assert.deepEqual(reconcileAssets(expected, [], new Map(), false), expected);
   expectCode("finalized_asset_missing", () => reconcileAssets(expected, [], new Map(), true));
-  expectCode("immutable_asset_conflict", () => reconcileAssets(expected, [{ name: "GitOdile.exe", size: 4 }], new Map([["GitOdile.exe", "b".repeat(64)]]), false));
+  const stale = { id: 7, name: "GitOdile.exe", size: 4 };
+  assert.deepEqual(reconcileAssets(expected, [stale], new Map([["GitOdile.exe", "b".repeat(64)]]), false), [{ ...expected[0], replaces: stale }]);
+  assert.deepEqual(reconcileAssets(expected, [stale], new Map([["GitOdile.exe", "a".repeat(64)]]), false), []);
+  expectCode("immutable_asset_conflict", () => reconcileAssets(expected, [stale], new Map([["GitOdile.exe", "b".repeat(64)]]), true));
   expectCode("asset_conflict", () => reconcileAssets(expected, [{ name: "private-source.zip", size: 1 }], new Map(), false));
 });
 
@@ -429,8 +432,16 @@ function fakeDestination({ initialRelease = null, initialFiles = {} } = {}) {
       const release = state.releases.find((item) => item.upload_url.startsWith(`https://uploads.example/releases/${item.id}`));
       const name = searchParams.get("name");
       const bytes = Buffer.from(options.body);
-      release.assets.push({ name, size: bytes.length, bytes, url: `https://api.example/assets/${state.nextId}`, browser_download_url: `https://public.example/assets/${state.nextId++}/${name}` });
+      release.assets.push({ id: state.nextId, name, size: bytes.length, bytes, url: `https://api.example/assets/${state.nextId}`, browser_download_url: `https://public.example/assets/${state.nextId++}/${name}` });
       return json({}, 201);
+    }
+    const assetById = api.match(/^\/releases\/assets\/(\d+)$/);
+    if (assetById && method === "DELETE") {
+      const release = state.releases.find((item) => item.assets.some((asset) => asset.id === Number(assetById[1])));
+      if (!release) return json({ message: "Not Found" }, 404);
+      if (!release.draft) return json({ message: "published assets are immutable here" }, 422);
+      release.assets = release.assets.filter((asset) => asset.id !== Number(assetById[1]));
+      return new Response(null, { status: 204 });
     }
     const releaseById = api.match(/^\/releases\/(\d+)$/);
     if (releaseById) {
@@ -529,6 +540,44 @@ test("an interrupted publication resumes from an existing draft that the tag loo
   const again = await publish({ directory: stagedPublication("0.2.0-preview.10", "preview-testing"), token: "t", sourceRun: SOURCE_RUN, sourceRepository: "martinezelx/gitodile-desktop", fetchImpl: seeded.fetchImpl });
   assert.equal(again.state, "published");
   assert.deepEqual(again.feedsChanged, [], "a completed publication reconciles without changing the feed");
+});
+
+test("a re-dispatched pipeline replaces a draft's stale assets but can never touch a published release", async () => {
+  // Run 34909190392 rebuilt v0.2.0-preview.10 from scratch and met the draft
+  // that run 34907058498 had filled with different installer bytes.
+  const first = stagedPublication("0.2.0-preview.10", "preview-testing");
+  const seeded = fakeDestination({ initialFiles: { "README.md": README } });
+  await assert.rejects(publish({ directory: first, token: "t", sourceRun: SOURCE_RUN, sourceRepository: "martinezelx/gitodile-desktop",
+    fetchImpl: async (url, options) => {
+      if (String(url).includes("/releases/") && options?.method === "PATCH") throw new Error("interrupted");
+      return seeded.fetchImpl(url, options);
+    } }));
+  const draft = seeded.state.releases[0];
+  const staleExe = draft.assets.find((asset) => asset.name.endsWith("_setup.exe"));
+  staleExe.bytes = Buffer.from("bytes from an earlier non-reproducible build");
+  staleExe.size = staleExe.bytes.length;
+  const staleId = staleExe.id;
+
+  const result = await publish({ directory: stagedPublication("0.2.0-preview.10", "preview-testing"), token: "t", sourceRun: SOURCE_RUN, sourceRepository: "martinezelx/gitodile-desktop", fetchImpl: seeded.fetchImpl });
+  assert.equal(result.state, "published");
+  assert.equal(seeded.state.calls.filter((call) => call === `DELETE /repos/martinezelx/gitodile/releases/assets/${staleId}`).length, 1, "only the differing draft asset is deleted");
+  const published = seeded.state.releases[0];
+  assert.equal(published.draft, false);
+  assert.equal(published.assets.length, 6);
+  assert.equal(published.assets.some((asset) => asset.id === staleId), false);
+  assert.equal(JSON.parse(seeded.state.files["updates/preview.json"]).version, "0.2.0-preview.10");
+
+  // Once published, the same divergence is a hard conflict and the feed stays.
+  const publishedExe = published.assets.find((asset) => asset.name.endsWith("_setup.exe"));
+  publishedExe.bytes = Buffer.from("tampered after publication");
+  publishedExe.size = publishedExe.bytes.length;
+  const feedBefore = seeded.state.files["updates/preview.json"];
+  await assert.rejects(
+    publish({ directory: stagedPublication("0.2.0-preview.10", "preview-testing"), token: "t", sourceRun: SOURCE_RUN, sourceRepository: "martinezelx/gitodile-desktop", fetchImpl: seeded.fetchImpl }),
+    (error) => error instanceof ReleaseValidationError && error.code === "immutable_asset_conflict",
+  );
+  assert.equal(seeded.state.calls.filter((call) => call.startsWith("DELETE ")).length, 1, "no published asset is ever deleted");
+  assert.equal(seeded.state.files["updates/preview.json"], feedBefore);
 });
 
 test("source workflow and public README contracts reject unsafe provenance and update guidance idempotently", () => {
