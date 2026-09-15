@@ -382,7 +382,7 @@ release pipeline with the production key and the public `preview.json` feed.
 The versions are recorded in the evidence, not fixed in code. For each enabled
 target:
 
-1. prepare each exact version with `pnpm run release:prepare -- <version>` on
+1. prepare each exact version with `pnpm run release:prepare <version>` on
    the required `release/<version>` branch, merge its reviewed pull request into
    `main`, let the protected coordinator tag that exact checked merge commit,
    and prove npm/Cargo/lock/Tauri,

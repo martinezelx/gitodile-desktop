@@ -14,7 +14,7 @@ import {
   validateReleasePreparation,
   validateRequiredChecks,
 } from "./merge-release.mjs";
-import { NOTES_PLACEHOLDER, prepareRelease } from "./release-prepare.mjs";
+import { NOTES_PLACEHOLDER, parseCommandLine, prepareRelease } from "./release-prepare.mjs";
 import { ReleaseValidationError } from "./release-candidate.mjs";
 
 function git(root, ...args) {
@@ -120,6 +120,14 @@ test("release preparation writes every authority on a new clean current branch a
   for (const file of ["package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "README.md"]) {
     assert.match(fs.readFileSync(path.join(repo.root, file), "utf8"), /0\.2\.0-preview\.10/);
   }
+});
+
+test("release preparation takes one version, with or without pnpm's forwarded separator", () => {
+  assert.deepEqual(parseCommandLine(["0.2.0-preview.11"]), { version: "0.2.0-preview.11" });
+  assert.deepEqual(parseCommandLine(["--", "0.2.0-preview.11"]), { version: "0.2.0-preview.11" });
+  expectCode("usage", () => parseCommandLine([]));
+  expectCode("usage", () => parseCommandLine(["--"]));
+  expectCode("usage", () => parseCommandLine(["0.2.0-preview.11", "extra"]));
 });
 
 test("release preparation rejects dirty, non-main and unchanged starts", () => {

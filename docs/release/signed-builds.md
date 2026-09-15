@@ -129,7 +129,7 @@ that signing layer.
 ## Preparing a candidate
 
 1. From a clean, up-to-date `main`, run
-   `pnpm run release:prepare -- <version>`. The command creates only
+   `pnpm run release:prepare <version>`. The command creates only
    `release/<version>`, updates npm, Cargo, Cargo lock, Tauri and README version
    metadata, and creates the required notes file. Review and replace every
    notes placeholder, run the complete repository gate, commit, push the one

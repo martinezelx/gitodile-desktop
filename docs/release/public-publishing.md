@@ -83,7 +83,7 @@ environment without the secret fails closed before any destination request.
 ## Immutable release sequence
 
 1. Add reviewed notes at `docs/release/notes/v<version>.md` on the one
-   `release/<version>` branch created by `pnpm run release:prepare -- <version>`.
+   `release/<version>` branch created by `pnpm run release:prepare <version>`.
    Do not generate
    them from source or feedback commits and do not include private links,
    authenticated URLs, local paths, credentials or signing details.

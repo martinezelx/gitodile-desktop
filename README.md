@@ -137,7 +137,7 @@ The completed History implementation and its validation are recorded in
 
 The planned updater uses two channels, `stable` and `preview`, both released
 from tagged commits on `main`. Start only from a clean, current `main` with
-`pnpm run release:prepare -- <semver>`; it creates the sole valid
+`pnpm run release:prepare <semver>`; it creates the sole valid
 `release/<semver>` branch and prepares the authoritative metadata and notes.
 After its same-repository pull request passes the complete check set and is
 merged, protected default-branch automation creates the tag at the exact merge
@@ -313,7 +313,7 @@ available as `check:docs`, `check:architecture`, `check:frontend`, and
 Create an unsigned local desktop bundle with:
 
 ```bash
-pnpm run tauri -- build
+pnpm run tauri build
 ```
 
 CI runs frontend checks on Linux and Rust checks on Windows, macOS, and Linux.

@@ -127,11 +127,21 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   return { branch, version, channel: release.channel, notes: path.relative(repositoryRoot, files.notes).replaceAll("\\", "/") };
 }
 
+/** The one positional argument, the version. pnpm 7+ forwards a `--` written
+ * after the script name to the script itself instead of swallowing it, so
+ * `pnpm run release:prepare -- 1.2.3` used to arrive as two arguments and fail
+ * the usage check; one leading separator is accepted and dropped. */
+export function parseCommandLine(args) {
+  const positional = args[0] === "--" ? args.slice(1) : args;
+  if (positional.length !== 1) fail("usage", "usage: pnpm run release:prepare <semver>");
+  return { version: positional[0] };
+}
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   try {
-    if (process.argv.length !== 3) fail("usage", "usage: pnpm run release:prepare -- <semver>");
-    const result = prepareRelease({ root: process.cwd(), version: process.argv[2] });
+    const { version } = parseCommandLine(process.argv.slice(2));
+    const result = prepareRelease({ root: process.cwd(), version });
     process.stdout.write(`Prepared ${result.branch}. Review and replace the release-notes placeholder before committing.\n`);
   } catch (error) {
     const code = error instanceof ReleaseValidationError ? error.code : "internal";
