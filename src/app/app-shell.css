@@ -1369,6 +1369,14 @@
   gap: 10px;
   animation: changelog-notes-enter var(--duration-normal) cubic-bezier(.16, 1, .3, 1);
 }
+/* The one line a highlight-less running build shows instead of a list,
+   indented to where its notes would start. */
+.changelog-release__empty {
+  margin: 12px 4px 0 38px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+}
 .changelog-release__notes li {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);

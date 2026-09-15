@@ -15,6 +15,7 @@ import {
   validateRequiredChecks,
 } from "./merge-release.mjs";
 import { NOTES_PLACEHOLDER, parseCommandLine, prepareRelease } from "./release-prepare.mjs";
+import { scaffoldHighlights } from "./highlights.mjs";
 import { ReleaseValidationError } from "./release-candidate.mjs";
 
 function git(root, ...args) {
@@ -27,15 +28,17 @@ function expectCode(code, callback) {
   assert.throws(callback, (error) => error instanceof ReleaseValidationError && error.code === code);
 }
 
-function writeVersion(root, version, notes = null) {
+function writeVersion(root, version, notes = null, highlights = scaffoldHighlights(version, "2026-09-15")) {
   fs.mkdirSync(path.join(root, "src-tauri"), { recursive: true });
   fs.mkdirSync(path.join(root, "docs", "release", "notes"), { recursive: true });
+  fs.mkdirSync(path.join(root, "docs", "release", "highlights"), { recursive: true });
   fs.writeFileSync(path.join(root, "package.json"), `${JSON.stringify({ name: "gitodile", version }, null, 2)}\n`);
   fs.writeFileSync(path.join(root, "src-tauri", "Cargo.toml"), `[package]\nname = "gitodile"\nversion = "${version}"\n`);
   fs.writeFileSync(path.join(root, "src-tauri", "Cargo.lock"), `name = "gitodile"\nversion = "${version}"\n`);
   fs.writeFileSync(path.join(root, "src-tauri", "tauri.conf.json"), `${JSON.stringify({ version }, null, 2)}\n`);
   fs.writeFileSync(path.join(root, "README.md"), `Current development version: **${version}**, **${version.includes("-preview.") ? "preview" : "stable"}** channel.\n`);
   if (notes !== null) fs.writeFileSync(path.join(root, "docs", "release", "notes", `v${version}.md`), notes);
+  if (highlights !== null) fs.writeFileSync(path.join(root, "docs", "release", "highlights", `v${version}.json`), highlights);
 }
 
 function repository() {
@@ -116,6 +119,12 @@ test("release preparation writes every authority on a new clean current branch a
   assert.equal(result.branch, "release/0.2.0-preview.10");
   assert.equal(git(repo.root, "branch", "--show-current"), result.branch);
   assert.match(fs.readFileSync(path.join(repo.root, result.notes), "utf8"), new RegExp(NOTES_PLACEHOLDER));
+  const highlights = JSON.parse(fs.readFileSync(path.join(repo.root, result.highlights), "utf8"));
+  assert.equal(highlights.version, "0.2.0-preview.10");
+  assert.match(highlights.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.deepEqual(highlights.highlights, []);
+  // The previous version was never tagged in this fixture, so no hint list.
+  assert.deepEqual(result.changesSince, []);
   assert.equal(git(repo.root, "ls-remote", "--heads", "origin", result.branch), "");
   for (const file of ["package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "README.md"]) {
     assert.match(fs.readFileSync(path.join(repo.root, file), "utf8"), /0\.2\.0-preview\.10/);
@@ -152,8 +161,16 @@ test("merge preparation binds metadata, scope, curated notes and authorization b
   git(repo.root, "commit", "-m", "chore(release): prepare 0.2.0-preview.10");
   const mergeSha = git(repo.root, "rev-parse", "HEAD");
   const identity = { ...parseReleaseBranch("release/0.2.0-preview.10"), pullRequestNumber: 65, mergeSha };
-  const files = ["README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "docs/release/notes/v0.2.0-preview.10.md"];
+  const files = ["README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "docs/release/notes/v0.2.0-preview.10.md", "docs/release/highlights/v0.2.0-preview.10.json"];
   assert.match(validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: files }).notesSha256, /^[0-9a-f]{64}$/);
+  // Highlights are part of the preparation contract: a release without its
+  // file, or with one that does not parse, is not tagged.
+  expectCode("release_scope_invalid", () => validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: files.filter((file) => !file.endsWith(".json")) }));
+  git(repo.root, "switch", "-c", "release/broken");
+  writeVersion(repo.root, "0.2.0-preview.10", notes, `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [{ id: "x", icon: "nope", en: "a", es: "b" }] })}\n`);
+  git(repo.root, "add", "."); git(repo.root, "commit", "-m", "broken highlights");
+  expectCode("highlights_invalid", () => validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }));
+  git(repo.root, "switch", "release/0.2.0-preview.10");
   expectCode("release_scope_invalid", () => validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: [...files, "scripts/release/evil.mjs"] }));
   expectCode("release_scope_invalid", () => validateReleasePreparation({
     root: repo.root,
@@ -172,6 +189,6 @@ test("placeholder notes and metadata mismatches fail before tag authorization", 
   writeVersion(repo.root, "0.2.0-preview.10", `# GitOdile 0.2.0-preview.10\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`);
   git(repo.root, "add", "."); git(repo.root, "commit", "-m", "placeholder");
   const identity = { ...parseReleaseBranch("release/0.2.0-preview.10"), pullRequestNumber: 65, mergeSha: git(repo.root, "rev-parse", "HEAD") };
-  const files = ["README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "docs/release/notes/v0.2.0-preview.10.md"];
+  const files = ["README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "docs/release/notes/v0.2.0-preview.10.md", "docs/release/highlights/v0.2.0-preview.10.json"];
   expectCode("notes_incomplete", () => validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: files }));
 });

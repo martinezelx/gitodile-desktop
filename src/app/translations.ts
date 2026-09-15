@@ -1,4 +1,3 @@
-import type { AppReleaseNoteId } from "./appRelease";
 
 export interface AppTranslations {
   titlebarOpenCommandPalette: string;
@@ -184,7 +183,7 @@ export interface AppTranslations {
   changelogDescription: string;
   changelogVersionHeading: (version: string) => string;
   changelogCurrentRelease: string;
-  changelogNotes: Record<AppReleaseNoteId, string>;
+  changelogNoHighlights: string;
   closeConfirmTitle: string;
   closeConfirmBodyGeneric: string;
   closeConfirmBodyNamed: (name: string) => string;
@@ -371,18 +370,7 @@ const en: AppTranslations = {
   changelogDescription: "Every note ships with the build you are running and opens without a network request.",
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "You are running this",
-  changelogNotes: {
-    inAppUpdates: "Update from inside the app. A startup check tells you when a newer version is out; Settings → Updates downloads and installs it when you choose.",
-    publicIssueReporting: "Report an issue from More actions. Review the app and system details before submitting your report on GitHub.",
-    previewVersions: "Preview builds now show their full version number so you can identify the build you are using.",
-    canonicalIdentity: "GitOdile now uses its canonical name and application identity consistently.",
-    projectSessions: "Open, clone, or create local projects, and pick your last session up where you left it.",
-    saveAndPublish: "Save all or selected changes as a version, then publish it through a previewed flow that reports uncertain remote outcomes honestly.",
-    historyTimeline: "Browse the saved-version timeline and read syntax-colored diffs for any change.",
-    truthfulStatus: "See your current version line, unsaved work, and when project changes were last checked from every screen.",
-    safeLineSwitching: "Switch version lines from the status bar with the same preview and unsaved-work safeguards.",
-    releaseDetails: "Open these release notes from the version tag in the status bar, or from the toolbar menu.",
-  },
+  changelogNoHighlights: "Nothing new to show for this version.",
   closeConfirmTitle: "Close this project?",
   closeConfirmBodyGeneric: "The project stays exactly as it is on disk. You can reopen it anytime.",
   closeConfirmBodyNamed: (name) => `"${name}" stays exactly as it is on disk. You can reopen it anytime.`,
@@ -569,18 +557,7 @@ const es: AppTranslations = {
   changelogDescription: "Todas las notas vienen con la build que estás usando y se abren sin ninguna petición de red.",
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Estás usando esta",
-  changelogNotes: {
-    inAppUpdates: "Actualiza desde la propia aplicación. Una comprobación al iniciar te avisa cuando hay una versión nueva; en Ajustes → Actualizaciones la descargas e instalas cuando tú decidas.",
-    publicIssueReporting: "Informa de un problema desde Más acciones. Revisa los datos de la aplicación y del sistema antes de enviar el informe en GitHub.",
-    previewVersions: "Las versiones preview muestran ahora su número completo para que puedas identificar la build que estás usando.",
-    canonicalIdentity: "GitOdile utiliza ahora de forma coherente su nombre y su identidad de aplicación definitivos.",
-    projectSessions: "Abre, clona o crea proyectos locales, y retoma tu última sesión donde la dejaste.",
-    saveAndPublish: "Guarda todos los cambios o los que elijas como una versión y publícala con un flujo previsualizado que reconoce cuando el resultado remoto es incierto.",
-    historyTimeline: "Recorre la línea de tiempo de versiones guardadas y lee las diferencias con color de sintaxis de cualquier cambio.",
-    truthfulStatus: "Consulta la línea de versión actual, el trabajo sin guardar y cuándo se comprobaron por última vez los cambios del proyecto desde cualquier pantalla.",
-    safeLineSwitching: "Cambia de línea desde la barra de estado con la misma previsualización y protección del trabajo sin guardar.",
-    releaseDetails: "Abre estas notas de versión desde la etiqueta de versión de la barra de estado o desde el menú de la barra de herramientas.",
-  },
+  changelogNoHighlights: "Esta versión no tiene novedades que mostrar.",
   closeConfirmTitle: "¿Cerrar este proyecto?",
   closeConfirmBodyGeneric: "El proyecto se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.",
   closeConfirmBodyNamed: (name) => `"${name}" se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.`,

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { HIGHLIGHTS_DIRECTORY, highlightsFileName, scaffoldHighlights, todayIsoDate } from "./highlights.mjs";
 import { parseReleaseVersion, readReleaseMetadata, ReleaseValidationError } from "./release-candidate.mjs";
 
 const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
@@ -84,8 +85,10 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
     tauri: path.join(repositoryRoot, "src-tauri", "tauri.conf.json"),
     readme: path.join(repositoryRoot, "README.md"),
     notes: path.join(repositoryRoot, "docs", "release", "notes", `v${version}.md`),
+    highlights: path.join(repositoryRoot, HIGHLIGHTS_DIRECTORY, highlightsFileName(version)),
   };
   if (fs.existsSync(files.notes)) fail("notes_exist", `release notes already exist: docs/release/notes/v${version}.md`);
+  if (fs.existsSync(files.highlights)) fail("notes_exist", `release highlights already exist: ${HIGHLIGHTS_DIRECTORY}/${highlightsFileName(version)}`);
   git(repositoryRoot, ["switch", "-c", branch]);
   const packageJson = JSON.parse(fs.readFileSync(files.package, "utf8"));
   packageJson.version = version;
@@ -112,6 +115,8 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
     "README.md",
   ));
   fs.writeFileSync(files.notes, `# GitOdile ${version}\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`);
+  fs.mkdirSync(path.dirname(files.highlights), { recursive: true });
+  fs.writeFileSync(files.highlights, scaffoldHighlights(version, todayIsoDate()));
 
   const updated = readReleaseMetadata(repositoryRoot);
   if (Object.values(updated).some((value) => value !== version)) fail("metadata_mismatch", "prepared version metadata is inconsistent");
@@ -124,7 +129,23 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
     const result = spawnSync(executable, args, { cwd: repositoryRoot, stdio: "inherit", windowsHide: true });
     if (result.status !== 0) fail("consistency_check_failed", "release consistency checks failed");
   }
-  return { branch, version, channel: release.channel, notes: path.relative(repositoryRoot, files.notes).replaceAll("\\", "/") };
+  return {
+    branch,
+    version,
+    channel: release.channel,
+    notes: path.relative(repositoryRoot, files.notes).replaceAll("\\", "/"),
+    highlights: path.relative(repositoryRoot, files.highlights).replaceAll("\\", "/"),
+    // What changed since the previous release, as a reminder for whoever
+    // writes the highlights. A hint, never content: commit subjects are not
+    // user copy. Empty when the previous version was never tagged.
+    changesSince: listChangesSince(repositoryRoot, currentVersion),
+  };
+}
+
+function listChangesSince(root, previousVersion) {
+  const tag = `v${previousVersion}`;
+  if (git(root, ["rev-parse", "--verify", "--quiet", `refs/tags/${tag}`], { allowFailure: true }).status !== 0) return [];
+  return git(root, ["log", "--format=%s", `${tag}..HEAD`]).stdout.split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
 /** The one positional argument, the version. pnpm 7+ forwards a `--` written
@@ -142,7 +163,10 @@ if (isMain) {
   try {
     const { version } = parseCommandLine(process.argv.slice(2));
     const result = prepareRelease({ root: process.cwd(), version });
-    process.stdout.write(`Prepared ${result.branch}. Review and replace the release-notes placeholder before committing.\n`);
+    process.stdout.write(`Prepared ${result.branch}. Replace the placeholder in ${result.notes} and fill ${result.highlights} before committing.\n`);
+    if (result.changesSince.length > 0) {
+      process.stdout.write(`Changes since the previous release, for reference:\n${result.changesSince.map((line) => `  - ${line}`).join("\n")}\n`);
+    }
   } catch (error) {
     const code = error instanceof ReleaseValidationError ? error.code : "internal";
     process.stderr.write(`Release preparation failed [${code}]: ${error.message}\n`);

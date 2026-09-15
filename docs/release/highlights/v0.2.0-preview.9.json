@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0-preview.9",
+  "date": "2026-09-14",
+  "highlights": [
+    {
+      "id": "publicIssueReporting",
+      "icon": "bug",
+      "en": "Report an issue from More actions. Review the app and system details before submitting your report on GitHub.",
+      "es": "Informa de un problema desde Más acciones. Revisa los datos de la aplicación y del sistema antes de enviar el informe en GitHub."
+    },
+    {
+      "id": "previewVersions",
+      "icon": "tag",
+      "en": "Preview builds now show their full version number so you can identify the build you are using.",
+      "es": "Las versiones preview muestran ahora su número completo para que puedas identificar la build que estás usando."
+    },
+    {
+      "id": "releaseDetails",
+      "icon": "sparkles",
+      "en": "Open these release notes from the version tag in the status bar, or from the toolbar menu.",
+      "es": "Abre estas notas de versión desde la etiqueta de versión de la barra de estado o desde el menú de la barra de herramientas."
+    },
+    {
+      "id": "canonicalIdentity",
+      "icon": "shield-check",
+      "en": "GitOdile now uses its canonical name and application identity consistently.",
+      "es": "GitOdile utiliza ahora de forma coherente su nombre y su identidad de aplicación definitivos."
+    }
+  ]
+}

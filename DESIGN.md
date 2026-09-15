@@ -183,7 +183,15 @@ The main desktop window should broadly support:
      marker for the build being run. Each version is a keyboard-accessible
      disclosure: its identity stays visible while its notes remain collapsed
      until requested, keeping current and historical releases equally scannable.
-     Unpublished candidates omit the date.
+     Each release's lines come from its own `docs/release/highlights/v<version>.json`
+     — bilingual, one glyph per line, scaffolded by `release:prepare`, validated
+     by `check:docs` and required by the merge coordinator — and the changelog
+     is assembled from that directory at build time, so a version is added by
+     writing one file and old versions stay listed for good. The date is the
+     day the release was cut. A version with nothing to tell a user (a
+     pipeline-only preview) is left out rather than shown empty; only the
+     build being run is always listed, and says so when it has no lines. A
+     checkout between releases, with no file yet, is listed undated.
      Notes are bundled and open without a network request. A separate explicit
      action opens the application-update dialog and starts its shared remote
      check; mounting or expanding the Changelog never does. Remote update notes

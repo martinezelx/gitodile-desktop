@@ -1,0 +1,36 @@
+{
+  "version": "0.1.0",
+  "date": "2026-08-27",
+  "highlights": [
+    {
+      "id": "projectSessions",
+      "icon": "folder-open",
+      "en": "Open, clone, or create local projects, and pick your last session up where you left it.",
+      "es": "Abre, clona o crea proyectos locales, y retoma tu última sesión donde la dejaste."
+    },
+    {
+      "id": "saveAndPublish",
+      "icon": "send",
+      "en": "Save all or selected changes as a version, then publish it through a previewed flow that reports uncertain remote outcomes honestly.",
+      "es": "Guarda todos los cambios o los que elijas como una versión y publícala con un flujo previsualizado que reconoce cuando el resultado remoto es incierto."
+    },
+    {
+      "id": "historyTimeline",
+      "icon": "history",
+      "en": "Browse the saved-version timeline and read syntax-colored diffs for any change.",
+      "es": "Recorre la línea de tiempo de versiones guardadas y lee las diferencias con color de sintaxis de cualquier cambio."
+    },
+    {
+      "id": "truthfulStatus",
+      "icon": "list-checks",
+      "en": "See your current version line, unsaved work, and when project changes were last checked from every screen.",
+      "es": "Consulta la línea de versión actual, el trabajo sin guardar y cuándo se comprobaron por última vez los cambios del proyecto desde cualquier pantalla."
+    },
+    {
+      "id": "safeLineSwitching",
+      "icon": "git-branch",
+      "en": "Switch version lines from the status bar with the same preview and unsaved-work safeguards.",
+      "es": "Cambia de línea desde la barra de estado con la misma previsualización y protección del trabajo sin guardar."
+    }
+  ]
+}

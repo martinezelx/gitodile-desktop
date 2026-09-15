@@ -9,6 +9,7 @@ import {
   ReleaseValidationError,
 } from "./release-candidate.mjs";
 import { NOTES_PLACEHOLDER } from "./release-prepare.mjs";
+import { highlightsFileName, parseHighlights } from "./highlights.mjs";
 
 export const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
 export const REQUIRED_RELEASE_CHECKS = Object.freeze([
@@ -93,6 +94,7 @@ export function validateReleasePreparation({ root, authorization, changedFiles }
   const expectedFiles = new Set([
     "README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json",
     `docs/release/notes/${authorization.tag}.md`,
+    `docs/release/highlights/${authorization.tag}.json`,
   ]);
   const allowedFiles = new Set([...expectedFiles, "docs/release/update-target-qualifications.json"]);
   if (!Array.isArray(changedFiles)) fail("release_scope_invalid", "release pull request file list is invalid");
@@ -110,6 +112,9 @@ export function validateReleasePreparation({ root, authorization, changedFiles }
   const notes = readAtRevision(root, authorization.mergeSha, `docs/release/notes/${authorization.tag}.md`);
   const withoutComments = notes.replace(/<!--[\s\S]*?-->/g, "").trim();
   if (notes.includes(NOTES_PLACEHOLDER) || withoutComments === `# GitOdile ${authorization.version}` || !withoutComments.startsWith(`# GitOdile ${authorization.version}\n`)) fail("notes_incomplete", "curated release notes are missing or still contain the preparation placeholder");
+  // The app's own What's new for this version ships from the same commit the
+  // tag names, so a missing or malformed file is caught here, not by users.
+  parseHighlights(highlightsFileName(authorization.version), readAtRevision(root, authorization.mergeSha, `docs/release/highlights/${authorization.tag}.json`));
   return { metadata, notesSha256: crypto.createHash("sha256").update(notes).digest("hex") };
 }
 

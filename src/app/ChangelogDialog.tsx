@@ -19,7 +19,7 @@ import {
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
 import { useModalFocus } from "../shared/ui";
-import { APP_CHANGELOG, type AppReleaseEntry, type AppReleaseNoteId } from "./appRelease";
+import { APP_CHANGELOG, type AppReleaseEntry, type HighlightIcon } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
  * same entry reads correctly in every supported language. A missing or unparseable date
@@ -36,17 +36,20 @@ function formatReleaseDate(date: string | null, formats: LocaleFormats): string 
   return formatDate(parsed, formats);
 }
 
-const RELEASE_NOTE_ICONS: Record<AppReleaseNoteId, React.ComponentType<{ "aria-hidden": true }>> = {
-  projectSessions: FolderOpen,
-  saveAndPublish: Send,
-  historyTimeline: History,
-  truthfulStatus: ListChecks,
-  safeLineSwitching: GitBranch,
-  releaseDetails: Sparkles,
-  publicIssueReporting: Bug,
-  previewVersions: Tag,
-  canonicalIdentity: ShieldCheck,
-  inAppUpdates: CloudDownload,
+/** Every name in the glyph catalogue, drawn. `Record<HighlightIcon, …>`
+ * is what keeps this complete: a name added to the catalogue without a glyph
+ * here fails to compile rather than rendering nothing. */
+const HIGHLIGHT_ICON_COMPONENTS: Record<HighlightIcon, React.ComponentType<{ "aria-hidden": true }>> = {
+  bug: Bug,
+  "cloud-download": CloudDownload,
+  "folder-open": FolderOpen,
+  "git-branch": GitBranch,
+  history: History,
+  "list-checks": ListChecks,
+  send: Send,
+  "shield-check": ShieldCheck,
+  sparkles: Sparkles,
+  tag: Tag,
 };
 
 function ReleaseNotes({
@@ -56,7 +59,7 @@ function ReleaseNotes({
   release: AppReleaseEntry;
   isCurrent: boolean;
 }): React.JSX.Element {
-  const { t, formats } = useLanguage();
+  const { t, language, formats } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
   const notesId = useId();
   const releaseDate = formatReleaseDate(release.date, formats);
@@ -88,14 +91,19 @@ function ReleaseNotes({
           )}
         </span>
       </button>
-      {isExpanded && (
+      {isExpanded && release.highlights.length === 0 && (
+        /* Only the running build can be listed without highlights (a
+           pipeline-only preview); it says so rather than opening onto nothing. */
+        <p id={notesId} className="changelog-release__empty">{t.changelogNoHighlights}</p>
+      )}
+      {isExpanded && release.highlights.length > 0 && (
         <ul id={notesId} className="changelog-release__notes" role="list">
-          {release.noteIds.map((noteId) => {
-            const NoteIcon = RELEASE_NOTE_ICONS[noteId];
+          {release.highlights.map((highlight) => {
+            const NoteIcon = HIGHLIGHT_ICON_COMPONENTS[highlight.icon];
             return (
-              <li key={noteId}>
+              <li key={highlight.id}>
                 <span className="changelog-release__note-icon" aria-hidden="true"><NoteIcon aria-hidden /></span>
-                <span>{t.changelogNotes[noteId]}</span>
+                <span>{highlight[language]}</span>
               </li>
             );
           })}
