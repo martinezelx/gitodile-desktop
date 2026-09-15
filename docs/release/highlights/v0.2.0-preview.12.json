@@ -3,6 +3,12 @@
   "date": "2026-09-15",
   "highlights": [
     {
+      "id": "agplLicense",
+      "icon": "shield-check",
+      "en": "GitOdile is now free software under the GNU AGPL v3.0 only. About shows the license and links to the source code.",
+      "es": "GitOdile es ahora software libre bajo la GNU AGPL v3.0 únicamente. Acerca de muestra la licencia y enlaza al código fuente."
+    },
+    {
       "id": "updateNotesAndDate",
       "icon": "cloud-download",
       "en": "The update dialog now shows release notes with their paragraphs and bullets, and the date a version was actually published.",
