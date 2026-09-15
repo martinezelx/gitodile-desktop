@@ -202,7 +202,10 @@ AppImage itself for the v2 Linux updater artifact. See the official
 [Windows installer](https://v2.tauri.app/distribute/windows-installer/),
 [DMG](https://v2.tauri.app/distribute/dmg/),
 [AppImage](https://v2.tauri.app/distribute/appimage/), and
-[updater](https://v2.tauri.app/plugin/updater/) documentation.
+[updater](https://v2.tauri.app/plugin/updater/) documentation. The NSIS build
+also carries GitOdile's post-install hook, which refreshes the shortcuts and
+the shell icon cache after the passive installer replaces the executable; see
+"Application icon and Windows shortcuts" in [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 Detection is native and includes package/install mode, not merely OS and CPU.
 On Windows the NSIS mode is read from the installer's own record: Tauri's

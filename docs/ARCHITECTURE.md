@@ -622,8 +622,9 @@ and installed A-to-B qualification/target enablement remain exclusively with
 `pnpm run check` is the repository gate:
 
 - `check:docs` validates local Markdown links, work-item state/completion
-  metadata, unique task IDs, README package metadata, and application-version
-  consistency across npm, Cargo, and Tauri;
+  metadata, unique task IDs, README package metadata, application-version
+  consistency across npm, Cargo, and Tauri, and (through `check:icons`) the
+  layer order and encoding of the committed Windows `icon.ico`;
 - `check:architecture` analyzes production, type-only, dynamic, and test edges,
   rejects forbidden directions/cycles and an eager `shared/file-icons`, and proves its
   rules with seeded violations;
@@ -680,6 +681,36 @@ CI checks Rust on all three platforms and release-compiles macOS/Linux desktop
 executables. Actual macOS/Linux WebView behavior, accessibility, memory,
 signing, and packaging remain unmeasured release gates, not implied support
 claims.
+
+### Application icon and Windows shortcuts
+
+`src-tauri/icons/source.svg` (the mark on its lime tile, 1024×1024) is the only
+hand-maintained icon file. `pnpm icons` runs `tauri icon` on it, which renders
+every PNG, the macOS `.icns`, the Windows `.ico`, and the Store logos at their
+native sizes (SVG input, so no resampling of an intermediate bitmap); the
+Android/iOS sets it also emits are discarded because GitOdile does not ship
+them. Edit the SVG and regenerate; never touch a generated PNG by hand.
+
+`tauri icon` writes every ICO layer PNG-compressed. Windows guarantees PNG only
+for the 256px layer and expects the 16–64px layers as 32-bit DIBs; some shell
+paths that extract a shortcut's icon from an executable render a
+PNG-compressed small layer as a blank sheet. `scripts/icons/build-windows-ico.mjs`
+(the last step of `pnpm icons`) re-encodes those layers as DIBs and keeps
+Tauri's layer order (32px first, then 16, 24, 48, 64, 256); `check:icons`
+fails the gate when the committed `icon.ico` drifts from that shape.
+
+The NSIS shortcuts Tauri creates carry no icon location, so Explorer resolves
+their icon from `gitodile.exe` — the file the passive updater overwrites in
+place. A shell refresh during that window caches a blank icon that then
+persists. `src-tauri/windows/installer-hooks.nsh` (wired through
+`bundle.windows.nsis.installerHooks`) runs after every install: it rewrites
+the desktop and Start-menu shortcuts that still point at our executable with an
+explicit icon location (the executable, index 0), preserves their
+AppUserModelId, and raises `SHChangeNotify` for each shortcut and for
+`SHCNE_ASSOCCHANGED` so the shell drops what it cached. Shortcuts the user
+removed stay removed; on an interactive first install the desktop shortcut is
+created by the finish page after the hook and gains the explicit icon on its
+first update.
 
 ## When an ADR is required
 

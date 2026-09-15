@@ -706,10 +706,13 @@ Do not place the mascot in every panel or use it to trivialize serious errors.
 crocodile head with two attentive eyes, two small snout details, and a calm
 smile. Its facial details are transparent cutouts rather than white decoration,
 so the single-color SVG in `src/assets/gitodile-mark.svg` can inherit any
-foreground/background pairing. The native app icon places the dark mark on the
-fixed brand-lime rounded tile (`#8bc53f`); its eye, snout, and smile cutouts
-reveal that lime beneath. Keep this compact mark consistent in the sidebar,
-compact titlebar, About dialog, and packaged application icons.
+foreground/background pairing. The native app icon places the black mark on a
+lime rounded tile (`#80dc2e`, the mascot's own lime, brighter than the in-app
+`--accent-brand` token); its eye, snout, and smile cutouts reveal that lime
+beneath. Keep this compact mark consistent in the sidebar, compact titlebar,
+About dialog, and packaged application icons: `src-tauri/icons/source.svg` is
+the single source for every packaged icon, and `pnpm icons` regenerates them
+(see "Application icon and Windows shortcuts" in `docs/ARCHITECTURE.md`).
 
 Inside the application, the crocodile is dark (`#14170f`) in dark mode and
 warm pearl (`#faf8f5`) in light mode. This theme-aware treatment belongs only
