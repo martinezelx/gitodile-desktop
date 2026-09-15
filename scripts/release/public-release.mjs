@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { compareReleaseVersions, parseReleaseVersion, ReleaseValidationError, REQUIRED_TARGETS } from "./release-candidate.mjs";
 import { verifyCompleteMatrix, verifyEvidenceArtifacts } from "./release-evidence.mjs";
-import { validateQualificationRegistry } from "./qualification-evidence.mjs";
+import { qualifiedPreviewAllowed, validateQualificationRegistry } from "./qualification-evidence.mjs";
 
 export const PUBLIC_REPOSITORY = "martinezelx/gitodile";
 export const PUBLIC_RELEASE_ORIGIN = `https://github.com/${PUBLIC_REPOSITORY}/releases/download`;
@@ -38,16 +38,53 @@ export function validateQualification(qualification, candidate, mode) {
   return validateQualificationRegistry(qualification, candidate, mode);
 }
 
-function normalizeNotes(markdown) {
+/** Plain text for the manifest that keeps the notes' structure. Markdown's
+ * soft line breaks (the hard-wrapped lines of one paragraph or list item)
+ * become spaces; block boundaries stay: one newline between list items, a
+ * blank line between paragraphs. The app renders the text pre-wrapped, so
+ * what is a paragraph here is a paragraph in the update dialog. */
+export function normalizeNotes(markdown) {
   if (Buffer.byteLength(markdown, "utf8") > 16_384) fail("notes_too_large", "release notes exceed 16 KiB");
   if (/https?:\/\/[^\s/@]+:[^\s/@]+@/i.test(markdown)) fail("secret_material", "release notes contain an authenticated URL");
-  return markdown
+  const inline = markdown
+    .replace(/\r\n?/g, "\n")
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/^[#>*+-]+\s*/gm, "")
-    .replace(/[`_*~]/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/^(\s*)[*+]\s+/gm, "$1- ")
+    .replace(/[`_*~]/g, "");
+  const blocks = [];
+  let current = null;
+  for (const raw of inline.split("\n")) {
+    const line = raw.replace(/\s+/g, " ").trim();
+    if (line === "" || /^[-=]{3,}$/.test(line)) { current = null; continue; }
+    const heading = line.match(/^#+\s*(.*)$/);
+    if (heading) {
+      current = null;
+      if (heading[1]) blocks.push({ kind: "paragraph", text: heading[1] });
+      continue;
+    }
+    const item = line.match(/^(?:-|\d+[.)])\s+(.*)$/);
+    if (item) {
+      current = { kind: "item", text: item[1] };
+      blocks.push(current);
+      continue;
+    }
+    const text = line.replace(/^>\s*/, "");
+    if (!text) continue;
+    if (current) current.text += ` ${text}`;
+    else {
+      current = { kind: "paragraph", text };
+      blocks.push(current);
+    }
+  }
+  return blocks
+    .map((block, index) => {
+      const previous = blocks[index - 1];
+      const separator = !previous ? "" : previous.kind === "item" && block.kind === "item" ? "\n" : "\n\n";
+      return `${separator}${block.kind === "item" ? `- ${block.text}` : block.text}`;
+    })
+    .join("")
     .trim();
 }
 
@@ -60,7 +97,23 @@ function validateMatrixRecord(record, candidate) {
   ) fail("matrix_record_invalid", "private matrix authorization does not match the signed candidate");
 }
 
-export function preparePublication({ signedDirectory, notesMarkdown, qualification, mode, publishedAt, publicFiles = [] }) {
+export const PUBLICATION_MODES = Object.freeze(["preview-testing", "preview-qualified", "production"]);
+/** Assets rendered by the `publish` job once the release's real publication
+ * time is known: the manifest carries it as `pub_date`, and the hash list
+ * covers the manifest. Every other asset is fixed when the plan is prepared. */
+export const DERIVED_ASSET_NAMES = Object.freeze(["latest.json", "SHA256SUMS"]);
+
+/** The mode is derived, never chosen. A stable candidate is `production`. A
+ * preview is `preview-qualified` only when the registry already proves every
+ * enabled target and production approval — then it publishes without the
+ * testing notice — and `preview-testing` otherwise. Anything short of a fully
+ * qualified registry keeps the notice. */
+export function derivePublicationMode(release, qualification) {
+  if (release?.channel !== "preview" || release?.githubPrerelease !== true) return "production";
+  return qualifiedPreviewAllowed(qualification) ? "preview-qualified" : "preview-testing";
+}
+
+export function preparePublication({ signedDirectory, notesMarkdown, qualification, mode, publicFiles = [] }) {
   const matrixPath = path.join(signedDirectory, "matrix.json");
   if (!fs.existsSync(matrixPath)) fail("matrix_record_missing", "private signed matrix record is missing");
   const matrix = readJson(matrixPath);
@@ -89,12 +142,7 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
   const ordered = verifyCompleteMatrix(evidence, candidate, { requiredPhase: "signed" });
   const gate = validateQualification(qualification, candidate, mode);
   const publishedNotes = mode === "preview-testing" ? `${PREVIEW_TESTING_NOTICE}\n\n${notesMarkdown}` : notesMarkdown;
-  const validShape = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(publishedAt ?? "");
-  const parsedDate = validShape ? new Date(publishedAt) : null;
-  if (!parsedDate || Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().replace(".000Z", "Z") !== publishedAt) {
-    fail("publication_date_invalid", "feed publication needs a valid fixed UTC timestamp");
-  }
-  const names = new Set();
+  const names = new Set(DERIVED_ASSET_NAMES);
   const assets = [];
   const platforms = {};
   for (const item of ordered) {
@@ -113,18 +161,16 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
     const url = `${PUBLIC_RELEASE_ORIGIN}/${candidate.source.tag}/${encodeURIComponent(updater.fileName)}`;
     platforms[item.target] = { signature: signatureText, url, size: updater.size };
   }
+  // The manifest is fixed except for `pub_date`, which is the release's real
+  // publication time and therefore known only to the `publish` job.
   const manifest = {
     version: candidate.release.version,
     notes: normalizeNotes(publishedNotes),
-    pub_date: publishedAt,
     platforms,
   };
-  const manifestBytes = `${JSON.stringify(manifest, null, 2)}\n`;
-  if (Buffer.byteLength(manifestBytes) > 262_144) fail("manifest_too_large", "manifest exceeds 256 KiB");
-  const manifestHash = crypto.createHash("sha256").update(manifestBytes).digest("hex");
-  if (names.has("latest.json")) fail("unsafe_asset", "latest.json collides with a package name");
-  names.add("latest.json");
-  assets.push({ role: "manifest", target: null, fileName: "latest.json", size: Buffer.byteLength(manifestBytes), sha256: manifestHash, content: manifestBytes });
+  // Size is checked here, before the pipeline stages anything; the epoch
+  // placeholder has the same length as any real timestamp.
+  renderPublication({ manifest, assets }, "1970-01-01T00:00:00Z");
   for (const item of publicFiles) {
     const fileName = path.basename(item.fileName ?? item.source);
     if (names.has(fileName) || SECRET_NAME.test(fileName) || SOURCE_ARCHIVE.test(fileName)) fail("unsafe_asset", `public file name is duplicate or forbidden: ${fileName}`);
@@ -132,31 +178,48 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
     names.add(fileName);
     assets.push({ role: item.role, target: null, fileName, size: bytes.length, sha256: crypto.createHash("sha256").update(bytes).digest("hex"), source: item.source });
   }
-  if (names.has("SHA256SUMS")) fail("unsafe_asset", "SHA256SUMS collides with another asset name");
-  const sums = assets.map((asset) => `${asset.sha256}  ${asset.fileName}`).sort().join("\n") + "\n";
-  assets.push({ role: "hashes", target: null, fileName: "SHA256SUMS", size: Buffer.byteLength(sums), sha256: crypto.createHash("sha256").update(sums).digest("hex"), content: sums });
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     mode,
     destination: PUBLIC_REPOSITORY,
     source: { tag: candidate.source.tag, sha: candidate.source.sha },
-    release: { version: candidate.release.version, channel: candidate.release.channel, githubPrerelease: parsed.githubPrerelease, publishedAt },
+    release: { version: candidate.release.version, channel: candidate.release.channel, githubPrerelease: parsed.githubPrerelease },
     qualification: gate,
     notesMarkdown: publishedNotes,
     manifest,
-    manifestBytes,
     assets,
   };
 }
 
+/** Completes a plan with the publication time GitHub recorded for the
+ * release. The same plan and the same `published_at` render byte-identical
+ * assets, which is what lets a reconciliation retry compare rather than
+ * rewrite. Returns the channel manifest bytes and the two derived assets. */
+export function renderPublication(plan, publishedAt) {
+  const validShape = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(publishedAt ?? "");
+  const parsedDate = validShape ? new Date(publishedAt) : null;
+  if (!parsedDate || Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().replace(".000Z", "Z") !== publishedAt) {
+    fail("publication_date_invalid", "feed publication needs the release's canonical UTC publication timestamp");
+  }
+  const manifest = { version: plan.manifest.version, notes: plan.manifest.notes, pub_date: publishedAt, platforms: plan.manifest.platforms };
+  const manifestBytes = `${JSON.stringify(manifest, null, 2)}\n`;
+  if (Buffer.byteLength(manifestBytes) > 262_144) fail("manifest_too_large", "manifest exceeds 256 KiB");
+  const sha256 = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
+  const manifestAsset = { role: "manifest", target: null, fileName: "latest.json", size: Buffer.byteLength(manifestBytes), sha256: sha256(manifestBytes), content: manifestBytes };
+  const sums = [...plan.assets, manifestAsset].map((asset) => `${asset.sha256}  ${asset.fileName}`).sort().join("\n") + "\n";
+  const sumsAsset = { role: "hashes", target: null, fileName: "SHA256SUMS", size: Buffer.byteLength(sums), sha256: sha256(sums), content: sums };
+  return { manifest, manifestBytes, assets: [manifestAsset, sumsAsset] };
+}
+
 export function feedsForPromotion(plan, current = {}) {
   const previewTesting = plan.mode === "preview-testing" && plan.qualification.previewTestingAllowed === true;
+  const previewQualified = plan.mode === "preview-qualified" && plan.qualification.previewQualifiedAllowed === true;
   const production = plan.mode === "production" && plan.qualification.productionAllowed === true;
-  if (!previewTesting && !production) {
-    fail("promotion_forbidden", "only an approved preview-testing or qualified production plan may advance feeds");
+  if (!previewTesting && !previewQualified && !production) {
+    fail("promotion_forbidden", "only an approved preview-testing, qualified preview or qualified production plan may advance feeds");
   }
-  if (previewTesting && (plan.release.channel !== "preview" || plan.release.githubPrerelease !== true)) {
-    fail("promotion_forbidden", "preview-testing can never publish a stable release or feed");
+  if ((previewTesting || previewQualified) && (plan.release.channel !== "preview" || plan.release.githubPrerelease !== true)) {
+    fail("promotion_forbidden", "a preview mode can never publish a stable release or feed");
   }
   const result = {};
   const consider = (channel) => {
@@ -211,7 +274,6 @@ export function runPrepareCli(argv) {
     notesMarkdown: fs.readFileSync(path.resolve(args.get("notes")), "utf8"),
     qualification: readJson(path.resolve(args.get("qualification"))),
     mode: args.get("mode"),
-    publishedAt: args.get("published-at") ?? null,
     publicFiles: (args.get("public-file") ?? []).map((value) => {
       const separator = value.indexOf("=");
       if (separator < 1) throw new Error("public-file must use role=path");
@@ -225,7 +287,7 @@ export function runPrepareCli(argv) {
     if (asset.content !== undefined) fs.writeFileSync(destination, asset.content, { flag: "wx" });
     else fs.copyFileSync(asset.source, destination, fs.constants.COPYFILE_EXCL);
   }
-  const serializable = { ...plan, manifestBytes: undefined, assets: plan.assets.map(({ source, content, ...asset }) => asset) };
+  const serializable = { ...plan, assets: plan.assets.map(({ source, content, ...asset }) => asset) };
   fs.writeFileSync(path.join(output, "publication-plan.json"), `${JSON.stringify(serializable, null, 2)}\n`, { flag: "wx" });
   return plan;
 }

@@ -31,10 +31,13 @@ Publication is the last two jobs, `stage` and `publish`, of
 `.github/workflows/release-pipeline.yml`; there is no separate publication
 trigger. They run only after `updater-sign` succeeded in the same run and
 consume only that run's `private-signed-<tag>` artifact. The publication mode
-is derived from the signed matrix, never chosen: a preview candidate is
-`preview-testing` and a stable candidate is `production`. Ordinary pushes,
-pull requests, merges and tags cannot publish directly, and there is no
-draft-only or test-only mode.
+is derived from the signed matrix and the reviewed qualification registry
+(`derivePublicationMode` in `scripts/release/public-release.mjs`), never
+chosen: a stable candidate is `production`; a preview candidate is
+`preview-qualified` when the registry already proves both enabled targets and
+production approval, and `preview-testing` otherwise. Ordinary pushes, pull
+requests, merges and tags cannot publish directly, and there is no draft-only
+or test-only mode.
 
 - automatic `preview-testing` accepts only a Tauri-signed preview,
   requires the complete Windows NSIS/Linux AppImage matrix, preserves
@@ -45,12 +48,16 @@ draft-only or test-only mode.
   qualification or stable authorization. The publisher prepends a fixed
   bilingual notice saying exactly that to the public release body and updater
   notes, independent of the curated change summary.
-- automatic `production` accepts only a production-signing profile, derives a
-  deterministic UTC publication timestamp from the exact source commit, and
-  requires a registry that approves production plus every
-  exact enabled target in the signed matrix. A missing or malformed A/B proof blocks
-  the entire release; the publisher never drops the failed row to make a
-  partial manifest.
+- automatic `preview-qualified` is the same preview publication once the
+  registry approves production and records a valid A-to-B proof for every
+  enabled target under one updater key: still a GitHub prerelease, still only
+  `preview.json`, still the preview environment, but without the testing
+  notice. Anything short of a fully qualified registry keeps the notice.
+- automatic `production` accepts only a production-signing profile and
+  requires a registry that approves production plus every exact enabled
+  target in the signed matrix. A missing or malformed A/B proof blocks the
+  entire release; the publisher never drops the failed row to make a partial
+  manifest.
 
 The unprivileged `stage` job records the identity of its own pipeline run
 (release pipeline, `workflow_dispatch`, protected `main`, healthy), checks the
@@ -58,10 +65,16 @@ live feedback contract, rehashes the
 complete enabled signed matrix, checks updater and OS-trust evidence independently,
 derives the channel and GitHub prerelease flag from the version, and creates a
 public-only bundle. That bundle contains packages, updater signatures,
-`latest.json`, `SHA256SUMS`, `LICENSE`, `THIRD_PARTY_LICENSES.md`, curated notes
+`LICENSE`, `THIRD_PARTY_LICENSES.md`, curated notes, the manifest template
 and the reviewed publisher runtime. It does not expose the source SHA as an asset,
 as a public asset, evidence files, candidate archives, signing material or a
-credential.
+credential. `latest.json` and `SHA256SUMS` are not staged: their bytes depend
+on the release's publication time, so the `publish` job renders them.
+
+Manifest notes are the curated Markdown reduced to plain text with its block
+structure kept (`normalizeNotes`): hard-wrapped lines of one paragraph or
+list item are joined, list items keep a `- ` marker and one newline between
+them, paragraphs keep a blank line, and the 16 KiB bound still applies.
 
 Only the `publish` job enters a destination environment and receives
 `GITODILE_PUBLIC_RELEASE_TOKEN`. Use a short-lived GitHub App installation token
@@ -74,7 +87,7 @@ boundary. The environment is named after the channel it may write:
 
 | Mode | Environment | Protection |
 | --- | --- | --- |
-| `preview-testing` | `public-release-preview` | protected branches only, intentionally no reviewer, so a merged preview completes without maintainer intervention |
+| `preview-testing`, `preview-qualified` | `public-release-preview` | protected branches only, intentionally no reviewer, so a merged preview completes without maintainer intervention |
 | `production` | `public-release-stable` | required reviewer, no administrator bypass, plus the 065-9-7/065-9-8 evidence review and working-name clearance |
 
 Each environment holds its own copy of `GITODILE_PUBLIC_RELEASE_TOKEN`; an
@@ -104,9 +117,9 @@ environment without the secret fails closed before any destination request.
    enters `preview-testing`, finalizes only that prerelease and advances
    `preview.json`; record it as pipeline evidence, never as an installed-update
    pass. After 065-9-7/
-   065-9-8 have recorded both enabled targets and production approval, a stable
-   candidate enters reviewer-approved `production`. The fixed timestamp comes
-   from the exact source commit. Do not edit the notes or qualification
+   065-9-8 have recorded both enabled targets and production approval, later
+   previews enter `preview-qualified` and a stable candidate enters
+   reviewer-approved `production`. Do not edit the notes or qualification
    registry during a retry.
 5. The `publish` job creates the public lightweight tag at a commit in the
    feedback repository and reconciles one draft release. Drafts are found by
@@ -114,13 +127,25 @@ environment without the secret fails closed before any destination request.
    Existing bytes are downloaded and hashed. While the release is still a
    draft, nobody could download it, so a missing asset is uploaded and a
    differing one is replaced: a re-dispatched pipeline rebuilds installers
-   that are not byte-reproducible. Once the release is published it is
-   immutable: a conflicting byte, unexpected asset or missing asset stops the
-   run, and nothing is deleted, renamed or replaced.
-6. Only after the full release is final does the `publish` job download every
-   asset anonymously and recheck SHA-256. It then prepares complete channel
-   manifests and updates the public `main` tree with one compare-and-swap Git
-   commit. A concurrent move of `main` fails rather than overwriting it.
+   that are not byte-reproducible. A stale `latest.json` or `SHA256SUMS` on a
+   draft is removed, because both are rendered after publishing. Once the
+   release is published it is immutable: a conflicting byte, unexpected asset
+   or missing package stops the run, and nothing is deleted, renamed or
+   replaced.
+6. Publishing the draft is the instant GitHub records as `published_at`.
+   The `publish` job reads it back from the release and renders `latest.json`
+   (with that instant as `pub_date`) and `SHA256SUMS` from the plan; both are
+   functions of the fixed packages and that timestamp, so a retry renders the
+   same bytes. A derived asset still missing from the published release is
+   uploaded — the one addition a published release accepts, since it changes
+   no byte anybody could have downloaded — and one that exists must match
+   exactly. Then every asset is downloaded anonymously and its SHA-256
+   rechecked, with a bounded retry (6 attempts, 10 s apart) because the
+   download CDN can answer 404 briefly after the release itself is public; a
+   persistent failure stops the run before any feed changes. Only then does
+   the job prepare complete channel manifests and update the public `main`
+   tree with one compare-and-swap Git commit. A concurrent move of `main`
+   fails rather than overwriting it.
 7. To retry an uncertain publication, re-run the failed jobs of the same
    pipeline run; the `publish` job is idempotent against the destination. Do
    not dispatch a second pipeline for a tag whose run succeeded; the
@@ -129,7 +154,7 @@ environment without the secret fails closed before any destination request.
 
 Every manifest URL names `/releases/download/v<version>/<asset>`. Preview
 versions set GitHub `prerelease: true` and can advance only `preview.json`.
-Stable versions are rejected by `preview-testing`. Only qualified production
+Stable versions are rejected by both preview modes. Only qualified production
 sets the GitHub prerelease flag to false, advances `stable.json`, and advances preview only
 when newer than its current candidate. Equal versions must have byte-identical
 manifests. Older versions fail closed. A stable release is newly built and
@@ -152,7 +177,9 @@ public previews is recorded separately in its own registry entry.
 Re-run with the same inputs after an interruption. The coordinator reads the
 remote release before acting: a matching draft keeps matching assets and adds
 only missing ones; a finalized release is read-only and must already match
-completely. If final publication succeeded but feed promotion did not, the
+completely, except that a derived `latest.json` or `SHA256SUMS` still missing
+after an interrupted run is rendered from the recorded `published_at` and
+uploaded. If final publication succeeded but feed promotion did not, the
 retry anonymously verifies the finalized assets again and attempts only the
 conflict-checked feed commit. Never delete a release/tag or upload a new byte
 under the same version to repair a failed run. Fix the infrastructure or issue

@@ -406,7 +406,8 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.deepEqual(environmentJobs, ["updater-sign", "publish"]);
   assert.equal(pipeline.parsed.jobs["updater-sign"].environment, "production-updater-signing");
   assert.equal(pipeline.parsed.jobs.publish.environment,
-    "${{ needs.stage.outputs.mode == 'preview-testing' && 'public-release-preview' || 'public-release-stable' }}");
+    "${{ needs.stage.outputs.mode == 'production' && 'public-release-stable' || 'public-release-preview' }}",
+    "only a stable candidate enters the reviewed stable environment; a qualified preview stays on the preview environment");
   assert.doesNotMatch(pipeline.source, /public-release-production/);
   assert.deepEqual(pipeline.parsed.jobs.publish.concurrency, { group: "gitodile-publication", "cancel-in-progress": false });
   for (const jobName of ["validate", "build", "matrix-gate", "windows-deferred-boundary", "linux-os-boundary", "stage"]) {
@@ -430,7 +431,17 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.doesNotMatch(updaterSigning.run, /require\(process\.argv\[1\]\)/,
     "filesystem paths from find must not be resolved as Node package names");
   const modeDerivation = pipeline.parsed.jobs.stage.steps.find((step) => step.id === "release");
-  assert.match(modeDerivation.run, /"preview-testing" : "production"/);
+  assert.match(modeDerivation.run, /derivePublicationMode\(matrix\.release, qualification\)/,
+    "the mode comes from the version and the reviewed qualification registry, never from a dispatch input");
+  assert.match(modeDerivation.run, /docs\/release\/update-target-qualifications\.json/);
+  assert.equal(modeDerivation.env, undefined, "mode derivation needs no token: the publication time is read by the publish job");
+  assert.doesNotMatch(pipeline.source, /published_at|committer\.date|--published-at/,
+    "pub_date is the instant GitHub publishes the release; staging must not derive one from a commit");
+  // A coordinator run that completed without succeeding cannot authorize.
+  const coordinatorCheck = pipeline.parsed.jobs.validate.steps.find((step) => step.name === "Validate the coordinator workflow run");
+  assert.match(coordinatorCheck.run, /run\.status === "in_progress" && run\.conclusion === null/);
+  assert.match(coordinatorCheck.run, /run\.status === "completed" && run\.conclusion === "success"/);
+  assert.doesNotMatch(coordinatorCheck.run, /new Set\(\["in_progress", "completed"\]\)/);
   assert.match(pipeline.source, /validated-source-run\.json/);
   assert.match(pipeline.source, /qualification-evidence\.mjs/);
   // The staging job re-checks only the live destination contract; the

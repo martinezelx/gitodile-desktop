@@ -281,15 +281,28 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
     const qualified = entry?.status === "qualified" && Array.isArray(entry.evidence) && entry.evidence.length === 1;
     if (!pending && !qualified) fail("qualification_invalid", `${target} has an invalid qualification state`);
   }
+  const preview = candidate.release.channel === "preview" && candidate.release.githubPrerelease === true;
   if (mode === "preview-testing") {
-    if (candidate.release.channel !== "preview" || candidate.release.githubPrerelease !== true) {
-      fail("profile_mismatch", "preview testing requires a preview candidate flagged as a GitHub prerelease");
-    }
-    return { productionAllowed: false, previewTestingAllowed: true, qualifiedTargets: [] };
+    if (!preview) fail("profile_mismatch", "preview testing requires a preview candidate flagged as a GitHub prerelease");
+    return { productionAllowed: false, previewTestingAllowed: true, previewQualifiedAllowed: false, qualifiedTargets: [] };
   }
-  if (mode !== "production") fail("invalid_mode", "mode must be preview-testing or production");
+  if (mode !== "production" && mode !== "preview-qualified") {
+    fail("invalid_mode", "mode must be preview-testing, preview-qualified or production");
+  }
+  if (mode === "preview-qualified" && !preview) {
+    fail("profile_mismatch", "a qualified preview requires a preview candidate flagged as a GitHub prerelease");
+  }
+  const qualifiedTargets = requireQualifiedTargets(qualification, candidate.matrix.requiredTargets, byTarget);
+  return mode === "production"
+    ? { productionAllowed: true, previewTestingAllowed: false, previewQualifiedAllowed: false, qualifiedTargets }
+    : { productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: true, qualifiedTargets };
+}
+
+/** The one proof both qualified modes share: production approval plus a
+ * valid A-to-B record for every required target, all under one updater key. */
+function requireQualifiedTargets(qualification, requiredTargets, byTarget) {
   const approvedKeyId = validateProductionApproval(qualification.productionPromotion);
-  const keyIds = new Map(candidate.matrix.requiredTargets.map((target) => [target, validateTargetEvidence(byTarget.get(target), target)]));
+  const keyIds = new Map(requiredTargets.map((target) => [target, validateTargetEvidence(byTarget.get(target), target)]));
   const missing = [...keyIds].filter(([, keyId]) => keyId === null).map(([target]) => target);
   if (missing.length > 0) {
     fail("qualification_required", `targets still require real public preview A-to-B evidence: ${missing.join(", ")}`);
@@ -297,5 +310,21 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
   if (new Set([...keyIds.values(), approvedKeyId]).size !== 1) {
     fail("qualification_invalid", "qualified targets and the production approval must share one updater key identity");
   }
-  return { productionAllowed: true, previewTestingAllowed: false, qualifiedTargets: [...keyIds.keys()] };
+  return [...keyIds.keys()];
+}
+
+/** Whether a preview may publish without the testing notice: the registry
+ * already proves every enabled target and production approval. Deny by
+ * default — a malformed or partial registry answers `false`, and the full
+ * validation still runs when the plan is prepared. */
+export function qualifiedPreviewAllowed(qualification) {
+  try {
+    if (qualification?.schemaVersion !== QUALIFICATION_SCHEMA_VERSION || !Array.isArray(qualification.targets)) return false;
+    const byTarget = new Map(qualification.targets.map((item) => [item.key, item]));
+    requireQualifiedTargets(qualification, REQUIRED_TARGETS, byTarget);
+    return true;
+  } catch (error) {
+    if (error instanceof ReleaseValidationError) return false;
+    throw error;
+  }
 }

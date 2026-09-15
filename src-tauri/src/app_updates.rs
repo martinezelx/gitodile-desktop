@@ -95,16 +95,6 @@ impl UpdateTarget {
             )),
         }
     }
-
-    fn from_key(value: &str) -> Option<Self> {
-        match value {
-            "windows-x86_64" => Some(Self::WindowsX86_64),
-            "darwin-aarch64" => Some(Self::DarwinAarch64),
-            "darwin-x86_64" => Some(Self::DarwinX86_64),
-            "linux-x86_64" => Some(Self::LinuxX86_64),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -183,6 +173,7 @@ pub(crate) enum UpdateErrorCode {
     ChannelMismatch,
     TargetUnavailable,
     UnsupportedInstallation,
+    AutomaticUpdateNotEnabled,
     ReadOnlyInstallation,
     NotesTooLarge,
     PayloadTooLarge,
@@ -358,6 +349,9 @@ struct ServiceState {
 struct PendingCandidate {
     public: UpdateCandidate,
     mode: InstallationMode,
+    /// The verdict reached at check time. `Some` means the candidate was
+    /// reported as `blocked` and can never be downloaded by this build.
+    check_block: Option<UpdateError>,
     manifest_digest: String,
     artifact_url: String,
     signature: String,
@@ -558,7 +552,7 @@ impl AppUpdateService {
             }
             CheckOutcome::Candidate(candidate) => {
                 let public = candidate.public.clone();
-                let blocked = installation_error(candidate.mode, UpdateStage::Check);
+                let blocked = candidate.check_block.clone();
                 state.candidate = Some(*candidate);
                 state.snapshot = match blocked {
                     Some(error) => UpdateState::Blocked {
@@ -608,7 +602,10 @@ impl AppUpdateService {
         let Some(candidate) = state.candidate.as_mut() else {
             return action_failure(stale_candidate_error(UpdateStage::Download));
         };
-        if candidate.public.candidate_id != candidate_id || !candidate.mode.automatic_candidate() {
+        if candidate.public.candidate_id != candidate_id
+            || !candidate.mode.automatic_candidate()
+            || candidate.check_block.is_some()
+        {
             return action_failure(stale_candidate_error(UpdateStage::Download));
         }
         candidate.verified_bytes = None;
@@ -925,12 +922,7 @@ impl AppUpdateService {
         }
         let build_identity = BuildUpdateIdentity::current()?;
         if !build_identity.target_is_enabled(pending.public.target) {
-            return Err(UpdateError::new(
-                UpdateErrorCode::UnsupportedInstallation,
-                UpdateStage::Install,
-                false,
-            )
-            .detail("This target still requires signed A-to-B qualification."));
+            return Err(automatic_update_not_enabled(UpdateStage::Install));
         }
         if !installation_is_writable(mode) {
             return Err(UpdateError::new(
@@ -970,6 +962,7 @@ impl AppUpdateService {
             error.code,
             UpdateErrorCode::InstallBlocked
                 | UpdateErrorCode::UnsupportedInstallation
+                | UpdateErrorCode::AutomaticUpdateNotEnabled
                 | UpdateErrorCode::ReadOnlyInstallation
         ) {
             state.candidate.as_ref().map_or_else(
@@ -1167,6 +1160,7 @@ fn validate_candidate(
     }
     let expected_bytes = Some(validated_manifest.expected_bytes);
     let mode = detect_installation_mode();
+    let check_block = check_time_block(mode, identity.target_is_enabled(target));
     let manifest_digest = hex_digest(Sha256::digest(&validated_manifest.bytes));
     let artifact_url = update.download_url.as_str().to_string();
     let candidate_id = candidate_identity(
@@ -1192,6 +1186,7 @@ fn validate_candidate(
     CheckOutcome::Candidate(Box::new(PendingCandidate {
         public,
         mode,
+        check_block,
         manifest_digest,
         artifact_url,
         signature: update.signature.clone(),
@@ -1219,6 +1214,14 @@ fn invalid_manifest() -> UpdateError {
     UpdateError::new(UpdateErrorCode::InvalidManifest, UpdateStage::Check, false)
 }
 
+/// Validates the plugin's authoritative `raw_json` for the running target.
+///
+/// Only the entry for the running target is validated strictly (release
+/// origin and version path, signature bounds, size). Other `platforms` keys
+/// and unknown top-level fields are opaque, within the byte and entry limits,
+/// so a feed that later gains `darwin-*` rows or a new field does not strand
+/// every installed client; forward compatibility of the feed is enforced at
+/// publication, not by failing closed here.
 fn validate_raw_manifest(
     target: UpdateTarget,
     raw_json: &serde_json::Value,
@@ -1229,22 +1232,18 @@ fn validate_raw_manifest(
         return Err(invalid_manifest());
     }
     let object = raw_json.as_object().ok_or_else(invalid_manifest)?;
-    if object.len() != 4
-        || !["version", "notes", "pub_date", "platforms"]
-            .into_iter()
-            .all(|key| object.contains_key(key))
-        || object.get("version").and_then(serde_json::Value::as_str) != Some(parsed.version)
+    if object.get("version").and_then(serde_json::Value::as_str) != Some(parsed.version)
         || parsed.target != target.as_str()
     {
         return Err(invalid_manifest());
     }
     match (object.get("notes"), parsed.notes) {
         (Some(serde_json::Value::String(raw)), Some(parsed)) if raw == parsed => {}
-        (Some(serde_json::Value::Null), None) => {}
+        (None | Some(serde_json::Value::Null), None) => {}
         _ => return Err(invalid_manifest()),
     }
     match (object.get("pub_date"), parsed.date) {
-        (Some(serde_json::Value::Null), None) => {}
+        (None | Some(serde_json::Value::Null), None) => {}
         (Some(serde_json::Value::String(raw)), Some(parsed))
             if parsed.format(&Rfc3339).is_ok_and(|value| value == *raw) => {}
         _ => return Err(invalid_manifest()),
@@ -1256,62 +1255,45 @@ fn validate_raw_manifest(
     if platforms.is_empty() || platforms.len() > PLATFORM_ENTRIES_LIMIT {
         return Err(invalid_manifest());
     }
-    let mut selected_size = None;
-    for (key, value) in platforms {
-        let platform_target = UpdateTarget::from_key(key).ok_or_else(invalid_manifest)?;
-        if !matches!(
-            platform_target,
-            UpdateTarget::WindowsX86_64 | UpdateTarget::LinuxX86_64
-        ) {
-            return Err(invalid_manifest());
-        }
-        let platform = value.as_object().ok_or_else(invalid_manifest)?;
-        if platform.len() != 3
-            || !["url", "signature", "size"]
-                .into_iter()
-                .all(|field| platform.contains_key(field))
-        {
-            return Err(invalid_manifest());
-        }
-        let url_text = platform
-            .get("url")
-            .and_then(serde_json::Value::as_str)
-            .ok_or_else(invalid_manifest)?;
-        let url = reqwest::Url::parse(url_text).map_err(|_| invalid_manifest())?;
-        if !valid_artifact_url(&url, parsed.version) {
-            return Err(invalid_manifest());
-        }
-        let signature = platform
-            .get("signature")
-            .and_then(serde_json::Value::as_str)
-            .filter(|value| !value.is_empty() && value.len() <= SIGNATURE_BYTES_LIMIT)
-            .ok_or_else(invalid_manifest)?;
-        let size = platform
-            .get("size")
-            .and_then(serde_json::Value::as_u64)
-            .filter(|value| *value > 0)
-            .ok_or_else(invalid_manifest)?;
-        if size > ARTIFACT_BYTES_LIMIT {
-            return Err(UpdateError::new(
-                UpdateErrorCode::PayloadTooLarge,
+    let platform = platforms
+        .get(target.as_str())
+        .ok_or_else(|| {
+            UpdateError::new(
+                UpdateErrorCode::TargetUnavailable,
                 UpdateStage::Check,
                 false,
-            ));
-        }
-        if platform_target == target {
-            if url.as_str() != parsed.url.as_str() || signature != parsed.signature {
-                return Err(invalid_manifest());
-            }
-            selected_size = Some(size);
-        }
+            )
+        })?
+        .as_object()
+        .ok_or_else(invalid_manifest)?;
+    let url_text = platform
+        .get("url")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(invalid_manifest)?;
+    let url = reqwest::Url::parse(url_text).map_err(|_| invalid_manifest())?;
+    if !valid_artifact_url(&url, parsed.version) || url.as_str() != parsed.url.as_str() {
+        return Err(invalid_manifest());
     }
-    let expected_bytes = selected_size.ok_or_else(|| {
-        UpdateError::new(
-            UpdateErrorCode::TargetUnavailable,
+    let signature = platform
+        .get("signature")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty() && value.len() <= SIGNATURE_BYTES_LIMIT)
+        .ok_or_else(invalid_manifest)?;
+    if signature != parsed.signature {
+        return Err(invalid_manifest());
+    }
+    let expected_bytes = platform
+        .get("size")
+        .and_then(serde_json::Value::as_u64)
+        .filter(|value| *value > 0)
+        .ok_or_else(invalid_manifest)?;
+    if expected_bytes > ARTIFACT_BYTES_LIMIT {
+        return Err(UpdateError::new(
+            UpdateErrorCode::PayloadTooLarge,
             UpdateStage::Check,
             false,
-        )
-    })?;
+        ));
+    }
     Ok(ValidatedManifest {
         bytes,
         expected_bytes,
@@ -1468,31 +1450,12 @@ fn opaque_id_is_valid(value: &str) -> bool {
 fn detect_installation_mode() -> InstallationMode {
     if cfg!(target_os = "windows") {
         let executable = std::env::current_exe().unwrap_or_default();
-        let display = executable.to_string_lossy().to_ascii_lowercase();
-        if display.starts_with("\\\\")
-            || std::env::temp_dir()
-                .canonicalize()
-                .is_ok_and(|temporary| executable.starts_with(temporary))
-        {
-            return InstallationMode::MountedImage;
-        }
-        if display.contains("\\windowsapps\\") {
-            return InstallationMode::Store;
-        }
-        return match tauri::utils::platform::bundle_type() {
-            Some(BundleType::Nsis) => {
-                if std::env::var_os("LOCALAPPDATA")
-                    .map(PathBuf::from)
-                    .is_some_and(|root| executable.starts_with(root))
-                {
-                    InstallationMode::WindowsNsisPerUser
-                } else {
-                    InstallationMode::WindowsMachineWide
-                }
-            }
-            Some(BundleType::Msi) => InstallationMode::WindowsMsi,
-            _ => InstallationMode::Unsupported,
-        };
+        return windows_installation_mode_at(
+            &executable,
+            &std::env::temp_dir(),
+            tauri::utils::platform::bundle_type(),
+            &registered_windows_install_locations(),
+        );
     }
     if cfg!(target_os = "macos") {
         let executable = std::env::current_exe().unwrap_or_default();
@@ -1507,7 +1470,7 @@ fn detect_installation_mode() -> InstallationMode {
             return if display.starts_with("/mnt/")
                 || display.starts_with("/media/")
                 || display.starts_with("/run/media/")
-                || appimage.starts_with(std::env::temp_dir())
+                || path_is_within(&appimage, &std::env::temp_dir())
             {
                 InstallationMode::MountedImage
             } else if appimage.is_file() {
@@ -1541,7 +1504,7 @@ fn macos_installation_mode_at(executable: &Path, temporary_root: &Path) -> Insta
     if display.starts_with("/Volumes/")
         || display.contains("/AppTranslocation/")
         || display.starts_with("/private/var/folders/")
-        || executable.starts_with(temporary_root)
+        || path_is_within(executable, temporary_root)
     {
         return InstallationMode::MountedImage;
     }
@@ -1552,6 +1515,108 @@ fn macos_installation_mode_at(executable: &Path, temporary_root: &Path) -> Insta
         InstallationMode::Store
     } else {
         InstallationMode::MacosAppBundle
+    }
+}
+
+/// Where the NSIS installer registered this product. Tauri's installer writes
+/// `Software\Microsoft\Windows\CurrentVersion\Uninstall\<productName>` with
+/// `InstallLocation` under `HKEY_CURRENT_USER` for a per-user installation and
+/// under `HKEY_LOCAL_MACHINE` for a machine-wide one, whichever directory the
+/// person chose, so the hive is the fact and the directory is only a proxy.
+#[derive(Debug, Default)]
+struct WindowsInstallLocations {
+    current_user: Option<PathBuf>,
+    local_machine: Option<PathBuf>,
+}
+
+/// Tauri names the key after `productName`; a test pins it to the config.
+const WINDOWS_UNINSTALL_KEY: &str =
+    "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GitOdile";
+
+#[cfg(windows)]
+fn registered_windows_install_locations() -> WindowsInstallLocations {
+    let read = |hive: &windows_registry::Key| {
+        hive.open(WINDOWS_UNINSTALL_KEY)
+            .and_then(|key| key.get_string("InstallLocation"))
+            .ok()
+            .map(|location| PathBuf::from(location.trim().trim_matches('"')))
+            .filter(|location| !location.as_os_str().is_empty())
+    };
+    WindowsInstallLocations {
+        current_user: read(windows_registry::CURRENT_USER),
+        local_machine: read(windows_registry::LOCAL_MACHINE),
+    }
+}
+
+#[cfg(not(windows))]
+fn registered_windows_install_locations() -> WindowsInstallLocations {
+    WindowsInstallLocations::default()
+}
+
+fn windows_installation_mode_at(
+    executable: &Path,
+    temporary_root: &Path,
+    bundle: Option<BundleType>,
+    locations: &WindowsInstallLocations,
+) -> InstallationMode {
+    let display = executable.to_string_lossy().to_ascii_lowercase();
+    if display.starts_with("\\\\") || path_is_within(executable, temporary_root) {
+        return InstallationMode::MountedImage;
+    }
+    if display.contains("\\windowsapps\\") {
+        return InstallationMode::Store;
+    }
+    match bundle {
+        Some(BundleType::Nsis) => {
+            let Some(directory) = executable.parent() else {
+                return InstallationMode::Unsupported;
+            };
+            let registered_in = |location: &Option<PathBuf>| {
+                location
+                    .as_deref()
+                    .is_some_and(|location| same_windows_directory(directory, location))
+            };
+            if registered_in(&locations.current_user) {
+                InstallationMode::WindowsNsisPerUser
+            } else if registered_in(&locations.local_machine) {
+                InstallationMode::WindowsMachineWide
+            } else {
+                // An NSIS build running from a directory no hive registered
+                // (a copied folder, say) cannot be replaced in place by the
+                // installer handoff, so it is not offered automatic updates.
+                InstallationMode::Unsupported
+            }
+        }
+        Some(BundleType::Msi) => InstallationMode::WindowsMsi,
+        _ => InstallationMode::Unsupported,
+    }
+}
+
+/// Lexical comparison first, so a registered directory that no longer exists
+/// still compares; canonical comparison second, so a short-name or junction
+/// spelling of the same directory still matches.
+fn same_windows_directory(left: &Path, right: &Path) -> bool {
+    fn lexical(path: &Path) -> String {
+        path.to_string_lossy()
+            .replace('/', "\\")
+            .trim_start_matches("\\\\?\\")
+            .trim_end_matches('\\')
+            .to_ascii_lowercase()
+    }
+    lexical(left) == lexical(right)
+        || matches!(
+            (left.canonicalize(), right.canonicalize()),
+            (Ok(left), Ok(right)) if left == right
+        )
+}
+
+/// `starts_with` over two paths spelled the same way: both canonical when
+/// both can be canonicalized, otherwise both as given. Comparing a canonical
+/// `\\?\` path with a plain one never matches on Windows.
+fn path_is_within(path: &Path, root: &Path) -> bool {
+    match (path.canonicalize(), root.canonicalize()) {
+        (Ok(path), Ok(root)) => path.starts_with(root),
+        _ => path.starts_with(root),
     }
 }
 
@@ -1571,6 +1636,20 @@ fn installation_error(mode: InstallationMode, stage: UpdateStage) -> Option<Upda
             false,
         )),
     }
+}
+
+/// The verdict a check reports before any byte is downloaded. An installation
+/// the updater may never replace (managed, store, mounted) is reported first;
+/// a replaceable installation whose build was compiled without the gate for
+/// its target is `automatic_update_not_enabled`, whose remedy is the manual
+/// download rather than a package manager.
+fn check_time_block(mode: InstallationMode, target_enabled: bool) -> Option<UpdateError> {
+    installation_error(mode, UpdateStage::Check)
+        .or_else(|| (!target_enabled).then(|| automatic_update_not_enabled(UpdateStage::Check)))
+}
+
+fn automatic_update_not_enabled(stage: UpdateStage) -> UpdateError {
+    UpdateError::new(UpdateErrorCode::AutomaticUpdateNotEnabled, stage, false)
 }
 
 fn installation_is_writable(mode: InstallationMode) -> bool {
@@ -2057,6 +2136,10 @@ mod tests {
             "Hello friend site"
         );
         assert_eq!(
+            plain_text_notes("First paragraph.\r\n\r\n- one\n- two\n").unwrap(),
+            "First paragraph.\n\n- one\n- two"
+        );
+        assert_eq!(
             plain_text_notes(&"x".repeat(NOTES_BYTES_LIMIT + 1))
                 .unwrap_err()
                 .code,
@@ -2138,7 +2221,7 @@ mod tests {
     }
 
     #[test]
-    fn raw_manifest_is_closed_bounded_and_matches_the_plugin_selection() {
+    fn raw_manifest_validates_the_running_entry_and_tolerates_the_rest() {
         let missing = classify_plugin_check_error(tauri_plugin_updater::Error::TargetNotFound(
             "windows-x86_64".to_string(),
         ));
@@ -2153,6 +2236,10 @@ mod tests {
             "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_0.2.0-preview.10_x64-setup.exe",
         )
         .unwrap();
+        let linux_url = reqwest::Url::parse(
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_0.2.0-preview.10_amd64.AppImage",
+        )
+        .unwrap();
         let manifest = serde_json::json!({
             "version": "0.2.0-preview.10",
             "notes": "Corrected updater path",
@@ -2164,36 +2251,63 @@ mod tests {
                     "size": 7
                 },
                 "linux-x86_64": {
-                    "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_0.2.0-preview.10_amd64.AppImage",
+                    "url": linux_url.as_str(),
                     "signature": "linux-signature",
                     "size": 9
                 }
             }
         });
-        let validated = validate_raw_manifest(
-            UpdateTarget::WindowsX86_64,
-            &manifest,
+        let windows = |manifest: &serde_json::Value| {
+            validate_raw_manifest(
+                UpdateTarget::WindowsX86_64,
+                manifest,
+                PluginManifestSelection {
+                    version: "0.2.0-preview.10",
+                    target: "windows-x86_64",
+                    notes: Some("Corrected updater path"),
+                    date: None,
+                    url: &url,
+                    signature: "signature",
+                },
+            )
+        };
+        assert_eq!(windows(&manifest).unwrap().expected_bytes, 7);
+
+        // A feed that gains macOS rows, an unknown platform key, a new
+        // top-level field or a new per-entry field must not strand the
+        // clients already installed: each one still selects its own entry.
+        let mut tolerant = manifest.clone();
+        tolerant["platforms"]["darwin-aarch64"] = serde_json::json!({
+            "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile.app.tar.gz",
+            "signature": "mac-signature",
+            "size": 9
+        });
+        tolerant["platforms"]["darwin-x86_64"] = serde_json::json!({
+            "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_x64.app.tar.gz",
+            "signature": "mac-signature",
+            "size": 9
+        });
+        tolerant["platforms"]["freebsd-x86_64"] = serde_json::json!({ "url": "not even a url" });
+        tolerant["schema"] = serde_json::json!({ "revision": 3 });
+        tolerant["platforms"]["windows-x86_64"]["sha256"] = "abc".into();
+        assert_eq!(windows(&tolerant).unwrap().expected_bytes, 7);
+        let linux = validate_raw_manifest(
+            UpdateTarget::LinuxX86_64,
+            &tolerant,
             PluginManifestSelection {
                 version: "0.2.0-preview.10",
-                target: "windows-x86_64",
+                target: "linux-x86_64",
                 notes: Some("Corrected updater path"),
                 date: None,
-                url: &url,
-                signature: "signature",
+                url: &linux_url,
+                signature: "linux-signature",
             },
         )
         .unwrap();
-        assert_eq!(validated.expected_bytes, 7);
+        assert_eq!(linux.expected_bytes, 9);
 
+        // The running target's own entry stays strict.
         for invalid in [
-            {
-                let mut value = manifest.clone();
-                value
-                    .as_object_mut()
-                    .unwrap()
-                    .insert("extra".into(), true.into());
-                value
-            },
             {
                 let mut value = manifest.clone();
                 value["platforms"]["windows-x86_64"]["size"] = "7".into();
@@ -2212,32 +2326,42 @@ mod tests {
             },
             {
                 let mut value = manifest.clone();
-                value["platforms"]["darwin-aarch64"] = serde_json::json!({
-                    "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile.app.tar.gz",
-                    "signature": "mac-signature",
-                    "size": 9
-                });
+                value["platforms"]["windows-x86_64"] = serde_json::json!("not an object");
+                value
+            },
+            {
+                let mut value = manifest.clone();
+                value["notes"] = "edited after the plugin parsed it".into();
+                value
+            },
+            {
+                let mut value = manifest.clone();
+                for index in 0..7 {
+                    value["platforms"][format!("target-{index}")] = serde_json::json!({});
+                }
                 value
             },
         ] {
             assert_eq!(
-                validate_raw_manifest(
-                    UpdateTarget::WindowsX86_64,
-                    &invalid,
-                    PluginManifestSelection {
-                        version: "0.2.0-preview.10",
-                        target: "windows-x86_64",
-                        notes: Some("Corrected updater path"),
-                        date: None,
-                        url: &url,
-                        signature: "signature",
-                    },
-                )
-                .unwrap_err()
-                .code,
+                windows(&invalid).unwrap_err().code,
                 UpdateErrorCode::InvalidManifest
             );
         }
+        let mut absent = manifest.clone();
+        absent["platforms"]
+            .as_object_mut()
+            .unwrap()
+            .remove("windows-x86_64");
+        assert_eq!(
+            windows(&absent).unwrap_err().code,
+            UpdateErrorCode::TargetUnavailable
+        );
+        let mut oversized = manifest.clone();
+        oversized["platforms"]["windows-x86_64"]["size"] = (ARTIFACT_BYTES_LIMIT + 1).into();
+        assert_eq!(
+            windows(&oversized).unwrap_err().code,
+            UpdateErrorCode::PayloadTooLarge
+        );
 
         for allowed in [
             "https://raw.githubusercontent.com/x",
@@ -2284,6 +2408,40 @@ mod tests {
     }
 
     #[test]
+    fn gated_builds_are_blocked_at_check_time_with_their_own_code() {
+        let gated = check_time_block(InstallationMode::WindowsNsisPerUser, false).unwrap();
+        assert_eq!(gated.code, UpdateErrorCode::AutomaticUpdateNotEnabled);
+        assert_eq!(gated.stage, UpdateStage::Check);
+        assert!(!gated.retryable);
+        assert!(check_time_block(InstallationMode::LinuxAppImage, true).is_none());
+        // An installation the updater may never replace keeps its own remedy.
+        assert_eq!(
+            check_time_block(InstallationMode::ManagedPackage, false)
+                .unwrap()
+                .code,
+            UpdateErrorCode::UnsupportedInstallation
+        );
+        assert_eq!(
+            check_time_block(InstallationMode::MountedImage, true)
+                .unwrap()
+                .code,
+            UpdateErrorCode::ReadOnlyInstallation
+        );
+        // Without a pending candidate the install path reports it as failed,
+        // never as a candidate the renderer could act on.
+        let service = AppUpdateService::for_test();
+        assert!(matches!(
+            service.install_failure(automatic_update_not_enabled(UpdateStage::Install)),
+            UpdateState::Failed {
+                error: UpdateError {
+                    code: UpdateErrorCode::AutomaticUpdateNotEnabled,
+                    ..
+                }
+            }
+        ));
+    }
+
+    #[test]
     fn unsupported_and_read_only_modes_never_become_automatic() {
         for mode in [
             InstallationMode::WindowsMsi,
@@ -2303,6 +2461,104 @@ mod tests {
                 .unwrap()
                 .code,
             UpdateErrorCode::ReadOnlyInstallation
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_install_mode_follows_the_registered_hive_not_the_directory() {
+        let temporary = Path::new("C:\\Windows\\Temp");
+        let custom = Path::new("D:\\Tools\\GitOdile\\gitodile.exe");
+        let per_user = WindowsInstallLocations {
+            current_user: Some(PathBuf::from("d:\\tools\\gitodile\\")),
+            local_machine: None,
+        };
+        assert_eq!(
+            windows_installation_mode_at(custom, temporary, Some(BundleType::Nsis), &per_user),
+            InstallationMode::WindowsNsisPerUser
+        );
+        let machine = Path::new("C:\\Program Files\\GitOdile\\gitodile.exe");
+        let machine_wide = WindowsInstallLocations {
+            current_user: None,
+            local_machine: Some(PathBuf::from("C:\\Program Files\\GitOdile")),
+        };
+        assert_eq!(
+            windows_installation_mode_at(machine, temporary, Some(BundleType::Nsis), &machine_wide),
+            InstallationMode::WindowsMachineWide
+        );
+        let elsewhere = WindowsInstallLocations {
+            current_user: Some(PathBuf::from("C:\\Users\\me\\AppData\\Local\\GitOdile")),
+            local_machine: None,
+        };
+        for locations in [&elsewhere, &WindowsInstallLocations::default()] {
+            assert_eq!(
+                windows_installation_mode_at(custom, temporary, Some(BundleType::Nsis), locations),
+                InstallationMode::Unsupported
+            );
+        }
+        assert_eq!(
+            windows_installation_mode_at(custom, temporary, Some(BundleType::Msi), &per_user),
+            InstallationMode::WindowsMsi
+        );
+        assert_eq!(
+            windows_installation_mode_at(custom, temporary, None, &per_user),
+            InstallationMode::Unsupported
+        );
+        assert_eq!(
+            windows_installation_mode_at(
+                Path::new("\\\\server\\share\\GitOdile\\gitodile.exe"),
+                temporary,
+                Some(BundleType::Nsis),
+                &per_user
+            ),
+            InstallationMode::MountedImage
+        );
+        assert_eq!(
+            windows_installation_mode_at(
+                Path::new("C:\\Program Files\\WindowsApps\\GitOdile\\gitodile.exe"),
+                temporary,
+                Some(BundleType::Nsis),
+                &machine_wide
+            ),
+            InstallationMode::Store
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn temporary_extraction_is_detected_whichever_side_is_canonical() {
+        let root = PathBuf::from(unique_temp_dir("update-windows-temp"));
+        fs::create_dir_all(&root).unwrap();
+        let executable = root.join("gitodile.exe");
+        fs::write(&executable, b"fixture").unwrap();
+        let plain = std::env::temp_dir();
+        let canonical = plain.canonicalize().unwrap();
+        assert!(canonical.to_string_lossy().starts_with("\\\\?\\"));
+        for temporary in [&plain, &canonical] {
+            assert_eq!(
+                windows_installation_mode_at(
+                    &executable,
+                    temporary,
+                    Some(BundleType::Nsis),
+                    &WindowsInstallLocations {
+                        current_user: Some(root.clone()),
+                        local_machine: None,
+                    }
+                ),
+                InstallationMode::MountedImage
+            );
+        }
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn windows_uninstall_key_names_the_configured_product() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let product = config["productName"].as_str().unwrap();
+        assert_eq!(
+            WINDOWS_UNINSTALL_KEY,
+            format!("Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{product}")
         );
     }
 

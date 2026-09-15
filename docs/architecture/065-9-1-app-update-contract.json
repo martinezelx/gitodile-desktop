@@ -100,6 +100,7 @@
     "channel_mismatch",
     "target_unavailable",
     "unsupported_installation",
+    "automatic_update_not_enabled",
     "read_only_installation",
     "notes_too_large",
     "payload_too_large",

@@ -15,7 +15,8 @@ export type UpdateError = Readonly<{
   code:
     | "offline" | "timeout" | "http_status" | "feed_unavailable"
     | "invalid_manifest" | "invalid_version" | "channel_mismatch"
-    | "target_unavailable" | "unsupported_installation" | "read_only_installation"
+    | "target_unavailable" | "unsupported_installation" | "automatic_update_not_enabled"
+    | "read_only_installation"
     | "notes_too_large" | "payload_too_large" | "truncated_download"
     | "signature_invalid" | "insufficient_space" | "install_blocked"
     | "install_handoff_failed" | "post_install_unconfirmed" | "internal";

@@ -70,10 +70,29 @@ cancellation, check coalescence, the single pending candidate, its verified
 bytes, native install-mode detection and bounded startup handoff state. The
 exact updater plugin's `check()` is the only feed request and manifest
 interpretation authority. GitOdile strictly validates the returned `raw_json`
-against a closed static-manifest shape, cross-checks every selected value, and
-then retains the official `Update` for Tauri's download, Minisign verification,
-and platform installation. This avoids a second HTTP authority and a feed/cache
-race while preserving structured plugin transport and schema errors.
+entry for the running target, cross-checks every selected value against what
+the plugin parsed, and then retains the official `Update` for Tauri's
+download, Minisign verification, and platform installation. This avoids a
+second HTTP authority and a feed/cache race while preserving structured plugin
+transport and schema errors.
+
+Since task 065-9-11 (2026-09-15) the manifest validation is forward-compatible:
+only the running target's entry is validated strictly; other `platforms` keys
+(including `darwin-*` rows once task 065-10 publishes them) and unknown
+top-level or per-entry fields are opaque within the byte and entry limits.
+Forward compatibility of the feed is enforced at publication, where the
+publisher still refuses every Darwin row while macOS is disabled, rather than
+by making every installed client fail closed on a feed it cannot fully parse.
+A missing entry for the running target is still `target_unavailable`, and a
+malformed or oversized own entry is still rejected.
+
+The same task made the compile-time target gate visible at check time. A
+build compiled without the gate for its target (neither
+`GITODILE_QUALIFIED_UPDATE_TARGETS` nor, on preview, the preview-test pair
+names it) reports a newer version as `blocked(automatic_update_not_enabled)`
+from the check itself, downloads nothing and offers the manual download.
+`unsupported_installation` is reserved for installations the updater may never
+replace (managed packages, stores, mounted images).
 
 The production feeds are fixed constants. The public key and key ID are build-
 time values (`GITODILE_UPDATER_PUBLIC_KEY` and
@@ -186,12 +205,21 @@ AppImage itself for the v2 Linux updater artifact. See the official
 [updater](https://v2.tauri.app/plugin/updater/) documentation.
 
 Detection is native and includes package/install mode, not merely OS and CPU.
-These modes are never automatically replaced:
+On Windows the NSIS mode is read from the installer's own record: Tauri's
+installer writes `Software\Microsoft\Windows\CurrentVersion\Uninstall\GitOdile`
+with `InstallLocation` under `HKEY_CURRENT_USER` for a per-user installation
+and under `HKEY_LOCAL_MACHINE` for a machine-wide one, whichever directory the
+person chose, so a per-user installation in a custom directory is still
+`windows_nsis_per_user`. An NSIS build running from a directory neither hive
+registered (a copied folder) is `unsupported`. The install directory's
+write probe still runs before installation. These modes are never
+automatically replaced:
 
 | Detected installation | Outcome |
 | --- | --- |
 | Linux `.deb` / `.rpm`, AUR, Snap, Flatpak, or another managed package | `blocked(unsupported_installation)` with package-manager guidance |
 | Windows MSI, machine-wide install, Microsoft Store, or an unknown installer family | Manual signed installer/store guidance; no NSIS handoff |
+| A replaceable installation whose build was compiled without the gate for its target | `blocked(automatic_update_not_enabled)` at check time, before any download; manual download guidance |
 | Mac App Store | Store-managed guidance; no direct bundle replacement |
 | App run from a mounted DMG/AppImage mount, translocated location, temporary extraction, network/mounted volume, or other non-regular backing path | `blocked(read_only_installation)` or `blocked(unsupported_installation)` with copy/install guidance |
 | App bundle/AppImage whose target or parent is not writable, including permissions or immutable/read-only media | `blocked(read_only_installation)`; never request an unrelated path from the renderer |
@@ -257,7 +285,8 @@ type UpdateError = Readonly<{
   code:
     | "offline" | "timeout" | "http_status" | "feed_unavailable"
     | "invalid_manifest" | "invalid_version" | "channel_mismatch"
-    | "target_unavailable" | "unsupported_installation" | "read_only_installation"
+    | "target_unavailable" | "unsupported_installation" | "automatic_update_not_enabled"
+    | "read_only_installation"
     | "notes_too_large" | "payload_too_large" | "truncated_download"
     | "signature_invalid" | "insufficient_space" | "install_blocked"
     | "install_handoff_failed" | "post_install_unconfirmed" | "internal";
@@ -274,6 +303,21 @@ or repository data. `offline`, `timeout`, non-success HTTP, malformed manifest,
 missing feed, missing target, bad version/channel, truncated data, and invalid
 signature remain distinct. Cancellation is a normal `cancelled` state, not a
 failure and never an installable result.
+
+`http_status` is reachable only from a download. With the pinned
+`tauri-plugin-updater 2.11.0`, `check()` logs and discards a non-2xx feed
+response and ends in `ReleaseNotFound`, which GitOdile reports as
+`feed_unavailable` (retryable); the status code never reaches the app. The UI
+must not promise a status code for a failed check. The contract check and
+`scripts/check-app-update-contracts.mjs` keep the Rust enum, this list and the
+renderer's `domain.ts` identical.
+
+Remote notes keep their block structure: the publisher joins hard-wrapped
+lines of one paragraph or list item, keeps one newline between list items and
+a blank line between paragraphs, and the app preserves `\n` while stripping
+markup, so the update dialog renders paragraphs and bullets rather than one
+run-on line. `pub_date` is the instant GitHub published the release
+(`published_at`), not a build or commit time.
 
 Checks and downloads are cancellable by their exact operation ID. Verification
 may finish atomically once it starts; a pending cancellation prevents `ready`
@@ -303,10 +347,14 @@ renderer-supplied headers. The normal HTTP stack may expose IP address, user
 agent, and ordinary transport metadata to GitHub and intermediaries.
 
 The plugin is the only component that reads the manifest response. After its
-JSON decode, GitOdile rejects a canonical serialization over 256 KiB, any
-unknown or missing top-level/platform field, more than eight platforms, any
-disabled/unknown target, mismatched parsed field, empty/oversized signature, or
-invalid/oversized package length. Artifact Content-Length remains advisory:
+JSON decode, GitOdile rejects a canonical serialization over 256 KiB, a
+`version`, `notes` or `pub_date` that differs from what the plugin parsed,
+more than eight platforms, a missing entry for the running target, and, in
+that entry, a URL outside the versioned release path, a URL or signature that
+differs from the plugin's selection, an empty/oversized signature, or an
+invalid/oversized package length. Other platform keys and unknown fields are
+tolerated so a feed can grow without stranding installed clients. Artifact
+Content-Length remains advisory:
 download callbacks enforce the same payload cap and final observed-length
 agreement. A finished transfer enters `verifying`, not `ready`. Signature
 failure or any truncation releases the bytes. Raising either cap requires new

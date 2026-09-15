@@ -1363,6 +1363,7 @@ dependencies = [
  "tauri-plugin-updater",
  "time",
  "tokio",
+ "windows-registry",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { feedsForPromotion, PUBLIC_REPOSITORY, updateFeedbackReadme } from "./public-release.mjs";
+import { DERIVED_ASSET_NAMES, feedsForPromotion, PUBLIC_REPOSITORY, renderPublication, updateFeedbackReadme } from "./public-release.mjs";
 import { ReleaseValidationError } from "./release-candidate.mjs";
 
 function fail(code, message) {
@@ -105,10 +105,26 @@ class GitHubClient {
   }
 }
 
-export async function anonymousHash(url, fetchImpl = fetch) {
-  const response = await fetchImpl(url, { headers: { "User-Agent": "GitOdile-anonymous-release-check" }, redirect: "follow", signal: AbortSignal.timeout(60_000) });
-  if (!response.ok) fail("anonymous_download_failed", `anonymous download returned HTTP ${response.status}`);
-  return sha256(Buffer.from(await response.arrayBuffer()));
+/** A just-published asset can answer 404 from the download CDN for a short
+ * while after the release itself is public, so the anonymous check is
+ * retried a bounded number of times; a persistent failure still stops the
+ * run before any feed changes. */
+export const ANONYMOUS_RETRY = Object.freeze({ attempts: 6, delayMs: 10_000 });
+
+export async function anonymousHash(url, fetchImpl = fetch, retry = ANONYMOUS_RETRY) {
+  const sleep = retry.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  let last = null;
+  for (let attempt = 1; attempt <= retry.attempts; attempt += 1) {
+    if (attempt > 1) await sleep(retry.delayMs);
+    try {
+      const response = await fetchImpl(url, { headers: { "User-Agent": "GitOdile-anonymous-release-check" }, redirect: "follow", signal: AbortSignal.timeout(60_000) });
+      if (response.ok) return sha256(Buffer.from(await response.arrayBuffer()));
+      last = `HTTP ${response.status}`;
+    } catch (error) {
+      last = error?.message ?? String(error);
+    }
+  }
+  fail("anonymous_download_failed", `anonymous download failed after ${retry.attempts} attempts: ${last}`);
 }
 
 /** `GET /releases/tags/{tag}` only resolves published releases: a draft is
@@ -145,12 +161,23 @@ async function ensurePublicTag(client, tag, mainSha) {
   }
 }
 
-async function downloadExistingHashes(release, expected, fetchImpl = fetch) {
+async function downloadExistingHashes(release, expected, fetchImpl = fetch, retry = ANONYMOUS_RETRY) {
   const hashes = new Map();
   for (const asset of release.assets ?? []) {
-    if (expected.some((item) => item.fileName === asset.name)) hashes.set(asset.name, await anonymousHash(asset.browser_download_url, fetchImpl));
+    if (expected.some((item) => item.fileName === asset.name)) hashes.set(asset.name, await anonymousHash(asset.browser_download_url, fetchImpl, retry));
   }
   return hashes;
+}
+
+/** GitHub records `published_at` when a draft is published; that instant is
+ * the manifest's `pub_date`. It is read back from the release on every run,
+ * so a reconciliation retry renders the same bytes as the run that published. */
+function publicationTime(release) {
+  const publishedAt = release?.published_at;
+  if (typeof publishedAt !== "string" || release.draft) fail("publication_date_invalid", "published release carries no publication time");
+  const parsed = new Date(publishedAt);
+  if (Number.isNaN(parsed.valueOf())) fail("publication_date_invalid", "published release carries an unreadable publication time");
+  return parsed.toISOString().replace(".000Z", "Z");
 }
 
 async function uploadAsset(client, release, directory, asset) {
@@ -193,7 +220,7 @@ async function loadCurrentFeeds(client) {
   return result;
 }
 
-export async function publish({ directory, token, sourceRun, sourceRepository, fetchImpl = fetch }) {
+export async function publish({ directory, token, sourceRun, sourceRepository, fetchImpl = fetch, retry = ANONYMOUS_RETRY }) {
   validateSourceRun(sourceRun, sourceRepository);
   const plan = JSON.parse(fs.readFileSync(path.join(directory, "publication-plan.json"), "utf8"));
   if (plan.destination !== PUBLIC_REPOSITORY) fail("destination_invalid", "publication plan targets another repository");
@@ -209,22 +236,48 @@ export async function publish({ directory, token, sourceRun, sourceRepository, f
   } else if (release.tag_name !== plan.source.tag || release.prerelease !== plan.release.githubPrerelease || release.body !== plan.notesMarkdown) {
     fail("release_conflict", "existing release metadata differs from the immutable plan");
   }
-  const hashes = release.draft ? new Map() : await downloadExistingHashes(release, plan.assets, fetchImpl);
+  // Derived assets belong to the published release: a draft can only hold
+  // them from an interrupted run, and they are rendered again after publishing.
+  const derivedNames = new Set(DERIVED_ASSET_NAMES);
+  const fixedAssets = plan.assets.filter((asset) => !derivedNames.has(asset.fileName));
   if (release.draft) {
-    for (const asset of release.assets ?? []) {
-      if (plan.assets.some((item) => item.fileName === asset.name)) hashes.set(asset.name, await client.assetHash(asset.url));
+    for (const asset of (release.assets ?? []).filter((asset) => derivedNames.has(asset.name))) {
+      await client.api(`/releases/assets/${asset.id}`, { method: "DELETE" }, [204]);
+    }
+    release = await client.api(`/releases/${release.id}`);
+  }
+  const existingFixed = (release.assets ?? []).filter((asset) => !derivedNames.has(asset.name));
+  const hashes = release.draft ? new Map() : await downloadExistingHashes(release, fixedAssets, fetchImpl, retry);
+  if (release.draft) {
+    for (const asset of existingFixed) {
+      if (fixedAssets.some((item) => item.fileName === asset.name)) hashes.set(asset.name, await client.assetHash(asset.url));
     }
   }
-  for (const asset of reconcileAssets(plan.assets, release.assets ?? [], hashes, !release.draft)) {
+  for (const asset of reconcileAssets(fixedAssets, existingFixed, hashes, !release.draft)) {
     if (asset.replaces) await client.api(`/releases/assets/${asset.replaces.id}`, { method: "DELETE" }, [204]);
     await uploadAsset(client, release, directory, asset);
   }
   release = await client.api(`/releases/${release.id}`);
   if (release.draft) release = await client.api(`/releases/${release.id}`, { method: "PATCH", body: JSON.stringify({ draft: false, prerelease: plan.release.githubPrerelease }) }, [200]);
-  const freshHashes = await downloadExistingHashes(release, plan.assets, fetchImpl);
-  reconcileAssets(plan.assets, release.assets ?? [], freshHashes, true);
+  const publishedAt = publicationTime(release);
+  const rendered = renderPublication({ ...plan, assets: fixedAssets }, publishedAt);
+  // The published release is immutable, with one exception that changes no
+  // byte anybody could have downloaded: a derived asset that is still missing
+  // is uploaded, because it is a function of the fixed assets and the
+  // publication time GitHub recorded. One that exists must match exactly.
+  const existingDerived = (release.assets ?? []).filter((asset) => derivedNames.has(asset.name));
+  const derivedHashes = await downloadExistingHashes({ assets: existingDerived }, rendered.assets, fetchImpl, retry);
+  for (const asset of reconcileAssets(rendered.assets, existingDerived, derivedHashes, false)) {
+    if (asset.replaces) fail("immutable_asset_conflict", `published asset differs: ${asset.fileName}`);
+    fs.writeFileSync(path.join(directory, asset.fileName), asset.content);
+    await uploadAsset(client, release, directory, asset);
+  }
+  release = await client.api(`/releases/${release.id}`);
+  const expectedAssets = [...fixedAssets, ...rendered.assets];
+  const freshHashes = await downloadExistingHashes(release, expectedAssets, fetchImpl, retry);
+  reconcileAssets(expectedAssets, release.assets ?? [], freshHashes, true);
   const currentFeeds = await loadCurrentFeeds(client);
-  const feeds = feedsForPromotion({ ...plan, manifestBytes: fs.readFileSync(path.join(directory, "latest.json"), "utf8") }, currentFeeds);
+  const feeds = feedsForPromotion({ ...plan, manifestBytes: rendered.manifestBytes }, currentFeeds);
   const files = Object.fromEntries(Object.entries(feeds).filter(([, bytes]) => bytes !== null).map(([channel, bytes]) => [`updates/${channel}.json`, bytes]));
   const readme = await readPublicFile(client, "README.md");
   if (!readme) fail("readme_contract", "public feedback README is missing");
@@ -233,7 +286,7 @@ export async function publish({ directory, token, sourceRun, sourceRepository, f
   if (Object.keys(files).length > 0) {
     mainSha = await atomicPublicCommit(client, mainSha, files, `release: publish GitOdile ${plan.release.version}`);
   }
-  return { state: "published", releaseId: release.id, publicCommit: mainSha, feedsChanged: Object.keys(feeds).filter((key) => feeds[key] !== null) };
+  return { state: "published", releaseId: release.id, publishedAt, publicCommit: mainSha, feedsChanged: Object.keys(feeds).filter((key) => feeds[key] !== null) };
 }
 
 function parseArgs(argv) {

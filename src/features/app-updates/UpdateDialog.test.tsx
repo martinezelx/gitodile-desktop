@@ -41,6 +41,21 @@ describe("application update dialog", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("keeps the notes' paragraphs and bullets and offers the manual download for a check-time block", async () => {
+    const user = userEvent.setup();
+    const notes = "First paragraph, joined.\n\n- one item\n- another item\n\nLast paragraph.";
+    const error = { code: "automatic_update_not_enabled" as const, stage: "check" as const, retryable: false };
+    render(<Harness snapshot={{ state: { kind: "blocked", candidate: { ...candidate, notes }, error }, startupConfirmation: { kind: "none" }, automaticEnabled: false }} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const dialog = screen.getByRole("dialog", { name: "Updates" });
+    const rendered = dialog.querySelector(".app-update-notes");
+    expect(rendered?.textContent).toBe(notes);
+    expect(within(dialog).getByRole("status")).toHaveTextContent("Can't install yet");
+    expect(within(dialog).getByText("This build can't install updates by itself. Get the new version with the manual download.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Manual download" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /^Download/ })).toBeNull();
+  });
+
   it("shows the installed build, the offered release and the download size", async () => {
     const user = userEvent.setup();
     render(<Harness snapshot={{

@@ -36,6 +36,29 @@ preview releases whose versions are recorded as data in the qualification
 registry, never fixed in code. Tags `v0.2.0-preview.2` through `.5` remain in
 the source repository as history but certify nothing.
 
+An amendment on 2026-09-15 (task 065-9-11, after `0.2.0-preview.10` and
+`.11` had updated real installations through the public feed) moves feed
+forward-compatibility from the client to the publisher. An installed client
+validates strictly only the manifest entry for its own target and tolerates
+other platform keys and unknown fields, so enabling macOS in the feed later
+does not strand every Windows and Linux client already installed; the
+publisher keeps refusing Darwin rows while task 065-10 is open. "They fail
+closed if either macOS key appears" below is therefore historical for the
+client and current for the publisher. The same amendment reports a build that
+cannot install a candidate at check time (`automatic_update_not_enabled`, a
+distinct code from `unsupported_installation` because the remedy differs),
+reads the Windows NSIS install mode from the installer's registry hive rather
+than the install directory, records that `http_status` is unreachable during
+a check with the pinned plugin, and changes publication: the mode is derived
+from the qualification registry (a preview whose enabled targets are all
+qualified and whose production approval is enabled publishes as
+`preview-qualified`, without the testing notice), manifest notes keep their
+block structure, `pub_date` is the release's real `published_at` — so the
+manifest and hash list are rendered by the publish job after publishing and
+reused on a retry — the anonymous download check is retried a bounded number
+of times, and a coordinator run that completed without succeeding cannot
+authorize a release.
+
 ## Context
 
 GitOdile needs to update its installed desktop application without interrupting
@@ -318,7 +341,9 @@ Current release matrix, subject to the real qualification evidence below:
 The two enabled rows remain unqualified until two real consecutive signed
 packages pass the installation evidence required by tasks 065-9-7 and 065-9-8.
 The public manifests and release asset set must contain exactly those qualified
-rows; they fail closed if either macOS key appears. The official Tauri updater
+rows; the publisher fails closed if either macOS key appears, while an
+installed client tolerates rows for other targets (2026-09-15 amendment). The
+official Tauri updater
 repository had an open macOS
 [replacement-safety report](https://github.com/tauri-apps/plugins-workspace/issues/3505)
 when contracts were fixed on 2026-09-09; macOS cannot be enabled without a

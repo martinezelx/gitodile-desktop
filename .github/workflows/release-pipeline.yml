@@ -66,10 +66,15 @@ jobs:
           if (!response.ok) throw new Error(`Coordinator run lookup failed with HTTP ${response.status}.`);
           const run = await response.json();
           const expectedBranch = (process.env.REQUESTED_TAG ?? "").replace(/^v/, "release/");
+          // The coordinator is still running while it waits for this
+          // pipeline, so in-progress is healthy; a completed run authorizes
+          // only when it concluded successfully.
+          const healthy = (run.status === "in_progress" && run.conclusion === null) ||
+            (run.status === "completed" && run.conclusion === "success");
           if (run.name !== "Merge-driven release coordinator" || run.event !== "pull_request_target" ||
               run.repository?.full_name !== process.env.GITHUB_REPOSITORY ||
               run.path !== ".github/workflows/merge-driven-release.yml" || run.head_branch !== expectedBranch ||
-              !new Set(["in_progress", "completed"]).has(run.status)) {
+              !healthy) {
             throw new Error("Authorization did not originate in the trusted merge coordinator.");
           }
           NODE
@@ -432,36 +437,30 @@ jobs:
         run: node scripts/check-public-feedback.mjs --publication-plan
       - name: Derive publication mode and immutable notes path
         id: release
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
           node --input-type=module <<'NODE'
           import fs from "node:fs";
+          import { derivePublicationMode } from "./scripts/release/public-release.mjs";
           const matrix = JSON.parse(fs.readFileSync("signed/matrix.json", "utf8"));
           const tag = matrix.source?.tag ?? "";
           if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-preview\.[1-9][0-9]*)?$/.test(tag) || !fs.existsSync(`docs/release/notes/${tag}.md`)) {
             throw new Error("The signed matrix does not identify reviewed release notes.");
           }
-          // The mode is derived, never chosen: a preview candidate is
-          // preview-testing and a stable candidate is production.
-          const mode = matrix.release?.channel === "preview" && matrix.release?.githubPrerelease === true ? "preview-testing" : "production";
-          const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/commits/${matrix.source.sha}`, {
-            headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, "X-GitHub-Api-Version": "2022-11-28" },
-            signal: AbortSignal.timeout(15000), redirect: "error",
-          });
-          if (!response.ok) throw new Error(`Source commit lookup failed with HTTP ${response.status}.`);
-          const commit = await response.json();
-          const publishedAt = new Date(commit.commit.committer.date).toISOString().replace(".000Z", "Z");
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\nmode=${mode}\npublished_at=${publishedAt}\n`);
+          // The mode is derived, never chosen: a stable candidate is
+          // production; a preview is preview-qualified only when the reviewed
+          // registry already proves every enabled target, and preview-testing
+          // otherwise. The publication time is not derived here: it is the
+          // instant GitHub records when the publish job publishes the release.
+          const qualification = JSON.parse(fs.readFileSync("docs/release/update-target-qualifications.json", "utf8"));
+          const mode = derivePublicationMode(matrix.release, qualification);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\nmode=${mode}\n`);
           NODE
       - name: Validate the full signed matrix and prepare public-only bytes
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           PUBLICATION_MODE: ${{ steps.release.outputs.mode }}
-          PUBLISHED_AT: ${{ steps.release.outputs.published_at }}
-        run: |
-          test -n "$PUBLISHED_AT"
-          node scripts/release/public-release.mjs --signed signed --notes "docs/release/notes/$RELEASE_TAG.md" --qualification docs/release/update-target-qualifications.json --mode "$PUBLICATION_MODE" --published-at "$PUBLISHED_AT" --public-file license=LICENSE --public-file third-party-notices=THIRD_PARTY_LICENSES.md --output public-bundle
+        run: >-
+          node scripts/release/public-release.mjs --signed signed --notes "docs/release/notes/$RELEASE_TAG.md" --qualification docs/release/update-target-qualifications.json --mode "$PUBLICATION_MODE" --public-file license=LICENSE --public-file third-party-notices=THIRD_PARTY_LICENSES.md --output public-bundle
       - name: Add reviewed publisher runtime without application source
         run: |
           mkdir -p public-bundle/runtime/scripts/release public-bundle/runtime/docs/architecture
@@ -485,7 +484,9 @@ jobs:
     concurrency:
       group: gitodile-publication
       cancel-in-progress: false
-    environment: ${{ needs.stage.outputs.mode == 'preview-testing' && 'public-release-preview' || 'public-release-stable' }}
+    # Only a stable candidate enters the reviewed stable environment; both
+    # preview modes publish through the preview environment.
+    environment: ${{ needs.stage.outputs.mode == 'production' && 'public-release-stable' || 'public-release-preview' }}
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:

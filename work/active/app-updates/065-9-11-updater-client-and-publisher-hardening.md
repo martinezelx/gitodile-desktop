@@ -147,30 +147,41 @@ Tests and documentation:
 
 # Acceptance criteria
 
-- [ ] A build compiled without either target gate reports `blocked` with the
+- [x] A build compiled without either target gate reports `blocked` with the
       new error code on check, downloads nothing, and offers the manual
       download; a gated build behaves exactly as `0.2.0-preview.11` does.
-- [ ] A `preview.json` containing `darwin-aarch64` and `darwin-x86_64`
+      (`check_time_block` and the `gated_builds_are_blocked_at_check_time…`
+      unit test; `start_download` refuses a check-blocked candidate; the
+      dialog test renders the block with the manual download and no
+      Download button.)
+- [x] A `preview.json` containing `darwin-aarch64` and `darwin-x86_64`
       entries plus an unknown top-level field is accepted by a Windows and a
       Linux client, which select their own entry; a manifest lacking the
       running target still yields `target_unavailable`.
-- [ ] An NSIS per-user installation in a custom directory is classified
+      (`raw_manifest_validates_the_running_entry_and_tolerates_the_rest`.)
+- [x] An NSIS per-user installation in a custom directory is classified
       `windows_nsis_per_user`; a machine-wide (HKLM) installation remains
-      `windows_machine_wide`.
-- [ ] A preview published with a registry that qualifies both enabled
+      `windows_machine_wide`. (Pure classification over the two hives'
+      `InstallLocation` values, unit-tested behind `cfg(windows)`; the
+      registry read itself is exercised only by a real installation.)
+- [x] A preview published with a registry that qualifies both enabled
       targets carries no testing notice; a preview published with today's
-      registry carries it.
-- [ ] Manifest notes keep line breaks; the update dialog renders paragraphs.
-- [ ] `pub_date` equals the release's real `published_at` and is identical on
-      a reconciliation retry.
-- [ ] A simulated 404 on the first anonymous download attempts followed by a
+      registry carries it. (`derivePublicationMode` test.)
+- [x] Manifest notes keep line breaks; the update dialog renders paragraphs.
+      (`normalizeNotes` test, `plain_text_notes` keeps `\n`, dialog test
+      asserts the text reaches the pre-wrapped notes element unchanged.)
+- [x] `pub_date` equals the release's real `published_at` and is identical on
+      a reconciliation retry. (End-to-end publisher tests against the fake
+      destination, including a retry whose destination would now report a
+      different time.)
+- [x] A simulated 404 on the first anonymous download attempts followed by a
       200 publishes and advances the feed; persistent 404s stop before the
-      feed commit.
-- [ ] `pnpm run check` passes; `check:release` includes the new cases; the
+      feed commit. (End-to-end publisher test.)
+- [x] `pnpm run check` passes; `check:release` includes the new cases; the
       contract check accepts the new error code.
 - [ ] The first preview built from this task updates an installed
       `0.2.0-preview.11` through the public feed (evidence recorded in
-      Implementation notes).
+      Implementation notes). Pending the next preview release.
 
 # Relevant files
 
@@ -208,11 +219,114 @@ Tests and documentation:
   installs may target any directory; the directory heuristic was a proxy.
 - Mode derivation stays deny-by-default: anything short of a fully qualified
   registry keeps the testing notice.
+- The qualified preview is its own mode, `preview-qualified`, rather than a
+  reuse of `production`: it is still a GitHub prerelease that advances only
+  `preview.json`, and it publishes through `public-release-preview` (no
+  reviewer) because the point of merge-driven previews is that they complete
+  without maintainer intervention. The publish environment expression now
+  keys on `production` so only a stable candidate enters the reviewed stable
+  environment.
+- "Keep single newlines" is implemented as Markdown semantics rather than
+  literally: the curated notes are hard-wrapped at ~80 columns, so a single
+  newline inside a paragraph or list item is a soft break and is joined with
+  a space; only block boundaries (paragraphs, list items) keep newlines.
+  Keeping every newline would have rendered ragged wrapped lines in a dialog
+  narrower than the source text.
+- Because `pub_date` is GitHub's `published_at`, `latest.json` and
+  `SHA256SUMS` cannot be staged before publication. The `stage` job stages
+  the fixed assets and a manifest template; the `publish` job renders both
+  derived assets after `PATCH draft:false` from the time read back from the
+  release. A published release therefore accepts one addition, a derived
+  asset that is still missing after an interrupted run; an existing one must
+  match byte for byte, and a stale draft copy is deleted before publishing.
+- An NSIS build whose directory neither hive registered (a copied folder) is
+  `unsupported` rather than machine-wide: the installer handoff would
+  install to the registered or default location and leave the copy in place.
+- The client's manifest validation still requires `notes` and `pub_date` to
+  agree with what the plugin parsed when present; both may be absent, which
+  the plugin treats as `None`.
 
 # Implementation notes
 
-Complete during implementation.
+Implemented on 2026-09-15 on `main`.
+
+Client (`src-tauri/src/app_updates.rs`):
+
+- `UpdateErrorCode::AutomaticUpdateNotEnabled` (`automatic_update_not_enabled`).
+  `validate_candidate` computes `check_time_block(mode, target_is_enabled)`
+  and stores it on the pending candidate; `finish_check` reports it as
+  `blocked`, `start_download` refuses such a candidate as stale, and
+  `revalidate_install_candidate` uses the same code instead of
+  `unsupported_installation` with a detail string.
+- `validate_raw_manifest` validates only the running target's entry
+  (versioned release URL equal to the plugin's selection, signature bounds and
+  equality, positive size within the artifact cap); other platform keys and
+  unknown fields are opaque; the 256 KiB and eight-entry limits stay.
+  `UpdateTarget::from_key` had no other caller and was removed.
+- Windows: `registered_windows_install_locations` reads `InstallLocation`
+  from `Software\Microsoft\Windows\CurrentVersion\Uninstall\GitOdile` in
+  HKCU and HKLM through `windows-registry` 0.6 (already in the tree through
+  the updater plugin's HTTP client; a `cfg(windows)` dependency, one lock
+  entry). `windows_installation_mode_at` classifies the running executable's
+  directory against those values, lexically (case-insensitive, `\\?\` and
+  trailing separators ignored) and then canonically. `path_is_within`
+  canonicalizes both sides or neither, fixing the temp-directory check on all
+  three platforms. A test pins the key name to `tauri.conf.json`'s
+  `productName`.
+- Contract JSON, `domain.ts`, both dictionaries and
+  `check-app-update-contracts.mjs` carry the new code; the check now also
+  requires the Rust enum, the contract list and the renderer union to be
+  identical in order.
+
+Publisher (`scripts/release/`):
+
+- `derivePublicationMode(release, qualification)` and
+  `qualifiedPreviewAllowed`; `validateQualificationRegistry` accepts
+  `preview-qualified` and returns `previewQualifiedAllowed`;
+  `feedsForPromotion` treats it like `preview-testing` for feeds.
+- `normalizeNotes` is exported and structure-preserving (see Decisions).
+- `preparePublication` no longer takes `publishedAt`; the plan is schema
+  version 2 with a manifest template and fixed assets only.
+  `renderPublication(plan, publishedAt)` returns the manifest bytes,
+  `latest.json` and `SHA256SUMS`. `publish()` reconciles fixed assets,
+  publishes, reads `published_at`, renders and reconciles the derived
+  assets, verifies every asset anonymously with `ANONYMOUS_RETRY`
+  (6 attempts, 10 s; injectable for tests), then advances feeds. Its result
+  reports `publishedAt`.
+- `release-pipeline.yml`: the coordinator check requires
+  `conclusion == "success"` for a completed run; the `stage` job derives the
+  mode through `derivePublicationMode` and no longer fetches the source
+  commit or passes `--published-at`; the publish environment is
+  `public-release-stable` only for `production`.
+
+Documentation: `docs/architecture/app-update-contracts.md`, ADR 0010
+(2026-09-15 amendment), `docs/release/public-publishing.md`.
+
+Not done here: the last acceptance criterion needs the next preview release
+built from this change to update an installed `0.2.0-preview.11`. Record the
+release tag, pipeline run, the observed `pub_date`/`published_at` and the
+installed transition here when it happens. The first publication after this
+change will also exercise the derived-asset upload against real GitHub for
+the first time; an interrupted run before that upload is reconciled by
+re-running the `publish` job. Re-running `publish` for `0.2.0-preview.10` or
+`.11` with this publisher would stop with `immutable_asset_conflict`, because
+their `latest.json` carries the commit date; both publications are complete
+and need no retry.
 
 # Validation
 
-Record the exact commands run and their results.
+Run on 2026-09-15 (Windows 11, Node 24, pnpm 11.17.0, stable Rust):
+
+- `cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features app_updates`:
+  23 passed (including the four new tests; the two `cfg(windows)`
+  install-mode tests ran on this machine).
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`: clean.
+- `node --test scripts/release/*.test.mjs`: 49 passed, 0 failed (six new
+  publisher cases).
+- `node scripts/check-app-update-contracts.mjs`: passed.
+- `pnpm run check:docs`: passed.
+- `pnpm run check:frontend`: architecture check over 378 modules, 87 test
+  files / 865 tests passed, build succeeded.
+- `pnpm run check`: exit 0 — docs (49 release-script tests), frontend
+  (87 files / 866 tests, build), Rust fmt, Clippy `-D warnings`, 404 Rust
+  tests passed.

@@ -169,6 +169,23 @@ assert.doesNotMatch(cargoToml, /reqwest\s*=\s*\{[^\n]*,\s*features\s*=/,
 assert.doesNotMatch(cargoLock, /^name = "aws-lc-(?:rs|sys)"$/m,
   "the removed standalone manifest client must not retain AWS-LC dependencies");
 const nativeUpdaterProduction = nativeUpdater.split("\n#[cfg(test)]\nmod tests")[0];
+// One closed error vocabulary: the contract, the Rust enum and the renderer's
+// type must list the same codes in the same order, so a code added to one
+// side cannot reach the UI without a message or the fixture.
+const rustErrorCodes = nativeUpdaterProduction
+  .match(/enum UpdateErrorCode \{([^}]*)\}/)[1]
+  .split(",")
+  .map((variant) => variant.trim())
+  .filter(Boolean)
+  .map((variant) => variant.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase());
+assert.deepEqual(rustErrorCodes, contract.errors, "UpdateErrorCode variants differ from the contract's error list");
+const domain = fs.readFileSync(path.join(root, "src", "features", "app-updates", "domain.ts"), "utf8");
+const rendererErrorCodes = [...domain.match(/code:\n([\s\S]*?);\n\s*stage:/)[1].matchAll(/"([a-z_]+)"/g)].map((match) => match[1]);
+assert.deepEqual(rendererErrorCodes, contract.errors, "domain.ts error codes differ from the contract's error list");
+assert.match(nativeUpdaterProduction, /fn check_time_block\(/,
+  "a build that cannot install a candidate must say so at check time, before any download");
+assert.match(nativeUpdaterProduction, /registered_windows_install_locations\(/,
+  "the Windows install mode is read from the NSIS uninstall registry hive, not inferred from a directory");
 assert.equal((nativeUpdaterProduction.match(/updater\.check\(\)\.await/g) ?? []).length, 1,
   "tauri-plugin-updater.check() must be the only feed request authority");
 assert.doesNotMatch(nativeUpdaterProduction, /fetch_bounded_manifest|bytes_stream\(/,
