@@ -56,7 +56,7 @@ describe("Changelog dialog", () => {
     const onCheckForUpdates = vi.fn();
     render(<LanguageProvider><ChangelogDialog isOpen setOpen={vi.fn()} onCheckForUpdates={onCheckForUpdates} /></LanguageProvider>);
     expect(onCheckForUpdates).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "Check for GitOdile updates" }));
+    await userEvent.click(screen.getByRole("button", { name: "Check for updates" }));
     expect(onCheckForUpdates).toHaveBeenCalledOnce();
   });
 

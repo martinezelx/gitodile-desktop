@@ -37,6 +37,11 @@ export function createAppUpdatesController(
     automaticEnabled?: boolean;
     startupSettleMs?: number;
     now?: () => number;
+    /** Told the settled state of every background check — the one the user
+     * did not ask for and is not watching. Manual checks report to whoever
+     * started them; this is how the app learns that a startup check found
+     * something, so it can say so somewhere the user will see it. */
+    onBackgroundCheckSettled?: (state: UpdateState) => void;
   }> = {},
 ): AppUpdatesController {
   const listeners = new Set<() => void>();
@@ -110,7 +115,9 @@ export function createAppUpdatesController(
       automaticTimer = null;
       if (!snapshot.automaticEnabled || suspended || disposed) return;
       lastAutomaticCheckAt = now();
-      void check("background").finally(() => {
+      void check("background").then((state) => {
+        if (!disposed) options.onBackgroundCheckSettled?.(state);
+      }).finally(() => {
         scheduleAutomaticCheck(AUTOMATIC_CHECK_CADENCE_MS);
       });
     }, Math.max(0, delay));

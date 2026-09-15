@@ -31,7 +31,7 @@ import { ChangelogDialog } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "../features/app-updates";
-import { AppUpdateDialog, AppUpdateSettingsControl } from "../features/app-updates";
+import { AppUpdateDialog, AppUpdateSettingsControl, appUpdateTranslations } from "../features/app-updates";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
 import { describeStack, describeStackHost } from "./stack";
 import { OperatingSystemMark, StackMark } from "./vendorMarks";
@@ -128,9 +128,16 @@ export function AppOverlays({
   closeConfirmation,
   error,
 }: AppOverlaysProps): React.JSX.Element {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const systemInfo = useSystemInfo();
   const [didCopyDiagnostics, setDidCopyDiagnostics] = useState(false);
+  /* The rail badges Updates only while there is something the reader can act
+     on — a release to download or one ready to install — and names it. */
+  const appUpdateState = settings.appUpdates?.state;
+  const updateAttention =
+    appUpdateState?.kind === "available" || appUpdateState?.kind === "ready"
+      ? appUpdateTranslations(language).available(appUpdateState.candidate.version)
+      : null;
   const settingsRef = useRef<HTMLDivElement>(null);
   const projectSettingsRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
@@ -295,11 +302,13 @@ export function AppOverlays({
                 <AppUpdateSettingsControl
                   snapshot={settings.appUpdates}
                   controller={settings.appUpdatesController}
+                  installed={CURRENT_APP_RELEASE}
                   enabled={settings.automaticAppUpdates ?? false}
                   setEnabled={settings.setAutomaticAppUpdates}
                   onOpenDialog={appUpdate ? () => appUpdate.setOpen(true) : undefined}
                 />
               ) : null}
+              applicationUpdateAttention={updateAttention}
               onClose={closeSettings}
               onRegisterCloseGuard={registerSettingsCloseGuard}
             />
@@ -450,7 +459,7 @@ export function AppOverlays({
         } : undefined}
       />
       {appUpdate && settings.appUpdates && settings.appUpdatesController && (
-        <AppUpdateDialog isOpen={appUpdate.isOpen} setOpen={appUpdate.setOpen} snapshot={settings.appUpdates} controller={settings.appUpdatesController} />
+        <AppUpdateDialog isOpen={appUpdate.isOpen} setOpen={appUpdate.setOpen} snapshot={settings.appUpdates} controller={settings.appUpdatesController} installed={CURRENT_APP_RELEASE} />
       )}
 
       {shortcuts.isOpen && (

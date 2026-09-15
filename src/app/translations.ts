@@ -267,7 +267,7 @@ const en: AppTranslations = {
   commandCheckRemoteChanges: "Check remote project changes",
   commandRefreshHistory: "Update history",
   commandRefreshVersionLines: "Update version lines",
-  commandCheckAppUpdates: "Check for GitOdile updates",
+  commandCheckAppUpdates: "Check for updates",
   commandGoSettings: "Go to Settings",
   commandGoSettingsSection: (section) => `Settings: ${section}`,
   automaticUpdatesUpdateNow: "Update now",
@@ -372,6 +372,7 @@ const en: AppTranslations = {
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "You are running this",
   changelogNotes: {
+    inAppUpdates: "Update from inside the app. A startup check tells you when a newer version is out; Settings → Updates downloads and installs it when you choose.",
     publicIssueReporting: "Report an issue from More actions. Review the app and system details before submitting your report on GitHub.",
     previewVersions: "Preview builds now show their full version number so you can identify the build you are using.",
     canonicalIdentity: "GitOdile now uses its canonical name and application identity consistently.",
@@ -464,7 +465,7 @@ const es: AppTranslations = {
   commandCheckRemoteChanges: "Comprobar cambios del proyecto remoto",
   commandRefreshHistory: "Actualizar historial",
   commandRefreshVersionLines: "Actualizar líneas de versión",
-  commandCheckAppUpdates: "Buscar actualizaciones de GitOdile",
+  commandCheckAppUpdates: "Buscar actualizaciones",
   commandGoSettings: "Ir a Ajustes",
   commandGoSettingsSection: (section) => `Ajustes: ${section}`,
   automaticUpdatesUpdateNow: "Actualizar ahora",
@@ -569,6 +570,7 @@ const es: AppTranslations = {
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Estás usando esta",
   changelogNotes: {
+    inAppUpdates: "Actualiza desde la propia aplicación. Una comprobación al iniciar te avisa cuando hay una versión nueva; en Ajustes → Actualizaciones la descargas e instalas cuando tú decidas.",
     publicIssueReporting: "Informa de un problema desde Más acciones. Revisa los datos de la aplicación y del sistema antes de enviar el informe en GitHub.",
     previewVersions: "Las versiones preview muestran ahora su número completo para que puedas identificar la build que estás usando.",
     canonicalIdentity: "GitOdile utiliza ahora de forma coherente su nombre y su identidad de aplicación definitivos.",

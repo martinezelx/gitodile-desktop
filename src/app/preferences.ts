@@ -57,8 +57,11 @@ export const NOTIFICATIONS_DEFAULT = true;
  * is still respected independently, whether or not this app-specific choice
  * has ever been made. */
 export const REDUCE_MOTION_DEFAULT = false;
-/** Network contact for application updates is an explicit opt-in. */
-export const APP_UPDATE_AUTOMATIC_DEFAULT = false;
+/** On: a startup check is one bounded request to GitHub, sends no project
+ * data and no installation identifier, and never downloads anything by itself
+ * — the switch in Settings says all of that beside the choice to turn it off.
+ * Off by default meant almost nobody would ever learn a fix had shipped. */
+export const APP_UPDATE_AUTOMATIC_DEFAULT = true;
 /** On, because a hook is the project's own rule and skipping it by default
  * would make GitOdile produce commits the same repository would have rejected
  * from a terminal — the same action giving a different result depending on

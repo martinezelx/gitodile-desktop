@@ -8,6 +8,7 @@ export const APP_RELEASE_NOTE_IDS = [
   "publicIssueReporting",
   "previewVersions",
   "canonicalIdentity",
+  "inAppUpdates",
 ] as const;
 
 export type AppReleaseNoteId = (typeof APP_RELEASE_NOTE_IDS)[number];
@@ -60,6 +61,7 @@ export const APP_CHANGELOG: readonly AppReleaseEntry[] = [
     // works only while there is exactly one entry; the next release would
     // silently claim its predecessor's notes as its own.
     [
+      "inAppUpdates",
       "publicIssueReporting",
       "previewVersions",
       "releaseDetails",

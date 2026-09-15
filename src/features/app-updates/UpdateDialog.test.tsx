@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +13,8 @@ const candidate = {
   notes: "Plain <b>text</b>\nhttps://example.invalid/image.png", expectedBytes: null,
 };
 
+const installed = { version: "0.2.0-preview.1", channel: "preview" as const };
+
 function controller(): AppUpdatesController {
   return {
     subscribe: vi.fn(() => () => undefined),
@@ -23,7 +25,7 @@ function controller(): AppUpdatesController {
 
 function Harness({ snapshot }: { snapshot: AppUpdatesSnapshot }) {
   const [open, setOpen] = useState(false);
-  return <LanguageProvider><button onClick={() => setOpen(true)}>Open</button><AppUpdateDialog isOpen={open} setOpen={setOpen} snapshot={snapshot} controller={controller()} /></LanguageProvider>;
+  return <LanguageProvider><button onClick={() => setOpen(true)}>Open</button><AppUpdateDialog isOpen={open} setOpen={setOpen} snapshot={snapshot} controller={controller()} installed={installed} /></LanguageProvider>;
 }
 
 afterEach(cleanup);
@@ -37,6 +39,21 @@ describe("application update dialog", () => {
     expect(screen.getByText("Plain <b>text</b>", { exact: false }).querySelector("b")).toBeNull();
     await user.keyboard("{Escape}");
     expect(trigger).toHaveFocus();
+  });
+
+  it("shows the installed build, the offered release and the download size", async () => {
+    const user = userEvent.setup();
+    render(<Harness snapshot={{
+      state: { kind: "available", candidate: { ...candidate, publishedAt: "2026-08-27T10:00:00Z", expectedBytes: 39_845_888 } },
+      startupConfirmation: { kind: "none" },
+      automaticEnabled: false,
+    }} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const dialog = screen.getByRole("dialog", { name: "Updates" });
+    expect(within(dialog).getByText("v0.2.0-preview.1")).toBeInTheDocument();
+    expect(within(dialog).getByRole("status")).toHaveTextContent("New version: v0.2.0-preview.2");
+    expect(within(dialog).getByRole("heading", { name: "v0.2.0-preview.2" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Download (38 MB)" })).toBeInTheDocument();
   });
 
   it("exposes honest unknown-length progress without a fabricated percentage", async () => {
@@ -61,10 +78,10 @@ describe("application update dialog", () => {
     const appController = controller();
     function ReadyHarness() {
       const [open, setOpen] = useState(true);
-      return <LanguageProvider><AppUpdateDialog isOpen={open} setOpen={setOpen} snapshot={{ state: { kind: "ready", candidate }, startupConfirmation: { kind: "none" }, automaticEnabled: false }} controller={appController} /></LanguageProvider>;
+      return <LanguageProvider><AppUpdateDialog isOpen={open} setOpen={setOpen} snapshot={{ state: { kind: "ready", candidate }, startupConfirmation: { kind: "none" }, automaticEnabled: false }} controller={appController} installed={installed} /></LanguageProvider>;
     }
     render(<ReadyHarness />);
-    await user.click(screen.getByRole("button", { name: "Choose when to restart" }));
+    await user.click(screen.getByRole("button", { name: "Install…" }));
     const confirm = screen.getByRole("button", { name: "Install and restart" });
     expect(confirm).toHaveFocus();
     expect(appController.install).not.toHaveBeenCalled();
@@ -84,8 +101,10 @@ describe("application update dialog", () => {
       automaticEnabled: false,
     }} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(screen.getByText(/could not confirm it/)).toBeInTheDocument();
-    expect(screen.queryByText(/is now running/)).toBeNull();
+    expect(screen.getByText(/Couldn't confirm the update to v0.2.0-preview.2/)).toBeInTheDocument();
+    expect(screen.queryByText(/Updated to/)).toBeNull();
+    // The failure line is the explanation; it is not repeated under itself.
+    expect(screen.getAllByText(/expected version wasn't found/)).toHaveLength(1);
   });
 
   it("enables background checks only from the disclosed Settings switch", async () => {
@@ -97,14 +116,16 @@ describe("application update dialog", () => {
         <AppUpdateSettingsControl
           snapshot={{ state: { kind: "idle" }, startupConfirmation: { kind: "none" }, automaticEnabled: false }}
           controller={appController}
+          installed={installed}
           enabled={false}
           setEnabled={setEnabled}
         />
       </LanguageProvider>,
     );
-    expect(screen.getByText(/at most once every 24 hours/)).toBeInTheDocument();
+    expect(screen.getByText(/again every 24 hours/)).toBeInTheDocument();
+    expect(screen.getByText("v0.2.0-preview.1")).toBeInTheDocument();
     expect(appController.check).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("switch", { name: "Check for GitOdile updates automatically" }));
+    await user.click(screen.getByRole("switch", { name: "Check for updates at startup" }));
     expect(setEnabled).toHaveBeenCalledWith(true);
     await user.click(screen.getByRole("button", { name: "Check for updates" }));
     expect(appController.check).toHaveBeenCalledOnce();

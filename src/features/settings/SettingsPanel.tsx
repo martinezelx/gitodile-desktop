@@ -6,6 +6,7 @@ import {
   ChevronUp,
   CircleAlert,
   CircleArrowUp,
+  CloudDownload,
   CornerDownLeft,
   GitBranch,
   GripVertical,
@@ -95,6 +96,7 @@ const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   reading: <WrapText />,
   git: <GitBranch />,
   "line-endings": <CornerDownLeft />,
+  updates: <CloudDownload />,
 };
 
 /** The three kinds the centre records, in the order the panel shows them: the
@@ -114,6 +116,11 @@ const NOTIFICATION_EVENT_ROWS = [
     kind: "remoteCheckFailed",
     label: "notificationsEventCheckFailedLabel",
     description: "notificationsEventCheckFailedDescription",
+  },
+  {
+    kind: "appUpdateAvailable",
+    label: "notificationsEventAppUpdateLabel",
+    description: "notificationsEventAppUpdateDescription",
   },
   {
     kind: "changesPublished",
@@ -173,6 +180,7 @@ const SettingsNav = React.memo(function SettingsNav({
   activeSection,
   onSectionChange,
   needsGitAttention,
+  updateAttention,
   railLabel,
   attentionLabel,
 }: {
@@ -184,6 +192,9 @@ const SettingsNav = React.memo(function SettingsNav({
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   needsGitAttention: boolean;
+  /** An update waiting to be downloaded or installed, named for the badge's
+   * accessible name — or null when the rail has nothing to point at. */
+  updateAttention: string | null;
   railLabel: string;
   attentionLabel: string;
 }): React.JSX.Element {
@@ -242,6 +253,13 @@ const SettingsNav = React.memo(function SettingsNav({
                 <CircleAlert aria-hidden="true" />
               </span>
             )}
+            {/* Good news, not an alarm: the accent, in the same slot Git's
+                warning uses, so the rail has one place for "look here". */}
+            {section.id === "updates" && updateAttention && (
+              <span className="settings-nav__alert settings-nav__alert--accent" role="img" aria-label={updateAttention}>
+                <CircleArrowUp aria-hidden="true" />
+              </span>
+            )}
           </button>
         );
       })}
@@ -292,6 +310,7 @@ export function SettingsPanel({
   defaultBranch,
   lineEndingsState,
   applicationUpdates,
+  applicationUpdateAttention = null,
   onClose,
   onRegisterCloseGuard,
   port = settingsPort,
@@ -336,8 +355,13 @@ export function SettingsPanel({
   identity: GitIdentityState;
   defaultBranch: DefaultBranchState;
   lineEndingsState: LineEndingsState;
-  /** Feature-owned application update controls composed into General. */
+  /** Feature-owned application update controls: the whole body of the
+   * Updates section, which the app-updates feature renders and this panel
+   * only places. */
   applicationUpdates?: React.ReactNode;
+  /** Set while an update is waiting to be downloaded or installed; the rail
+   * badges the Updates section with it. */
+  applicationUpdateAttention?: string | null;
   onClose?: () => void;
   /** The panel holds the identity draft, so it is the only place that can know
    * whether dismissing the dialog would throw typed input away. It hands the
@@ -788,6 +812,7 @@ export function SettingsPanel({
         activeSection={activeSection}
         onSectionChange={onSectionChange}
         needsGitAttention={needsGitAttention}
+        updateAttention={applicationUpdateAttention}
         railLabel={t.settingsSectionsAriaLabel}
         attentionLabel={t.settingsGitNeedsAttention}
       />
@@ -801,7 +826,6 @@ export function SettingsPanel({
       >
         {activeSection === "general" && (
           <div className="settings-groups">
-            {applicationUpdates}
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsStartupTitle}</h3>
@@ -1507,7 +1531,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div className="git-install">
                     {gitDiagnostics === null && (
-                      <p className="git-install__status git-install__status--progress">
+                      <p className="status-line status-line--progress git-install__status">
                         <LoaderCircle aria-hidden="true" className="icon--spinning" />
                         <span>{t.settingsGeneralChecking}</span>
                       </p>
@@ -1518,12 +1542,12 @@ export function SettingsPanel({
                             gets the label + monospace value treatment rather than
                             sitting as a bare paragraph indistinguishable from the
                             hints under it. */}
-                        <p className="git-install__version">
-                          <span className="git-install__version-label">{t.settingsGitInstalledVersionLabel}</span>
-                          <span className="git-install__version-value">{gitDiagnostics.version}</span>
+                        <p className="version-line">
+                          <span className="version-line__label">{t.settingsGitInstalledVersionLabel}</span>
+                          <span className="version-line__value">{gitDiagnostics.version}</span>
                         </p>
                         {gitUpdateLine && (
-                          <p className={`git-install__status git-install__status--${gitUpdateLine.tone}`} role="status">
+                          <p className={`status-line status-line--${gitUpdateLine.tone} git-install__status`} role="status">
                             {gitUpdateLine.icon}
                             <span>{gitUpdateLine.message}</span>
                           </p>
@@ -1531,25 +1555,25 @@ export function SettingsPanel({
                       </>
                     )}
                     {gitDiagnostics?.state === "missing" && (
-                      <p className="git-install__status git-install__status--danger">
+                      <p className="status-line status-line--danger git-install__status">
                         <CircleAlert aria-hidden="true" />
                         <span>{t.settingsGeneralGitMissing}</span>
                       </p>
                     )}
                     {gitDiagnostics?.state === "unusable" && (
-                      <p className="git-install__status git-install__status--danger">
+                      <p className="status-line status-line--danger git-install__status">
                         <CircleAlert aria-hidden="true" />
                         <span>{t.settingsGeneralGitUnusable}</span>
                       </p>
                     )}
                     {gitDiagnostics?.state === "check_failed" && (
-                      <p className="git-install__status git-install__status--danger">
+                      <p className="status-line status-line--danger git-install__status">
                         <CircleAlert aria-hidden="true" />
                         <span>{t.settingsGeneralGitCheckFailed}</span>
                       </p>
                     )}
                     {gitActionNotice && (
-                      <p className={`git-install__status git-install__status--${gitActionNotice.tone}`} role="status">
+                      <p className={`status-line status-line--${gitActionNotice.tone} git-install__status`} role="status">
                         {NOTICE_ICONS[gitActionNotice.tone]}
                         <span>{gitActionNotice.message}</span>
                       </p>
@@ -1869,6 +1893,10 @@ export function SettingsPanel({
             </section>
           </div>
         )}
+
+        {/* The updater owns its own rows; this panel only gives them a
+            section. Nothing renders when the app was composed without one. */}
+        {activeSection === "updates" && applicationUpdates}
       </div>
     </div>
   );

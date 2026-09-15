@@ -89,13 +89,14 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Review a bounded, redacted record of this session's app commands, Git
   operations, and failures before reporting an issue; copy it, save it locally to attach, or
   continue to the public GitHub form. Nothing is retained between sessions.
-- Check for GitOdile updates without opening a project from What's new, More
-  actions, the command palette, or Settings. One shared controller mirrors the
+- Check for updates without opening a project from What's new, More
+  actions, the command palette, or the Updates section of Settings. One shared controller mirrors the
   native lifecycle through download, signature verification, explicit
   install/restart consent, draft or active-work blockers, cancellation and
-  observed-version confirmation. Background checks are off by default; the
-  opt-in contacts GitHub at most once every 24 hours while the app is open and
-  never downloads or installs automatically.
+  observed-version confirmation. The startup check is on by default: it asks
+  GitHub once when the app opens (and again every 24 hours while it stays
+  open), records a notification when a release is found, and never downloads
+  or installs anything by itself.
 - Configure light/dark/system themes, reduced motion, English/Spanish copy,
   date and number formats, Git identity, installation diagnostics, supported
   Git update guidance, how diffs are read, and whether projects are watched

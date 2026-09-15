@@ -257,10 +257,13 @@ for installation. Classify metadata checks as read-only, staging downloads as
 local mutation, and installation/restart as a platform mutation. The plugin's
 Rust API avoids granting the WebView direct install/relaunch capabilities.
 
-Start with manual checking plus an explicitly enabled background-check
-preference, off by default. When enabled, check after startup has settled and
-at most once per 24 hours while the app runs; never on screen visibility or
-repository activation. Deduplicate manual/automatic requests, use bounded
+Start with manual checking plus a startup-check preference, on by default
+(amended from off: a check is one bounded request that sends no project data
+and no identifier, never downloads on its own, and is disclosed beside the
+switch — off by default meant almost nobody learned a fix had shipped). When
+enabled, check after startup has settled and at most once per 24 hours while
+the app runs; never on screen visibility or repository activation. A check that
+finds a release records a notification; one that does not records nothing. Deduplicate manual/automatic requests, use bounded
 timeouts, and avoid retry storms. Never download or install automatically.
 Disclose contact with GitHub, which necessarily sees ordinary request metadata
 such as IP address; transmit no project data or persistent installation ID.
