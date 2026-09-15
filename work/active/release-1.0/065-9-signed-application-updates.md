@@ -61,6 +61,8 @@ own executable work; this epic has no queue position.
 | Q02 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
 | Q03 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
 | Q04 | [065-9-8 — Qualify controlled Windows and Linux updater delivery](../app-updates/065-9-8-public-windows-linux-qualification.md) | Public-source hardening and real functional updater proof through the controlled validation feed |
+| Q05 | [065-9-10 — Prepare releases automatically after approved version-branch merges](../app-updates/065-9-10-merge-driven-release-preparation.md) | Merge-driven coordinator and the single release pipeline; proven by `0.2.0-preview.10` and `.11` |
+| Q06 | [065-9-11 — Harden the updater client and publisher after the first public preview updates](../app-updates/065-9-11-updater-client-and-publisher-hardening.md) | Check-time gate reporting, forward-compatible manifests, registry-based Windows install mode, qualified-preview mode, notes and publication-date fidelity, publisher retries |
 | Post-1.0 | [065-9-9 — Add trusted Windows signing after 1.0.0](../app-updates/065-9-9-authenticode-public-delivery.md) | Authenticode provider, qualification and OS-level Windows publisher trust |
 
 All criteria below remain the epic completion gate. Each child records its own
