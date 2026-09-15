@@ -1,5 +1,5 @@
 import type React from "react";
-import { CloudDownload, CloudUpload, TriangleAlert } from "lucide-react";
+import { CircleArrowUp, CloudDownload, CloudUpload, TriangleAlert } from "lucide-react";
 import type { NotificationKind } from "./domain";
 
 /** Structural, not lucide's own type: the only thing either call site does with
@@ -27,4 +27,7 @@ export const NOTIFICATION_ICONS: Record<NotificationKind, NotificationIcon> = {
   teamChangesAvailable: CloudDownload,
   remoteCheckFailed: TriangleAlert,
   changesPublished: CloudUpload,
+  // The same arrow the Settings rail and the updater's own status line use for
+  // "a newer version exists", so the three places agree on what it looks like.
+  appUpdateAvailable: CircleArrowUp,
 };

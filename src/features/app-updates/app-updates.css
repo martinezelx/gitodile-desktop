@@ -1,27 +1,102 @@
-.app-update-dialog { inline-size: min(560px, calc(100vw - 32px)); max-block-size: calc(100vh - 32px); overflow: auto; }
-.app-update-dialog__mark { display: grid; place-items: center; inline-size: 44px; block-size: 44px; margin-block-end: var(--space-3); border-radius: var(--radius-round); color: var(--accent-primary); background: var(--surface-active); }
-.app-update-dialog__mark svg { inline-size: 22px; }
-.app-update-status { display: flex; align-items: center; gap: var(--space-2); margin-block: var(--space-4); color: var(--text-primary-color); }
-.app-update-status > svg { inline-size: 18px; flex: 0 0 auto; color: var(--accent-primary); }
-.app-update-candidate { display: grid; gap: var(--space-4); padding: var(--space-4); border-radius: var(--radius-item); background: var(--surface-card); }
-.app-update-candidate__identity { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
-.app-update-candidate h3 { margin: 0 0 var(--space-2); font-size: var(--text-label); }
-.app-update-notes { margin: 0; max-block-size: 11rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.app-update-error, .app-update-message, .app-update-confirm { margin-block: var(--space-4); padding: var(--space-3) var(--space-4); border-radius: var(--radius-item); background: color-mix(in srgb, var(--status-warning) 12%, var(--surface-panel)); }
-.app-update-error p, .app-update-message, .app-update-confirm p { margin: 0; }
-.app-update-error__detail { margin-block-start: var(--space-2) !important; font-weight: var(--weight-strong); overflow-wrap: anywhere; }
-.app-update-message { display: flex; gap: var(--space-2); align-items: flex-start; }
-.app-update-message > svg { inline-size: 18px; flex: 0 0 auto; }
-.app-update-message--confirmed { background: color-mix(in srgb, var(--status-success) 12%, var(--surface-panel)); }
-.app-update-progress-group { display: grid; gap: var(--space-2); margin-block-start: var(--space-4); color: var(--text-secondary-color); font-size: var(--text-label); font-variant-numeric: tabular-nums; }
-.app-update-progress { overflow: hidden; block-size: 8px; border-radius: var(--radius-pill); background: var(--surface-control); }
-.app-update-progress > span { display: block; block-size: 100%; border-radius: inherit; background: var(--accent-primary); transition: inline-size 160ms ease-out; }
-.app-update-progress--indeterminate > span { inline-size: 36%; animation: app-update-progress 1.4s ease-in-out infinite; }
-.app-update-actions { flex-wrap: wrap; }
-.app-update-settings .settings-row > div:first-child { min-inline-size: 0; }
-.app-update-settings__actions { display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap; }
+/* The application updater: the dialog, and the rows it composes into the
+   Updates section of Settings. The dialog wears About's shell (`.about-dialog`)
+   the way the changelog does, so the surface, close button and heading are
+   shared; what is defined here is only the updater's own vocabulary. */
+
+/* Same width as the changelog: a release note is a sentence, not a label. */
+.app-update-dialog { width: min(100%, 460px); }
+/* A glyph on a fill, round like every glyph tile, on the changelog's tint —
+   the two dialogs open from adjacent menu items and should read as siblings. */
+.app-update-dialog__mark {
+  width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+.app-update-dialog__mark svg { width: 22px; height: 22px; }
+/* About's release line with a caption in front of it: the dialog is about the
+   next version, so the one you are running has to be stated first. */
+.app-update-dialog__installed { margin-bottom: 18px; }
+.app-update-dialog__installed-label { font-size: var(--text-label); }
+
+/* The state block: the startup receipt when there is one, the status line,
+   and its cause. Stacked, each line hugging its own text. */
+.app-update-dialog__state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.app-update-detail { display: grid; gap: var(--space-1); }
+.app-update-detail p {
+  margin: 0; padding-left: var(--space-3);
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+/* The adapter's safe detail is a name — the draft or operation that blocks an
+   install — so it is set apart from the sentence above it. */
+.app-update-detail p + p { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+
+/* The offered release as a card: the changelog's identity row (version,
+   channel chip, date), then its notes as bounded plain text with their own
+   scroll so a long note never grows the dialog past the viewport. */
+.app-update-candidate {
+  display: grid; gap: var(--space-2);
+  margin-top: 18px; padding: var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+  background: var(--surface-card);
+}
+.app-update-candidate__identity { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.app-update-candidate__identity h3 { margin: 0; font-size: var(--text-subtitle); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+.app-update-candidate__date { margin-left: auto; color: var(--text-secondary-color); font-size: var(--text-label); }
+.app-update-candidate__notes-label {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary-color); font-size: var(--text-micro); font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase;
+}
+.app-update-notes {
+  margin: 0; max-height: 11rem; overflow: auto;
+  color: var(--text-primary-color); line-height: var(--leading-normal);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+/* Determinate and indeterminate progress share one region, so the bar does
+   not jump when the server stops (or starts) reporting a length. */
+.app-update-progress-group {
+  display: grid; gap: var(--space-2); margin-top: 18px;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-variant-numeric: tabular-nums;
+}
+.app-update-progress { overflow: hidden; height: 8px; margin-top: 18px; border-radius: var(--radius-pill); background: var(--surface-control); }
+.app-update-progress-group > .app-update-progress { margin-top: 0; }
+/* The fill scales rather than resizes: transform is the one property the
+   cascade lets move, and a progress bar is the case it exists for. */
+.app-update-progress > span {
+  display: block; width: 100%; height: 100%; border-radius: inherit;
+  background: var(--accent-primary);
+  transform-origin: left center;
+  transition: transform 160ms ease-out;
+}
+.app-update-progress--indeterminate > span { width: 36%; animation: app-update-progress 1.4s ease-in-out infinite; }
 @keyframes app-update-progress { from { transform: translateX(-110%); } to { transform: translateX(300%); } }
-@media (prefers-reduced-motion: reduce) { .app-update-progress > span { transition: none; } .app-update-progress--indeterminate > span { inline-size: 100%; animation: none; opacity: .55; } }
+
+/* The last confirmation before the app closes: a question and its consequence
+   on a neutral card — not a warning tint, because nothing has gone wrong. The
+   dialog's own actions step aside for the card's two. */
+.app-update-confirm {
+  margin-top: 18px; padding: var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+  background: var(--surface-card);
+}
+.app-update-confirm h3 { margin: 0 0 var(--space-1); font-size: var(--text-body); font-weight: var(--weight-title); }
+.app-update-confirm p { margin: 0; color: var(--text-secondary-color); line-height: var(--leading-normal); }
+.app-update-actions { flex-wrap: wrap; margin-top: 24px; }
+
+/* Settings: the version row and the status line stack in the row's text
+   column, the buttons keep to the right as in every other row. */
+.app-update-settings__identity { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-update-progress > span { transition: none; }
+  .app-update-progress--indeterminate > span { width: 100%; animation: none; opacity: .55; }
+}
 [data-reduced-motion="true"] .app-update-progress > span { transition: none; }
-[data-reduced-motion="true"] .app-update-progress--indeterminate > span { inline-size: 100%; animation: none; opacity: .55; }
-@media (forced-colors: active) { .app-update-progress { border: 1px solid CanvasText; } .app-update-progress > span { background: Highlight; } }
+[data-reduced-motion="true"] .app-update-progress--indeterminate > span { width: 100%; animation: none; opacity: .55; }
+@media (forced-colors: active) {
+  .app-update-progress { border: 1px solid CanvasText; }
+  .app-update-progress > span { background: Highlight; }
+}

@@ -131,9 +131,11 @@ that signing layer.
 1. From a clean, up-to-date `main`, run
    `pnpm run release:prepare <version>`. The command creates only
    `release/<version>`, updates npm, Cargo, Cargo lock, Tauri and README version
-   metadata, and creates the required notes file. Review and replace every
-   notes placeholder, run the complete repository gate, commit, push the one
-   release branch and open a same-repository pull request to `main`.
+   metadata, and creates the required notes file and the app's highlights
+   file (`docs/release/highlights/v<version>.json`, which What's new shows).
+   Review and replace every notes placeholder, fill the highlights in both
+   languages, run the complete repository gate, commit, push the one release
+   branch and open a same-repository pull request to `main`.
 2. Require the complete named check set to succeed, review the allowlisted
    release-only diff and merge the pull request. Direct pushes, fork pull
    requests, manual tags and other branch names do not enter this release path.

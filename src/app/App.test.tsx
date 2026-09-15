@@ -350,7 +350,7 @@ describe("TitlebarMenu", () => {
     const onCheckAppUpdates = vi.fn();
     renderMenu({ onCheckAppUpdates });
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Check for GitOdile updates" }));
+    await user.click(screen.getByRole("menuitem", { name: "Check for updates" }));
     expect(onCheckAppUpdates).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu")).toBeNull();
   });
@@ -475,9 +475,9 @@ describe("App project restoration", () => {
     const palette = screen.getByRole("dialog", { name: "Command palette" });
     expect(within(palette).getByText("Check local changes")).toBeInTheDocument();
     expect(within(palette).getByText("Check remote project changes")).toBeInTheDocument();
-    expect(within(palette).getByText("Check for GitOdile updates")).toBeInTheDocument();
-    await userEvent.click(within(palette).getByText("Check for GitOdile updates"));
-    expect(screen.getByRole("dialog", { name: "GitOdile updates" })).toBeInTheDocument();
+    expect(within(palette).getByText("Check for updates")).toBeInTheDocument();
+    await userEvent.click(within(palette).getByText("Check for updates"));
+    expect(screen.getByRole("dialog", { name: "Updates" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
     // The version tag is the changelog's entry point; About moved to the mark.

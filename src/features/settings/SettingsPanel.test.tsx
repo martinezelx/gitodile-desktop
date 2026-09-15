@@ -847,7 +847,7 @@ describe("Settings panel section rail", () => {
     expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
 
     await userEvent.keyboard("{End}");
-    expect(screen.getByRole("tab", { name: "Line endings" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Updates" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("turns notifications off from their own section and names what they cover", async () => {

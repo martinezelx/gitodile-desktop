@@ -183,7 +183,15 @@ The main desktop window should broadly support:
      marker for the build being run. Each version is a keyboard-accessible
      disclosure: its identity stays visible while its notes remain collapsed
      until requested, keeping current and historical releases equally scannable.
-     Unpublished candidates omit the date.
+     Each release's lines come from its own `docs/release/highlights/v<version>.json`
+     — bilingual, one glyph per line, scaffolded by `release:prepare`, validated
+     by `check:docs` and required by the merge coordinator — and the changelog
+     is assembled from that directory at build time, so a version is added by
+     writing one file and old versions stay listed for good. The date is the
+     day the release was cut. A version with nothing to tell a user (a
+     pipeline-only preview) is left out rather than shown empty; only the
+     build being run is always listed, and says so when it has no lines. A
+     checkout between releases, with no file yet, is listed undated.
      Notes are bundled and open without a network request. A separate explicit
      action opens the application-update dialog and starts its shared remote
      check; mounting or expanding the Changelog never does. Remote update notes
@@ -228,12 +236,25 @@ The main desktop window should broadly support:
      offers manual-only, 15-minute, 30-minute, and hourly cadences; one timer
      follows the active project session, skips states without a usable upstream,
      and shares the same deduplicated check path as the status-bar action;
-   - application-update checks are a separate global concern. What's new, More
-     actions, the command palette and General settings all enter one eager
-     dialog backed by one feature-owned controller, including when no project
-     is open. Settings defaults background checks to off and discloses the
-     GitHub contact, 24-hour maximum cadence and transmitted-data boundary
-     before the switch. Checking never downloads; downloading never installs;
+   - application-update checks are a separate global concern. What's new (as
+     a footer action under the local notes, never among them), More actions,
+     the command palette and the Updates section of Settings all enter one
+     eager dialog backed by one feature-owned controller, including when no
+     project is open. Updates is its own settings section — it has state,
+     actions and a dialog of its own, like Git — so it never shares General
+     with the project-refresh group. It shows the installed version first,
+     then one toned status line (the same `.status-line` scale the Git
+     installation row uses), and offers one switch, on by default, for the
+     startup check — one bounded request when the app opens, repeated every
+     24 hours only while it stays open — disclosing the GitHub contact, that
+     repeat and the transmitted-data boundary beside it. A startup check that
+     finds a release records an app-wide notification (info tone, collapsing on
+     the version, opening the update dialog); one that finds nothing or fails
+     records nothing, because "still up to date" is not an event. The dialog wears the changelog's shell and states the
+     installed version before anything about the next one; a failure is its
+     one explanation, never a verdict line with the cause repeated beneath it.
+     Its copy never names the product and keeps each state to one short
+     line. Checking never downloads; downloading never installs;
      and installation adds a final focused confirmation that explains the
      close/restart consequence. Determinate and indeterminate progress use the
      same stable region, dynamic state changes are announced, and reduced

@@ -4,7 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../i18n";
-import { APP_CHANGELOG, CURRENT_APP_RELEASE, appReleaseChannel } from "./appRelease";
+import HIGHLIGHT_ICON_NAMES from "../../docs/release/highlights/icons.json";
+import {
+  APP_CHANGELOG,
+  CURRENT_APP_RELEASE,
+  HIGHLIGHT_ICONS,
+  appReleaseChannel,
+  buildAppChangelog,
+  compareAppReleaseVersions,
+} from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
 
 afterEach(() => {
@@ -42,6 +50,30 @@ describe("Changelog dialog", () => {
     expect(() => appReleaseChannel("01.2.0")).toThrow(/Unsupported GitOdile release version/);
     expect(() => appReleaseChannel("0.2.0+build.7")).toThrow(/Unsupported GitOdile release version/);
   });
+  it("draws every glyph the release scripts accept, and no other", () => {
+    expect([...HIGHLIGHT_ICONS]).toEqual(HIGHLIGHT_ICON_NAMES);
+  });
+
+  it("assembles the changelog from the highlights files, newest first, always listing the running build", () => {
+    const files = [
+      { version: "0.1.0", date: "2026-08-27", highlights: [{ id: "a", icon: "tag" as const, en: "A", es: "A (es)" }] },
+      { version: "0.2.0-preview.10", date: "2026-09-15", highlights: [] },
+      { version: "0.2.0-preview.9", date: "2026-09-14", highlights: [{ id: "b", icon: "bug" as const, en: "B", es: "B (es)" }] },
+    ];
+    // A pipeline-only release is left out; the running build never is.
+    expect(buildAppChangelog(files, "0.2.0-preview.9").map((entry) => entry.version)).toEqual(["0.2.0-preview.9", "0.1.0"]);
+    expect(buildAppChangelog(files, "0.2.0-preview.10").map((entry) => entry.version)).toEqual(["0.2.0-preview.10", "0.2.0-preview.9", "0.1.0"]);
+    // A checkout between releases has no file yet: listed, undated, empty.
+    const between = buildAppChangelog(files, "0.2.0-preview.11");
+    expect(between[0]).toEqual({ version: "0.2.0-preview.11", channel: "preview", date: null, highlights: [] });
+    expect(compareAppReleaseVersions("0.2.0-preview.9", "0.2.0-preview.10")).toBeLessThan(0);
+    expect(compareAppReleaseVersions("0.2.0-preview.10", "0.2.0")).toBeLessThan(0);
+    expect(compareAppReleaseVersions("0.2.0", "0.1.0")).toBeGreaterThan(0);
+    // The bundled changelog reads the real directory.
+    expect(APP_CHANGELOG.map((entry) => entry.version)).toContain("0.1.0");
+    expect(CURRENT_APP_RELEASE.version).toBe(__APP_VERSION__);
+  });
+
   it("renders nothing while closed", () => {
     render(
       <LanguageProvider>
@@ -56,7 +88,7 @@ describe("Changelog dialog", () => {
     const onCheckForUpdates = vi.fn();
     render(<LanguageProvider><ChangelogDialog isOpen setOpen={vi.fn()} onCheckForUpdates={onCheckForUpdates} /></LanguageProvider>);
     expect(onCheckForUpdates).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "Check for GitOdile updates" }));
+    await userEvent.click(screen.getByRole("button", { name: "Check for updates" }));
     expect(onCheckForUpdates).toHaveBeenCalledOnce();
   });
 
@@ -77,7 +109,10 @@ describe("Changelog dialog", () => {
         expect(rendered.querySelector("time")).toHaveAttribute("dateTime", release.date);
       }
       await userEvent.click(within(rendered).getByRole("button"));
-      expect(rendered.querySelectorAll(".changelog-release__notes li")).toHaveLength(release.noteIds.length);
+      expect(rendered.querySelectorAll(".changelog-release__notes li")).toHaveLength(release.highlights.length);
+      for (const highlight of release.highlights) {
+        expect(within(rendered).getByText(highlight.en)).toBeInTheDocument();
+      }
     }
   });
 
@@ -105,10 +140,14 @@ describe("Changelog dialog", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Novedades" });
     expect(within(dialog).getByText("Estás usando esta")).toBeInTheDocument();
+    // 0.1.0 always ships highlights; the running build may not (a
+    // pipeline-only preview), so the Spanish text is checked on the former.
+    const first = APP_CHANGELOG.find((entry) => entry.version === "0.1.0")!;
     await userEvent.click(within(dialog).getByRole("button", {
-      name: (accessibleName) => accessibleName.includes(`v${CURRENT_APP_RELEASE.version}`),
+      name: (accessibleName) => accessibleName.includes("v0.1.0"),
     }));
-    expect(within(dialog).getByText(/GitOdile utiliza ahora/)).toBeInTheDocument();
+    expect(within(dialog).getByText(first.highlights[0]!.es)).toBeInTheDocument();
+    expect(within(dialog).queryByText(first.highlights[0]!.en)).toBeNull();
   });
 
   it("closes from the close button, Escape, and the backdrop", async () => {

@@ -93,6 +93,19 @@ describe("recording notifications", () => {
     expect(unreadNotificationCount(moved)).toBe(1);
   });
 
+  it("collapses a repeated app update on its version and re-lights the badge for a newer one", () => {
+    const update = (version: string): NotificationDetails => ({ kind: "appUpdateAvailable", version });
+    const read = markNotificationsRead(recordNotification([], request(update("0.3.0"), null)));
+    const same = recordNotification(read, request(update("0.3.0"), null));
+    expect(same).toHaveLength(1);
+    expect(unreadNotificationCount(same)).toBe(0);
+
+    const newer = recordNotification(same, request(update("0.3.1"), null));
+    expect(newer).toHaveLength(1);
+    expect(unreadNotificationCount(newer)).toBe(1);
+    expect(notificationAction(newer[0]!)).toBe("reviewAppUpdate");
+  });
+
   it("does not collapse two publishes: they are two events", () => {
     const list = recordNotification(recordNotification([], request(published(1))), request(published(3)));
 

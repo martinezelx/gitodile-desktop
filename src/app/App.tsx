@@ -89,7 +89,7 @@ import {
   versionLinesPort,
 } from "../features/version-lines";
 import { createHistoryController, historyPort } from "../features/history";
-import { appUpdatesPort, createAppUpdatesController, useAppUpdatesController } from "../features/app-updates";
+import { appUpdatesPort, createAppUpdatesController, useAppUpdatesController, type UpdateState } from "../features/app-updates";
 import { TooltipHost } from "../shared/ui/tooltip";
 import { LoadingBar } from "../shared/ui/loadingBar";
 import { AppOverlays } from "./AppOverlays";
@@ -584,8 +584,14 @@ export function App(): React.JSX.Element {
     APP_UPDATE_AUTOMATIC_STORAGE_KEY,
     APP_UPDATE_AUTOMATIC_DEFAULT,
   );
+  /* The controller outlives every render, so it is handed a stable function
+     that forwards to whatever the latest render wants done with a background
+     result — recording it in the notification centre, which is created a few
+     lines below and re-created when notifications are turned on or off. */
+  const backgroundUpdateResultRef = useRef<(state: UpdateState) => void>(() => undefined);
   const [appUpdatesController] = useState(() => createAppUpdatesController(appUpdatesPort, {
     automaticEnabled: automaticAppUpdates,
+    onBackgroundCheckSettled: (state) => backgroundUpdateResultRef.current(state),
   }));
   const appUpdates = useAppUpdatesController(appUpdatesController, automaticAppUpdates);
   const presentedStartupUpdateRef = useRef(false);
@@ -616,6 +622,18 @@ export function App(): React.JSX.Element {
      it drives, and the publish dialog it hosts. The feature itself starts
      nothing: it is a list and a panel. */
   const notificationCenter = useNotificationCenter(notificationsEnabled);
+  /* A startup check that finds a release is news the user did not ask for and
+     is not looking at, so it goes where such news goes. A check that finds
+     nothing, or fails, records nothing: "still up to date" is not an event,
+     and a failed update check is already shown in Settings for whoever cares. */
+  backgroundUpdateResultRef.current = (state) => {
+    if (state.kind !== "available") return;
+    notificationCenter.notify({
+      projectId: null,
+      projectName: null,
+      details: { kind: "appUpdateAvailable", version: state.candidate.version },
+    });
+  };
   /* Travels with every save and publish rather than being read by Rust: it is
      a choice about what this app does with someone's project, not a fact about
      the project, and the command that acts on it is the one that must carry
@@ -1987,6 +2005,7 @@ export function App(): React.JSX.Element {
           onOpened={notificationCenter.markAllRead}
           onClear={notificationCenter.clear}
           onReviewTeamChanges={reviewTeamChangesFromNotification}
+          onReviewAppUpdate={() => setIsAppUpdateOpen(true)}
           onOpenSettings={() => openSettings("notifications")}
         />
 

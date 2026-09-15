@@ -1,27 +1,52 @@
-export const APP_RELEASE_NOTE_IDS = [
-  "projectSessions",
-  "saveAndPublish",
-  "historyTimeline",
-  "truthfulStatus",
-  "safeLineSwitching",
-  "releaseDetails",
-  "publicIssueReporting",
-  "previewVersions",
-  "canonicalIdentity",
-] as const;
-
-export type AppReleaseNoteId = (typeof APP_RELEASE_NOTE_IDS)[number];
-
 export type AppReleaseChannel = "stable" | "preview";
 
-export type AppReleaseEntry = {
+/** The glyph catalogue. The release scripts validate every highlights file
+ * against `docs/release/highlights/icons.json`; this list is the same names
+ * as literal types, so the dialog's icon map is complete by construction, and
+ * a test holds the two lists equal so neither can grow without the other. */
+export const HIGHLIGHT_ICONS = [
+  "bug",
+  "cloud-download",
+  "folder-open",
+  "git-branch",
+  "history",
+  "list-checks",
+  "send",
+  "shield-check",
+  "sparkles",
+  "tag",
+] as const;
+export type HighlightIcon = (typeof HIGHLIGHT_ICONS)[number];
+
+/** One line of What's new, in both languages the app speaks. Stored as text
+ * rather than as a translation key because a release's highlights belong to
+ * the release, not to the dictionary: the file that describes a version is
+ * the one place its wording lives. */
+export type ReleaseHighlight = Readonly<{
+  id: string;
+  icon: HighlightIcon;
+  en: string;
+  es: string;
+}>;
+
+export type AppReleaseEntry = Readonly<{
   version: string;
   channel: AppReleaseChannel;
-  /** Publication date as ISO `YYYY-MM-DD`, or null for an unpublished
-   * candidate. Formatted for the reader's language at render time. */
+  /** The day the release was cut, ISO `YYYY-MM-DD`, formatted for the reader's
+   * language at render time. Null only for a build whose highlights file does
+   * not exist yet — a development checkout between two releases. */
   date: string | null;
-  noteIds: readonly AppReleaseNoteId[];
-};
+  highlights: readonly ReleaseHighlight[];
+}>;
+
+/** What `docs/release/highlights/v<version>.json` holds. `release:prepare`
+ * scaffolds it and `check:docs` validates it, so by the time it is bundled it
+ * has this shape; the build does not validate it again. */
+type ReleaseHighlightsFile = Readonly<{
+  version: string;
+  date: string;
+  highlights: readonly ReleaseHighlight[];
+}>;
 
 /** Channel identity is encoded in the release version itself. Keeping a
  * second handwritten channel beside it would allow the updater feed, status
@@ -35,51 +60,70 @@ export function appReleaseChannel(version: string): AppReleaseChannel {
   throw new Error(`Unsupported GitOdile release version: ${version}`);
 }
 
-function release(
-  version: string,
-  date: string | null,
-  noteIds: readonly AppReleaseNoteId[],
-): AppReleaseEntry {
-  return { version, channel: appReleaseChannel(version), date, noteIds };
+/** SemVer order over the two supported shapes: every `X.Y.Z-preview.N`
+ * precedes its `X.Y.Z` stable successor. Mirrors the release scripts'
+ * `compareReleaseVersions`, which the frontend cannot import. */
+export function compareAppReleaseVersions(left: string, right: string): number {
+  const parse = (version: string) => {
+    const [core, preview] = version.split("-preview.");
+    return { core: core.split(".").map(Number), preview: preview === undefined ? null : Number(preview) };
+  };
+  const a = parse(left);
+  const b = parse(right);
+  for (let index = 0; index < 3; index += 1) {
+    if (a.core[index] !== b.core[index]) return a.core[index] < b.core[index] ? -1 : 1;
+  }
+  if (a.preview === b.preview) return 0;
+  if (a.preview === null) return 1;
+  if (b.preview === null) return -1;
+  return a.preview < b.preview ? -1 : 1;
 }
 
-/** Newest first, and bundled with the application so opening the changelog
- * remains local-only. A future updater can compare its remote manifest with
- * the same version/channel identity without making release notes themselves
- * network-dependent.
+/**
+ * The changelog, newest first, from every highlights file plus the running
+ * build.
  *
- * The first entry describes the running build, including unpublished
- * candidates. Retain historical entries only for actual shipped releases;
- * `AGENTS.md` forbids inventing a historical changelog. */
-export const APP_CHANGELOG: readonly AppReleaseEntry[] = [
-  release(
-    __APP_VERSION__,
-    null,
-    // Listed one by one rather than reusing `APP_RELEASE_NOTE_IDS`, which is
-    // the union of every id this app has ever shipped. Pointing an entry at it
-    // works only while there is exactly one entry; the next release would
-    // silently claim its predecessor's notes as its own.
-    [
-      "publicIssueReporting",
-      "previewVersions",
-      "releaseDetails",
-      "canonicalIdentity",
-    ],
-  ),
-  release(
-    "0.1.0",
-    "2026-08-27",
-    [
-      "projectSessions",
-      "saveAndPublish",
-      "historyTimeline",
-      "truthfulStatus",
-      "safeLineSwitching",
-    ],
-  ),
-];
+ * A version with nothing to tell a user — a pipeline-only preview — is left
+ * out rather than shown as an empty disclosure, with one exception: the build
+ * being run is always listed, because the dialog's "you are running this"
+ * marker is the one fact it has to state before any note means anything. A
+ * running build with no file at all (a checkout between releases) gets a
+ * dateless entry rather than a crash.
+ */
+export function buildAppChangelog(
+  files: readonly ReleaseHighlightsFile[],
+  currentVersion: string,
+): readonly AppReleaseEntry[] {
+  const entries: AppReleaseEntry[] = files
+    .filter((file) => file.highlights.length > 0 || file.version === currentVersion)
+    .map((file) => ({
+      version: file.version,
+      channel: appReleaseChannel(file.version),
+      date: file.date,
+      highlights: file.highlights,
+    }));
+  if (!entries.some((entry) => entry.version === currentVersion)) {
+    entries.push({
+      version: currentVersion,
+      channel: appReleaseChannel(currentVersion),
+      date: null,
+      highlights: [],
+    });
+  }
+  return entries.sort((left, right) => compareAppReleaseVersions(right.version, left.version));
+}
 
-/** The build the user is running. It is the head of the changelog by
- * definition: the status bar, About's diagnostics, and the changelog's
- * "you are here" marker all have to agree on one version. */
-export const CURRENT_APP_RELEASE: AppReleaseEntry = APP_CHANGELOG[0];
+/** Bundled with the application so opening the changelog remains local-only:
+ * every `v*.json` in the highlights directory, read at build time. Adding a
+ * release is adding its file; nothing here changes. */
+const HIGHLIGHT_FILES = Object.values(
+  import.meta.glob<ReleaseHighlightsFile>("/docs/release/highlights/v*.json", { eager: true, import: "default" }),
+);
+
+export const APP_CHANGELOG: readonly AppReleaseEntry[] = buildAppChangelog(HIGHLIGHT_FILES, __APP_VERSION__);
+
+/** The build the user is running. The status bar, About's diagnostics, and
+ * the changelog's "you are here" marker all have to agree on one version, and
+ * `buildAppChangelog` guarantees it is listed. */
+export const CURRENT_APP_RELEASE: AppReleaseEntry =
+  APP_CHANGELOG.find((entry) => entry.version === __APP_VERSION__) ?? APP_CHANGELOG[0];

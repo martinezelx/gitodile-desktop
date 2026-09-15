@@ -64,6 +64,29 @@ describe("application update controller", () => {
     controller.dispose();
   });
 
+  it("reports what a background check settled on, and nothing about manual checks", async () => {
+    vi.useFakeTimers();
+    const candidate = {
+      candidateId: "c1", version: "0.3.0", channel: "stable" as const, target: "windows-x86_64" as const,
+      publishedAt: null, notes: "", expectedBytes: null,
+    };
+    const port = createPort({ check: vi.fn(async () => action({ kind: "available", candidate })) });
+    const onBackgroundCheckSettled = vi.fn();
+    const controller = createAppUpdatesController(port, {
+      automaticEnabled: true, startupSettleMs: 1_000, onBackgroundCheckSettled,
+    });
+    await controller.initialize();
+    await controller.check();
+    expect(port.check).toHaveBeenLastCalledWith("manual");
+    expect(onBackgroundCheckSettled).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(port.check).toHaveBeenLastCalledWith("background");
+    expect(onBackgroundCheckSettled).toHaveBeenCalledOnce();
+    expect(onBackgroundCheckSettled).toHaveBeenCalledWith(expect.objectContaining({ kind: "available" }));
+    controller.dispose();
+  });
+
   it("uses the native operation id when cancelling a download", async () => {
     const candidate = {
       candidateId: "candidate-1", version: "0.2.0-preview.2", channel: "preview" as const,

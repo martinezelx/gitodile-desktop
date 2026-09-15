@@ -21,6 +21,9 @@ export interface NotificationsTranslations {
   notificationRemoteCheckFailedDescription: string;
   notificationChangesPublishedTitle: (count: number) => string;
   notificationChangesPublishedTo: (destination: string) => string;
+  notificationAppUpdateTitle: (version: string) => string;
+  notificationAppUpdateDescription: string;
+  notificationAppUpdateAction: string;
 }
 
 const en: NotificationsTranslations = {
@@ -36,7 +39,7 @@ const en: NotificationsTranslations = {
   notificationsClear: "Clear all",
   notificationsEmptyTitle: "Nothing to report",
   notificationsEmptyDescription:
-    "GitOdile tells you here when newer project versions turn up, or when an automatic check cannot reach the remote project.",
+    "GitOdile tells you here when newer project versions turn up, when a newer version of the app is available, or when an automatic check cannot reach the remote project.",
   notificationsDisabledTitle: "Notifications are turned off",
   notificationsDisabledDescription:
     "GitOdile is not recording anything new. Turn notifications back on to hear about project changes and failed checks.",
@@ -53,6 +56,9 @@ const en: NotificationsTranslations = {
   notificationChangesPublishedTitle: (count) =>
     count === 1 ? "Published 1 saved version" : `Published ${count} saved versions`,
   notificationChangesPublishedTo: (destination) => `Sent to ${destination}.`,
+  notificationAppUpdateTitle: (version) => `v${version} is available`,
+  notificationAppUpdateDescription: "Found by the startup check. Nothing has been downloaded.",
+  notificationAppUpdateAction: "View update",
 };
 
 const es: NotificationsTranslations = {
@@ -68,7 +74,7 @@ const es: NotificationsTranslations = {
   notificationsClear: "Borrar todo",
   notificationsEmptyTitle: "Nada que contar",
   notificationsEmptyDescription:
-    "GitOdile te avisa aquí cuando aparecen versiones nuevas del proyecto o cuando una comprobación automática no puede conectar con el proyecto remoto.",
+    "GitOdile te avisa aquí cuando aparecen versiones nuevas del proyecto, cuando hay una versión nueva de la aplicación o cuando una comprobación automática no puede conectar con el proyecto remoto.",
   notificationsDisabledTitle: "Las notificaciones están desactivadas",
   notificationsDisabledDescription:
     "GitOdile no está registrando nada nuevo. Vuelve a activarlas para enterarte de los cambios del proyecto y de las comprobaciones fallidas.",
@@ -86,6 +92,9 @@ const es: NotificationsTranslations = {
   notificationChangesPublishedTitle: (count) =>
     count === 1 ? "Se publicó 1 versión guardada" : `Se publicaron ${count} versiones guardadas`,
   notificationChangesPublishedTo: (destination) => `Enviado a ${destination}.`,
+  notificationAppUpdateTitle: (version) => `Hay una versión nueva: v${version}`,
+  notificationAppUpdateDescription: "Lo encontró la comprobación al iniciar. No se ha descargado nada.",
+  notificationAppUpdateAction: "Ver actualización",
 };
 
 export const notificationsTranslations = { en, es } as const;

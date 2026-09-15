@@ -95,6 +95,7 @@ export const SETTINGS_SECTIONS = [
   "reading",
   "git",
   "line-endings",
+  "updates",
 ] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
@@ -115,6 +116,7 @@ export function settingsSectionLabel(
     settingsReadingTitle: string;
     settingsGitTitle: string;
     settingsLineEndingsTitle: string;
+    settingsUpdatesTitle: string;
   },
 ): string {
   const labels: Record<SettingsSection, string> = {
@@ -125,6 +127,7 @@ export function settingsSectionLabel(
     reading: t.settingsReadingTitle,
     git: t.settingsGitTitle,
     "line-endings": t.settingsLineEndingsTitle,
+    updates: t.settingsUpdatesTitle,
   };
   return labels[section];
 }

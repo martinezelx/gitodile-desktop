@@ -50,6 +50,8 @@ export interface SettingsTranslations {
   notificationsEventCheckFailedDescription: string;
   notificationsEventPublishedLabel: string;
   notificationsEventPublishedDescription: string;
+  notificationsEventAppUpdateLabel: string;
+  notificationsEventAppUpdateDescription: string;
   settingsGitInstallationTitle: string;
   settingsGitInstalledVersionLabel: string;
   settingsGeneralChecking: string;
@@ -105,6 +107,7 @@ export interface SettingsTranslations {
   identityKeepEditing: string;
   identityDiscardAndClose: string;
   settingsLineEndingsTitle: string;
+  settingsUpdatesTitle: string;
   settingsLineEndingsDescription: string;
   lineEndingsWindowsLabel: string;
   lineEndingsWindowsDescription: string;
@@ -233,6 +236,9 @@ const en: SettingsTranslations = {
   notificationsEventPublishedLabel: "Changes you published",
   notificationsEventPublishedDescription:
     "A receipt, so “did that go through?” still has an answer an hour later. It is recorded already read and never marks the bell.",
+  notificationsEventAppUpdateLabel: "A newer version of the app",
+  notificationsEventAppUpdateDescription:
+    "The startup check found a newer version. Nothing is downloaded until you say so; the notification opens the update dialog.",
   settingsGitInstallationTitle: "Installation",
   settingsGitInstalledVersionLabel: "Installed version",
   settingsGeneralChecking: "Checking…",
@@ -293,6 +299,7 @@ const en: SettingsTranslations = {
   identityKeepEditing: "Keep editing",
   identityDiscardAndClose: "Discard and close",
   settingsLineEndingsTitle: "Line endings",
+  settingsUpdatesTitle: "Updates",
   settingsLineEndingsDescription:
     "Choose how Git stores line endings to avoid whole-file changes across operating systems.",
   lineEndingsWindowsLabel: "Save the shared format, keep the Windows one on your computer",
@@ -315,7 +322,7 @@ const en: SettingsTranslations = {
   settingsStartupTitle: "Startup",
   startupReopenLabel: "Reopen projects from the previous session",
   startupReopenDescription: "Restore projects that were open when you quit.",
-  settingsWatchingTitle: "Automatic updates",
+  settingsWatchingTitle: "Automatic refresh",
   watchingLabel: "Keep project screens up to date",
   watchingDescription: "Updates open projects when files or saved versions change. Turn it off only if a large or network project becomes slow.",
   remoteCheckLabel: "Check remote project changes",
@@ -424,6 +431,9 @@ const es: SettingsTranslations = {
   notificationsEventPublishedLabel: "Los cambios que publicas",
   notificationsEventPublishedDescription:
     "Un recibo, para que «¿aquello se envió?» siga teniendo respuesta una hora después. Se registra ya leído y nunca marca la campana.",
+  notificationsEventAppUpdateLabel: "Una versión nueva de la aplicación",
+  notificationsEventAppUpdateDescription:
+    "La comprobación al iniciar encontró una versión más nueva. No se descarga nada hasta que tú lo digas; la notificación abre el diálogo de actualización.",
   settingsGitInstallationTitle: "Instalación",
   settingsGitInstalledVersionLabel: "Versión instalada",
   settingsGeneralChecking: "Comprobando…",
@@ -492,6 +502,7 @@ const es: SettingsTranslations = {
   identityKeepEditing: "Seguir editando",
   identityDiscardAndClose: "Descartar y cerrar",
   settingsLineEndingsTitle: "Finales de línea",
+  settingsUpdatesTitle: "Actualizaciones",
   settingsLineEndingsDescription:
     "Elige cómo guarda Git los finales de línea para evitar cambios de archivos completos entre sistemas.",
   lineEndingsWindowsLabel: "Guardar en el formato común y dejar el de Windows en tu equipo",
@@ -515,7 +526,7 @@ const es: SettingsTranslations = {
   settingsStartupTitle: "Inicio",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
   startupReopenDescription: "Recupera los proyectos abiertos al cerrar la aplicación.",
-  settingsWatchingTitle: "Actualizaciones automáticas",
+  settingsWatchingTitle: "Refresco automático",
   watchingLabel: "Mantener actualizadas las pantallas del proyecto",
   watchingDescription: "Actualiza los proyectos abiertos cuando cambian archivos o versiones guardadas. Desactívalo solo si un proyecto grande o de red va lento.",
   remoteCheckLabel: "Comprobar cambios del proyecto remoto",

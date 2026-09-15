@@ -1,8 +1,10 @@
 import React, { useId, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
+  ArrowRight,
   Bug,
   ChevronDown,
+  CloudDownload,
   FolderOpen,
   GitBranch,
   History,
@@ -17,7 +19,7 @@ import {
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
 import { useModalFocus } from "../shared/ui";
-import { APP_CHANGELOG, type AppReleaseEntry, type AppReleaseNoteId } from "./appRelease";
+import { APP_CHANGELOG, type AppReleaseEntry, type HighlightIcon } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
  * same entry reads correctly in every supported language. A missing or unparseable date
@@ -34,16 +36,20 @@ function formatReleaseDate(date: string | null, formats: LocaleFormats): string 
   return formatDate(parsed, formats);
 }
 
-const RELEASE_NOTE_ICONS: Record<AppReleaseNoteId, React.ComponentType<{ "aria-hidden": true }>> = {
-  projectSessions: FolderOpen,
-  saveAndPublish: Send,
-  historyTimeline: History,
-  truthfulStatus: ListChecks,
-  safeLineSwitching: GitBranch,
-  releaseDetails: Sparkles,
-  publicIssueReporting: Bug,
-  previewVersions: Tag,
-  canonicalIdentity: ShieldCheck,
+/** Every name in the glyph catalogue, drawn. `Record<HighlightIcon, …>`
+ * is what keeps this complete: a name added to the catalogue without a glyph
+ * here fails to compile rather than rendering nothing. */
+const HIGHLIGHT_ICON_COMPONENTS: Record<HighlightIcon, React.ComponentType<{ "aria-hidden": true }>> = {
+  bug: Bug,
+  "cloud-download": CloudDownload,
+  "folder-open": FolderOpen,
+  "git-branch": GitBranch,
+  history: History,
+  "list-checks": ListChecks,
+  send: Send,
+  "shield-check": ShieldCheck,
+  sparkles: Sparkles,
+  tag: Tag,
 };
 
 function ReleaseNotes({
@@ -53,7 +59,7 @@ function ReleaseNotes({
   release: AppReleaseEntry;
   isCurrent: boolean;
 }): React.JSX.Element {
-  const { t, formats } = useLanguage();
+  const { t, language, formats } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
   const notesId = useId();
   const releaseDate = formatReleaseDate(release.date, formats);
@@ -85,14 +91,19 @@ function ReleaseNotes({
           )}
         </span>
       </button>
-      {isExpanded && (
+      {isExpanded && release.highlights.length === 0 && (
+        /* Only the running build can be listed without highlights (a
+           pipeline-only preview); it says so rather than opening onto nothing. */
+        <p id={notesId} className="changelog-release__empty">{t.changelogNoHighlights}</p>
+      )}
+      {isExpanded && release.highlights.length > 0 && (
         <ul id={notesId} className="changelog-release__notes" role="list">
-          {release.noteIds.map((noteId) => {
-            const NoteIcon = RELEASE_NOTE_ICONS[noteId];
+          {release.highlights.map((highlight) => {
+            const NoteIcon = HIGHLIGHT_ICON_COMPONENTS[highlight.icon];
             return (
-              <li key={noteId}>
+              <li key={highlight.id}>
                 <span className="changelog-release__note-icon" aria-hidden="true"><NoteIcon aria-hidden /></span>
-                <span>{t.changelogNotes[noteId]}</span>
+                <span>{highlight[language]}</span>
               </li>
             );
           })}
@@ -148,11 +159,6 @@ export function ChangelogDialog({
         <p className="eyebrow">{t.changelogEyebrow}</p>
         <h2 id="changelog-title">{t.changelogTitle}</h2>
         <p>{t.changelogDescription}</p>
-        {onCheckForUpdates && (
-          <button className="secondary-button changelog-dialog__update" type="button" onClick={onCheckForUpdates}>
-            {t.commandCheckAppUpdates}
-          </button>
-        )}
         {/* `role="list"` because both lists drop `list-style`, and WebKit —
             the engine behind the macOS build — removes list semantics along
             with the marker. The count is the point here: "six changes in this
@@ -166,6 +172,18 @@ export function ChangelogDialog({
             />
           ))}
         </ol>
+        {/* The one thing this list cannot answer — is there a newer one? —
+            is a remote question, so it sits after the local notes as a
+            footer, not among them: a quiet control that leaves for the
+            update dialog. Nothing here starts that check on its own. */}
+        {onCheckForUpdates && (
+          <footer className="changelog-dialog__footer">
+            <button className="ghost-button changelog-dialog__update" type="button" onClick={onCheckForUpdates}>
+              {t.commandCheckAppUpdates}
+              <ArrowRight aria-hidden="true" />
+            </button>
+          </footer>
+        )}
       </div>
     </div>
   );

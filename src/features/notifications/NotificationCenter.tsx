@@ -58,6 +58,11 @@ function describe(details: NotificationDetails, t: Translations): {
           ? null
           : t.notificationChangesPublishedTo(details.destination),
       };
+    case "appUpdateAvailable":
+      return {
+        title: t.notificationAppUpdateTitle(details.version),
+        description: t.notificationAppUpdateDescription,
+      };
   }
 }
 
@@ -100,13 +105,13 @@ function NotificationRow({
             {relativeTime(notification.createdAt, now, formats.language, t.notificationsJustNow)}
           </span>
         </p>
-        {action === "reviewTeamChanges" && (
+        {action && (
           <button
             className="notification__action"
             type="button"
             onClick={() => onAction(notification)}
           >
-            {t.notificationTeamChangesAction}
+            {action === "reviewTeamChanges" ? t.notificationTeamChangesAction : t.notificationAppUpdateAction}
           </button>
         )}
       </div>
@@ -125,6 +130,7 @@ export type NotificationCenterProps = {
   onOpened: () => void;
   onClear: () => void;
   onReviewTeamChanges: (notification: AppNotification) => void;
+  onReviewAppUpdate: () => void;
   onOpenSettings: () => void;
 };
 
@@ -148,6 +154,7 @@ export function NotificationCenter({
   onOpened,
   onClear,
   onReviewTeamChanges,
+  onReviewAppUpdate,
   onOpenSettings,
 }: NotificationCenterProps): React.JSX.Element {
   const { t, formats } = useLanguage();
@@ -320,7 +327,8 @@ export function NotificationCenter({
                     t={t}
                     onAction={(entry) => {
                       close(false);
-                      onReviewTeamChanges(entry);
+                      if (notificationAction(entry) === "reviewAppUpdate") onReviewAppUpdate();
+                      else onReviewTeamChanges(entry);
                     }}
                   />
                 ))}

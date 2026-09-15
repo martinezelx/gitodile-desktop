@@ -18,7 +18,11 @@ export type NotificationDetails =
    * mapped to a user-facing sentence by the caller's error mapper, like every
    * other error surface in the app. */
   | { kind: "remoteCheckFailed"; reason: string | null }
-  | { kind: "changesPublished"; versionCount: number; destination: string | null };
+  | { kind: "changesPublished"; versionCount: number; destination: string | null }
+  /** The startup check found a newer version of the app itself. Always
+   * app-wide (`projectId: null`); the version is what tells "the same
+   * release again" from "a newer one since". Nothing has been downloaded. */
+  | { kind: "appUpdateAvailable"; version: string };
 
 export type NotificationKind = NotificationDetails["kind"];
 
@@ -66,6 +70,7 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, NotificationKindSpec> 
   teamChangesAvailable: { tone: "info", collapses: true, unreadOnArrival: true },
   remoteCheckFailed: { tone: "warning", collapses: true, unreadOnArrival: true },
   changesPublished: { tone: "success", collapses: false, unreadOnArrival: false },
+  appUpdateAvailable: { tone: "info", collapses: true, unreadOnArrival: true },
 };
 
 /** Enough to cover a long session, small enough that the panel never becomes a
@@ -99,6 +104,8 @@ export function notificationDetailsEqual(
         left.versionCount === right.versionCount &&
         left.destination === right.destination
       );
+    case "appUpdateAvailable":
+      return right.kind === "appUpdateAvailable" && left.version === right.version;
     default: {
       const unhandled: never = left;
       return unhandled;
@@ -171,18 +178,23 @@ export function markNotificationsRead(
   return list.map((entry) => (entry.read ? entry : { ...entry, read: true }));
 }
 
-/** What a notification can offer to do about itself. One member today; named
- * so the panel and the composition root agree on it by type rather than by
- * matching string literals in two files. */
-export type NotificationActionId = "reviewTeamChanges";
+/** What a notification can offer to do about itself. Named so the panel and
+ * the composition root agree on it by type rather than by matching string
+ * literals in two files. */
+export type NotificationActionId = "reviewTeamChanges" | "reviewAppUpdate";
 
-/** The only kind with somewhere to go. Kept as a function rather than a field
- * on the spec so the panel asks about the entry it is rendering, and a future
- * kind whose action depends on its payload has room to answer differently. */
+/** The kinds with somewhere to go. Kept as a function rather than a field on
+ * the spec so the panel asks about the entry it is rendering, and a kind whose
+ * action depends on its payload (team changes need a project) can say no. */
 export function notificationAction(
   notification: AppNotification,
 ): NotificationActionId | null {
-  return notification.details.kind === "teamChangesAvailable" && notification.projectId !== null
-    ? "reviewTeamChanges"
-    : null;
+  switch (notification.details.kind) {
+    case "teamChangesAvailable":
+      return notification.projectId !== null ? "reviewTeamChanges" : null;
+    case "appUpdateAvailable":
+      return "reviewAppUpdate";
+    default:
+      return null;
+  }
 }

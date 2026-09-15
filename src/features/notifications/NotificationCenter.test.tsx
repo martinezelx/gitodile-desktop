@@ -34,6 +34,7 @@ function renderCentre(overrides: Partial<React.ComponentProps<typeof Notificatio
     onOpened: vi.fn(),
     onClear: vi.fn(),
     onReviewTeamChanges: vi.fn(),
+    onReviewAppUpdate: vi.fn(),
     onOpenSettings: vi.fn(),
     ...overrides,
   };
@@ -96,6 +97,27 @@ describe("the titlebar notification centre", () => {
     await userEvent.click(screen.getByRole("button", { name: "Review and get them" }));
 
     expect(onReviewTeamChanges).toHaveBeenCalledWith(notification);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("offers to open the update dialog for a newer app version and closes on use", async () => {
+    const onReviewAppUpdate = vi.fn();
+    const onReviewTeamChanges = vi.fn();
+    renderCentre({
+      notifications: [entry({ kind: "appUpdateAvailable", version: "0.3.0" })],
+      unreadCount: 1,
+      onReviewAppUpdate,
+      onReviewTeamChanges,
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
+    const panel = screen.getByRole("dialog", { name: "Notifications" });
+    expect(within(panel).getByText("v0.3.0 is available")).toBeInTheDocument();
+    expect(within(panel).getByText("Found by the startup check. Nothing has been downloaded.")).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole("button", { name: "View update" }));
+
+    expect(onReviewAppUpdate).toHaveBeenCalledOnce();
+    expect(onReviewTeamChanges).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -241,6 +263,7 @@ describe("the titlebar notification centre", () => {
           onOpened={vi.fn()}
           onClear={vi.fn()}
           onReviewTeamChanges={vi.fn()}
+          onReviewAppUpdate={vi.fn()}
           onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
@@ -261,6 +284,7 @@ describe("the titlebar notification centre", () => {
           onOpened={vi.fn()}
           onClear={vi.fn()}
           onReviewTeamChanges={vi.fn()}
+          onReviewAppUpdate={vi.fn()}
           onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
@@ -309,6 +333,7 @@ describe("the titlebar notification centre", () => {
           onOpened={vi.fn()}
           onClear={vi.fn()}
           onReviewTeamChanges={vi.fn()}
+          onReviewAppUpdate={vi.fn()}
           onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
@@ -334,6 +359,7 @@ describe("the titlebar notification centre", () => {
           onOpened={vi.fn()}
           onClear={vi.fn()}
           onReviewTeamChanges={vi.fn()}
+          onReviewAppUpdate={vi.fn()}
           onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
