@@ -5,6 +5,8 @@
 //    not ship, so those are removed again.
 // 2. `build-windows-ico.mjs` re-encodes the small ICO layers as DIBs (see that
 //    file for why).
+// 3. `build-nsis-images.mjs` composes the Windows installer's sidebar and
+//    header bitmaps from the freshly rendered icons.
 //
 //   pnpm icons
 
@@ -28,3 +30,4 @@ for (const mobile of ["android", "ios"]) {
   fs.rmSync(path.join(iconsDir, mobile), { recursive: true, force: true });
 }
 run(path.join(root, "scripts", "icons", "build-windows-ico.mjs"), []);
+run(path.join(root, "scripts", "icons", "build-nsis-images.mjs"), []);
