@@ -156,6 +156,10 @@ export interface AppTranslations {
   titlebarSwitchToLightTheme: string;
   titlebarSwitchToDarkTheme: string;
   startupRestoreSkippedNotice: (count: number) => string;
+  /* The dialog's own name, in words. It shares the About heading with the
+     localized product promise, while the decorative mark stays unannounced. */
+  aboutProductName: string;
+  /* The titlebar menu item that opens it. */
   aboutGitOdile: string;
   aboutHeading: string;
   aboutDescription: string;
@@ -353,13 +357,14 @@ const en: AppTranslations = {
     count === 1
       ? "1 project from your last session couldn't be reopened."
       : `${count} projects from your last session couldn't be reopened.`,
+  aboutProductName: "GitOdile",
   aboutGitOdile: "About",
-  aboutHeading: "Git without the bite.",
+  aboutHeading: "Git without the fear.",
   aboutDescription: "Turns version control into clear, worry-free steps.",
   aboutLicense: "GNU AGPL v3.0 only",
   aboutViewLicense: "View license",
   aboutViewSource: "View source code",
-  aboutTechnicalDetails: "Technical details",
+  aboutTechnicalDetails: "Your system",
   aboutSystem: "System",
   aboutSystemVersion: "System version",
   aboutWebview: "Webview",
@@ -543,13 +548,14 @@ const es: AppTranslations = {
     count === 1
       ? "1 proyecto de tu última sesión no se pudo volver a abrir."
       : `${count} proyectos de tu última sesión no se pudieron volver a abrir.`,
+  aboutProductName: "GitOdile",
   aboutGitOdile: "Acerca de",
-  aboutHeading: "Git sin mordiscos.",
+  aboutHeading: "Git sin miedo.",
   aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
   aboutLicense: "GNU AGPL v3.0 únicamente",
   aboutViewLicense: "Ver licencia",
   aboutViewSource: "Ver código fuente",
-  aboutTechnicalDetails: "Detalles técnicos",
+  aboutTechnicalDetails: "Tu sistema",
   aboutSystem: "Sistema",
   aboutSystemVersion: "Versión del sistema",
   aboutWebview: "Webview",

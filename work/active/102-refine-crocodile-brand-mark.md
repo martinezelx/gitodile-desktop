@@ -42,7 +42,7 @@ self-contained record after the exploratory artifacts were discarded.
 ## What already works
 
 - The long snout and compact silhouette connect the symbol to GitOdile.
-- The toothless smile supports the promise **Git without the bite**.
+- The toothless smile supports the product's calm, fear-free promise.
 - The rounded geometry feels friendly; refinement should keep it credible
   for professional work.
 - The dark silhouette on the fixed lime desktop tile has a balanced frame.

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
-import { ArrowUpRight, Check, CircleAlert, Copy, X } from "lucide-react";
+import { ArrowUpRight, Check, CircleAlert, Copy } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import {
@@ -23,7 +23,7 @@ import {
   type ProjectSettingsSection,
   type ProjectSettingsTarget,
 } from "../features/project-settings";
-import { DialogCloseButton } from "../shared/ui";
+import { DialogCloseButton, autoHideScrollbarProps } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
@@ -362,25 +362,31 @@ export function AppOverlays({
 
       {about.isOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={() => about.setOpen(false)}>
-          <div ref={aboutRef} className="about-dialog" role="dialog" aria-modal="true" aria-labelledby="about-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-            <button className="about-dialog__close" type="button" aria-label={t.commonClose} onClick={() => about.setOpen(false)}>
-              <X aria-hidden="true" />
-            </button>
-            <div className="about-dialog__mark" aria-hidden="true">{CROCODILE_MARK}</div>
-            <p className="eyebrow">{t.aboutGitOdile}</p>
-            <h2 id="about-title">{t.aboutHeading}</h2>
+          <div
+            {...autoHideScrollbarProps<HTMLDivElement>()}
+            ref={aboutRef}
+            className="about-dialog auto-hide-scrollbar"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="about-title"
+            tabIndex={-1}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="about-dialog__brand">
+              <h2 id="about-title">
+                <span className="about-dialog__product-name">{t.aboutProductName}</span>{" "}
+                <span className="about-dialog__mark" aria-hidden="true">{CROCODILE_MARK}</span>{" "}
+                <span className="about-dialog__tagline">{t.aboutHeading}</span>
+              </h2>
+              <DialogCloseButton label={t.commonClose} onClick={() => about.setOpen(false)} />
+            </div>
             <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version} ${CURRENT_APP_RELEASE.channel}`}>
               <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
               {CURRENT_APP_RELEASE.channel === "preview" && (
-                <span className="about-dialog__release-channel" aria-hidden="true">preview</span>
+                <span className="channel-badge channel-badge--preview" aria-hidden="true">preview</span>
               )}
             </p>
             <p>{t.aboutDescription}</p>
-            <div className="about-dialog__legal">
-              <span>{t.aboutLicense}</span>
-              <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE").catch(() => undefined)}>{t.aboutViewLicense}</button>
-              <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop").catch(() => undefined)}>{t.aboutViewSource}</button>
-            </div>
             {(systemInfo || webviewVersion || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">
                 <h3 id="about-technical-title">{t.aboutTechnicalDetails}</h3>
@@ -410,6 +416,16 @@ export function AppOverlays({
                 </dl>
               </section>
             )}
+            {/* The copy control follows the rows it copies rather than the
+                credits. It used to be the dialog's last child, 130px below the
+                facts it puts on the clipboard and directly under "Built with",
+                so only its label tied it to its own data — the two things a bug
+                reporter needs (the facts and the way to send them) were
+                separated by an unrelated section. */}
+            <button className="secondary-button about-dialog__copy" type="button" onClick={() => void copyDiagnostics()}>
+              {didCopyDiagnostics ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+              {didCopyDiagnostics ? t.aboutCopied : t.aboutCopySystemInfo}
+            </button>
             {/* Credits, kept apart from the diagnostics above because they are
                 not diagnostics: every user on this build runs these same four
                 versions, so none of them can explain a machine-specific bug.
@@ -441,15 +457,18 @@ export function AppOverlays({
                 </ul>
               </section>
             )}
-            <button className="secondary-button about-dialog__copy" type="button" onClick={() => void copyDiagnostics()}>
-              {didCopyDiagnostics ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-              {didCopyDiagnostics ? t.aboutCopied : t.aboutCopySystemInfo}
-            </button>
             <p className="about-dialog__footer">
               {t.aboutFooterMadeWith}{" "}
               <span className="about-dialog__heart" role="img" aria-label={t.aboutHeartLabel}>♥</span>{" "}
               {t.aboutFooterByAuthor}
             </p>
+            <div className="about-dialog__legal">
+              <span>{t.aboutLicense}</span>
+              <span className="about-dialog__legal-links">
+                <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE").catch(() => undefined)}>{t.aboutViewLicense}</button>
+                <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop").catch(() => undefined)}>{t.aboutViewSource}</button>
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -470,9 +489,7 @@ export function AppOverlays({
       {shortcuts.isOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
           <div ref={shortcutsRef} className="about-dialog shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-            <button className="about-dialog__close" type="button" aria-label={t.commonClose} onClick={() => shortcuts.setOpen(false)}>
-              <X aria-hidden="true" />
-            </button>
+            <DialogCloseButton label={t.commonClose} onClick={() => shortcuts.setOpen(false)} />
             <h2 id="shortcuts-title">{t.shortcutsDialogTitle}</h2>
             <ul className="shortcuts-list">
               <li><span>{t.shortcutsOpenPalette}</span><span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>K</kbd></span></li>

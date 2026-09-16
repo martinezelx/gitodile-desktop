@@ -1,6 +1,6 @@
 # GitOdile
 
-> **Git without the bite.** A friendly desktop Git client built around user
+> **Git without the fear.** A friendly desktop Git client built around user
 > intent, clear consequences, and safe recovery paths.
 
 GitOdile is a pre-release, local-first Git client for Windows, macOS, and

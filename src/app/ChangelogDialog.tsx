@@ -13,12 +13,11 @@ import {
   ShieldCheck,
   Sparkles,
   Tag,
-  X,
 } from "lucide-react";
 
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
-import { useModalFocus } from "../shared/ui";
+import { DialogCloseButton, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
 import { APP_CHANGELOG, type AppReleaseEntry, type HighlightIcon } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
@@ -79,7 +78,7 @@ function ReleaseNotes({
           </span>
           <span className="changelog-release__identity">
             <h3>{t.changelogVersionHeading(release.version)}</h3>
-            <span className={`changelog-release__channel changelog-release__channel--${release.channel}`}>
+            <span className={`channel-badge changelog-release__channel channel-badge--${release.channel}`}>
               {release.channel}
             </span>
             {isCurrent && <span className="changelog-release__current">{t.changelogCurrentRelease}</span>}
@@ -142,17 +141,16 @@ export function ChangelogDialog({
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
       <div
+        {...autoHideScrollbarProps<HTMLDivElement>()}
         ref={dialogRef}
-        className="about-dialog changelog-dialog"
+        className="about-dialog changelog-dialog auto-hide-scrollbar"
         role="dialog"
         aria-modal="true"
         aria-labelledby="changelog-title"
         tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <button className="about-dialog__close" type="button" aria-label={t.commonClose} onClick={() => setOpen(false)}>
-          <X aria-hidden="true" />
-        </button>
+        <DialogCloseButton label={t.commonClose} onClick={() => setOpen(false)} />
         <div className="changelog-dialog__mark" aria-hidden="true">
           <Sparkles />
         </div>

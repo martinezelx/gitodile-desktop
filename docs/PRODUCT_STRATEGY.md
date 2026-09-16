@@ -30,7 +30,7 @@ Its differentiated promise is:
 
 Alternative working statements:
 
-- Git without the bite.
+- Git without the fear.
 - A friendly Git desktop client.
 - Save, publish, experiment, and recover without fear.
 

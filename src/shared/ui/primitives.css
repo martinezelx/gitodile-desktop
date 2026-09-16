@@ -52,6 +52,31 @@
   background: transparent;
 }
 .auto-hide-scrollbar::-webkit-scrollbar-corner { background: transparent; }
+/* Which build the reader is running is stated on three surfaces — the status
+   bar, About and the changelog — and DESIGN.md requires those three to be
+   unable to describe one build differently. They were three hand-written
+   copies of the same pill and had already drifted: 6px of inline padding on
+   the status bar against 7px on the other two, and letter-spacing on two of
+   them only. The recipe lives here; a surface contributes layout and the
+   `--preview` modifier it needs. Neutral by default, because a build whose
+   channel needs no warning is the unremarkable case. */
+.channel-badge {
+  padding: 2px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-wide);
+}
+.channel-badge--preview {
+  border-color: color-mix(in srgb, var(--status-warning) 35%, transparent);
+  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  color: var(--status-warning);
+}
+
 .eyebrow { margin-bottom: 6px; color: var(--accent-primary); font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 
 /* The labelled button carries its own size. It used to declare padding and

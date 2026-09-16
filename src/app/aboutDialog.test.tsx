@@ -1,5 +1,5 @@
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -262,9 +262,56 @@ describe("readSystemInfo", () => {
 });
 
 describe("About dialog", () => {
+  it("is named by the app it belongs to, not only by its promise", () => {
+    renderOverlays();
+
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const heading = dialog.querySelector("#about-title");
+    const productName = heading?.querySelector(".about-dialog__product-name");
+    const mark = heading?.querySelector(".about-dialog__mark");
+    const tagline = heading?.querySelector(".about-dialog__tagline");
+    expect(heading).toHaveTextContent("GitOdile Git without the fear.");
+    expect(productName).toHaveTextContent("GitOdile");
+    expect(mark).toBeInTheDocument();
+    expect(tagline).toHaveTextContent("Git without the fear.");
+    expect(productName!.compareDocumentPosition(mark!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(mark!.compareDocumentPosition(tagline!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("describes machine-specific diagnostics as the user's system", () => {
+    renderOverlays();
+
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    expect(within(dialog).getByRole("heading", { name: "Your system" })).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent("Technical details");
+  });
+
+  it("puts the copy control with the diagnostics it copies, not with the credits", () => {
+    renderOverlays();
+
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const technical = dialog.querySelector(".about-technical");
+    const stack = dialog.querySelector(".about-stack");
+    const copy = dialog.querySelector(".about-dialog__copy");
+    expect(technical).toBeInTheDocument();
+    expect(stack).toBeInTheDocument();
+    expect(copy).toBeInTheDocument();
+
+    // Document order is the contract: the button sits after the rows it puts on
+    // the clipboard and before the credit tiles. It used to be the dialog's
+    // last child, under "Built with", so only its label tied it to its data.
+    expect(technical!.compareDocumentPosition(copy!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(copy!.compareDocumentPosition(stack!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("shows the project license and opens its license and source in the browser", async () => {
     renderOverlays();
-    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const legal = dialog.querySelector(".about-dialog__legal");
+    const stack = dialog.querySelector(".about-stack");
+    expect(legal).toBeInTheDocument();
+    expect(stack).toBeInTheDocument();
+    expect(stack!.compareDocumentPosition(legal!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(dialog).toHaveTextContent("GNU AGPL v3.0 only");
     await userEvent.click(screen.getByRole("button", { name: "View license" }));
     await userEvent.click(screen.getByRole("button", { name: "View source code" }));
@@ -274,7 +321,7 @@ describe("About dialog", () => {
   it("reports the product and the machine, and leaves release notes to the changelog", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     expect(dialog).toHaveTextContent("Turns version control into clear, worry-free steps.");
     expect(dialog).toHaveTextContent(`v${__APP_VERSION__}`);
     expect(dialog.querySelector(".about-dialog__release")).toHaveAccessibleName(
@@ -292,7 +339,7 @@ describe("About dialog", () => {
   it("lists the technical environment rows in a fixed order", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     const rows = [...dialog.querySelectorAll(".about-details > div")];
     // No webview row under jsdom: its user agent carries no Chromium token, and
     // an unknown engine is omitted rather than guessed.
@@ -312,7 +359,7 @@ describe("About dialog", () => {
     });
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     const rows = [...dialog.querySelectorAll(".about-details > div")];
     expect(rows.map((row) => row.querySelector("dt")?.textContent)).toEqual([
       "System",
@@ -326,7 +373,7 @@ describe("About dialog", () => {
   it("marks the platform it is running on", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     // Decoration for a value that is already spelled out beside it, so it must
     // stay out of the accessibility tree rather than announce "Windows" twice.
     const mark = dialog.querySelector(".about-details__mark");
@@ -337,7 +384,7 @@ describe("About dialog", () => {
   it("credits the stack it is built on, apart from the diagnostics", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     const tiles = [...dialog.querySelectorAll(".about-stack__item")];
     const names = tiles.map((tile) => tile.querySelector(".about-stack__name")?.textContent);
     expect(tiles.length).toBeGreaterThan(0);
@@ -356,7 +403,7 @@ describe("About dialog", () => {
   it("opens a credited project's own site in the browser, not in the webview", async () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     // Named by destination as well as by layer: the chip leaves the app, and a
     // screen reader user has to hear that before pressing it. The version sits
     // inside the chip but not in its name — it is not what the press acts on.
@@ -378,7 +425,7 @@ describe("About dialog", () => {
 
     // The rejection is swallowed on purpose: an unopened credit is not worth an
     // error dialog, and an unhandled rejection here fails the whole suite.
-    expect(screen.getByRole("dialog", { name: "Git without the bite." })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "GitOdile Git without the fear." })).toBeInTheDocument();
   });
 
   it("omits empty technical details without a platform bridge", async () => {
@@ -388,7 +435,7 @@ describe("About dialog", () => {
     });
     renderOverlaysWithoutGit();
 
-    const dialog = screen.getByRole("dialog", { name: "Git without the bite." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     expect(dialog.querySelector(".about-technical")).not.toBeInTheDocument();
   });
 

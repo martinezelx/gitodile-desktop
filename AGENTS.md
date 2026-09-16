@@ -26,7 +26,7 @@ The UI should explain what will happen and preserve a recovery path whenever rea
 
 Working name: **GitOdile**
 
-Working promise: **Git without the bite.**
+Working promise: **Git without the fear.**
 
 Alternative description: **A friendly Git desktop client.**
 

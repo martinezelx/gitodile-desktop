@@ -12,12 +12,11 @@ import {
   RotateCw,
   ShieldCheck,
   TriangleAlert,
-  X,
 } from "lucide-react";
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
+import { DialogCloseButton, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { UpdateCandidate, UpdateChannel, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -402,8 +401,8 @@ export function AppUpdateDialog({
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
-      <div ref={dialogRef} className="about-dialog app-update-dialog" role="dialog" aria-modal="true" aria-labelledby="app-update-title" aria-describedby={descriptionId} tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-        <button className="about-dialog__close" type="button" aria-label={appT.commonClose} onClick={() => setOpen(false)}><X aria-hidden="true" /></button>
+      <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={dialogRef} className="about-dialog app-update-dialog auto-hide-scrollbar" role="dialog" aria-modal="true" aria-labelledby="app-update-title" aria-describedby={descriptionId} tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
+        <DialogCloseButton label={appT.commonClose} onClick={() => setOpen(false)} />
         <div className="app-update-dialog__mark" aria-hidden="true"><CloudDownload /></div>
         <h2 id="app-update-title">{t.title}</h2>
         <InstalledLine installed={installed} language={language} />
