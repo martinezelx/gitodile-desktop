@@ -121,7 +121,6 @@ export interface AppTranslations {
   projectSwitcherCloseBlocked: (name: string) => string;
   statusBarAriaLabel: string;
   statusBarNoProject: string;
-  statusBarWorkingOn: string;
   statusBarDetached: string;
   statusBarUnbornLine: string;
   statusBarVersionLineUnavailable: string;
@@ -319,7 +318,6 @@ const en: AppTranslations = {
     `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
   statusBarAriaLabel: "Project status",
   statusBarNoProject: "No project open",
-  statusBarWorkingOn: "Working on",
   statusBarDetached: "Specific saved version",
   statusBarUnbornLine: "New version line",
   statusBarVersionLineUnavailable: "Version line unavailable",
@@ -510,7 +508,6 @@ const es: AppTranslations = {
     `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
   statusBarAriaLabel: "Estado del proyecto",
   statusBarNoProject: "Ningún proyecto abierto",
-  statusBarWorkingOn: "Trabajando en",
   statusBarDetached: "Versión guardada concreta",
   statusBarUnbornLine: "Línea de versión nueva",
   statusBarVersionLineUnavailable: "Línea de versión no disponible",

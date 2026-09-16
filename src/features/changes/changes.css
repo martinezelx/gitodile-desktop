@@ -1,51 +1,30 @@
 .workspace--changes { overflow-y: hidden; }
+/* Overview's sample of the working tree: one column of rows, each the
+   Changes screen's file row at rest — type icon, name, folder, category icon
+   at the end — so a file looks the same on both screens. */
 .changes-preview {
   grid-column: 1 / -1;
   margin-top: var(--space-2);
 }
-.changes-preview__groups {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  align-items: start;
-  gap: var(--space-4) var(--space-5);
-}
-.changes-preview__group:not(:first-child) {
-  padding-left: var(--space-4);
-  border-left: 1px solid var(--border-divider);
-}
-.changes-preview__group-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 var(--space-1);
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  font-weight: var(--weight-title);
-  letter-spacing: var(--tracking-wide);
-}
-.changes-preview__group-icon { display: inline-flex; align-items: center; }
-.changes-preview__group-icon svg { width: 13px; height: 13px; }
-.changes-preview__group--new .changes-preview__group-icon { color: var(--status-success); }
-.changes-preview__group--deleted .changes-preview__group-icon { color: var(--status-danger); }
-.changes-preview__group--renamed .changes-preview__group-icon { color: var(--status-renamed); }
-.changes-preview__group--conflicted .changes-preview__group-icon { color: var(--status-warning); }
 .changes-preview__list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
 }
+.changes-preview__list > li { min-width: 0; }
 .changes-preview__item {
   display: flex;
   width: 100%;
   min-width: 0;
   align-items: center;
   gap: var(--space-2);
-  padding: 5px var(--space-2);
+  min-height: 36px;
+  padding: 5px var(--space-3);
   border: 0;
   border-radius: var(--radius-item);
-  background: transparent;
+  background: var(--surface-control);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -61,6 +40,7 @@
 .changes-preview__icon svg { width: 14px; height: 14px; }
 .changes-preview__file-type-icon { width: 14px; height: 14px; display: block; }
 .changes-preview__name {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--text-primary-color);
@@ -68,22 +48,31 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.changes-preview__more {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: var(--space-2);
-  padding: 4px var(--space-3);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--accent-primary);
-  font: inherit;
-  font-size: var(--text-body);
-  font-weight: var(--weight-strong);
+/* Same treatment as `.changes-file-item__dir`: caption size, secondary tone,
+   truncated from the left so the nearest folder is what survives. */
+.changes-preview__dir {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
 }
-.changes-preview__more:hover { background: var(--surface-hover); }
-.changes-preview__more svg { width: 15px; height: 15px; }
+/* Same glyphs, same colours as `.changes-file-item__category-icon`. */
+.changes-preview__category {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary-color);
+}
+.changes-preview__category svg { width: 13px; height: 13px; }
+.changes-preview__item--new .changes-preview__category { color: var(--status-success); }
+.changes-preview__item--deleted .changes-preview__category { color: var(--status-danger); }
+.changes-preview__item--renamed .changes-preview__category { color: var(--status-renamed); }
+.changes-preview__item--conflicted .changes-preview__category { color: var(--status-warning); }
 .pending-versions__diff .diff-code {
   height: 100%;
   min-height: 0;

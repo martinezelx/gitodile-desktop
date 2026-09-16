@@ -45,7 +45,7 @@ import {
   useNotificationCenter,
   type AppNotification,
 } from "../features/notifications";
-import { createSaveVersionController, saveVersionPort } from "../features/save-version";
+import { createSaveVersionController, SaveVersionDialog, saveVersionPort } from "../features/save-version";
 import {
   createRepositoryController,
   createRepositoryReadCoordinator,
@@ -137,6 +137,7 @@ import {
   projectSessionsStateToStored,
   readStoredProjects,
   writeStoredProjects,
+  type ProjectMutationPhase,
   type ProjectView,
 } from "../runtime/project/sessions";
 import {
@@ -456,6 +457,18 @@ export function App(): React.JSX.Element {
      in the same gesture, and the activation has not reached this render's
      `activeSession` at that point. Everything below already addresses the
      session by id, so this only replaces where the id comes from. */
+  const closeSaveDialog = (): void => {
+    if (saveDialogSessionId) {
+      finishSessionOperation(saveDialogSessionId);
+    }
+    setSaveDialogSessionId(null);
+  };
+  const setSaveDialogPhase = (phase: ProjectMutationPhase): void => {
+    if (saveDialogSessionId) {
+      dispatchSessions({ type: "setOperationPhase", id: saveDialogSessionId, phase });
+    }
+  };
+
   const startSessionOperation = (
     kind: "save" | "publish" | "discard" | "sync",
     upTo?: string,
@@ -2271,10 +2284,7 @@ export function App(): React.JSX.Element {
                   onCopyPathError={() =>
                     showErrorDialog(t.overviewCopyPathFailedTitle, t.overviewCopyPathFailedMessage)
                   }
-                  onOpenSaveVersion={() => {
-                    startSessionOperation("save");
-                    navigateToView("changes");
-                  }}
+                  onOpenSaveVersion={() => startSessionOperation("save")}
                   teamSync={teamSync}
                   onCheckTeamChanges={() => {
                     if (!activeSession) return;
@@ -2319,23 +2329,10 @@ export function App(): React.JSX.Element {
                               selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
                             })
                           }
-                          isSaveVersionOpen={saveDialogSessionId === sessionsState.activeId}
+                          isSaveVersionOpen={saveDialogSessionId === sessionsState.activeId && view === "changes"}
                           onOpenSaveVersion={() => startSessionOperation("save")}
-                          onCloseSaveVersion={() => {
-                            if (saveDialogSessionId) {
-                              finishSessionOperation(saveDialogSessionId);
-                            }
-                            setSaveDialogSessionId(null);
-                          }}
-                          onSaveVersionPhaseChange={(phase) => {
-                            if (saveDialogSessionId) {
-                              dispatchSessions({
-                                type: "setOperationPhase",
-                                id: saveDialogSessionId,
-                                phase,
-                              });
-                            }
-                          }}
+                          onCloseSaveVersion={closeSaveDialog}
+                          onSaveVersionPhaseChange={setSaveDialogPhase}
                           onBeginDiscard={() => startSessionOperation("discard")}
                           onDiscardClose={() => finishSessionOperation(project.path)}
                           onDiscardPhaseChange={(phase) => {
@@ -2626,6 +2623,20 @@ export function App(): React.JSX.Element {
             onPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
           />
         </Suspense>
+      )}
+
+      {project && activeSession && view !== "changes" && (
+        <SaveVersionDialog
+          isOpen={saveDialogSessionId === sessionsState.activeId}
+          projectPath={project.path}
+          sessionEpoch={activeSession.epoch}
+          selectedPaths={null}
+          runHooks={runGitHooks}
+          onClose={closeSaveDialog}
+          onSaved={() => void handleMutationSucceeded(project.path)}
+          onPublishNow={() => openPublishDialog()}
+          onPhaseChange={setSaveDialogPhase}
+        />
       )}
 
       <AppOverlays

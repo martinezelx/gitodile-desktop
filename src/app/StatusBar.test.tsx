@@ -91,7 +91,7 @@ function syncStatus(state: TeamSyncState = "upToDate"): TeamSyncStatus {
 
 function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof render> {
   const props = {
-    project: { branch: "feature/a-very-long-version-line-name", headState: "branch" },
+    project: { name: "gitodile", branch: "feature/a-very-long-version-line-name", headState: "branch" },
     workingTree: dirtyTree,
     workingTreeError: null,
     isCheckingChanges: false,
@@ -139,9 +139,15 @@ describe("StatusBar", () => {
     renderBar({ onCheckTeamChanges, onSwitchVersionLine });
 
     expect(screen.getByText("feature/a-very-long-version-line-name")).toBeInTheDocument();
-    expect(screen.getByText("4 unsaved changes")).toBeInTheDocument();
-    expect(screen.getByText("Up to date")).toBeInTheDocument();
-    expect(screen.getByText(/Checked .*3 min/)).toBeInTheDocument();
+    // The working tree is the switcher's own mark: a count riding the icon,
+    // with the sentence kept for the tooltip and the screen reader.
+    const changes = screen.getByText("4 unsaved changes").closest(".status-bar__changes");
+    expect(changes).toHaveAttribute("data-tooltip", "4 unsaved changes");
+    expect(changes?.querySelector(".status-bar__changes-count")).toHaveTextContent("4");
+    // The remote fact is one word; how it is known lives in its tooltip.
+    const sync = screen.getByText("Up to date").closest(".status-bar__sync");
+    expect(sync).toHaveClass("status-bar__sync--success");
+    expect(sync).toHaveAttribute("data-tooltip", expect.stringMatching(/Checked .*3 min/));
 
     await userEvent.click(screen.getByRole("button", {
       name: "Change version line (feature/a-very-long-version-line-name)",
@@ -180,7 +186,7 @@ describe("StatusBar", () => {
     rerender(
       <LanguageProvider>
         <StatusBar
-          project={{ branch: "main", headState: "branch" }}
+          project={{ name: "gitodile", branch: "main", headState: "branch" }}
           workingTree={dirtyTree}
           workingTreeError={null}
           isCheckingChanges={false}
@@ -195,12 +201,15 @@ describe("StatusBar", () => {
         />
       </LanguageProvider>,
     );
-    expect(screen.getByText("Local snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Up to date").closest(".status-bar__sync")).toHaveAttribute(
+      "data-tooltip",
+      expect.stringContaining("Local snapshot"),
+    );
 
     rerender(
       <LanguageProvider>
         <StatusBar
-          project={{ branch: "main", headState: "branch" }}
+          project={{ name: "gitodile", branch: "main", headState: "branch" }}
           workingTree={dirtyTree}
           workingTreeError="status failed"
           isCheckingChanges={false}
@@ -215,8 +224,11 @@ describe("StatusBar", () => {
         />
       </LanguageProvider>,
     );
-    expect(screen.getByText("Changes unavailable")).toBeInTheDocument();
-    expect(screen.getByText("May be outdated")).toBeInTheDocument();
+    expect(screen.getByText("Changes unavailable").closest(".status-bar__changes")).toHaveClass("status-bar__changes--error");
+    // Doubt takes the word; the last known state moves to the tooltip.
+    const stale = screen.getByText("May be outdated").closest(".status-bar__sync");
+    expect(stale).toHaveClass("status-bar__sync--warning");
+    expect(stale).toHaveAttribute("data-tooltip", expect.stringContaining("Up to date"));
   });
 
   it("uses Spanish copy and locale-aware relative time", () => {
@@ -224,12 +236,14 @@ describe("StatusBar", () => {
     renderBar();
 
     expect(screen.getByText("4 cambios sin guardar")).toBeInTheDocument();
-    expect(screen.getByText("Al día")).toBeInTheDocument();
-    expect(screen.getByText(/Comprobado hace 3 min/)).toBeInTheDocument();
+    expect(screen.getByText("Al día").closest(".status-bar__sync")).toHaveAttribute(
+      "data-tooltip",
+      expect.stringMatching(/Comprobado hace 3 min/),
+    );
   });
 
   it("disables a remote check when the project is outside a version line", () => {
-    renderBar({ project: { branch: null, headState: "detached" } });
+    renderBar({ project: { name: "gitodile", branch: null, headState: "detached" } });
     expect(screen.getByText("Specific saved version")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Change version line/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check remote project changes" })).toBeDisabled();
@@ -244,16 +258,14 @@ describe("formatRelativeCheckTime", () => {
     expect(formatRelativeCheckTime(now - 2 * 24 * 60 * 60_000, now, "es", "ahora mismo")).toMatch(/hace 2 d/);
   });
 
-  it("states the working context in front of the line, and keeps the strip's height", () => {
+  it("states the working context — project, then line — and keeps the strip's height", () => {
     const { container } = renderBar();
 
-    const label = screen.getByText("Working on");
-    expect(label).toBeInTheDocument();
-    // The value is the fact and stays the heavier of the two; the words around
-    // it are not announced a second time, because the trigger's own name
-    // already says what pressing it does.
-    expect(label).toHaveAttribute("aria-hidden", "true");
-    expect(label).toHaveClass("version-lines-quick-switch__context-label");
+    // The two facts are the sentence: no words in front of them. The
+    // project's name comes first, so the strip still says which project this
+    // is on every other screen.
+    expect(screen.queryByText("Working on")).not.toBeInTheDocument();
+    expect(screen.getByText("gitodile").closest(".status-bar__project")).not.toBeNull();
     expect(
       screen.getByRole("button", { name: "Change version line (feature/a-very-long-version-line-name)" }),
     ).toBeInTheDocument();

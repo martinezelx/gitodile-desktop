@@ -96,7 +96,7 @@ export function HistorySummarySection({
         </div>
       ) : (
         <ol className="overview-history__list" aria-label={t.overviewHistoryListLabel}>
-          {versions.map((version) => {
+          {versions.map((version, index) => {
             const title = versionTitle(version, t.overviewHistoryUntitled);
             const author = version.author?.name.trim() || t.overviewHistoryUnknownAuthor;
             const date = formatHistoryDate(version.authoredAt, formats);
@@ -105,7 +105,7 @@ export function HistorySummarySection({
             const decoration = primaryDecoration(version, currentBranch);
             const label = t.overviewHistoryOpenVersion(title);
             return (
-              <li key={version.commit}>
+              <li key={version.commit} className="overview-row-in" style={{ "--row-index": index } as React.CSSProperties}>
                 <button
                   className="overview-history__row"
                   type="button"

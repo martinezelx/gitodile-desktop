@@ -132,14 +132,24 @@ The main desktop window should broadly support:
 
 3. **Status bar** — a 34px strip along the bottom of the content column,
    spanning from the rail's edge to the window's, on every screen including
-   Overview. It reports what is true of the project right now: branch, unsaved
-   work, sync state and when that was last learned, and the app version. The
-   branch is also the app's one global version-line control — it states the
-   working context ("Working on", at the secondary tier, with the line's name
-   carrying the weight) and its dropdown switches, creates and hands off to the
-   Lines screen. No screen adds a second selector to its own header: two
-   controls answering one question in one window is how a reader stops trusting
-   either.
+   Overview. It reports what is true of the project right now: which project,
+   its branch, unsaved work, sync state, and the app version. It says each in
+   the fewest marks that stay true at a glance. The project's name and the
+   line's name are the sentence, with no words in front of them; the name is
+   what keeps the strip saying something once the reader has left Overview,
+   and both truncate rather than wrap. Unsaved work is the project switcher's
+   own mark — the changes icon with the count riding its corner — with the
+   sentence ("28 unsaved changes") in the tooltip and for the screen reader;
+   Overview's band is where the number is read in full. The remote fact is one
+   word in one tone — the cloud green when all is well, amber when the reader
+   should doubt or act — and *how* it is known (a saved snapshot, when it was
+   checked) is the tooltip, not a second item; when a result is stale or a
+   check failed, the doubt takes the word and the last known state moves to
+   the tooltip, so the strip never reads as current when it is not. The
+   branch is also the app's one global version-line control: its dropdown
+   switches, creates and hands off to the Lines screen. No screen adds a
+   second selector to its own header: two controls answering one question in
+   one window is how a reader stops trusting either.
    - it is chrome, not content: no fill, no radius, no shadow. Shadow signals
      stacking order, and this strip is the floor of the window rather than
      something resting on it; at 30px tall it could not carry the 14–18px card
@@ -171,8 +181,10 @@ The main desktop window should broadly support:
      and History, do not use the global fade. Their panel edge is already the
      scroll boundary; fading it makes the surface appear not to end. They keep
      only a compact 8px gap above the status bar;
-   - the release metadata is grouped at the far right: the version is shown as
-     `v0.2.0-preview.1`; preview builds add a compact textual `preview` badge with
+   - the release metadata is grouped at the far right, a step further from
+     the project facts than they are from each other and a size smaller: it
+     is the one thing on the strip that is not about the project. The
+     version is shown as `v0.2.0-preview.1`; preview builds add a compact textual `preview` badge with
      warning tint, while stable builds omit the default-channel badge. Color only
      reinforces the visible word. The two channel names are `stable` and `preview`, kept the same in both locales.
      Together they form one quiet button that opens the Changelog — the version the reader
@@ -289,6 +301,63 @@ The main desktop window should broadly support:
    - clear empty states;
    - contextual primary action;
    - secondary technical details on demand.
+
+   **Settled direction for a project's home: the Journey page.** It is what
+   Overview is built as, and the pattern any other screen that summarises
+   state for a person should reach for before inventing its own. It was
+   chosen after mocking up three directions against the same data and then
+   fusing two of them:
+
+   - *Dashboard* (Vercel's project overview, Supabase's home, Stripe's
+     "Today"): a page header, a row of equal stat tiles where each tile is
+     also the action, then two equal columns of what changes. Best density
+     and the least empty space, but a row of numbers says "how is it" and
+     never "what now".
+   - *Property rail* (Linear's or Asana's project page): a main column beside
+     a narrow list of properties. Dense and calm, but it is the shape of a
+     tool for people who already know what the properties mean — the
+     "manager" look the brand steers away from.
+   - *Next step* (Headspace's or Fitness's home, Duolingo's path): one
+     question — what do I do now — answered by a stepper with the current
+     step lit and one action. The most GitOdile of the three, since change →
+     save → publish is the model the product exists to teach; alone, it
+     under-serves the reader who already knows Git and wants the numbers.
+
+   The Journey page is the first and the third fused: the dashboard's header
+   and columns, with the stat row replaced by the stepper. Its parts, top to
+   bottom:
+
+   - **A page header, not a card** (Linear, Vercel): glyph tile, name, path,
+     the one selector that belongs to the whole project, its settings. It is
+     the only thing on the page that does not change while you work, so it
+     sits on the workspace itself; the accent is spent once here, on the
+     project's own tile.
+   - **The band**: one card holding the steps of the model as equal tiles
+     joined by connectors that turn solid as each step is reached. Every tile
+     is a fact (label, value, one line) and a button in its entirety, leading
+     to the screen that owns it. The tile whose action is the one thing to do
+     now is *current*: ringed in the accent, its value the verb, its hint the
+     reason, its glyph circle filled solid and wearing the attention
+     animation. There is no separate primary button — a button inside one
+     tile is a thing its neighbours would never match, and one under the band
+     said the tile twice. One sentence under the band says what the current
+     step means, with a quiet link only where there is somewhere to go and
+     nothing to press. Every state the page can be in is a state of one of
+     the tiles, so the band never needs a second card to explain itself.
+   - **Two equal columns** of the lists the band's facts are about, in the
+     same card shape with the same header shape (neutral glyph tile, title,
+     one line, the trailing action in the same corner and the same words).
+   - Anything that only sometimes exists (a list of versions waiting to be
+     published) appears under the columns only while it exists; an empty
+     card would be the band's tile said twice.
+
+   Three rules hold it together: one accent-filled thing per page (the
+   current step's glyph, or nothing when nothing is waiting), one vocabulary
+   of glyph tiles (a filled circle — neutral for a fact, light for done, solid
+   for do this — and never a ring), and nothing counted twice (a number is
+   said on its tile and nowhere else). A screen that adopts the pattern keeps
+   the same three rows and swaps the steps for its own model; it does not
+   keep the band and add a fourth row of cards.
 
 5. **Optional inspector**
    - metadata;
@@ -938,7 +1007,18 @@ Rules:
   default. When enabled it removes GitOdile's transitions and animations while
   keeping every state change immediately visible; the operating-system
   preference is respected independently and never needs this switch to be on;
-- never delay an operation solely to show an animation.
+- never delay an operation solely to show an animation;
+- **one animation asks for attention, everywhere it is asked for:**
+  `.attention-breathe` (primitives.css, tuned by `--attention-duration`,
+  `--attention-spread` and `--attention-color` in tokens.css). A halo leaves
+  the element, fades to nothing by its full reach and is reborn at the edge —
+  it is only ever seen going out, never coming back in; nothing inside the
+  element moves and no layout shifts, so the same class fits a 40px tile and
+  an 18px badge. It was chosen over a scale pulse (moves the text around it),
+  sonar rings and a heartbeat (insistent), a glow (neon in dark mode) and a
+  sheen or orbit (need room the small cases do not have). Overview's active
+  step wears it today; a badge for something new or an update that is ready
+  would wear the same one. A surface re-points its colour, never its shape.
 
 ## Transparency and native effects
 
@@ -1028,7 +1108,9 @@ two, and as capsules their labels wrapped to three lines *inside* the pill,
 because a capsule is a single-line control by definition (§ Shape). It keeps
 the block, the headline and the one supporting line, and replaces only the
 action row with a launcher: one card per action (`--radius-surface`), each a
-circular glyph tile with its label and a one-line hint underneath, reusing the
+filled glyph circle — the same 40px tile Overview heads its cards with, no ring,
+lit in the light accent only under the pointer — with its label and a one-line
+hint underneath, reusing the
 add-project menu's own icons so both routes to the same three flows look
 related. The pattern's own glyph tile goes away there rather than becoming a
 fourth circle above three, and **the three read as peers**: same tile, same
@@ -1053,6 +1135,11 @@ sharing a folder name are still told apart. Its "remove from recents" control
 follows the switcher's Close: faded until the row is pointed at, because it is
 destructive and rarely wanted, and always solid where there is no pointer.
 
+Once there is a favourite, the list's heading carries the quick switch's own
+favourites filter — a bare star that fills when pressed, listing favourites
+only. It is a view rather than a setting, and it is absent until there is a
+favourite to filter by, because before that it could only empty the list.
+
 The row's star is the **same favourite the rail and the switcher show**, from
 the same store and with the same strings — one mark on one project, not a
 list-local flag, so starring it here stars it everywhere. Favourites sort to
@@ -1061,6 +1148,47 @@ cares about reachable on the front door after it has aged out of the newest
 few. Like the switcher's star it is rendered at rest rather than on hover: a
 marked favourite has to be readable without pointing at it, and a hover-only
 control cannot be reached by keyboard at all.
+
+**With a project open, Overview is the Journey page** (§ Layout concept,
+Primary workspace): it answers one question — where is my work on the way
+from an edited file to a published version — and then shows the two lists
+that question is about. It is a page, not a stack of cards. The
+header sits on the workspace like a Linear or Vercel project page: glyph,
+name, path, the line selector and its settings, the one accent tile on the
+screen because this is the project. Under it, one card holds the band: three
+tiles — Changes, Save, Publish — joined by connectors that turn solid as each
+step is reached. The band is the app's model of Git drawn once rather than
+explained. All three tiles are buttons in their entirety that lead to the
+screen owning them (Changes, History, the remote check, project settings when
+there is no remote); the tile whose action is the one thing to do now is
+ringed in the accent and *is* the action: its value is the verb ("Save
+version"), its hint the reason ("Keep what you have safe"), and its own glyph
+circle is filled solid in the accent — the primary button's colour — and
+breathes: a slow, soft halo, the one moving thing on the screen, marking the
+one thing to do. The three fills a glyph circle can take are the band's whole
+hierarchy: neutral is a fact, light is done, solid is do this. There is no
+separate primary button: a button inside one tile is a thing its neighbours
+would never match, and a button under the band said the tile twice. Every
+state the old status cards described in prose is a state of one of the three
+tiles instead — loading, failed, conflicts (which take the first tile, in
+warning, and block the second), unsaved, saved, versions ready to publish,
+newer versions available, diverged, no remote — and one sentence under the
+band says what the active tile means, with the one remote refresh at its end.
+It is a stepper in the shape of Headspace's or Fitness's home, not a wizard:
+nothing is gated, and a reader who already knows Git reads it as a status row.
+The last row pairs Changed files (one column of rows in the Changes screen's
+own shape, sampled one category at a time so "7 edited, 1 new" shows the new
+one, with the same "View all" in the same corner handing off) with Recent
+history, at one height. The two cards share one header shape — a neutral
+40px glyph tile, a title, one line, the trailing action — and every glyph tile
+on the screen is that same filled circle, no rings and no borders; the band's
+connectors draw themselves when a step is reached, a one-beat transition and
+never a loop. The
+saved-but-unpublished list appears under them only while there is one. Nothing
+counts anything twice: the band's Publish tile is the one place "N ready to
+publish" is said, and there is no green number beside the line name. Every
+glyph tile on the screen is a circle, per Shape, including the ones a mockup
+would draw as rounded squares.
 
 **Dropping a folder on the window** opens it. While a drag is over the window
 — and only then — a window-sized overlay names what a drop will do. It is

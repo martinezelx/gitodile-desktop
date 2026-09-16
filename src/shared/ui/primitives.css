@@ -252,6 +252,27 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---- Attention ----
+   The one animation that asks for the reader's eye, wherever it is asked
+   for: the next step on Overview today, and any future "this, now" — a badge,
+   an update that is ready. A halo spreads out from the element and fades to
+   nothing by the time it reaches its full reach; then it is invisible while it
+   resets, so the wave is only ever seen leaving. Nothing inside the element
+   moves and no layout changes, which is what lets the same class sit on a 40px
+   tile and an 18px badge. Duration, reach and colour come from tokens so a
+   surface tunes it without writing a second keyframe; the element must be
+   rounded already — the halo takes its shape. Both reduced-motion paths switch
+   it off: the system one here, the app one in base.css. */
+@keyframes attention-breathe {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--attention-color) 45%, transparent); }
+  70% { box-shadow: 0 0 0 var(--attention-spread) color-mix(in srgb, var(--attention-color) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--attention-color) 0%, transparent); }
+}
+.attention-breathe { animation: attention-breathe var(--attention-duration) ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .attention-breathe { animation: none; }
+}
+
 .segmented-control {
   display: inline-flex; padding: 4px; gap: 4px;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-hover);

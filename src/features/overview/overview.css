@@ -2,107 +2,150 @@
   width: 100%;
   display: grid;
   align-content: start;
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
-.project-summary-card {
+
+/* ---- Page header ----
+   Not a card. The name, the path, the line and its settings are the one
+   thing on the screen that does not change while you work, so they sit on
+   the workspace itself, the way Linear or Vercel head a project page; the
+   cards below are for what does change. Identity on the left takes what it
+   needs; the controls on the right take the rest and drop under it when the
+   row is too narrow for both. */
+.overview-header {
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-5);
-  padding: var(--space-5);
-  border-radius: var(--radius-surface);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
+  gap: var(--space-3) var(--space-5);
+  padding: 0 var(--space-2);
 }
-.project-summary-card__identity { flex: 1 1 320px; min-width: 0; }
-.project-summary-card__identity h1 {
-  overflow-wrap: anywhere;
-  margin-bottom: var(--space-2);
+.overview-header__identity {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* The one accent tile on the screen: this is the project, said once. The
+   band's tiles take the tone of their own state instead. */
+.overview-header__glyph {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-active);
+  color: var(--accent-primary);
+}
+.overview-header__glyph svg { width: 21px; height: 21px; }
+.overview-header__copy { min-width: 0; flex: 1; }
+/* Truncated, never wrapped: the header is one row, and the whole name is
+   one hover away. */
+.overview-header__copy h1 {
+  overflow: hidden;
+  margin-bottom: 2px;
+  /* The hero size is the name size in DESIGN.md — the app's, the project's —
+     and it keeps the name a step above the band's count, which is the
+     screen-title size. */
   font-size: var(--text-hero);
   letter-spacing: var(--tracking-hero);
   line-height: var(--leading-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.project-summary-card__identity .project-path { margin-bottom: 0; }
-.project-summary-card__identity .project-path__copy {
-  width: 32px;
-  height: 32px;
+.overview-header__copy .project-path { margin-bottom: 0; }
+.overview-header__copy .project-path__value { color: var(--text-secondary-color); font-size: var(--text-label); }
+.overview-header__copy .project-path__copy {
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-item);
+  background: transparent;
+  border-color: transparent;
   opacity: 0;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
-.project-summary-card__identity .project-path:hover .project-path__copy,
-.project-summary-card__identity .project-path:focus-within .project-path__copy,
-.project-summary-card__identity .project-path__copy:focus-visible { opacity: 1; }
-.project-summary-card__identity .project-path__copy svg { width: 14px; height: 14px; }
-.project-summary-card__actions {
+.overview-header__copy .project-path:hover .project-path__copy,
+.overview-header__copy .project-path:focus-within .project-path__copy,
+.overview-header__copy .project-path__copy:focus-visible { opacity: 1; }
+.overview-header__copy .project-path__copy svg { width: 13px; height: 13px; }
+.overview-header__actions {
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: stretch;
-  justify-content: flex-end;
   gap: var(--space-2);
 }
-.project-summary-card .version-lines-quick-switch {
+/* The selector truncates its value from the middle rather than wrapping, so
+   a long line name costs the header no height and pushes neither round
+   control off the row. The full name is the trigger's own title. */
+.overview-header .version-lines-quick-switch {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   align-items: stretch;
   gap: var(--space-2);
-  max-width: min(100%, 400px);
 }
-.project-summary-card .version-line-selector { flex: 1 1 auto; }
-.project-summary-card .version-line-selector,
-.project-summary-card .version-lines-quick-switch__create {
+.overview-header .version-line-selector {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 280px;
   height: var(--control-height-md);
   min-height: var(--control-height-md);
+  padding-block: 0;
+  justify-content: flex-start;
   border-color: var(--border-control);
   background: var(--surface-control);
 }
-.project-summary-card .version-line-selector {
-  padding-block: 0;
-}
-.project-summary-card .version-line-selector__icon { color: var(--accent-primary); }
-.project-summary-card .version-lines-quick-switch__create {
-  width: var(--control-height-md);
-  min-width: var(--control-height-md);
-  padding: 0;
-  border-radius: var(--radius-round);
-  color: var(--text-secondary-color);
-}
-.project-summary-card .version-lines-quick-switch__create:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--text-primary-color);
-}
-.project-summary-card .version-lines-quick-switch__create:active:not(:disabled) { background: var(--surface-active); }
-.project-summary-card .version-line-selector:hover { background: var(--surface-hover); }
-.project-summary-card .version-line-selector[aria-expanded="true"] {
+.overview-header .version-line-selector:hover { background: var(--surface-hover); }
+.overview-header .version-line-selector[aria-expanded="true"] {
   border-color: var(--accent-primary);
   background: var(--surface-active);
 }
+.overview-header .version-line-selector__icon { color: var(--accent-primary); }
+.overview-header .version-line-selector__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
 /* The same round control as "create a version line" beside it, because it
    is the same kind of thing: one glyph, one action on this project. */
-.project-summary-card__settings {
-  flex-shrink: 0; align-self: center;
-  width: var(--control-height-md); height: var(--control-height-md); display: grid; place-items: center;
-  border: 1px solid var(--border-control); border-radius: var(--radius-round);
-  background: var(--surface-control); color: var(--text-secondary-color);
+.overview-header .version-lines-quick-switch__create,
+.overview-header__settings {
+  flex-shrink: 0;
+  align-self: center;
+  width: var(--control-height-md);
+  min-width: var(--control-height-md);
+  height: var(--control-height-md);
+  min-height: var(--control-height-md);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-round);
+  background: var(--surface-control);
+  color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.project-summary-card__settings svg { width: 17px; height: 17px; }
-.project-summary-card__settings:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-summary-card__settings:active { background: var(--surface-active); }
+.overview-header__settings svg { width: 17px; height: 17px; }
+.overview-header .version-lines-quick-switch__create:hover:not(:disabled),
+.overview-header__settings:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.overview-header .version-lines-quick-switch__create:active:not(:disabled),
+.overview-header__settings:active { background: var(--surface-active); }
 
 .overview-meta {
-  flex: 0 1 auto;
-  max-width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-.overview-meta__branch {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+  flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .overview-meta__branch-icon {
   width: 14px;
@@ -112,98 +155,331 @@
   vertical-align: -2px;
 }
 .overview-meta__branch-note { max-width: 40ch; color: var(--text-secondary-color); font-size: var(--text-body); }
-.overview-meta__stat {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary-color);
-  font: inherit;
-  font-size: var(--text-body);
-  white-space: nowrap;
-}
-.overview-meta__stat--accent { color: var(--accent-primary); font-weight: var(--weight-title); }
-.project-hero {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5);
+
+/* ---- The band: change, save, publish ----
+   One card holding three tiles and the connectors between them. The tiles
+   are the same 10px rows-in-a-container tier as a menu row, on the control
+   surface so they read as parts of one thing; the active one alone takes the
+   accent, as a 2px ring rather than a fill, so the primary button inside it
+   is still the only green fill on the screen. */
+.journey {
+  min-width: 0;
+  padding: var(--space-3);
   border-radius: var(--radius-surface);
   background: var(--surface-raised);
   box-shadow: var(--shadow-md);
 }
-.project-hero__icon {
-  /* Unsaved changes is the primary Overview status, so it intentionally uses
-     a larger icon than the two supporting cards below. */
-  align-self: start;
-  width: 52px;
-  height: 52px;
+.journey__steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1.25fr) 24px minmax(0, 1fr);
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.journey__steps > li { min-width: 0; display: grid; }
+.journey-connector {
+  position: relative;
+  align-self: center;
+  width: 100%;
+  height: 0;
+  border-top: 2px dashed var(--border-control);
+}
+/* Drawn, not switched: when a step is reached the solid line grows out of
+   it towards the next step, over one short beat. It is a transition on a
+   state that changes a few times an hour, never a loop — and it does not
+   run on first paint, because the initial state has nothing to arrive from. */
+.journey-connector::after {
+  content: "";
+  position: absolute;
+  inset: -2px 0 auto 0;
+  border-top: 2px solid var(--status-success);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 320ms ease-out;
+}
+.journey-connector--done::after { transform: scaleX(1); }
+.journey-step {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--surface-control);
+  color: var(--text-primary-color);
+  font: inherit;
+  text-align: left;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+button.journey-step:hover { background: var(--surface-hover); }
+button.journey-step:active { background: var(--surface-active); }
+button.journey-step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.journey-step--active { border-color: var(--accent-primary); background: var(--surface-raised); }
+/* The step that needs attention and carries the action is ringed the same way,
+   in its own colour. */
+.journey-step--attention[aria-current] { border-color: var(--status-warning); background: var(--surface-raised); }
+/* The one glyph-tile recipe this screen uses, at the one size the cards
+   use: a 40px circle, a 19px glyph, the tone in the fill and the glyph, and
+   no border — the same tile Changed files and Recent history head their
+   cards with, and the project's own tile in the page header is the same
+   thing at 44px with the accent. */
+.journey-step__icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
   background: var(--surface-hover);
   color: var(--text-secondary-color);
 }
-.project-hero__icon svg { width: 24px; height: 24px; }
-.project-hero--success .project-hero__icon { background: var(--surface-active); color: var(--status-success); }
-.project-hero--error .project-hero__icon { color: var(--status-danger); }
-.project-hero--error {
-  outline: 1px solid var(--status-danger);
-  outline-offset: -1px;
-}
-.project-hero--neutral .project-hero__icon { color: var(--text-primary-color); }
-.project-hero--attention .project-hero__icon { color: var(--status-warning); }
-.project-hero--attention {
-  outline: 1px solid var(--status-warning);
-  outline-offset: -1px;
-}
-
-.project-hero__content .project-hero__note {
-  margin-top: var(--space-2);
-  color: var(--status-warning);
-  font-size: var(--text-body);
-}
-.project-hero__action svg { width: 16px; height: 16px; }
-.project-hero__content { min-width: 0; }
-.project-hero__content h2 {
-  margin-bottom: var(--space-1);
-  font-size: var(--text-title);
-  letter-spacing: var(--tracking-tight);
-}
-.project-hero__content > p {
-  max-width: 68ch;
-  margin-bottom: 0;
+.journey-step__icon svg { width: 19px; height: 19px; }
+.journey-step--done .journey-step__icon { background: var(--surface-active); color: var(--status-success); }
+.journey-step--attention .journey-step__icon { background: color-mix(in srgb, var(--status-warning) 14%, transparent); color: var(--status-warning); }
+.journey-step--danger .journey-step__icon { background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); }
+.journey-step--muted { color: var(--text-secondary-color); }
+.journey-step__copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.journey-step__label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   color: var(--text-secondary-color);
-  font-size: var(--text-body);
-  line-height: var(--leading-normal);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
 }
-.project-hero--error .project-hero__content > p { color: var(--text-primary-color); }
-.project-hero__actions {
-  /* Same reasoning as `.project-hero__icon`'s own `align-self: start`: the
-     grid's default `align-items: center` was centering this column against
-     the row's tallest cell instead of pinning it to the card's top-right
-     corner. */
-  align-self: start;
-  display: flex;
-  align-items: flex-end;
-}
-.project-hero__buttons {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-/* Size, type and the icon-plus-label layout now come from the shared button
-   primitive — this pair was where the house size was decided, and it moved
-   there rather than staying a local correction. Only the no-wrap is the hero's
-   own: these two sit in a card header that gets narrow before it gets short. */
-.project-hero__action {
+.journey-step__label-note { color: var(--accent-primary); font-weight: var(--weight-strong); }
+.journey-step--attention .journey-step__label-note { color: var(--status-warning); }
+.journey-step__go { width: 13px; height: 13px; margin-left: auto; color: var(--text-secondary-color); opacity: 0; transition: opacity var(--duration-fast); }
+button.journey-step:hover .journey-step__go,
+button.journey-step:focus-visible .journey-step__go { opacity: 1; }
+.journey-step__value {
+  overflow: hidden;
+  font-size: var(--text-lead);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-snug);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.project-hero__action.secondary-button { border-color: var(--border-control); background: var(--surface-control); }
-.project-hero__action.secondary-button:hover:not(:disabled) { background: var(--surface-hover); }
-.project-hero__action.secondary-button:active:not(:disabled) { background: var(--surface-active); }
+.journey-step--done .journey-step__value { color: var(--status-success); }
+.journey-step--attention .journey-step__value { color: var(--status-warning); }
+.journey-step--danger .journey-step__value { color: var(--status-danger); }
+.journey-step__hint {
+  overflow: hidden;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.journey-step__mono { font-family: var(--font-mono); }
+/* "✎ 14 edited · + 7 new · − 2 deleted": the Changes rows' own category
+   glyphs, in the rows' own colours, so the breakdown and the list below are
+   read with one vocabulary. Wraps rather than truncates — three short chips
+   on two lines beat one line cut at "1 dele…". */
+.journey-step__breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-2);
+  white-space: normal;
+}
+.journey-step__kind { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.journey-step__kind svg { width: 13px; height: 13px; flex-shrink: 0; }
+.journey-step__kind--new svg { color: var(--status-success); }
+.journey-step__kind--deleted svg { color: var(--status-danger); }
+.journey-step__kind--renamed svg { color: var(--status-renamed); }
+.journey-step__kind--conflicted svg { color: var(--status-warning); }
+.journey-step__hint:has(.journey-step__breakdown) { overflow: visible; white-space: normal; }
+/* The active tile's own glyph is the mark: the same circle as its
+   neighbours, filled solid in the accent — the primary button's colour, since
+   this tile *is* the primary action — wearing the app's attention animation
+   (`.attention-breathe`, primitives.css). Under the pointer the circle rises
+   a step and the breath pauses. The three fills are the whole hierarchy:
+   neutral = a fact, light = done, solid = do this. The warning tile keeps the
+   same breath and only re-points its colour. */
+.journey-step--active .journey-step__icon,
+.journey-step--attention[aria-current] .journey-step__icon {
+  transition: transform var(--duration-fast);
+}
+.journey-step--active .journey-step__icon {
+  background: var(--accent-brand);
+  color: var(--accent-brand-contrast);
+}
+.journey-step--attention[aria-current] .journey-step__icon {
+  --attention-color: var(--status-warning);
+  background: var(--status-warning);
+  color: var(--accent-primary-contrast);
+}
+button.journey-step--active:hover .journey-step__icon,
+button.journey-step--active:focus-visible .journey-step__icon,
+button.journey-step--attention[aria-current]:hover .journey-step__icon,
+button.journey-step--attention[aria-current]:focus-visible .journey-step__icon {
+  transform: scale(1.08);
+  animation-play-state: paused;
+}
+/* Pointing at the active tile tints it: the ring already says "this one",
+   the tint says "and it does something". */
+button.journey-step--active:hover { background: var(--surface-active); }
+button.journey-step--attention[aria-current]:hover { background: color-mix(in srgb, var(--status-warning) 10%, var(--surface-raised)); }
+/* Two short lines rather than one cut one: when it was checked, then the
+   remote line it was checked against. The tile has the height to spare. */
+.journey-step__remote { display: grid; min-width: 0; }
+.journey-step__remote > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* One sentence under the band, and the one remote refresh on the screen at
+   its end: the cloud check belongs to the band's Publish fact, and the strip
+   below already holds its twin. */
+.journey__note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0 var(--space-1);
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
+}
+.journey__note > svg { flex-shrink: 0; width: 14px; height: 14px; }
+.journey__note > span { flex: 1 1 240px; min-width: 0; }
+.journey__note-action,
+.journey__refresh {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+  white-space: nowrap;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.journey__note-action svg { width: 14px; height: 14px; }
+.journey__note-action:hover { background: var(--surface-hover); }
+.journey__refresh {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+  border-radius: var(--radius-round);
+  color: var(--text-secondary-color);
+}
+.journey__refresh svg { width: 14px; height: 14px; }
+.journey__refresh:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.journey__refresh:active:not(:disabled) { background: var(--surface-active); }
+.journey__refresh:disabled { opacity: 0.6; }
+.journey__note-action:focus-visible,
+.journey__refresh:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* ---- Changed files ----
+   The left column: the "which files" behind the band's count, in the
+   Changes screen's own row shape. Same header shape as Recent history beside
+   it, so the two read as a pair. */
+.changed-files {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-5);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+.changed-files__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.changed-files__heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.changed-files__heading > div { min-width: 0; }
+/* The same tile Recent history wears beside it, in the neutral tone: the
+   count is the fact here, and it is already said in the band. */
+.changed-files__icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+}
+.changed-files__icon svg { width: 19px; height: 19px; }
+.changed-files__header h2 {
+  margin: 0 0 2px;
+  font-size: var(--text-subtitle);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+.changed-files__header p {
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
+}
+.changed-files__state {
+  flex: 1;
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--text-secondary-color);
+  font-size: var(--text-body);
+}
+.changed-files__state > svg { width: 20px; height: 20px; flex-shrink: 0; }
+.changed-files__state-icon--done { color: var(--status-success); }
+.changed-files__state--error > svg { color: var(--status-danger); }
+.changed-files__state strong { display: block; margin-bottom: 3px; color: var(--text-primary-color); }
+.changed-files__state p { margin: 0; line-height: var(--leading-normal); }
+.changed-files__state .secondary-button { margin-top: var(--space-2); }
+.changed-files__stale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--space-2);
+  color: var(--status-warning);
+  font-size: var(--text-caption);
+}
+.changed-files__stale svg { width: 13px; height: 13px; }
+.changed-files .changes-preview__item { background: transparent; padding-inline: var(--space-2); }
+.changed-files .changes-preview__item:hover { background: var(--surface-hover); }
+
+/* Rows arrive one after another, 40ms apart, the first time a list is
+   drawn for a project: opening a project reads as the screen filling in
+   rather than snapping on. Keyed rows do not re-run it on refresh, and a
+   screen kept alive in the background does not re-run it on return. */
+@keyframes overview-row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.overview-row-in {
+  animation: overview-row-in 220ms ease-out backwards;
+  animation-delay: calc(var(--row-index, 0) * 40ms);
+}
+
+/* The saved-but-unpublished list, only while there is one. */
+.pending-versions-card {
+  min-width: 0;
+  padding: var(--space-5);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+
 .pending-versions {
   grid-column: 1 / -1;
   display: grid;
@@ -222,12 +498,6 @@
   place-items: center;
   border-radius: var(--radius-round);
   background: var(--surface-hover);
-  /* `.project-hero__icon` shows this same muted `--text-secondary-color` only in
-     its success/error/attention states; the "unsaved changes" state actually
-     shown alongside this section uses `--text-primary-color` instead (see
-     `.project-hero--neutral .project-hero__icon`), which is why it read
-     brighter. This section has no states to switch between, so it just
-     takes that brighter color outright rather than the muted default. */
   color: var(--text-primary-color);
 }
 .pending-versions__icon svg { width: 24px; height: 24px; }
@@ -527,8 +797,8 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: var(--surface-active);
-  color: var(--accent-primary);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
 }
 .overview-history__icon svg { width: 19px; height: 19px; }
 .overview-history__heading h2 {
@@ -543,6 +813,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   font-size: var(--text-label);
   line-height: var(--leading-normal);
 }
+.changed-files__all,
 .overview-history__all {
   flex-shrink: 0;
   display: inline-flex;
@@ -559,7 +830,9 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   font-weight: var(--weight-heading);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
+.changed-files__all:hover,
 .overview-history__all:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.changed-files__all svg,
 .overview-history__all svg { width: 15px; height: 15px; }
 .overview-history__list {
   display: grid;
@@ -617,8 +890,15 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   box-shadow: 0 0 0 3px var(--surface-raised);
   transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, transform var(--duration-fast) ease-out;
 }
+/* Under the pointer the node takes the History screen's *selected* look —
+   filled, with the soft halo — because this list has no selection of its
+   own, and "this is the one you are about to open" is the same fact. */
 .overview-history__row:hover .overview-history__node,
-.overview-history__row:focus-visible .overview-history__node { border-color: var(--accent-primary); }
+.overview-history__row:focus-visible .overview-history__node {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--surface-raised), 0 0 0 5px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
 .overview-history__row:active .overview-history__node { transform: scale(.94); }
 .overview-history__body {
   min-width: 0;
@@ -677,18 +957,15 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   color: var(--status-warning);
   font-size: var(--text-caption);
 }
-.overview-support-grid {
+.overview-columns {
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 
-.project-path__value,
-.project-overview__nested span {
-  font-family: var(--font-mono);
-}
+.project-path__value { font-family: var(--font-mono); }
 .project-path {
   display: flex;
   align-items: center;
@@ -720,21 +997,6 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 }
 .project-path__copy:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-path__copy svg { width: 15px; height: 15px; }
-.project-overview__nested {
-  margin-top: var(--space-2);
-  margin-bottom: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  line-height: var(--leading-normal);
-}
-.project-overview__nested span {
-  display: block;
-  margin-top: var(--space-1);
-  overflow: hidden;
-  color: var(--text-primary-color);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* ---- Welcome screen (Overview with no project open) ----
    The shared `.empty-state` block still supplies the centred column, but this
@@ -759,46 +1021,50 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: var(--space-3);
 }
+/* The same card the open project's Overview is made of — raised, shadowed,
+   no border — so the front door and the room behind it are one house. */
 .welcome-action {
   display: grid;
   justify-items: center;
   align-content: start;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-3);
-  border: 1px solid var(--border-subtle);
+  border: 0;
   border-radius: var(--radius-surface);
   background: var(--surface-raised);
   box-shadow: var(--shadow-sm);
   color: var(--text-primary-color);
   text-align: center;
-  transition: border-color var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
 }
 .welcome-action:hover:not(:disabled) {
-  border-color: var(--border-control);
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 .welcome-action:active:not(:disabled) { box-shadow: var(--shadow-sm); transform: translateY(0); }
 .welcome-action:disabled { opacity: 0.5; }
+/* Overview's glyph tile — a 40px filled circle, no ring — and under the
+   pointer the light accent fill the band gives a step that is reached: the
+   card is about to do something. Still no accent at rest: the three are
+   peers, and none is recommended. */
 .welcome-action__icon {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--border-control);
   border-radius: var(--radius-round);
-  background: var(--surface-control);
+  background: var(--surface-hover);
   color: var(--text-secondary-color);
-  transition: color var(--duration-fast);
+  transition: background var(--duration-fast), color var(--duration-fast);
 }
-.welcome-action__icon svg { width: 20px; height: 20px; }
-.welcome-action:hover:not(:disabled) .welcome-action__icon { color: var(--text-primary-color); }
+.welcome-action__icon svg { width: 19px; height: 19px; }
+.welcome-action:hover:not(:disabled) .welcome-action__icon { background: var(--surface-active); color: var(--accent-primary); }
 .welcome-action__icon--loading svg { animation: spin 900ms linear infinite; }
 /* Three short strings in three narrow columns: greedy wrapping leaves a single
    word alone on the last line of most of them ("…proyecto / remoto"), which
    reads as a mistake next to a card whose label happens to fit. Balanced lines
    are ignored by anything that does not support them. */
-.welcome-action__label { font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug); text-wrap: balance; }
+.welcome-action__label { font-size: var(--text-lead); font-weight: var(--weight-strong); line-height: var(--leading-snug); text-wrap: balance; }
 .welcome-action__hint { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-wrap: balance; }
 
 /* Quieter than the card hints it sits under: it describes an alternative
@@ -825,12 +1091,40 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   border-top: 1px solid var(--border-divider);
   text-align: left;
 }
-.welcome-recents__title {
+.welcome-recents__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   margin-bottom: var(--space-2);
+}
+.welcome-recents__title {
+  margin: 0;
   color: var(--text-secondary-color);
   font-size: var(--text-label);
   font-weight: var(--weight-strong);
 }
+/* The quick switch's own favourites filter, at the row's scale: a bare star
+   that fills with the accent when it is on — the same mark the rows' stars
+   make, so "only these" and "this one" read as one idea. */
+.welcome-recents__filter {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.welcome-recents__filter svg { width: 14px; height: 14px; }
+.welcome-recents__filter:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.welcome-recents__filter--on { color: var(--accent-primary); }
+.welcome-recents__filter--on svg { fill: currentColor; }
+.welcome-recents__filter:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .welcome-recents__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .welcome-recents__item { display: flex; align-items: center; gap: var(--space-1); }
 .welcome-recents__open {
@@ -935,7 +1229,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
     row-gap: 2px;
     text-align: left;
   }
-  .welcome-action__icon { grid-row: 1 / span 2; width: 40px; height: 40px; }
+  .welcome-action__icon { grid-row: 1 / span 2; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -945,59 +1239,55 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   .overview-history__node { transition: none; }
   .welcome-action { transition: none; }
   .welcome-action:hover:not(:disabled) { transform: none; }
+  .journey-step,
+  .journey-step__go,
+  .journey-step__icon,
+  .journey-connector::after { transition: none; }
+  .overview-row-in { animation: none; }
   .welcome-recents__open,
+  .welcome-recents__filter,
   .welcome-recents__favourite,
   .welcome-recents__forget { transition: none; }
 }
 
-@media (max-width: 1100px) {
-  .project-hero {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: var(--space-4);
-  }
-  .project-hero__actions {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-}
-
 @media (max-width: 980px) {
-  .overview-support-grid { grid-template-columns: minmax(0, 1fr); }
+  .overview-columns { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Narrower than three tiles, the band turns on its side: the steps stack and
+   the connectors become short vertical ticks between them. */
 @media (max-width: 800px) {
-  .project-summary-card { align-items: stretch; }
-  .project-hero {
-    grid-template-columns: 1fr;
-    align-items: start;
-  }
-  .project-hero__actions { grid-column: 1; width: 100%; align-items: stretch; }
-  .project-hero__buttons { width: 100%; }
-  .project-hero__action { flex: 1 1 auto; }
-  .project-summary-card__actions { width: 100%; justify-content: space-between; }
-  .overview-meta { flex: 1 1 auto; }
+  .journey__steps { grid-template-columns: minmax(0, 1fr); }
+  .journey__steps > li[aria-hidden] { justify-items: start; padding-left: 30px; }
+  .journey-connector { width: 0; height: 16px; border-top: 0; border-left: 2px dashed var(--border-control); }
+  .journey-connector::after { inset: 0 auto 0 -2px; border-top: 0; border-left: 2px solid var(--status-success); transform: scaleY(0); transform-origin: center top; }
+  .journey-connector--done::after { transform: scaleY(1); }
+  .changed-files,
   .overview-history { padding: var(--space-4); }
 }
 
 @media (pointer: coarse) {
   .project-switcher-compact__trigger,
   .compact-history-controls .titlebar-icon-button,
-  .project-summary-card__identity .project-path__copy {
+  .overview-header__copy .project-path__copy {
     width: 44px;
     height: 44px;
   }
-  /* `.project-hero__action` grows with the shared primitive; these two are
-     not `.primary-button`/`.secondary-button`, so they still need saying —
-     and the circle needs a width, which is never a height. */
-  .project-summary-card .version-line-selector,
-  .project-summary-card .version-lines-quick-switch__create {
+  /* These are not `.primary-button`/`.secondary-button`, so they do not grow
+     with the shared primitive — and the circles need a width, which is never
+     a height. */
+  .overview-header .version-line-selector,
+  .overview-header .version-lines-quick-switch__create,
+  .overview-header__settings {
     min-height: var(--control-height-lg);
     height: var(--control-height-lg);
   }
-  .project-summary-card .version-lines-quick-switch__create {
+  .overview-header .version-lines-quick-switch__create,
+  .overview-header__settings {
     width: var(--control-height-lg);
     min-width: var(--control-height-lg);
   }
+  .welcome-recents__filter,
   .welcome-recents__favourite,
   .welcome-recents__forget {
     width: 44px;
@@ -1006,7 +1296,7 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 }
 
 @media (hover: none) {
-  .project-summary-card__identity .project-path__copy { opacity: 1; }
+  .overview-header__copy .project-path__copy { opacity: 1; }
 }
 
 /* These cards state their edge with an opaque fill and a shadow, and
@@ -1015,12 +1305,16 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
    contrast. Drawn inward, like the semantic outlines above, so the fallback
    cannot change layout either. */
 @media (forced-colors: active) {
-  .project-summary-card,
-  .project-hero,
+  .welcome-action,
+  .journey,
+  .journey-step,
+  .changed-files,
+  .pending-versions-card,
   .overview-history {
     outline: 1px solid CanvasText;
     outline-offset: -1px;
   }
+  .journey-step--active { outline: 2px solid Highlight; }
 }
 
 /* The picture pickers for one expanded file. This surface has no toolbar to

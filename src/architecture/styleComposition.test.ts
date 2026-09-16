@@ -54,11 +54,11 @@ describe("production style composition", () => {
   });
 
   it("keeps closed visual contracts with their feature owners", () => {
-    expect(readSource("features/overview/overview.css")).toContain(".project-hero");
+    expect(readSource("features/overview/overview.css")).toContain(".journey");
     expect(readSource("features/clone/clone.css")).toContain(".clone-dialog");
     expect(readSource("features/initialize-project/initialize-project.css")).toContain(".initialize-dialog");
     expect(readSource("features/status/status.css")).toContain(".status-breakdown");
-    expect(readSource("features/sync/sync.css")).toContain(".team-changes");
+    expect(readSource("features/sync/sync.css")).toContain(".get-team-dialog");
     expect(readSource("features/app-updates/app-updates.css")).toContain(".app-update-dialog");
     const changes = readSource("features/changes/changes.css");
     expect(changes).toContain(".changes-file-item__type-icon");
@@ -600,7 +600,7 @@ describe("production style composition", () => {
       ["features/initialize-project/initialize-project.css", ".initialize-dialog__progress li > svg, .initialize-dialog__progress li > span", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".pending-versions__node", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
-      ["features/sync/sync.css", ".team-changes__endpoint > svg", "border-radius: var(--radius-round)"],
+      ["features/overview/overview.css", ".journey-step__icon", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
       ["features/version-lines/version-lines.css", ".version-lines-avatar", "border-radius: var(--radius-round)"],
       // The shared filter trigger, which Changes and History both wear in the

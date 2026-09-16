@@ -126,6 +126,14 @@
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
+  /* The app's one way of saying "this, now": a halo that leaves the element,
+     fades as it goes, and is born again at the edge — never seen coming back
+     in. One period, one reach, one colour by default; a surface re-points the
+     colour (a warning tile sets --attention-color to --status-warning) and
+     never the shape. See `.attention-breathe` in primitives.css. */
+  --attention-duration: 2400ms;
+  --attention-spread: 8px;
+  --attention-color: var(--accent-brand);
 
   /* Light theme values (default). Dark values are applied via the
      prefers-color-scheme query below, and either can be pinned with

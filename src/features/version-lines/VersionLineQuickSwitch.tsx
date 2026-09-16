@@ -25,6 +25,10 @@ export type VersionLineQuickSwitchProps = {
   contextLabel?: string;
   canSwitch: boolean;
   variant?: "control" | "status";
+  /** Whether the control variant draws its round "new line" button beside
+   * the trigger. Off where the row has no room to spend on it; the menu's
+   * footer carries the same action either way. */
+  showCreateControl?: boolean;
   favouriteLines?: ReadonlySet<string>;
   onToggleFavourite?: (name: string) => void;
   onSwitch: (target: string) => void;
@@ -44,6 +48,7 @@ export function VersionLineQuickSwitch({
   contextLabel,
   canSwitch,
   variant = "control",
+  showCreateControl = true,
   favouriteLines = new Set<string>(),
   onToggleFavourite,
   onSwitch,
@@ -126,7 +131,7 @@ export function VersionLineQuickSwitch({
       {/* Only where the control has room for it. The status strip is 34px of
           chrome across the whole window, and its dropdown now carries the same
           action. */}
-      {onCreate && variant === "control" && (
+      {onCreate && variant === "control" && showCreateControl && (
         <button
           className="secondary-button version-lines-quick-switch__create"
           type="button"

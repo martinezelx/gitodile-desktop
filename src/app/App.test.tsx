@@ -462,7 +462,10 @@ describe("App project restoration", () => {
     expect(within(statusBar).getByText("main")).toBeInTheDocument();
     expect(within(statusBar).getByText("Everything is saved")).toBeInTheDocument();
     expect(await within(statusBar).findByText("Up to date")).toBeInTheDocument();
-    expect(within(statusBar).getByText("Local snapshot")).toBeInTheDocument();
+    expect(within(statusBar).getByText("Up to date").closest(".status-bar__sync")).toHaveAttribute(
+      "data-tooltip",
+      expect.stringContaining("Local snapshot"),
+    );
 
     await userEvent.click(within(statusBar).getByRole("button", { name: "Check remote project changes" }));
     expect(await within(statusBar).findByText("1 project version available")).toBeInTheDocument();
@@ -855,6 +858,17 @@ describe("App project restoration", () => {
       .map((item) => item.textContent ?? "")
       .filter((text) => text.includes(restoredProject.name) || text.includes(secondProject.name));
     expect(listedAfter[0]).toContain(restoredProject.name);
+
+    // With a favourite to filter by, the heading offers to show only those;
+    // pressed, the other project leaves the list, and it comes back when the
+    // filter is released. A view, not a setting: nothing is stored.
+    const filter = screen.getByRole("button", { name: "Show favourite projects only" });
+    await user.click(filter);
+    expect(filter).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: secondProject.name })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: restoredProject.name })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show all recent projects" }));
+    expect(screen.getByRole("button", { name: secondProject.name })).toBeInTheDocument();
   });
 
   it("remembers a project it opened, newest first", async () => {
@@ -1394,7 +1408,8 @@ describe("App project restoration", () => {
     await userEvent.click(
       within(statusBar).getByRole("button", { name: "Check remote project changes" }),
     );
-    await screen.findByText("1 newer project version is available");
+    // The band's Publish tile is where the answer lands now.
+    await screen.findByText("1 newer version available");
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status"),
     ).toHaveLength(localReadsBeforeRemoteCheck);
@@ -1436,6 +1451,67 @@ describe("App project restoration", () => {
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "check_team_changes"),
     ).toHaveLength(1);
+  });
+
+  it("saves a version from Overview without leaving Overview", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+    const dirtyStatus: WorkingTreeStatus = {
+      ...cleanStatus,
+      isClean: false,
+      counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 },
+      entries: [{ path: "notes.md", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true }],
+      hasUnpreparedChanges: true,
+    };
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(dirtyStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "plan_save_version") {
+        return Promise.resolve({
+          operationKind: "history-mutation",
+          requiresConfirmation: true,
+          stateToken: "token",
+          branch: "main",
+          isFirstVersion: false,
+          totalFiles: 1,
+          remainingFiles: 0,
+          isPartial: false,
+          hasPreparedChanges: false,
+          counts: dirtyStatus.counts,
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    // The band's active tile is the action.
+    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+
+    // The dialog opens here, and Overview stays the screen: nothing was
+    // navigated, and the planner was asked to save everything.
+    expect(await screen.findByRole("dialog", { name: "Save version" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Changes" })).toBeNull();
+    expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
+      path: restoredProject.path,
+      sessionEpoch: restoredProject.sessionEpoch,
+      selectedPaths: null,
+    });
   });
 
   it("keeps a screen mounted when you navigate away from it and back", async () => {
