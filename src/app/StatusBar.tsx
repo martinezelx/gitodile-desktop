@@ -236,7 +236,7 @@ export function StatusBar({
         >
           <span className="status-bar__version">{t.statusBarVersion(CURRENT_APP_RELEASE.version)}</span>
           {CURRENT_APP_RELEASE.channel === "preview" && (
-            <span className="status-bar__channel" aria-hidden="true">preview</span>
+            <span className="channel-badge channel-badge--preview" aria-hidden="true">preview</span>
           )}
         </button>
       </div>

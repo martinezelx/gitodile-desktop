@@ -973,9 +973,12 @@ selected, and focus states. Disabled controls also keep the arrow; reduced
 opacity and the disabled interaction state carry that meaning.
 
 Reserve the pointing hand for real links and text actions deliberately styled
-as links, where the cursor helps compensate for their lighter affordance. Use
+as links, where the cursor helps compensate for their lighter affordance — the
+Save version detail disclosure, and About's licence and source links. Use
 special-purpose cursors only when they describe the operation itself, such as
-text selection, resizing, dragging, progress, or a forbidden drop target.
+text selection, resizing, dragging, progress, or a forbidden drop target. A
+guarded list in the style-composition audit names every control allowed to take
+the hand, so this stays a decision rather than a habit.
 
 ## Content design
 
@@ -1070,6 +1073,10 @@ stay that way: dashes are the universal "drop here" mark, and a solid edge at
 that size would read as a dialog.
 
 **About separates what a maintainer needs from what the product is proud of.** Technical details answer "why is it broken on *your* machine": the platform, its build, the webview, the Git it found — all things that differ per install, and all things the copy button puts on the clipboard. Built with answers "what is this made of": Tauri, React, TypeScript, Rust, which are identical for every user of a given build and therefore explain nothing about a bug. Mixing the two produces a diagnostics block nobody can act on and a credits list nobody reads, so they are separate sections in separate shapes — label-and-value rows for the facts that vary, and one row of equal tiles, mark above name above version, for the ones that do not. The tiles were capsules first, which is what a mark beside short text asks to be; four of them overflowed the dialog and wrapped three-and-one, which reads as an accident rather than a set. Stacking the mark fits them all on one row and settles the shape at the same time, since a capsule is a single-line control. Each tile is also a control that opens that project's own home page in the user's browser, because "built with Tauri" is a claim the reader should be able to check; it is a button rather than a link, since the destination is outside the app and an `href` would let a middle click navigate the webview the dialog sits in. A credit is not a call to action, so the tile stays at rest until pointed at and withholds nothing at rest — mark, name and version are all readable without hovering. On hover it takes the app's neutral interactive treatment warmed by the accent that carries the identity a few lines above it (accent border, a tint of the resting fill, a one-pixel lift), and reveals the one fact the resting tile cannot state: a small outward arrow in the corner, saying the press leaves the app. Its accessible name pairs the layer with the host it opens, so that fact reaches a screen reader before the press rather than after it, and every host is listed explicitly in the opener scope — an unlisted one simply fails to open. A value the app cannot establish is omitted, never filled with "unknown": a missing row says nothing, and a fabricated one sends a bug report the wrong way.
+
+**About names the product together with its promise.** The correctly cased `GitOdile` name leads, followed by the mark and localized promise. Name and promise deliberately share one type scale; accent colour and weight establish hierarchy without making the row feel assembled from three unrelated sizes. The mark is a compact separator rather than a third typographic level, and the shared close control sits in the same flex row so its alignment cannot drift down beside the version. The signature wraps together on narrow windows. The `h2` contains the three identity pieces, with the decorative mark hidden from assistive technology, so the dialog's accessible name identifies the app before stating its promise. The `preview` pill beside the version is the same `.channel-badge` the status bar and the changelog use; those three surfaces exist to describe one build identically, and three hand-written copies of the recipe had already drifted. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control sits with those rows — between the label-and-value rows and the credits — because only its label used to tie it to its data, with the two things a bug reporter needs separated by an unrelated section.
+
+Licence and source links close the dialog after the credits. They are durable project provenance, not part of the product pitch or machine diagnostics, so placing them beneath both keeps the introduction focused and makes the bottom edge the predictable place for legal information.
 
 **A dialog that carries a message is not the About dialog.** About is the
 product-identity surface — the mark at hero scale, a 28px heading, 32px of

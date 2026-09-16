@@ -56,7 +56,7 @@ must not depend on any one editor, provider, cloud account, or subscription.
 ## Brand Commitments
 
 The working name is **GitOdile** and the working promise is **Git without the
-bite**. The product voice is calm, direct, professional, and friendly without
+fear**. The product voice is calm, direct, professional, and friendly without
 being patronizing. The crocodile mark and mascot may add restrained personality
 but must not trivialize errors or destructive operations.
 

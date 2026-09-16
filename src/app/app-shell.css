@@ -348,17 +348,6 @@
   outline-offset: 0;
 }
 .status-bar__version { font-variant-numeric: tabular-nums; }
-.status-bar__channel {
-  padding: 2px 6px;
-  border: 1px solid color-mix(in srgb, var(--status-warning) 35%, transparent);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
-  color: var(--status-warning);
-  font-size: var(--text-micro);
-  font-weight: var(--weight-title);
-  line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-wide);
-}
 .status-bar .version-lines-quick-switch {
   display: flex;
   align-items: center;
@@ -1099,39 +1088,70 @@
   .issue-report-dialog__loader { animation: none; }
 }
 
-.about-dialog__close {
-  position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
+/* The close control is the shared primitive, positioned by this shell instead
+   of restated by it. It was a second vocabulary — 30px with a 16px glyph
+   against the 36px/18px every other dialog in the app uses — and because it
+   was hand-sized it also stayed 30px under `pointer: coarse`, where the
+   primitive grows. `sticky` with the negative margins below puts it back in
+   the corner the absolute box occupied without spending flow height on it
+   (the mark still starts where it did), and keeps it there when a short window
+   turns the dialog itself into the scroller — which is exactly what
+   `position: absolute` inside that scroller used to lose. */
+.about-dialog > .dialog-close-button {
+  --about-close-size: 36px;
+  position: sticky;
+  top: var(--space-2);
+  z-index: 1;
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) calc(-1 * var(--about-close-size)) auto;
 }
-.about-dialog__close:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.about-dialog__close svg { width: 16px; height: 16px; }
-/* The same mark as the titlebar, at hero scale: one identity, one treatment.
-   `--accent-primary` measures 5.39:1 on the light dialog surface and 8.99:1 on
-   the dark one, so the silhouette carries without the tile it used to sit in. */
-.about-dialog__mark { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px; color: var(--accent-primary); }
-.about-dialog__mark .gitodile-mark { width: 44px; height: 23px; }
+@media (pointer: coarse) {
+  .about-dialog > .dialog-close-button { --about-close-size: var(--control-height-lg); }
+}
+/* One compact header row. Name and promise share a type scale, so weight and
+   colour create the hierarchy without three competing sizes. */
+.about-dialog__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-2);
+}
+.about-dialog__brand > .dialog-close-button { flex: 0 0 auto; }
+.about-dialog__mark { flex: 0 0 24px; width: 24px; height: 20px; display: inline-grid; place-items: center; color: var(--accent-primary); }
+.about-dialog__mark .gitodile-mark { width: 24px; height: 13px; }
 .about-dialog__copy {
-  width: 100%; margin-top: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: var(--space-3); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   font-size: var(--text-body);
 }
 .about-dialog__copy svg { width: 15px; height: 15px; }
-.about-dialog__footer { margin: 16px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center; }
+.about-dialog__footer { margin: 20px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center; }
 .about-dialog__heart { color: var(--accent-heart); }
-.about-dialog__legal { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 10px; color: var(--text-secondary-color); font-size: var(--text-label); }
-.about-dialog__legal button { padding: 2px 0; border: 0; background: transparent; color: var(--accent-primary); font: inherit; text-decoration: underline; text-underline-offset: 2px; }
-.about-dialog__legal button:hover { color: var(--text-primary-color); }
-/* `--text-hero` is a *name*, not a heading, so this reads like the project name
-   on Overview rather than like the `h2` it happens to be: the title weight and
-   the hero tracking, both of which large type needs. It had been relying on the
-   browser's bold for an `h2`, which the scale's `h2` default (650) took away —
-   at 28px that is visibly thin, and it is the app's own name. */
-.about-dialog h2 {
-  margin-bottom: 7px;
-  font-size: var(--text-hero);
-  font-weight: var(--weight-title);
-  letter-spacing: var(--tracking-hero);
+/* Licensing is supporting information, not part of the product introduction.
+   It closes the dialog after the credits, separated by a quiet rule so the
+   hero can lead directly into the useful machine-specific information. */
+.about-dialog__legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-divider);
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
 }
+.about-dialog__legal-links { display: flex; align-items: center; gap: var(--space-3); }
+.about-dialog__legal button { display: inline-flex; align-items: center; min-height: var(--control-height-sm); padding: 0; border: 0; background: transparent; color: var(--accent-primary); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.about-dialog__legal button:hover { color: var(--text-primary-color); }
+.about-dialog h2 {
+  margin: 0;
+  font-size: var(--text-display);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-tight);
+}
+.about-dialog__brand h2 { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-2); min-width: 0; font-size: var(--text-title); }
+.about-dialog__product-name { color: var(--accent-primary); }
+.about-dialog__tagline { color: var(--text-primary-color); font-weight: var(--weight-heading); letter-spacing: var(--tracking-tight); }
 .about-dialog__release {
   display: flex;
   align-items: center;
@@ -1140,16 +1160,10 @@
   color: var(--text-secondary-color);
 }
 .about-dialog__release-version { font-size: var(--text-label); font-weight: var(--weight-heading); font-variant-numeric: tabular-nums; }
-.about-dialog__release-channel {
-  padding: 2px 7px;
-  border: 1px solid color-mix(in srgb, var(--status-warning) 35%, transparent);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
-  color: var(--status-warning);
-  font-size: var(--text-micro);
-  font-weight: var(--weight-title);
-  line-height: var(--leading-tight);
-}
+/* The `preview` pill is `.channel-badge` now (shared with the status bar and
+   the changelog): three hand-written copies of one recipe had drifted on
+   padding and tracking, and the three surfaces exist to say the same thing
+   about one build. Only the spacing between version and chip is About's. */
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary-color); line-height: var(--leading-normal); }
 /* About's two lower sections are siblings in weight as well as in role, so they
    share a heading and a rhythm rather than each inventing one. */
@@ -1323,7 +1337,12 @@
   color: var(--accent-primary);
 }
 .changelog-release h3 { margin: 0; font-size: var(--text-subtitle); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
-.changelog-release__channel,
+/* The channel pill is `.channel-badge` (primitives): the recipe was written
+   out here, in the status bar and in About, and the three had already drifted.
+   The "you are running this" marker is a different statement — it names no
+   channel — so it keeps its own neutral pill rather than borrowing the
+   channel's colour vocabulary. What is left here is layout only. */
+.changelog-release__channel { flex-shrink: 0; }
 .changelog-release__current {
   flex-shrink: 0;
   padding: 2px 7px;
@@ -1332,16 +1351,6 @@
   font-weight: var(--weight-title);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-wide);
-}
-.changelog-release__channel {
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-}
-.changelog-release__channel--preview {
-  border-color: color-mix(in srgb, var(--status-warning) 35%, transparent);
-  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
-  color: var(--status-warning);
 }
 /* Which build the reader is actually running is the one fact a changelog has
    to answer before any note means anything, so it is the only accented thing
@@ -1510,7 +1519,6 @@
 @media (pointer: coarse) {
   .window-titlebar__mark,
   .titlebar-icon-button,
-  .about-dialog__close,
   .sidebar-project__filter,
   .project-switcher__close,
   .project-switcher__favourite,

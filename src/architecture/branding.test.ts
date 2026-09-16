@@ -110,6 +110,15 @@ describe("desktop link permissions", () => {
     }
   });
 
+  it("lets About open its source repository and licence", () => {
+    for (const url of [
+      "https://github.com/martinezelx/gitodile-desktop",
+      "https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE",
+    ]) {
+      expect(scopeAllows(openerScope(), url), url).toBe(true);
+    }
+  });
+
   it("keeps the scope off the open web", () => {
     // Every capability can contribute scopes. Reject extra permissions such
     // as opener:default/allow-default-urls as well as extra allowed hosts.
@@ -123,6 +132,8 @@ describe("desktop link permissions", () => {
       identifier: "opener:allow-open-url",
       allow: [
         { url: "https://github.com/martinezelx/gitodile/*" },
+        { url: "https://github.com/martinezelx/gitodile-desktop" },
+        { url: "https://github.com/martinezelx/gitodile-desktop/*" },
         { url: "https://git-scm.com/download/*" },
         { url: "https://tauri.app/*" },
         { url: "https://react.dev/*" },

@@ -490,7 +490,7 @@ describe("App project restoration", () => {
     await userEvent.keyboard("{Escape}");
 
     await userEvent.click(screen.getByRole("button", { name: "About" }));
-    expect(screen.getByRole("dialog", { name: "Git without the bite." })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "GitOdile Git without the fear." })).toBeInTheDocument();
   });
 
   it("records both outcomes of an automatic check, and offers the review flow from the notification", async () => {

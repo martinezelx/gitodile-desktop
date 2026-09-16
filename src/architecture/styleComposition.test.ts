@@ -143,6 +143,24 @@ describe("production style composition", () => {
     // beside it, at any width.
     expect(appShell).toContain(".window-titlebar__mark");
     expect(appShell).not.toContain(".window-titlebar__name");
+
+    // The channel badge — the pill naming which build the reader is running —
+    // is stated on three surfaces: the status bar, About and the changelog.
+    // Three hand-written copies had already drifted (6px of inline padding
+    // against 7px, and the tracking on two of them), and those three exist to
+    // describe one build identically, so exactly one sheet may define it.
+    expect(primitiveChrome).toContain(".channel-badge {");
+    expect(primitiveChrome).toContain(".channel-badge--preview {");
+    const channelSelectors = [
+      "status-bar__channel",
+      "about-dialog__release-channel",
+      "changelog-release__channel",
+    ];
+    const restated = readRules("app/app-shell.css")
+      .filter((rule) => channelSelectors.some((name) => rule.selector.includes(name)))
+      .filter((rule) => /padding:|border-radius:|font-size:\s*var\(--text-micro\)/.test(rule.body))
+      .map((rule) => rule.selector);
+    expect(restated).toEqual([]);
   });
 
   it("loads shared app menus before feature alignment overrides", () => {
@@ -640,9 +658,14 @@ describe("production style composition", () => {
       }
     }
 
-    // This is deliberately styled as an underlined inline disclosure link;
-    // every ordinary button keeps the platform arrow cursor.
+    // DESIGN.md § Pointer cursors reserves the hand for real links and text
+    // actions deliberately styled as links, and for nothing else — every
+    // ordinary button keeps the platform arrow cursor. Two controls qualify,
+    // both underlined inline disclosures that send the reader somewhere:
+    // Save version's detail toggle, and the licence/source pair in About.
+    // Anything else appearing here is the drift this guard exists to catch.
     expect(pointerRules).toEqual([
+      "app/app-shell.css: .about-dialog__legal button",
       "features/save-version/save-version.css: .save-version-detail__toggle",
     ]);
   });
