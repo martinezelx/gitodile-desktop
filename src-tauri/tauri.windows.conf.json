@@ -4,6 +4,11 @@
     "targets": "nsis",
     "windows": {
       "nsis": {
+        "installerIcon": "./icons/icon.ico",
+        "uninstallerIcon": "./icons/icon.ico",
+        "headerImage": "./windows/installer-header.bmp",
+        "sidebarImage": "./windows/installer-sidebar.bmp",
+        "languages": ["English", "Spanish"],
         "installerHooks": "./windows/installer-hooks.nsh"
       }
     }

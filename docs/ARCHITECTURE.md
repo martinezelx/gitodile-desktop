@@ -702,6 +702,25 @@ PNG-compressed small layer as a blank sheet. `scripts/icons/build-windows-ico.mj
 Tauri's layer order (32px first, then 16, 24, 48, 64, 256); `check:icons`
 fails the gate when the committed `icon.ico` drifts from that shape.
 
+The Windows installer is dressed from the same icons. `tauri.windows.conf.json`
+points `bundle.windows.nsis` at `icon.ico` for the installer and uninstaller
+executables and at two bitmaps under `src-tauri/windows/` that Modern UI 2
+draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px tile on the
+brand contrast black, shown on the Welcome and Finish pages) and
+`installer-header.bmp` (150×57, the 48px ICO layer on white, shown in the
+header of every other page). `scripts/icons/build-nsis-images.mjs` (the last
+step of `pnpm icons`) composes them as 24-bit BMPs from `128x128.png` and
+`icon.ico` without resampling; `check:icons` fails when the committed bitmaps
+drift from the icons. The installer ships English and Spanish (the app's two
+locales) and picks the system UI language without a selector dialog.
+`bundle.copyright` and `bundle.homepage` in `tauri.conf.json` feed the
+installer's branding text, the executables' version resources, and the
+"Installed apps" support link. `bundle.publisher` must stay at its default
+(`gitodile`, derived from the identifier): NSIS stores the install directory
+under `HKCU\Software\<publisher>\GitOdile` and the updater reads that key to run
+the previous uninstaller, so renaming the publisher would break updates of
+every existing install.
+
 The NSIS shortcuts Tauri creates carry no icon location, so Explorer resolves
 their icon from `gitodile.exe` — the file the passive updater overwrites in
 place. A shell refresh during that window caches a blank icon that then

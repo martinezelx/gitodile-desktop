@@ -51,6 +51,14 @@ not implied by the `1.0.0` merge and restore workflows.
   platform-specific argument validation.
 - Drag-and-drop opening of one or multiple local projects.
 - OS-native recent-project and file-association integrations.
+- Show the real publisher in Windows "Installed apps" instead of `gitodile`.
+  `bundle.publisher` must not change: NSIS keys the install directory under
+  `HKCU\Software\<publisher>\GitOdile` and the updater reads it to run the
+  previous uninstaller, so renaming it breaks updates of every existing
+  install (see "Icons" in `docs/ARCHITECTURE.md`). Preferred fix: overwrite
+  the `Publisher` value of the uninstall key from `NSIS_HOOK_POSTINSTALL` in
+  `src-tauri/windows/installer-hooks.nsh`, which runs after Tauri writes it and
+  leaves `MANUFACTURER` untouched.
 
 ### Settings
 
