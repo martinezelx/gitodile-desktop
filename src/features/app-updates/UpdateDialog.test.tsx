@@ -150,14 +150,15 @@ describe("application update dialog", () => {
     expect(appController.check).toHaveBeenCalledOnce();
   });
 
-  it("shows the effective channel, switches it from the keyboard and offers a fresh check afterwards", async () => {
+  it("shows the effective channel, confirms a switch before storing it, and checks the new channel at once", async () => {
     const user = userEvent.setup();
     const publish: { current: (next: (previous: AppUpdatesSnapshot) => AppUpdatesSnapshot) => void } = { current: () => undefined };
-    // The stand-in does what native memory does on a change: forgets the
-    // candidate and answers idle, so the row above offers a fresh check.
+    // The stand-in does what the controller does on a confirmed change:
+    // native memory forgets the candidate, and a check of the new channel
+    // starts at once.
     const setChannel = vi.fn(async (channel: "stable" | "preview") => {
       const setting = { preferred: channel, buildChannel: "stable" as const, channel };
-      publish.current((previous) => ({ ...previous, state: { kind: "idle" }, channel: setting }));
+      publish.current((previous) => ({ ...previous, state: { kind: "checking", operationId: "op", source: "manual" }, channel: setting }));
       return setting;
     });
     const appController = { ...controller(), setChannel };
@@ -191,11 +192,31 @@ describe("application update dialog", () => {
     // Arrowing is not choosing: the choice is made with Enter or Space.
     expect(setChannel).not.toHaveBeenCalled();
     await user.keyboard("{Enter}");
+    // Nor is choosing yet a change: a confirmation states the consequence
+    // (the installed version stays) and takes focus; declining leaves the
+    // channel as it was.
+    const question = screen.getByRole("group", { name: "Follow preview releases?" });
+    expect(within(question).getByRole("button", { name: "Follow previews" })).toHaveFocus();
+    expect(within(question).getByText(/the version you have installed stays/)).toBeInTheDocument();
+    expect(setChannel).not.toHaveBeenCalled();
+    await user.click(within(question).getByRole("button", { name: "Not now" }));
+    expect(screen.queryByRole("group", { name: "Follow preview releases?" })).toBeNull();
+    expect(stable).toHaveAttribute("aria-checked", "true");
+    expect(setChannel).not.toHaveBeenCalled();
+    // Escape declines too.
+    await user.click(preview);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("group", { name: "Follow preview releases?" })).toBeNull();
+
+    await user.click(preview);
+    await user.click(screen.getByRole("button", { name: "Follow previews" }));
     expect(setChannel).toHaveBeenCalledWith("preview");
+    expect(screen.queryByRole("group", { name: "Follow preview releases?" })).toBeNull();
     expect(within(group).getByRole("radio", { name: "Preview" })).toHaveAttribute("aria-checked", "true");
-    // The offer from the old feed is gone and a fresh check is on offer.
-    expect(screen.getByRole("status")).toHaveTextContent("Not checked yet");
-    await user.click(screen.getByRole("button", { name: "Check for updates" }));
-    expect(appController.check).toHaveBeenCalledOnce();
+    // The offer from the old feed is gone; the new channel is being asked.
+    expect(screen.getByRole("status")).toHaveTextContent("Checking for updates…");
+    // Going back asks in the same way, with the honest consequence.
+    await user.click(within(group).getByRole("radio", { name: "Stable" }));
+    expect(screen.queryByRole("group", { name: "Go back to stable releases?" })).toBeNull();
   });
 });

@@ -30,10 +30,13 @@ export type AppUpdatesController = Readonly<{
   download(): Promise<UpdateState>;
   cancel(): Promise<UpdateState>;
   install(): Promise<UpdateState>;
-  /** Follows the other channel from now on. Native memory forgets any
-   * candidate found under the old one, so the settled state is idle and the
-   * caller offers a fresh check. A no-op while a check, download or install
-   * is running, and for the channel already in force. */
+  /** Follows the other channel from now on, then asks that channel what it
+   * has: native memory forgets any candidate found under the old one, and a
+   * manual check starts at once, because choosing a channel is the question
+   * "what is there for me?". Nothing is downloaded or installed by it. A
+   * no-op while a check, download or install is running, and for the
+   * channel already in force. Resolves once the change is stored; the check
+   * settles on its own. */
   setChannel(channel: UpdateChannel): Promise<UpdateChannelSetting | null>;
   openManualDownload(): Promise<void>;
   dispose(): void;
@@ -277,6 +280,7 @@ export function createAppUpdatesController(
       return port.setChannel(channel)
         .then((setting) => port.readState().then((state) => {
           publish({ channel: setting, state });
+          void check("manual");
           return setting;
         }))
         .catch(() => snapshot.channel);

@@ -231,7 +231,12 @@ target gates key on `build_channel`, because they describe the build.
 
 In Settings → Updates the choice is a two-option group, Stable / Preview, that
 shows the effective channel; `follow_build` is presented as whichever it
-resolves to, not as a third option. The executable cases carry
+resolves to, not as a third option. Picking the other option opens a
+confirmation that states the consequence (the installed version stays; the
+app never downgrades) before anything is stored; on confirmation the
+renderer stores the choice, mirrors the native `idle` reset and starts a
+manual check of the new channel at once. The check follows the same
+lifecycle as any other; the choice itself downloads and installs nothing. The executable cases carry
 `preferredChannel` and `scripts/check-app-update-contracts.mjs` evaluates
 them the way `version_decision` does.
 

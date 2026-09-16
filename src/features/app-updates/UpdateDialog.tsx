@@ -169,9 +169,15 @@ const CHANNEL_OPTIONS: readonly UpdateChannel[] = ["stable", "preview"];
 /** Which feed to follow, as a two-option group under the installed build.
  * It shows the channel a check will actually use — a build that has never
  * been told otherwise reads as its own channel, not as a third "default"
- * option — and one sentence per option says what choosing it means. Picking
- * the other option forgets whatever the old feed offered, so the row above
- * goes back to "Check for updates". */
+ * option — and one sentence per option says what choosing it means.
+ *
+ * Choosing the other option is not yet a change: it opens a confirmation
+ * card (the install confirmation's shape) that says what following that
+ * channel means and, the part every good channel switch states, that the
+ * installed version stays put — the app never downgrades, so going back to
+ * Stable means waiting for the next stable. Only confirming stores the
+ * choice; native memory then forgets whatever the old feed offered and a
+ * check of the new channel starts at once. */
 function ChannelControl({
   snapshot,
   controller,
@@ -185,37 +191,83 @@ function ChannelControl({
 }) {
   const t = appUpdateTranslations(language);
   const setting = snapshot.channel;
+  const [pending, setPending] = useState<UpdateChannel | null>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    if (pending) confirmButtonRef.current?.focus();
+  }, [pending]);
+  // A change that settles elsewhere (busy again, or the channel it asked
+  // for already in force) leaves nothing to confirm.
+  useEffect(() => {
+    if (busy || setting === null || setting.channel === pending) setPending(null);
+  }, [busy, setting, pending]);
+  const confirm = pending ? t.channelConfirm[pending] : null;
   return (
-    <div className="settings-row">
-      <div>
-        <strong>{t.channelLabel}</strong>
-        <p>{t.channelStableDescription} {t.channelPreviewDescription}</p>
+    <>
+      <div className="settings-row">
+        <div>
+          <strong>{t.channelLabel}</strong>
+          <p>{t.channelStableDescription} {t.channelPreviewDescription}</p>
+        </div>
+        <div
+          className="segmented-control"
+          role="radiogroup"
+          aria-label={t.channelLabel}
+          onKeyDown={moveFocusWithinRadioGroup}
+        >
+          {CHANNEL_OPTIONS.map((option, index) => {
+            const isActive = setting?.channel === option;
+            return (
+              <button
+                key={option}
+                className={`segmented-control__option${isActive ? " segmented-control__option--active" : ""}`}
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                disabled={busy || setting === null}
+                tabIndex={(setting ? isActive : index === 0) ? 0 : -1}
+                onClick={() => setPending(isActive ? null : option)}
+              >
+                {t.channel[option]}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div
-        className="segmented-control"
-        role="radiogroup"
-        aria-label={t.channelLabel}
-        onKeyDown={moveFocusWithinRadioGroup}
-      >
-        {CHANNEL_OPTIONS.map((option, index) => {
-          const isActive = setting?.channel === option;
-          return (
-            <button
-              key={option}
-              className={`segmented-control__option${isActive ? " segmented-control__option--active" : ""}`}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              disabled={busy || setting === null}
-              tabIndex={(setting ? isActive : index === 0) ? 0 : -1}
-              onClick={() => void controller.setChannel(option)}
-            >
-              {t.channel[option]}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+      {pending && confirm && (
+        <div className="settings-row settings-row--stacked">
+          <div
+            className="app-update-confirm app-update-confirm--channel"
+            role="group"
+            aria-labelledby={titleId}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.stopPropagation();
+                setPending(null);
+              }
+            }}
+          >
+            <h3 id={titleId}>{confirm.title}</h3>
+            <p>{confirm.explanation}</p>
+            <div className="dialog-actions">
+              <button className="secondary-button" type="button" onClick={() => setPending(null)}>{t.notNow}</button>
+              <button
+                ref={confirmButtonRef}
+                className="primary-button"
+                type="button"
+                onClick={() => {
+                  setPending(null);
+                  void controller.setChannel(pending);
+                }}
+              >
+                {confirm.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

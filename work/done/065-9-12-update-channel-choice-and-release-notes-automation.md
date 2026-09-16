@@ -234,6 +234,14 @@ written separately. For preview.11 the same sentences were typed twice.
   `version_decision` does, and insists the feed named by a case is the
   effective channel's.
 
+- 2026-09-16: choosing the other channel confirms first (card in the
+  install confirmation's shape, stating that the installed version stays
+  because the app never downgrades) and, once confirmed, starts a manual
+  check of the new channel immediately. Modelled on the selector-plus-
+  confirmation pattern (Windows Insider, Obsidian, Steam beta) rather than a
+  silent dropdown (JetBrains Toolbox) or separate installs (Chrome, VS Code
+  Insiders), which do not fit a single app identity.
+
 # Implementation notes
 
 - **Rust** (`src-tauri/src/app_updates.rs`): `ChannelPreference`
@@ -261,10 +269,13 @@ written separately. For preview.11 the same sentences were typed twice.
 - **Renderer** (`src/features/app-updates`): `UpdateChannelSetting` in the
   domain, `readChannel`/`setChannel` on the port and adapter, `channel` in
   the controller snapshot (read at initialize; `setChannel` is a no-op while
-  busy or for the channel already in force, and re-reads native state after a
-  change). `ChannelControl` in `UpdateDialog.tsx` is a two-option
-  `segmented-control` radio group under the installed-version row, using the
-  shared `moveFocusWithinRadioGroup`, with one sentence per option in EN/ES.
+  busy or for the channel already in force, re-reads native state after a
+  change and then starts a manual check). `ChannelControl` in
+  `UpdateDialog.tsx` is a two-option `segmented-control` radio group under
+  the installed-version row, using the shared `moveFocusWithinRadioGroup`,
+  with one sentence per option in EN/ES; picking the other option opens a
+  confirmation card (`.app-update-confirm`) with the consequence copy in
+  EN/ES, Escape/"Not now" to decline, focus on the confirm button.
 - **Dates** (`vite.config.ts`, `src/app/appRelease.ts`): `__APP_RELEASE_DATES__`
   maps each highlights file's version to `git log -1 --format=%cs
   refs/tags/v<version>` when the tag exists; `buildAppChangelog` prefers it

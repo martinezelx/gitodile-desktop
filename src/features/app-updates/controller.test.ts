@@ -113,7 +113,10 @@ describe("application update controller", () => {
     await controller.setChannel("preview");
     expect(setChannel).toHaveBeenCalledWith("preview");
     expect(controller.getSnapshot().channel?.channel).toBe("preview");
-    expect(controller.getSnapshot().state).toEqual({ kind: "idle" });
+    // Choosing a channel asks it what it has, at once and as a manual check.
+    expect(port.check).toHaveBeenCalledWith("manual");
+    await vi.waitFor(() => expect(controller.getSnapshot().state).toMatchObject({ kind: "current" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     // A change is not attempted while native work is in flight.
     let resolveCheck!: (result: UpdateAction) => void;

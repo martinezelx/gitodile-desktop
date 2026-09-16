@@ -253,8 +253,16 @@ The main desktop window should broadly support:
      a build that has never been told otherwise reads as its own channel, not
      as a third "default" option — and is navigated like every other radio
      group: arrows move focus, Enter or Space chooses. Choosing the other
-     channel forgets whatever the old feed offered and the row goes back to
-     "Check for updates"; nothing is downloaded or installed by the choice.
+     channel is not yet a change: it opens a confirmation card under the
+     group, in the install confirmation's shape (question, consequence, "Not
+     now" and a focused confirm), whose consequence is the one every honest
+     channel switch states — the installed version stays put, because the
+     app never downgrades, so going back to Stable means waiting for the
+     next stable. Escape or "Not now" leaves the channel as it was. Only
+     confirming stores the choice; then whatever the old feed offered is
+     forgotten and a check of the new channel starts at once, because
+     choosing a channel is the question "what is there for me?". Nothing is
+     downloaded or installed by the choice.
      Then it offers one switch, on by default, for the
      startup check — one bounded request when the app opens, repeated every
      24 hours only while it stays open — disclosing the GitHub contact, that
