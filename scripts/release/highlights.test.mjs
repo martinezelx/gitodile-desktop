@@ -105,6 +105,8 @@ test("the notes' Highlights section is rendered from the English lines, between 
   const rerendered = applyHighlightsBlock(moved, [line, second]);
   assert.equal(rerendered, `# GitOdile 0.2.0-preview.11\n\nAn intro paragraph.\n\n- A hand-written bullet.\n\n${block}\n`);
   assert.equal(applyHighlightsBlock(rerendered, [line, second]), rerendered);
+  const dollars = { id: "dollars", icon: "tag", en: "Costs $$ and $& and $1 less.", es: "Cuesta $$ menos." };
+  assert.match(applyHighlightsBlock(rerendered, [dollars]), /- Costs \$\$ and \$& and \$1 less\./);
   assert.equal(applyHighlightsBlock(rerendered.replace(/\n/g, "\r\n"), [line, second]), rerendered);
   assert.equal(extractHighlightsBlock(notes), null);
   expectCode("notes_invalid", () => extractHighlightsBlock(`# GitOdile 0.2.0-preview.11\n\n${HIGHLIGHTS_BLOCK_END}\n`));

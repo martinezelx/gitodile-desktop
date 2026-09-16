@@ -83,7 +83,9 @@ export function applyHighlightsBlock(notes, highlights) {
   const text = notes.replace(/\r\n?/g, "\n");
   const block = renderHighlightsBlock(highlights);
   const existing = extractHighlightsBlock(text);
-  if (existing !== null) return text.replace(existing, block);
+  // A function replacement: a string one would expand `$&`, `$$` and friends
+  // inside a highlight line.
+  if (existing !== null) return text.replace(existing, () => block);
   const title = text.match(/^# [^\n]*\n/);
   if (!title) fail("notes_invalid", "release notes must start with a `# GitOdile <version>` title line");
   const rest = text.slice(title[0].length).replace(/^\n+/, "");
