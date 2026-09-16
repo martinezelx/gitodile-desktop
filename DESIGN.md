@@ -188,7 +188,9 @@ The main desktop window should broadly support:
      by `check:docs` and required by the merge coordinator — and the changelog
      is assembled from that directory at build time, so a version is added by
      writing one file and old versions stay listed for good. The date is the
-     day the release was cut. A version with nothing to tell a user (a
+     day the version was published — its release tag's date, resolved when
+     the app is built; a checkout whose tags are missing falls back to the
+     day the release branch was cut. A version with nothing to tell a user (a
      pipeline-only preview) is left out rather than shown empty; only the
      build being run is always listed, and says so when it has no lines. A
      checkout between releases, with no file yet, is listed undated.
@@ -244,7 +246,24 @@ The main desktop window should broadly support:
      actions and a dialog of its own, like Git — so it never shares General
      with the project-refresh group. It shows the installed version first,
      then one toned status line (the same `.status-line` scale the Git
-     installation row uses), and offers one switch, on by default, for the
+     installation row uses); under that row, a two-option segmented group,
+     Stable / Preview, chooses which channel to follow, with one sentence per
+     option (stable is what most people should run; previews arrive earlier
+     and may break). The group shows the channel a check will actually use —
+     a build that has never been told otherwise reads as its own channel, not
+     as a third "default" option — and is navigated like every other radio
+     group: arrows move focus, Enter or Space chooses. Choosing the other
+     channel is not yet a change: it opens a confirmation card under the
+     group, in the install confirmation's shape (question, consequence, "Not
+     now" and a focused confirm), whose consequence is the one every honest
+     channel switch states — the installed version stays put, because the
+     app never downgrades, so going back to Stable means waiting for the
+     next stable. Escape or "Not now" leaves the channel as it was. Only
+     confirming stores the choice; then whatever the old feed offered is
+     forgotten and a check of the new channel starts at once, because
+     choosing a channel is the question "what is there for me?". Nothing is
+     downloaded or installed by the choice.
+     Then it offers one switch, on by default, for the
      startup check — one bounded request when the app opens, repeated every
      24 hours only while it stays open — disclosing the GitHub contact, that
      repeat and the transmitted-data boundary beside it. A startup check that

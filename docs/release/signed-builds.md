@@ -100,7 +100,7 @@ workflow inputs or logs:
 
 | Scope | Names | Current readiness (2026-09-12) |
 | --- | --- | --- |
-| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | The one reviewed public identity is configured. Empty qualified targets remain valid for `preview-testing`; the pipeline supplies the separate canonical `GITODILE_PREVIEW_TEST_UPDATE_TARGETS` pair only to preview builds so real preview updates can be tested without claiming qualification. |
+| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | The one reviewed public identity is configured. Empty qualified targets remain valid for the testing modes; the pipeline supplies the separate canonical `GITODILE_TEST_UPDATE_TARGETS` pair to every build so real updates on both channels can be tested without claiming qualification. |
 | `production-windows-signing` environment secrets and variable | Reserved post-1.0 names: secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | Deliberately unconfigured until task 065-9-9 resumes after `1.0.0` |
 | `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before the first stable release |
 
@@ -134,8 +134,9 @@ that signing layer.
    metadata, and creates the required notes file and the app's highlights
    file (`docs/release/highlights/v<version>.json`, which What's new shows).
    Review and replace every notes placeholder, fill the highlights in both
-   languages, run the complete repository gate, commit, push the one release
-   branch and open a same-repository pull request to `main`.
+   languages, run `pnpm run release:notes` to render the notes' Highlights
+   block from them, run the complete repository gate, commit, push the one
+   release branch and open a same-repository pull request to `main`.
 2. Require the complete named check set to succeed, review the allowlisted
    release-only diff and merge the pull request. Direct pushes, fork pull
    requests, manual tags and other branch names do not enter this release path.

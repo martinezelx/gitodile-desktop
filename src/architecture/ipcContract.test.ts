@@ -5,10 +5,11 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(77);
+    expect(contract.commands).toHaveLength(79);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "get_app_update_state", "get_startup_update_confirmation",
       "check_app_update", "download_app_update", "cancel_app_update", "install_app_update",
+      "get_app_update_channel", "set_app_update_channel",
       "open_repository", "reveal_project_file", "plan_clone", "clone_repository",
       "cancel_clone", "cleanup_clone", "plan_initialize_project", "initialize_project",
       "cleanup_initialize_project", "read_working_tree_status",
@@ -80,6 +81,18 @@ describe("IPC contract snapshot", () => {
       expect(exception.reason.length, exception.command).toBeGreaterThan(0);
     }
     expect(contract.errorCodes).toEqual(APP_ERROR_CODES);
+    // The channel is a closed enum between the two compiled feeds; the
+    // renderer still cannot hand native code a feed, URL, key or target.
+    expect(contract.commands.find((command) => command.name === "set_app_update_channel")).toEqual({
+      name: "set_app_update_channel",
+      arguments: ["channel"],
+      response: "UpdateChannelSetting",
+    });
+    for (const command of contract.commands.filter(({ name }) => name.endsWith("_app_update") || name.includes("app_update_"))) {
+      for (const forbidden of ["url", "feed", "publicKey", "endpoint", "target", "headers"]) {
+        expect(command.arguments, command.name).not.toContain(forbidden);
+      }
+    }
     expect(contract.watchEvent).toEqual({
       name: "repository-changed",
       fields: ["projectId", "sessionEpoch", "sequence", "kind"],

@@ -546,9 +546,9 @@ candidate identity, payload limits, credential readiness, and A-to-B
 qualification pair are fixed in the
 [application update contracts](architecture/app-update-contracts.md). No target
 is advertised as automatically supported until its real signed A-to-B evidence
-exists. The renderer may request native lifecycle actions using opaque IDs; it
-never supplies a feed/channel, URL, public key, installer path, target, or
-request headers.
+exists. The renderer may request native lifecycle actions using opaque IDs
+and choose between the two compiled feeds by closed enum; it never supplies a
+feed, URL, public key, installer path, target, or request headers.
 
 The process-wide operation gate, watcher/background suspension, current command
 and draft inventories, rollback order, and extension requirements are defined
@@ -558,14 +558,17 @@ Every later conflict, integration, stash, helper, timer, or editor owner must
 join that contract before it can ship.
 
 `app_updates.rs` is the one process-wide native owner. It compiles the build's
-channel, fixed feed and updater public-key identity; detects the native target
-and installation mode; and retains at most one immutable candidate and one
-verified payload. The exact `tauri-plugin-updater = 2.11.0` Rust API owns the
+channel and updater public-key identity, resolves the channel a check follows
+from the natively stored preference (a closed enum beside the install handoff
+record) and picks the feed from it between the two compiled constants;
+detects the native target and installation mode; and retains at most one
+immutable candidate and one verified payload. The exact `tauri-plugin-updater = 2.11.0` Rust API owns the
 single feed request and authoritative check; GitOdile strictly validates its
 returned `raw_json` before retaining the candidate. The plugin also owns the
 official download, signature verification and platform handoff.
-The WebView reaches only six GitOdile commands described by the IPC contract;
-no updater/process guest permission or JavaScript updater package is exposed.
+The WebView reaches only eight GitOdile commands described by the IPC
+contract; no updater/process guest permission or JavaScript updater package
+is exposed.
 
 `features/app-updates` owns the renderer controller and eager update dialog.
 The controller reads and mirrors the process-wide native snapshot, coalesces

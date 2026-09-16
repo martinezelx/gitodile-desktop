@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import { registerInstallParticipant } from "../../runtime/install";
-import type { StartupUpdateConfirmation, UpdateState } from "./domain";
+import type { StartupUpdateConfirmation, UpdateChannel, UpdateChannelSetting, UpdateState } from "./domain";
 import { installReadyUpdate } from "./install";
 import type { AppUpdatesPort } from "./port";
 
@@ -16,6 +16,9 @@ export type AppUpdatesSnapshot = Readonly<{
   state: UpdateState;
   startupConfirmation: StartupUpdateConfirmation;
   automaticEnabled: boolean;
+  /** Null until native memory has answered; the control waits for it rather
+   * than presenting a guess as the person's choice. */
+  channel: UpdateChannelSetting | null;
 }>;
 
 export type AppUpdatesController = Readonly<{
@@ -27,6 +30,14 @@ export type AppUpdatesController = Readonly<{
   download(): Promise<UpdateState>;
   cancel(): Promise<UpdateState>;
   install(): Promise<UpdateState>;
+  /** Follows the other channel from now on, then asks that channel what it
+   * has: native memory forgets any candidate found under the old one, and a
+   * manual check starts at once, because choosing a channel is the question
+   * "what is there for me?". Nothing is downloaded or installed by it. A
+   * no-op while a check, download or install is running, and for the
+   * channel already in force. Resolves once the change is stored; the check
+   * settles on its own. */
+  setChannel(channel: UpdateChannel): Promise<UpdateChannelSetting | null>;
   openManualDownload(): Promise<void>;
   dispose(): void;
 }>;
@@ -51,6 +62,7 @@ export function createAppUpdatesController(
     state: { kind: "idle" },
     startupConfirmation: { kind: "none" },
     automaticEnabled: options.automaticEnabled ?? false,
+    channel: null,
   };
   let initialized: Promise<void> | null = null;
   let sharedCheck: Promise<UpdateState> | null = null;
@@ -170,12 +182,14 @@ export function createAppUpdatesController(
     initialize() {
       if (initialized) return initialized;
       registerAutomaticParticipant();
-      initialized = Promise.all([port.readState(), port.readStartupConfirmation()])
-        .then(([state, startupConfirmation]) => {
-          // The typed native boundary always supplies both values. Keeping the
-          // initial safe snapshot when an embedded/test host violates that
+      // The channel is a convenience beside the lifecycle: a host that cannot
+      // answer it leaves the control waiting, not the whole shell failed.
+      initialized = Promise.all([port.readState(), port.readStartupConfirmation(), port.readChannel().catch(() => null)])
+        .then(([state, startupConfirmation, channel]) => {
+          // The typed native boundary always supplies these values. Keeping
+          // the initial safe snapshot when an embedded/test host violates that
           // contract prevents the global shell from becoming unusable.
-          if (state && startupConfirmation) publish({ state, startupConfirmation });
+          if (state && startupConfirmation) publish({ state, startupConfirmation, channel: channel ?? null });
         })
         .catch(() => publish({
           state: { kind: "failed", error: { code: "internal", stage: "startup", retryable: true } },
@@ -257,6 +271,19 @@ export function createAppUpdatesController(
         sharedInstall = null;
       });
       return sharedInstall;
+    },
+    setChannel(channel) {
+      if (sharedCheck || sharedDownload || sharedInstall || isActive(snapshot.state)) {
+        return Promise.resolve(snapshot.channel);
+      }
+      if (snapshot.channel?.channel === channel) return Promise.resolve(snapshot.channel);
+      return port.setChannel(channel)
+        .then((setting) => port.readState().then((state) => {
+          publish({ channel: setting, state });
+          void check("manual");
+          return setting;
+        }))
+        .catch(() => snapshot.channel);
     },
     openManualDownload: () => port.openManualDownload(),
     dispose() {

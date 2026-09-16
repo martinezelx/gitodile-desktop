@@ -88,11 +88,20 @@ malformed or oversized own entry is still rejected.
 
 The same task made the compile-time target gate visible at check time. A
 build compiled without the gate for its target (neither
-`GITODILE_QUALIFIED_UPDATE_TARGETS` nor, on preview, the preview-test pair
-names it) reports a newer version as `blocked(automatic_update_not_enabled)`
+`GITODILE_QUALIFIED_UPDATE_TARGETS` nor `GITODILE_TEST_UPDATE_TARGETS` names
+it) reports a newer version as `blocked(automatic_update_not_enabled)`
 from the check itself, downloads nothing and offers the manual download.
 `unsupported_installation` is reserved for installations the updater may never
 replace (managed packages, stores, mounted images).
+
+Task 065-9-12 (2026-09-15) added the one channel input that exists: a stored
+choice between the two compiled feeds. See "Channel preference" under
+"Version and release identity". The same task put stable releases under the
+testing publication policy that previews already use (`stable-testing`, a
+Tauri-signed release with the testing notice and without platform
+qualification), so both channels can be exercised end to end before the
+qualification registry is complete; the compile-time test-target gate
+therefore applies to both channels.
 
 The production feeds are fixed constants. The public key and key ID are build-
 time values (`GITODILE_UPDATER_PUBLIC_KEY` and
@@ -101,12 +110,14 @@ unavailable rather than accepting a placeholder. Automatic installation is a
 second compile-time deny-by-default gate,
 `GITODILE_QUALIFIED_UPDATE_TARGETS`. It must remain empty in ordinary builds
 until task 065-9-7 qualifies an exact target/mode with real signed packages.
-Public preview-testing builds use the separate compile-time
-`GITODILE_PREVIEW_TEST_UPDATE_TARGETS` gate for the canonical Windows/Linux
-pair. That gate is accepted only on the preview channel and enables real
-preview-feed A-to-B testing without changing or claiming qualification; stable
-builds never consult it. There is no other build profile: every build embeds
-the one reviewed public key and can only be routed to the two public feeds.
+Testing builds use the separate compile-time `GITODILE_TEST_UPDATE_TARGETS`
+gate for the canonical Windows/Linux pair. The release pipeline supplies it
+to every build on both channels while both publish under the testing policy;
+it enables real feed A-to-B testing without changing or claiming
+qualification, and the build channel stays available to the gate so the list
+can be narrowed to one channel again when stable leaves testing. There is no
+other build profile: every build embeds the one reviewed public key and can
+only be routed to the two public feeds.
 
 The renderer-facing feature exposes only typed GitOdile commands and opaque
 candidate/operation IDs. There is no JavaScript updater dependency and the
@@ -152,9 +163,14 @@ There is no independent channel or prerelease input.
 SemVer precedence is numeric across `major.minor.patch`, then preview number;
 for the same core version every preview precedes stable. Equal and older
 candidates yield `current`, not an error. A missing feed or target yields
-`unavailable`, never `current`. A stable build rejects every preview candidate,
-even if its core version is newer. A preview feed may contain the next preview
-or a newer stable successor.
+`unavailable`, never `current`. A check that follows the stable channel
+rejects a preview candidate as `channel_mismatch` on a stable build (a
+preview in `stable.json` is a feed error) and treats it as not an offer,
+`current`, on a preview build whose person asked for stable only. A check
+that follows the preview channel accepts a newer preview on either build. A
+preview feed may contain the next preview or a newer stable successor, and a
+stable candidate is acceptable on either channel. No preference allows a
+downgrade.
 
 The two production feed identities are fixed in native build metadata:
 
@@ -163,21 +179,66 @@ The two production feed identities are fixed in native build metadata:
 | `stable` | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/stable.json` |
 | `preview` | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json` |
 
-`BuildUpdateIdentity` is generated and validated while building:
+`BuildUpdateIdentity` is generated and validated for every check:
 
 ```rust
 struct BuildUpdateIdentity {
     version: ReleaseVersion,
+    build_channel: ReleaseChannel,
     channel: ReleaseChannel,
     feed: KnownFeed,
     public_key_id: UpdaterPublicKeyId,
 }
 ```
 
-`ReleaseChannel` and `KnownFeed` are closed enums. Every value comes from
-the validated version and the reviewed public key compiled into the build. The
-renderer can request a check; it cannot provide a channel, URL, public key,
-installer path, target, or arbitrary request headers.
+`ReleaseChannel` and `KnownFeed` are closed enums. `build_channel` comes from
+the validated version; `channel` is the channel the check follows (see
+below); `feed` is chosen from `channel` between the two constants; the key
+comes from the reviewed public key compiled into the build. The renderer can
+request a check and choose between the two compiled feeds by closed enum; it
+cannot provide a URL, public key, installer path, target, or arbitrary
+request headers.
+
+### Channel preference
+
+```rust
+enum ChannelPreference { FollowBuild, Stable, Preview }
+
+struct UpdateChannelSetting {
+    preferred: ChannelPreference,
+    build_channel: ReleaseChannel,
+    channel: ReleaseChannel, // the one a check follows
+}
+```
+
+The preference is stored natively as `app-update-channel-v1.json` in the
+app-local data directory beside the install handoff record, never in renderer
+storage. `follow_build` is the default and reproduces the behaviour every
+build had before the preference existed. A missing, oversized (over 256
+bytes) or malformed record is `follow_build`. The effective `channel` is the
+preference when set, else `build_channel`.
+
+Two commands exist: `get_app_update_channel` returns the setting, and
+`set_app_update_channel(channel: "stable" | "preview")` stores the choice.
+The renderer never sends `follow_build`, a feed, a URL, a key or a target. A
+change is refused with `update_operation_busy` while a check, download or
+install is running. Otherwise it forgets the pending candidate and returns the
+snapshot to `idle`: whatever was offered was found on the other feed and must
+not be installed under the new choice. The candidate identity is rebuilt
+under the channel in force when an install is revalidated, so a candidate
+found under another preference is stale at install time as well. Compile-time
+target gates key on `build_channel`, because they describe the build.
+
+In Settings → Updates the choice is a two-option group, Stable / Preview, that
+shows the effective channel; `follow_build` is presented as whichever it
+resolves to, not as a third option. Picking the other option opens a
+confirmation that states the consequence (the installed version stays; the
+app never downgrades) before anything is stored; on confirmation the
+renderer stores the choice, mirrors the native `idle` reset and starts a
+manual check of the new channel at once. The check follows the same
+lifecycle as any other; the choice itself downloads and installs nothing. The executable cases carry
+`preferredChannel` and `scripts/check-app-update-contracts.mjs` evaluates
+them the way `version_decision` does.
 
 ## Target and installation matrix
 
@@ -264,6 +325,12 @@ type UpdateCandidate = Readonly<{
   publishedAt: string | null;
   notes: string;
   expectedBytes: number | null;
+}>;
+
+type UpdateChannelSetting = Readonly<{
+  preferred: "follow_build" | "stable" | "preview";
+  buildChannel: "stable" | "preview";
+  channel: "stable" | "preview";
 }>;
 ```
 

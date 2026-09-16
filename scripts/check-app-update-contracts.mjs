@@ -44,13 +44,22 @@ function compareVersions(left, right) {
   return left.preview < right.preview ? -1 : left.preview > right.preview ? 1 : 0;
 }
 
+/** Mirrors `version_decision` in `app_updates.rs`. The effective channel is
+ * the stored preference when one is set, else the build's own; the feed a
+ * case names must be that channel's, because Rust chooses the feed from it.
+ * A preview candidate under an effective stable channel is a feed error on a
+ * stable build and a non-offer on a preview build restricted to stable. */
 function evaluateVersionCase(testCase) {
   const installed = parseVersion(testCase.installedVersion);
   const candidate = parseVersion(testCase.candidateVersion);
   if (!installed || !candidate) return "invalid_version";
   if (installed.channel !== testCase.installedChannel) return "channel_mismatch";
-  if (testCase.feedChannel === "stable" && candidate.channel !== "stable") {
-    return "channel_mismatch";
+  const preferred = testCase.preferredChannel ?? "follow_build";
+  assert.ok(contract.channelPreferences.includes(preferred), `${testCase.name}: unknown preference`);
+  const effective = preferred === "follow_build" ? installed.channel : preferred;
+  assert.equal(testCase.feedChannel, effective, `${testCase.name}: the feed is chosen from the effective channel`);
+  if (effective === "stable" && candidate.channel === "preview") {
+    return installed.channel === "stable" ? "channel_mismatch" : "current";
   }
   if (!testCase.targetPresent) return "target_unavailable";
   return compareVersions(candidate, installed) > 0 ? "available" : "current";
@@ -71,6 +80,12 @@ function evaluateMetadataCase(testCase) {
 
 assert.deepEqual(contract.channels, ["stable", "preview"]);
 assert.equal(new Set(contract.channels).size, 2);
+assert.deepEqual(contract.channelPreferences, ["follow_build", "stable", "preview"],
+  "the channel preference is a closed choice between the two compiled feeds");
+for (const preference of contract.channelPreferences) {
+  assert.ok(contract.versionCases.some((testCase) => testCase.preferredChannel === preference),
+    `the version cases exercise the ${preference} preference`);
+}
 assert.equal(contract.bounds.retainedCandidates, 1);
 assert.equal(contract.bounds.artifactBytes, 256 * 1024 * 1024);
 assert.deepEqual(
@@ -192,6 +207,24 @@ assert.doesNotMatch(nativeUpdaterProduction, /fetch_bounded_manifest|bytes_strea
   "GitOdile must not restore a separate manifest fetch");
 assert.match(nativeUpdaterProduction, /validate_raw_manifest\(/,
   "the plugin's authoritative raw_json must still pass GitOdile's strict validation");
+// The preference is the one channel input that exists, and it is a closed
+// enum resolved to one of the two compiled feed constants: no URL, key or
+// target reaches native code from configuration or the renderer.
+const preferenceVariants = nativeUpdaterProduction
+  .match(/enum ChannelPreference \{([^}]*)\}/)[1]
+  .replace(/#\[[^\]]*\]/g, "")
+  .split(",")
+  .map((variant) => variant.trim())
+  .filter(Boolean)
+  .map((variant) => variant.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase());
+assert.deepEqual(preferenceVariants, contract.channelPreferences, "ChannelPreference variants differ from the contract");
+assert.equal((nativeUpdaterProduction.match(/raw\.githubusercontent\.com\/martinezelx\/gitodile\/main\/updates\//g) ?? []).length, 2,
+  "exactly the two compiled feed constants exist");
+assert.match(nativeUpdaterProduction, /let channel = preference\.resolve\(build_channel\);/,
+  "the feed is chosen from the preference resolved against the build channel");
+const ipcSource = fs.readFileSync(path.join(root, "src-tauri", "src", "ipc.rs"), "utf8");
+assert.match(ipcSource, /channel: ReleaseChannel,\r?\n\) -> Result<UpdateChannelSetting, AppError>/,
+  "the renderer sets the channel by closed enum only");
 
 process.stdout.write(
   `App-update contract check passed (${contract.versionCases.length} version cases, ` +

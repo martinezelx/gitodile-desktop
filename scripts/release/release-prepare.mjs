@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { HIGHLIGHTS_DIRECTORY, highlightsFileName, scaffoldHighlights, todayIsoDate } from "./highlights.mjs";
+import { HIGHLIGHTS_DIRECTORY, applyHighlightsBlock, highlightsFileName, scaffoldHighlights, todayIsoDate } from "./highlights.mjs";
 import { parseReleaseVersion, readReleaseMetadata, ReleaseValidationError } from "./release-candidate.mjs";
 
 const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
@@ -114,7 +114,10 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
     `Current development version: **${version}**, **${release.channel}** channel.`,
     "README.md",
   ));
-  fs.writeFileSync(files.notes, `# GitOdile ${version}\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`);
+  // The notes start with the highlights block already in place, rendered
+  // from the empty list; `release:notes` re-renders it once the file is
+  // filled, and the coordinator refuses a release where the two disagree.
+  fs.writeFileSync(files.notes, applyHighlightsBlock(`# GitOdile ${version}\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`, []));
   fs.mkdirSync(path.dirname(files.highlights), { recursive: true });
   fs.writeFileSync(files.highlights, scaffoldHighlights(version, todayIsoDate()));
 
@@ -163,7 +166,7 @@ if (isMain) {
   try {
     const { version } = parseCommandLine(process.argv.slice(2));
     const result = prepareRelease({ root: process.cwd(), version });
-    process.stdout.write(`Prepared ${result.branch}. Replace the placeholder in ${result.notes} and fill ${result.highlights} before committing.\n`);
+    process.stdout.write(`Prepared ${result.branch}. Fill ${result.highlights}, run pnpm run release:notes, and replace the placeholder in ${result.notes} before committing.\n`);
     if (result.changesSince.length > 0) {
       process.stdout.write(`Changes since the previous release, for reference:\n${result.changesSince.map((line) => `  - ${line}`).join("\n")}\n`);
     }

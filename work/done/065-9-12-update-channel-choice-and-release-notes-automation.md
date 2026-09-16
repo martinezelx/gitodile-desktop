@@ -1,7 +1,7 @@
 ---
 id: 065-9-12
 title: Let the user choose the update channel, and finish the release-notes automation
-status: active
+status: done
 priority: normal
 type: feature
 areas:
@@ -11,9 +11,9 @@ areas:
   - automation
   - documentation
 created: 2026-09-15
-completed:
+completed: 2026-09-15
 parent: "065-9"
-queue: "27"
+queue:
 ---
 
 # Goal
@@ -145,25 +145,25 @@ written separately. For preview.11 the same sentences were typed twice.
 
 # Acceptance criteria
 
-- [ ] With `follow_build` (default) every existing contract case, Rust test and
+- [x] With `follow_build` (default) every existing contract case, Rust test and
       frontend test passes unchanged.
-- [ ] A stable build with `preview` preferred is offered a newer preview and
+- [x] A stable build with `preview` preferred is offered a newer preview and
       still refuses older ones; a preview build with `stable` preferred is
       offered only stable successors and reports `current` otherwise. Both
       covered in `065-9-1-app-update-contract.json`, the contract check and
       Rust unit tests.
-- [ ] The renderer cannot influence feed, URL or key: the IPC contract test in
+- [x] The renderer cannot influence feed, URL or key: the IPC contract test in
       `src/architecture/ipcContract.test.ts` and the Rust `ipc` contract test
       show only the closed-enum preference command.
-- [ ] Settings → Updates shows the channel control with per-option copy in EN
+- [x] Settings → Updates shows the channel control with per-option copy in EN
       and ES, keyboard-navigable like the other radio groups, and a
       `UpdateDialog.test.tsx` case for switching and re-checking.
-- [ ] What's new shows the tag date for every published version in a tagged
+- [x] What's new shows the tag date for every published version in a tagged
       build; the dev build falls back to the file date; the pipeline fails
       loudly if a tagged build could not resolve its own tag.
-- [ ] `release:prepare` renders the highlights block into the notes; the
+- [x] `release:prepare` renders the highlights block into the notes; the
       coordinator refuses a mismatch; `scripts/release/*.test.mjs` cover both.
-- [ ] ADR 0010, `app-update-contracts.md`, DESIGN.md and the two release
+- [x] ADR 0010, `app-update-contracts.md`, DESIGN.md and the two release
       READMEs describe the new behaviour; `pnpm run check` passes and is
       recorded below.
 
@@ -202,11 +202,130 @@ written separately. For preview.11 the same sentences were typed twice.
   automated.
 - 2026-09-15: parts B and C were deferred from preview.11 to keep the release
   pipeline untouched while the first preview-to-preview update test runs.
+- 2026-09-15 (implementation): the user asked, alongside this task, that
+  stable releases need only the Tauri updater signature for now — no OS
+  signing and no qualification evidence — so the stable channel behaves like
+  preview and the channel switch can be tested for real. Implemented as a
+  `stable-testing` publication mode mirroring `preview-testing` (testing
+  notice, empty qualified targets, `authenticode_deferred` preserved, the
+  reviewed stable environment, `stable.json` plus `preview.json` when newer)
+  and by supplying the compile-time test-target gate to every build
+  (`GITODILE_TEST_UPDATE_TARGETS`, renamed from the preview-only
+  `GITODILE_PREVIEW_TEST_UPDATE_TARGETS`). `production` stays reserved for a
+  qualified registry. Windows Authenticode was already deferred for both
+  channels (ADR 0011); what actually blocked a stable release was the
+  qualification gate, and that is what this relaxes. OS signing for both
+  channels (SignPath) is a later decision and is not touched here.
+- 2026-09-15 (implementation): a change of channel is refused natively while
+  a check, download or install is active (`update_operation_busy`) and
+  otherwise forgets the pending candidate and returns the snapshot to `idle`,
+  so the renderer mirrors native state instead of clearing it itself. The
+  candidate identity is also rebuilt under the channel in force at install
+  time, so a candidate found under another preference is stale there too.
+- 2026-09-15 (implementation): the renderer sets only `stable` or `preview`;
+  `follow_build` is never sent and is presented as whichever channel it
+  resolves to. The stored value changes only when the person picks the other
+  option, so someone who never touched the control keeps today's behaviour
+  through a preview-to-stable update.
+- 2026-09-15 (implementation): a preview candidate under an effective stable
+  channel is `channel_mismatch` on a stable build (a preview in `stable.json`
+  is a feed error, as before) and `current` on a preview build restricted to
+  stable, as the scope asked. The contract check evaluates cases the way
+  `version_decision` does, and insists the feed named by a case is the
+  effective channel's.
+
+- 2026-09-16: choosing the other channel confirms first (card in the
+  install confirmation's shape, stating that the installed version stays
+  because the app never downgrades) and, once confirmed, starts a manual
+  check of the new channel immediately. Modelled on the selector-plus-
+  confirmation pattern (Windows Insider, Obsidian, Steam beta) rather than a
+  silent dropdown (JetBrains Toolbox) or separate installs (Chrome, VS Code
+  Insiders), which do not fit a single app identity.
 
 # Implementation notes
 
-Complete this section during implementation.
+- **Rust** (`src-tauri/src/app_updates.rs`): `ChannelPreference`
+  (`FollowBuild | Stable | Preview`) persisted as
+  `app-update-channel-v1.json` beside the handoff record (256-byte bound;
+  anything unreadable is `follow_build`). `BuildUpdateIdentity` now carries
+  `build_channel` and the effective `channel`; the feed is chosen from the
+  latter, compile-time target gates key on the former.
+  `version_decision(build_channel, effective_channel, installed, candidate)`
+  implements the matrix above. `AppUpdateService::channel_setting` and
+  `set_channel` are the two new operations; `perform_check` and the install
+  revalidation take the preference. `production_target_is_enabled_for_lists`
+  unions the qualified and test lists for both channels.
+- **IPC**: `get_app_update_channel` → `UpdateChannelSetting`,
+  `set_app_update_channel(channel: ReleaseChannel)` →
+  `Result<UpdateChannelSetting, AppError>`; new `AppErrorCode::UpdateOperationBusy`
+  (`update_operation_busy`, mapped to the fallback message in the renderer
+  since the control is disabled while busy). Registered in `lib.rs`, the
+  execution inventory and both IPC contract lists (77 → 79 commands).
+- **Contract**: `channelPreferences` and eight `preferredChannel` version
+  cases in `065-9-1-app-update-contract.json`; the check script mirrors
+  `version_decision`, requires every preference to be exercised, and pins the
+  closed enum, the two feed constants and the closed-enum IPC signature in
+  the Rust source.
+- **Renderer** (`src/features/app-updates`): `UpdateChannelSetting` in the
+  domain, `readChannel`/`setChannel` on the port and adapter, `channel` in
+  the controller snapshot (read at initialize; `setChannel` is a no-op while
+  busy or for the channel already in force, re-reads native state after a
+  change and then starts a manual check). `ChannelControl` in
+  `UpdateDialog.tsx` is a two-option `segmented-control` radio group under
+  the installed-version row, using the shared `moveFocusWithinRadioGroup`,
+  with one sentence per option in EN/ES; picking the other option opens a
+  confirmation card (`.app-update-confirm`) with the consequence copy in
+  EN/ES, Escape/"Not now" to decline, focus on the confirm button.
+- **Dates** (`vite.config.ts`, `src/app/appRelease.ts`): `__APP_RELEASE_DATES__`
+  maps each highlights file's version to `git log -1 --format=%cs
+  refs/tags/v<version>` when the tag exists; `buildAppChangelog` prefers it
+  over the file's `date`. The pipeline's `build` job checks out with
+  `fetch-tags: true` and a new step refuses to build when the release tag
+  does not resolve to the validated SHA or has no date.
+- **Notes** (`scripts/release/highlights.mjs`, new `release-notes.mjs`,
+  `release-prepare.mjs`, `merge-release.mjs`, `public-release.mjs`):
+  `renderHighlightsBlock`/`applyHighlightsBlock`/`extractHighlightsBlock`
+  own the block between `<!-- gitodile-highlights:start/end -->`;
+  `release:prepare` scaffolds it, `pnpm run release:notes [version]`
+  re-renders it, `check:docs` fails `notes_stale` when a marked block
+  differs from its file, and `validateReleasePreparation` fails
+  `notes_incomplete` when the block is missing or differs. `normalizeNotes`
+  strips HTML comments so markers never reach the updater manifest.
+- **Publication**: `stable-testing` mode and `STABLE_TESTING_NOTICE`;
+  `derivePublicationMode` returns `production`/`preview-qualified` only for a
+  fully qualified registry and `stable-testing`/`preview-testing` otherwise;
+  the qualification gate gains `stableTestingAllowed`; `feedsForPromotion`
+  accepts it and refuses a preview under a stable mode; the `publish` job
+  enters `public-release-stable` for both stable modes.
+- **Docs**: ADR 0010 amendment (2026-09-15, task 065-9-12) and the
+  "no channel picker" rule, `app-update-contracts.md` (channel preference
+  section, decision matrix, gates, `UpdateChannelSetting`), `ARCHITECTURE.md`,
+  DESIGN.md (channel group, tag date), README, both release READMEs,
+  `public-publishing.md`, `updater-qualification.md`, `signed-builds.md`.
+- **Not done here**: the What's new line for this feature. `0.2.0-preview.12`
+  is already tagged, so the line belongs in the next version's highlights
+  file when `release:prepare` creates it. Suggested line (`cloud-download`):
+  EN "Choose which update channel to follow — stable, or previews that arrive
+  earlier — from Settings → Updates." / ES "Elige qué canal de
+  actualizaciones seguir — estable, o las preview, que llegan antes — desde
+  Ajustes → Actualizaciones."
+- **Repository configuration to review before the first stable-testing
+  release**: the `public-release-stable` environment must exist with its
+  reviewer and its own `GITODILE_PUBLIC_RELEASE_TOKEN`; `GITODILE_QUALIFIED_UPDATE_TARGETS`
+  stays unset.
 
 # Validation
 
-Record the exact commands run and their results.
+Recorded on 2026-09-15 on Windows 11 (the implementation machine):
+
+- `node scripts/check-app-update-contracts.mjs` — passed (18 version cases,
+  5 metadata cases).
+- `node --test scripts/release/*.test.mjs` — 51 passed, 0 failed.
+- `pnpm exec vitest run src/features/app-updates src/architecture
+  src/app/changelogDialog.test.tsx` — passed.
+- `pnpm run check` — passed: docs (386 Markdown files, 18 contract version
+  cases, 51 release-script tests), frontend (88 test files, 869 tests, build),
+  Rust (`cargo fmt --check`, `clippy -D warnings`, 407 tests passed).
+- Not exercised here: a real stable-testing publication and a real channel
+  switch against the public feeds; the first stable release will be the
+  first end-to-end run of both.

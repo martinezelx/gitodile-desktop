@@ -14,6 +14,7 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run --passWithNoTests",
     "release:prepare": "node scripts/release/release-prepare.mjs",
+    "release:notes": "node scripts/release/release-notes.mjs",
     "icons": "node scripts/icons/generate-icons.mjs",
     "check:release": "node --test scripts/release/*.test.mjs",
     "check:docs": "node scripts/check-docs.mjs && node scripts/check-app-update-contracts.mjs && node scripts/check-release-highlights.mjs && pnpm run check:release && pnpm run check:icons",

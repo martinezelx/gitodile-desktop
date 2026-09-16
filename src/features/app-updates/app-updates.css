@@ -86,6 +86,11 @@
 .app-update-confirm p { margin: 0; color: var(--text-secondary-color); line-height: var(--leading-normal); }
 .app-update-actions { flex-wrap: wrap; margin-top: 24px; }
 
+/* The channel confirmation borrows the install confirmation's card and
+   spans the settings row it follows, so the question sits under the group
+   that asked it. */
+.app-update-confirm--channel { width: 100%; margin-top: 0; }
+
 /* Settings: the version row and the status line stack in the row's text
    column, the buttons keep to the right as in every other row. */
 .app-update-settings__identity { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }

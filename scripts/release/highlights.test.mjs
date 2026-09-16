@@ -6,12 +6,18 @@ import test from "node:test";
 import {
   HIGHLIGHT_ICONS,
   HIGHLIGHT_TEXT_LIMIT,
+  HIGHLIGHTS_BLOCK_END,
+  HIGHLIGHTS_BLOCK_START,
+  applyHighlightsBlock,
   checkHighlights,
+  extractHighlightsBlock,
   parseHighlights,
   readHighlightsDirectory,
+  renderHighlightsBlock,
   scaffoldHighlights,
   todayIsoDate,
 } from "./highlights.mjs";
+import { renderReleaseNotes } from "./release-notes.mjs";
 import { ReleaseValidationError } from "./release-candidate.mjs";
 
 function expectCode(code, callback) {
@@ -69,11 +75,55 @@ test("the directory check orders versions, requires the current one and refuses 
   expectCode("highlights_invalid", () => checkHighlights(root));
   fs.rmSync(path.join(highlights, "v0.2.0-preview.10.json"));
 
+  // Notes that carry the block must carry the one their file renders; notes
+  // written before the block existed have no markers and are left alone.
+  fs.writeFileSync(path.join(highlights, "v0.2.0-preview.11.json"), file());
+  fs.writeFileSync(path.join(notes, "v0.2.0-preview.11.md"), applyHighlightsBlock("# GitOdile 0.2.0-preview.11\n", []));
+  expectCode("notes_stale", () => checkHighlights(root));
+  fs.writeFileSync(path.join(notes, "v0.2.0-preview.11.md"), applyHighlightsBlock("# GitOdile 0.2.0-preview.11\n", [line]));
+  assert.equal(checkHighlights(root).length, 3);
+
   fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "0.2.0-preview.12" }));
   expectCode("highlights_missing", () => checkHighlights(root));
 
   fs.writeFileSync(path.join(highlights, "stray.json"), "{}");
   expectCode("highlights_invalid", () => readHighlightsDirectory(root));
+});
+
+test("the notes' Highlights section is rendered from the English lines, between markers the script owns", () => {
+  const second = { id: "tagDates", icon: "history", en: "What's new dates each version by its tag.", es: "Novedades fecha cada versión por su etiqueta." };
+  const block = renderHighlightsBlock([line, second]);
+  assert.equal(block, `${HIGHLIGHTS_BLOCK_START}\n## Highlights\n\n- ${line.en}\n- ${second.en}\n${HIGHLIGHTS_BLOCK_END}`);
+  assert.equal(renderHighlightsBlock([]), `${HIGHLIGHTS_BLOCK_START}\n<!-- This version has no user-facing highlights; What's new lists it without lines. -->\n${HIGHLIGHTS_BLOCK_END}`);
+  // Inserted under the title when absent; replaced in place when present;
+  // everything outside the markers is left exactly as written.
+  const notes = "# GitOdile 0.2.0-preview.11\n\nAn intro paragraph.\n\n- A hand-written bullet.\n";
+  const inserted = applyHighlightsBlock(notes, [line]);
+  assert.equal(inserted, `# GitOdile 0.2.0-preview.11\n\n${renderHighlightsBlock([line])}\n\nAn intro paragraph.\n\n- A hand-written bullet.\n`);
+  assert.equal(extractHighlightsBlock(inserted), renderHighlightsBlock([line]));
+  const moved = inserted.replace(`${renderHighlightsBlock([line])}\n\n`, "").replace("- A hand-written bullet.\n", `- A hand-written bullet.\n\n${renderHighlightsBlock([line])}\n`);
+  const rerendered = applyHighlightsBlock(moved, [line, second]);
+  assert.equal(rerendered, `# GitOdile 0.2.0-preview.11\n\nAn intro paragraph.\n\n- A hand-written bullet.\n\n${block}\n`);
+  assert.equal(applyHighlightsBlock(rerendered, [line, second]), rerendered);
+  const dollars = { id: "dollars", icon: "tag", en: "Costs $$ and $& and $1 less.", es: "Cuesta $$ menos." };
+  assert.match(applyHighlightsBlock(rerendered, [dollars]), /- Costs \$\$ and \$& and \$1 less\./);
+  assert.equal(applyHighlightsBlock(rerendered.replace(/\n/g, "\r\n"), [line, second]), rerendered);
+  assert.equal(extractHighlightsBlock(notes), null);
+  expectCode("notes_invalid", () => extractHighlightsBlock(`# GitOdile 0.2.0-preview.11\n\n${HIGHLIGHTS_BLOCK_END}\n`));
+  expectCode("notes_invalid", () => applyHighlightsBlock("No title here.\n", [line]));
+
+  // `release:notes` rewrites only the marked block of the version's notes.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-release-notes-"));
+  fs.mkdirSync(path.join(root, "docs", "release", "highlights"), { recursive: true });
+  fs.mkdirSync(path.join(root, "docs", "release", "notes"), { recursive: true });
+  expectCode("highlights_missing", () => renderReleaseNotes({ root, version: "0.2.0-preview.11" }));
+  fs.writeFileSync(path.join(root, "docs", "release", "highlights", "v0.2.0-preview.11.json"), file());
+  expectCode("notes_missing", () => renderReleaseNotes({ root, version: "0.2.0-preview.11" }));
+  fs.writeFileSync(path.join(root, "docs", "release", "notes", "v0.2.0-preview.11.md"), notes);
+  assert.deepEqual(renderReleaseNotes({ root, version: "0.2.0-preview.11" }), { notes: "docs/release/notes/v0.2.0-preview.11.md", lines: 1, changed: true });
+  assert.equal(fs.readFileSync(path.join(root, "docs", "release", "notes", "v0.2.0-preview.11.md"), "utf8"), inserted);
+  assert.equal(renderReleaseNotes({ root, version: "0.2.0-preview.11" }).changed, false);
+  expectCode("invalid_tag", () => renderReleaseNotes({ root, version: "0.2.0-alpha.1" }));
 });
 
 test("the repository's own highlights pass the check", () => {

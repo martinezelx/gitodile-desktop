@@ -282,20 +282,35 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
     if (!pending && !qualified) fail("qualification_invalid", `${target} has an invalid qualification state`);
   }
   const preview = candidate.release.channel === "preview" && candidate.release.githubPrerelease === true;
+  const stable = candidate.release.channel === "stable" && candidate.release.githubPrerelease === false;
+  const gate = (allowed, qualifiedTargets) => ({
+    productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: false, stableTestingAllowed: false,
+    ...allowed, qualifiedTargets,
+  });
+  // The two testing modes deliberately accept `qualification_required`
+  // targets: they are publication-pipeline and channel testing with
+  // Tauri-signed bytes, never target qualification.
   if (mode === "preview-testing") {
     if (!preview) fail("profile_mismatch", "preview testing requires a preview candidate flagged as a GitHub prerelease");
-    return { productionAllowed: false, previewTestingAllowed: true, previewQualifiedAllowed: false, qualifiedTargets: [] };
+    return gate({ previewTestingAllowed: true }, []);
+  }
+  if (mode === "stable-testing") {
+    if (!stable) fail("profile_mismatch", "stable testing requires a stable candidate that is not a GitHub prerelease");
+    return gate({ stableTestingAllowed: true }, []);
   }
   if (mode !== "production" && mode !== "preview-qualified") {
-    fail("invalid_mode", "mode must be preview-testing, preview-qualified or production");
+    fail("invalid_mode", "mode must be preview-testing, preview-qualified, stable-testing or production");
   }
   if (mode === "preview-qualified" && !preview) {
     fail("profile_mismatch", "a qualified preview requires a preview candidate flagged as a GitHub prerelease");
   }
+  if (mode === "production" && !stable) {
+    fail("profile_mismatch", "production requires a stable candidate that is not a GitHub prerelease");
+  }
   const qualifiedTargets = requireQualifiedTargets(qualification, candidate.matrix.requiredTargets, byTarget);
   return mode === "production"
-    ? { productionAllowed: true, previewTestingAllowed: false, previewQualifiedAllowed: false, qualifiedTargets }
-    : { productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: true, qualifiedTargets };
+    ? gate({ productionAllowed: true }, qualifiedTargets)
+    : gate({ previewQualifiedAllowed: true }, qualifiedTargets);
 }
 
 /** The one proof both qualified modes share: production approval plus a
@@ -313,10 +328,11 @@ function requireQualifiedTargets(qualification, requiredTargets, byTarget) {
   return [...keyIds.keys()];
 }
 
-/** Whether a preview may publish without the testing notice: the registry
- * already proves every enabled target and production approval. Deny by
- * default — a malformed or partial registry answers `false`, and the full
- * validation still runs when the plan is prepared. */
+/** Whether the registry already proves every enabled target and production
+ * approval — what lets a preview publish without the testing notice and a
+ * stable candidate publish as `production` rather than `stable-testing`.
+ * Deny by default — a malformed or partial registry answers `false`, and the
+ * full validation still runs when the plan is prepared. */
 export function qualifiedPreviewAllowed(qualification) {
   try {
     if (qualification?.schemaVersion !== QUALIFICATION_SCHEMA_VERSION || !Array.isArray(qualification.targets)) return false;

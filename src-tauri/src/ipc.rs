@@ -6,8 +6,8 @@
 
 use crate::{
     app_updates::{
-        AppUpdateService, InstallUpdateRequest, StartupUpdateConfirmation, UpdateAction,
-        UpdateCheckSource, UpdateState,
+        AppUpdateService, InstallUpdateRequest, ReleaseChannel, StartupUpdateConfirmation,
+        UpdateAction, UpdateChannelSetting, UpdateCheckSource, UpdateState,
     },
     application,
     changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
@@ -93,6 +93,23 @@ pub(crate) fn install_app_update(
         "install_app_update",
         service.install(&app, &watchers, request),
     )
+}
+
+#[tauri::command]
+pub(crate) fn get_app_update_channel(
+    service: tauri::State<'_, AppUpdateService>,
+) -> UpdateChannelSetting {
+    report_value("get_app_update_channel", service.channel_setting())
+}
+
+/// The renderer chooses between the two compiled feeds by closed enum; it
+/// still cannot name a feed, URL, key or target.
+#[tauri::command]
+pub(crate) fn set_app_update_channel(
+    service: tauri::State<'_, AppUpdateService>,
+    channel: ReleaseChannel,
+) -> Result<UpdateChannelSetting, AppError> {
+    report_result("set_app_update_channel", service.set_channel(channel))
 }
 
 fn report_result<T>(operation: &'static str, result: Result<T, AppError>) -> Result<T, AppError> {
@@ -1484,6 +1501,7 @@ mod contract_tests {
             AppErrorCode::StaleIgnoreFile,
             AppErrorCode::IgnoreFileWriteFailed,
             AppErrorCode::InstallBlocked,
+            AppErrorCode::UpdateOperationBusy,
         ];
         let serialized = codes
             .iter()

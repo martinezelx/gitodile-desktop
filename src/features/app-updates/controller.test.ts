@@ -17,6 +17,8 @@ function createPort(overrides: Partial<AppUpdatesPort> = {}): AppUpdatesPort {
     cancel: vi.fn(),
     install: vi.fn(),
     openManualDownload: vi.fn(),
+    readChannel: vi.fn(async () => ({ preferred: "follow_build", buildChannel: "preview", channel: "preview" } as const)),
+    setChannel: vi.fn(),
     ...overrides,
   };
 }
@@ -84,6 +86,46 @@ describe("application update controller", () => {
     expect(port.check).toHaveBeenLastCalledWith("background");
     expect(onBackgroundCheckSettled).toHaveBeenCalledOnce();
     expect(onBackgroundCheckSettled).toHaveBeenCalledWith(expect.objectContaining({ kind: "available" }));
+    controller.dispose();
+  });
+
+  it("switches channel only when idle, then mirrors the native reset instead of inventing one", async () => {
+    const candidate = {
+      candidateId: "c1", version: "0.3.0-preview.1", channel: "preview" as const, target: "windows-x86_64" as const,
+      publishedAt: null, notes: "", expectedBytes: null,
+    };
+    const readState = vi.fn(async () => ({ kind: "available", candidate } as UpdateState));
+    const setChannel = vi.fn(async (channel: "stable" | "preview") => ({ preferred: channel, buildChannel: "stable" as const, channel }));
+    const port = createPort({
+      readState,
+      readChannel: vi.fn(async () => ({ preferred: "follow_build" as const, buildChannel: "stable" as const, channel: "stable" as const })),
+      setChannel,
+    });
+    const controller = createAppUpdatesController(port);
+    await controller.initialize();
+    expect(controller.getSnapshot().channel).toEqual({ preferred: "follow_build", buildChannel: "stable", channel: "stable" });
+
+    // The channel already in force is not re-sent.
+    await controller.setChannel("stable");
+    expect(setChannel).not.toHaveBeenCalled();
+
+    readState.mockResolvedValueOnce({ kind: "idle" });
+    await controller.setChannel("preview");
+    expect(setChannel).toHaveBeenCalledWith("preview");
+    expect(controller.getSnapshot().channel?.channel).toBe("preview");
+    // Choosing a channel asks it what it has, at once and as a manual check.
+    expect(port.check).toHaveBeenCalledWith("manual");
+    await vi.waitFor(() => expect(controller.getSnapshot().state).toMatchObject({ kind: "current" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // A change is not attempted while native work is in flight.
+    let resolveCheck!: (result: UpdateAction) => void;
+    port.check = vi.fn(() => new Promise<UpdateAction>((resolve) => { resolveCheck = resolve; }));
+    const checking = controller.check();
+    await controller.setChannel("stable");
+    expect(setChannel).toHaveBeenCalledTimes(1);
+    resolveCheck(action({ kind: "current", checkedAt: "2026-09-15T12:00:00Z" }));
+    await checking;
     controller.dispose();
   });
 

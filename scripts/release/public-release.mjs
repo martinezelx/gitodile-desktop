@@ -13,6 +13,12 @@ export const GUIDANCE_END = "<!-- gitodile-downloads:end -->";
 const SOURCE_ARCHIVE = /(?:^|[-_.])(source|src)(?:[-_.]|$)/i;
 const SECRET_NAME = /(?:private[-_.]?key|certificate|credential|secret|token|source[-_.]?archive)/i;
 export const PREVIEW_TESTING_NOTICE = "> Testing preview: Windows and Linux installed-update qualification is not complete. This prerelease does not claim platform qualification. Windows Authenticode is deferred.\n\n> Preview de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión preliminar no declara cualificación de plataforma. Authenticode de Windows está aplazado.";
+/** A stable release published under the same testing policy as a preview:
+ * updater-signed by Tauri, no platform qualification, no Authenticode. It
+ * says so, the way a testing preview does, so the stable channel can be
+ * exercised end to end before the qualification registry is complete. */
+export const STABLE_TESTING_NOTICE = "> Testing release: Windows and Linux installed-update qualification is not complete. This release does not claim platform qualification. Windows Authenticode is deferred.\n\n> Versión de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión no declara cualificación de plataforma. Authenticode de Windows está aplazado.";
+const TESTING_NOTICES = Object.freeze({ "preview-testing": PREVIEW_TESTING_NOTICE, "stable-testing": STABLE_TESTING_NOTICE });
 
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
@@ -48,6 +54,7 @@ export function normalizeNotes(markdown) {
   if (/https?:\/\/[^\s/@]+:[^\s/@]+@/i.test(markdown)) fail("secret_material", "release notes contain an authenticated URL");
   const inline = markdown
     .replace(/\r\n?/g, "\n")
+    .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
@@ -97,20 +104,24 @@ function validateMatrixRecord(record, candidate) {
   ) fail("matrix_record_invalid", "private matrix authorization does not match the signed candidate");
 }
 
-export const PUBLICATION_MODES = Object.freeze(["preview-testing", "preview-qualified", "production"]);
+export const PUBLICATION_MODES = Object.freeze(["preview-testing", "preview-qualified", "stable-testing", "production"]);
 /** Assets rendered by the `publish` job once the release's real publication
  * time is known: the manifest carries it as `pub_date`, and the hash list
  * covers the manifest. Every other asset is fixed when the plan is prepared. */
 export const DERIVED_ASSET_NAMES = Object.freeze(["latest.json", "SHA256SUMS"]);
 
-/** The mode is derived, never chosen. A stable candidate is `production`. A
- * preview is `preview-qualified` only when the registry already proves every
- * enabled target and production approval — then it publishes without the
- * testing notice — and `preview-testing` otherwise. Anything short of a fully
- * qualified registry keeps the notice. */
+/** The mode is derived, never chosen. The registry decides whether a
+ * candidate publishes as qualified (`production` for stable,
+ * `preview-qualified` for a preview, both without a notice) or under the
+ * testing policy (`stable-testing`, `preview-testing`, with the notice):
+ * only a registry that already proves every enabled target and production
+ * approval is qualified. Anything short of that keeps the notice, on either
+ * channel, so the stable channel can be exercised with Tauri-signed bytes
+ * alone until the evidence exists (ADR 0010, 2026-09-15 amendment). */
 export function derivePublicationMode(release, qualification) {
-  if (release?.channel !== "preview" || release?.githubPrerelease !== true) return "production";
-  return qualifiedPreviewAllowed(qualification) ? "preview-qualified" : "preview-testing";
+  const qualified = qualifiedPreviewAllowed(qualification);
+  if (release?.channel !== "preview" || release?.githubPrerelease !== true) return qualified ? "production" : "stable-testing";
+  return qualified ? "preview-qualified" : "preview-testing";
 }
 
 export function preparePublication({ signedDirectory, notesMarkdown, qualification, mode, publicFiles = [] }) {
@@ -141,7 +152,8 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
   });
   const ordered = verifyCompleteMatrix(evidence, candidate, { requiredPhase: "signed" });
   const gate = validateQualification(qualification, candidate, mode);
-  const publishedNotes = mode === "preview-testing" ? `${PREVIEW_TESTING_NOTICE}\n\n${notesMarkdown}` : notesMarkdown;
+  const notice = TESTING_NOTICES[mode];
+  const publishedNotes = notice ? `${notice}\n\n${notesMarkdown}` : notesMarkdown;
   const names = new Set(DERIVED_ASSET_NAMES);
   const assets = [];
   const platforms = {};
@@ -214,12 +226,16 @@ export function renderPublication(plan, publishedAt) {
 export function feedsForPromotion(plan, current = {}) {
   const previewTesting = plan.mode === "preview-testing" && plan.qualification.previewTestingAllowed === true;
   const previewQualified = plan.mode === "preview-qualified" && plan.qualification.previewQualifiedAllowed === true;
+  const stableTesting = plan.mode === "stable-testing" && plan.qualification.stableTestingAllowed === true;
   const production = plan.mode === "production" && plan.qualification.productionAllowed === true;
-  if (!previewTesting && !previewQualified && !production) {
-    fail("promotion_forbidden", "only an approved preview-testing, qualified preview or qualified production plan may advance feeds");
+  if (!previewTesting && !previewQualified && !stableTesting && !production) {
+    fail("promotion_forbidden", "only an approved preview-testing, qualified preview, stable-testing or qualified production plan may advance feeds");
   }
   if ((previewTesting || previewQualified) && (plan.release.channel !== "preview" || plan.release.githubPrerelease !== true)) {
     fail("promotion_forbidden", "a preview mode can never publish a stable release or feed");
+  }
+  if ((stableTesting || production) && (plan.release.channel !== "stable" || plan.release.githubPrerelease !== false)) {
+    fail("promotion_forbidden", "a stable mode can never publish a preview release");
   }
   const result = {};
   const consider = (channel) => {

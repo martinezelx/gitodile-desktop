@@ -2,7 +2,7 @@
 import { defineConfig } from "vite";
 import { configDefaults } from "vitest/config";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
 import Icons from "unplugin-icons/vite";
 import packageManifest from "./package.json" with { type: "json" };
@@ -47,9 +47,39 @@ function toolchainRustVersion(): string | null {
   return result.stdout?.match(/^rustc (\d+\.\d+\.\d+)/)?.[1] ?? null;
 }
 
+/** The day each released version was tagged, `YYYY-MM-DD`, for every
+ * highlights file whose `v<version>` tag this checkout has. The tag is the
+ * truthful publication date; the `date` inside the file is only the day the
+ * release branch was cut, and stays the fallback for a checkout without
+ * tags (a development clone, or the candidate itself before it is tagged).
+ * The release pipeline's build job fetches tags and refuses to build a
+ * tagged release whose own tag did not resolve, so a published build never
+ * silently falls back. */
+function releaseTagDates(): Record<string, string> {
+  const dates: Record<string, string> = {};
+  let names: string[];
+  try {
+    names = readdirSync(new URL("./docs/release/highlights/", import.meta.url));
+  } catch {
+    return dates;
+  }
+  for (const name of names) {
+    const version = name.match(/^v(.+)\.json$/)?.[1];
+    if (!version) continue;
+    const result = spawnSync("git", ["log", "-1", "--format=%cs", `refs/tags/v${version}`], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    const date = result.status === 0 ? result.stdout.trim() : "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) dates[version] = date;
+  }
+  return dates;
+}
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(packageManifest.version),
+    __APP_RELEASE_DATES__: JSON.stringify(releaseTagDates()),
     __STACK_VERSIONS__: JSON.stringify({
       tauri: lockedCrateVersion("tauri"),
       react: installedVersion("react"),

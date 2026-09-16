@@ -140,17 +140,23 @@ The planned updater uses two channels, `stable` and `preview`, both released
 from tagged commits on `main`. Start only from a clean, current `main` with
 `pnpm run release:prepare <semver>`; it creates the sole valid
 `release/<semver>` branch and prepares the authoritative metadata, the public
-notes and the in-app highlights file that What's new is built from.
+notes and the in-app highlights file that What's new is built from; after
+filling the highlights, `pnpm run release:notes` renders the notes' Highlights
+section from them.
 After its same-repository pull request passes the complete check set and is
 merged, protected default-branch automation creates the tag at the exact merge
 SHA and dispatches the candidate build. Direct pushes and manual tags cannot
 authorize a release. The version/tag selects the channel. See
 [ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
-The native updater lifecycle and its visual controls are implemented. The
+The native updater lifecycle and its visual controls are implemented,
+including a Stable / Preview channel choice in Settings → Updates. The
 current release matrix enables only Windows x86-64 per-user NSIS and Linux
-x86-64 AppImage candidates, but neither is enabled for automatic installation
-until its real Tauri-signed A-to-B qualification succeeds. Both macOS targets
+x86-64 AppImage candidates. Both channels currently publish under a testing
+policy (Tauri updater signature, no platform qualification, Authenticode
+deferred) so that channels and updates can be exercised with real
+installations; neither target is qualified until its real Tauri-signed
+A-to-B evidence exists. Both macOS targets
 are post-1.0 work under task 065-10; they are not advertised in feeds or
 published as supported packages. The single release pipeline (validate, build,
 OS-trust boundary, updater signing, staging and publication as jobs of one

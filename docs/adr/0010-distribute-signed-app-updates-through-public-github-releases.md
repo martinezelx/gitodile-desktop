@@ -59,6 +59,40 @@ reused on a retry — the anonymous download check is retried a bounded number
 of times, and a coordinator run that completed without succeeding cannot
 authorize a release.
 
+An amendment on 2026-09-15 (task 065-9-12) adds the one channel input that
+exists and puts the stable channel under the testing publication policy:
+
+- A person may choose which of the two compiled feeds to follow, from
+  Settings → Updates. The choice is a closed enum (`follow_build`, `stable`,
+  `preview`) stored in the native app-local data directory, resolved in Rust
+  against the build's own channel, and used only to pick between the two
+  compiled feed constants. The renderer still names no feed, URL, key or
+  target. "No channel picker" below is therefore historical; the invariant
+  that survives is that no feed or URL is ever supplied from outside the
+  build. A stable build that opted into previews is offered a newer preview
+  and still refuses older versions; a preview build restricted to stable is
+  offered only stable successors and reports `current` otherwise. Nothing is
+  downloaded or installed without the person, on either choice.
+- Until the qualification registry proves every enabled target and
+  production approval, a stable candidate publishes as `stable-testing`: the
+  same policy as `preview-testing` (Tauri updater signature only, no
+  platform qualification, Authenticode still deferred, the testing notice
+  prepended to the notes), but as a non-prerelease GitHub release that
+  advances `stable.json` and, when newer, `preview.json`, through the
+  reviewed stable environment. The compile-time test-target gate
+  (`GITODILE_TEST_UPDATE_TARGETS`, formerly the preview-only
+  `GITODILE_PREVIEW_TEST_UPDATE_TARGETS`) is supplied to every build. The
+  purpose is to exercise both channels end to end with real installations;
+  `production` remains reserved for a qualified registry, and OS signing for
+  both channels is a later decision (ADR 0011 is unchanged).
+- What's new dates each version by its release tag, resolved at build time,
+  and the build job refuses a tagged release whose own tag did not resolve;
+  the day the release branch was cut is only the fallback for an untagged
+  checkout. The public notes' Highlights section is rendered from the same
+  per-release highlights file the app shows, between markers the release
+  scripts own, and the merge coordinator refuses a release whose two
+  descriptions disagree.
+
 ## Context
 
 GitOdile needs to update its installed desktop application without interrupting
@@ -132,7 +166,9 @@ stable to make the endpoint work. See the [release API](https://docs.github.com/
 There are exactly two release channels: `stable` and `preview`. Do not add
 alpha, beta, RC, or nightly channels. Derive the installed feed from checked
 build metadata; no channel picker or arbitrary endpoint field in the first
-implementation. Preview builds use preview, stable builds use stable.
+implementation (the 2026-09-15 amendment above adds a closed-enum choice
+between the two compiled feeds, never an endpoint field). Preview builds use
+preview, stable builds use stable, unless the person chose otherwise.
 A stable publication can advance preview too if it does
 not replace a newer preview. Once that stable build runs it follows stable.
 Preview and stable initially replace the same app identity; side-by-side
