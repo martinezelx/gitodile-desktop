@@ -17,14 +17,16 @@ must still verify, and download guidance must warn that Windows may show
 SmartScreen or unknown-publisher prompts. Such packages must never be described
 as Authenticode-signed or OS-trusted.
 
-[Task 065-9-9](../work/active/app-updates/065-9-9-authenticode-public-delivery.md)
-owns the post-1.0 provider choice and Authenticode qualification. The provider
-must remain suitable if future source development becomes private. No SignPath
-application was submitted.
+[Task 065-9-13](../work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md)
+owns the provider choice and Authenticode qualification, now intended for both
+channels through SignPath Foundation rather than only after `1.0.0` (task
+065-9-9 was folded into it on 2026-09-16). The provider must remain suitable
+if future source development becomes private. No SignPath application has
+been submitted yet.
 
 Qualification between two public preview releases must preserve the same
 honest deferred state; no preview pair is evidence of Authenticode unless task
-065-9-9 is explicitly resumed after `1.0.0`.
+065-9-13 records the signing evidence.
 
 ## Authorized roles and source
 
@@ -44,7 +46,7 @@ build jobs.
 ## Verification and incidents
 
 Every enabled package must retain SHA-256 checksums and signed evidence. Windows
-packages require Authenticode verification only after task 065-9-9 enables that
+packages require Authenticode verification only after task 065-9-13 enables that
 trust boundary; before then they record `authenticode_deferred`. Every updater
 package must independently pass Tauri signature verification. Published version
 assets are immutable; a correction receives a new higher version.

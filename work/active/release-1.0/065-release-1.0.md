@@ -58,7 +58,9 @@ is the authoritative release sequence and capability cut.
 
 - [ ] Gates 0–4 in `docs/ROADMAP.md` are complete in dependency order.
 - [ ] Tasks 015, 037, 064, 099, and 065-1 through 065-9 are done with their own
-      validation recorded, including all eight children of updater epic 065-9.
+      validation recorded. Updater epic 065-9 was closed on 2026-09-16; the
+      evidence it still owes is tracked by
+      [065-9-13](../app-updates/065-9-13-updater-evidence-and-os-signing.md).
 - [ ] The release capability matrix has no unsupported path presented as
       working and no required path dependent on the terminal.
 - [ ] The actual Windows and Linux release artifacts pass their defined smoke,
@@ -94,8 +96,9 @@ in each task and in the roadmap dependency map.
 - Audit before adding features; release claims follow evidence.
 - Work on one implementation task at a time even though the release epic keeps
   the approved sequence visible.
-- ADR 0011 removes Authenticode and macOS delivery from the `1.0.0` gate; tasks
-  065-9-9 and 065-10 retain their IDs as post-1.0 work.
+- ADR 0011 removes Authenticode and macOS delivery from the `1.0.0` gate; task
+  065-10 retains its ID as post-1.0 work, and OS signing is now owned by
+  065-9-13 (SignPath Foundation for both channels, superseding 065-9-9).
 
 # Implementation notes
 

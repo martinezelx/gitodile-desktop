@@ -148,7 +148,8 @@ merged, protected default-branch automation creates the tag at the exact merge
 SHA and dispatches the candidate build. Direct pushes and manual tags cannot
 authorize a release. The version/tag selects the channel. See
 [ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
-and [task 065-9](work/active/release-1.0/065-9-signed-application-updates.md).
+and [task 065-9](work/done/065-9-signed-application-updates.md); the evidence and OS-signing work still
+open is tracked by [task 065-9-13](work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md).
 The native updater lifecycle and its visual controls are implemented,
 including a Stable / Preview channel choice in Settings → Updates. The
 current release matrix enables only Windows x86-64 per-user NSIS and Linux
@@ -193,9 +194,10 @@ Release tags are protected, candidate builds originate from reviewed GitHub
 Actions runs, and published packages must retain their checksums and Tauri
 updater-signature evidence. Windows packages through `1.0.0` intentionally lack
 publicly trusted Authenticode and may trigger SmartScreen or unknown-publisher
-warnings. [Task 065-9-9](work/active/app-updates/065-9-9-authenticode-public-delivery.md)
-owns the post-1.0 provider choice and OS-level trust qualification. No external
-signing-service application has been submitted.
+warnings. [Task 065-9-13](work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md)
+owns OS-level signing for both channels (SignPath Foundation is the intended
+provider) and the remaining qualification evidence. No external
+signing-service application has been submitted yet.
 
 ## Architecture at a glance
 

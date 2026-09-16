@@ -123,7 +123,7 @@ Inspection on 2026-09-03 found:
 The user accepted this direction on 2026-09-03, with exactly two channels and
 short-lived version branches merged into `main`. This records the agreed
 design, not a claim that update infrastructure exists. Implementation belongs to
-[epic 065-9](../../work/active/release-1.0/065-9-signed-application-updates.md).
+[epic 065-9](../../work/done/065-9-signed-application-updates.md).
 
 ## Decision
 

@@ -1,7 +1,7 @@
 ---
 id: 065-9
 title: Update GitOdile safely from signed public releases
-status: active
+status: done
 priority: high
 type: epic
 areas:
@@ -12,7 +12,7 @@ areas:
   - security
   - documentation
 created: 2026-09-03
-completed:
+completed: 2026-09-16
 parent: "065"
 ---
 
@@ -33,13 +33,13 @@ the next step and remains usable.
 
 The user requested updater analysis and a concrete implementation task on
 2026-09-03, including reuse of the new public feedback repository and comparison
-with other Tauri applications. [ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+with other Tauri applications. [ADR 0010](../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 records the accepted design, evidence, alternatives, and limitations. The user
 confirmed exactly `stable` and `preview`, both released from version-tagged
 commits on `main` after merging a short-lived version branch. No updater,
 release, signing key, or external repository change was created during planning.
 
-This extracts implementation from [065-8](065-8-release-hardening.md), which
+This extracts implementation from [065-8](../active/release-1.0/065-8-release-hardening.md), which
 retains final release-readiness validation. The suffix is a permanent ID;
 its children now lead the implementation queue, ahead of the remaining product
 features. It does not absorb Git credential hardening in 065-7 or final full-product
@@ -53,18 +53,18 @@ own executable work; this epic has no queue position.
 
 | Queue | Child | Acceptance coverage |
 | --- | --- | --- |
-| Done | [065-9-1 — Define updater contracts and supported installations](../../done/065-9-1-contracts-and-targets.md) | Versions, channels, target/install matrix and key prerequisites |
-| Done | [065-9-2 — Protect operations and drafts before app installation](../../done/065-9-2-install-admission-and-drafts.md) | Native admission, operations, helpers and draft preservation |
-| Done | [065-9-3 — Implement the native signed updater lifecycle](../../done/065-9-3-native-updater.md) | Checks, verified downloads, install handoff and startup truth |
-| Done | [065-9-4 — Integrate update controls and preferences](../../done/065-9-4-updater-interface.md) | Entry points, consent, preferences, privacy and accessibility |
-| Q01 | [065-9-5 — Build signed release artifacts in private CI](../app-updates/065-9-5-signed-builds.md) | Private CI, signing, provenance and source-tag gates |
-| Q02 | [065-9-6 — Publish public releases and stable preview feeds](../app-updates/065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
-| Q03 | [065-9-7 — Qualify signed upgrades and release operations](../app-updates/065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
-| Q04 | [065-9-8 — Qualify controlled Windows and Linux updater delivery](../app-updates/065-9-8-public-windows-linux-qualification.md) | Public-source hardening and real functional updater proof through the controlled validation feed |
-| Q05 | [065-9-10 — Prepare releases automatically after approved version-branch merges](../app-updates/065-9-10-merge-driven-release-preparation.md) | Merge-driven coordinator and the single release pipeline; proven by `0.2.0-preview.10` and `.11` |
-| Q06 | [065-9-11 — Harden the updater client and publisher after the first public preview updates](../app-updates/065-9-11-updater-client-and-publisher-hardening.md) | Check-time gate reporting, forward-compatible manifests, registry-based Windows install mode, qualified-preview mode, notes and publication-date fidelity, publisher retries |
-| Done | [065-9-12 — Let the user choose the update channel, and finish the release-notes automation](../../done/065-9-12-update-channel-choice-and-release-notes-automation.md) | Native channel preference between the two compiled feeds, `stable-testing` publication so stable behaves like preview until qualified, tag-dated What's new, notes rendered from highlights |
-| Post-1.0 | [065-9-9 — Add trusted Windows signing after 1.0.0](../app-updates/065-9-9-authenticode-public-delivery.md) | Authenticode provider, qualification and OS-level Windows publisher trust |
+| Done | [065-9-1 — Define updater contracts and supported installations](065-9-1-contracts-and-targets.md) | Versions, channels, target/install matrix and key prerequisites |
+| Done | [065-9-2 — Protect operations and drafts before app installation](065-9-2-install-admission-and-drafts.md) | Native admission, operations, helpers and draft preservation |
+| Done | [065-9-3 — Implement the native signed updater lifecycle](065-9-3-native-updater.md) | Checks, verified downloads, install handoff and startup truth |
+| Done | [065-9-4 — Integrate update controls and preferences](065-9-4-updater-interface.md) | Entry points, consent, preferences, privacy and accessibility |
+| Q01 | [065-9-5 — Build signed release artifacts in private CI](065-9-5-signed-builds.md) | Private CI, signing, provenance and source-tag gates |
+| Q02 | [065-9-6 — Publish public releases and stable preview feeds](065-9-6-public-release-publishing.md) | Public artifacts, feeds, retries and feedback compatibility |
+| Q03 | [065-9-7 — Qualify signed upgrades and release operations](065-9-7-updater-qualification.md) | Real A-to-B upgrades, failure matrix, runbooks and final evidence |
+| Q04 | [065-9-8 — Qualify controlled Windows and Linux updater delivery](065-9-8-public-windows-linux-qualification.md) | Public-source hardening and real functional updater proof through the controlled validation feed |
+| Q05 | [065-9-10 — Prepare releases automatically after approved version-branch merges](065-9-10-merge-driven-release-preparation.md) | Merge-driven coordinator and the single release pipeline; proven by `0.2.0-preview.10` and `.11` |
+| Q06 | [065-9-11 — Harden the updater client and publisher after the first public preview updates](065-9-11-updater-client-and-publisher-hardening.md) | Check-time gate reporting, forward-compatible manifests, registry-based Windows install mode, qualified-preview mode, notes and publication-date fidelity, publisher retries |
+| Done | [065-9-12 — Let the user choose the update channel, and finish the release-notes automation](065-9-12-update-channel-choice-and-release-notes-automation.md) | Native channel preference between the two compiled feeds, `stable-testing` publication so stable behaves like preview until qualified, tag-dated What's new, notes rendered from highlights |
+| Post-1.0 | [065-9-9 — Add trusted Windows signing after 1.0.0](065-9-9-authenticode-public-delivery.md) | Authenticode provider, qualification and OS-level Windows publisher trust |
 
 All criteria below remain the epic completion gate. Each child records its own
 evidence; 065-9-7 checks the combined coverage before this epic can be closed.
@@ -273,3 +273,12 @@ qualification registry disables production and leaves all targets
 working-name clearance, public release or real A-to-B evidence, 065-9-6 remains
 active and no feed/target is enabled; 065-9-7 still exclusively owns platform
 qualification.
+
+# Closure
+
+Closed on 2026-09-16 when the updater epic was wound down: the code,
+pipeline and contracts this task describes are on `main` and were
+exercised by the public previews `0.2.0-preview.10` to `.12`. The
+criteria left unchecked above are not claimed; its sixteen open epic criteria, which are evidence and operations items rather than code
+moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+which owns everything the updater still has to prove.

@@ -9,7 +9,7 @@ areas:
   - desktop
   - branding
 created: 2026-09-02
-queue: "24"
+queue: "18"
 ---
 
 # Goal

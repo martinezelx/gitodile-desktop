@@ -1,7 +1,7 @@
 ---
 id: 065-9-11
 title: Harden the updater client and publisher after the first public preview updates
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -10,9 +10,9 @@ areas:
   - automation
   - documentation
 created: 2026-09-15
-completed:
+completed: 2026-09-16
 parent: "065-9"
-queue: "06"
+queue:
 ---
 
 # Goal
@@ -330,3 +330,12 @@ Run on 2026-09-15 (Windows 11, Node 24, pnpm 11.17.0, stable Rust):
 - `pnpm run check`: exit 0 — docs (49 release-script tests), frontend
   (87 files / 866 tests, build), Rust fmt, Clippy `-D warnings`, 404 Rust
   tests passed.
+
+# Closure
+
+Closed on 2026-09-16 when the updater epic was wound down: the code,
+pipeline and contracts this task describes are on `main` and were
+exercised by the public previews `0.2.0-preview.10` to `.12`. The
+criteria left unchecked above are not claimed; the pending installed-update evidence for the first preview built from it
+moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+which owns everything the updater still has to prove.

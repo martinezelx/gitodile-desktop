@@ -1,7 +1,7 @@
 ---
 id: 065-9-6
 title: Publish public releases and stable preview feeds
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -9,9 +9,9 @@ areas:
   - platform
   - security
 created: 2026-09-03
-completed:
+completed: 2026-09-16
 parent: "065-9"
-queue: "02"
+queue:
 ---
 
 # Goal
@@ -20,8 +20,8 @@ Publish complete signed artifacts to the feedback repository and advance channel
 
 # Context
 
-Child of [epic 065-9](../release-1.0/065-9-signed-application-updates.md).
-[ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+Child of [epic 065-9](065-9-signed-application-updates.md).
+[ADR 0010](../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 owns the accepted architecture. Execute in queue order on the approved version branch.
 
 # Scope
@@ -79,7 +79,7 @@ no channel feed was advanced.
   `planned_disabled`, and production disabled.
 - Retry, raw-cache, withdrawal, retained-installer, credential and recovery
   procedures live in the
-  [public publishing runbook](../../../docs/release/public-publishing.md).
+  [public publishing runbook](../../docs/release/public-publishing.md).
   065-9-7 retains exclusive ownership of real A-to-B evidence and target
   enablement; this task added only the schema/gate it must satisfy.
 
@@ -109,3 +109,12 @@ and the live feedback repository at public commit
 validated the planned bilingual README transformation without writing it.
 No local test claims a real signature, OS trust, notarization, anonymous
 production download or public write.
+
+# Closure
+
+Closed on 2026-09-16 when the updater epic was wound down: the code,
+pipeline and contracts this task describes are on `main` and were
+exercised by the public previews `0.2.0-preview.10` to `.12`. The
+criteria left unchecked above are not claimed; the publisher-evidence criteria (immutable assets, retries, anonymous downloads, qualification-gated promotion, `check:publication` before a real publication)
+moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+which owns everything the updater still has to prove.

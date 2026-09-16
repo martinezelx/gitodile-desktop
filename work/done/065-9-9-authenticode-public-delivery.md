@@ -1,7 +1,7 @@
 ---
 id: 065-9-9
 title: Add trusted Windows signing after 1.0.0
-status: active
+status: done
 priority: low
 type: hardening
 areas:
@@ -10,9 +10,9 @@ areas:
   - security
   - documentation
 created: 2026-09-12
-completed:
+completed: 2026-09-16
 parent: "065-9"
-queue: "25"
+queue:
 ---
 
 # Goal
@@ -81,3 +81,12 @@ remains mandatory and is not equivalent to Authenticode. See ADR 0011.
 - A real Windows x86-64 test device.
 - A publicly trusted code-signing provider and protected credentials.
 - A destination-scoped publisher credential for `gitodile`.
+
+# Closure
+
+Closed on 2026-09-16 when the updater epic was wound down: the code,
+pipeline and contracts this task describes are on `main` and were
+exercised by the public previews `0.2.0-preview.10` to `.12`. The
+criteria left unchecked above are not claimed; the whole scope, now planned as SignPath Foundation signing for both channels rather than Authenticode after `1.0.0`
+moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+which owns everything the updater still has to prove.

@@ -1,7 +1,7 @@
 ---
 id: 065-9-8
 title: Qualify controlled Windows and Linux updater delivery
-status: active
+status: done
 priority: high
 type: hardening
 areas:
@@ -10,9 +10,9 @@ areas:
   - security
   - documentation
 created: 2026-09-11
-completed:
+completed: 2026-09-16
 parent: "065-9"
-queue: "04"
+queue:
 ---
 
 # Goal
@@ -23,8 +23,8 @@ disabled until their separate trust and platform gates are complete.
 
 # Context
 
-Child of [epic 065-9](../release-1.0/065-9-signed-application-updates.md).
-[ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+Child of [epic 065-9](065-9-signed-application-updates.md).
+[ADR 0010](../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 originally assumed a private source repository and a four-target production
 matrix. This task amends both assumptions. The maintainer initially decided on
 2026-09-11 to make the source repository temporarily public so standard
@@ -179,7 +179,7 @@ submitted.
 # Implementation notes
 
 The completed second local audit is recorded in
-[`docs/release/public-readiness-audit-2026-09-12.md`](../../../docs/release/public-readiness-audit-2026-09-12.md).
+[`docs/release/public-readiness-audit-2026-09-12.md`](../../docs/release/public-readiness-audit-2026-09-12.md).
 It used the checksum-verified Gitleaks 8.30.1 binary over `--all`, reviewed all
 5,122 reachable object paths and the current tree, and found no secret or
 private artifact requiring history rewrite. `pnpm audit --prod` also reported
@@ -446,3 +446,12 @@ settings snapshot, signed run and artifact identities, Windows/Linux installed
 reports, controlled-host commit and anonymous hash verification, and complete
 `pnpm run check` plus
 `pnpm run check:publication` results.
+
+# Closure
+
+Closed on 2026-09-16 when the updater epic was wound down: the code,
+pipeline and contracts this task describes are on `main` and were
+exercised by the public previews `0.2.0-preview.10` to `.12`. The
+criteria left unchecked above are not claimed; the public-repository controls, the real Windows/Linux A-to-B reports and the registry evidence
+moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+which owns everything the updater still has to prove.

@@ -1,7 +1,7 @@
 ---
 id: 065-9-7
 title: Qualify signed upgrades and release operations
-status: active
+status: done
 priority: high
 type: hardening
 areas:
@@ -9,9 +9,9 @@ areas:
   - platform
   - security
 created: 2026-09-03
-completed:
+completed: 2026-09-16
 parent: "065-9"
-queue: "03"
+queue:
 ---
 
 # Goal
@@ -20,8 +20,8 @@ Prove the complete updater with real signed builds before enabling production di
 
 # Context
 
-Child of [epic 065-9](../release-1.0/065-9-signed-application-updates.md).
-[ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+Child of [epic 065-9](065-9-signed-application-updates.md).
+[ADR 0010](../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 owns the accepted architecture. Execute in queue order on the approved version branch.
 
 # Scope
@@ -68,7 +68,7 @@ Infrastructure implemented on `main` on 2026-09-11:
 - shallow, cross-target and incomplete enabled-target claims fail closed;
   Darwin claims also fail while macOS is `planned_disabled`;
 - durable operation and evidence instructions live in
-  [`docs/release/updater-qualification.md`](../../../docs/release/updater-qualification.md).
+  [`docs/release/updater-qualification.md`](../../docs/release/updater-qualification.md).
 
 The task remains active. A read-only GitHub audit found no configured release
 variables, secrets or protected environments and no public releases. No real
@@ -86,3 +86,12 @@ feedback contract was verified at public commit
 `f8420b8e402558a7b04e19cf807608100806d1a0`. Record future build tags/SHAs,
 platform matrix, A-to-B results, failure cases, retained installers and CI
 evidence without replacing absent external facts with fixture results.
+
+# Closure
+
+Closed on 2026-09-16 when the updater epic was wound down: the code,
+pipeline and contracts this task describes are on `main` and were
+exercised by the public previews `0.2.0-preview.10` to `.12`. The
+criteria left unchecked above are not claimed; every A-to-B and publisher-readiness criterion
+moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+which owns everything the updater still has to prove.

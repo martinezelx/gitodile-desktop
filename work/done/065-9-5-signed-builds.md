@@ -1,7 +1,7 @@
 ---
 id: 065-9-5
 title: Build signed release artifacts in protected CI
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -9,9 +9,9 @@ areas:
   - platform
   - security
 created: 2026-09-03
-completed:
+completed: 2026-09-16
 parent: "065-9"
-queue: "01"
+queue:
 ---
 
 # Goal
@@ -20,8 +20,8 @@ Produce verified platform packages from checked source tags without exposing sig
 
 # Context
 
-Child of [epic 065-9](../release-1.0/065-9-signed-application-updates.md).
-[ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+Child of [epic 065-9](065-9-signed-application-updates.md).
+[ADR 0010](../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 owns the accepted architecture. Execute in queue order on the approved version branch.
 
 # Scope
@@ -78,7 +78,7 @@ the two artifact-producing acceptance criteria remain open.
   destination token or feed-writing capability.
 - Durable preparation, verification, key backup/restore testing, rotation,
   compromise and loss procedures live in the
-  [private signed-build runbook](../../../docs/release/signed-builds.md).
+  [private signed-build runbook](../../docs/release/signed-builds.md).
 
 External blockers are exact rather than simulated. The distinct validation and
 production updater identities and protected-environment reviewers are now
@@ -116,3 +116,12 @@ production build, Rust formatting and Clippy, and 396 Rust tests.
 `git diff --check` also passed. No Actions build, Authenticode signature,
 production updater signature or installed update was
 executed or claimed by this local evidence.
+
+# Closure
+
+Closed on 2026-09-16 when the updater epic was wound down: the code,
+pipeline and contracts this task describes are on `main` and were
+exercised by the public previews `0.2.0-preview.10` to `.12`. The
+criteria left unchecked above are not claimed; the two open criteria (complete-matrix evidence with real packages; separately evidenced updater and OS trust)
+moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+which owns everything the updater still has to prove.

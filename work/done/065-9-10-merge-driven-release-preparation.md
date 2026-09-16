@@ -1,7 +1,7 @@
 ---
 id: 065-9-10
 title: Prepare releases automatically after approved version-branch merges
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -10,9 +10,9 @@ areas:
   - security
   - documentation
 created: 2026-09-13
-completed:
+completed: 2026-09-16
 parent: "065-9"
-queue: "05"
+queue:
 ---
 
 # Goal
@@ -242,7 +242,7 @@ task to publish a stable release or any macOS artifact.
   through its rename to `martinezelx/gitodile`. Local `origin` now points
   directly at the canonical source URL. The detailed before/after inventory is
   in
-  [`repository-migration-audit-2026-09-14.md`](../../../docs/release/repository-migration-audit-2026-09-14.md).
+  [`repository-migration-audit-2026-09-14.md`](../../docs/release/repository-migration-audit-2026-09-14.md).
 - Public-hub commits `35788572b95194990eafe0daf12c373ae21ce569`
   through `f231076b65484c21307a7ab770ebd02b249bfe61` migrated the README,
   security policy and four bilingual issue forms. The public tree contains no
@@ -374,3 +374,12 @@ imprescindible. Verifica cada cambio con tests ejecutables, `pnpm run check` y
 por el cambio y corrige sus fallos sin debilitar controles. Actualiza la tarea
 con commits, runs y evidencia real, y pushea los cambios necesarios a main.
 ```
+
+# Closure
+
+Closed on 2026-09-16 when the updater epic was wound down: the code,
+pipeline and contracts this task describes are on `main` and were
+exercised by the public previews `0.2.0-preview.10` to `.12`. The
+criteria left unchecked above are not claimed; the three open criteria about the public repository's authority split and the first stable preparation
+moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+which owns everything the updater still has to prove.

@@ -19,7 +19,7 @@ Check, download, verify and explicitly install one application update through th
 
 # Context
 
-Child of [epic 065-9](../active/release-1.0/065-9-signed-application-updates.md).
+Child of [epic 065-9](065-9-signed-application-updates.md).
 [ADR 0010](../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
 owns the accepted architecture. Execute in queue order on the approved version branch.
 

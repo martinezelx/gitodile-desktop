@@ -14,7 +14,7 @@ areas:
 created: 2026-08-18
 completed:
 parent: "065"
-queue: "23"
+queue: "17"
 ---
 
 # Goal
@@ -49,7 +49,7 @@ macOS portion for `1.0.0`: real macOS delivery is now post-1.0.
   reproducible CI provenance and artifact hashes. Record Windows Authenticode
   as deferred and keep macOS absent from the supported matrix.
 - Qualify the updater and publication pipeline delivered by
-  [epic 065-9](065-9-signed-application-updates.md) against the final signed
+  [epic 065-9](../../done/065-9-signed-application-updates.md) against the final signed
   artifacts: signature verification, failure behavior, reinstall instructions,
   and no repository mutation during update. The accepted strategy is in
   [ADR 0010](../../../docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md).
