@@ -392,20 +392,25 @@
 }
 .app-checkbox::before {
   content: ""; width: 8px; height: 4px;
-  border-inline-start: 2px solid var(--accent-primary-contrast);
-  border-bottom: 2px solid var(--accent-primary-contrast);
+  border-inline-start: 2px solid var(--accent-primary);
+  border-bottom: 2px solid var(--accent-primary);
   transform: translate(0.25px, -1px) rotate(-45deg) scale(0);
   transform-origin: center;
   transition: transform var(--duration-fast);
 }
 .app-checkbox:hover { border-color: var(--accent-primary); }
+/* Checked is the Journey band's light "done" fill, not the solid "do this"
+   one: a file included in the next version is a decision made, and a column
+   of solid accent circles beside a list competed with the one control on
+   the screen that asks to be pressed. The tick and the ring take the accent
+   itself, which is what keeps the mark legible on the tint. */
 .app-checkbox:checked, .app-checkbox:indeterminate {
-  border-color: var(--accent-primary-fill); background: var(--accent-primary-fill);
+  border-color: var(--accent-primary); background: var(--surface-active);
 }
 .app-checkbox:checked::before { transform: translate(0.25px, -1px) rotate(-45deg) scale(1); }
 /* A dash, not a tick: some of the set, not all of it. */
 .app-checkbox:indeterminate::before {
-  width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary-contrast);
+  width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary);
   transform: translate(0, 0) rotate(0deg) scale(1);
 }
 .app-checkbox:disabled { opacity: 0.55; }

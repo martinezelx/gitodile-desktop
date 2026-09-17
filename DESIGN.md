@@ -1223,7 +1223,12 @@ because "7 of 7" is a mark that says nothing. The open file's category in
 the diff header is the same glyph with the word beside it rather than a
 pill: a third shape for one fact the row and the band already draw alike.
 The "everything is saved" state's circle is the band's done tile, light fill
-and no shadow, since nothing there rests on anything. The file list's rows
+and no shadow, since nothing there rests on anything. A checked checkbox —
+the app's one definition, `.app-checkbox` — is that same light fill with the
+tick in the accent, everywhere it appears: a file included in the next
+version is a decision made, and a column of solid accent circles beside the
+list competed with the one control on the screen that asks to be pressed.
+Solid is reserved for "do this". The file list's rows
 arrive with Overview's own stagger (`.row-in`, now a primitive the two
 screens share) when the list is drawn all at once, capped at the twelfth row
 so a long list reads as filling in rather than lagging; a virtualized list
