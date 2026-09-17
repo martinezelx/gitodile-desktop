@@ -598,7 +598,6 @@ describe("production style composition", () => {
       ["app/app-shell.css", ".sidebar-project__badge", "border-radius: var(--radius-pill)"],
       ["features/clone/clone.css", ".clone-dialog__progress li > span", "border-radius: var(--radius-round)"],
       ["features/initialize-project/initialize-project.css", ".initialize-dialog__progress li > svg, .initialize-dialog__progress li > span", "border-radius: var(--radius-round)"],
-      ["features/overview/overview.css", ".pending-versions__node", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".journey-step__icon", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],

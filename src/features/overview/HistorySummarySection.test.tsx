@@ -129,7 +129,8 @@ describe("HistorySummarySection", () => {
     const badge = rows[0].querySelector(".history-ref-badge");
     expect(badge).toHaveTextContent("main");
     expect(badge).toHaveClass("history-ref-badge--current");
-    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in history — Version line main");
+    // Version 2 is still only on this computer, and the label says so last.
+    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in history — Version line main — Not published");
     expect(rows[1].querySelector(".history-ref-badge")).toBeNull();
     expect(rows[1].getAttribute("aria-label")).toBe("Open “Saved version 1” in history");
 
@@ -137,9 +138,48 @@ describe("HistorySummarySection", () => {
     const order = (row: HTMLElement): string[] =>
       [...row.querySelectorAll<HTMLElement>(".overview-history__meta > *")].map((element) => element.className.split(" ")[0]);
     expect(order(rows[0])).toEqual([
-      "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__date",
+      "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__local",
+      "history-meta-dot", "overview-history__date",
     ]);
     expect(order(rows[1])).toEqual(["overview-history__author", "history-meta-dot", "overview-history__date"]);
+  });
+
+  it("marks unpublished versions and offers to publish up to one of them", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(2), version(1)]))));
+    await controller.refresh(query);
+    const onPublishUpTo = vi.fn();
+    const lifecycle = createScreenLifecycleController("active");
+    render(
+      <LanguageProvider>
+        <ScreenLifecycleProvider controller={lifecycle}>
+          <HistorySummarySection
+            controller={controller}
+            projectPath={query.projectId}
+            sessionEpoch={query.sessionEpoch}
+            canPublish
+            onOpenHistory={vi.fn()}
+            onPublishUpTo={onPublishUpTo}
+          />
+        </ScreenLifecycleProvider>
+      </LanguageProvider>,
+    );
+
+    // Only the local-only row carries the mark and the action; the published
+    // one below it has neither.
+    expect(screen.getAllByText("Not published")).toHaveLength(1);
+    const publish = screen.getByRole("button", { name: "Publish up to here: Saved version 2" });
+    await userEvent.click(publish);
+    expect(onPublishUpTo).toHaveBeenCalledWith(version(2).commit);
+    expect(screen.queryByRole("button", { name: /Publish up to here: Saved version 1/ })).toBeNull();
+  });
+
+  it("keeps the publish hand-off off the rows when publishing is not possible", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(2), version(1)]))));
+    await controller.refresh(query);
+    renderSection(controller);
+
+    expect(screen.getByText("Not published")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish up to here/ })).toBeNull();
   });
 
   it("shows a truthful empty state after history has loaded", async () => {

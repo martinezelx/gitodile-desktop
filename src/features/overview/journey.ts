@@ -51,6 +51,9 @@ export type Journey = {
     isStale: boolean;
     isCached: boolean;
     error: string | null;
+    /** The local inventory of unpublished versions could not be read: the
+     * band's count may be short, and the sentence under it says so. */
+    inventoryError: string | null;
   };
 };
 
@@ -59,12 +62,14 @@ export function deriveJourney({
   workingTreeError,
   isCheckingChanges,
   pendingVersionsCount,
+  pendingVersionsError = null,
   teamSync,
 }: {
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
   pendingVersionsCount: number;
+  pendingVersionsError?: string | null;
   teamSync: TeamSyncViewState;
 }): Journey {
   const changes: Journey["changes"] = !workingTree
@@ -116,6 +121,7 @@ export function deriveJourney({
     isStale: teamSync.isStale,
     isCached: status?.knowledge === "cached",
     error: teamSync.error,
+    inventoryError: pendingVersionsError,
   };
 
   let activeStep: JourneyStepId | null = null;

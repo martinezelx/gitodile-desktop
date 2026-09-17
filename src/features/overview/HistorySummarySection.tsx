@@ -3,6 +3,7 @@ import {
   ChevronRight,
   CircleAlert,
   GitCommitHorizontal,
+  CloudUpload,
   LoaderCircle,
 } from "lucide-react";
 
@@ -30,13 +31,22 @@ export function HistorySummarySection({
   projectPath,
   sessionEpoch,
   isRefreshing = false,
+  canPublish = false,
   onOpenHistory,
+  onPublishUpTo,
 }: {
   controller: HistoryController;
   projectPath: string;
   sessionEpoch: string;
   isRefreshing?: boolean;
+  /** Whether a version that is still only on this computer may be offered
+   * "publish up to here" — the same gate as the band's Publish tile. */
+  canPublish?: boolean;
   onOpenHistory: () => void;
+  /** Publishes this version and every older one under it, through the
+   * previewed publish flow. Only offered on rows the inventory says are not
+   * yet published, and only when `canPublish`. */
+  onPublishUpTo?: (commit: string) => void;
 }): React.JSX.Element {
   const { formats, t } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
@@ -103,14 +113,25 @@ export function HistorySummarySection({
             // The row's `aria-label` replaces its subtree, so the badge only
             // reaches assistive tech by being folded into the label.
             const decoration = primaryDecoration(version, currentBranch);
-            const label = t.overviewHistoryOpenVersion(title);
+            // A version still only on this computer is marked as such, and its
+            // row offers to publish it (and everything older) under the
+            // pointer — the one place partial publishing lives on this screen.
+            const isLocalOnly = version.publication === "local-only";
+            const labelParts = [t.overviewHistoryOpenVersion(title)];
+            if (decoration) labelParts.push(decorationLabel(decoration, t));
+            if (isLocalOnly) labelParts.push(t.overviewHistoryLocalOnly);
+            const canPublishUpTo = isLocalOnly && canPublish && Boolean(onPublishUpTo);
             return (
-              <li key={version.commit} className="row-in" style={{ "--row-index": index } as React.CSSProperties}>
+              <li
+                key={version.commit}
+                className={`row-in${isLocalOnly ? " overview-history__item--local" : ""}${canPublishUpTo ? " overview-history__item--publishable" : ""}`}
+                style={{ "--row-index": index } as React.CSSProperties}
+              >
                 <button
                   className="overview-history__row"
                   type="button"
                   onClick={() => openVersion(version.commit)}
-                  aria-label={decoration ? `${label} — ${decorationLabel(decoration, t)}` : label}
+                  aria-label={labelParts.join(" — ")}
                 >
                   <span className="overview-history__node" aria-hidden="true" />
                   <span className="overview-history__body">
@@ -118,11 +139,33 @@ export function HistorySummarySection({
                     <span className="overview-history__meta">
                       <span className="overview-history__author" title={author}>{author}</span>
                       <HistoryRefBadge version={version} currentBranch={currentBranch} />
+                      {isLocalOnly && (
+                        <>
+                          <HistoryMetaDot />
+                          <span className="overview-history__local">{t.overviewHistoryLocalOnly}</span>
+                        </>
+                      )}
                       {date && <><HistoryMetaDot /><span className="overview-history__date" title={date.absolute}>{date.relative}</span></>}
                     </span>
                   </span>
                   <ChevronRight className="overview-history__chevron" aria-hidden="true" />
                 </button>
+                {/* The action is the node itself: the timeline's dot, grown to
+                    a pressable size and filled solid in the accent — the same
+                    "do this" mark as the band's current step — sitting over
+                    the row's own node, since it cannot live inside the row's
+                    button. The tooltip carries the words. */}
+                {canPublishUpTo && (
+                  <button
+                    className="overview-history__publish"
+                    type="button"
+                    onClick={() => onPublishUpTo?.(version.commit)}
+                    aria-label={`${t.overviewPublishUpTo}: ${title}`}
+                    data-tooltip={`${t.overviewPublishUpTo} · ${t.overviewPublishUpToHint}`}
+                  >
+                    <CloudUpload aria-hidden="true" />
+                  </button>
+                )}
               </li>
             );
           })}

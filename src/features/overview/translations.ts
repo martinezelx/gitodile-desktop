@@ -81,11 +81,11 @@ export interface OverviewTranslations {
   overviewHistoryOpenVersion: (title: string) => string;
   overviewHistoryRefreshFailed: string;
   overviewPublishChanges: string;
-  overviewPendingVersionsTitle: (count: number) => string;
-  overviewPendingVersionsGuidance: string;
-  overviewPendingVersionsTruncated: (visible: number, total: number) => string;
   overviewPendingVersionsError: string;
+  /** On an unpublished row of Recent history: publish it and every older
+   * version, through the previewed flow. */
   overviewPublishUpTo: string;
+  overviewPublishUpToHint: string;
   overviewCloseProject: string;
   overviewEmptyTitle: string;
   overviewEmptyDescription: string;
@@ -194,12 +194,9 @@ const en: OverviewTranslations = {
   overviewHistoryOpenVersion: (title) => `Open “${title}” in history`,
   overviewHistoryRefreshFailed: "Recent history may be out of date.",
   overviewPublishChanges: "Publish changes",
-  overviewPendingVersionsTitle: (count) => `Saved versions not yet published (${count})`,
-  overviewPendingVersionsGuidance:
-    "Newest first. Publishing through a version also publishes every older version below it.",
-  overviewPendingVersionsTruncated: (visible, total) => `Showing the ${visible} newest of ${total}.`,
   overviewPendingVersionsError: "GitOdile couldn't load the saved versions waiting to be published.",
   overviewPublishUpTo: "Publish up to here",
+  overviewPublishUpToHint: "Publishes this version and every older one.",
   overviewCloseProject: "Close project",
   overviewEmptyTitle: "No project open",
   overviewEmptyDescription: "Pick how you want to start. Everything stays on this computer until you publish.",
@@ -301,12 +298,9 @@ const es: OverviewTranslations = {
   overviewHistoryOpenVersion: (title) => `Abrir «${title}» en el historial`,
   overviewHistoryRefreshFailed: "El historial reciente puede estar desactualizado.",
   overviewPublishChanges: "Publicar cambios",
-  overviewPendingVersionsTitle: (count) => `Versiones guardadas sin publicar (${count})`,
-  overviewPendingVersionsGuidance:
-    "Las más recientes aparecen primero. Publicar hasta una versión también publica todas las anteriores que aparecen debajo.",
-  overviewPendingVersionsTruncated: (visible, total) => `Se muestran las ${visible} más recientes de ${total}.`,
   overviewPendingVersionsError: "GitOdile no pudo cargar las versiones guardadas pendientes de publicar.",
   overviewPublishUpTo: "Publicar hasta aquí",
+  overviewPublishUpToHint: "Publica esta versión y todas las anteriores.",
   overviewCloseProject: "Cerrar proyecto",
   overviewEmptyTitle: "No hay ningún proyecto abierto",
   overviewEmptyDescription: "Elige cómo quieres empezar. Todo se queda en tu equipo hasta que publiques.",

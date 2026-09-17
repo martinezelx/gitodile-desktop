@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CircleAlert, LoaderCircle, Save, Send } from "lucide-react";
+import { CircleAlert, CloudUpload, LoaderCircle, Save } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
@@ -482,7 +482,7 @@ export function SaveVersionDialog({
                   onPublishNow();
                 }}
               >
-                <Send aria-hidden="true" />
+                <CloudUpload aria-hidden="true" />
                 {t.saveVersionPublishNow}
               </button>
               <button className="primary-button" type="button" onClick={onClose}>

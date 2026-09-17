@@ -23,7 +23,6 @@ export const overviewScreenModule = {
   inCompactNav: true,
   container,
   additionalPreloads: [
-    () => import("./PendingVersionsSection"),
     () => import("./HistorySummarySection"),
     () => import("../publish"),
     () => import("../version-lines"),

@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Check,
   CircleAlert,
+  Cloud,
   CloudCog,
   CloudUpload,
   Info,
@@ -11,7 +12,6 @@ import {
   Pencil,
   RotateCw,
   Save,
-  Send,
   Split,
   TriangleAlert,
 } from "lucide-react";
@@ -280,7 +280,7 @@ export function JourneySection({
       break;
     case "notChecked":
       publishStep = (
-        <JourneyStep id="publish" tone="neutral" icon={publish.isChecking ? spinning : <CloudUpload />} label={t.overviewJourneyPublish}
+        <JourneyStep id="publish" tone="neutral" icon={publish.isChecking ? spinning : <Cloud />} label={t.overviewJourneyPublish}
           value={t.syncNotCheckedTitle} hint={t.overviewJourneyCheckHint}
           onSelect={onCheckTeamChanges} selectLabel={t.syncCheck} />
       );
@@ -301,12 +301,12 @@ export function JourneySection({
       break;
     case "ahead":
       publishStep = isPublishActive && canPublish ? (
-        <JourneyStep id="publish" tone="active" icon={publish.isChecking ? spinning : <Send />} label={t.overviewJourneyPublish}
+        <JourneyStep id="publish" tone="active" icon={publish.isChecking ? spinning : <CloudUpload />} label={t.overviewJourneyPublish}
           labelNote={t.overviewJourneyNextStep} value={t.overviewPublishAll(publish.pending)}
           hint={remoteHint}
           onSelect={onPublish} selectLabel={t.overviewPublishAll(publish.pending)} />
       ) : (
-        <JourneyStep id="publish" tone="neutral" icon={publish.isChecking ? spinning : <Send />} label={t.overviewJourneyPublish}
+        <JourneyStep id="publish" tone="neutral" icon={publish.isChecking ? spinning : <CloudUpload />} label={t.overviewJourneyPublish}
           value={t.overviewJourneyReadyToPublish(publish.pending)} hint={remoteHint}
           onSelect={canPublish ? onPublish : onCheckTeamChanges}
           selectLabel={canPublish ? t.syncPublish : t.statusBarCheckNow} />
@@ -343,7 +343,7 @@ export function JourneySection({
     case "detached":
     case "unborn":
       publishStep = (
-        <JourneyStep id="publish" tone="muted" icon={<CloudUpload />} label={t.overviewJourneyPublish}
+        <JourneyStep id="publish" tone="muted" icon={<Cloud />} label={t.overviewJourneyPublish}
           value={publish.state === "detached" ? t.syncDetachedTitle : t.syncUnbornTitle}
           hint={publish.state === "detached" ? t.syncDetachedMessage : t.syncUnbornMessage} />
       );
@@ -374,6 +374,9 @@ export function JourneySection({
     note = t.overviewJourneyNoteAllDone;
   } else if (changes.state === "error") {
     note = t.statusCouldntCheck;
+    noteAction = { label: t.overviewCheckLocalAgain, onClick: onCheckLocalChanges };
+  } else if (publish.inventoryError) {
+    note = t.overviewPendingVersionsError;
     noteAction = { label: t.overviewCheckLocalAgain, onClick: onCheckLocalChanges };
   } else if (changes.state === "clean") {
     // Saved, and the remote side is the only thing left to say.

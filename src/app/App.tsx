@@ -176,9 +176,6 @@ import "../styles.css";
 // in `screens.tsx` next to their registry entries; these are the dialogs,
 // which are not screens.
 const PublishDialog = lazy(() => import("../features/publish/PublishDialog").then((m) => ({ default: m.PublishDialog })));
-const PendingVersionsSection = lazy(() =>
-  import("../features/overview/PendingVersionsSection").then((m) => ({ default: m.PendingVersionsSection })),
-);
 const CreateVersionLineDialog = lazy(() =>
   import("../features/version-lines/VersionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
 );

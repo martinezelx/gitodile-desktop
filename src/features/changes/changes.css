@@ -73,10 +73,6 @@
 .changes-preview__item--deleted .changes-preview__category { color: var(--status-danger); }
 .changes-preview__item--renamed .changes-preview__category { color: var(--status-renamed); }
 .changes-preview__item--conflicted .changes-preview__category { color: var(--status-warning); }
-.pending-versions__diff .diff-code {
-  height: 100%;
-  min-height: 0;
-}
 
 .changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
 /* The header row itself is `.screen-header` in primitives.css: the title and

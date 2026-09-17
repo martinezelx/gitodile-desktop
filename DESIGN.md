@@ -347,9 +347,11 @@ The main desktop window should broadly support:
    - **Two equal columns** of the lists the band's facts are about, in the
      same card shape with the same header shape (neutral glyph tile, title,
      one line, the trailing action in the same corner and the same words).
-   - Anything that only sometimes exists (a list of versions waiting to be
-     published) appears under the columns only while it exists; an empty
-     card would be the band's tile said twice.
+   - Nothing gets a card of its own for sometimes existing. Versions saved
+     but not yet published are rows of Recent history that say so — the node
+     in the accent, "Not published" in the meta, and "Publish up to here"
+     under the pointer — not a fourth card repeating the band's count with
+     a second Publish button.
 
    Three rules hold it together: one accent-filled thing per page (the
    current step's glyph, or nothing when nothing is waiting), one vocabulary
@@ -701,6 +703,17 @@ second one is a deliberate edit to the guard rather than a quiet override.
 ### Icons
 
 Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`lucide-react`, ISC) at 16–18px, imported by name so unused icons are tree-shaken out of the bundle. Chosen over hand-drawing our own because it ships real Git-specific glyphs (`GitCompare`, `GitCommitHorizontal`) instead of the generic pencil/clock metaphors the app used before — see the icon-library comparison done when this was decided. An active nav item tints its icon with `--accent-primary`; the label stays `--text-primary-color`. Don't mix in a second icon library or hand-drawn icons alongside it — pick the closest Lucide glyph even when it's not a perfect semantic match.
+
+**Publishing is the cloud with the arrow** (`CloudUpload`), wherever the verb
+appears: the band's Publish step, the node on an unpublished version in Recent
+history, and the Publish buttons in the save and publish dialogs. It pairs with
+the status bar, where the remote is already a cloud (`CloudCheck` when all is
+well, `CloudAlert` when not), so "publish" reads as "send it up to the cloud
+you can see". It replaced the paper plane (`Send`), whose ink sits low and left
+of its box and never centres in a small circle. "Not checked yet" and the
+states with no remote to speak of take the plain `Cloud`; "review and get" is
+`ArrowDownToLine`. The changelog's `send` highlight glyph is content, not this
+verb, and keeps its plane.
 
 That rule governs **controls** — the glyph vocabulary a user learns to operate the app. It does not govern **artwork naming somebody else's product**, which Lucide has no glyphs for at all: file-type icons in the Changes list, and the stack and operating-system marks in About. Those come from the vscode-icons set already installed for file types, or — for the three OS marks, which that set does not carry — are drawn in `src/app/vendorMarks.tsx` and used nowhere else. They keep their vendor colours, because a logo reduced to one ink stops being recognizable at 14px, which is the only job it has. That is the trade: About accepts a handful of fixed colours it does not own so that nothing else in the app has to. The exception is a mark whose brand colour is an ink rather than a hue — Apple's, monochrome by its own definition, and Tux's black body, which is a hole in the layout on the dark dialog surface. Those take `currentColor` and the dialog's own surface, so they are legible in both themes; what identifies Tux at 14px is the silhouette and the yellow beak, not which side of the ink it is on.
 
@@ -1183,8 +1196,9 @@ history, at one height. The two cards share one header shape — a neutral
 40px glyph tile, a title, one line, the trailing action — and every glyph tile
 on the screen is that same filled circle, no rings and no borders; the band's
 connectors draw themselves when a step is reached, a one-beat transition and
-never a loop. The
-saved-but-unpublished list appears under them only while there is one. Nothing
+never a loop. Versions
+saved but not yet published are rows of that history, marked and offering
+"Publish up to here" under the pointer, rather than a card of their own. Nothing
 counts anything twice: the band's Publish tile is the one place "N ready to
 publish" is said, and there is no green number beside the line name. Every
 glyph tile on the screen is a circle, per Shape, including the ones a mockup

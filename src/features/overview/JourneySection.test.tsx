@@ -22,6 +22,7 @@ function journey(overrides: Partial<Journey> = {}): Journey {
       isStale: false,
       isCached: false,
       error: null,
+      inventoryError: null,
     },
     ...overrides,
   };

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, CircleAlert, LoaderCircle, Send } from "lucide-react";
+import { ChevronDown, CircleAlert, CloudUpload, LoaderCircle } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
@@ -464,7 +464,7 @@ export function PublishDialog({
                   </>
                 ) : (
                   <>
-                    <Send aria-hidden="true" />
+                    <CloudUpload aria-hidden="true" />
                     {isUncertain
                       ? t.publishCheckRemoteAgain
                       : isStalePlan

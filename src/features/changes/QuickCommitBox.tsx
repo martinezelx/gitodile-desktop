@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Check, CircleAlert, LoaderCircle, Save, Send, X } from "lucide-react";
+import { Check, CircleAlert, CloudUpload, LoaderCircle, Save, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
 import { useScrollAnchoredResize } from "../../shared/ui";
@@ -306,7 +306,7 @@ export function QuickCommitBox({
                   Absent when the toggle already took it there. */}
               {!publishToo && (
                 <button type="button" className="changes-quick-commit__publish-now" onClick={onPublishNow}>
-                  <Send aria-hidden="true" />
+                  <CloudUpload aria-hidden="true" />
                   {t.saveVersionPublishNow}
                 </button>
               )}

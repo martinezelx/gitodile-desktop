@@ -3,7 +3,6 @@ import {
   ArrowRightLeft,
   ChevronRight,
   CircleAlert,
-  CircleCheck,
   FileDiff,
   FileMinus,
   FilePlus,
@@ -113,8 +112,17 @@ export function ChangedFilesSection({
           </div>
         </div>
       ) : workingTree.counts.total === 0 ? (
-        <div className="changed-files__state">
-          <CircleCheck aria-hidden="true" className="changed-files__state-icon--done" />
+        /* Nothing to list is the good outcome here, so it is said the way the
+           band says a step is done — the light "done" tile — and it arrives:
+           the tile pops in and the tick draws itself, once, when the card
+           reaches this state. A drawn check is the oldest "all done" there is,
+           and it is over in half a second. */
+        <div className="changed-files__state changed-files__state--empty">
+          <span className="changed-files__done" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+              <path className="changed-files__done-tick" d="M6 12.5l4 4 8-9" pathLength="1" />
+            </svg>
+          </span>
           <div>
             <strong>{t.statusCleanTitle}</strong>
             <p>{t.statusCleanMessage}</p>

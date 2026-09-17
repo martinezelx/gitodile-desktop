@@ -26,9 +26,6 @@ import { ChangedFilesSection } from "./ChangedFilesSection";
 import { deriveJourney } from "./journey";
 import { JourneySection } from "./JourneySection";
 
-const PendingVersionsSection = lazy(() =>
-  import("./PendingVersionsSection").then((m) => ({ default: m.PendingVersionsSection })),
-);
 const HistorySummarySection = lazy(() =>
   import("./HistorySummarySection").then((m) => ({ default: m.HistorySummarySection })),
 );
@@ -505,6 +502,7 @@ export function OverviewPanel({
       workingTreeError,
       isCheckingChanges,
       pendingVersionsCount: pendingVersions.totalCount,
+      pendingVersionsError,
       teamSync,
     });
     const isRefreshing = isCheckingChanges || teamSync.isCheckingRemote;
@@ -568,31 +566,12 @@ export function OverviewPanel({
               controller={historyController}
               projectPath={project.path}
               sessionEpoch={project.sessionEpoch}
+              canPublish={canPublish}
               onOpenHistory={onOpenHistory}
+              onPublishUpTo={onPublishUpTo}
             />
           </Suspense>
         </div>
-
-        {/* Work already saved but not yet published, with "publish up to
-            here" per version. Only while there is something to publish: an
-            empty card here would be the band's Publish tile said twice. */}
-        {(pendingVersions.totalCount > 0 || pendingVersionsError) && (
-          <section className="pending-versions-card">
-            <Suspense fallback={null}>
-              <PendingVersionsSection
-                key={project.path}
-                projectPath={project.path}
-                sessionEpoch={project.sessionEpoch}
-                result={pendingVersions}
-                error={pendingVersionsError}
-                onRetry={onCheckLocalChanges}
-                onPublishUpTo={onPublishUpTo}
-                canPublish={canPublish}
-                onPublish={onPublish}
-              />
-            </Suspense>
-          </section>
-        )}
       </div>
     );
   }

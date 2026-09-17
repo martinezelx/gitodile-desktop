@@ -441,7 +441,33 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   font-size: var(--text-body);
 }
 .changed-files__state > svg { width: 20px; height: 20px; flex-shrink: 0; }
-.changed-files__state-icon--done { color: var(--status-success); }
+/* The empty card's tile: the band's light "done" fill, at the card's own
+   glyph size, arriving with a small overshoot while the tick draws itself
+   from left to right. One run per arrival, never a loop; reduced motion
+   shows the finished tile. */
+.changed-files__state--empty { flex-direction: column; gap: var(--space-3); text-align: center; padding: var(--space-4) 0; }
+.changed-files__done {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-active);
+  color: var(--status-success);
+  animation: changed-files-done-in 360ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+.changed-files__done svg { width: 26px; height: 26px; }
+.changed-files__done-tick {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: changed-files-done-tick 320ms ease-out 220ms forwards;
+}
+.changed-files__state--empty > div { animation: row-in 220ms ease-out 360ms backwards; }
+@keyframes changed-files-done-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes changed-files-done-tick { to { stroke-dashoffset: 0; } }
 .changed-files__state--error > svg { color: var(--status-danger); }
 .changed-files__state strong { display: block; margin-bottom: 3px; color: var(--text-primary-color); }
 .changed-files__state p { margin: 0; line-height: var(--leading-normal); }
@@ -460,296 +486,6 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
 
 /* Rows arrive staggered through `.row-in` (primitives.css), shared with
    the Changes file list. */
-
-/* The saved-but-unpublished list, only while there is one. */
-.pending-versions-card {
-  min-width: 0;
-  padding: var(--space-5);
-  border-radius: var(--radius-surface);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
-}
-
-.pending-versions {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: var(--space-3);
-}
-.pending-versions__heading {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-4);
-}
-.pending-versions__icon {
-  flex-shrink: 0;
-  width: 52px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-round);
-  background: var(--surface-hover);
-  color: var(--text-primary-color);
-}
-.pending-versions__icon svg { width: 24px; height: 24px; }
-.pending-versions__heading-text { flex: 1; min-width: 0; }
-.pending-versions__title {
-  margin-bottom: var(--space-1);
-  color: var(--text-primary-color);
-  font-size: var(--text-title);
-  letter-spacing: var(--tracking-tight);
-}
-.pending-versions__guidance {
-  max-width: 70ch;
-  margin: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-body);
-  line-height: var(--leading-normal);
-}
-.pending-versions__publish-all {
-  flex-shrink: 0;
-  align-self: center;
-}
-.pending-versions__publish-all svg,
-.pending-versions__error svg { width: 15px; height: 15px; flex-shrink: 0; }
-.pending-versions__error {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
-  color: var(--status-danger);
-  font-size: var(--text-body);
-}
-.pending-versions__error > span { min-width: 0; flex: 1; align-self: center; }
-.pending-versions__error .secondary-button { flex: 0 0 auto; }
-.pending-versions__list {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  max-height: 420px;
-  overflow-y: auto;
-}
-.pending-versions__list::before {
-  content: "";
-  position: absolute;
-  top: 20px;
-  bottom: 20px;
-  left: 13px;
-  width: 1px;
-  background: var(--border-divider);
-}
-.pending-versions__item {
-  position: relative;
-  /* Without this, a flex column with a capped height (`.pending-versions__list`
-     below) can *shrink* items below their real content height instead of
-     just scrolling once several rows are expanded at the same time — the
-     browser default `flex-shrink: 1` fighting the list's `overflow-y: auto`
-     for space, rather than letting it win. */
-  flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-}
-.pending-versions__node {
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  margin-top: 7px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-round);
-  background: var(--surface-raised);
-  color: var(--text-secondary-color);
-}
-.pending-versions__node svg { width: 18px; height: 18px; }
-.pending-versions__node--active { color: var(--status-success); }
-.pending-versions__card {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
-  overflow: hidden;
-}
-.pending-versions__details {
-  min-width: 0;
-  width: 100%;
-}
-.pending-versions__summary {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 40px;
-  padding-block: var(--space-2);
-  padding-inline: var(--space-3) 180px;
-  color: var(--text-primary-color);
-  list-style: none;
-  transition: background var(--duration-fast);
-}
-.pending-versions__summary::-webkit-details-marker { display: none; }
-.pending-versions__summary:hover { background: var(--surface-hover); }
-.pending-versions__chevron {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--text-secondary-color);
-  transition: transform var(--duration-fast);
-}
-details[open] > .pending-versions__summary .pending-versions__chevron { transform: rotate(180deg); }
-.pending-versions__description {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-body);
-}
-.pending-versions__meta {
-  flex-shrink: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  white-space: nowrap;
-}
-.pending-versions__author {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  min-width: 0;
-  max-width: 140px;
-  padding: 2px 9px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  background: var(--surface-panel);
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-}
-.pending-versions__author svg { width: 11px; height: 11px; flex-shrink: 0; }
-.pending-versions__author-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pending-versions__message-body {
-  margin: 0;
-  padding-block: 0 var(--space-2);
-  padding-inline: 36px var(--space-3);
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  line-height: var(--leading-normal);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.pending-versions__publish-button {
-  position: absolute;
-  inset-block-start: 3px;
-  inset-inline-end: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 0 var(--space-4);
-  flex-shrink: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-  font: inherit;
-  font-size: var(--text-label);
-  font-weight: var(--weight-strong);
-  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
-}
-.pending-versions__publish-button:hover {
-  border-color: var(--border-subtle);
-  background: var(--surface-active);
-  color: var(--text-primary-color);
-}
-.pending-versions__publish-button svg { width: 15px; height: 15px; }
-
-.pending-versions__files,
-.pending-versions__files-status {
-  margin: 0;
-  padding: 0 var(--space-3) var(--space-2);
-  list-style: none;
-  border-top: 1px solid var(--border-subtle);
-}
-.pending-versions__files-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-top: var(--space-2);
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-}
-.pending-versions__files-status--error { color: var(--status-danger); }
-.pending-versions__files-status svg { width: 14px; height: 14px; flex-shrink: 0; }
-
-.pending-versions__file {
-  min-width: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-}
-.pending-versions__file-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-}
-.pending-versions__file-button:hover { color: var(--text-primary-color); }
-.pending-versions__file-button svg,
-.pending-versions__file-type-icon { width: 13px; height: 13px; flex-shrink: 0; }
-.pending-versions__file-type-icon { display: block; }
-.pending-versions__file-chevron {
-  transition: transform var(--duration-fast);
-}
-.pending-versions__file-button[aria-expanded="true"] .pending-versions__file-chevron {
-  transform: rotate(90deg);
-}
-.pending-versions__file-path { overflow-wrap: anywhere; }
-.pending-versions__file-category { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
-.pending-versions__diff {
-  /* A column, so whatever is inside can claim the leftover height and scroll
-     within it. As a plain block this box clipped anything taller than its
-     ceiling — which `38vh` makes short on a small window — with no way to
-     reach the rest. `.diff-code` already asks for `flex: 1; min-height: 0`;
-     here that finally means something. */
-  display: flex;
-  flex-direction: column;
-  max-height: min(300px, 38vh);
-  margin: 2px 0 var(--space-2) 19px;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-code);
-}
-.pending-versions__diff-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 100%;
-  margin: 0;
-  color: var(--text-secondary-color);
-}
-.pending-versions__diff-status--error { color: var(--status-danger); }
-.pending-versions__diff-status svg { width: 15px; height: 15px; }
 
 .overview-history {
   min-width: 0;
@@ -921,6 +657,44 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
 .overview-history__author { flex: 0 1 auto; }
 .overview-history__date { flex: 0 0 auto; }
 .overview-history__chevron { width: 15px; height: 15px; color: var(--text-secondary-color); }
+/* A version still only on this computer: its node takes the accent and the
+   word says so. Where it can be published, the node *is* the action: grown
+   from 12px to a pressable 22px, filled solid in the accent with the send
+   glyph — the band's "do this" mark, on the timeline — and laid over the
+   row's own node, because it cannot live inside the row's button. It is
+   still at rest: the band's current step is the one thing that breathes.
+   Under the pointer or focus it breathes once — the same wave, one run — to
+   say "this one is pressed", then rests again. */
+.overview-history__item--local .overview-history__node { border-color: var(--accent-primary); }
+.overview-history__local { flex: 0 1 auto; color: var(--accent-primary); font-weight: var(--weight-strong); }
+.overview-history__item--publishable .overview-history__node { visibility: hidden; }
+.overview-history__publish {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 7px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: var(--accent-brand);
+  color: var(--accent-brand-contrast);
+  box-shadow: 0 0 0 3px var(--surface-raised);
+  transition: transform var(--duration-fast) ease-out;
+}
+.overview-history__publish svg { width: 12px; height: 12px; }
+.overview-history__publish:hover,
+.overview-history__publish:focus-visible {
+  transform: translateY(-50%) scale(1.12);
+  animation: attention-breathe var(--attention-duration) ease-out 1;
+}
+.overview-history__publish:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.overview-history__publish:active { transform: translateY(-50%) scale(1); }
+
 .overview-history__loading,
 .overview-history__state {
   min-height: 84px;
@@ -1233,6 +1007,11 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   .journey-step__go,
   .journey-step__icon,
   .journey-connector::after { transition: none; }
+  .changed-files__done,
+  .changed-files__state--empty > div { animation: none; }
+  .overview-history__publish:hover,
+  .overview-history__publish:focus-visible { animation: none; }
+  .changed-files__done-tick { animation: none; stroke-dashoffset: 0; }
   .welcome-recents__open,
   .welcome-recents__filter,
   .welcome-recents__favourite,
@@ -1298,23 +1077,9 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   .journey,
   .journey-step,
   .changed-files,
-  .pending-versions-card,
   .overview-history {
     outline: 1px solid CanvasText;
     outline-offset: -1px;
   }
   .journey-step--active { outline: 2px solid Highlight; }
 }
-
-/* The picture pickers for one expanded file. This surface has no toolbar to
-   put them in, so they sit directly above the picture — and disappear when a
-   picture has nothing to choose. */
-.pending-versions__diff-controls { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3) 0; }
-.pending-versions__diff-controls:empty { display: none; }
-/* The picture takes the room the controls row leaves and scrolls inside it,
-   and is drawn smaller here than on a full screen: this box's ceiling is a
-   fraction of the viewport, and a caption nobody can reach is a caption that
-   may as well not exist. */
-.pending-versions__diff .image-diff { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) var(--space-3); gap: var(--space-2); }
-.pending-versions__diff .image-diff__frame { min-height: 0; padding: var(--space-2); }
-.pending-versions__diff .image-diff__image { max-height: 150px; }
