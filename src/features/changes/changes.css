@@ -370,25 +370,22 @@
    height is what separates them now, and it is still the height the diff
    header opposite pairs with, so the two panels' contents start level even
    though only one of them draws a line. */
-/* The panel's own header: the card header Overview's columns wear —
-   neutral glyph circle, title, one line — at the height of a strip, because
-   it is paired pixel for pixel with the diff's header beside it (see
-   `.changes-layout`). The circle is the control size of a strip rather than
-   a page card's 40px, so the header reads as a row of this panel and not as
-   a card dropped into it. */
+/* The panel's own header — title and one line, the card header's shape —
+   at the height of a strip, because it is paired pixel for pixel with the
+   diff's header beside it (see `.changes-layout`). Where a card would put
+   its glyph circle stands the include-everything checkbox: the rail already
+   names the screen with that glyph, and the checkbox heads the rows' own
+   column. Its inset is the rows' inset (the 8px gutter plus the checkbox's
+   own 6px), and the heading starts where a row's file name starts, so the
+   header reads as the first row of the column rather than as a card
+   dropped into it. */
 .changes-file-list__header {
-  display: flex; align-items: center; gap: var(--space-2);
+  display: flex; align-items: center; gap: 4px;
   flex: 0 0 auto; height: var(--strip-height);
-  padding: 0 var(--space-3) 0 10px;
+  padding: 0 var(--space-3) 0 var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
 }
-.changes-file-list__glyph {
-  flex-shrink: 0; width: var(--control-height-sm); height: var(--control-height-sm);
-  display: grid; place-items: center; border-radius: var(--radius-round);
-  background: var(--surface-hover); color: var(--text-secondary-color);
-}
-.changes-file-list__glyph svg { width: 16px; height: 16px; }
-.changes-file-list__heading { min-width: 0; flex: 1; display: grid; gap: 1px; }
+.changes-file-list__heading { min-width: 0; flex: 1; display: grid; gap: 1px; padding-left: var(--space-3); }
 .changes-file-list__heading h1 {
   margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: var(--text-subtitle); font-weight: var(--weight-title); line-height: var(--leading-tight);
@@ -407,12 +404,7 @@
   flex: 0 0 auto; height: var(--strip-height-inner);
   padding: 0 var(--space-2);
 }
-.changes-file-list__select-all {
-  display: inline-flex;
-}
-/* The same 6px inset the rows below use, from the same 8px gutter, so this
-   checkbox stands at the head of their column rather than beside it. */
-.changes-file-list__select-all .changes-file-row__checkbox { margin: 0 0 0 6px; }
+.changes-file-list__select-all { display: inline-flex; }
 /* The box itself is `.search-box` in primitives.css now. What stays here is
    what this strip asks of it: the free width, and the height contract the
    picker beside it reads — the two have to agree or the strip looks stepped. */

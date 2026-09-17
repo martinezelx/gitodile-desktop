@@ -1242,8 +1242,8 @@ controls that live in the panels. A miniature of the Overview band was tried
 there and read as decoration: the rail already says where you are, the
 status bar what is unsaved, and three grey dots that do nothing answer a
 question nobody asks on this screen. So the name and the state are the list
-panel's own header now, in the shape Overview heads its cards with — a
-neutral glyph circle, the title, one line — at the height of a strip
+panel's own header now, in the shape Overview heads its cards with — the
+title, one line — at the height of a strip
 (`--strip-height`), because the diff panel beside it keeps its one strip —
 the file's icon, its name, its folder, its category, the reading controls —
 and the two must start on the same pixel row. Both are fixed, truncating
@@ -1252,9 +1252,12 @@ stayed level. The search strip
 under the list's header steps down to `--strip-height-inner`, the way
 History's inner panes step down from their panel; the diff needs no second
 strip and starts its code under its header, which is the page row's height
-given back to it. The circle is the strip's control size, not a page card's
-40px, so the header reads as a row of the panel rather than a card dropped
-into one. History follows with the same two headers. The heading's state is the band's own breakdown
+given back to it. Where a card would put its glyph circle stands the include-everything
+checkbox: the rail already names the screen with that glyph, and the
+checkbox is what heads this column — at the rows' own inset, with the title
+starting where a file name starts, so the header reads as the column's
+first row (GitHub Desktop heads its list the same way) and the search box
+takes the whole of the strip below. History follows with the same two headers. The heading's state is the band's own breakdown
 — the rows' category glyphs, in the rows' colours, "1 edited · 1 new" — so a
 reader who arrives from the Changes tile reads the same fact in the same
 shape; the selection is named only while it is partial ("4 of 7 selected"),

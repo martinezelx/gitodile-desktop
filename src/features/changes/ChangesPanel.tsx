@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  GitCompare,
   LoaderCircle,
   Ellipsis,
   RotateCcw,
@@ -1493,26 +1492,16 @@ export function ChangesPanel({
             {/* The panel is the card. The screen's name and its state used to
                 be a page row over both panels — a Linear-style header on a
                 workbench, with a corner waiting for controls that live in
-                the panels — so they are the list panel's own header now, in
-                the shape Overview heads its cards with (a neutral glyph
-                circle, the title, one line), at the height of a strip so
-                the diff's header beside it starts on the same pixel row. Two
-                lines, fixed: a band that grew with what it said would be a
-                strip that never stays level. */}
+                the panels — so they are the list panel's own header now, at
+                the height of a strip so the diff's header beside it starts
+                on the same pixel row. At its head, where a card would put a
+                glyph circle, stands the include-everything checkbox: the
+                rail already names this screen with that glyph, and the
+                checkbox is what heads this column — the same inset as the
+                rows' own, so it reads as theirs (GitHub Desktop heads its
+                list the same way). Two lines, fixed: a band that grew with
+                what it said would be a strip that never stays level. */}
             <header className="changes-file-list__header">
-              <span className="changes-file-list__glyph" aria-hidden="true"><GitCompare /></span>
-              <div className="changes-file-list__heading">
-                <h1>{t.changesHeading}</h1>
-                {headerMessage}
-              </div>
-            </header>
-            {/* One strip: what is included, and what is listed. The selection
-                summary had a band of its own above the search box, which is a
-                whole row of chrome for a fraction like "3/12"; beside the
-                checkbox it names it holds the same meaning in a quarter of
-                the space. A step quieter than the header above it, the way
-                History's inner panes step down from their panel. */}
-            <div className="changes-file-list__toolbar">
               <span className="changes-file-list__select-all">
                 {canChooseFiles ? (
                   <input
@@ -1539,6 +1528,16 @@ export function ChangesPanel({
                   />
                 )}
               </span>
+              <div className="changes-file-list__heading">
+                <h1>{t.changesHeading}</h1>
+                {headerMessage}
+              </div>
+            </header>
+            {/* One strip for what is listed: the search takes the whole
+                width, the discard menu the far end. A step quieter than the
+                header above it, the way History's inner panes step down from
+                their panel. */}
+            <div className="changes-file-list__toolbar">
               <SearchBox
                 value={search}
                 onChange={setSearch}
