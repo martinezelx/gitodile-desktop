@@ -685,7 +685,9 @@ in `primitives.css`, which measures a labelled action whether or not the screen
 has one. Without that the panels beneath started 12px lower on the screen whose
 header carries a button, and the same 22px title did not even measure the same
 on the two screens: one pinned its leading and the other left it to the
-browser.
+browser. Changes has since moved its heading into its list panel (§ Core
+screens, "the panel is the card"), and History is to follow; the rule stays
+for Lines and any screen that keeps a page row.
 
 There are no exceptions. There was one — the History diff pane's footer ran its
 buttons at 30px, below even `sm`, on the grounds that the pane around it is a
@@ -1232,14 +1234,28 @@ save mark — so the circle steps down to the neutral tile; saved, it takes
 the light "done" fill with a check, with "Publish now" offered as a quiet
 link under the saved line — the band's Publish tile is where that step is
 said in full, so it is not a second primary here. One accent fill in every
-state of the box. The heading's trailing corner, where the action used to
-be, carries the band in miniature: three dots and two connectors in the
-band's three tones (done filled, current in the accent, ahead hollow) with
-the step names beside them, one quiet button back to Overview. It answers
-"where am I" from the same `deriveJourney` the band reads, so the two can
-never point at different steps, and it is secondary everywhere because the
-box below answers "what do I do"; below 800px it is the first thing to go. Ctrl/Cmd+S opens the box and puts the caret in the name field,
-never from under a dialog. The heading's state is the band's own breakdown
+state of the box. **The panel is the card.** The screen's name and its
+state used to be a page row over both panels — the Linear-style header a
+workbench does not have (GitHub Desktop, Fork, Tower and VS Code all start
+their panels at the toolbar), with a trailing corner waiting for view
+controls that live in the panels. A miniature of the Overview band was tried
+there and read as decoration: the rail already says where you are, the
+status bar what is unsaved, and three grey dots that do nothing answer a
+question nobody asks on this screen. So the name and the state are the list
+panel's own header now, in the shape Overview heads its cards with — a
+neutral glyph circle, the title, one line — at the height of a strip
+(`--strip-height`), because the diff panel beside it wears the same header
+with the file as its subject (its icon in the same circle, the name, then
+the folder and the category as the row says it, the reading controls at the
+end where a card's trailing action goes) and the two must start on the same
+pixel row. Both are two fixed, truncating lines: a header that grew with
+what it said would be a strip that never stayed level. The search strip
+under the list's header steps down to `--strip-height-inner`, the way
+History's inner panes step down from their panel; the diff needs no second
+strip and starts its code under its header, which is the page row's height
+given back to it. The circle is the strip's control size, not a page card's
+40px, so the header reads as a row of the panel rather than a card dropped
+into one. History follows with the same two headers. The heading's state is the band's own breakdown
 — the rows' category glyphs, in the rows' colours, "1 edited · 1 new" — so a
 reader who arrives from the Changes tile reads the same fact in the same
 shape; the selection is named only while it is partial ("4 of 7 selected"),

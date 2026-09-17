@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  GitCompare,
   LoaderCircle,
   Ellipsis,
   RotateCcw,
@@ -350,53 +351,6 @@ export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<strin
     totals.removed += fileTotals.removed;
   }
   return totals;
-}
-
-const JOURNEY_STEPS = ["changes", "save", "publish"] as const;
-const JOURNEY_STEP_LABEL_KEYS = {
-  changes: "overviewJourneyChanges",
-  save: "overviewJourneySave",
-  publish: "overviewJourneyPublish",
-} as const satisfies Record<(typeof JOURNEY_STEPS)[number], keyof Translations>;
-
-/** The Overview band in miniature, at the end of the heading: three dots
- * joined by connectors, the steps behind the current one filled, the current
- * one in the accent, the ones ahead hollow. It is the model drawn once more
- * — where am I — not a count said twice, and the whole thing is one quiet
- * button back to the page that draws it in full. With nothing waiting, every
- * dot is done. */
-function JourneyMiniature({ step, onOpenOverview, t }: {
-  step: "changes" | "save" | "publish" | null;
-  onOpenOverview: () => void;
-  t: Translations;
-}): React.JSX.Element {
-  const activeIndex = step === null ? JOURNEY_STEPS.length : JOURNEY_STEPS.indexOf(step);
-  const sentence = step === null
-    ? t.changesJourneyAllDone
-    : t.changesJourneyNextStep(t[JOURNEY_STEP_LABEL_KEYS[step]]);
-  return (
-    <button
-      type="button"
-      className="changes-journey"
-      onClick={onOpenOverview}
-      aria-label={`${sentence} ${t.changesJourneyOpenOverview}`}
-      data-tooltip={t.changesJourneyOpenOverview}
-    >
-      {JOURNEY_STEPS.map((id, index) => {
-        const tone = index < activeIndex ? "done" : index === activeIndex ? "active" : "ahead";
-        return (
-          <React.Fragment key={id}>
-            {index > 0 && <span className={`changes-journey__connector changes-journey__connector--${index <= activeIndex ? "done" : "ahead"}`} aria-hidden="true" />}
-            <span className={`changes-journey__step changes-journey__step--${tone}`}>
-              <span className="changes-journey__dot" aria-hidden="true" />
-              {t[JOURNEY_STEP_LABEL_KEYS[id]]}
-            </span>
-          </React.Fragment>
-        );
-      })}
-      <ChevronRight className="changes-journey__go" aria-hidden="true" />
-    </button>
-  );
 }
 
 function ChangesStatusNotice({ watcherState, error, busy, onRefresh, onOpenSettings, t }: {
@@ -813,37 +767,34 @@ function DiffWorkspace({
           one question between them — which file, shown how — so they are one
           row now, paired with the file list's. See `.changes-layout` in
           changes.css. */}
+      {/* The same card header the list panel wears, with the file as the
+          subject: its own icon in the neutral circle, its name on the first
+          line, where it is and what happened to it on the second — the
+          category as the row says it, glyph and word — and the reading
+          controls at the end, where a card's trailing action goes. Two fixed
+          lines, both truncating, so nothing a path or a renamed-from note can
+          say pushes this header out of step with the list's. The full path
+          stays on the pane's accessible name. */}
       <header className="changes-diff__header">
         <span className="changes-diff__header-icon" aria-hidden="true">
           <FileTypeIcon className="changes-diff__type-icon" />
         </span>
         <div className="changes-diff__title-row">
-          {/* Name first and dir after, the same shape the file rows use, so
-              the open file is recognizable as the row it was chosen from. The
-              full path stays on the pane's accessible name. */}
+          <p className="changes-diff__name">{name}</p>
           <p className="changes-diff__path">
-            <span className="changes-diff__name">{name}</span>
             <span className="changes-diff__dir">{dir ?? t.changesProjectRoot}</span>
+            {entry && (
+              <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
+                {CHANGE_CATEGORY_ICONS[entry.category]}
+                {t[CATEGORY_LABEL_KEYS[entry.category]]}
+              </span>
+            )}
+            {entry?.originalPath && (
+              <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
+                {t.changesRenamedFrom(entry.originalPath)}
+              </span>
+            )}
           </p>
-          {/* The category as the row it was chosen from says it — the same
-              glyph in the same colour, with the word beside it — rather than
-              a pill that said it in a third shape. */}
-          {entry && (
-            <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
-              {CHANGE_CATEGORY_ICONS[entry.category]}
-              {t[CATEGORY_LABEL_KEYS[entry.category]]}
-            </span>
-          )}
-          {/* Inline, not a second line: a line of its own grew this header
-              past the height it shares with the file list's, putting the
-              two panels' rules back out of step for exactly the renamed
-              files this text appears on. It truncates like the path, with
-              the full value on the tooltip. */}
-          {entry?.originalPath && (
-            <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
-              {t.changesRenamedFrom(entry.originalPath)}
-            </span>
-          )}
         </div>
         <div className="changes-diff__controls">
           {fileTotal > 0 && (
@@ -1125,7 +1076,6 @@ export function ChangesPanel({
   onSaveCompleted,
   onNavigateOverview,
   onPublishNow,
-  journeyStep,
   selectedPath,
   onSelectedPathChange,
   onBeginDiscard,
@@ -1157,10 +1107,6 @@ export function ChangesPanel({
   onSaveCompleted: () => void;
   onNavigateOverview: () => void;
   onPublishNow: () => void;
-  /** The step whose action is the one thing to do now — the Overview band's
-   * own answer, derived once by the shell — or `null` when nothing waits.
-   * Drawn in miniature at the end of the heading. */
-  journeyStep: "changes" | "save" | "publish" | null;
   /** Which file is selected, lifted to the caller so it survives switching
    * away to another project's session and back (see task 012's per-session
    * UI state). `excludedPaths` (the save-version checkbox picks) stays local
@@ -1487,20 +1433,6 @@ export function ChangesPanel({
   return (
     <div className="changes-view" aria-busy={isCheckingChanges}>
       <ChangesStatusNotice watcherState={watcherState} error={workingTreeError} busy={isCheckingChanges} onRefresh={onRefresh} onOpenSettings={onOpenSettings} t={t} />
-      {/* Title and state on one line, and no action: saving lives in the box
-          docked under the files it saves, so the heading carries nothing a
-          second control would answer twice. `.screen-header` is the shared
-          definition of that row — History opens on the same one, so the two
-          screens' panels start on the same pixel row as well as in the same
-          shape. */}
-      <header className="screen-header">
-        <div className="screen-header__heading">
-          <h1>{t.changesHeading}</h1>
-          {headerMessage}
-        </div>
-        <JourneyMiniature step={journeyStep} onOpenOverview={onNavigateOverview} t={t} />
-      </header>
-
       <DiscardOutcomeNotice
         outcome={directDiscard.outcome}
         onUndo={directDiscard.undo}
@@ -1527,6 +1459,10 @@ export function ChangesPanel({
         <LoadingBar label={t.commonLoading} />
       ) : !workingTree ? null : workingTree.isClean ? (
         <div className="changes-empty">
+          {/* The panel that carries the screen's name is not drawn when there
+              is nothing to list, so the name is still here for a screen
+              reader, just not for the eye: the rail says it there. */}
+          <h1 className="visually-hidden">{t.changesHeading}</h1>
           <div className="changes-empty__icon" aria-hidden="true">
             <CheckCircle2 />
           </div>
@@ -1551,12 +1487,28 @@ export function ChangesPanel({
       ) : (
         <div className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}`}>
           <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
+            {/* The panel is the card. The screen's name and its state used to
+                be a page row over both panels — a Linear-style header on a
+                workbench, with a corner waiting for controls that live in
+                the panels — so they are the list panel's own header now, in
+                the shape Overview heads its cards with (a neutral glyph
+                circle, the title, one line), at the height of a strip so
+                the diff's header beside it starts on the same pixel row. Two
+                lines, fixed: a band that grew with what it said would be a
+                strip that never stays level. */}
+            <header className="changes-file-list__header">
+              <span className="changes-file-list__glyph" aria-hidden="true"><GitCompare /></span>
+              <div className="changes-file-list__heading">
+                <h1>{t.changesHeading}</h1>
+                {headerMessage}
+              </div>
+            </header>
             {/* One strip: what is included, and what is listed. The selection
                 summary had a band of its own above the search box, which is a
                 whole row of chrome for a fraction like "3/12"; beside the
                 checkbox it names it holds the same meaning in a quarter of
-                the space, and the files start ~50px higher. Paired with the
-                diff header — see `.changes-layout` in changes.css. */}
+                the space. A step quieter than the header above it, the way
+                History's inner panes step down from their panel. */}
             <div className="changes-file-list__toolbar">
               <span className="changes-file-list__select-all">
                 {canChooseFiles ? (

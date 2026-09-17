@@ -79,59 +79,33 @@
    the state of the working tree are one line, not a heading with a paragraph
    under it, and History opens on the same row. What stays here is what this
    screen says inside it. */
-.changes-view__summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+/* The state line under the panel's title: one line, truncating, at caption
+   size — the glyph chips, the line totals and the partial selection, in the
+   order they matter, cut from the end when the column is too narrow for all
+   of them. Wrapping would grow the header, and the header's height is the
+   contract that keeps the diff's beside it level. */
+.changes-view__summary {
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0;
+  overflow: hidden; white-space: nowrap;
+  color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
+}
 /* "✎ 14 edited · + 7 new": the rows' own category glyphs in the rows' own
    colours, the same chips the Overview band's Changes tile carries, so the
    tile and the screen it leads to say the count in one vocabulary. */
-.changes-view__breakdown { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-3); }
-.changes-view__kind { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.changes-view__kind svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-secondary-color); }
+.changes-view__breakdown { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.changes-view__kind { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.changes-view__kind svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-secondary-color); }
 .changes-view__kind--new svg { color: var(--status-success); }
 .changes-view__kind--deleted svg { color: var(--status-danger); }
 .changes-view__kind--renamed svg { color: var(--status-renamed); }
 .changes-view__kind--conflicted { color: var(--status-warning); font-weight: var(--weight-strong); }
 .changes-view__kind--conflicted svg { color: var(--status-warning); }
 .changes-view__summary-separator { color: var(--text-secondary-color); opacity: 0.6; }
-.changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 10px; }
+.changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 6px; flex-shrink: 0; }
 .changes-view__selection { font-variant-numeric: tabular-nums; }
-.changes-view__lines { font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); font-size: var(--text-body); }
+.changes-view__lines { font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); }
 .changes-view__lines--added { color: var(--diff-added); }
 .changes-view__lines--removed { color: var(--diff-removed); }
-/* The Overview band in miniature at the end of the heading — where the
-   heading's action used to be, and where a screen with none was reading as
-   a hole. Three dots and two connectors in the band's own three tones (done
-   is filled, current is the accent, ahead is hollow), the current step's
-   name a shade darker, and a capsule under the pointer because the whole of
-   it is one quiet button back to Overview. Secondary everywhere: it answers
-   "where am I", and must never compete with the box below that answers
-   "what do I do". */
-.changes-journey {
-  flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--space-2);
-  height: var(--control-height-sm); padding: 0 var(--space-2) 0 var(--space-3);
-  border: 0; border-radius: var(--radius-pill); background: transparent;
-  color: var(--text-secondary-color); font: inherit; font-size: var(--text-label);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.changes-journey:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.changes-journey:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.changes-journey__step { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.changes-journey__step--active { color: var(--text-primary-color); font-weight: var(--weight-strong); }
-.changes-journey__dot {
-  width: 8px; height: 8px; border-radius: var(--radius-round);
-  border: 1.5px solid var(--border-strong); background: transparent;
-}
-.changes-journey__step--done .changes-journey__dot { border-color: var(--text-secondary-color); background: var(--text-secondary-color); }
-.changes-journey__step--active .changes-journey__dot { border-color: var(--accent-brand); background: var(--accent-brand); }
-.changes-journey__connector { width: 14px; height: 1px; background: var(--border-strong); }
-.changes-journey__connector--done { background: var(--text-secondary-color); }
-.changes-journey__go { width: 13px; height: 13px; color: var(--text-secondary-color); opacity: 0.6; }
-.changes-journey:hover .changes-journey__go { opacity: 1; }
-@media (max-width: 800px) {
-  /* `.screen-header` stacks at this width; a wayfinding aid is the first
-     thing to give way to the work under it. */
-  .changes-journey { display: none; }
-}
-
 .changes-status-notice {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 9px 11px;
@@ -396,15 +370,43 @@
    height is what separates them now, and it is still the height the diff
    header opposite pairs with, so the two panels' contents start level even
    though only one of them draws a line. */
+/* The panel's own header: the card header Overview's columns wear —
+   neutral glyph circle, title, one line — at the height of a strip, because
+   it is paired pixel for pixel with the diff's header beside it (see
+   `.changes-layout`). The circle is the control size of a strip rather than
+   a page card's 40px, so the header reads as a row of this panel and not as
+   a card dropped into it. */
+.changes-file-list__header,
+.changes-diff__header {
+  display: flex; align-items: center; gap: var(--space-2);
+  flex: 0 0 auto; height: var(--strip-height);
+  padding: 0 var(--space-3) 0 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.changes-file-list__glyph,
+.changes-diff__header-icon {
+  flex-shrink: 0; width: var(--control-height-sm); height: var(--control-height-sm);
+  display: grid; place-items: center; border-radius: var(--radius-round);
+  background: var(--surface-hover); color: var(--text-secondary-color);
+}
+.changes-file-list__glyph svg { width: 16px; height: 16px; }
+.changes-file-list__heading { min-width: 0; flex: 1; display: grid; gap: 1px; }
+.changes-file-list__heading h1 {
+  margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-subtitle); font-weight: var(--weight-title); line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+.changes-file-list__heading p { margin: 0; }
+/* The strip under the header steps down a size, the way History's inner
+   panes step down from their panel: a header and a strip at one height read
+   as two headers. */
 .changes-file-list__toolbar {
   /* The containing block for `.filter-panel` — the shared surface in
      `shared/ui/primitives.css`, which spans the strip that opens it rather than
-     hanging off a 24px trigger at one end of the search box. The History
-     timeline's strip does the same, so the two panels land on the same inset
-     over the same column width. */
+     hanging off a 24px trigger at one end of the search box. */
   position: relative;
   display: flex; align-items: center; gap: var(--space-2);
-  flex: 0 0 auto; height: var(--strip-height);
+  flex: 0 0 auto; height: var(--strip-height-inner);
   padding: 0 var(--space-2);
 }
 .changes-file-list__select-all {
@@ -731,46 +733,28 @@
   align-self: flex-start;
 }
 .changes-diff__back svg { width: 16px; height: 16px; }
-.changes-diff__header {
-  display: flex; align-items: center; gap: var(--space-2);
-  padding: 0 var(--space-4) 0 var(--space-3);
-  /* Paired with `.changes-file-list__toolbar` — see the note on
-     `.changes-layout`. A fixed height, not a minimum: everything in
-     here is a single line that truncates, so nothing a path or a
-     renamed-from note can say pushes this strip out of step with the one
-     beside it. */
-  flex: 0 0 auto;
-  height: var(--strip-height);
-  border-bottom: 1px solid var(--border-subtle);
-}
-.changes-diff__header-icon { display: grid; place-items: center; flex-shrink: 0; color: var(--text-secondary-color); }
-.changes-diff__header-icon svg { width: 16px; height: 16px; }
 /* The file's own icon, the same one its row carries, so the open file is
    recognizable as the one that was clicked. */
 .changes-diff__type-icon { width: 16px; height: 16px; display: block; }
-/* `overflow: hidden` is the guard, not a tidy-up: the badge beside the name
-   cannot shrink, so under enough pressure the row would keep painting it
-   straight over the controls to its right. Clipped, the narrowest pane loses
-   the end of the badge instead of overlapping two things nobody can read. */
-.changes-diff__title-row {
-  display: flex; align-items: baseline; gap: var(--space-2);
-  min-width: 0; flex: 1; flex-wrap: nowrap; overflow: hidden;
-}
-.changes-diff__path { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; flex: 0 1 auto; margin: 0; }
+/* Two lines, the list header's shape: the name, then where it is and what
+   happened to it. `overflow: hidden` on both is the guard, not a tidy-up:
+   under enough pressure a line would keep painting straight over the
+   controls to its right; clipped, the narrowest pane loses the end of a
+   folder instead of overlapping two things nobody can read. */
+.changes-diff__title-row { min-width: 0; flex: 1; display: grid; gap: 1px; overflow: hidden; }
 .changes-diff__name {
-  /* A floor, so the one thing this strip exists to name cannot be squeezed
-     out of it entirely: past this the name keeps a few characters and its
-     ellipsis, and the folder and the badge give way instead. */
-  min-width: 4em; flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  font-weight: var(--weight-strong); font-size: var(--text-lead);
+  margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: var(--text-subtitle); font-weight: var(--weight-title); line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+.changes-diff__path {
+  display: flex; align-items: center; gap: var(--space-2); min-width: 0; margin: 0;
+  overflow: hidden; white-space: nowrap; line-height: var(--leading-normal);
 }
 .changes-diff__dir {
-  /* Both halves can shrink, but not at the same rate: the weight makes the
-     folder give up room several times faster than the name, because the name
-     is what this strip is naming and the file list is already showing the
-     folder. It truncates from the head, in the same size and with the same
-     `rtl` trick its row uses, since the folders nearest the file locate it
-     better than the root does. */
+  /* First to give way, since the list is already showing the folder. It
+     truncates from the head, with the same `rtl` trick its row uses: the
+     folders nearest the file locate it better than the root does. */
   min-width: 0; flex: 0 8 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   color: var(--text-secondary-color); font-size: var(--text-caption);
   direction: rtl; text-align: left;
@@ -788,11 +772,11 @@
 .changes-diff__category--renamed { color: var(--status-renamed); }
 .changes-diff__category--conflicted { color: var(--status-warning); }
 .changes-diff__origin {
-  /* Last in the row and first to give way — hence the shrink weight, well
-     above the folder's: where a file came from is worth a strip's leftover
-     room, never the room the file's own name needs. The full value stays on
-     the tooltip. */
-  min-width: 0; flex: 0 40 auto; margin: 0; font-size: var(--text-label); color: var(--text-secondary-color);
+  /* Last on the line and first to give way — hence the shrink weight, well
+     above the folder's: where a file came from is worth a line's leftover
+     room, never the room the folder needs. The full value stays on the
+     tooltip. */
+  min-width: 0; flex: 0 40 auto; margin: 0; font-size: var(--text-caption); color: var(--text-secondary-color);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 /* The controls for reading the file, kept off the file's own name by the same

@@ -35,7 +35,6 @@ function ControlledChangesPanel(
     | "sessionEpoch"
     | "selectedPath"
     | "onSelectedPathChange"
-    | "journeyStep"
     | "onSaveCompleted"
     | "watcherState"
     | "confirmBeforeDiscarding"
@@ -52,8 +51,6 @@ function ControlledChangesPanel(
     confirmBeforeDiscarding?: boolean;
     runGitHooks?: boolean;
     onOpenSettings?: () => void;
-    /** Defaults to the step a dirty tree puts the reader on. */
-    journeyStep?: "changes" | "save" | "publish" | null;
   },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -72,7 +69,6 @@ function ControlledChangesPanel(
       runGitHooks={props.runGitHooks ?? false}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
-      journeyStep={props.journeyStep === undefined ? "save" : props.journeyStep}
       onSaveCompleted={() => {}}
       onBeginDiscard={() => true}
       onDiscardClose={() => {}}
@@ -626,22 +622,21 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
   });
 
-  it("keeps the healthy heading to the title and the state, with every action over the list", () => {
+  it("names the screen and its state in the list panel's own header, with every action over the list", () => {
     renderPanel();
 
-    const header = document.querySelector(".screen-header");
-    if (!(header instanceof HTMLElement)) throw new Error("no screen header");
-    // The only control in the heading is the band in miniature — where the
-    // reader is, not something to do — and it leads back to Overview.
-    const miniature = within(header).getByRole("button", { name: "Next step: Save. Open Overview" });
-    expect(within(header).getAllByRole("button")).toHaveLength(1);
-    expect(miniature.querySelectorAll(".changes-journey__step--done")).toHaveLength(1);
-    expect(miniature.querySelector(".changes-journey__step--active")).toHaveTextContent("Save");
+    // No page row over the two panels: the heading is the list panel's card
+    // header, title and state, and it holds no control.
+    expect(document.querySelector(".screen-header")).toBeNull();
+    const list = screen.getByRole("navigation", { name: "Changed files" });
+    const header = list.querySelector(".changes-file-list__header");
+    if (!(header instanceof HTMLElement)) throw new Error("no panel header");
+    expect(within(header).getByRole("heading", { level: 1, name: "Changes" })).toBeInTheDocument();
+    expect(within(header).queryByRole("button")).not.toBeInTheDocument();
     // The state is the band's breakdown, glyph by glyph, not a sentence.
     expect(within(header).getByLabelText("1 edited · 1 new")).toBeInTheDocument();
     // Discarding acts on the files, so its menu sits over the file list; so
     // does saving, in the box docked under them.
-    const list = screen.getByRole("navigation", { name: "Changed files" });
     expect(within(list).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
     expect(within(list).getByLabelText("Version name")).toBeInTheDocument();
   });
