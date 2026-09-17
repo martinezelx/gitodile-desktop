@@ -352,6 +352,53 @@ export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<strin
   return totals;
 }
 
+const JOURNEY_STEPS = ["changes", "save", "publish"] as const;
+const JOURNEY_STEP_LABEL_KEYS = {
+  changes: "overviewJourneyChanges",
+  save: "overviewJourneySave",
+  publish: "overviewJourneyPublish",
+} as const satisfies Record<(typeof JOURNEY_STEPS)[number], keyof Translations>;
+
+/** The Overview band in miniature, at the end of the heading: three dots
+ * joined by connectors, the steps behind the current one filled, the current
+ * one in the accent, the ones ahead hollow. It is the model drawn once more
+ * — where am I — not a count said twice, and the whole thing is one quiet
+ * button back to the page that draws it in full. With nothing waiting, every
+ * dot is done. */
+function JourneyMiniature({ step, onOpenOverview, t }: {
+  step: "changes" | "save" | "publish" | null;
+  onOpenOverview: () => void;
+  t: Translations;
+}): React.JSX.Element {
+  const activeIndex = step === null ? JOURNEY_STEPS.length : JOURNEY_STEPS.indexOf(step);
+  const sentence = step === null
+    ? t.changesJourneyAllDone
+    : t.changesJourneyNextStep(t[JOURNEY_STEP_LABEL_KEYS[step]]);
+  return (
+    <button
+      type="button"
+      className="changes-journey"
+      onClick={onOpenOverview}
+      aria-label={`${sentence} ${t.changesJourneyOpenOverview}`}
+      data-tooltip={t.changesJourneyOpenOverview}
+    >
+      {JOURNEY_STEPS.map((id, index) => {
+        const tone = index < activeIndex ? "done" : index === activeIndex ? "active" : "ahead";
+        return (
+          <React.Fragment key={id}>
+            {index > 0 && <span className={`changes-journey__connector changes-journey__connector--${index <= activeIndex ? "done" : "ahead"}`} aria-hidden="true" />}
+            <span className={`changes-journey__step changes-journey__step--${tone}`}>
+              <span className="changes-journey__dot" aria-hidden="true" />
+              {t[JOURNEY_STEP_LABEL_KEYS[id]]}
+            </span>
+          </React.Fragment>
+        );
+      })}
+      <ChevronRight className="changes-journey__go" aria-hidden="true" />
+    </button>
+  );
+}
+
 function ChangesStatusNotice({ watcherState, error, busy, onRefresh, onOpenSettings, t }: {
   watcherState: "starting" | "watching" | "off" | "unavailable";
   error: string | null;
@@ -1078,6 +1125,7 @@ export function ChangesPanel({
   onSaveCompleted,
   onNavigateOverview,
   onPublishNow,
+  journeyStep,
   selectedPath,
   onSelectedPathChange,
   onBeginDiscard,
@@ -1109,6 +1157,10 @@ export function ChangesPanel({
   onSaveCompleted: () => void;
   onNavigateOverview: () => void;
   onPublishNow: () => void;
+  /** The step whose action is the one thing to do now — the Overview band's
+   * own answer, derived once by the shell — or `null` when nothing waits.
+   * Drawn in miniature at the end of the heading. */
+  journeyStep: "changes" | "save" | "publish" | null;
   /** Which file is selected, lifted to the caller so it survives switching
    * away to another project's session and back (see task 012's per-session
    * UI state). `excludedPaths` (the save-version checkbox picks) stays local
@@ -1446,6 +1498,7 @@ export function ChangesPanel({
           <h1>{t.changesHeading}</h1>
           {headerMessage}
         </div>
+        <JourneyMiniature step={journeyStep} onOpenOverview={onNavigateOverview} t={t} />
       </header>
 
       <DiscardOutcomeNotice

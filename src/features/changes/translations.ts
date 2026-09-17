@@ -105,6 +105,10 @@ export interface ChangesTranslations {
   /** The quick commit box's one-line plan: what a save would take, as a
    * count, and "of N" only when the selection leaves files behind. */
   changesQuickPlanFiles: (total: number, remaining: number) => string;
+  /** The heading's miniature of the Overview band, for the screen reader. */
+  changesJourneyNextStep: (step: string) => string;
+  changesJourneyAllDone: string;
+  changesJourneyOpenOverview: string;
   changesSelectionSummary: (selected: number, total: number) => string;
   changesSelectAll: string;
   changesSelectNone: string;
@@ -281,6 +285,9 @@ const en: ChangesTranslations = {
       : total === 1
         ? "1 file"
         : `${total} files`,
+  changesJourneyNextStep: (step) => `Next step: ${step}.`,
+  changesJourneyAllDone: "Everything is saved and published.",
+  changesJourneyOpenOverview: "Open Overview",
   changesSelectionSummary: (selected, total) => `${selected} of ${total} selected`,
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
@@ -460,6 +467,9 @@ const es: ChangesTranslations = {
       : total === 1
         ? "1 archivo"
         : `${total} archivos`,
+  changesJourneyNextStep: (step) => `Siguiente paso: ${step}.`,
+  changesJourneyAllDone: "Todo está guardado y publicado.",
+  changesJourneyOpenOverview: "Abrir Resumen",
   changesSelectionSummary: (selected, total) =>
     selected === 1 ? `${selected} de ${total} seleccionado` : `${selected} de ${total} seleccionados`,
   changesSelectAll: "Seleccionar todo",

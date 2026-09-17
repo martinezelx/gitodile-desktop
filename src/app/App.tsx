@@ -155,6 +155,7 @@ import {
   orderByFavourite,
 } from "./project-switcher/ProjectSwitcher";
 import { avatarColorVar, avatarInitials } from "../shared/ui/projectAvatar";
+import { deriveJourney } from "../features/overview";
 import {
   ChangesPanel,
   HistoryScreen,
@@ -2317,6 +2318,17 @@ export function App(): React.JSX.Element {
                           onSaveCompleted={() => void handleMutationSucceeded(project.path)}
                           onNavigateOverview={() => navigateToView("overview")}
                           onPublishNow={() => openPublishDialog()}
+                          // The same derivation the Overview band draws, so
+                          // the miniature in this heading and the band
+                          // cannot point at different steps.
+                          journeyStep={deriveJourney({
+                            workingTree,
+                            workingTreeError,
+                            isCheckingChanges,
+                            pendingVersionsCount: pendingVersions.totalCount,
+                            pendingVersionsError,
+                            teamSync,
+                          }).activeStep}
                           selectedPath={activeSession?.changesSelection.selectedPath ?? null}
                           onSelectedPathChange={(selectedPath) =>
                             sessionsState.activeId &&

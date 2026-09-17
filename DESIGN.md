@@ -1222,13 +1222,23 @@ the two cannot explain a plan differently. The flow underneath is one
 implementation (`useSaveVersionFlow`) in two frames: the box here, the modal
 dialog on the screens with nowhere to type — Overview's active tile, saving
 before switching a line. The box's glyph is the band's tile vocabulary at row
-size: the solid accent circle, breathing with the one attention animation
-while there is something to save and nobody is saving it (the same halo the
-band's active step wears, since this *is* that step seen from its own
-screen), and the light "done" fill with a check once a version is saved,
-with "Publish now" offered as a quiet link under the saved line — the band's
-Publish tile is where that step is said in full, so it is not a second
-primary here. Ctrl/Cmd+S opens the box and puts the caret in the name field,
+size, and the accent moves rather than doubles: closed, the solid accent
+circle *is* the action, breathing with the one attention animation while
+there is something to save and nobody is saving it (the same halo the band's
+active step wears, since this is that step seen from its own screen); open,
+the Save button is the action — at the row tier, its own width, at the end
+of the foot, with no icon because the glyph at the head of the box is the
+save mark — so the circle steps down to the neutral tile; saved, it takes
+the light "done" fill with a check, with "Publish now" offered as a quiet
+link under the saved line — the band's Publish tile is where that step is
+said in full, so it is not a second primary here. One accent fill in every
+state of the box. The heading's trailing corner, where the action used to
+be, carries the band in miniature: three dots and two connectors in the
+band's three tones (done filled, current in the accent, ahead hollow) with
+the step names beside them, one quiet button back to Overview. It answers
+"where am I" from the same `deriveJourney` the band reads, so the two can
+never point at different steps, and it is secondary everywhere because the
+box below answers "what do I do"; below 800px it is the first thing to go. Ctrl/Cmd+S opens the box and puts the caret in the name field,
 never from under a dialog. The heading's state is the band's own breakdown
 — the rows' category glyphs, in the rows' colours, "1 edited · 1 new" — so a
 reader who arrives from the Changes tile reads the same fact in the same

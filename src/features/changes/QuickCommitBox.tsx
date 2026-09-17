@@ -200,11 +200,14 @@ export function QuickCommitBox({
         .filter((part) => part !== null)
         .join(" ")
     : "";
-  /* The glyph is the band's tile vocabulary in miniature: solid accent and
-     breathing while there is a save to make and nobody is making it, the
-     light "done" fill with a check once one was made. */
+  /* The glyph is the band's tile vocabulary in miniature, and the accent
+     moves rather than doubles: closed, the solid circle *is* the action and
+     breathes while there is a save to make; open, the action is the Save
+     button, so the circle steps down to the neutral tile; saved, it takes
+     the light "done" fill with a check. One accent fill in every state. */
   const isSaved = status === "success";
   const breathes = !expanded && canSave && status === "idle";
+  const glyphTone = isSaved ? "done" : expanded ? "neutral" : "active";
 
   return (
     <div
@@ -225,7 +228,7 @@ export function QuickCommitBox({
     >
       <div className="changes-quick-commit__field">
         <div className="changes-quick-commit__summary-wrap">
-          <span className={`changes-quick-commit__glyph${breathes ? " attention-breathe" : ""}`} aria-hidden="true">
+          <span className={`changes-quick-commit__glyph changes-quick-commit__glyph--${glyphTone}${breathes ? " attention-breathe" : ""}`} aria-hidden="true">
             {isSaved ? <Check /> : <Save />}
           </span>
           <input
@@ -353,14 +356,12 @@ export function QuickCommitBox({
                   {t.saveVersionSaving}
                 </>
               ) : (
-                <>
-                  {/* Fixed label, unlike the dialog's own button: swapping in
-                      a longer "Save and publish" here on every toggle click
-                      is what reflowed this row before — see the CSS for the
-                      widths that made it wrap outright regardless. */}
-                  <Save aria-hidden="true" />
-                  {t.saveVersionConfirm}
-                </>
+                /* Fixed label, unlike the dialog's own button: swapping in
+                   a longer "Save and publish" here on every toggle click is
+                   what reflowed this row before. No icon of its own: the
+                   glyph at the head of the box is the save mark, and a second
+                   disquette 40px under it said it twice. */
+                t.saveVersionConfirm
               )}
             </button>
           </div>

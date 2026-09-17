@@ -97,6 +97,41 @@
 .changes-view__lines { font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); font-size: var(--text-body); }
 .changes-view__lines--added { color: var(--diff-added); }
 .changes-view__lines--removed { color: var(--diff-removed); }
+/* The Overview band in miniature at the end of the heading — where the
+   heading's action used to be, and where a screen with none was reading as
+   a hole. Three dots and two connectors in the band's own three tones (done
+   is filled, current is the accent, ahead is hollow), the current step's
+   name a shade darker, and a capsule under the pointer because the whole of
+   it is one quiet button back to Overview. Secondary everywhere: it answers
+   "where am I", and must never compete with the box below that answers
+   "what do I do". */
+.changes-journey {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--space-2);
+  height: var(--control-height-sm); padding: 0 var(--space-2) 0 var(--space-3);
+  border: 0; border-radius: var(--radius-pill); background: transparent;
+  color: var(--text-secondary-color); font: inherit; font-size: var(--text-label);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.changes-journey:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.changes-journey:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.changes-journey__step { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.changes-journey__step--active { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.changes-journey__dot {
+  width: 8px; height: 8px; border-radius: var(--radius-round);
+  border: 1.5px solid var(--border-strong); background: transparent;
+}
+.changes-journey__step--done .changes-journey__dot { border-color: var(--text-secondary-color); background: var(--text-secondary-color); }
+.changes-journey__step--active .changes-journey__dot { border-color: var(--accent-brand); background: var(--accent-brand); }
+.changes-journey__connector { width: 14px; height: 1px; background: var(--border-strong); }
+.changes-journey__connector--done { background: var(--text-secondary-color); }
+.changes-journey__go { width: 13px; height: 13px; color: var(--text-secondary-color); opacity: 0.6; }
+.changes-journey:hover .changes-journey__go { opacity: 1; }
+@media (max-width: 800px) {
+  /* `.screen-header` stacks at this width; a wayfinding aid is the first
+     thing to give way to the work under it. */
+  .changes-journey { display: none; }
+}
+
 .changes-status-notice {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 9px 11px;
@@ -474,7 +509,42 @@
   font-size: var(--text-caption); color: var(--text-secondary-color);
 }
 @media (forced-colors: active) {
-  .changes-notice, .changes-status-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
+  .changes-notice, /* The Overview band in miniature at the end of the heading — where the
+   heading's action used to be, and where a screen with none was reading as
+   a hole. Three dots and two connectors in the band's own three tones (done
+   is filled, current is the accent, ahead is hollow), the current step's
+   name a shade darker, and a capsule under the pointer because the whole of
+   it is one quiet button back to Overview. Secondary everywhere: it answers
+   "where am I", and must never compete with the box below that answers
+   "what do I do". */
+.changes-journey {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--space-2);
+  height: var(--control-height-sm); padding: 0 var(--space-2) 0 var(--space-3);
+  border: 0; border-radius: var(--radius-pill); background: transparent;
+  color: var(--text-secondary-color); font: inherit; font-size: var(--text-label);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.changes-journey:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.changes-journey:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.changes-journey__step { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.changes-journey__step--active { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.changes-journey__dot {
+  width: 8px; height: 8px; border-radius: var(--radius-round);
+  border: 1.5px solid var(--border-strong); background: transparent;
+}
+.changes-journey__step--done .changes-journey__dot { border-color: var(--text-secondary-color); background: var(--text-secondary-color); }
+.changes-journey__step--active .changes-journey__dot { border-color: var(--accent-brand); background: var(--accent-brand); }
+.changes-journey__connector { width: 14px; height: 1px; background: var(--border-strong); }
+.changes-journey__connector--done { background: var(--text-secondary-color); }
+.changes-journey__go { width: 13px; height: 13px; color: var(--text-secondary-color); opacity: 0.6; }
+.changes-journey:hover .changes-journey__go { opacity: 1; }
+@media (max-width: 800px) {
+  /* `.screen-header` stacks at this width; a wayfinding aid is the first
+     thing to give way to the work under it. */
+  .changes-journey { display: none; }
+}
+
+.changes-status-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
 }
 .changes-file-item__origin {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--text-secondary-color);
@@ -522,21 +592,24 @@
   cursor: text;
 }
 .changes-quick-commit--expanded .changes-quick-commit__summary-wrap { background: var(--surface-hover); }
-/* The Overview band's tile vocabulary at row size: the same filled circle,
-   solid in the accent because this box *is* the screen's one action, and
-   breathing (`.attention-breathe`, primitives.css) while there is a save to
-   make and nobody is making it — the one moving thing on the screen, the
-   same halo the band's active step wears. Once a version is saved it takes
-   the light "done" fill with a check, exactly as a completed step does.
-   Sized so the circle sits concentric inside the pill at rest. */
+/* The Overview band's tile vocabulary at row size, and the accent moves
+   rather than doubles. Closed, the circle is solid in the accent because it
+   *is* the screen's one action, breathing (`.attention-breathe`,
+   primitives.css) while there is a save to make and nobody is making it —
+   the same halo the band's active step wears. Open, the Save button is the
+   action, so the circle steps down to the neutral tile the band's fact tiles
+   wear: two solid accents inside 260px is the thing the band was built to
+   stop. Saved, it takes the light "done" fill with a check, exactly as a
+   completed step does. Sized so it sits concentric inside the pill at rest. */
 .changes-quick-commit__glyph {
   flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;
   border-radius: var(--radius-round);
-  background: var(--accent-brand); color: var(--accent-brand-contrast);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .changes-quick-commit__glyph svg { width: 13px; height: 13px; }
-.changes-quick-commit--saved .changes-quick-commit__glyph { background: var(--surface-active); color: var(--status-success); }
+.changes-quick-commit__glyph--active { background: var(--accent-brand); color: var(--accent-brand-contrast); }
+.changes-quick-commit__glyph--neutral { background: var(--surface-active); color: var(--text-secondary-color); }
+.changes-quick-commit__glyph--done { background: var(--surface-active); color: var(--status-success); }
 /* `input` in the selector, not just the class: `input:focus-visible` in
    base.css carries the same (0,1,1) specificity, and without the type here
    that rule's own outline was winning over this one's `none` regardless of
@@ -611,19 +684,17 @@
 }
 .changes-quick-commit__desc::placeholder { color: var(--text-secondary-color); }
 .changes-quick-commit__desc:disabled { opacity: 0.6; }
-/* What the header summary already says ("N of M selected") is not repeated
-   here — this row is only the two things it alone controls, the publish
-   toggle and the save action. They share one line only at the panel column's
-   own wide end; short of that — most of its 260–320px range, and all of the
-   240–280px narrow track below 1200px — `flex-wrap` drops the button to a
-   full-width line of its own rather than clipping either. */
-.changes-quick-commit__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+/* This row is only the two things it alone controls: the publish toggle at
+   the start and the save action at the end, at the row tier and its own
+   width — a full-width primary in a 260px box was a slab, not a button.
+   Short of the room for both, `flex-wrap` drops the button to a line of its
+   own, still at the end, rather than clipping either. */
+.changes-quick-commit__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3); }
 .changes-quick-commit__publish {
   display: flex; align-items: center; gap: 8px; flex-shrink: 0;
   color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
 }
-.changes-quick-commit__action { flex: 1 1 auto; min-width: 0; }
-.changes-quick-commit__action svg { width: 15px; height: 15px; }
+.changes-quick-commit__action { flex: 0 0 auto; margin-left: auto; }
 .changes-quick-commit__error {
   display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
   background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger);

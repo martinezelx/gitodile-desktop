@@ -35,6 +35,7 @@ function ControlledChangesPanel(
     | "sessionEpoch"
     | "selectedPath"
     | "onSelectedPathChange"
+    | "journeyStep"
     | "onSaveCompleted"
     | "watcherState"
     | "confirmBeforeDiscarding"
@@ -51,6 +52,8 @@ function ControlledChangesPanel(
     confirmBeforeDiscarding?: boolean;
     runGitHooks?: boolean;
     onOpenSettings?: () => void;
+    /** Defaults to the step a dirty tree puts the reader on. */
+    journeyStep?: "changes" | "save" | "publish" | null;
   },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -69,6 +72,7 @@ function ControlledChangesPanel(
       runGitHooks={props.runGitHooks ?? false}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
+      journeyStep={props.journeyStep === undefined ? "save" : props.journeyStep}
       onSaveCompleted={() => {}}
       onBeginDiscard={() => true}
       onDiscardClose={() => {}}
@@ -627,7 +631,12 @@ describe("ChangesPanel review controls", () => {
 
     const header = document.querySelector(".screen-header");
     if (!(header instanceof HTMLElement)) throw new Error("no screen header");
-    expect(within(header).queryByRole("button")).not.toBeInTheDocument();
+    // The only control in the heading is the band in miniature — where the
+    // reader is, not something to do — and it leads back to Overview.
+    const miniature = within(header).getByRole("button", { name: "Next step: Save. Open Overview" });
+    expect(within(header).getAllByRole("button")).toHaveLength(1);
+    expect(miniature.querySelectorAll(".changes-journey__step--done")).toHaveLength(1);
+    expect(miniature.querySelector(".changes-journey__step--active")).toHaveTextContent("Save");
     // The state is the band's breakdown, glyph by glyph, not a sentence.
     expect(within(header).getByLabelText("1 edited · 1 new")).toBeInTheDocument();
     // Discarding acts on the files, so its menu sits over the file list; so
