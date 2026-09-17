@@ -2329,10 +2329,6 @@ export function App(): React.JSX.Element {
                               selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
                             })
                           }
-                          isSaveVersionOpen={saveDialogSessionId === sessionsState.activeId && view === "changes"}
-                          onOpenSaveVersion={() => startSessionOperation("save")}
-                          onCloseSaveVersion={closeSaveDialog}
-                          onSaveVersionPhaseChange={setSaveDialogPhase}
                           onBeginDiscard={() => startSessionOperation("discard")}
                           onDiscardClose={() => finishSessionOperation(project.path)}
                           onDiscardPhaseChange={(phase) => {
@@ -2625,7 +2621,7 @@ export function App(): React.JSX.Element {
         </Suspense>
       )}
 
-      {project && activeSession && view !== "changes" && (
+      {project && activeSession && (
         <SaveVersionDialog
           isOpen={saveDialogSessionId === sessionsState.activeId}
           projectPath={project.path}

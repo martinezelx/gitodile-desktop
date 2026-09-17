@@ -5,16 +5,13 @@ import { localizeAppError, isAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import { usePersistedInstallDraft } from "../../runtime/drafts";
-import {
-  getSaveVersionBreakdown,
-  PUBLISH_AFTER_SAVE_STORAGE_KEY,
-  type SaveVersionPlan,
-  type SaveVersionResult,
-} from "./domain";
+import { getSaveVersionBreakdown, type SaveVersionPlan } from "./domain";
 import type { ChangeCategory } from "../status";
 import type { SaveVersionController } from "./controller";
 import { createSaveVersionController } from "./controller";
 import { saveVersionPort } from "./tauriAdapter";
+import { getSaveVersionNotes } from "./planNotes";
+import { useSaveVersionFlow, type SaveVersionPhase } from "./useSaveVersionFlow";
 
 const defaultController = createSaveVersionController(saveVersionPort);
 
@@ -35,17 +32,6 @@ const BREAKDOWN_LABEL_KEYS = {
   renamed: "statusCategoryRenamed",
   conflicted: "statusCategoryConflicted",
 } as const satisfies Record<ChangeCategory, keyof Translations>;
-
-type DialogState =
-  | { status: "loading" }
-  | { status: "blocked"; error: unknown }
-  | { status: "ready"; plan: SaveVersionPlan }
-  | { status: "submitting"; plan: SaveVersionPlan }
-  /** `ranHooks` records the attempt, not the preference: the offer to retry
-   * without hooks is only honest when a hook actually ran, and the preference
-   * can be read at any time while this state is on screen. */
-  | { status: "save-error"; plan: SaveVersionPlan; error: unknown; ranHooks: boolean }
-  | { status: "success"; result: SaveVersionResult };
 
 function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): React.JSX.Element {
   const breakdown = getSaveVersionBreakdown(plan.counts);
@@ -70,12 +56,11 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): R
           ))}
         </ul>
       )}
-      {plan.remainingFiles > 0 && <p className="save-version-note">{t.saveVersionRemainingNote(plan.remainingFiles)}</p>}
-      {plan.hasPreparedChanges && <p className="save-version-note">{t.saveVersionPreparedNote}</p>}
-      {plan.isFirstVersion && <p className="save-version-note">{plan.branch ? t.saveVersionFirstVersionOnLineNote(plan.branch) : t.saveVersionFirstVersionNote}</p>}
-      {/* Detached `HEAD`: there is a commit to make and no line to make it on,
-          which is exactly what the reader needs told before they make it. */}
-      {!plan.branch && <p className="save-version-note">{t.saveVersionNoDestinationNote}</p>}
+      {/* The same lines, in the same order, the quick commit box prints
+          under its plan — one list in `planNotes.ts` for both frames. */}
+      {getSaveVersionNotes(plan, t).map((note) => (
+        <p key={note} className="save-version-note">{note}</p>
+      ))}
       <p className="save-version-note">{t.saveVersionLocalOnlyNote}</p>
     </div>
   );
@@ -140,7 +125,7 @@ export function SaveVersionDialog({
   onClose: () => void;
   onSaved: () => void;
   onPublishNow: () => void;
-  onPhaseChange?: (phase: "planning" | "executing" | "error" | "success") => void;
+  onPhaseChange?: (phase: SaveVersionPhase) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -177,22 +162,32 @@ export function SaveVersionDialog({
   const setDetails = (value: string): void =>
     setMessageDraft((current) => ({ ...current, details: value }));
   const [showTitleError, setShowTitleError] = useState(false);
-  const [state, setState] = useState<DialogState>({ status: "loading" });
-  /* Deliberately not reset by the open-effect below, unlike title/details:
-   * this is a standing preference ("I usually publish right after saving"),
-   * not per-save input, so it should still be checked the next time this
-   * dialog opens. Shared with Changes' quick commit box through the same
-   * storage key, so checking it once there is remembered here too. */
-  const [publishToo, setPublishToo] = useState<boolean>(
-    () => localStorage.getItem(PUBLISH_AFTER_SAVE_STORAGE_KEY) === "1",
-  );
-  const togglePublishToo = (): void => {
-    setPublishToo((current) => {
-      const next = !current;
-      localStorage.setItem(PUBLISH_AFTER_SAVE_STORAGE_KEY, next ? "1" : "0");
-      return next;
-    });
-  };
+  // The flow itself — plan, save, failure classification, the "also
+  // publish" preference — is shared with Changes' quick commit box; this
+  // component owns only the modal around it.
+  const {
+    state,
+    plan,
+    isBusy,
+    wasRejectedByHook,
+    publishToo,
+    togglePublishToo,
+    loadPlan,
+    save,
+    cancel,
+  } = useSaveVersionFlow({
+    controller,
+    projectPath,
+    sessionEpoch,
+    onSaved,
+    // Same handoff as clicking "Publish now" on the success screen below,
+    // just without waiting for that extra click.
+    onPublishNow: () => {
+      onClose();
+      onPublishNow();
+    },
+    onPhaseChange,
+  });
 
   // `useModalFocus` only ever calls this with the literal `false` (Escape),
   // but it must still satisfy `Dispatch<SetStateAction<boolean>>`. Reading
@@ -202,10 +197,8 @@ export function SaveVersionDialog({
   // tear down and reinstall its keydown listener and re-steal focus on
   // every render while the dialog is open.
   const onCloseRef = useRef(onClose);
-  const onPhaseChangeRef = useRef(onPhaseChange);
   const isBusyRef = useRef(false);
   onCloseRef.current = onClose;
-  onPhaseChangeRef.current = onPhaseChange;
   const setOpenState = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((next) => {
     const value = typeof next === "function" ? (next as (previous: boolean) => boolean)(true) : next;
     if (!value && !isBusyRef.current) {
@@ -230,31 +223,18 @@ export function SaveVersionDialog({
     if (!isOpen) {
       return undefined;
     }
-    let cancelled = false;
-    onPhaseChangeRef.current?.("planning");
-    setState({ status: "loading" });
-    controller.plan({ projectId: projectPath, sessionEpoch, selectedPaths: selectedPathsRef.current })
-      .then((plan) => {
-        if (!cancelled) {
-          setState({ status: "ready", plan });
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setState({ status: "blocked", error });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+    void loadPlan(selectedPathsRef.current);
+    // Closing forgets the plan in flight, so a dialog that closed while Git
+    // was still answering never repaints itself with that answer.
+    return cancel;
     // Deliberately not depending on `selectedPaths`: see `selectedPathsRef`
     // above. Re-running this effect must only ever be triggered by the
     // dialog actually (re)opening or a manual retry, never by a live prop
     // reference change while it's already open.
-  }, [controller, isOpen, projectPath, retryToken, sessionEpoch]);
+  }, [cancel, isOpen, loadPlan, retryToken]);
 
   useEffect(() => {
-    if (!isOpen || state.status === "loading") {
+    if (!isOpen || state.status === "planning" || state.status === "idle") {
       return undefined;
     }
     const animationFrame = window.requestAnimationFrame(() => {
@@ -271,18 +251,7 @@ export function SaveVersionDialog({
     return null;
   }
 
-  const plan = "plan" in state ? state.plan : null;
-  /* Both halves matter. `hook_rejected` is Rust's best-effort classification,
-     and it is only ever produced for an attempt that ran the hooks — but the
-     attempt is what this asserts, so the escape can never be offered after a
-     save that already skipped them. */
-  const wasRejectedByHook =
-    state.status === "save-error" &&
-    state.ranHooks &&
-    isAppError(state.error) &&
-    state.error.code === "hook_rejected";
   const isFirstVersion = plan?.isFirstVersion ?? false;
-  const isBusy = state.status === "submitting";
   isBusyRef.current = isBusy;
 
   function requestClose(): void {
@@ -305,38 +274,18 @@ export function SaveVersionDialog({
       return;
     }
     const trimmedDetails = details.trim();
-    setState({ status: "submitting", plan });
-    onPhaseChangeRef.current?.("executing");
-    controller.save({
-      projectId: projectPath,
-      sessionEpoch,
+    void save({
+      plan,
       title: trimmedTitle,
       description: trimmedDetails ? trimmedDetails : null,
-      stateToken: plan.stateToken,
       selectedPaths: selectedPathsRef.current,
       runHooks: attemptHooks,
-    })
-      .then((result) => {
-        setState({ status: "success", result });
-        // The draft this saved, cleared now that it's the version's own
-        // record rather than still-editable text — see the open-effect above
-        // for why it otherwise survives a close.
-        clearMessageDraft();
-        onPhaseChangeRef.current?.("success");
-        onSaved();
-        // Same handoff as clicking "Publish now" on the success screen below,
-        // just without waiting for that extra click: the save already
-        // succeeded, and Publish still shows its own plan and asks its own
-        // confirmation before anything is sent anywhere.
-        if (publishToo) {
-          onClose();
-          onPublishNow();
-        }
-      })
-      .catch((error: unknown) => {
-        setState({ status: "save-error", plan, error, ranHooks: attemptHooks });
-        onPhaseChangeRef.current?.("error");
-      });
+    }).then((saved) => {
+      // The draft this saved, cleared now that it's the version's own
+      // record rather than still-editable text — see the open-effect above
+      // for why it otherwise survives a close.
+      if (saved) clearMessageDraft();
+    });
   }
 
   return (
@@ -363,7 +312,7 @@ export function SaveVersionDialog({
               : t.saveVersionDialogTitle}
         </h2>
 
-        {state.status === "loading" && (
+        {state.status === "planning" && (
           <div className="save-version-status" role="status">
             <LoaderCircle aria-hidden="true" className="icon--spinning" />
             <p>{t.saveVersionLoadingTitle}</p>

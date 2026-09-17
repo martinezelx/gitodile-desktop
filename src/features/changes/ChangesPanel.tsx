@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useActiveScreenEffect } from "../../runtime/screen/module";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDown,
@@ -11,7 +12,6 @@ import {
   LoaderCircle,
   Ellipsis,
   RotateCcw,
-  Save,
   Trash2,
   X,
 } from "lucide-react";
@@ -23,9 +23,8 @@ import {
   FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, SearchBox,
   useAnchoredPopup, type FilterChip,
 } from "../../shared/ui";
-import { SaveVersionDialog } from "../save-version";
-import { QuickCommitBox } from "./QuickCommitBox";
-import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
+import { QuickCommitBox, type QuickCommitBoxHandle } from "./QuickCommitBox";
+import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, getWorkingTreeBreakdown, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
@@ -353,62 +352,6 @@ export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<strin
   return totals;
 }
 
-/* The screen's heading carries one action now. Discarding acts on the files
-   in the list — the selected one, or all of them — so its menu moved down to
-   the strip that owns that list, where what it will affect is on screen with
-   it. */
-function ChangesHeaderActions({
-  workingTree,
-  isChecking,
-  canChooseFiles,
-  canSaveSelection,
-  isEverythingSelected,
-  onSave,
-  t,
-}: {
-  workingTree: WorkingTreeStatus | null;
-  isChecking: boolean;
-  canChooseFiles: boolean;
-  canSaveSelection: boolean;
-  isEverythingSelected: boolean;
-  onSave: () => void;
-  t: Translations;
-}): React.JSX.Element {
-  const hasSavableChanges = workingTree !== null && !workingTree.isClean;
-  const actionsDisabled = !hasSavableChanges || isChecking;
-
-  return (
-    <div className="changes-header-actions">
-      <div className="changes-header-actions__buttons" role="group" aria-label={t.changesHeading}>
-        <button
-          className="primary-button changes-header-actions__save"
-          type="button"
-          onClick={onSave}
-          disabled={actionsDisabled || !canSaveSelection}
-          data-tooltip={
-            !hasSavableChanges
-              ? t.changesSaveVersionDisabledHint
-              : !canSaveSelection
-                ? t.changesSaveVersionNoSelectionHint
-                : undefined
-          }
-        >
-          <Save aria-hidden="true" />
-          {/* The label qualifies itself only when there is something to
-              qualify. Saving everything is just saving a version, so it says
-              so; leaving files out is the case worth naming, and the count
-              belongs to the summary line rather than to a second copy of it on
-              the button. A truncated status has no trustworthy selection, so
-              it reads as the whole thing too. */}
-          {canChooseFiles && canSaveSelection && !isEverythingSelected
-            ? t.changesSaveSelected
-            : t.changesSaveVersion}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function ChangesStatusNotice({ watcherState, error, busy, onRefresh, onOpenSettings, t }: {
   watcherState: "starting" | "watching" | "off" | "unavailable";
   error: string | null;
@@ -491,6 +434,16 @@ const CATEGORY_LABEL_KEYS = {
   deleted: "changesCategoryLabelDeleted",
   renamed: "changesCategoryLabelRenamed",
   conflicted: "changesCategoryLabelConflicted",
+} as const satisfies Record<ChangeCategory, keyof Translations>;
+
+/** The counted labels ("3 edited") the Overview band and the status bar use,
+ * as against the bare ones above that name a single row's kind. */
+const BREAKDOWN_LABEL_KEYS = {
+  changed: "statusCategoryChanged",
+  new: "statusCategoryNew",
+  deleted: "statusCategoryDeleted",
+  renamed: "statusCategoryRenamed",
+  conflicted: "statusCategoryConflicted",
 } as const satisfies Record<ChangeCategory, keyof Translations>;
 
 /** An extension as a reader recognises it, and the leftover bucket named in
@@ -825,8 +778,12 @@ function DiffWorkspace({
             <span className="changes-diff__name">{name}</span>
             <span className="changes-diff__dir">{dir ?? t.changesProjectRoot}</span>
           </p>
+          {/* The category as the row it was chosen from says it — the same
+              glyph in the same colour, with the word beside it — rather than
+              a pill that said it in a third shape. */}
           {entry && (
             <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
+              {CHANGE_CATEGORY_ICONS[entry.category]}
               {t[CATEGORY_LABEL_KEYS[entry.category]]}
             </span>
           )}
@@ -923,6 +880,7 @@ function FileListItem({
   virtualIndex,
   virtualCount,
   measureElement,
+  arrivalIndex,
   t,
 }: {
   entry: WorkingTreeEntry;
@@ -936,6 +894,9 @@ function FileListItem({
   virtualIndex?: number;
   virtualCount?: number;
   measureElement?: (node: Element | null) => void;
+  /** This row's place in a list drawn all at once, for the arrival stagger;
+   * absent on a virtualized row. */
+  arrivalIndex?: number;
   t: Translations;
 }): React.JSX.Element {
   const { name, dir } = splitPath(entry.path);
@@ -950,14 +911,24 @@ function FileListItem({
     ? `${entry.path} — ${categoryLabel} — ${t.changesRenamedFrom(entry.originalPath)}`
     : `${entry.path} — ${categoryLabel}`;
 
+  // The shared arrival stagger (`.row-in`, primitives.css), for the rows a
+  // screen draws all at once. Capped so a list of a hundred is not still
+  // arriving four seconds in; never on a virtualized row, which is mounted
+  // by a scroll rather than with the screen and would otherwise wait out a
+  // delay that has nothing to do with it.
+  const arrivalStyle: React.CSSProperties | undefined =
+    virtualPosition === undefined && arrivalIndex !== undefined
+      ? ({ "--row-index": Math.min(arrivalIndex, FILE_LIST_ARRIVAL_CAP) } as React.CSSProperties)
+      : undefined;
+
   return (
     <li
-      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}`}
+      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}${arrivalStyle ? " row-in" : ""}`}
       data-index={virtualIndex}
       ref={measureElement}
       aria-posinset={virtualIndex === undefined ? undefined : virtualIndex + 1}
       aria-setsize={virtualCount}
-      style={virtualPosition === undefined ? undefined : { transform: `translateY(${virtualPosition}px)` }}
+      style={virtualPosition === undefined ? arrivalStyle : { transform: `translateY(${virtualPosition}px)` }}
     >
       <input
         className="app-checkbox changes-file-row__checkbox"
@@ -997,6 +968,10 @@ function FileListItem({
 
 const FILE_LIST_VIRTUALIZATION_THRESHOLD = 100;
 const FILE_LIST_ESTIMATED_ROW_HEIGHT = 54;
+/** Past this row the arrival stagger stops growing: 12 × 40ms is the last
+ * row of a filled panel landing half a second in, which reads as the list
+ * filling; a hundredth row four seconds in would read as the app lagging. */
+const FILE_LIST_ARRIVAL_CAP = 12;
 
 type FileListRowsProps = {
   entries: WorkingTreeEntry[];
@@ -1019,11 +994,13 @@ function fileListItem(
     count: number;
     measureElement: (node: Element | null) => void;
   },
+  arrivalIndex?: number,
 ): React.JSX.Element {
   return (
     <FileListItem
       key={entry.path}
       entry={entry}
+      arrivalIndex={arrivalIndex}
       isSelected={entry.path === props.selectedPath}
       isIncluded={!props.excludedPaths.has(entry.path)}
       canChoose={props.canChoose}
@@ -1083,7 +1060,7 @@ function FileListRows(props: FileListRowsProps): React.JSX.Element {
   if (props.entries.length > FILE_LIST_VIRTUALIZATION_THRESHOLD) {
     return <VirtualizedFileListRows {...props} />;
   }
-  return <ul>{props.entries.map((entry) => fileListItem(entry, props))}</ul>;
+  return <ul>{props.entries.map((entry, index) => fileListItem(entry, props, undefined, index))}</ul>;
 }
 
 export function ChangesPanel({
@@ -1103,10 +1080,6 @@ export function ChangesPanel({
   onPublishNow,
   selectedPath,
   onSelectedPathChange,
-  isSaveVersionOpen,
-  onOpenSaveVersion,
-  onCloseSaveVersion,
-  onSaveVersionPhaseChange,
   onBeginDiscard,
   onDiscardClose,
   onDiscardPhaseChange,
@@ -1128,8 +1101,8 @@ export function ChangesPanel({
   /** Whether discarding opens the confirmation dialog. Off means the discard
    * runs immediately and reports its result — with an Undo — in the header. */
   confirmBeforeDiscarding: boolean;
-  /** Passed straight through to the save dialog: this panel owns neither the
-   * preference nor the save request, only the button that opens it. */
+  /** Passed straight through to the quick commit box: this panel owns neither
+   * the preference nor the save request, only the list the box saves from. */
   runGitHooks: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
@@ -1143,12 +1116,6 @@ export function ChangesPanel({
    * project session needs to remember across navigation. */
   selectedPath: string | null;
   onSelectedPathChange: (path: string | null) => void;
-  isSaveVersionOpen: boolean;
-  onOpenSaveVersion: () => void;
-  onCloseSaveVersion: () => void;
-  onSaveVersionPhaseChange: (
-    phase: "planning" | "executing" | "error" | "success"
-  ) => void;
   onBeginDiscard: () => boolean;
   onDiscardClose: () => void;
   onDiscardPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
@@ -1369,6 +1336,22 @@ export function ChangesPanel({
   const allSelected = totalCount > 0 && includedCount === totalCount;
   const selectAllRef = useRef<HTMLInputElement>(null);
   const fileListScrollRef = useRef<HTMLDivElement>(null);
+  const quickCommitRef = useRef<QuickCommitBoxHandle>(null);
+  // The desktop convention for "save", pointed at the one place this screen
+  // saves from: it opens the box and puts the caret in the name field. Only
+  // while this screen is the active one, and never from under a dialog —
+  // a modal owns the keystroke, and focusing a field behind it would tear
+  // the focus out of the trap.
+  useActiveScreenEffect(() => {
+    const handleShortcut = (event: KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      event.preventDefault();
+      quickCommitRef.current?.focus();
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
   useEffect(() => {
     if (selectAllRef.current) {
       selectAllRef.current.indeterminate = includedCount > 0 && includedCount < totalCount;
@@ -1392,16 +1375,28 @@ export function ChangesPanel({
   if (isLoadingList) {
     headerMessage = <p>{t.statusCheckingMessage}</p>;
   } else if (workingTree) {
-    const { conflicted, total } = workingTree.counts;
+    const { total } = workingTree.counts;
+    // The same breakdown, with the same glyphs in the same colours, that the
+    // Overview band's Changes tile shows — a reader who arrives from that
+    // tile reads the same fact in the same shape here. It says the count by
+    // category and nothing else: the selection is named only while it is
+    // partial, since "7 of 7 selected" is a mark that says nothing.
+    const breakdown = getWorkingTreeBreakdown(workingTree);
+    const breakdownText = breakdown.map((item) => t[BREAKDOWN_LABEL_KEYS[item.category]](item.count)).join(" · ");
     headerMessage = (
       <p className="changes-view__summary">
-        <span>
-          {workingTree.isClean
-            ? t.changesSummaryClean
-            : conflicted > 0
-              ? t.changesSummaryWithConflicts(conflicted, total)
-              : t.changesSummaryTotal(total)}
-        </span>
+        {workingTree.isClean ? (
+          <span>{t.changesSummaryClean}</span>
+        ) : (
+          <span className="changes-view__breakdown" aria-label={breakdownText}>
+            {breakdown.map((item) => (
+              <span key={item.category} className={`changes-view__kind changes-view__kind--${item.category}`}>
+                {CHANGE_CATEGORY_ICONS[item.category]}
+                {t[BREAKDOWN_LABEL_KEYS[item.category]](item.count)}
+              </span>
+            ))}
+          </span>
+        )}
         {!workingTree.isClean && lineTotals && (
           <>
             <span className="changes-view__summary-separator" aria-hidden="true">
@@ -1423,7 +1418,7 @@ export function ChangesPanel({
             its changes, not beside the search box: the strip's job is finding
             a file, and the count was taking a third of it to answer a question
             nobody asks while typing. */}
-        {!workingTree.isClean && (
+        {!workingTree.isClean && !allSelected && (
           <>
             <span className="changes-view__summary-separator" aria-hidden="true">
               ·
@@ -1440,24 +1435,17 @@ export function ChangesPanel({
   return (
     <div className="changes-view" aria-busy={isCheckingChanges}>
       <ChangesStatusNotice watcherState={watcherState} error={workingTreeError} busy={isCheckingChanges} onRefresh={onRefresh} onOpenSettings={onOpenSettings} t={t} />
-      {/* Title and state on one line, with the screen's own actions at the far
-          end. `.screen-header` is the shared definition of that row — History
-          opens on the same one, so the two screens' panels start on the same
-          pixel row as well as in the same shape. */}
+      {/* Title and state on one line, and no action: saving lives in the box
+          docked under the files it saves, so the heading carries nothing a
+          second control would answer twice. `.screen-header` is the shared
+          definition of that row — History opens on the same one, so the two
+          screens' panels start on the same pixel row as well as in the same
+          shape. */}
       <header className="screen-header">
         <div className="screen-header__heading">
           <h1>{t.changesHeading}</h1>
           {headerMessage}
         </div>
-        <ChangesHeaderActions
-          workingTree={workingTree}
-          isChecking={isCheckingChanges}
-          canChooseFiles={canChooseFiles}
-          canSaveSelection={canSaveSelection}
-          isEverythingSelected={allSelected}
-          onSave={onOpenSaveVersion}
-          t={t}
-        />
       </header>
 
       <DiscardOutcomeNotice
@@ -1634,6 +1622,7 @@ export function ChangesPanel({
               />
             </div>
             <QuickCommitBox
+              ref={quickCommitRef}
               projectPath={projectPath}
               sessionEpoch={sessionEpoch}
               selectedPaths={selectedPathsForSave}
@@ -1686,17 +1675,6 @@ export function ChangesPanel({
         />
       </React.Suspense>
 
-      <SaveVersionDialog
-        isOpen={isSaveVersionOpen}
-        projectPath={projectPath}
-        sessionEpoch={sessionEpoch}
-        selectedPaths={selectedPathsForSave}
-        runHooks={runGitHooks}
-        onClose={onCloseSaveVersion}
-        onSaved={onSaveCompleted}
-        onPublishNow={onPublishNow}
-        onPhaseChange={onSaveVersionPhaseChange}
-      />
       <React.Suspense fallback={null}>
         <DiscardChangesDialog
           request={discardRequest}

@@ -458,18 +458,8 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
 .changed-files .changes-preview__item { background: transparent; padding-inline: var(--space-2); }
 .changed-files .changes-preview__item:hover { background: var(--surface-hover); }
 
-/* Rows arrive one after another, 40ms apart, the first time a list is
-   drawn for a project: opening a project reads as the screen filling in
-   rather than snapping on. Keyed rows do not re-run it on refresh, and a
-   screen kept alive in the background does not re-run it on return. */
-@keyframes overview-row-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
-}
-.overview-row-in {
-  animation: overview-row-in 220ms ease-out backwards;
-  animation-delay: calc(var(--row-index, 0) * 40ms);
-}
+/* Rows arrive staggered through `.row-in` (primitives.css), shared with
+   the Changes file list. */
 
 /* The saved-but-unpublished list, only while there is one. */
 .pending-versions-card {
@@ -1243,7 +1233,6 @@ details[open] > .pending-versions__summary .pending-versions__chevron { transfor
   .journey-step__go,
   .journey-step__icon,
   .journey-connector::after { transition: none; }
-  .overview-row-in { animation: none; }
   .welcome-recents__open,
   .welcome-recents__filter,
   .welcome-recents__favourite,

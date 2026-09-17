@@ -105,7 +105,7 @@ export function HistorySummarySection({
             const decoration = primaryDecoration(version, currentBranch);
             const label = t.overviewHistoryOpenVersion(title);
             return (
-              <li key={version.commit} className="overview-row-in" style={{ "--row-index": index } as React.CSSProperties}>
+              <li key={version.commit} className="row-in" style={{ "--row-index": index } as React.CSSProperties}>
                 <button
                   className="overview-history__row"
                   type="button"

@@ -273,6 +273,27 @@
   .attention-breathe { animation: none; }
 }
 
+/* ---- Arrival ----
+   Rows arrive one after another, 40ms apart, the first time a list is drawn
+   for a project: opening a project reads as the screen filling in rather
+   than snapping on. Overview's two columns and the Changes file list share
+   it. Keyed rows do not re-run it on refresh, and a screen kept alive in the
+   background does not re-run it on return. A list caps `--row-index` itself
+   (Changes stops counting at 12) so a long list is not still arriving a
+   second later; a virtualized list never wears it, since a row mounted by
+   a scroll is not arriving with the screen. */
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.row-in {
+  animation: row-in 220ms ease-out backwards;
+  animation-delay: calc(var(--row-index, 0) * 40ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-in { animation: none; }
+}
+
 .segmented-control {
   display: inline-flex; padding: 4px; gap: 4px;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-hover);

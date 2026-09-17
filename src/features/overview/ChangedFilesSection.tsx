@@ -142,7 +142,7 @@ export function ChangedFilesSection({
                   : entry.path;
               const categoryLabel = t[CATEGORY_ROW_LABEL_KEYS[entry.category]];
               return (
-                <li key={entry.path} className="overview-row-in" style={{ "--row-index": index } as React.CSSProperties}>
+                <li key={entry.path} className="row-in" style={{ "--row-index": index } as React.CSSProperties}>
                   <button
                     className={`changes-preview__item changes-preview__item--${entry.category}`}
                     type="button"

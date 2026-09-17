@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ChangesPanel } from "./ChangesPanel";
 import { changesPort, createChangesController, type ChangesController } from "./index";
 import { LanguageProvider } from "../../i18n";
+import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import type { WorkingTreeStatus } from "../status";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -34,10 +35,6 @@ function ControlledChangesPanel(
     | "sessionEpoch"
     | "selectedPath"
     | "onSelectedPathChange"
-    | "isSaveVersionOpen"
-    | "onOpenSaveVersion"
-    | "onCloseSaveVersion"
-    | "onSaveVersionPhaseChange"
     | "onSaveCompleted"
     | "watcherState"
     | "confirmBeforeDiscarding"
@@ -57,9 +54,12 @@ function ControlledChangesPanel(
   },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [isSaveVersionOpen, setIsSaveVersionOpen] = useState(false);
   const ownController = useRef(createChangesController(changesPort));
+  // The real app renders this inside its screen host; the panel's own
+  // Ctrl/Cmd+S shortcut listens only while that host says it is active.
+  const lifecycle = useRef(createScreenLifecycleController("active"));
   return (
+    <ScreenLifecycleProvider controller={lifecycle.current}>
     <ChangesPanel
       {...props}
       controller={props.controller ?? ownController.current}
@@ -69,16 +69,13 @@ function ControlledChangesPanel(
       runGitHooks={props.runGitHooks ?? false}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
-      isSaveVersionOpen={isSaveVersionOpen}
-      onOpenSaveVersion={() => setIsSaveVersionOpen(true)}
-      onCloseSaveVersion={() => setIsSaveVersionOpen(false)}
-      onSaveVersionPhaseChange={() => {}}
       onSaveCompleted={() => {}}
       onBeginDiscard={() => true}
       onDiscardClose={() => {}}
       onDiscardPhaseChange={() => {}}
       onOpenSettings={props.onOpenSettings ?? (() => {})}
     />
+    </ScreenLifecycleProvider>
   );
 }
 
@@ -155,14 +152,16 @@ describe("ChangesPanel save selection", () => {
     // same way the row it was chosen from does.
     expect(screen.getAllByText("Project root")).toHaveLength(3);
 
-    // Nothing selected is not a selection to name, so the button reads as the
-    // plain action it always was — and is disabled.
+    // Nothing selected is nothing to save: the box's action is disabled and
+    // says why, and it asks Git for no plan.
     await userEvent.click(screen.getByRole("checkbox", { name: "Select none" }));
-    expect(within(screen.getByRole("group", { name: "Changes" })).getByRole("button", { name: "Save version" })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Version name"), "just the edit");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("plan_save_version", expect.anything());
 
+    // Including one file plans for exactly that file, and the box says what
+    // the plan leaves behind — the same note the dialog prints.
     await userEvent.click(edited);
-    await userEvent.click(screen.getByRole("button", { name: "Save selected" }));
-
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
         path: "/repo",
@@ -171,9 +170,10 @@ describe("ChangesPanel save selection", () => {
       }),
     );
     expect(await screen.findByText("1 other file will remain as a pending change.")).toBeInTheDocument();
+    expect(screen.getByLabelText("1 file will be saved. This version will be saved to main.")).toBeInTheDocument();
   });
 
-  it("saves through the quick commit box docked under the file list, without opening Save Version", async () => {
+  it("saves through the quick commit box docked under the file list — the screen's one save control", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "read_file_diff") {
         return Promise.resolve({ kind: "unchanged", path: "edited.txt" });
@@ -219,7 +219,13 @@ describe("ChangesPanel save selection", () => {
       </LanguageProvider>,
     );
 
+    // The heading carries no save action of its own: the box is where a
+    // version is saved from here, so nothing above it answers twice.
+    expect(screen.queryByRole("button", { name: "Save version" })).not.toBeInTheDocument();
+
     await userEvent.type(screen.getByLabelText("Version name"), "quick fix");
+    // Opening the box asked for the plan, and the line states it.
+    expect(await screen.findByLabelText("2 files will be saved. This version will be saved to main.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText('Saved "quick fix" as abc123a.')).toBeInTheDocument();
@@ -616,17 +622,19 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
   });
 
-  it("keeps the healthy heading focused on saving, with the change actions over the list", () => {
+  it("keeps the healthy heading to the title and the state, with every action over the list", () => {
     renderPanel();
 
-    const actions = screen.getByRole("group", { name: "Changes" });
-    expect(within(actions).queryByRole("button", { name: "Check local changes" })).not.toBeInTheDocument();
-    expect(within(actions).getByRole("button", { name: "Save version" })).toBeEnabled();
-    // Discarding acts on the files, so its menu sits over the file list rather
-    // than beside Save.
-    expect(within(actions).queryByRole("button", { name: "Discard or restore changes" })).not.toBeInTheDocument();
+    const header = document.querySelector(".screen-header");
+    if (!(header instanceof HTMLElement)) throw new Error("no screen header");
+    expect(within(header).queryByRole("button")).not.toBeInTheDocument();
+    // The state is the band's breakdown, glyph by glyph, not a sentence.
+    expect(within(header).getByLabelText("1 edited · 1 new")).toBeInTheDocument();
+    // Discarding acts on the files, so its menu sits over the file list; so
+    // does saving, in the box docked under them.
     const list = screen.getByRole("navigation", { name: "Changed files" });
     expect(within(list).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
+    expect(within(list).getByLabelText("Version name")).toBeInTheDocument();
   });
 
   it("shows the snapshot's added and removed line totals once the diff cache is warm", async () => {
@@ -1331,6 +1339,8 @@ describe("ChangesPanel filters", () => {
     const { container } = renderMixed();
     await screen.findByRole("button", { name: /conflict\.txt/ });
 
+    // Everything selected is not a fraction worth naming; leaving one out is.
+    expect(container.querySelector(".changes-view__selection")).toBeNull();
     await userEvent.click(screen.getByRole("checkbox", { name: "Include asset.png in this version" }));
     expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
 

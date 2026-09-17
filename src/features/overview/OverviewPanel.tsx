@@ -114,7 +114,7 @@ function WelcomeRecentRow({
   const pathId = useId();
 
   return (
-    <li className="welcome-recents__item overview-row-in" style={{ "--row-index": index } as React.CSSProperties}>
+    <li className="welcome-recents__item row-in" style={{ "--row-index": index } as React.CSSProperties}>
       <button
         className="welcome-recents__open"
         type="button"

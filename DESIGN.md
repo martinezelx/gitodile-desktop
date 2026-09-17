@@ -1190,6 +1190,46 @@ publish" is said, and there is no green number beside the line name. Every
 glyph tile on the screen is a circle, per Shape, including the ones a mockup
 would draw as rounded squares.
 
+**Changes saves from one place, and it is the place the files are.** The
+screen used to offer a version twice: a primary "Save version" in the
+heading that opened the dialog, and the quick box docked under the file list
+that saved on its own. Both were the same form — name, details, "also
+publish", the hooks escape — differing only in that the dialog stated its
+plan and the box did not; opened together they put two accent-filled buttons
+on one screen, which is the thing the Journey page's band was built to stop
+("a button under the band said the tile twice"). Now the box is the one save
+control on the screen and the heading carries only the title and the state.
+The box absorbs what the dialog knew: opening it asks Rust for the plan and
+states it in one line — `3 of 7 files → main`, the count first and the line
+in the status bar's own mono — with, under it, only the notes that apply to
+this plan (files left behind, a first version, changes already prepared, no
+line to land on), the same lines the dialog prints in full, from one list so
+the two cannot explain a plan differently. The flow underneath is one
+implementation (`useSaveVersionFlow`) in two frames: the box here, the modal
+dialog on the screens with nowhere to type — Overview's active tile, saving
+before switching a line. The box's glyph is the band's tile vocabulary at row
+size: the solid accent circle, breathing with the one attention animation
+while there is something to save and nobody is saving it (the same halo the
+band's active step wears, since this *is* that step seen from its own
+screen), and the light "done" fill with a check once a version is saved,
+with "Publish now" offered as a quiet link under the saved line — the band's
+Publish tile is where that step is said in full, so it is not a second
+primary here. Ctrl/Cmd+S opens the box and puts the caret in the name field,
+never from under a dialog. The heading's state is the band's own breakdown
+— the rows' category glyphs, in the rows' colours, "1 edited · 1 new" — so a
+reader who arrives from the Changes tile reads the same fact in the same
+shape; the selection is named only while it is partial ("4 of 7 selected"),
+because "7 of 7" is a mark that says nothing. The open file's category in
+the diff header is the same glyph with the word beside it rather than a
+pill: a third shape for one fact the row and the band already draw alike.
+The "everything is saved" state's circle is the band's done tile, light fill
+and no shadow, since nothing there rests on anything. The file list's rows
+arrive with Overview's own stagger (`.row-in`, now a primitive the two
+screens share) when the list is drawn all at once, capped at the twelfth row
+so a long list reads as filling in rather than lagging; a virtualized list
+never wears it, since a row mounted by a scroll is not arriving with the
+screen.
+
 **Dropping a folder on the window** opens it. While a drag is over the window
 — and only then — a window-sized overlay names what a drop will do. It is
 feedback about a gesture, not chrome: it never takes the pointer (an overlay

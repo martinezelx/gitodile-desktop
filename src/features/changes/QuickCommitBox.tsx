@@ -1,13 +1,14 @@
-import React, { useState } from "react";
-import { CheckCircle2, CircleAlert, LoaderCircle, Save, X } from "lucide-react";
+import React, { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Check, CircleAlert, LoaderCircle, Save, Send, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
-import { localizeAppError, isAppError } from "../../shared/i18n";
+import { localizeAppError } from "../../shared/i18n";
 import { useScrollAnchoredResize } from "../../shared/ui";
 import { usePersistedInstallDraft } from "../../runtime/drafts";
 import {
   createSaveVersionController,
-  PUBLISH_AFTER_SAVE_STORAGE_KEY,
+  getSaveVersionNotes,
   saveVersionPort,
+  useSaveVersionFlow,
   type SaveVersionController,
 } from "../save-version";
 
@@ -23,23 +24,25 @@ const isQuickMessage = (value: unknown): value is QuickVersionMessage =>
   typeof (value as Partial<QuickVersionMessage>).title === "string" &&
   typeof (value as Partial<QuickVersionMessage>).description === "string";
 
-type QuickCommitStatus =
-  | { kind: "idle" }
-  | { kind: "saving" }
-  /** `ranHooks` records the attempt, not the preference — same reasoning as
-   * `SaveVersionDialog`'s `save-error` state: the "skip hooks" escape is only
-   * honest to offer after an attempt that actually ran them. */
-  | { kind: "error"; error: unknown; ranHooks: boolean }
-  | { kind: "success"; title: string; shortCommit: string };
+/** What the Changes screen can ask of the box from outside: open it and put
+ * the caret in the name field. The screen's Ctrl/Cmd+S goes here. */
+export type QuickCommitBoxHandle = { focus: () => void };
 
-/** The fast path for the common case, docked at the foot of the file list.
+/** The one place a version is saved from the Changes screen, docked at the
+ * foot of the file list it saves.
  *
- * Closed, it is one row — the same height as the search box above it — so it
- * does not cost the list a card's worth of height while nobody is using it.
- * It opens on focus and closes again on blur, unless there is a draft or an
- * operation in flight to protect. "Save Version" in the header still opens
- * the full dialog with its plan preview, for the cases that want one. */
+ * Closed, it is one row — the same height as the search box above it — so
+ * it does not cost the list a card's worth of height while nobody is using
+ * it; its glyph is the band's solid "do this" circle, breathing while there
+ * is something to save (DESIGN.md § Motion). It opens on focus, asks Rust
+ * for the plan of what it would save and states it in one line (the files,
+ * the line they land on, and any note that applies), and closes again on
+ * blur unless there is a draft or an operation in flight to protect. The
+ * flow underneath — plan, save, hooks, "also publish" — is
+ * `useSaveVersionFlow`, the same one `SaveVersionDialog` runs for the
+ * screens with nowhere to type. */
 export function QuickCommitBox({
+  ref,
   controller = defaultController,
   projectPath,
   sessionEpoch,
@@ -51,6 +54,7 @@ export function QuickCommitBox({
   onSaveCompleted,
   onPublishNow,
 }: {
+  ref?: React.Ref<QuickCommitBoxHandle>;
   controller?: SaveVersionController;
   projectPath: string;
   sessionEpoch: string;
@@ -78,6 +82,7 @@ export function QuickCommitBox({
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
   const [messageDraft, setMessageDraft, clearMessageDraft] = usePersistedInstallDraft(
     `quick-save-version:${projectPath}`,
     "quick version message",
@@ -90,10 +95,27 @@ export function QuickCommitBox({
     setMessageDraft((current) => ({ ...current, title: value }));
   const setDescription = (value: string): void =>
     setMessageDraft((current) => ({ ...current, description: value }));
-  const [publishToo, setPublishToo] = useState<boolean>(
-    () => localStorage.getItem(PUBLISH_AFTER_SAVE_STORAGE_KEY) === "1",
-  );
-  const [status, setStatus] = useState<QuickCommitStatus>({ kind: "idle" });
+
+  const {
+    state,
+    plan,
+    isBusy: isSubmitting,
+    wasRejectedByHook,
+    publishToo,
+    togglePublishToo,
+    loadPlan,
+    save,
+    cancel,
+  } = useSaveVersionFlow({ controller, projectPath, sessionEpoch, onSaved: onSaveCompleted, onPublishNow });
+
+  // Busy from the first keystroke of a save to its answer: the fresh plan a
+  // save asks for first is not a moment to accept a second press.
+  const [isSaving, setIsSaving] = useState(false);
+  const isBusy = isSaving || isSubmitting;
+
+  useImperativeHandle(ref, () => ({
+    focus: () => titleRef.current?.focus(),
+  }), []);
 
   // Keeps the file list's own scroll position anchored to this box's bottom
   // edge across every open/close, not just the lucky case where the list was
@@ -105,29 +127,31 @@ export function QuickCommitBox({
     setExpanded(next);
   }
 
-  const togglePublishToo = (): void => {
-    setPublishToo((current) => {
-      const next = !current;
-      localStorage.setItem(PUBLISH_AFTER_SAVE_STORAGE_KEY, next ? "1" : "0");
-      return next;
-    });
-  };
-
-  const isBusy = status.kind === "saving";
-  const wasRejectedByHook =
-    status.kind === "error" && status.ranHooks && isAppError(status.error) && status.error.code === "hook_rejected";
-
-  function clearStaleStatus(): void {
-    if (status.kind === "success") {
-      setStatus({ kind: "idle" });
+  // The plan is asked for when the box opens and again whenever the
+  // selection under it changes — the checkboxes stay live while it is open,
+  // unlike the dialog's inert list — and never while closed, so a row that
+  // nobody is using costs Git nothing. Nothing selected is nothing to plan.
+  // A save re-plans on its own for a fresh state token; a success is left
+  // alone until the box closes.
+  const selectedPathsRef = useRef(selectedPaths);
+  selectedPathsRef.current = selectedPaths;
+  const selectedPathsKey = selectedPaths === null ? null : selectedPaths.join("\n");
+  const status = state.status;
+  useEffect(() => {
+    if (!expanded) {
+      cancel();
+      return;
     }
-  }
+    if (!canSave || status === "submitting" || status === "success") return;
+    void loadPlan(selectedPathsRef.current);
+    // `status` is deliberately not a dependency: a plan that just landed must
+    // not ask for itself again. Only opening and a changed selection ask.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, canSave, selectedPathsKey, loadPlan, cancel]);
 
   function collapse(): void {
     beginExpandedChange(false);
-    setStatus({ kind: "idle" });
   }
-
   /** The escape hatch for "opened this by accident": clears whatever draft is
    * there and folds the box back to its one-line rest state, same as Escape
    * does. Not offered mid-save — the fields disabled then are the same
@@ -138,40 +162,54 @@ export function QuickCommitBox({
     clearMessageDraft();
     collapse();
   }
-
+  /** A success that is still on screen goes the moment the next draft
+   * starts: the line is about the version that was saved, not this one. */
+  function clearStaleStatus(): void {
+    if (status === "success") {
+      void loadPlan(selectedPaths);
+    }
+  }
   async function handleSave(attemptHooks: boolean = runHooks): Promise<void> {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || !canSave || isBusy) {
       return;
     }
     beginExpandedChange(true);
-    setStatus({ kind: "saving" });
+    setIsSaving(true);
     try {
-      const plan = await controller.plan({ projectId: projectPath, sessionEpoch, selectedPaths });
-      const result = await controller.save({
-        projectId: projectPath,
-        sessionEpoch,
+      // A fresh plan for a fresh state token: the one the line was read from
+      // may be older than the last keystroke in another editor.
+      const freshPlan = await loadPlan(selectedPaths);
+      if (!freshPlan) return;
+      const saved = await save({
+        plan: freshPlan,
         title: trimmedTitle,
         description: description.trim() ? description.trim() : null,
-        stateToken: plan.stateToken,
         selectedPaths,
         runHooks: attemptHooks,
       });
-      clearMessageDraft();
-      setStatus({ kind: "success", title: result.title, shortCommit: result.shortCommit });
-      onSaveCompleted();
-      if (publishToo) {
-        onPublishNow();
-      }
-    } catch (error) {
-      setStatus({ kind: "error", error, ranHooks: attemptHooks });
+      if (saved) clearMessageDraft();
+    } finally {
+      setIsSaving(false);
     }
   }
+
+  const notes = plan ? getSaveVersionNotes(plan, t) : [];
+  const planLabel = plan
+    ? [t.saveVersionFilesSummary(plan.totalFiles), plan.branch ? t.saveVersionDestination(plan.branch) : null]
+        .filter((part) => part !== null)
+        .join(" ")
+    : "";
+  /* The glyph is the band's tile vocabulary in miniature: solid accent and
+     breathing while there is a save to make and nobody is making it, the
+     light "done" fill with a check once one was made. */
+  const isSaved = status === "success";
+  const breathes = !expanded && canSave && status === "idle";
 
   return (
     <div
       ref={containerRef}
-      className={`changes-quick-commit${expanded ? " changes-quick-commit--expanded" : ""}`}
+      className={`changes-quick-commit${expanded ? " changes-quick-commit--expanded" : ""}${isSaved ? " changes-quick-commit--saved" : ""}`}
       onFocus={() => beginExpandedChange(true)}
       onBlur={(event) => {
         if (containerRef.current?.contains(event.relatedTarget as Node | null)) return;
@@ -187,8 +225,11 @@ export function QuickCommitBox({
     >
       <div className="changes-quick-commit__field">
         <div className="changes-quick-commit__summary-wrap">
-          <Save aria-hidden="true" />
+          <span className={`changes-quick-commit__glyph${breathes ? " attention-breathe" : ""}`} aria-hidden="true">
+            {isSaved ? <Check /> : <Save />}
+          </span>
           <input
+            ref={titleRef}
             className="changes-quick-commit__summary"
             type="text"
             value={title}
@@ -221,13 +262,32 @@ export function QuickCommitBox({
           </button>
         </div>
       </div>
-
       <div className="changes-quick-commit__extra">
         <div>
-          {status.kind === "error" && (
+          {/* What this save would do, from the plan that will write it, so
+              the line and the save cannot disagree. One line — the files,
+              then the line they land on — and under it only the notes that
+              apply to this plan, the same ones the dialog prints in full. */}
+          {plan && !isSaved && (
+            <div className="changes-quick-commit__plan">
+              <p className="changes-quick-commit__plan-line" aria-label={planLabel}>
+                <span aria-hidden="true">{t.changesQuickPlanFiles(plan.totalFiles, plan.remainingFiles)}</span>
+                {plan.branch && (
+                  <span aria-hidden="true" className="changes-quick-commit__plan-destination">
+                    <span className="changes-quick-commit__plan-arrow">→</span>
+                    <span className="changes-quick-commit__plan-branch">{plan.branch}</span>
+                  </span>
+                )}
+              </p>
+              {notes.map((note) => (
+                <p key={note} className="changes-quick-commit__plan-note">{note}</p>
+              ))}
+            </div>
+          )}
+          {(status === "save-error" || status === "blocked") && (
             <p className="changes-quick-commit__error" role="alert">
               <CircleAlert aria-hidden="true" />
-              {localizeAppError(status.error, t, t.errorGitCommandFailed)}
+              {localizeAppError(state.error, t, t.errorGitCommandFailed)}
             </p>
           )}
           {wasRejectedByHook && (
@@ -239,13 +299,19 @@ export function QuickCommitBox({
               {t.saveVersionSkipHooks}
             </button>
           )}
-          {status.kind === "success" && (
-            <p className="changes-quick-commit__success" role="status">
-              <CheckCircle2 aria-hidden="true" />
-              {t.saveVersionSuccessDescription(status.title, status.shortCommit)}
-            </p>
+          {state.status === "success" && (
+            <div className="changes-quick-commit__success" role="status">
+              <p>{t.saveVersionSuccessDescription(state.result.title, state.result.shortCommit)}</p>
+              {/* The step after this one, offered where the eye already is.
+                  Absent when the toggle already took it there. */}
+              {!publishToo && (
+                <button type="button" className="changes-quick-commit__publish-now" onClick={onPublishNow}>
+                  <Send aria-hidden="true" />
+                  {t.saveVersionPublishNow}
+                </button>
+              )}
+            </div>
           )}
-
           <textarea
             className="changes-quick-commit__desc"
             rows={2}
@@ -258,7 +324,6 @@ export function QuickCommitBox({
               clearStaleStatus();
             }}
           />
-
           <div className="changes-quick-commit__foot">
             <div className="changes-quick-commit__publish">
               <span>{t.saveVersionPublishToggleLabel}</span>
@@ -275,7 +340,6 @@ export function QuickCommitBox({
                 <span className="toggle-switch__knob" />
               </button>
             </div>
-
             <button
               className="primary-button primary-button--sm changes-quick-commit__action"
               type="button"

@@ -1,8 +1,6 @@
 export interface ChangesTranslations {
   changesHeading: string;
   changesSummaryClean: string;
-  changesSummaryTotal: (total: number) => string;
-  changesSummaryWithConflicts: (conflicted: number, total: number) => string;
   changesEmptyTitle: string;
   changesEmptyDescription: string;
   changesBackToOverview: string;
@@ -102,11 +100,11 @@ export interface ChangesTranslations {
   changesCheckLocal: string;
   changesRefreshFailedTitle: string;
   changesDiscardingNow: string;
-  changesSaveSelected: string;
-  changesSaveVersion: string;
-  changesSaveVersionDisabledHint: string;
   changesSaveVersionNoSelectionHint: string;
   changesQuickCommitDismiss: string;
+  /** The quick commit box's one-line plan: what a save would take, as a
+   * count, and "of N" only when the selection leaves files behind. */
+  changesQuickPlanFiles: (total: number, remaining: number) => string;
   changesSelectionSummary: (selected: number, total: number) => string;
   changesSelectAll: string;
   changesSelectNone: string;
@@ -166,13 +164,6 @@ export interface ChangesTranslations {
 const en: ChangesTranslations = {
   changesHeading: "Changes",
   changesSummaryClean: "Everything is saved. There is nothing to review.",
-  changesSummaryTotal: (total) => (total === 1 ? "1 file has unsaved changes." : `${total} files have unsaved changes.`),
-  changesSummaryWithConflicts: (conflicted, total) =>
-    conflicted === total
-      ? conflicted === 1
-        ? "1 file needs your attention."
-        : `${conflicted} files need your attention.`
-      : `${conflicted} of ${total} files need your attention.`,
   changesEmptyTitle: "Nothing to review",
   changesEmptyDescription: "Every saved file matches the latest saved version. Come back after you make changes.",
   changesBackToOverview: "Back to Overview",
@@ -282,11 +273,14 @@ const en: ChangesTranslations = {
   changesCheckLocal: "Check local changes",
   changesRefreshFailedTitle: "Changes couldn’t be refreshed",
   changesDiscardingNow: "Discarding…",
-  changesSaveSelected: "Save selected",
-  changesSaveVersion: "Save version",
-  changesSaveVersionDisabledHint: "Make some changes first, then come back to save a version.",
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
   changesQuickCommitDismiss: "Discard draft",
+  changesQuickPlanFiles: (total, remaining) =>
+    remaining > 0
+      ? `${total} of ${total + remaining} files`
+      : total === 1
+        ? "1 file"
+        : `${total} files`,
   changesSelectionSummary: (selected, total) => `${selected} of ${total} selected`,
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
@@ -353,14 +347,6 @@ const en: ChangesTranslations = {
 const es: ChangesTranslations = {
   changesHeading: "Cambios",
   changesSummaryClean: "Todo está guardado. No hay nada que revisar.",
-  changesSummaryTotal: (total) =>
-    total === 1 ? "1 archivo tiene cambios sin guardar." : `${total} archivos tienen cambios sin guardar.`,
-  changesSummaryWithConflicts: (conflicted, total) =>
-    conflicted === total
-      ? conflicted === 1
-        ? "1 archivo necesita tu atención."
-        : `${conflicted} archivos necesitan tu atención.`
-      : `${conflicted} de ${total} archivos necesitan tu atención.`,
   changesEmptyTitle: "Nada que revisar",
   changesEmptyDescription:
     "Todos los archivos guardados coinciden con la última versión guardada. Vuelve cuando hagas cambios.",
@@ -466,11 +452,14 @@ const es: ChangesTranslations = {
   changesCheckLocal: "Comprobar cambios locales",
   changesRefreshFailedTitle: "No se pudieron actualizar los cambios",
   changesDiscardingNow: "Descartando…",
-  changesSaveSelected: "Guardar selección",
-  changesSaveVersion: "Guardar versión",
-  changesSaveVersionDisabledHint: "Haz algún cambio primero y vuelve para guardar una versión.",
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
   changesQuickCommitDismiss: "Descartar borrador",
+  changesQuickPlanFiles: (total, remaining) =>
+    remaining > 0
+      ? `${total} de ${total + remaining} archivos`
+      : total === 1
+        ? "1 archivo"
+        : `${total} archivos`,
   changesSelectionSummary: (selected, total) =>
     selected === 1 ? `${selected} de ${total} seleccionado` : `${selected} de ${total} seleccionados`,
   changesSelectAll: "Seleccionar todo",

@@ -84,6 +84,17 @@
    under it, and History opens on the same row. What stays here is what this
    screen says inside it. */
 .changes-view__summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+/* "✎ 14 edited · + 7 new": the rows' own category glyphs in the rows' own
+   colours, the same chips the Overview band's Changes tile carries, so the
+   tile and the screen it leads to say the count in one vocabulary. */
+.changes-view__breakdown { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-3); }
+.changes-view__kind { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.changes-view__kind svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-secondary-color); }
+.changes-view__kind--new svg { color: var(--status-success); }
+.changes-view__kind--deleted svg { color: var(--status-danger); }
+.changes-view__kind--renamed svg { color: var(--status-renamed); }
+.changes-view__kind--conflicted { color: var(--status-warning); font-weight: var(--weight-strong); }
+.changes-view__kind--conflicted svg { color: var(--status-warning); }
 .changes-view__summary-separator { color: var(--text-secondary-color); opacity: 0.6; }
 .changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 10px; }
 .changes-view__selection { font-variant-numeric: tabular-nums; }
@@ -126,16 +137,6 @@
 }
 .changes-notice__dismiss:hover { background: var(--surface-active); color: var(--text-primary-color); }
 .changes-notice__dismiss svg { width: 15px; height: 15px; }
-/* No card of its own. The Version lines header sets the pattern for a screen
-   heading's actions: the controls sit straight on the screen background and
-   each carries its own shape, so nothing here paints a surface or a shadow. */
-.changes-header-actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-.changes-header-actions__buttons { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 /* Same rule as the Overview summary row: a single-line control is fully
    rounded — a circle where it is square, a capsule where it carries a label.
    It is a circle at the row tier because it now lives inside a row (the file
@@ -147,7 +148,6 @@
   padding: 0;
   border-radius: var(--radius-round);
 }
-.changes-header-actions__save svg { width: 16px; height: 16px; }
 .changes-actions-menu { position: relative; display: inline-flex; flex-shrink: 0; }
 .changes-actions-menu__trigger { justify-content: center; }
 .changes-actions-menu__trigger svg { width: 17px; height: 17px; }
@@ -294,9 +294,11 @@
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; max-width: 380px; margin: 0 auto; padding: 40px 24px; text-align: center;
 }
+/* The band's "done" tile at the project's own size: light fill, the
+   success tone, and no shadow — nothing is stacked on anything here. */
 .changes-empty__icon {
   width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 14px;
-  border-radius: var(--radius-round); background: var(--surface-active); color: var(--status-success); box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-round); background: var(--surface-active); color: var(--status-success);
 }
 .changes-empty__icon svg { width: 20px; height: 20px; }
 .changes-empty h2 { font-size: var(--text-title); margin-bottom: 6px; }
@@ -520,14 +522,25 @@
    what gives it a fill of its own back. */
 .changes-quick-commit__summary-wrap {
   display: flex; align-items: center; gap: 8px; min-height: var(--control-height-sm);
-  padding: 0 var(--space-3); border-radius: var(--radius-item);
+  padding: 0 var(--space-3) 0 3px; border-radius: var(--radius-item);
   cursor: text;
 }
 .changes-quick-commit--expanded .changes-quick-commit__summary-wrap { background: var(--surface-hover); }
-/* `>`, not a bare descendant selector: the dismiss button below carries its
-   own icon, and reaching past it here would fix that icon's colour in place
-   over its own `:hover`. */
-.changes-quick-commit__summary-wrap > svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+/* The Overview band's tile vocabulary at row size: the same filled circle,
+   solid in the accent because this box *is* the screen's one action, and
+   breathing (`.attention-breathe`, primitives.css) while there is a save to
+   make and nobody is making it — the one moving thing on the screen, the
+   same halo the band's active step wears. Once a version is saved it takes
+   the light "done" fill with a check, exactly as a completed step does.
+   Sized so the circle sits concentric inside the pill at rest. */
+.changes-quick-commit__glyph {
+  flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--accent-brand); color: var(--accent-brand-contrast);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.changes-quick-commit__glyph svg { width: 13px; height: 13px; }
+.changes-quick-commit--saved .changes-quick-commit__glyph { background: var(--surface-active); color: var(--status-success); }
 /* `input` in the selector, not just the class: `input:focus-visible` in
    base.css carries the same (0,1,1) specificity, and without the type here
    that rule's own outline was winning over this one's `none` regardless of
@@ -576,6 +589,25 @@
 @media (prefers-reduced-motion: reduce) {
   .changes-quick-commit, .changes-quick-commit__extra > div { transition: none; }
 }
+/* What the save would do, from the plan that will write it: the files, an
+   arrow, the line they land on in the same mono the status bar names it in.
+   Under it, only the notes that apply, at caption size — the dialog prints
+   the same lines in full; here they are a footnote to a line, not a card. */
+.changes-quick-commit__plan { display: grid; gap: 2px; padding: 0 var(--space-2); }
+.changes-quick-commit__plan-line {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0;
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
+  font-variant-numeric: tabular-nums;
+}
+.changes-quick-commit__plan-destination { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
+.changes-quick-commit__plan-arrow { opacity: 0.7; }
+.changes-quick-commit__plan-branch {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); color: var(--text-primary-color);
+}
+.changes-quick-commit__plan-note {
+  margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
+}
 .changes-quick-commit__desc {
   width: 100%; resize: none; min-height: 52px; padding: 6px var(--space-3);
   border: 1px solid transparent; border-radius: var(--radius-item); background: var(--surface-hover);
@@ -603,12 +635,24 @@
 }
 .changes-quick-commit__error svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
 .changes-quick-commit__hook-escape { align-self: flex-start; }
+/* The version that was just saved, and the step after it offered where the
+   eye already is: a quiet link, not a second primary — the band's Publish
+   tile is where that step is said in full. The glyph in the row above is
+   the mark; this block carries no icon of its own. */
 .changes-quick-commit__success {
-  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
+  display: grid; gap: 4px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
   background: color-mix(in srgb, var(--status-success) 12%, transparent); color: var(--status-success);
   font-size: var(--text-label); line-height: var(--leading-normal);
 }
-.changes-quick-commit__success svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+.changes-quick-commit__success p { margin: 0; }
+.changes-quick-commit__publish-now {
+  justify-self: start; display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 0; border: 0; background: transparent; color: var(--accent-primary);
+  font: inherit; font-size: var(--text-label); font-weight: var(--weight-heading);
+}
+.changes-quick-commit__publish-now:hover { text-decoration: underline; }
+.changes-quick-commit__publish-now:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
+.changes-quick-commit__publish-now svg { width: 13px; height: 13px; }
 
 .changes-diff {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
@@ -664,26 +708,18 @@
   color: var(--text-secondary-color); font-size: var(--text-caption);
   direction: rtl; text-align: left;
 }
+/* The category the way its row says it: the same glyph in the same colour,
+   with the word beside it. A pill here was a third shape for one fact the
+   list row and the Overview band already draw the same way. */
 .changes-diff__category {
-  flex-shrink: 0; padding: 3px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-heading); line-height: var(--leading-snug);
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-heading); line-height: var(--leading-snug);
 }
-.changes-diff__category--new {
-  border-color: transparent; background: color-mix(in srgb, var(--status-success) 16%, transparent);
-  color: var(--status-success);
-}
-.changes-diff__category--deleted {
-  border-color: transparent; background: color-mix(in srgb, var(--status-danger) 14%, transparent);
-  color: var(--status-danger);
-}
-.changes-diff__category--renamed {
-  border-color: transparent; background: color-mix(in srgb, var(--status-renamed) 16%, transparent);
-  color: var(--status-renamed);
-}
-.changes-diff__category--conflicted {
-  border-color: transparent; background: color-mix(in srgb, var(--status-warning) 18%, transparent);
-  color: var(--status-warning);
-}
+.changes-diff__category svg { width: 13px; height: 13px; flex-shrink: 0; }
+.changes-diff__category--new { color: var(--status-success); }
+.changes-diff__category--deleted { color: var(--status-danger); }
+.changes-diff__category--renamed { color: var(--status-renamed); }
+.changes-diff__category--conflicted { color: var(--status-warning); }
 .changes-diff__origin {
   /* Last in the row and first to give way — hence the shrink weight, well
      above the folder's: where a file came from is worth a strip's leftover
@@ -883,18 +919,6 @@
   .changes-layout--detail .changes-file-list { display: none; }
   .changes-layout--detail .changes-diff { display: flex; }
   .changes-layout--detail .changes-diff__back { display: inline-flex; }
-}
-
-@media (max-width: 800px) {
-  /* `.screen-header` stacks itself at this width; the actions inside it are
-     this screen's own. */
-  .changes-header-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-2);
-  }
-  .changes-header-actions__buttons { width: 100%; }
-  .changes-header-actions__save { flex: 1 1 auto; justify-content: center; }
 }
 
 @media (pointer: coarse) {
