@@ -1244,12 +1244,11 @@ status bar what is unsaved, and three grey dots that do nothing answer a
 question nobody asks on this screen. So the name and the state are the list
 panel's own header now, in the shape Overview heads its cards with — a
 neutral glyph circle, the title, one line — at the height of a strip
-(`--strip-height`), because the diff panel beside it wears the same header
-with the file as its subject (its icon in the same circle, the name, then
-the folder and the category as the row says it, the reading controls at the
-end where a card's trailing action goes) and the two must start on the same
-pixel row. Both are two fixed, truncating lines: a header that grew with
-what it said would be a strip that never stayed level. The search strip
+(`--strip-height`), because the diff panel beside it keeps its one strip —
+the file's icon, its name, its folder, its category, the reading controls —
+and the two must start on the same pixel row. Both are fixed, truncating
+lines: a header that grew with what it said would be a strip that never
+stayed level. The search strip
 under the list's header steps down to `--strip-height-inner`, the way
 History's inner panes step down from their panel; the diff needs no second
 strip and starts its code under its header, which is the page row's height

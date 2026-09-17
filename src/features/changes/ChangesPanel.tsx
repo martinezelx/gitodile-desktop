@@ -767,34 +767,37 @@ function DiffWorkspace({
           one question between them — which file, shown how — so they are one
           row now, paired with the file list's. See `.changes-layout` in
           changes.css. */}
-      {/* The same card header the list panel wears, with the file as the
-          subject: its own icon in the neutral circle, its name on the first
-          line, where it is and what happened to it on the second — the
-          category as the row says it, glyph and word — and the reading
-          controls at the end, where a card's trailing action goes. Two fixed
-          lines, both truncating, so nothing a path or a renamed-from note can
-          say pushes this header out of step with the list's. The full path
-          stays on the pane's accessible name. */}
       <header className="changes-diff__header">
         <span className="changes-diff__header-icon" aria-hidden="true">
           <FileTypeIcon className="changes-diff__type-icon" />
         </span>
         <div className="changes-diff__title-row">
-          <p className="changes-diff__name">{name}</p>
+          {/* Name first and dir after, the same shape the file rows use, so
+              the open file is recognizable as the row it was chosen from. The
+              full path stays on the pane's accessible name. */}
           <p className="changes-diff__path">
+            <span className="changes-diff__name">{name}</span>
             <span className="changes-diff__dir">{dir ?? t.changesProjectRoot}</span>
-            {entry && (
-              <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
-                {CHANGE_CATEGORY_ICONS[entry.category]}
-                {t[CATEGORY_LABEL_KEYS[entry.category]]}
-              </span>
-            )}
-            {entry?.originalPath && (
-              <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
-                {t.changesRenamedFrom(entry.originalPath)}
-              </span>
-            )}
           </p>
+          {/* The category as the row it was chosen from says it — the same
+              glyph in the same colour, with the word beside it — rather than
+              a pill that said it in a third shape. */}
+          {entry && (
+            <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
+              {CHANGE_CATEGORY_ICONS[entry.category]}
+              {t[CATEGORY_LABEL_KEYS[entry.category]]}
+            </span>
+          )}
+          {/* Inline, not a second line: a line of its own grew this header
+              past the height it shares with the file list's, putting the
+              two panels' rules back out of step for exactly the renamed
+              files this text appears on. It truncates like the path, with
+              the full value on the tooltip. */}
+          {entry?.originalPath && (
+            <span className="changes-diff__origin" data-tooltip={t.changesRenamedFrom(entry.originalPath)}>
+              {t.changesRenamedFrom(entry.originalPath)}
+            </span>
+          )}
         </div>
         <div className="changes-diff__controls">
           {fileTotal > 0 && (

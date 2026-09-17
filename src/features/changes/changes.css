@@ -376,15 +376,13 @@
    `.changes-layout`). The circle is the control size of a strip rather than
    a page card's 40px, so the header reads as a row of this panel and not as
    a card dropped into it. */
-.changes-file-list__header,
-.changes-diff__header {
+.changes-file-list__header {
   display: flex; align-items: center; gap: var(--space-2);
   flex: 0 0 auto; height: var(--strip-height);
   padding: 0 var(--space-3) 0 10px;
   border-bottom: 1px solid var(--border-subtle);
 }
-.changes-file-list__glyph,
-.changes-diff__header-icon {
+.changes-file-list__glyph {
   flex-shrink: 0; width: var(--control-height-sm); height: var(--control-height-sm);
   display: grid; place-items: center; border-radius: var(--radius-round);
   background: var(--surface-hover); color: var(--text-secondary-color);
@@ -733,28 +731,46 @@
   align-self: flex-start;
 }
 .changes-diff__back svg { width: 16px; height: 16px; }
+.changes-diff__header {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-4) 0 var(--space-3);
+  /* Paired with `.changes-file-list__header` — see the note on
+     `.changes-layout`. A fixed height, not a minimum: everything in
+     here is a single line that truncates, so nothing a path or a
+     renamed-from note can say pushes this strip out of step with the one
+     beside it. */
+  flex: 0 0 auto;
+  height: var(--strip-height);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.changes-diff__header-icon { display: grid; place-items: center; flex-shrink: 0; color: var(--text-secondary-color); }
+.changes-diff__header-icon svg { width: 16px; height: 16px; }
 /* The file's own icon, the same one its row carries, so the open file is
    recognizable as the one that was clicked. */
 .changes-diff__type-icon { width: 16px; height: 16px; display: block; }
-/* Two lines, the list header's shape: the name, then where it is and what
-   happened to it. `overflow: hidden` on both is the guard, not a tidy-up:
-   under enough pressure a line would keep painting straight over the
-   controls to its right; clipped, the narrowest pane loses the end of a
-   folder instead of overlapping two things nobody can read. */
-.changes-diff__title-row { min-width: 0; flex: 1; display: grid; gap: 1px; overflow: hidden; }
-.changes-diff__name {
-  margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  font-size: var(--text-subtitle); font-weight: var(--weight-title); line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
+/* `overflow: hidden` is the guard, not a tidy-up: the badge beside the name
+   cannot shrink, so under enough pressure the row would keep painting it
+   straight over the controls to its right. Clipped, the narrowest pane loses
+   the end of the badge instead of overlapping two things nobody can read. */
+.changes-diff__title-row {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  min-width: 0; flex: 1; flex-wrap: nowrap; overflow: hidden;
 }
-.changes-diff__path {
-  display: flex; align-items: center; gap: var(--space-2); min-width: 0; margin: 0;
-  overflow: hidden; white-space: nowrap; line-height: var(--leading-normal);
+.changes-diff__path { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; flex: 0 1 auto; margin: 0; }
+.changes-diff__name {
+  /* A floor, so the one thing this strip exists to name cannot be squeezed
+     out of it entirely: past this the name keeps a few characters and its
+     ellipsis, and the folder and the badge give way instead. */
+  min-width: 4em; flex: 0 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-weight: var(--weight-strong); font-size: var(--text-lead);
 }
 .changes-diff__dir {
-  /* First to give way, since the list is already showing the folder. It
-     truncates from the head, with the same `rtl` trick its row uses: the
-     folders nearest the file locate it better than the root does. */
+  /* Both halves can shrink, but not at the same rate: the weight makes the
+     folder give up room several times faster than the name, because the name
+     is what this strip is naming and the file list is already showing the
+     folder. It truncates from the head, in the same size and with the same
+     `rtl` trick its row uses, since the folders nearest the file locate it
+     better than the root does. */
   min-width: 0; flex: 0 8 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   color: var(--text-secondary-color); font-size: var(--text-caption);
   direction: rtl; text-align: left;
@@ -772,11 +788,11 @@
 .changes-diff__category--renamed { color: var(--status-renamed); }
 .changes-diff__category--conflicted { color: var(--status-warning); }
 .changes-diff__origin {
-  /* Last on the line and first to give way — hence the shrink weight, well
-     above the folder's: where a file came from is worth a line's leftover
-     room, never the room the folder needs. The full value stays on the
-     tooltip. */
-  min-width: 0; flex: 0 40 auto; margin: 0; font-size: var(--text-caption); color: var(--text-secondary-color);
+  /* Last in the row and first to give way — hence the shrink weight, well
+     above the folder's: where a file came from is worth a strip's leftover
+     room, never the room the file's own name needs. The full value stays on
+     the tooltip. */
+  min-width: 0; flex: 0 40 auto; margin: 0; font-size: var(--text-label); color: var(--text-secondary-color);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 /* The controls for reading the file, kept off the file's own name by the same
