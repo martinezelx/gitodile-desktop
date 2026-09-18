@@ -57,6 +57,12 @@ export { copyTextToClipboard } from "./clipboard";
    shared is the correction; the fields either box holds never were. */
 export { useScrollAnchoredResize, type ScrollAnchor } from "./scrollAnchoredResize";
 export { isReducedMotionRequested } from "./motionPreference";
+/* ADR 0003's two-consumer bar (task 125): Settings' preference rows authored
+   the switch, and the notification panel's "turn them back on" needs the same
+   control bound to the same preference. A caller that only reused the class
+   name would be free to drop `role="switch"`/`aria-checked`, so the component
+   moves up. */
+export { ToggleSwitch } from "./toggleSwitch";
 /* ADR 0003's two-consumer bar: the project switcher had this to itself until
    the welcome screen's recent-projects list needed the same identity — same
    colour, same initials, for the same project. */

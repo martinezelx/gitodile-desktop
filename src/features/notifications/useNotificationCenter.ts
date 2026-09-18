@@ -18,6 +18,10 @@ export type NotificationCenterStore = {
     projectName?: string | null;
   }) => void;
   markAllRead: () => void;
+  /** Removes one entry. Session-scoped and low-stakes, so there is no undo;
+   * the alternative the panel offers is "clear all", which is why this is a
+   * per-row action the pointer has to reach for rather than a prominent one. */
+  dismiss: (id: string) => void;
   clear: () => void;
 };
 
@@ -64,12 +68,16 @@ export function useNotificationCenter(isEnabled: boolean): NotificationCenterSto
     setNotifications((current) => markNotificationsRead(current));
   }, []);
 
+  const dismiss = useCallback((id: string) => {
+    setNotifications((current) => current.filter((entry) => entry.id !== id));
+  }, []);
+
   const clear = useCallback(() => setNotifications([]), []);
 
   const unreadCount = useMemo(() => unreadNotificationCount(notifications), [notifications]);
 
   return useMemo(
-    () => ({ notifications, unreadCount, notify, markAllRead, clear }),
-    [clear, markAllRead, notifications, notify, unreadCount],
+    () => ({ notifications, unreadCount, notify, markAllRead, dismiss, clear }),
+    [clear, dismiss, markAllRead, notifications, notify, unreadCount],
   );
 }

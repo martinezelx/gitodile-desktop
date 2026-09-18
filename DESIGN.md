@@ -42,6 +42,28 @@ The main desktop window should broadly support:
    - contextual history: Back/Forward stay together with the command controls. They remain visibly disabled until there is history to traverse, then become available without moving the surrounding chrome.
    - center: the remaining native drag region, including double-click maximize/restore.
    - right: window controls (minimize/maximize/close), styled as small rounded buttons inset from the edge rather than full-height square hit targets, so they read as part of the same rounded-corner system as the rest of the UI instead of bolted-on OS chrome.
+   - between the drag region and the window controls: the notification bell — the
+     inbox for "what happened while you were elsewhere", which desktop apps keep
+     in the window furniture rather than in a workspace panel. It carries no
+     number: a count painted over a 16px glyph had no room and, coloured
+     `--status-danger`, said "something is wrong" when it meant "there is
+     something new". An 8px accent dot marks unread and breathes three times on
+     an arrival, then settles; the exact count is the button's accessible name
+     and the panel's rows. The panel has no visible title — the bell already
+     names it — and it is not a menu: each entry is its own card, an unread one
+     carries the dot and a heavier title, and a per-row trash sits in the
+     bottom-right corner, uncovered only while its row is pointed at or
+     focused, so the destructive control is deliberate and the dot never
+     competes for the corner. A footer of two icons — settings on the left,
+     clear-all on the right — keeps the destructive control away from the
+     benign one, and clear-all is disabled while the list is empty. When
+     notifications are off, the panel says so and offers the same switch
+     Settings uses, bound to the same preference, so they can be turned back on
+     without leaving the window. The switch fades out once notifications are
+     back on, but its place is held, so the empty block never resizes under the
+     pointer. The long explanation of what
+     gets reported stays in Settings, where it is the point rather than a
+     paragraph under an empty inbox.
 
 2. **Navigation rail** — a 64px column with no surface of its own: no fill, no
    border, no shadow. The window chrome (titlebar, rail, status bar) is one
@@ -1034,6 +1056,13 @@ Rules:
   sheen or orbit (need room the small cases do not have). Overview's active
   step wears it today; a badge for something new or an update that is ready
   would wear the same one. A surface re-points its colour, never its shape.
+  **The notification dot is the same halo made finite.** `notification-dot-
+  breathe` is a closed set of three breaths rather than an endless loop,
+  because the titlebar is chrome the reader sees all day and a pulse that never
+  ends stops meaning "something happened" and starts meaning "ignore me". It is
+  a second keyframe only because it must carry the dot's surface ring in the
+  same `box-shadow`; it is not a second idea, and it follows the same rule —
+  started in the component only when reduced motion is off.
 
 ## Transparency and native effects
 

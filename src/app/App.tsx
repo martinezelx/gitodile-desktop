@@ -2014,6 +2014,8 @@ export function App(): React.JSX.Element {
           isEnabled={notificationsEnabled}
           onOpened={notificationCenter.markAllRead}
           onClear={notificationCenter.clear}
+          onDismiss={(notification) => notificationCenter.dismiss(notification.id)}
+          onToggleEnabled={setNotificationsEnabled}
           onReviewTeamChanges={reviewTeamChangesFromNotification}
           onReviewAppUpdate={() => setIsAppUpdateOpen(true)}
           onOpenSettings={() => openSettings("notifications")}

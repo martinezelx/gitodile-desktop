@@ -4,28 +4,53 @@
  * second 36px circle: it stands in the same action row as the palette, the
  * history arrows and the theme toggle, and a bell that painted its own hover
  * plate would be the one control in that row that looked different for no
- * reason. Only the badge is new. */
+ * reason. Only the dot is new.
+ *
+ * The dot replaced a numeric badge. A count painted over a 16px glyph had no
+ * room — `border-box` shrank the content to 11px, so 10px digits touched the
+ * ring and "9+" overflowed — and colouring it `--status-danger` turned "there
+ * is news" into "something is wrong". A plain accent dot says the former; the
+ * exact count lives in the panel and in the trigger's accessible name. */
 
 .notification-center { flex-shrink: 0; display: flex; }
 
 /* Anchored to the glyph's top-right corner, not the button's: the button is a
-   36px target around a 16px icon, so a badge on its corner would float in the
+   36px target around a 16px icon, so a dot on its corner would float in the
    padding with nothing to attach to. `pointer-events: none` keeps it out of the
-   click it sits on top of. */
+   click it sits on top of. The ring is the titlebar's own colour so the dot
+   reads as a separate mark where it overlaps the glyph, in both themes. */
 .notification-center__trigger { position: relative; }
-.notification-center__badge {
-  position: absolute; top: 6px; right: 5px;
-  min-width: 15px; height: 15px; padding: 0 4px;
-  display: grid; place-items: center;
-  box-sizing: border-box;
-  border-radius: var(--radius-pill);
-  /* A ring in the titlebar's own colour so the badge reads as a separate chip
-     when it overlaps the glyph, in both themes and at any hover state. */
-  border: 2px solid var(--surface-app);
-  background: var(--status-danger); color: var(--status-danger-contrast);
-  font-size: var(--text-micro); font-weight: var(--weight-title); line-height: var(--leading-none); letter-spacing: var(--tracking-tight);
-  font-variant-numeric: tabular-nums;
+.notification-center__dot {
+  position: absolute; top: 7px; right: 7px;
+  width: 8px; height: 8px;
+  border-radius: var(--radius-round);
+  background: var(--accent-primary-fill);
+  box-shadow: 0 0 0 2px var(--surface-app);
   pointer-events: none;
+}
+
+/* Three breaths on arrival, then still. `animationend` fires once, after the
+   last iteration, so the component can clear its class on the real end. Each
+   breath is shorter than `--attention-duration` because this one is transient:
+   a slow endless halo suits the active step, not a signal that should settle. */
+.notification-center__dot--arrive { animation: notification-dot-breathe 1000ms ease-out 3; }
+
+@keyframes notification-dot-breathe {
+  0% {
+    box-shadow:
+      0 0 0 2px var(--surface-app),
+      0 0 0 0 color-mix(in srgb, var(--accent-primary-fill) 50%, transparent);
+  }
+  60% {
+    box-shadow:
+      0 0 0 2px var(--surface-app),
+      0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px var(--surface-app),
+      0 0 0 0 transparent;
+  }
 }
 
 .notification-center__panel {
@@ -35,60 +60,8 @@
   gap: var(--space-2);
 }
 
-.notification-center__header {
-  display: flex; align-items: center; gap: var(--space-2);
-  padding: 2px 4px 0 var(--space-2);
-}
-.notification-center__header h2 {
-  flex: 1; min-width: 0; margin: 0;
-  font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color);
-}
-.notification-center__header-action {
-  width: 28px; height: 28px; flex-shrink: 0;
-  display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-round);
-  background: transparent; color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.notification-center__header-action svg { width: 14px; height: 14px; }
-.notification-center__header-action:hover:not(:disabled) {
-  background: var(--surface-hover); color: var(--text-primary-color);
-}
-.notification-center__header-action:disabled { opacity: 0.35; }
-
-.notification-center__empty {
-  display: flex; flex-direction: column; gap: var(--space-2);
-  padding: var(--space-3) var(--space-2) var(--space-4);
-  text-align: left;
-}
-.notification-center__empty-title { margin: 0; font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color); }
-.notification-center__empty-description { margin: 0; font-size: var(--text-label); line-height: var(--leading-normal); color: var(--text-secondary-color); }
-
-.notification-center__settings {
-  align-self: flex-start; margin-top: var(--space-1);
-  display: flex; align-items: center; gap: var(--space-2);
-  padding: 6px 12px;
-  border: 1px solid var(--border-control); border-radius: var(--radius-pill);
-  background: var(--surface-control); color: var(--text-primary-color); font-size: var(--text-label);
-}
-.notification-center__settings svg { width: 14px; height: 14px; color: var(--text-secondary-color); }
-.notification-center__settings:hover { background: var(--surface-hover); }
-
-/* Said once above a list that still has content, because an inbox that has
-   stopped accepting post looks identical to a quiet one otherwise. */
-.notification-center__disabled-note {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-  padding: 6px 6px 6px var(--space-2);
-  border-radius: var(--radius-item);
-  background: var(--surface-control);
-}
-.notification-center__disabled-note p { margin: 0; font-size: var(--text-caption); color: var(--text-secondary-color); }
-.notification-center__disabled-note .notification-center__settings {
-  align-self: center; margin-top: 0; flex-shrink: 0; padding: 4px 10px; font-size: var(--text-caption);
-}
-
 .notification-center__list {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 6px;
   margin: 0; padding: 0; list-style: none;
   /* Ten-ish rows before it scrolls. Past that the panel would be taller than
      the shorter windows this app supports. */
@@ -96,27 +69,31 @@
   overflow-y: auto;
 }
 
+/* Each entry is its own card, not a flat list with full-width dividers. The
+   cards are what let the dot and the per-row dismiss share the row without a
+   rule cutting through either. */
 .notification {
+  position: relative;
   display: flex; gap: var(--space-3);
-  padding: var(--space-2) var(--space-2) var(--space-3);
+  padding: 10px var(--space-3);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item);
+  background: var(--surface-panel);
 }
-.notification + .notification { border-top: 1px solid var(--border-divider); }
-/* Deliberately not `--surface-active`. That token is a 12–14% accent wash, and
-   measured on the dark panel it takes `--text-secondary-color` down to 4.42:1 — under
-   AA, and these rows are mostly 11px and 12px secondary text. Ten percent of the
-   accent, mixed opaquely against the panel's own surface, clears it in both
-   themes and still reads as a tint: measured 4.87:1 on dark and 4.69:1 on light
-   for the description and meta lines, 11.96:1 and 15.32:1 for the title.
-
-   The bar is not decoration. Colour alone cannot be the only thing separating an
-   unread row from a read one, so the row carries a shape too, and a screen
-   reader gets the word. `box-shadow` rather than a border, so marking a row read
-   does not shift its text sideways. */
+/* Deliberately a wash, not `--surface-active`. That token is a 12–14% accent
+   wash, and measured on the dark panel it takes `--text-secondary-color` down to
+   4.42:1 — under AA, and these rows are mostly 11px and 12px secondary text.
+   Eight percent mixed opaquely against the raised surface clears it in both
+   themes and still reads as a tint.
+   
+   Colour alone is not the only signal: an unread row also carries the dot and
+   a heavier title, a read one drops to `--weight-medium`, and a screen reader
+   gets the word. */
 .notification--unread {
-  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-raised));
-  box-shadow: inset 2px 0 0 var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, var(--border-subtle));
 }
+.notification--unread .notification__title { font-weight: var(--weight-strong); padding-right: 14px; }
 
 .notification__icon {
   width: 26px; height: 26px; flex-shrink: 0;
@@ -129,10 +106,18 @@
 .notification__icon--success svg { color: var(--status-success); }
 .notification__icon--warning svg { color: var(--status-warning); }
 
+/* The dot sits in the corner the badge left, and the dismiss button lives in
+   the opposite one so the two never compete. */
+.notification__dot {
+  position: absolute; right: 11px; top: 15px;
+  width: 7px; height: 7px; border-radius: var(--radius-round);
+  background: var(--accent-primary-fill);
+}
+
 .notification__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .notification__title {
-  margin: 0; font-size: var(--text-label); font-weight: var(--weight-strong); line-height: var(--leading-snug);
-  color: var(--text-primary-color); overflow-wrap: anywhere;
+  margin: 0; font-size: var(--text-label); font-weight: var(--weight-medium);
+  line-height: var(--leading-snug); color: var(--text-primary-color); overflow-wrap: anywhere;
 }
 .notification__description {
   margin: 0; font-size: var(--text-label); line-height: var(--leading-normal); color: var(--text-secondary-color);
@@ -159,54 +144,119 @@
 }
 .notification__action:hover { background: var(--surface-hover); }
 
+/* Revealed while the row is pointed at or focused; solid where there is no
+   pointer, because a hover-only control is unreachable. Destructive in effect
+   but small: one entry leaves the session list. */
+.notification__dismiss {
+  position: absolute; bottom: 8px; right: 8px;
+  width: 24px; height: 24px; z-index: 1;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  opacity: 0;
+  transition: opacity var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
+}
+.notification__dismiss svg { width: 13px; height: 13px; }
+.notification__dismiss:hover {
+  background: color-mix(in srgb, var(--status-danger) 14%, transparent);
+  color: var(--status-danger);
+}
+.notification:hover .notification__dismiss,
+.notification:focus-within .notification__dismiss,
+.notification:focus-visible .notification__dismiss { opacity: 1; }
+@media (hover: none) { .notification__dismiss { opacity: 1; } }
+
+/* ---- Off, with a list still on screen ---- */
+.notification-center__disabled-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  margin-top: 2px; padding: 10px var(--space-2) 2px;
+  border-top: 1px solid var(--border-divider);
+}
+.notification-center__disabled-copy { flex: 1; min-width: 0; }
+.notification-center__disabled-title {
+  margin: 0; font-size: var(--text-label); font-weight: var(--weight-strong); color: var(--text-primary-color);
+}
+.notification-center__disabled-line {
+  margin: 2px 0 0; font-size: var(--text-caption); line-height: var(--leading-normal); color: var(--text-secondary-color);
+}
+
+/* ---- Empty / off, nothing recorded ---- */
+.notification-center__empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: var(--space-6) var(--space-4) var(--space-5);
+}
+.notification-center__empty-icon {
+  width: 44px; height: 44px; margin-bottom: 14px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color); box-shadow: var(--shadow-sm);
+}
+.notification-center__empty-icon svg { width: 20px; height: 20px; }
+.notification-center__empty-title {
+  margin: 0; font-size: var(--text-title); font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-tight); color: var(--text-primary-color);
+}
+.notification-center__empty-line {
+  margin: 6px 0 0; max-width: 250px;
+  font-size: var(--text-body); line-height: var(--leading-normal); color: var(--text-secondary-color);
+}
+.notification-center__empty-copy { animation: notification-empty-copy-in var(--duration-normal) ease-out; }
+@keyframes notification-empty-copy-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+
+.notification-center__empty-switch {
+  margin-top: 18px;
+  transition: opacity var(--duration-normal) ease, transform var(--duration-normal) ease;
+}
+/* Fades rather than collapsing. The wrapper keeps its height so the panel does
+   not resize, and the component marks it `inert` once it is hidden. */
+.notification-center__empty-switch--hidden {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.96);
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .notification-center__header-action,
-  .notification__action { transition: none; }
+  .notification-center__empty-copy { animation: none; }
+  .notification-center__empty-switch { transition: none; }
+}
+
+/* ---- Footer: two icons, settings left and clear right ---- */
+.notification-center__footer {
+  display: flex; align-items: center; gap: var(--space-1);
+  padding: 6px 2px 2px;
+  border-top: 1px solid var(--border-divider);
+}
+.notification-center__footer-action {
+  width: 28px; height: 28px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.notification-center__footer-action:first-child { margin-right: auto; }
+.notification-center__footer-action svg { width: 14px; height: 14px; }
+.notification-center__footer-action:hover:not(:disabled) {
+  background: var(--surface-hover); color: var(--text-primary-color);
+}
+.notification-center__footer-action--danger:hover:not(:disabled) { color: var(--status-danger); }
+.notification-center__footer-action:disabled { opacity: 0.35; }
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-center__footer-action,
+  .notification__action,
+  .notification__dismiss { transition: none; }
 }
 
 @media (forced-colors: active) {
-  .notification-center__badge { border-color: CanvasText; background: Highlight; color: HighlightText; }
-  .notification--unread { border: 1px solid CanvasText; box-shadow: none; }
+  .notification-center__dot { background: Highlight; box-shadow: 0 0 0 2px Canvas; }
+  .notification--unread { border: 1px solid CanvasText; }
+  .notification-center__empty-icon { border-color: CanvasText; }
 }
 
-/* The bell moves for one reason: something arrived while nobody was looking,
-   which is the only thing this centre exists to report. It is otherwise as
-   still as the buttons beside it, because DESIGN.md § Motion asks motion to
-   communicate a state change rather than decorate, and a bell that stirred on
-   hover would be decorating.
-
-   A press moves nothing either, and NotificationCenter.tsx records why.
-
-   Two swings, damped, then still, pivoting at the crown because a bell swings
-   from where it hangs. Longer than the 120-220ms house range on purpose: that
-   range is for a control answering an interaction, and this one is unprompted —
-   at 200ms an unprompted movement in the corner of the eye registers as a
-   glitch rather than as a bell. */
-.notification-center__bell--ring {
-  transform-origin: 50% 15%;
-  animation: notification-bell-ring 520ms ease-out;
-}
-
-@keyframes notification-bell-ring {
-  0% { transform: rotate(0deg); }
-  15% { transform: rotate(8deg); }
-  35% { transform: rotate(-7deg); }
-  55% { transform: rotate(4deg); }
-  75% { transform: rotate(-2deg); }
-  100% { transform: rotate(0deg); }
-}
-/* The count arriving is itself the news, so it enters rather than appearing.
-   Kept to a scale so it reads as the same badge growing into place, not as a
-   second thing flying in beside the bell. */
-.notification-center__badge { animation: notification-badge-in var(--duration-fast) ease-out; }
-
-@keyframes notification-badge-in {
-  from { opacity: 0; transform: scale(0.4); }
-}
-
-/* Only the badge. The ring is refused in the component instead, because the
-   class that carries it is cleared by `animationend` and a suppressed
-   animation never fires one. */
-@media (prefers-reduced-motion: reduce) {
-  .notification-center__badge { animation: none; }
-}
+/* The dot is refused the breathe in the component instead, because the class
+   that carries it is cleared by `animationend` and a suppressed animation
+   never fires one. */

@@ -6,6 +6,7 @@ import { formatDate, type LocaleFormats } from "../../shared/i18n";
 import {
   autoHideScrollbarProps,
   isReducedMotionRequested,
+  ToggleSwitch,
   usePortalFlyout,
 } from "../../shared/ui";
 import {
@@ -73,6 +74,7 @@ function NotificationRow({
   formats,
   t,
   onAction,
+  onDismiss,
 }: {
   notification: AppNotification;
   wasUnread: boolean;
@@ -80,6 +82,7 @@ function NotificationRow({
   formats: LocaleFormats;
   t: Translations;
   onAction: (notification: AppNotification) => void;
+  onDismiss: (notification: AppNotification) => void;
 }): React.JSX.Element {
   const { title, description } = describe(notification.details, t);
   const tone = NOTIFICATION_KINDS[notification.details.kind].tone;
@@ -88,6 +91,7 @@ function NotificationRow({
 
   return (
     <li className={`notification${wasUnread ? " notification--unread" : ""}`}>
+      {wasUnread && <span className="notification__dot" aria-hidden="true" />}
       <span className={`notification__icon notification__icon--${tone}`}>
         <Icon aria-hidden="true" />
       </span>
@@ -115,6 +119,18 @@ function NotificationRow({
           </button>
         )}
       </div>
+      {/* Uncovered only while the row is pointed at or focused, and destructive
+          only in effect: one entry leaving the session list. It never closes the
+          panel — the reader is usually clearing several. */}
+      <button
+        className="notification__dismiss"
+        type="button"
+        aria-label={t.notificationsDismiss}
+        data-tooltip={t.notificationsDismiss}
+        onClick={() => onDismiss(notification)}
+      >
+        <Trash2 aria-hidden="true" />
+      </button>
     </li>
   );
 }
@@ -123,12 +139,14 @@ export type NotificationCenterProps = {
   notifications: readonly AppNotification[];
   unreadCount: number;
   /** The preference, not a derived state: the panel says out loud that it has
-   * been turned off rather than pretending to be an empty inbox. */
+   * been turned off, and offers the switch that turns it back on. */
   isEnabled: boolean;
   /** Called when the panel opens. The shell marks everything read; the rows
    * keep showing which ones *were* unread until the panel closes again. */
   onOpened: () => void;
   onClear: () => void;
+  onDismiss: (notification: AppNotification) => void;
+  onToggleEnabled: (enabled: boolean) => void;
   onReviewTeamChanges: (notification: AppNotification) => void;
   onReviewAppUpdate: () => void;
   onOpenSettings: () => void;
@@ -142,6 +160,11 @@ export type NotificationCenterProps = {
  * you were elsewhere" — an inbox, which desktop apps keep in the window
  * furniture.
  *
+ * The trigger carries no number. A count painted over a 16px glyph was cramped
+ * and turned a friendly signal into an error-red chip; a plain accent dot says
+ * "there is something new" and the exact count is in the panel and in the
+ * button's accessible name.
+ *
  * The panel is portalled and positioned by `usePortalFlyout` for the same
  * reason the project switcher is: the titlebar is a fixed 44px strip, and an
  * absolutely positioned panel inside it would be clipped by the app window's
@@ -153,6 +176,8 @@ export function NotificationCenter({
   isEnabled,
   onOpened,
   onClear,
+  onDismiss,
+  onToggleEnabled,
   onReviewTeamChanges,
   onReviewAppUpdate,
   onOpenSettings,
@@ -160,7 +185,7 @@ export function NotificationCenter({
   const { t, formats } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   // Frozen at open time. Marking everything read on open is what clears the
-  // badge, but it would also erase the per-row marks in the same frame, so the
+  // dot, but it would also erase the per-row marks in the same frame, so the
   // panel would open showing nothing to look at first. This keeps the marks for
   // as long as the panel that revealed them stays open.
   const [seenUnreadIds, setSeenUnreadIds] = useState<ReadonlySet<string>>(new Set());
@@ -168,61 +193,40 @@ export function NotificationCenter({
   // and a ticking clock behind a closed popup is background work for nothing.
   const [openedAt, setOpenedAt] = useState(0);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  /* The bell moves for exactly one reason: something arrived while nobody was
-   * looking, which is the only thing this centre exists to report.
+  /* The dot moves for exactly one reason: something arrived while nobody was
+   * looking, which is the only thing this centre exists to report. A press
+   * deliberately gets nothing, for the same reason the bell borrows
+   * `.titlebar-icon-button` — it is one of the row, not a special case.
    *
-   * A press deliberately gets nothing. It was built and then removed: the bell
-   * borrows `.titlebar-icon-button` outright so that it reads as one of the
-   * row rather than as a special case, and a bell that answered a press while
-   * the palette, the history arrows and the theme toggle sat still would have
-   * been the one control there behaving differently for no reason the user
-   * could name. Press feedback across that whole row is a decision about the
-   * titlebar, not about notifications.
+   * Breathe on a rise, then settle: three breathes and still, rather than a
+   * permanent pulse in the window furniture. On a rise only — a publish is
+   * recorded already read, and announcing something the user just watched
+   * succeed is how a mark teaches people to ignore it.
    *
-   * On a rise, not on every arrival: a publish is recorded already read, and
-   * announcing something the user just watched succeed is how a badge — or a
-   * gesture — teaches people to ignore it. */
-  const [isRinging, setIsRinging] = useState(false);
-  const previousUnreadCount = useRef(unreadCount);
-  /** Reduced motion means not starting the gesture at all, the same answer
+   * Reduced motion means not starting the gesture at all, the same answer
    * `themeTransition.ts` gives. Decided here rather than in CSS because the
-   * ring's class is cleared by `animationend`, and an animation suppressed to
-   * `none` never ends — the class would stick to the element for the rest of
-   * the session and no later ring could restart it. The badge keeps its own
-   * reduced-motion rule in CSS, because nothing clears that one. */
+   * class is cleared by `animationend`, and an animation suppressed to `none`
+   * never ends — the class would stick to the element for the rest of the
+   * session and no later arrival could restart it. */
+  const [isAnnouncing, setIsAnnouncing] = useState(false);
+  const previousUnreadCount = useRef(unreadCount);
   useEffect(() => {
     const rose = unreadCount > previousUnreadCount.current;
     previousUnreadCount.current = unreadCount;
-    if (rose && !isReducedMotionRequested()) setIsRinging(true);
+    if (rose && !isReducedMotionRequested()) setIsAnnouncing(true);
   }, [unreadCount]);
 
   const close = (restoreFocus: boolean): void => {
     setIsOpen(false);
     if (restoreFocus) triggerRef.current?.focus();
   };
-  // `"container"`, not `"first-control"`: the panel's only header control is
+  // `"container"`, not `"first-control"`: the footer's first control is
   // "Clear all", and landing focus on a destructive button because it happens
   // to be first in the DOM would make Enter — the most reflexive key there is —
   // empty the list someone just opened to read. Focus goes to the panel itself,
   // which is why it carries `tabIndex={-1}`; from there Tab reaches the rows in
   // order.
   const { popupRef, style } = usePortalFlyout(isOpen, triggerRef, close, "below", "container");
-
-  // Declared once and rendered by both branches below: the empty state and a
-  // list that has stopped growing need the identical way back to the switch.
-  const settingsButton = (
-    <button
-      className="notification-center__settings"
-      type="button"
-      onClick={() => {
-        close(false);
-        onOpenSettings();
-      }}
-    >
-      <Settings aria-hidden="true" />
-      <span>{t.notificationsOpenSettings}</span>
-    </button>
-  );
 
   const open = (): void => {
     setSeenUnreadIds(
@@ -232,6 +236,40 @@ export function NotificationCenter({
     setIsOpen(true);
     onOpened();
   };
+
+  const footer = (
+    <div className="notification-center__footer">
+      <button
+        className="notification-center__footer-action"
+        type="button"
+        aria-label={t.notificationsOpenSettings}
+        data-tooltip={t.notificationsOpenSettings}
+        onClick={() => {
+          close(false);
+          onOpenSettings();
+        }}
+      >
+        <Settings aria-hidden="true" />
+      </button>
+      <button
+        className="notification-center__footer-action notification-center__footer-action--danger"
+        type="button"
+        disabled={notifications.length === 0}
+        aria-label={t.notificationsClear}
+        data-tooltip={t.notificationsClear}
+        onClick={() => {
+          onClear();
+          // Clearing disables the button the pointer or the keyboard was just
+          // on. Without this the focus falls to `<body>` and Tab restarts from
+          // the top of the document instead of continuing inside the panel that
+          // is still open.
+          popupRef.current?.focus();
+        }}
+      >
+        <Trash2 aria-hidden="true" />
+      </button>
+    </div>
+  );
 
   return (
     <div className="notification-center">
@@ -245,18 +283,18 @@ export function NotificationCenter({
         data-tooltip={t.notificationsTitle}
         onClick={() => (isOpen ? close(true) : open())}
       >
-        <Bell
-          aria-hidden="true"
-          className={isRinging ? "notification-center__bell--ring" : undefined}
-          // Cleared on the animation itself rather than on a timer, so the class
-          // goes exactly when the animation does and a later ring starts from a
-          // clean element instead of a name that never left.
-          onAnimationEnd={() => setIsRinging(false)}
-        />
+        <Bell aria-hidden="true" />
         {unreadCount > 0 && (
-          <span className="notification-center__badge" aria-hidden="true">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
+          <span
+            className={`notification-center__dot${
+              isAnnouncing ? " notification-center__dot--arrive" : ""
+            }`}
+            aria-hidden="true"
+            // The class goes exactly when the animation does, so a later arrival
+            // starts from a clean element instead of a name that never left.
+            // `animationend` fires once, after the last of the three breathes.
+            onAnimationEnd={() => setIsAnnouncing(false)}
+          />
         )}
       </button>
       {isOpen && createPortal(
@@ -268,73 +306,87 @@ export function NotificationCenter({
           aria-label={t.notificationsPanelAriaLabel}
           style={style}
         >
-          <header className="notification-center__header">
-            <h2>{t.notificationsTitle}</h2>
-            <button
-              className="notification-center__header-action"
-              type="button"
-              disabled={notifications.length === 0}
-              aria-label={t.notificationsClear}
-              data-tooltip={t.notificationsClear}
-              onClick={() => {
-                onClear();
-                // Clearing disables the button the pointer or the keyboard was
-                // just on. Without this the focus falls to `<body>` and Tab
-                // restarts from the top of the document instead of continuing
-                // inside the panel that is still open.
-                popupRef.current?.focus();
-              }}
+          {notifications.length > 0 && (
+            <ul
+              {...autoHideScrollbarProps<HTMLUListElement>()}
+              className="notification-center__list auto-hide-scrollbar"
+              aria-label={t.notificationsListAriaLabel}
             >
-              <Trash2 aria-hidden="true" />
-            </button>
-          </header>
-
-          {notifications.length === 0 ? (
-            <div className="notification-center__empty">
-              <p className="notification-center__empty-title">
-                {isEnabled ? t.notificationsEmptyTitle : t.notificationsDisabledTitle}
-              </p>
-              <p className="notification-center__empty-description">
-                {isEnabled ? t.notificationsEmptyDescription : t.notificationsDisabledDescription}
-              </p>
-              {!isEnabled && settingsButton}
-            </div>
-          ) : (
-            <>
-              {/* A list that already has entries still has to say when it has
-                  stopped growing, or a turned-off centre looks like a quiet
-                  one — and it needs the same way back to the switch that the
-                  empty state offers, or the reader is told about a setting with
-                  no route to it. */}
-              {!isEnabled && (
-                <div className="notification-center__disabled-note">
-                  <p>{t.notificationsDisabledTitle}</p>
-                  {settingsButton}
-                </div>
-              )}
-              <ul
-                {...autoHideScrollbarProps<HTMLUListElement>()}
-                className="notification-center__list auto-hide-scrollbar"
-                aria-label={t.notificationsListAriaLabel}
-              >
-                {notifications.map((notification) => (
-                  <NotificationRow
-                    key={notification.id}
-                    notification={notification}
-                    wasUnread={seenUnreadIds.has(notification.id)}
-                    now={openedAt}
-                    formats={formats}
-                    t={t}
-                    onAction={(entry) => {
-                      close(false);
-                      if (notificationAction(entry) === "reviewAppUpdate") onReviewAppUpdate();
-                      else onReviewTeamChanges(entry);
-                    }}
-                  />
-                ))}
-              </ul>
-            </>
+              {notifications.map((notification) => (
+                <NotificationRow
+                  key={notification.id}
+                  notification={notification}
+                  wasUnread={seenUnreadIds.has(notification.id)}
+                  now={openedAt}
+                  formats={formats}
+                  t={t}
+                  onAction={(entry) => {
+                    close(false);
+                    if (notificationAction(entry) === "reviewAppUpdate") onReviewAppUpdate();
+                    else onReviewTeamChanges(entry);
+                  }}
+                  onDismiss={onDismiss}
+                />
+              ))}
+            </ul>
           )}
+
+          {/* A list that has stopped growing still has to say why, and a list
+              that is empty has to say something other than nothing. Either way
+              the same switch is the way back, and it is the control Settings
+              uses, bound to the same preference. */}
+          {!isEnabled && notifications.length > 0 && (
+            <div className="notification-center__disabled-row">
+              <div className="notification-center__disabled-copy">
+                <p className="notification-center__disabled-title">{t.notificationsDisabledTitle}</p>
+                <p className="notification-center__disabled-line">{t.notificationsDisabledLine}</p>
+              </div>
+              <ToggleSwitch
+                label={t.notificationsEnableLabel}
+                checked={isEnabled}
+                onChange={onToggleEnabled}
+              />
+            </div>
+          )}
+
+          {notifications.length === 0 && (
+            <div className="notification-center__empty">
+              <span className="notification-center__empty-icon">
+                <Bell aria-hidden="true" />
+              </span>
+              {/* Keyed so the words fade in rather than snapping when the
+                  switch flips; the block's height is held by the switch wrapper
+                  below, so only the copy changes. */}
+              <div className="notification-center__empty-copy" key={isEnabled ? "on" : "off"}>
+                <p className="notification-center__empty-title">
+                  {isEnabled ? t.notificationsEmptyTitle : t.notificationsDisabledTitle}
+                </p>
+                <p className="notification-center__empty-line">
+                  {isEnabled ? t.notificationsEmptyLine : t.notificationsDisabledLine}
+                </p>
+              </div>
+              {/* Hidden once notifications are on, but kept mounted: a control
+                  that vanishes under the pointer makes the block jump, and the
+                  style guard will not let a layout change be eased. So the
+                  wrapper holds the switch's height in both states and only
+                  fades it out, and `inert` takes the hidden control out of the
+                  tab order and the accessibility tree. */}
+              <div
+                className={`notification-center__empty-switch${
+                  isEnabled ? " notification-center__empty-switch--hidden" : ""
+                }`}
+                inert={isEnabled}
+              >
+                <ToggleSwitch
+                  label={t.notificationsEnableLabel}
+                  checked={isEnabled}
+                  onChange={onToggleEnabled}
+                />
+              </div>
+            </div>
+          )}
+
+          {footer}
         </div>,
         document.body,
       )}

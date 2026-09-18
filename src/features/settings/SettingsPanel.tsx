@@ -34,7 +34,7 @@ import {
   type DateFormatPreference,
   type NumberFormatPreference,
 } from "../../shared/i18n";
-import { autoHideScrollbarProps, moveFocusWithinRadioGroup } from "../../shared/ui";
+import { autoHideScrollbarProps, moveFocusWithinRadioGroup, ToggleSwitch } from "../../shared/ui";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
@@ -1899,31 +1899,5 @@ export function SettingsPanel({
         {activeSection === "updates" && applicationUpdates}
       </div>
     </div>
-  );
-}
-
-/** A labelled on/off switch. Private to this panel: it is the only surface with
- * true/false preferences, and `.toggle-switch` in `primitives.css` is the part
- * that was ever worth sharing. */
-function ToggleSwitch({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      className={`toggle-switch${checked ? " toggle-switch--on" : ""}`}
-      onClick={() => onChange(!checked)}
-    >
-      <span className="toggle-switch__knob" />
-    </button>
   );
 }

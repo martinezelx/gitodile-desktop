@@ -8,9 +8,10 @@ export interface NotificationsTranslations {
   notificationsListAriaLabel: string;
   notificationsClear: string;
   notificationsEmptyTitle: string;
-  notificationsEmptyDescription: string;
+  notificationsEmptyLine: string;
   notificationsDisabledTitle: string;
-  notificationsDisabledDescription: string;
+  notificationsDisabledLine: string;
+  notificationsDismiss: string;
   notificationsOpenSettings: string;
   notificationsUnreadLabel: string;
   notificationsJustNow: string;
@@ -37,12 +38,11 @@ const en: NotificationsTranslations = {
   notificationsPanelAriaLabel: "Notifications",
   notificationsListAriaLabel: "Recent notifications",
   notificationsClear: "Clear all",
-  notificationsEmptyTitle: "Nothing to report",
-  notificationsEmptyDescription:
-    "GitOdile tells you here when newer project versions turn up, when a newer version of the app is available, or when an automatic check cannot reach the remote project.",
-  notificationsDisabledTitle: "Notifications are turned off",
-  notificationsDisabledDescription:
-    "GitOdile is not recording anything new. Turn notifications back on to hear about project changes and failed checks.",
+  notificationsEmptyTitle: "All caught up",
+  notificationsEmptyLine: "News shows up here.",
+  notificationsDisabledTitle: "Notifications are off",
+  notificationsDisabledLine: "Turn them on to get alerts.",
+  notificationsDismiss: "Delete notification",
   notificationsOpenSettings: "Open notification settings",
   notificationsUnreadLabel: "Unread",
   notificationsJustNow: "just now",
@@ -72,12 +72,11 @@ const es: NotificationsTranslations = {
   notificationsPanelAriaLabel: "Notificaciones",
   notificationsListAriaLabel: "Notificaciones recientes",
   notificationsClear: "Borrar todo",
-  notificationsEmptyTitle: "Nada que contar",
-  notificationsEmptyDescription:
-    "GitOdile te avisa aquí cuando aparecen versiones nuevas del proyecto, cuando hay una versión nueva de la aplicación o cuando una comprobación automática no puede conectar con el proyecto remoto.",
-  notificationsDisabledTitle: "Las notificaciones están desactivadas",
-  notificationsDisabledDescription:
-    "GitOdile no está registrando nada nuevo. Vuelve a activarlas para enterarte de los cambios del proyecto y de las comprobaciones fallidas.",
+  notificationsEmptyTitle: "Todo al día",
+  notificationsEmptyLine: "Aquí verás las novedades.",
+  notificationsDisabledTitle: "Notificaciones desactivadas",
+  notificationsDisabledLine: "Actívalas para recibir avisos.",
+  notificationsDismiss: "Eliminar notificación",
   notificationsOpenSettings: "Abrir ajustes de notificaciones",
   notificationsUnreadLabel: "Sin leer",
   notificationsJustNow: "ahora mismo",

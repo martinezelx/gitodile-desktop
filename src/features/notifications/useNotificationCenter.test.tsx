@@ -83,4 +83,23 @@ describe("the notification store", () => {
 
     expect(result.current.notifications).toHaveLength(0);
   });
+
+  it("removes one entry on dismiss and leaves the rest in place", () => {
+    const { result } = renderHook(() => useNotificationCenter(true));
+
+    act(() => {
+      result.current.notify(teamChanges);
+      result.current.notify({
+        details: { kind: "changesPublished", versionCount: 1, destination: null },
+        projectId: "/projects/beta",
+        projectName: "beta",
+      });
+    });
+
+    const [newest, oldest] = result.current.notifications;
+    act(() => result.current.dismiss(newest!.id));
+
+    expect(result.current.notifications).toHaveLength(1);
+    expect(result.current.notifications[0]?.id).toBe(oldest?.id);
+  });
 });

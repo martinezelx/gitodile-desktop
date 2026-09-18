@@ -658,7 +658,7 @@ describe("App project restoration", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
     const panel = screen.getByRole("dialog", { name: "Notifications" });
-    expect(within(panel).getByText("Nothing to report")).toBeInTheDocument();
+    expect(within(panel).getByText("All caught up")).toBeInTheDocument();
   });
 
   it("opens the collapsed-rail jump menu on hover without taking the caret", async () => {

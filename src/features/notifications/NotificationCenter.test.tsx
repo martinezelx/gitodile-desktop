@@ -33,6 +33,8 @@ function renderCentre(overrides: Partial<React.ComponentProps<typeof Notificatio
     isEnabled: true,
     onOpened: vi.fn(),
     onClear: vi.fn(),
+    onDismiss: vi.fn(),
+    onToggleEnabled: vi.fn(),
     onReviewTeamChanges: vi.fn(),
     onReviewAppUpdate: vi.fn(),
     onOpenSettings: vi.fn(),
@@ -64,16 +66,18 @@ describe("the titlebar notification centre", () => {
     );
   });
 
-  it("shows a badge only while something is unread", () => {
+  it("shows the accent dot only while something is unread, and no number", () => {
     const { rerender, props } = renderCentre({ unreadCount: 2 });
-    expect(screen.getByRole("button", { name: /2 unread/ }).textContent).toContain("2");
+    expect(document.querySelector(".notification-center__dot")).not.toBeNull();
+    // The count is gone from the glyph; only the accessible name carries it.
+    expect(screen.getByRole("button", { name: /2 unread/ }).textContent).toBe("");
 
     rerender(
       <LanguageProvider>
         <NotificationCenter {...props} unreadCount={0} />
       </LanguageProvider>,
     );
-    expect(screen.getByRole("button", { name: "Notifications" }).textContent).toBe("");
+    expect(document.querySelector(".notification-center__dot")).toBeNull();
   });
 
   it("marks everything read when the panel opens, and keeps showing which rows were unread", async () => {
@@ -151,33 +155,89 @@ describe("the titlebar notification centre", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("says it is switched off rather than pretending to be empty", async () => {
-    const onOpenSettings = vi.fn();
-    renderCentre({ isEnabled: false, onOpenSettings });
+  it("removes a single entry without closing the panel", async () => {
+    const onDismiss = vi.fn();
+    const notification = entry(teamChanges);
+    renderCentre({ notifications: [notification], unreadCount: 1, onDismiss });
+
+    await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
+    const panel = screen.getByRole("dialog", { name: "Notifications" });
+    await userEvent.click(within(panel).getByRole("button", { name: "Delete notification" }));
+
+    expect(onDismiss).toHaveBeenCalledWith(notification);
+    expect(screen.getByRole("dialog", { name: "Notifications" })).toBeInTheDocument();
+  });
+
+  it("turns notifications back on from the panel, with the switch Settings uses", async () => {
+    const onToggleEnabled = vi.fn();
+    renderCentre({ isEnabled: false, onToggleEnabled });
 
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
     const panel = screen.getByRole("dialog", { name: "Notifications" });
-    expect(within(panel).getByText("Notifications are turned off")).toBeInTheDocument();
+    expect(within(panel).getByText("Notifications are off")).toBeInTheDocument();
 
-    await userEvent.click(within(panel).getByRole("button", { name: "Open notification settings" }));
+    const toggle = within(panel).getByRole("switch", { name: "Enable notifications" });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    await userEvent.click(toggle);
+
+    expect(onToggleEnabled).toHaveBeenCalledWith(true);
+    // The panel stays open, because turning it on is not a navigation.
+    expect(screen.getByRole("dialog", { name: "Notifications" })).toBeInTheDocument();
+  });
+
+  it("still says it is switched off below a list it has stopped adding to, with the same way back", async () => {
+    const onToggleEnabled = vi.fn();
+    renderCentre({
+      isEnabled: false,
+      notifications: [entry(teamChanges, true)],
+      onToggleEnabled,
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+
+    const panel = screen.getByRole("dialog", { name: "Notifications" });
+    expect(within(panel).getByText("Notifications are off")).toBeInTheDocument();
+    expect(within(panel).getByRole("list", { name: "Recent notifications" })).toBeInTheDocument();
+
+    // Telling someone about a setting without a route to it is the bug this
+    // covers: the note used to appear here with no control beside it.
+    await userEvent.click(within(panel).getByRole("switch", { name: "Enable notifications" }));
+    expect(onToggleEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("keeps the settings route in the footer when the list is empty", async () => {
+    const onOpenSettings = vi.fn();
+    renderCentre({ onOpenSettings });
+
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Open notification settings" }),
+    );
+
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("still says it is switched off above a list it has stopped adding to, with the same way back", async () => {
-    const onOpenSettings = vi.fn();
-    renderCentre({ isEnabled: false, notifications: [entry(teamChanges, true)], onOpenSettings });
-
+  it("hides the switch, without removing it, once notifications are on", async () => {
+    const { rerender, props } = renderCentre({ isEnabled: true });
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
 
-    const panel = screen.getByRole("dialog", { name: "Notifications" });
-    expect(within(panel).getByText("Notifications are turned off")).toBeInTheDocument();
-    expect(within(panel).getByRole("list", { name: "Recent notifications" })).toBeInTheDocument();
+    // The wrapper holds the switch's place so the empty block does not resize
+    // when it flips; `inert` takes the hidden control out of the tab order and
+    // the accessibility tree.
+    let wrapper = document.querySelector(".notification-center__empty-switch");
+    expect(wrapper).not.toBeNull();
+    expect(wrapper).toHaveAttribute("inert");
+    expect(wrapper?.className).toContain("notification-center__empty-switch--hidden");
 
-    // Telling someone about a setting without a route to it is the bug this
-    // covers: the note used to appear here with no button beside it.
-    await userEvent.click(within(panel).getByRole("button", { name: "Open notification settings" }));
-    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    rerender(
+      <LanguageProvider>
+        <NotificationCenter {...props} isEnabled={false} />
+      </LanguageProvider>,
+    );
+    wrapper = document.querySelector(".notification-center__empty-switch");
+    expect(wrapper).not.toHaveAttribute("inert");
+    expect(wrapper?.className).not.toContain("notification-center__empty-switch--hidden");
   });
 
   it("hands focus to the panel when Clear is pressed", async () => {
@@ -242,17 +302,15 @@ describe("the titlebar notification centre", () => {
     expect(rows[1]?.textContent).toContain("Published 1 saved version");
   });
 
-  /** The movement itself is CSS. These assert when the bell is asked to move
-   * and when it must not, which is the part with decisions in it. */
-  function bellClass(): string {
-    return (
-      screen.getByRole("button", { name: /notification/i }).querySelector("svg")!.getAttribute("class") ?? ""
-    );
+  /** The movement itself is CSS. These assert when the dot is asked to move and
+   * when it must not, which is the part with decisions in it. */
+  function dotClass(): string {
+    return document.querySelector(".notification-center__dot")?.className ?? "";
   }
 
-  it("rings when the unread count rises", () => {
+  it("breathes when the unread count rises", () => {
     const { rerender } = renderCentre({ unreadCount: 0 });
-    expect(bellClass()).not.toContain("ring");
+    expect(dotClass()).not.toContain("notification-center__dot--arrive");
 
     rerender(
       <LanguageProvider>
@@ -262,6 +320,8 @@ describe("the titlebar notification centre", () => {
           isEnabled
           onOpened={vi.fn()}
           onClear={vi.fn()}
+          onDismiss={vi.fn()}
+          onToggleEnabled={vi.fn()}
           onReviewTeamChanges={vi.fn()}
           onReviewAppUpdate={vi.fn()}
           onOpenSettings={vi.fn()}
@@ -269,20 +329,22 @@ describe("the titlebar notification centre", () => {
       </LanguageProvider>,
     );
 
-    expect(bellClass()).toContain("notification-center__bell--ring");
+    expect(dotClass()).toContain("notification-center__dot--arrive");
   });
 
-  it("does not ring when the unread count only falls", () => {
+  it("does not breathe when the unread count only falls", () => {
     const { rerender } = renderCentre({ unreadCount: 3 });
 
     rerender(
       <LanguageProvider>
         <NotificationCenter
           notifications={[]}
-          unreadCount={0}
+          unreadCount={1}
           isEnabled
           onOpened={vi.fn()}
           onClear={vi.fn()}
+          onDismiss={vi.fn()}
+          onToggleEnabled={vi.fn()}
           onReviewTeamChanges={vi.fn()}
           onReviewAppUpdate={vi.fn()}
           onOpenSettings={vi.fn()}
@@ -291,31 +353,30 @@ describe("the titlebar notification centre", () => {
     );
 
     // Reading the pile is not news. Only a rise is.
-    expect(bellClass()).not.toContain("ring");
+    expect(dotClass()).not.toContain("notification-center__dot--arrive");
   });
 
   it("stays still when pressed, like every other control in its row", async () => {
     const user = userEvent.setup();
-    renderCentre({ unreadCount: 0 });
+    renderCentre({ unreadCount: 1 });
 
     await user.click(screen.getByRole("button", { name: /notification/i }));
 
     // A press gesture was built and removed on purpose: the bell borrows
     // `.titlebar-icon-button` so that it reads as one of the row, and it was
     // the only control there answering a press. This keeps it that way.
-    expect(bellClass()).not.toContain("notification-center__bell--");
+    expect(dotClass()).not.toContain("notification-center__dot--arrive");
   });
 
-  /* The ring's class is cleared by `animationend`, and that cannot be asserted
+  /* The arrival class is cleared by `animationend`, and that cannot be asserted
    * here: jsdom never delivers the event to a React handler, even dispatched
    * natively and bubbling — verified with a scratch probe before this comment
    * was written. A test would assert a listener that never fires and pass for
    * the wrong reason, which is the failure mode task 101 was about. The
-   * clearing is verified in a running browser instead, and recorded in the
-   * task. What is testable here is the reason the clearing can be trusted to
-   * happen: the ring is only ever started when an animation will actually
-   * run. */
-  it("does not ring at all under reduced motion", () => {
+   * clearing is verified in a running browser instead. What is testable here is
+   * the reason the clearing can be trusted to happen: the gesture is only ever
+   * started when an animation will actually run. */
+  it("does not breathe at all under the operating system's reduced motion", () => {
     // Defined rather than spied: jsdom has no `matchMedia` to spy on.
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
@@ -332,6 +393,8 @@ describe("the titlebar notification centre", () => {
           isEnabled
           onOpened={vi.fn()}
           onClear={vi.fn()}
+          onDismiss={vi.fn()}
+          onToggleEnabled={vi.fn()}
           onReviewTeamChanges={vi.fn()}
           onReviewAppUpdate={vi.fn()}
           onOpenSettings={vi.fn()}
@@ -341,12 +404,12 @@ describe("the titlebar notification centre", () => {
 
     // Suppressing the animation in CSS instead would leave the class with
     // nothing to clear it, stuck for the rest of the session.
-    expect(bellClass()).not.toContain("notification-center__bell--");
+    expect(dotClass()).not.toContain("notification-center__dot--arrive");
 
     Reflect.deleteProperty(window, "matchMedia");
   });
 
-  it("does not ring when GitOdile's reduced-motion setting is on", () => {
+  it("does not breathe when GitOdile's reduced-motion setting is on", () => {
     document.documentElement.dataset.reducedMotion = "true";
     const { rerender } = renderCentre({ unreadCount: 0 });
 
@@ -358,6 +421,8 @@ describe("the titlebar notification centre", () => {
           isEnabled
           onOpened={vi.fn()}
           onClear={vi.fn()}
+          onDismiss={vi.fn()}
+          onToggleEnabled={vi.fn()}
           onReviewTeamChanges={vi.fn()}
           onReviewAppUpdate={vi.fn()}
           onOpenSettings={vi.fn()}
@@ -365,6 +430,6 @@ describe("the titlebar notification centre", () => {
       </LanguageProvider>,
     );
 
-    expect(bellClass()).not.toContain("notification-center__bell--");
+    expect(dotClass()).not.toContain("notification-center__dot--arrive");
   });
 });

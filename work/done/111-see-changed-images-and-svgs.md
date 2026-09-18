@@ -300,10 +300,11 @@ on the cut to the sub-pixel (verified at several positions in the browser). It
 is also centred on the boundary rather than starting at it, so 2px of rule does
 not read as 2px of the new version leaking across.
 
-`diffPanelHeight` in
-[`PendingVersionsSection.tsx`](../../src/features/overview/PendingVersionsSection.tsx)
-sized every non-text diff at 120px, which is a slot, not a viewport. An image —
-and an SVG, which opens on its drawing — now gets 380px there.
+Image sizing now lives with the picture diff in
+[`pictureDiff.tsx`](../../src/features/changes/pictureDiff.tsx), which replaced
+the overview section this task first built it in. Every non-text diff was once
+sized at a flat 120px, which is a slot, not a viewport; the preview is now
+contained and capped at 320px in `changes.css`.
 
 No CSP or capability change was needed: `img-src` already allowed `data:`.
 
