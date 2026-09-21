@@ -702,6 +702,26 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Next change" })).toBeDisabled();
   });
 
+  it("finds text in the open difference, and its one X closes the find", async () => {
+    renderPanel();
+    await screen.findByText("after one");
+
+    // The find is an icon until asked for, so it spends no width at rest.
+    expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Search in the selected file difference" }));
+
+    await userEvent.type(screen.getByPlaceholderText("Search in diff"), "fifty");
+    await waitFor(() =>
+      expect(document.querySelector(".diff-search-match")).toHaveTextContent("fifty"),
+    );
+
+    // The pill's single X ends the find and clears the highlight with it.
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search in the selected file difference" })).toBeInTheDocument();
+    expect(document.querySelector(".diff-search-match")).toBeNull();
+  });
+
   it("switches the diff to the side-by-side view and keeps the choice across files", async () => {
     const { container } = render(
       <LanguageProvider>

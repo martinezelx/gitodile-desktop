@@ -16,6 +16,8 @@ export interface ChangesTranslations {
   changesDiffLoadingTitle: string;
   changesDiffErrorTitle: string;
   changesDiffRetry: string;
+  changesSearchDiffPlaceholder: string;
+  changesSearchDiffAriaLabel: string;
   changesDiffBinaryTitle: string;
   changesDiffBinaryDescription: string;
   changesImageLoading: string;
@@ -180,6 +182,8 @@ const en: ChangesTranslations = {
   changesDiffLoadingTitle: "Reading the difference…",
   changesDiffErrorTitle: "We couldn’t read this file’s difference",
   changesDiffRetry: "Try again",
+  changesSearchDiffPlaceholder: "Search in diff",
+  changesSearchDiffAriaLabel: "Search in the selected file difference",
   changesDiffBinaryTitle: "This file can’t be previewed as text",
   changesDiffBinaryDescription: "GitOdile can tell this file changed, but its contents aren’t readable as text.",
   changesImageLoading: "Opening the picture…",
@@ -365,6 +369,8 @@ const es: ChangesTranslations = {
   changesDiffLoadingTitle: "Leyendo la diferencia…",
   changesDiffErrorTitle: "No pudimos leer la diferencia de este archivo",
   changesDiffRetry: "Reintentar",
+  changesSearchDiffPlaceholder: "Buscar en la diferencia",
+  changesSearchDiffAriaLabel: "Buscar en la diferencia del archivo seleccionado",
   changesDiffBinaryTitle: "Este archivo no se puede previsualizar como texto",
   changesDiffBinaryDescription: "GitOdile detecta que este archivo cambió, pero su contenido no es legible como texto.",
   changesImageLoading: "Abriendo la imagen…",

@@ -633,7 +633,7 @@ second panel 44px of window width before the other. Four values in
 | Token | What it is |
 | --- | --- |
 | `--panel-column` | The list column's grid track, with `--panel-column-narrow` below 1200px |
-| `--strip-height` | A panel's own strip: the row control in it plus 10px of air above and below. The History card's tab band is one |
+| `--strip-height` | A panel's own strip: the row control in it plus 10px of air above and below. Each panel's header is one |
 | `--strip-height-inner` | A strip *inside* a panel — the History workspace's file and diff panes — one step quieter |
 
 Lines pairs those two panels too, and reads at the same density as the screens
@@ -649,6 +649,16 @@ identity header — the name and its actions on one row, where the line lives an
 who last saved to it on the row under them — then two sections separated by a
 hairline, where the line stands and the versions on it, and a footer leading to
 History. A card inside a card is two borders describing one thing.
+
+**The quick switch states a line's actions where the line is.** Each row carries
+an always-visible `⋯` — not a hover-only affordance — that shows that line's
+actions in place of the list: merging it into the current line, rebasing the
+current line onto it, and comparing the two. Each names both ends so the
+direction is never inferred. None is enabled yet — the flows are not built — so
+each is stated, disabled and marked `Soon` rather than hidden. Renaming and
+deleting a line stay on the Lines screen; the row's menu does not duplicate
+them. They replace the list inside the popup rather than opening a nested menu,
+because that popup clips its overflow and dismisses on a press outside itself.
 
 **The panel does not scroll; the section that can outgrow it does.** Where a
 line stands is three lines that never grow, and a panel that scrolls as a whole
@@ -1286,13 +1296,30 @@ checkbox: the rail already names the screen with that glyph, and the
 checkbox is what heads this column — at the rows' own inset, with the title
 starting where a file name starts, so the header reads as the column's
 first row (GitHub Desktop heads its list the same way) and the search box
-takes the whole of the strip below. History follows with the same two headers. The heading's state is the band's own breakdown
+takes the whole of the strip below. **History follows the same shape.** Its
+timeline panel wears the same card header — the title, and the scope as a chip
+at its trailing edge, removable where it is stated, with the loaded-version
+count gone — and its search strip steps down to `--strip-height-inner`. The
+card is a single surface: the version strip carries the subject and its facts
+(author, time, short commit, publication, file count) at `--strip-height`; its
+trailing `Details` opens the story (the full message, what the diff is compared
+against, and the commit's facts) without displacing the diff; and `⋮ More`
+carries the version's actions. There are no tabs: the file list and the diff
+are always the working surface, and the reading controls — the two step pairs,
+a find that expands from its icon, and the view picker — live in one toolbar
+across the whole card, over both panes, with the file search stepped down into
+its own pane so that toolbar keeps a whole row's width at any window size.
+Renaming and deleting a line stay on the Lines screen rather than being
+duplicated in every menu. The heading's state is the band's own breakdown
 — the rows' category glyphs, in the rows' colours, "1 edited · 1 new" — so a
 reader who arrives from the Changes tile reads the same fact in the same
 shape; the selection is named only while it is partial ("4 of 7 selected"),
 because "7 of 7" is a mark that says nothing. The open file's category in
 the diff header is the same glyph with the word beside it rather than a
 pill: a third shape for one fact the row and the band already draw alike.
+The diff strip also carries History's find — one shared control — so a search
+inside the open difference is the same gesture, in the same place, on either
+screen.
 The "everything is saved" state's circle is the band's done tile, light fill
 and no shadow, since nothing there rests on anything. A checked checkbox —
 the app's one definition, `.app-checkbox` — is that same light fill with the

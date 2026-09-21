@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
 import { createHistoryController } from "./controller";
-import type { HistoryPage, HistoryState, SavedVersionDetail, SavedVersionSummary } from "./domain";
+import type { HistoryDecoration, HistoryPage, HistoryState, SavedVersionDetail, SavedVersionSummary } from "./domain";
+import { primaryDecoration } from "./HistoryRefBadge";
 import { HistoryPanel, type HistoryLineActions } from "./HistoryPanel";
 import { CURRENT_LINE_SCOPE, NO_HISTORY_FILTERS } from "./port";
 import { formatHistoryDate } from "./formatHistoryDate";
@@ -265,77 +266,59 @@ describe("HistoryPanel", () => {
     if (!selectedRow) throw new Error("selected timeline row was not rendered");
     expect(within(selectedRow).queryByText(selected.shortCommit)).not.toBeInTheDocument();
     expect(within(selectedRow).queryByText("Published")).not.toBeInTheDocument();
+    // The row is the subject, the author and the time — no reference badge.
+    expect(selectedRow.querySelector(".history-ref-badge")).toBeNull();
     const detailRegion = screen.getByRole("region", { name: selected.subject });
-    expect(within(detailRegion).getByText(selected.shortCommit)).toBeInTheDocument();
+    // The strip is the subject, the author and the reference that points here;
+    // the hash and the publication state move behind Details, closed by default.
+    expect(within(detailRegion).getByText(selected.author!.name)).toBeInTheDocument();
+    expect(detailRegion.querySelector(".history-detail__strip .history-ref-badge")).toHaveTextContent("v2.0");
+    expect(within(detailRegion).queryByText(selected.commit)).not.toBeInTheDocument();
+    fireEvent.click(within(detailRegion).getByRole("button", { name: "Details" }));
+    expect(within(detailRegion).getByText(selected.commit)).toBeInTheDocument();
     expect(within(detailRegion).getByText("Published")).toBeInTheDocument();
-    expect(within(detailRegion).getByText("v2.0")).toBeInTheDocument();
     expect(within(detailRegion).queryByText("main")).not.toBeInTheDocument();
     expect(detailRegion.querySelector(".history-file__type img")).toBeInTheDocument();
   });
 
-  it("prefers the tag, then the checked-out line, over every other reference", () => {
-    const base = state(5);
-    const [tip, released, sibling, remote, plain] = base.versions;
-    const { container } = renderPanel({
-      ...base,
-      versions: [
-        {
-          ...tip,
-          // The shape this repository's own tip has: two local lines and a
-          // remote one on a single commit, sorted by name the way Rust sends
-          // them, with the checked-out one *not* sorting first.
-          decorations: [
-            { kind: "head", name: "HEAD", fullRef: "HEAD" },
-            { kind: "localBranch", name: "codex/app-shell", fullRef: "refs/heads/codex/app-shell" },
-            { kind: "localBranch", name: "main", fullRef: "refs/heads/main" },
-            { kind: "remoteBranch", name: "origin/main", fullRef: "refs/remotes/origin/main" },
-          ],
-        },
-        {
-          ...released,
-          decorations: [
-            { kind: "localBranch", name: "release/1.0", fullRef: "refs/heads/release/1.0" },
-            { kind: "tag", name: "v1.0.0", fullRef: "refs/tags/v1.0.0" },
-          ],
-        },
-        { ...sibling, decorations: [{ kind: "localBranch", name: "codex/app-shell", fullRef: "refs/heads/codex/app-shell" }] },
-        { ...remote, decorations: [{ kind: "remoteBranch", name: "origin/legacy", fullRef: "refs/remotes/origin/legacy" }] },
-        { ...plain, decorations: [] },
-      ],
-    });
-    const rows = container.querySelectorAll<HTMLButtonElement>(".history-row");
+  it("picks one reference per version: a tag first, the checked-out line over its siblings, a remote last", () => {
+    const [tip, released, sibling, remote, plain] = state(5).versions;
+    const ref = (kind: HistoryDecoration["kind"], name: string): HistoryDecoration => ({ kind, name, fullRef: `refs/${name}` });
 
-    // With no tag in play the checked-out line wins the row, even though a
-    // sibling line sorts first, and it outranks both the synthetic HEAD
-    // marker, which names no line, and the remote ref that repeats it.
-    const current = rows[0].querySelector(".history-ref-badge");
-    expect(current).toHaveTextContent("main");
-    expect(current).toHaveClass("history-ref-badge--current");
-    expect(current).toHaveAttribute("title", "Version line main — refs/heads/main");
-    expect(rows[0].getAttribute("aria-label")).toContain("Version line main");
+    // No tag in play: the checked-out line wins even though a sibling line sorts
+    // first, and it outranks the synthetic HEAD marker and the remote ref that
+    // repeats it. The shape this repository's own tip has.
+    expect(primaryDecoration({ ...tip, decorations: [
+      ref("head", "HEAD"),
+      ref("localBranch", "codex/app-shell"),
+      ref("localBranch", "main"),
+      ref("remoteBranch", "origin/main"),
+    ] }, "main")?.name).toBe("main");
 
     // A tag outranks a line sharing its commit: the line is implied by being
-    // there, the tag is the fact you cannot infer. It is never accented.
-    const tag = rows[1].querySelector(".history-ref-badge");
-    expect(tag).toHaveTextContent("v1.0.0");
-    expect(tag).not.toHaveClass("history-ref-badge--current");
-    expect(rows[1].getAttribute("aria-label")).toContain("Tag v1.0.0");
+    // there, the tag is the fact you cannot infer.
+    expect(primaryDecoration({ ...released, decorations: [
+      ref("localBranch", "release/1.0"),
+      ref("tag", "v1.0.0"),
+    ] }, "main")?.name).toBe("v1.0.0");
 
-    // A line that shares no commit with HEAD is named, never accented.
-    expect(rows[2].querySelector(".history-ref-badge")).toHaveTextContent("codex/app-shell");
-    expect(rows[2].querySelector(".history-ref-badge")).not.toHaveClass("history-ref-badge--current");
-    expect(rows[3].querySelector(".history-ref-badge")).toHaveTextContent("origin/legacy");
+    // A line that shares no commit with HEAD is named; a remote is named last;
+    // no ref at all is no badge.
+    expect(primaryDecoration({ ...sibling, decorations: [ref("localBranch", "codex/app-shell")] }, "main")?.name).toBe("codex/app-shell");
+    expect(primaryDecoration({ ...remote, decorations: [ref("remoteBranch", "origin/legacy")] }, "main")?.name).toBe("origin/legacy");
+    expect(primaryDecoration({ ...plain, decorations: [] }, "main")).toBeNull();
+  });
 
-    // No ref points here, so the row keeps exactly the metadata it always had.
-    expect(rows[4].querySelector(".history-ref-badge")).toBeNull();
-    expect(within(rows[4]).getByText("Ada Lovelace")).toBeInTheDocument();
+  it("keeps the timeline row to the author and the time, with no reference badge", () => {
+    const base = state(2);
+    const { container } = renderPanel({
+      ...base,
+      versions: [versionOnLine(0, "feature/foo"), version(1)],
+    });
 
-    // Author, reference, time — the order the Overview summary uses too. Both
-    // hosts read the same three facts, so neither may drift from the other.
+    const rows = container.querySelectorAll<HTMLButtonElement>(".history-row");
+    expect(rows[0].querySelector(".history-ref-badge")).toBeNull();
     expect(metaOrder(rows[0], ".history-row__meta")).toEqual([
-      "history-row__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "history-row__date",
-    ]);
-    expect(metaOrder(rows[4], ".history-row__meta")).toEqual([
       "history-row__author", "history-meta-dot", "history-row__date",
     ]);
   });
@@ -540,58 +523,48 @@ describe("HistoryPanel", () => {
     };
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
-    const { container, selectFile } = renderPanel(state(2, {
+    const { container } = renderPanel(state(2, {
       detail: { detail, isLoading: false, error: null },
       selectedFilePath: "src/feature.tsx",
       fileDiff: { diff, isLoading: false, error: null },
     }));
 
-    const timelineHeader = container.querySelector(".history-timeline__toolbar");
-    const screenHeader = container.querySelector(".screen-header");
-    const detailHeader = container.querySelector(".history-detail__summary");
-    // One strip on the card, the way each panel of the screen has one: the
-    // tabs and, at the end of the same band, the controls for reading what is
-    // open. The band that used to sit between them is gone, and the two facts
-    // it ran together are where each of them is true — how many files the
-    // version touched, on the line stating the version's other facts, and how
-    // many lines the open file moves, beside that file's own name.
-    expect(container.querySelector(".history-workspace__toolbar")).toBeNull();
-    expect(detailHeader?.querySelector(".history-diff-controls")).not.toBeNull();
-    expect(container.querySelector(".history-detail__files")).toHaveTextContent("1 changed file");
-    const diffPaneHeader = container.querySelector(".history-diff-pane__header");
-    expect(diffPaneHeader?.querySelector(".history-lines-added")).toHaveTextContent("+1");
-    expect(diffPaneHeader?.querySelector(".history-lines-removed")).toHaveTextContent("−1");
+    const timelineHeader = container.querySelector(".history-timeline__header");
+    const strip = container.querySelector(".history-detail__strip");
+    // The panels start at the top of the workspace: the title is the timeline
+    // panel's own header and the version strip heads the card, so no page row
+    // sits above either.
+    expect(container.querySelector(".screen-header")).toBeNull();
     expect(timelineHeader).not.toBeNull();
-    expect(screenHeader).not.toBeNull();
-    expect(detailHeader).not.toBeNull();
-    expect(within(screenHeader as HTMLElement).queryByRole("button", { name: "Refresh" }))
-      .not.toBeInTheDocument();
+    expect(strip).not.toBeNull();
+    expect(container.querySelector(".history-details")).toBeNull();
+    const diffToolbar = container.querySelector(".history-diff-toolbar");
+    // The open file's line totals are gone from the toolbar: the diff itself
+    // states what changed, and the row is for identity and reading controls.
+    expect(diffToolbar?.querySelector(".history-lines-added")).toBeNull();
+    expect(diffToolbar?.querySelector(".history-lines-removed")).toBeNull();
+    expect(diffToolbar?.querySelector(".history-diff-toolbar__controls")).not.toBeNull();
     expect(within(timelineHeader as HTMLElement).queryByRole("button", { name: "Refresh" }))
       .not.toBeInTheDocument();
-    expect(within(detailHeader as HTMLElement).queryByRole("button", { name: "Refresh" }))
+    expect(within(strip as HTMLElement).queryByRole("button", { name: "Refresh" }))
       .not.toBeInTheDocument();
-    expect(container.querySelector(".history-detail__summary-top h2")).toHaveTextContent(selected.subject);
-    expect(container.querySelector(".history-detail__summary-top h2")).not.toHaveClass("visually-hidden");
-    expect(container.querySelector(".history-detail__description")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Overview" }));
-    expect(screen.getByText("Technical details")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Description" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Comparison" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Files changed" })).toBeInTheDocument();
-    const overviewFiles = screen.getByRole("listbox", { name: "Files changed in this saved version" });
-    const overviewFile = within(overviewFiles).getByRole("option", { name: /src\/feature\.tsx/ });
-    expect(within(overviewFile).getByText("feature.tsx")).toBeInTheDocument();
-    expect(container.querySelector(".history-overview-subject")).not.toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: /Files changed/ })).not.toBeInTheDocument();
-    await user.click(overviewFile);
-    expect(selectFile).toHaveBeenCalledWith(
-      { projectId: "/repo", sessionEpoch: "epoch-1" },
-      "src/feature.tsx",
-    );
-    expect(screen.getByRole("tab", { name: "Diff" })).toHaveAttribute("aria-selected", "true");
+    expect(container.querySelector(".history-detail__strip-title")).toHaveTextContent(selected.subject);
+
+    // The story is closed by default; opening it shows the message and the
+    // facts the strip cannot carry.
+    expect(screen.queryByRole("heading", { name: "Commit details" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByRole("heading", { name: "Message" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Commit details" })).toBeInTheDocument();
+    expect(screen.getByText("1 changed file")).toBeInTheDocument();
+    expect(screen.getByText("Changes are compared with the saved version immediately before this one.")).toBeInTheDocument();
+
+    // The shared reading controls live in the diff strip; the find is an icon
+    // until it is asked for, so the open file's own name keeps the width.
     await user.click(screen.getByRole("button", { name: "Difference view (Unified)" }));
     await user.click(screen.getByRole("menuitemradio", { name: "Split" }));
     expect(container.querySelector(".diff-split-row")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Search in the selected file difference" }));
     await user.type(screen.getByPlaceholderText("Search in diff"), "newValue");
     expect(container.querySelector(".diff-search-match")).toHaveTextContent("newValue");
 
@@ -610,7 +583,7 @@ describe("HistoryPanel", () => {
     Reflect.deleteProperty(navigator, "clipboard");
   });
 
-  it("hides the description section when the saved version has no message body", async () => {
+  it("says when the saved version has no message body", async () => {
     const selected = version(0);
     const detail: SavedVersionDetail = {
       version: selected,
@@ -624,9 +597,9 @@ describe("HistoryPanel", () => {
     };
     renderPanel(state(1, { detail: { detail, isLoading: false, error: null } }));
 
-    await userEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    await userEvent.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByText("Untitled saved version")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Description" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Comparison" })).toBeInTheDocument();
     expect(screen.getByText("Every file is shown as new because this is the project’s first saved version.")).toBeInTheDocument();
   });
 
@@ -655,7 +628,7 @@ describe("HistoryPanel", () => {
     // clearing the filters must not silently change the line.
     cleanup();
     renderPanel(state(3, { scope: { kind: "line", name: "feature/foo" } }));
-    expect(screen.getAllByText("Line: feature/foo")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Show the current line again" })).toHaveTextContent("feature/foo");
   });
 
   it("offers the project's own version lines, so an unknown name cannot be asked for", async () => {
@@ -754,7 +727,9 @@ describe("HistoryPanel", () => {
     await user.click(screen.getByRole("button", { name: "Clear all" }));
 
     expect(setScope).not.toHaveBeenCalled();
-    expect(screen.getAllByText("Line: feature/foo").length).toBeGreaterThan(0);
+    // The chip in the header survives a "clear all" the filter panel does not
+    // touch, which is the whole point: scope is not a filter.
+    expect(document.querySelector(".history-scope-chip")).toHaveTextContent("feature/foo");
   });
 
   it("offers a local line's own actions from the row that names it", async () => {
@@ -809,23 +784,23 @@ describe("HistoryPanel", () => {
     expect(screen.queryByRole("button", { name: /Switch this project/ })).not.toBeInTheDocument();
   });
 
-  it("names the history it is reading in the header, and only when that is not the current line", () => {
+  it("states the scope in the timeline header, and only when it is not the current line", () => {
     // The status bar already says which line is being worked on. Repeating it
-    // here would be noise; saying nothing when the two differ would be worse.
+    // would be noise; saying nothing when the two differ would be worse.
     const current = renderPanel(state(3));
-    expect(current.container.querySelector(".history-header-scope")).toBeNull();
+    expect(current.container.querySelector(".history-scope-chip")).toBeNull();
     cleanup();
 
     const all = renderPanel(state(3, { scope: { kind: "allLines" } }));
-    expect(all.container.querySelector(".screen-header__heading p")).toHaveTextContent(
-      "3 saved versions loaded · All lines",
-    );
+    expect(all.container.querySelector(".history-scope-chip")).toHaveTextContent("All lines");
     cleanup();
 
     const named = renderPanel(state(3, { scope: { kind: "line", name: "main" } }));
-    expect(named.container.querySelector(".history-header-scope")).toHaveTextContent("Line: main");
-    // Informing, not offering: the scope is still chosen in the filter panel.
-    expect(within(screen.getByRole("banner")).queryByRole("button")).toBeNull();
+    const chip = named.container.querySelector(".history-scope-chip");
+    expect(chip).toHaveTextContent("main");
+    // Removable where it is stated: the chip itself is the way back, so the
+    // scope is cleared from the header rather than from the filter panel.
+    expect(chip).toHaveAttribute("aria-label", "Show the current line again");
   });
 
   it("shows a chosen line as a chosen line, and lets it be undone from the field itself", async () => {
@@ -893,7 +868,7 @@ describe("HistoryPanel", () => {
     expect(trigger).toHaveFocus();
   });
 
-  it("makes a local line in the detail a control and leaves a tag a fact", async () => {
+  it("opens the version's line actions from More and leaves a tag a fact", async () => {
     const user = userEvent.setup();
     const onViewLine = vi.fn();
     const withRefs: SavedVersionSummary = {
@@ -926,11 +901,11 @@ describe("HistoryPanel", () => {
     expect(screen.queryByRole("button", { name: /v1\.0/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /HEAD/ })).toBeNull();
 
-    const chip = screen.getByRole("button", { name: "What the version line main can do" });
-    await user.click(chip);
+    const more = screen.getByRole("button", { name: "What this saved version can do" });
+    await user.click(more);
     await user.click(screen.getByRole("button", { name: "View “main” in Lines" }));
     expect(onViewLine).toHaveBeenCalledWith("main");
-    expect(chip).toHaveFocus();
+    expect(more).toHaveFocus();
   });
 
   it("asks Git for a date range the presets cannot express", async () => {

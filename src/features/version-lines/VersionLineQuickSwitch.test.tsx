@@ -282,6 +282,39 @@ describe("VersionLineQuickSwitch", () => {
     expect(screen.getByRole("button", { name: "New line" })).toBeInTheDocument();
   });
 
+  it("states the line actions it does not have yet, opened from the row's More button", async () => {
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          canSwitch
+          variant="status"
+          onSwitch={vi.fn()}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    // The `⋯` is present before the pointer is: it is not a hover affordance.
+    await userEvent.click(screen.getByRole("button", { name: "What “feature/1” can do" }));
+
+    // Each action names both ends, and none is enabled: the flows are not built.
+    expect(screen.getByRole("menuitem", { name: /Merge into “main”/ })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: /Rebase “main” onto this/ })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: /Compare with “main”/ })).toBeDisabled();
+    expect(screen.getByText("Merge, rebase and compare are coming soon.")).toBeInTheDocument();
+    // Renaming and deleting stay on the Lines screen, not here.
+    expect(screen.queryByRole("menuitem", { name: /Rename|Delete/ })).not.toBeInTheDocument();
+
+    // Back returns to the list without closing the control that opened it.
+    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("dialog", { name: "Switch version line" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search version lines…" })).toBeInTheDocument();
+  });
+
   it("says nothing selectable when there is no line to be on", () => {
     // Detached, unborn and unavailable are facts, not lines: the value is
     // static and the words in front of it still read correctly.

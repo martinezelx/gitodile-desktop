@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  ArrowLeft, Check, ChevronDown, CircleAlert, Cloud, CloudOff,
-  CalendarDays, Copy, Folder, GitBranch, GitMerge,
-  GitCommitHorizontal, HardDrive, Info,
+  ArrowLeft, Check, ChevronDown, ChevronRight, CircleAlert, Cloud, CloudOff,
+  Copy, Ellipsis, Folder, GitBranch, GitCommitHorizontal, GitMerge, HardDrive,
   Search, Tag, UserRound, X,
 } from "lucide-react";
 
@@ -11,12 +10,12 @@ import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
 import { AutomaticUpdatesNotice, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, SearchBox, toDate, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
-import { ChangesContextMenu, DiffResultView, DiffStepNav, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
+import { ChangesContextMenu, DiffFind, DiffResultView, DiffStepNav, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
 import type { HistoryDecoration, HistoryFileChange, HistoryState, PublicationState, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import { formatHistoryDate } from "./formatHistoryDate";
-import { decorationLabel, HistoryMetaDot, HistoryRefBadge, localLineFor, primaryDecoration } from "./HistoryRefBadge";
+import { HistoryMetaDot, HistoryRefBadge, localLineFor } from "./HistoryRefBadge";
 import {
   ALL_LINES_SCOPE,
   countActiveFilters,
@@ -49,8 +48,6 @@ const CATEGORY_LABEL_KEYS = {
   conflicted: "changesCategoryLabelConflicted",
 } as const satisfies Record<ChangeCategory, keyof Translations>;
 
-type HistoryTab = "overview" | "diff";
-
 /** How many paths the file/folder shortcut offers, and how much of that the
  * folders may take. The rest is left for files, so a version spread across many
  * folders still offers one. */
@@ -60,16 +57,6 @@ const PATH_SUGGESTION_FOLDERS = 15;
 /** Above this many version lines the picker grows a search field. Below it the
  * list is already scannable and a box to type in is one control too many. */
 const SCOPE_PICKER_SEARCH_THRESHOLD = 8;
-
-function changedAreas(files: HistoryFileChange[]): Array<{ path: string; count: number }> {
-  const counts = new Map<string, number>();
-  for (const file of files) {
-    const parts = file.path.split("/");
-    const area = parts.length > 1 ? parts.slice(0, Math.min(parts.length - 1, 2)).join("/") : ".";
-    counts.set(area, (counts.get(area) ?? 0) + 1);
-  }
-  return [...counts.entries()].map(([path, count]) => ({ path, count })).sort((left, right) => right.count - left.count || left.path.localeCompare(right.path)).slice(0, 5);
-}
 
 function versionTitle(version: SavedVersionSummary, t: Translations): string {
   if (version.messageUnavailable === "tooLarge") return t.historyMessageTooLarge;
@@ -148,18 +135,16 @@ function HistoryVersionMenu({ anchor, version, currentBranch, actions, line, onC
  * draws that is not either structure or the selection itself. */
 type RailFill = "filled" | "half" | null;
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, currentBranch, onSelect, onMove, onOpenDetail, onContextMenu }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; currentBranch: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
+const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, onSelect, onMove, onOpenDetail, onContextMenu }: {
+  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
   const date = formatHistoryDate(version.authoredAt, formats);
   const author = version.author?.name.trim() || t.historyAuthorUnknown;
-  // The row is a button with an explicit `aria-label`, which replaces its
-  // subtree, so the reference has to be spoken here or not at all.
-  const decoration = primaryDecoration(version, currentBranch);
-  const name = selected ? t.historySelectedVersion(title) : title;
-  const label = decoration ? `${name} — ${decorationLabel(decoration, t)}` : name;
+  // The row names the version and nothing else: the reference that points at it
+  // seats itself in the detail strip beside it, which has room for it.
+  const label = selected ? t.historySelectedVersion(title) : title;
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>): void => {
     const target = event.key === "ArrowDown" ? index + 1 : event.key === "ArrowUp" ? index - 1
       : event.key === "Home" ? 0 : event.key === "End" ? Number.MAX_SAFE_INTEGER
@@ -171,7 +156,7 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
   return (
     <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={label} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown} onContextMenu={onContextMenu ? (event) => { onSelect(version.commit); onContextMenu(event, version); } : undefined}>
       <span className="history-row__node" aria-hidden="true" />
-      <span className="history-row__body"><span className="history-row__title" title={title}>{title}</span><span className="history-row__meta"><span className="history-row__author" title={author}>{author}</span><HistoryRefBadge version={version} currentBranch={currentBranch} />{date && <><HistoryMetaDot /><span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span></>}</span></span>
+      <span className="history-row__body"><span className="history-row__title" title={title}>{title}</span><span className="history-row__meta"><span className="history-row__author" title={author}>{author}</span>{date && <><HistoryMetaDot /><span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span></>}</span></span>
     </button>
   );
 });
@@ -199,7 +184,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
   const focusCommit = versions.some((version) => version.commit === selectedCommit) ? selectedCommit : versions[0]?.commit ?? null;
   const selectedIndex = versions.findIndex((version) => version.commit === selectedCommit);
   const filtered = countActiveFilters(filters) > 0;
-  const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: () => 82, overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
+  const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: () => 64, overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
   const rows = virtualizer.getVirtualItems();
   const lastIndex = rows.at(-1)?.index ?? -1;
 
@@ -238,13 +223,28 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
   }, [onSelect, versions, virtualizer]);
   return (
     <section className="history-timeline" aria-label={t.historyTimelineAriaLabel} aria-busy={isLoading || undefined}>
+      {/* The panel is the card: the screen's name and the scope chip live here
+          now, in the shape the Changes list panel wears, so this panel and the
+          detail card beside it start on the same pixel row. The loaded-version
+          count the page header used to carry is gone — it answered a question
+          nobody asks. */}
+      <header className="history-timeline__header">
+        <div className="history-timeline__heading"><h1>{t.historyTitle}</h1></div>
+        {scope.kind !== "currentLine" && <button
+          className="history-scope-chip"
+          type="button"
+          title={scope.kind === "allLines" ? t.historyScopeAllLinesHint : t.historyScopeLineHint(scope.name)}
+          aria-label={t.historyScopeClear}
+          onClick={() => onScope(CURRENT_LINE_SCOPE)}
+        >
+          <GitBranch aria-hidden="true" />
+          <span>{scope.kind === "allLines" ? t.historyScopeAllLines : scopeLineName(scope)}</span>
+          <X aria-hidden="true" />
+        </button>}
+      </header>
       {/* One strip, the way the Changes file list has one. Searching and
-          filtering answer the same question — which saved versions this column
-          lists — so they share a control instead of stacking two rows of chrome
-          above the panel; the title and the count they used to sit under moved
-          out to the screen header, where Changes keeps its own. That also puts
-          this panel's top edge back on the detail card's, which three rows of
-          header had pushed ~150px below it. */}
+          filtering answer the same question, so they share a row; it steps down
+          a size from the header above it, as an inner strip should. */}
       <div className="history-timeline__toolbar">
         <SearchBox
           value={search}
@@ -264,14 +264,14 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
           />}
         />
       </div>
-      <HistoryFilterChips filters={filters} scope={scope} onChange={onFilters} onScope={onScope} />
+      <HistoryFilterChips filters={filters} onChange={onFilters} />
       {/* A thread while Git answers, rather than an emptied list: the rows
           below are the previous answer and the strip says they are being
           replaced. */}
       {isLoading && versions.length > 0 && <div className="history-timeline__progress"><LoadingBar label={t.historyLoading} /></div>}
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} currentBranch={currentBranch} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
+          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
         </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
@@ -310,168 +310,107 @@ function ChangedFiles({ files, selectedPath, onSelect }: { files: HistoryFileCha
   return <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-files auto-hide-scrollbar" role="listbox" aria-label={t.historyFilesAriaLabel}><div className="history-files__virtual" style={{ height: virtualizer.getTotalSize() }}>{virtualizer.getVirtualItems().map((row) => { const file = files[row.index]; return <div key={row.key} className="history-files__row" style={{ transform: `translateY(${row.start}px)` }}><HistoryFileButton file={file} selected={file.path === selectedPath} onSelect={() => onSelect(file.path)} /></div>; })}</div></div>;
 }
 
-function OverviewChangedFiles({ files, selectedPath, onSelect }: { files: HistoryFileChange[]; selectedPath: string | null; onSelect: (path: string) => void }): React.JSX.Element {
-  const { t } = useLanguage();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
-    count: files.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 58,
-    overscan: 6,
-    getItemKey: (index) => files[index]?.path ?? index,
-  });
-
-  if (files.length === 0) {
-    return <p className="history-overview-files__empty">{t.historyNoChangedFiles}</p>;
-  }
-
-  return (
-    <div
-      {...autoHideScrollbarProps<HTMLDivElement>()}
-      ref={scrollRef}
-      className="history-overview-files auto-hide-scrollbar"
-      role="listbox"
-      aria-label={t.historyFilesAriaLabel}
-    >
-      <div className="history-overview-files__virtual" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualizer.getVirtualItems().map((row) => {
-          const file = files[row.index];
-          return (
-            <div
-              key={row.key}
-              className="history-overview-files__row"
-              style={{ transform: `translateY(${row.start}px)` }}
-            >
-              <HistoryFileButton file={file} selected={file.path === selectedPath} onSelect={() => onSelect(file.path)} />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function authorInitials(version: SavedVersionSummary, fallback: string): string {
   const name = version.author?.name.trim() || fallback;
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toLocaleUpperCase();
 }
 
-function HistoryDetailHeader({ detail, formats, activeTab, fileCount, controls, currentBranch, actions, onTab }: {
-  detail: SavedVersionDetail; formats: LocaleFormats; activeTab: HistoryTab;
-  /** `HEAD`'s own line, so a chip naming it can say so instead of offering to
-   * switch to where the project already is. */
+function HistoryDetailStrip({ detail, currentBranch, actions, detailsOpen, onToggleDetails }: {
+  detail: SavedVersionDetail;
+  /** `HEAD`'s own line, so a line action can say where the project already is. */
   currentBranch: string | null;
   actions: HistoryLineActions;
-  /** How many files this version touched, said in words because it is
-   * sometimes a floor rather than a count. It belongs on the line that states
-   * the other facts about the version — who, when, which — the way the
-   * Changes screen keeps its own count beside its title. */
-  fileCount: string;
-  /** The controls for reading whatever the open tab shows. They stand at the
-   * end of the tab band, so the card has one strip instead of a tab band with
-   * a toolbar under it. */
-  controls: React.ReactNode;
-  onTab: (tab: HistoryTab) => void;
+  detailsOpen: boolean;
+  onToggleDetails: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const version = detail.version;
   const title = versionTitle(version, t);
-  const date = formatHistoryDate(version.authoredAt, formats);
-  // `line` absent means "whichever line this version names", which is what the
-  // version's own actions chip asks for; a chip for one line names that one.
-  const [menu, setMenu] = useState<{ anchor: ContextMenuAnchor; line?: HistoryDecoration } | null>(null);
+  const [menu, setMenu] = useState<{ anchor: ContextMenuAnchor } | null>(null);
   const closeMenu = (restoreFocus: boolean): void => {
     setMenu((open) => {
       if (restoreFocus) open?.anchor.focusTarget?.focus();
       return null;
     });
   };
-  // Anchored to the chip's own box rather than to the pointer: this menu is
-  // opened by activating a control, which a keyboard does without coordinates.
-  const openMenu = (event: React.MouseEvent<HTMLButtonElement>, line?: HistoryDecoration): void => {
+  // Anchored to the control's own box rather than to the pointer: it is opened
+  // by activating a control, which a keyboard does without coordinates.
+  const openMenu = (event: React.MouseEvent<HTMLButtonElement>): void => {
     const rect = event.currentTarget.getBoundingClientRect();
-    setMenu({ anchor: { x: rect.left, y: rect.bottom + 4, focusTarget: event.currentTarget }, line });
+    setMenu({ anchor: { x: rect.right, y: rect.bottom + 4, focusTarget: event.currentTarget } });
   };
-  const canActOnLines = Boolean(actions.onViewLine || actions.onSwitchLine);
-  const tabs: Array<{ id: HistoryTab; label: string; icon: React.ReactNode; count?: number }> = [
-    { id: "overview", label: t.historyOverviewTab, icon: <Info aria-hidden="true" /> },
-    { id: "diff", label: t.historyDiffTab, icon: <GitCommitHorizontal aria-hidden="true" /> },
-  ];
-  return <header className="history-detail__summary"><div className="history-detail__summary-top"><div className="history-detail__identity"><h2 id="history-detail-title">{title}</h2><div className="history-detail__compact-info"><p className="history-detail__meta"><span className="history-author-avatar" aria-hidden="true">{authorInitials(version, t.historyAuthorUnknown)}</span><strong>{version.author?.name || t.historyAuthorUnknown}</strong>{date && <span title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}<code>{version.shortCommit}</code><span className={`history-publication history-publication--${version.publication}`}><PublicationIcon publication={version.publication} />{publicationCopy(version.publication, t)}</span><span className="history-detail__files">{fileCount}</span></p>
-    {/* A chip is a fact — this ref points at this version — and a local line
-        is the one kind of ref this app can also act on, so only that kind
-        becomes a control. A tag and a remote-only ref stay text, because
-        neither is a line this project can view or switch to. */}
-    <div className="history-detail__badges">{version.isRoot && <span className="history-kind-chip">{t.historyRoot}</span>}{version.isMerge && <span className="history-kind-chip">{t.historyMerge}</span>}{version.decorations.slice(0, 3).map((decoration) => decoration.kind === "localBranch" && canActOnLines
-      ? <button key={decoration.fullRef} className="history-ref-chip history-ref-chip--actionable" type="button" aria-haspopup="menu" aria-expanded={menu?.line?.fullRef === decoration.fullRef} aria-label={t.historyLineActions(decoration.name)} title={decoration.fullRef} onClick={(event) => openMenu(event, decoration)}>
-          <GitBranch aria-hidden="true" />{decoration.name}
+  const hasMenu = Boolean(actions.onViewLine || actions.onSwitchLine || actions.onCreateLineFromVersion);
+  return (
+    <header className="history-detail__strip">
+      <span className="history-author-avatar" aria-hidden="true">{authorInitials(version, t.historyAuthorUnknown)}</span>
+      <div className="history-detail__strip-identity">
+        <h2 id="history-detail-title" className="history-detail__strip-title" title={title}>{title}</h2>
+        {/* Only what has to survive next to the subject at any width: who saved
+            it. The time, the hash, the publication state and the file count all
+            move behind `Details`, where there is room to read them. */}
+        <p className="history-detail__strip-facts">
+          <strong>{version.author?.name || t.historyAuthorUnknown}</strong>
+          <HistoryRefBadge version={version} currentBranch={currentBranch} />
+        </p>
+      </div>
+      <div className="history-detail__strip-trailing">
+        <button className="history-details-toggle" type="button" aria-expanded={detailsOpen} aria-label={t.historyDetails} data-tooltip={t.historyDetails} onClick={onToggleDetails}>
+          <ChevronRight aria-hidden="true" className="history-details-toggle__caret" />
         </button>
-      : <span key={decoration.fullRef} className="history-ref-chip" title={decoration.fullRef}>{decoration.kind === "tag" && <Tag aria-hidden="true" />}{decoration.name}</span>)}
-      {/* Outlined and carrying a chevron, where every chip beside it is filled
-          and carries none: the row is a run of facts about this version, and
-          this is the one thing in it that does something. It keeps the chips'
-          height rather than taking a control's, because a 32px button standing
-          in a 23px row is a control that has been given the wrong shape. */}
-      {actions.onCreateLineFromVersion && <button className="history-actions-chip" type="button" aria-haspopup="menu" aria-expanded={menu !== null && menu.line === undefined} aria-label={t.historyVersionActionsLabel} onClick={(event) => openMenu(event)}>
-        {t.historyVersionActions}<ChevronDown aria-hidden="true" />
-      </button>}
-    </div></div>
-    </div>
-    {menu && <HistoryVersionMenu anchor={menu.anchor} version={version} currentBranch={currentBranch} actions={actions} line={menu.line} onClose={closeMenu} />}
-    </div>
-    <div className="history-tabs">
-      <div className="history-tabs__list" role="tablist" aria-label={t.historyTitle}>{tabs.map((tab) => <button key={tab.id} id={`history-tab-${tab.id}`} className={activeTab === tab.id ? "history-tab history-tab--active" : "history-tab"} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`history-panel-${tab.id}`} onClick={() => onTab(tab.id)}>{tab.icon}<span>{tab.label}</span>{tab.count !== undefined && <span className="history-tab__count">{formatNumber(tab.count, formats)}</span>}</button>)}</div>
-      {controls}
-    </div></header>;
+        {hasMenu && <button className="history-more-button" type="button" aria-haspopup="menu" aria-expanded={menu !== null} aria-label={t.historyVersionActionsLabel} data-tooltip={t.historyMore} onClick={openMenu}>
+          <Ellipsis aria-hidden="true" />
+        </button>}
+      </div>
+      {menu && <HistoryVersionMenu anchor={menu.anchor} version={version} currentBranch={currentBranch} actions={actions} onClose={closeMenu} />}
+    </header>
+  );
 }
 
-function OverviewMetric({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }): React.JSX.Element {
-  return <div className="history-overview-metric"><span>{label}</span><strong className={tone ? `history-overview-metric__value--${tone}` : undefined}>{tone === "positive" ? "+" : tone === "negative" ? "−" : ""}{value}</strong></div>;
-}
-
-function HistoryOverview({ detail, state, formats, comparison, onSelectFile }: { detail: SavedVersionDetail; state: HistoryState; formats: LocaleFormats; comparison: string; onSelectFile: (path: string) => void }): React.JSX.Element {
+/** The version's story, behind the strip's `Details` disclosure: the full
+ * message, what the diff is compared against, and the facts the strip cannot
+ * carry at strip height. Closed by default, so the diff keeps the whole card. */
+function HistoryDetails({ detail, formats, comparison, fileCount }: {
+  detail: SavedVersionDetail;
+  formats: LocaleFormats;
+  comparison: string;
+  /** How many files this version touched, said in words because it is sometimes
+   * a floor rather than a count. It lives here, in the facts, because the strip
+   * only carries what has to survive next to the subject. */
+  fileCount: string;
+}): React.JSX.Element {
   const { t } = useLanguage();
   const version = detail.version;
   const authored = formatHistoryDate(version.authoredAt, formats);
   const committed = formatHistoryDate(version.committedAt, formats);
-  const areas = changedAreas(detail.files);
   const description = version.description.trim();
-  return <div id="history-panel-overview" className="history-workspace history-workspace--overview" role="tabpanel" aria-labelledby="history-tab-overview">
-    <div {...autoHideScrollbarProps<HTMLDivElement>()} className="history-overview-grid auto-hide-scrollbar">
-      <div className="history-overview-column">
-        <div className="history-overview-metrics">
-          <OverviewMetric label={t.historyFilesTab} value={formatNumber(detail.fileCounts.total, formats)} />
-          <OverviewMetric label={t.historyNewFiles} value={formatNumber(detail.fileCounts.new, formats)} tone="positive" />
-          <OverviewMetric label={t.historyDeletedFiles} value={formatNumber(detail.fileCounts.deleted, formats)} tone="negative" />
-        </div>
-        {description && <section className="history-overview-section"><h3>{t.historyDescriptionTitle}</h3><p className="history-overview-description">{description}</p>{version.descriptionTruncated && <p className="history-detail__truncated" role="note">{t.historyDescriptionTruncated}</p>}</section>}
-        <section className="history-overview-section"><h3>{t.historyChangedAreas}</h3><ul className="history-area-list">{areas.map((area) => <li key={area.path}><Folder aria-hidden="true" /><span>{area.path}</span><strong>{formatNumber(area.count, formats)}</strong></li>)}</ul></section>
-      </div>
-      <section className="history-overview-section history-overview-changed-files"><h3>{t.historyFilesTab}</h3><OverviewChangedFiles files={detail.files} selectedPath={state.selectedFilePath} onSelect={onSelectFile} /></section>
-      <div className="history-overview-column history-overview-column--technical">
-        <section className="history-overview-section history-technical-card"><h3>{t.historyTechnicalDetails}</h3><dl>
-          <div><dt>{t.historyCommitLabel}</dt><dd><code>{version.shortCommit}</code></dd></div>
-          <div><dt>{t.historyParentsLabel}</dt><dd>{version.parents.length ? version.parents.map((parent) => <code key={parent}>{parent.slice(0, 10)}</code>) : t.historyNoParents}</dd></div>
-          <div><dt>{t.historyAuthorLabel}</dt><dd><span>{version.author?.name || t.historyAuthorUnknown}</span>{version.author?.email && <small>{version.author.email}</small>}</dd></div>
-          <div><dt>{t.historyCommittedLabel}</dt><dd>{committed?.absolute ?? authored?.absolute ?? "—"}</dd></div>
-          <div><dt>{t.historyRefsLabel}</dt><dd>{version.decorations.length ? version.decorations.slice(0, 4).map((item) => <span className="history-technical-chip" key={item.fullRef}>{item.name}</span>) : "—"}</dd></div>
-        </dl></section>
-        <section className="history-overview-section"><h3>{t.historyComparisonTitle}</h3><p>{comparison}</p></section>
-      </div>
+  const hasKind = version.isRoot || version.isMerge;
+  return <section className="history-details">
+    <div className="history-details__main">
+      <h3>{t.historyDetailsMessage}</h3>
+      {description
+        ? <p className="history-details__message">{description}</p>
+        : <p className="history-details__message history-details__message--empty">{t.historyNoDescription}</p>}
+      {version.descriptionTruncated && <p className="history-detail__truncated" role="note">{t.historyDescriptionTruncated}</p>}
+      <p className="history-details__comparison"><GitCommitHorizontal aria-hidden="true" />{comparison}</p>
     </div>
-    <footer className="history-overview-footer">
-      <span><CalendarDays aria-hidden="true" />{authored?.relative ?? "—"}</span>
-      <span><UserRound aria-hidden="true" />{t.historyContributorCount(version.author ? 1 : 0)}</span>
-      <span><GitBranch aria-hidden="true" />{t.historyParentCount(version.parents.length)}</span>
-    </footer>
-  </div>;
-}
-
-function diffTotals(diff: FileDiff | null): { added: number; removed: number } | null {
-  if (!diff || !("hunks" in diff)) return null;
-  let added = 0; let removed = 0;
-  for (const hunk of diff.hunks) for (const line of hunk.lines) { if (line.kind === "addition") added += 1; if (line.kind === "deletion") removed += 1; }
-  return { added, removed };
+    <div className="history-details__facts">
+      <h3>{t.historyCommitDetails}</h3>
+      <dl className="history-details__list">
+        <div><dt>{t.historyCommitLabel}</dt><dd><code>{version.commit}</code></dd></div>
+        <div><dt>{t.historyParentsLabel}</dt><dd>{version.parents.length ? version.parents.map((parent) => <code key={parent}>{parent.slice(0, 10)}</code>) : t.historyNoParents}</dd></div>
+        <div><dt>{t.historyAuthorLabel}</dt><dd><span>{version.author?.name || t.historyAuthorUnknown}</span>{version.author?.email && <small>{version.author.email}</small>}</dd></div>
+        <div><dt>{t.historyCommittedLabel}</dt><dd>{committed?.absolute ?? authored?.absolute ?? "—"}</dd></div>
+        <div><dt>{t.historyPublicationLabel}</dt><dd><span className={`history-publication history-publication--${version.publication}`}><PublicationIcon publication={version.publication} />{publicationCopy(version.publication, t)}</span></dd></div>
+        <div><dt>{t.historyFilesLabel}</dt><dd>{fileCount}</dd></div>
+        <div><dt>{t.historyRefsLabel}</dt><dd>
+          {version.isRoot && <span className="history-kind-chip">{t.historyRoot}</span>}
+          {version.isMerge && <span className="history-kind-chip">{t.historyMerge}</span>}
+          {version.decorations.map((item) => <span className="history-technical-chip" key={item.fullRef}>{item.kind === "tag" && <Tag aria-hidden="true" />}{item.name}</span>)}
+          {!version.decorations.length && !hasKind && "—"}
+        </dd></div>
+      </dl>
+    </div>
+  </section>;
 }
 
 function diffHunkCount(diff: FileDiff | null): number { return diff && "hunks" in diff ? diff.hunks.length : 0; }
@@ -545,37 +484,17 @@ function activeFilters(filters: HistoryFilters, t: Translations, formats: Locale
 /** The filters that are on, under the strip that set them, each removable on
  * its own. `shared/ui` draws the row; what belongs to History is which chips
  * are in it and what removing one means. */
-function HistoryFilterChips({ filters, scope, onChange, onScope }: {
+function HistoryFilterChips({ filters, onChange }: {
   filters: HistoryFilters;
-  scope: HistoryScope;
   onChange: (filters: HistoryFilters) => void;
-  onScope: (scope: HistoryScope) => void;
 }): React.JSX.Element | null {
   const { t, formats } = useLanguage();
-  // The scope leads, and is removed the same way a filter is — but it is
-  // labelled as the line rather than as a filter, because it says which history
-  // is being read rather than how much of one is shown. `quiet` is the surface's
-  // name for exactly that: a chip stating context.
-  const scopeChip: FilterChip | null = scope.kind === "currentLine"
-    ? null
-    : {
-      key: "scope",
-      label: scope.kind === "allLines" ? t.historyScopeAllLines : t.historyScopeLineChip(scope.name),
-      title: scope.kind === "allLines" ? t.historyScopeAllLinesHint : t.historyScopeLineHint(scope.name),
-      icon: <GitBranch aria-hidden="true" />,
-      removeLabel: t.historyScopeClear,
-      quiet: true,
-      onRemove: () => onScope(CURRENT_LINE_SCOPE),
-    };
   const chips: FilterChip[] = activeFilters(filters, t, formats).map((chip) => ({
     key: chip.key,
     label: chip.label,
     onRemove: () => onChange({ ...filters, ...chip.cleared }),
   }));
-  return <FilterChips
-    chips={scopeChip ? [scopeChip, ...chips] : chips}
-    removeLabel={t.historyFilterRemove}
-  />;
+  return <FilterChips chips={chips} removeLabel={t.historyFilterRemove} />;
 }
 
 /** Which history the timeline is reading, inside the panel the filters share.
@@ -1087,9 +1006,10 @@ function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, o
   state: HistoryState; formats: LocaleFormats; actions: HistoryLineActions; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void; readImagePreview: ImagePreviewLoader; sourceKey: string;
 }): React.JSX.Element {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<HistoryTab>("diff");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [fileSearch, setFileSearch] = useState("");
   const [diffSearch, setDiffSearch] = useState("");
+  const [isFindOpen, setIsFindOpen] = useState(false);
   const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
   const [hunkTarget, setHunkTarget] = useState({ index: 0, token: 0 });
   const [copiedPath, setCopiedPath] = useState(false);
@@ -1097,7 +1017,7 @@ function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, o
   const [announcement, setAnnouncement] = useState("");
   const selectedVersion = state.versions.find((version) => version.commit === state.selectedCommit) ?? null;
 
-  useEffect(() => { setFileSearch(""); setDiffSearch(""); setContextMenu(null); }, [state.selectedCommit]);
+  useEffect(() => { setFileSearch(""); setDiffSearch(""); setIsFindOpen(false); setDetailsOpen(false); setContextMenu(null); }, [state.selectedCommit]);
   useEffect(() => setHunkTarget({ index: 0, token: 0 }), [state.selectedFilePath]);
   const picture = usePictureDiff(state.fileDiff.diff, sourceKey, readImagePreview);
   // The reading-mode picker lays out lines; a drawing has none.
@@ -1112,7 +1032,6 @@ function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, o
   const visibleFiles = detail.files.filter((file) => !normalizedFileSearch || file.path.toLocaleLowerCase().includes(normalizedFileSearch));
   const comparison = detail.comparisonIsEmptyTree ? t.historyRootComparison : detail.comparisonIsFirstParent ? t.historyMergeComparison : t.historyNormalComparison;
   const fileCount = detail.countsAreMinimum ? t.historyChangedFilesMinimum(detail.fileCounts.total) : t.historyChangedFiles(detail.fileCounts.total);
-  const totals = diffTotals(state.fileDiff.diff);
   const hunkCount = diffHunkCount(state.fileDiff.diff);
   const selectedFile = detail.files.find((file) => file.path === state.selectedFilePath) ?? null;
   // Stepped through the list as it is filtered, not through every changed file
@@ -1149,64 +1068,73 @@ function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, o
       focusTarget: source,
     });
   };
-  const openFileFromOverview = (path: string): void => {
-    onSelectFile(path);
-    setActiveTab("diff");
-  };
+  const closeFind = (): void => { setIsFindOpen(false); setDiffSearch(""); };
 
-  // Everything that decides how the diff is read, in one place at the end of
-  // the tab band. It used to be a band of its own between the tabs and the
-  // panes — a third strip on a card whose two panes already open with one
-  // each, where Changes says the same things in the strip of the panel they
-  // act on. The band it replaced also mixed two different facts in one line:
-  // how many files the *version* touched, which is now on the line stating
-  // the version's other facts, and how many lines the *open file* gains and
-  // loses, which is now beside that file's own name.
-  const diffControls = <div className="history-diff-controls">
-    <SearchBox className="history-diff-search" value={diffSearch} onChange={setDiffSearch} placeholder={t.historySearchDiffPlaceholder} ariaLabel={t.historySearchDiffAriaLabel} clearLabel={t.commonClearSearch} />
-    {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
-    {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
-  </div>;
   // A strip, not a box with a margin: the pane beside it opens with one, and
   // two panes whose first rows start four pixels apart is the same step the
   // outer layout spent two tasks removing.
   const fileSearchControl = <div className="history-files-pane__toolbar"><SearchBox className="history-files-search" value={fileSearch} onChange={setFileSearch} placeholder={t.historyFilterFilesPlaceholder} ariaLabel={t.historyFilterFilesAriaLabel} clearLabel={t.commonClearSearch} /></div>;
   const fileList = visibleFiles.length ? <ChangedFiles files={visibleFiles} selectedPath={state.selectedFilePath} onSelect={onSelectFile} /> : <p className="history-files__empty">{normalizedFileSearch ? t.historyNoFileMatches : t.historyNoChangedFiles}</p>;
+  // The find control spends no width until it is asked for: the diff strip is
+  // narrow, and a search box standing open beside the arrows crowded the
+  // file's own name out of it. The magnifier opens it; its own close restores
+  // the icon and clears the highlight.
+  // The find is Changes' shared control, so both diff surfaces carry the same
+  // one in the same place.
+  const findControl = <DiffFind
+    isOpen={isFindOpen}
+    query={diffSearch}
+    onQueryChange={setDiffSearch}
+    onOpen={() => setIsFindOpen(true)}
+    onClose={closeFind}
+    t={t}
+  />;
 
   return <section className="history-detail" aria-labelledby="history-detail-title">
     <button className="history-detail__back secondary-button" type="button" onClick={onBack}><ArrowLeft aria-hidden="true" />{t.historyBackToTimeline}</button>
-    {/* One card: identity, the tabs that cut it, and whichever of them is
-        open. The back button stays outside it — it leaves the card rather
-        than acting on it. */}
+    {/* One card: the version strip, the story behind its Details disclosure,
+        and the diff that is always the working surface — the way Changes reads.
+        The back button stays outside the card; it leaves rather than acts. */}
     <div className="history-detail__card">
-    <HistoryDetailHeader
-      detail={detail}
-      formats={formats}
-      activeTab={activeTab}
-      fileCount={fileCount}
-      controls={activeTab === "diff" ? diffControls : null}
-      currentBranch={state.snapshot?.branch ?? null}
-      actions={actions}
-      onTab={setActiveTab}
-    />
-    {activeTab === "overview" && <HistoryOverview detail={detail} state={state} formats={formats} comparison={comparison} onSelectFile={openFileFromOverview} />}
-    {activeTab === "diff" && <div id="history-panel-diff" className="history-workspace history-workspace--diff" role="tabpanel" aria-labelledby="history-tab-diff">
-      <div className="history-diff-grid"><aside className="history-files-pane">{fileSearchControl}{fileList}</aside><div className="history-diff-pane"><header className="history-diff-pane__header">{selectedFile ? <><span className="history-file__type" aria-hidden="true">{React.createElement(getFileTypeIcon(selectedFile.path))}</span>
-        {/* Name, then folder, at the sizes the Changes diff strip names its own
-            open file with: this is the one thing the pane exists to show, and
-            it was reading a step below the file rows on the left of it. */}
-        <strong className="history-diff-pane__name">{splitPath(selectedFile.path).name}</strong><span className="history-diff-pane__dir">{splitPath(selectedFile.path).dir || t.changesProjectRoot}</span>{totals && <span className="history-diff-pane__totals"><span className="history-lines-added">+{totals.added}</span><span className="history-lines-removed">−{totals.removed}</span></span>}<button className="history-icon-button" type="button" aria-label={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} data-tooltip={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} onClick={copySelectedPath}>{copiedPath ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}</button></> : <span className="history-diff-pane__prompt">{t.historySelectFilePrompt}</span>}
-        {/* The same two pairs the Changes diff header carries, in the same
-            place and the same shape. They used to be a footer of labelled
-            buttons under the diff — a second vocabulary for one job, and the
-            only control in the app sized below the scale. */}
-        <div className="history-diff-pane__controls">
-          {visibleFiles.length > 0 && <DiffStepNav kind="file" position={fileIndex + 1} total={visibleFiles.length} onPrevious={() => selectFileAt(fileIndex - 1)} onNext={() => selectFileAt(fileIndex + 1)} t={t} />}
-          {hunkCount > 0 && viewMode !== "accessible" && <DiffStepNav kind="hunk" position={hunkTarget.index + 1} total={hunkCount} onPrevious={() => goToHunk(hunkTarget.index - 1)} onNext={() => goToHunk(hunkTarget.index + 1)} t={t} />}
-        </div></header>
-        <div className="history-detail__diff" onContextMenu={openCodeContextMenu}>{state.fileDiff.isLoading && <div className="history-diff-state" aria-busy="true"><LoadingBar label={t.historyDiffLoading} /><p>{t.historyDiffLoading}</p></div>}{state.fileDiff.error !== null && <div className="history-diff-state" role="alert"><p>{t.historyDiffError}</p><button className="secondary-button" type="button" onClick={onRetryDiff}>{t.historyRetry}</button></div>}{state.fileDiff.diff && <DiffResultView diff={state.fileDiff.diff} viewMode={viewMode} hunkTarget={hunkTarget} searchQuery={diffSearch} picture={picture} t={t} />}{!state.fileDiff.isLoading && !state.fileDiff.error && !state.fileDiff.diff && detail.files.length > 0 && <p className="history-diff-state">{t.historySelectFilePrompt}</p>}</div>
-      </div></div>
-    </div>}
+      <HistoryDetailStrip
+        detail={detail}
+        currentBranch={state.snapshot?.branch ?? null}
+        actions={actions}
+        detailsOpen={detailsOpen}
+        onToggleDetails={() => setDetailsOpen((open) => !open)}
+      />
+      {detailsOpen && <HistoryDetails detail={detail} formats={formats} comparison={comparison} fileCount={fileCount} />}
+      <div className="history-workspace history-workspace--diff" role="region" aria-label={t.historyFilesAriaLabel}>
+        {/* One toolbar across the whole card, the file search having stepped
+            down into its own pane: the open file's identity and the reading
+            controls get the card's full width instead of the diff pane's
+            remainder, which is what keeps them fitting when the window is
+            small. The search strip and the code now open on the same row. */}
+        <header className="history-diff-toolbar">
+          {selectedFile ? <>
+            <span className="history-file__type" aria-hidden="true">{React.createElement(getFileTypeIcon(selectedFile.path))}</span>
+            <strong className="history-diff-toolbar__name">{splitPath(selectedFile.path).name}</strong>
+            <span className="history-diff-toolbar__dir">{splitPath(selectedFile.path).dir || t.changesProjectRoot}</span>
+            <button className="history-icon-button history-diff-toolbar__copy" type="button" aria-label={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} data-tooltip={copiedPath ? t.historyFilePathCopied : t.historyCopyFilePath} onClick={copySelectedPath}>{copiedPath ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}</button>
+          </> : <span className="history-diff-toolbar__prompt">{t.historySelectFilePrompt}</span>}
+          {/* The same two pairs the Changes diff header carries, in the same
+              place and the same shape, plus the reading controls Changes keeps
+              at the end of its strip. */}
+          <div className="history-diff-toolbar__controls">
+            {visibleFiles.length > 0 && <DiffStepNav kind="file" position={fileIndex + 1} total={visibleFiles.length} onPrevious={() => selectFileAt(fileIndex - 1)} onNext={() => selectFileAt(fileIndex + 1)} t={t} />}
+            {hunkCount > 0 && viewMode !== "accessible" && <DiffStepNav kind="hunk" position={hunkTarget.index + 1} total={hunkCount} onPrevious={() => goToHunk(hunkTarget.index - 1)} onNext={() => goToHunk(hunkTarget.index + 1)} t={t} />}
+            {findControl}
+            {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
+            {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
+          </div>
+        </header>
+        <div className="history-diff-grid">
+          <aside className="history-files-pane">{fileSearchControl}{fileList}</aside>
+          <div className="history-diff-pane">
+            <div className="history-detail__diff" onContextMenu={openCodeContextMenu}>{state.fileDiff.isLoading && <div className="history-diff-state" aria-busy="true"><LoadingBar label={t.historyDiffLoading} /><p>{t.historyDiffLoading}</p></div>}{state.fileDiff.error !== null && <div className="history-diff-state" role="alert"><p>{t.historyDiffError}</p><button className="secondary-button" type="button" onClick={onRetryDiff}>{t.historyRetry}</button></div>}{state.fileDiff.diff && <DiffResultView diff={state.fileDiff.diff} viewMode={viewMode} hunkTarget={hunkTarget} searchQuery={diffSearch} picture={picture} t={t} />}{!state.fileDiff.isLoading && !state.fileDiff.error && !state.fileDiff.diff && detail.files.length > 0 && <p className="history-diff-state">{t.historySelectFilePrompt}</p>}</div>
+          </div>
+        </div>
+      </div>
     </div>
     <span className="visually-hidden" role="status">{announcement}</span>
     <ChangesContextMenu context={contextMenu} onClose={closeContextMenu} onCopied={() => setAnnouncement(t.changesCopied)} onDiscard={() => undefined} t={t} />
@@ -1320,32 +1248,9 @@ export function HistoryPanel({ controller, query, state, watcherState, actions =
       {(warnings.includes("messagesTruncated") || warnings.includes("decorationsTruncated")) && <p className="history-meta-warning" role="status">{t.historyTruncatedMetadata}</p>}
       {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(formatNumber(MAX_HISTORY_ROWS, formats))}</p>}
     </div>
-    {/* Title and state on one line: the count is a caption for the word beside
-        it, and it describes the screen rather than the column it used to sit
-        inside. `.screen-header` is the same row Changes opens on, so the two
-        screens' panels start on the same pixel row. */}
-    <header className="screen-header">
-      <div className="screen-header__heading">
-        <h1>{t.historyTitle}</h1>
-        {/* The caption says how much is loaded, and — only when it is not the
-            line the status bar already names — which history that is. Working
-            context and viewing context can differ now, and the reader should
-            not have to open the filters to find out that they do. It informs
-            and nothing more: the scope is still chosen in the filter panel. */}
-        <p>
-          {filtersActive ? t.historyFilteredCount(visibleVersions.length, state.versions.length) : t.historyLoadedCount(state.versions.length)}
-          {/* A plain separator rather than the timeline's dot element: that one
-              takes its spacing from the flex gap of the meta row it belongs to,
-              and inside a paragraph it would sit flush against both neighbours. */}
-          {state.scope.kind !== "currentLine" && <>
-            {" · "}
-            <span className="history-header-scope">
-              {state.scope.kind === "allLines" ? t.historyScopeAllLines : t.historyScopeLineChip(state.scope.name)}
-            </span>
-          </>}
-        </p>
-      </div>
-    </header>
+    {/* The panels start at the top of the workspace: the title lives in the
+        timeline panel's own header and the version strip heads the card, so no
+        page row sits above either. */}
     <div className="history-layout">
       <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
       <HistoryDetail state={state} formats={formats} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />

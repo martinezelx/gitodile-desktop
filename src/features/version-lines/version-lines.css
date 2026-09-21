@@ -808,6 +808,62 @@
 .version-lines-quick-switch__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .version-lines-quick-switch__favourite--on { color: var(--accent-primary); opacity: 1; }
 .version-lines-quick-switch__favourite--on svg { fill: currentColor; }
+/* The row's chevron: the line's actions are a fact of the row, so it is always
+   visible, where the favourite is a convenience that can wait for the pointer.
+   A chevron, not an ellipsis, because it opens the actions in place of the
+   list rather than a floating menu over it. */
+.version-lines-quick-switch__more {
+  flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.version-lines-quick-switch__more svg { width: 15px; height: 15px; }
+.version-lines-quick-switch__more:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.version-lines-quick-switch__more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.version-lines-quick-switch__more[aria-expanded="true"] { background: var(--surface-active); color: var(--accent-primary); }
+.version-lines-quick-switch__menu--status .version-lines-quick-switch__more { width: 32px; height: 32px; }
+
+/* The line's actions, shown in place of the list rather than in a nested menu:
+   the popup clips its overflow and dismisses on a press outside itself, so a
+   second floating surface anchored to a row would be cut off or would close the
+   control that opened it. Merge, rebase and compare are stated but disabled
+   until the flows exist; renaming and deleting stay on the Lines screen. */
+/* The popup sizes to the actions: the fixed height the list needs (so its
+   results can scroll) is shorter on the status variant, and it clipped the note
+   at the bottom. `auto` up to a ceiling lets the same content breathe in both
+   hosts. */
+.version-lines-quick-switch__menu--actions { height: auto; max-height: min(380px, calc(100vh - 56px)); }
+.version-lines-quick-switch__actions { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; }
+.version-lines-quick-switch__actions-head {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 2px 2px 6px; border-bottom: 1px solid var(--border-subtle);
+}
+.version-lines-quick-switch__back {
+  width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+}
+.version-lines-quick-switch__back:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.version-lines-quick-switch__back:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.version-lines-quick-switch__back svg { width: 16px; height: 16px; }
+.version-lines-quick-switch__actions-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: var(--text-body); font-weight: var(--weight-strong);
+}
+.version-lines-quick-switch__actions-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.version-lines-quick-switch__actions .app-menu__item { margin-top: 4px; }
+.version-lines-quick-switch__actions .app-menu__item:disabled { opacity: 0.5; cursor: default; }
+.version-lines-quick-switch__actions .app-menu__item:disabled:hover { background: transparent; }
+.version-lines-quick-switch__soon {
+  flex-shrink: 0; padding: 1px 7px; border-radius: var(--radius-pill);
+  background: var(--surface-control); color: var(--text-secondary-color);
+  font-size: var(--text-micro); font-weight: var(--weight-strong);
+}
+.version-lines-quick-switch__actions-note {
+  margin: 8px 0 0; padding: 8px 4px 0; border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
+}
 .version-lines-quick-switch__menu--status .version-lines-quick-switch__glyph {
   width: 24px; height: 24px;
 }

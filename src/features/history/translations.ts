@@ -53,6 +53,12 @@ export interface HistoryTranslations {
   historyScopeShowCurrentLine: string;
   historyLinesTruncated: string;
   historyVersionActions: string;
+  historyMore: string;
+  historyDetails: string;
+  historyDetailsMessage: string;
+  historyCommitDetails: string;
+  historyPublicationLabel: string;
+  historyFilesLabel: string;
   historyVersionActionsLabel: string;
   historyLineActions: (name: string) => string;
   historyViewLine: (name: string) => string;
@@ -128,8 +134,6 @@ export interface HistoryTranslations {
   historyFilterFilesPlaceholder: string;
   historyFilterFilesAriaLabel: string;
   historyNoFileMatches: string;
-  historySearchDiffPlaceholder: string;
-  historySearchDiffAriaLabel: string;
   historyCopyFilePath: string;
   historyFilePathCopied: string;
   historyNoChangedFiles: string;
@@ -195,6 +199,12 @@ const en: HistoryTranslations = {
   historyScopeShowCurrentLine: "Show the current line",
   historyLinesTruncated: "This project has more version lines than History can read at once; some are not included.",
   historyVersionActions: "Actions",
+  historyMore: "More",
+  historyDetails: "Details",
+  historyDetailsMessage: "Message",
+  historyCommitDetails: "Commit details",
+  historyPublicationLabel: "Publication",
+  historyFilesLabel: "Files",
   historyVersionActionsLabel: "What this saved version can do",
   historyLineActions: (name) => `What the version line ${name} can do`,
   historyViewLine: (name) => `View “${name}” in Lines`,
@@ -268,8 +278,6 @@ const en: HistoryTranslations = {
   historyFilterFilesPlaceholder: "Filter files",
   historyFilterFilesAriaLabel: "Filter changed files",
   historyNoFileMatches: "No changed files match this search.",
-  historySearchDiffPlaceholder: "Search in diff",
-  historySearchDiffAriaLabel: "Search in the selected file difference",
   historyCopyFilePath: "Copy file path",
   historyFilePathCopied: "File path copied",
   historyNoChangedFiles: "This saved version has no file-content changes to show.",
@@ -335,6 +343,12 @@ const es: HistoryTranslations = {
   historyScopeShowCurrentLine: "Ver la línea actual",
   historyLinesTruncated: "Este proyecto tiene más líneas de versión de las que el historial puede leer a la vez; algunas no se incluyen.",
   historyVersionActions: "Acciones",
+  historyMore: "Más",
+  historyDetails: "Detalles",
+  historyDetailsMessage: "Mensaje",
+  historyCommitDetails: "Detalles del commit",
+  historyPublicationLabel: "Publicación",
+  historyFilesLabel: "Archivos",
   historyVersionActionsLabel: "Qué se puede hacer con esta versión guardada",
   historyLineActions: (name) => `Qué se puede hacer con la línea de versión ${name}`,
   historyViewLine: (name) => `Ver «${name}» en Líneas`,
@@ -408,8 +422,6 @@ const es: HistoryTranslations = {
   historyFilterFilesPlaceholder: "Filtrar archivos",
   historyFilterFilesAriaLabel: "Filtrar archivos cambiados",
   historyNoFileMatches: "Ningún archivo cambiado coincide con esta búsqueda.",
-  historySearchDiffPlaceholder: "Buscar en la diferencia",
-  historySearchDiffAriaLabel: "Buscar en la diferencia del archivo seleccionado",
   historyCopyFilePath: "Copiar ruta del archivo",
   historyFilePathCopied: "Ruta del archivo copiada",
   historyNoChangedFiles: "Esta versión guardada no contiene cambios de archivos que mostrar.",

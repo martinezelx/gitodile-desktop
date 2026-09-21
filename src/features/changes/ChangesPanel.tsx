@@ -30,6 +30,7 @@ import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
 import { DiffViewSelector } from "./DiffViewSelector";
 import { DiffStepNav } from "./DiffStepNav";
+import { DiffFind } from "./DiffFind";
 import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
 import type { DiscardRecovery, FileDiff } from "./domain";
 import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
@@ -722,6 +723,8 @@ function DiffWorkspace({
   // reset per file by the effect below.
   const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
   const [hunkTarget, setHunkTarget] = useState({ index: 0, token: 0 });
+  const [diffSearch, setDiffSearch] = useState("");
+  const [isFindOpen, setIsFindOpen] = useState(false);
   const hunkCount = getHunkCount(diffState);
   const picture = usePictureDiff(
     diffState.status === "ready" ? diffState.diff : null,
@@ -819,6 +822,17 @@ function DiffWorkspace({
               t={t}
             />
           )}
+          {/* The same find History's diff strip carries, between the arrows and
+              the reading controls: a magnifier at rest, a pill whose X closes
+              it once opened. */}
+          <DiffFind
+            isOpen={isFindOpen}
+            query={diffSearch}
+            onQueryChange={setDiffSearch}
+            onOpen={() => setIsFindOpen(true)}
+            onClose={() => { setIsFindOpen(false); setDiffSearch(""); }}
+            t={t}
+          />
           {/* Last, at the far edge: the arrows move within this file, and the
               picker changes the file's whole shape. A picture answers the same
               question with its own pickers, in the same place and the same
@@ -859,6 +873,7 @@ function DiffWorkspace({
               picture={picture}
               viewMode={viewMode}
               hunkTarget={hunkTarget}
+              searchQuery={diffSearch}
               t={t}
             />
           </div>

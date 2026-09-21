@@ -1,11 +1,16 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  ArrowLeftRight,
   ArrowRight,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   GitBranch,
   GitBranchPlus,
+  GitCommitHorizontal,
+  GitMerge,
   LoaderCircle,
   Search,
   Star,
@@ -59,7 +64,17 @@ export function VersionLineQuickSwitch({
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [favouritesOnly, setFavouritesOnly] = useState(false);
+  /** The line whose actions are showing inside the popup, if any. The actions
+   * replace the list rather than opening a nested menu: the popup clips its own
+   * overflow and dismisses on a press outside it, so a second floating surface
+   * anchored to a row would be cut off or would close the control that opened
+   * it. */
+  const [actionLine, setActionLine] = useState<VersionLine | null>(null);
+  // Read by the rows, which render in the branch where `actionLine` is `null`
+  // and would therefore be narrowed away if they asked it directly.
+  const openActionsName = actionLine?.name ?? null;
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const backRef = useRef<HTMLButtonElement>(null);
   const eligibleLines: VersionLine[] | null = snapshot
     ? snapshot.lines.filter(
         (line) => !line.isActive && line.name !== currentValue && !line.worktreePath,
@@ -78,8 +93,12 @@ export function VersionLineQuickSwitch({
   const visibleLines = matches?.slice(0, variant === "status" ? 6 : 9) ?? null;
   const close = (restoreFocus: boolean): void => {
     setIsOpen(false);
+    setActionLine(null);
     if (restoreFocus) triggerRef.current?.focus();
   };
+  useEffect(() => {
+    if (actionLine) backRef.current?.focus();
+  }, [actionLine]);
   const { popupRef, style } = usePortalFlyout(
     isOpen,
     triggerRef,
@@ -96,6 +115,7 @@ export function VersionLineQuickSwitch({
     }
     setQuery("");
     setFavouritesOnly(false);
+    setActionLine(null);
     setIsOpen(true);
   };
 
@@ -146,11 +166,47 @@ export function VersionLineQuickSwitch({
       {isOpen && createPortal(
         <div
           ref={popupRef}
-          className={`app-menu version-lines-quick-switch__menu version-lines-quick-switch__menu--${variant}`}
+          className={`app-menu version-lines-quick-switch__menu version-lines-quick-switch__menu--${variant}${actionLine ? " version-lines-quick-switch__menu--actions" : ""}`}
           role="dialog"
           aria-label={t.versionLinesQuickSwitchTitle}
           style={style}
         >
+          {actionLine ? (
+            <div className="version-lines-quick-switch__actions">
+              <div className="version-lines-quick-switch__actions-head">
+                <button
+                  ref={backRef}
+                  type="button"
+                  className="version-lines-quick-switch__back"
+                  aria-label={t.versionLinesQuickSwitchBack}
+                  onClick={() => setActionLine(null)}
+                >
+                  <ChevronLeft aria-hidden="true" />
+                </button>
+                <span className="version-lines-quick-switch__actions-name" title={actionLine.name}>{actionLine.name}</span>
+              </div>
+              {/* Stated, not offered: the actions name both ends so the
+                  direction is never in doubt, and carry a `Soon` because the
+                  flows behind them are not built yet. Disabled rather than
+                  hidden, so the shape of what is coming is legible. */}
+              <button className="app-menu__item" type="button" role="menuitem" disabled aria-disabled="true">
+                <GitMerge aria-hidden="true" />
+                <span className="version-lines-quick-switch__actions-label">{t.versionLinesMergeInto(currentValue)}</span>
+                <span className="version-lines-quick-switch__soon">{t.versionLinesSoon}</span>
+              </button>
+              <button className="app-menu__item" type="button" role="menuitem" disabled aria-disabled="true">
+                <GitCommitHorizontal aria-hidden="true" />
+                <span className="version-lines-quick-switch__actions-label">{t.versionLinesRebaseOnto(currentValue)}</span>
+                <span className="version-lines-quick-switch__soon">{t.versionLinesSoon}</span>
+              </button>
+              <button className="app-menu__item" type="button" role="menuitem" disabled aria-disabled="true">
+                <ArrowLeftRight aria-hidden="true" />
+                <span className="version-lines-quick-switch__actions-label">{t.versionLinesCompareWith(currentValue)}</span>
+                <span className="version-lines-quick-switch__soon">{t.versionLinesSoon}</span>
+              </button>
+              <p className="version-lines-quick-switch__actions-note">{t.versionLinesActionsSoon}</p>
+            </div>
+          ) : (<>
           <div className="version-lines-quick-switch__search">
             <Search aria-hidden="true" />
             <input
@@ -237,6 +293,24 @@ export function VersionLineQuickSwitch({
                         <Star aria-hidden="true" />
                       </button>
                     )}
+                    {/* Always visible, unlike the favourite, and a chevron
+                        rather than an ellipsis: it opens the line's actions in
+                        place of the list, not a floating menu over it, and the
+                        back control pairs with it. A control that only appears
+                        under the pointer is one half the readers never find. */}
+                    <button
+                      type="button"
+                      className="version-lines-quick-switch__more"
+                      aria-label={t.versionLinesQuickSwitchActions(line.name)}
+                      aria-haspopup="menu"
+                      aria-expanded={openActionsName === line.name}
+                      onClick={() => {
+                        setQuery("");
+                        setActionLine(line);
+                      }}
+                    >
+                      <ChevronRight aria-hidden="true" />
+                    </button>
                   </li>
                 );
               })}
@@ -279,6 +353,7 @@ export function VersionLineQuickSwitch({
               <ArrowRight aria-hidden="true" />
             </button>
           </div>
+          </>)}
         </div>,
         document.body,
       )}

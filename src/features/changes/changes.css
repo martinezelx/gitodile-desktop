@@ -730,8 +730,12 @@
      `.changes-layout`. A fixed height, not a minimum: everything in
      here is a single line that truncates, so nothing a path or a
      renamed-from note can say pushes this strip out of step with the one
-     beside it. */
+     beside it. `min-width: 0` and `overflow: hidden` let the strip absorb a
+     tight panel: the path truncates and the find shrinks, rather than the
+     reading controls being pushed off the edge. */
   flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
   height: var(--strip-height);
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -792,10 +796,21 @@
    controls rather than of the strip, so it reads as a divider inside a row and
    not as a second panel edge. */
 .changes-diff__controls {
-  display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  /* Shrinkable, because the find box inside it is: the arrows and the view
+     picker keep their size, and the find — the one thing that can give way —
+     does. */
+  flex: 0 1 auto; min-width: 0;
   padding-left: var(--space-3);
   border-left: 1px solid var(--border-divider);
 }
+/* The diff's find, shared with History: an icon until it is asked for, then a
+   pill that grows into the room the strip has, up to a ceiling, and shrinks to
+   a floor before the path has to give up its last characters. The box follows
+   the wrapper's used width, so a tight strip narrows the find instead of
+   pushing the arrows and the picker off. */
+.changes-diff-find { display: inline-flex; align-items: center; flex: 0 1 auto; min-width: 110px; max-width: clamp(160px, 20vw, 260px); }
+.changes-diff-find__box { flex: 0 1 auto; width: clamp(160px, 20vw, 260px); max-width: 100%; min-width: 0; }
 /* Each pair reads as a pair: the arrows inside one sit closer to each other
    than the two pairs do to each other, which is the only thing left telling
    "previous/next file" from "previous/next change" now that neither carries a
