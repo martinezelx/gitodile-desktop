@@ -4,7 +4,9 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
 } from "react";
 
@@ -263,4 +265,65 @@ export function useActiveProjectSelector<T>(
 
   const subscribe = useCallback((listener: () => void) => bridge.subscribe(listener), [bridge]);
   return useSyncExternalStore(subscribe, bridge.getSnapshot, bridge.getSnapshot);
+}
+
+/** One view inside a screen that shows several in turn — the Work screen's
+ * Changes and History tabs — kept alive the way the screen host keeps a
+ * screen alive.
+ *
+ * The problem is the same one `KeepAliveScreens` solves one level up: a view
+ * that unmounts on every switch rebuilds its list and its virtualizer from
+ * scratch, and a view that stays mounted but keeps rendering cannot be told
+ * apart from the visible one by its polling, its announcements or the tab
+ * order. So the slot mounts its view on first visit, hides it with `hidden`
+ * plus `inert` afterwards, re-renders the hidden element by identity so the
+ * host's own re-renders bail out of the subtree, and hands it a lifecycle
+ * controller of its own.
+ *
+ * That controller is derived, not independent: the view is `active` only
+ * while the screen around it is active *and* it is the shown view, `hidden`
+ * otherwise, and evicted with the screen. A feature inside reads the same
+ * hooks it would read as a screen of its own and cannot tell the difference —
+ * which is the point, since Changes and History were screens of their own
+ * until task 126. */
+export function KeepAliveViewSlot({
+  isActive,
+  className,
+  children,
+  ...attributes
+}: {
+  isActive: boolean;
+  className: string;
+  children: React.ReactNode;
+} & Omit<React.HTMLAttributes<HTMLDivElement>, "className" | "children" | "hidden">): React.JSX.Element | null {
+  const screen = useScreenLifecycle();
+  const hasCommittedVisit = useRef(false);
+  const lastCommittedElement = useRef<React.ReactNode>(null);
+  const lifecycle = useRef(
+    createScreenLifecycleController(screen === "active" && isActive ? "active" : "hidden"),
+  ).current;
+
+  useLayoutEffect(() => {
+    if (screen === "evicted") {
+      lifecycle.evict();
+      return;
+    }
+    if (isActive) {
+      hasCommittedVisit.current = true;
+      lastCommittedElement.current = children;
+    }
+    lifecycle.transition(screen === "active" && isActive ? "active" : "hidden");
+  }, [children, isActive, lifecycle, screen]);
+
+  if (!isActive && !hasCommittedVisit.current) {
+    return null;
+  }
+
+  return (
+    <div {...attributes} className={className} hidden={!isActive} inert={!isActive}>
+      <ScreenLifecycleProvider controller={lifecycle}>
+        {isActive ? children : lastCommittedElement.current}
+      </ScreenLifecycleProvider>
+    </div>
+  );
 }
