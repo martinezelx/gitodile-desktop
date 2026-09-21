@@ -26,4 +26,4 @@ export {
   type DiffPreferences,
   type DiffTabWidth,
 } from "./diffPreferences";
-export { ChangesPanel, changesScreenModule } from "./screen";
+export { ChangesPanel, preloadChangesPanel } from "./screen";

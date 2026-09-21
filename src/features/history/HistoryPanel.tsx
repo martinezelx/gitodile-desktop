@@ -161,8 +161,8 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
   );
 });
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; selectedCommit: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
+const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, selectedCommit, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  tabs: React.ReactNode; versions: SavedVersionSummary[]; selectedCommit: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
   onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onScope: (scope: HistoryScope) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -223,25 +223,11 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
   }, [onSelect, versions, virtualizer]);
   return (
     <section className="history-timeline" aria-label={t.historyTimelineAriaLabel} aria-busy={isLoading || undefined}>
-      {/* The panel is the card: the screen's name and the scope chip live here
-          now, in the shape the Changes list panel wears, so this panel and the
-          detail card beside it start on the same pixel row. The loaded-version
-          count the page header used to carry is gone — it answered a question
-          nobody asks. */}
-      <header className="history-timeline__header">
-        <div className="history-timeline__heading"><h1>{t.historyTitle}</h1></div>
-        {scope.kind !== "currentLine" && <button
-          className="history-scope-chip"
-          type="button"
-          title={scope.kind === "allLines" ? t.historyScopeAllLinesHint : t.historyScopeLineHint(scope.name)}
-          aria-label={t.historyScopeClear}
-          onClick={() => onScope(CURRENT_LINE_SCOPE)}
-        >
-          <GitBranch aria-hidden="true" />
-          <span>{scope.kind === "allLines" ? t.historyScopeAllLines : scopeLineName(scope)}</span>
-          <X aria-hidden="true" />
-        </button>}
-      </header>
+      {/* The panel is the card, and its header is the Work screen's tab pair
+          (task 126) — the row the screen's name used to fill, in the shape
+          the Changes list panel wears, so this panel and the detail card
+          beside it start on the same pixel row. */}
+      <header className="history-timeline__header">{tabs}</header>
       {/* One strip, the way the Changes file list has one. Searching and
           filtering answer the same question, so they share a row; it steps down
           a size from the header above it, as an inner strip should. */}
@@ -264,6 +250,24 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
           />}
         />
       </div>
+      {/* The scope, as a chip in a state row of its own — the row the Changes
+          list gives its breakdown — drawn only while the timeline is not the
+          current line's, so the common case keeps its rows one strip down.
+          It stays out of the filter chips: clearing the filters cannot touch
+          it and should not. */}
+      {scope.kind !== "currentLine" && <div className="history-timeline__state">
+        <button
+          className="history-scope-chip"
+          type="button"
+          title={scope.kind === "allLines" ? t.historyScopeAllLinesHint : t.historyScopeLineHint(scope.name)}
+          aria-label={t.historyScopeClear}
+          onClick={() => onScope(CURRENT_LINE_SCOPE)}
+        >
+          <GitBranch aria-hidden="true" />
+          <span>{scope.kind === "allLines" ? t.historyScopeAllLines : scopeLineName(scope)}</span>
+          <X aria-hidden="true" />
+        </button>
+      </div>}
       <HistoryFilterChips filters={filters} onChange={onFilters} />
       {/* A thread while Git answers, rather than an emptied list: the rows
           below are the previous answer and the strip says they are being
@@ -1141,7 +1145,13 @@ function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, o
   </section>;
 }
 
-export function HistoryPanel({ controller, query, state, watcherState, actions = {}, onOpenSettings, error }: { controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; actions?: HistoryLineActions; onOpenSettings: () => void; error: string | null }): React.JSX.Element {
+export function HistoryPanel({ tabs, controller, query, state, watcherState, actions = {}, onOpenSettings, error }: {
+  /** The Work screen's tab pair, drawn as the timeline panel's header in every
+   * state this panel has (task 126): it is what names the column now, and the
+   * way back to Changes has to stay reachable while History loads or fails. */
+  tabs: React.ReactNode;
+  controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; actions?: HistoryLineActions; onOpenSettings: () => void; error: string | null;
+}): React.JSX.Element {
   const { t, formats } = useLanguage();
   const [showNarrowDetail, setShowNarrowDetail] = useState(false);
   const [search, setSearch] = useState("");
@@ -1219,8 +1229,29 @@ export function HistoryPanel({ controller, query, state, watcherState, actions =
   const openNarrowDetail = useCallback(() => setShowNarrowDetail(true), []);
   const closeNarrowDetail = useCallback(() => setShowNarrowDetail(false), []);
 
-  if (!state.snapshot && state.isLoading) return <div className="history-screen"><div className="empty-state" aria-busy="true"><LoadingBar label={t.historyLoading} /><h1>{t.historyTitle}</h1><p>{t.historyLoading}</p></div></div>;
-  if (!state.snapshot && error) return <div className="history-screen"><div className="empty-state empty-state--error" role="alert"><div className="empty-state__icon" aria-hidden="true"><CircleAlert /></div><h1>{t.historyErrorTitle}</h1><p>{error}</p><div className="empty-state__actions"><button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button></div></div></div>;
+  // The states with no timeline to draw keep the timeline panel's shape —
+  // the tabs, and a strip saying what the panel is waiting on — and put the
+  // state block in the detail panel, where the card would be: the tabs stay at
+  // the list column's width rather than stretching over a card with no list.
+  const statePanel = (strip: React.ReactNode, block: React.ReactNode): React.JSX.Element => (
+    <div className="history-screen">
+      <div className="history-layout history-layout--state">
+        <section className="history-timeline" aria-label={t.historyTimelineAriaLabel}>
+          <header className="history-timeline__header">{tabs}</header>
+          {strip}
+        </section>
+        <section className="history-detail history-detail--state">{block}</section>
+      </div>
+    </div>
+  );
+  if (!state.snapshot && state.isLoading) return statePanel(
+    <div className="history-timeline__state" aria-busy="true"><LoadingBar label={t.historyLoading} /></div>,
+    <div className="empty-state" aria-busy="true"><p>{t.historyLoading}</p></div>,
+  );
+  if (!state.snapshot && error) return statePanel(
+    null,
+    <div className="empty-state empty-state--error" role="alert"><div className="empty-state__icon" aria-hidden="true"><CircleAlert /></div><h2>{t.historyErrorTitle}</h2><p>{error}</p><div className="empty-state__actions"><button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button></div></div>,
+  );
   // "No saved versions yet" is a fact about the repository, and one this
   // screen may only state when it is not in the middle of asking. A filter
   // that matches nothing is a fact about the filter and belongs in the list
@@ -1232,7 +1263,17 @@ export function HistoryPanel({ controller, query, state, watcherState, actions =
   // loading clause it swallowed it again on Clear all — the filters are off by
   // then, and the empty list still on screen is the answer to the question
   // that was just retired.
-  if (state.snapshot && state.versions.length === 0 && !filtersActive && state.scope.kind === "currentLine" && !state.isLoading) return <div className="history-screen"><div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div><div className="empty-state"><div className="empty-state__icon" aria-hidden="true"><GitCommitHorizontal /></div><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div></div>;
+  if (state.snapshot && state.versions.length === 0 && !filtersActive && state.scope.kind === "currentLine" && !state.isLoading) return <div className="history-screen">
+    <div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div>
+    <div className="history-layout history-layout--state">
+      <section className="history-timeline" aria-label={t.historyTimelineAriaLabel}>
+        <header className="history-timeline__header">{tabs}</header>
+      </section>
+      <section className="history-detail history-detail--state">
+        <div className="empty-state"><div className="empty-state__icon" aria-hidden="true"><GitCommitHorizontal /></div><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div>
+      </section>
+    </div>
+  </div>;
 
   return <div className={`history-screen${showNarrowDetail ? " history-screen--narrow-detail" : ""}`}>
     <div className="history-notices">
@@ -1252,7 +1293,7 @@ export function HistoryPanel({ controller, query, state, watcherState, actions =
         timeline panel's own header and the version strip heads the card, so no
         page row sits above either. */}
     <div className="history-layout">
-      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
+      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} tabs={tabs} versions={visibleVersions} selectedCommit={state.selectedCommit} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
       <HistoryDetail state={state} formats={formats} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
     </div>
   </div>;

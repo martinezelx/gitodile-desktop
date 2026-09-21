@@ -51,8 +51,8 @@ describe("translation composition", () => {
   it("composes representative shell and feature copy synchronously in both languages", () => {
     expect(translations.en.navOverview).toBe("Overview");
     expect(translations.es.navOverview).toBe("Resumen");
-    expect(translations.en.changesHeading).toBe("Changes");
-    expect(translations.es.changesHeading).toBe("Cambios");
+    expect(translations.en.workbenchTabChanges).toBe("Changes");
+    expect(translations.es.workbenchTabChanges).toBe("Cambios");
     expect(translations.en.versionLinesTitle).toBe("Lines");
     expect(translations.es.versionLinesTitle).toBe("Líneas");
     expect(translations.en.projectSwitcherRailTrigger("  ")).toBe(

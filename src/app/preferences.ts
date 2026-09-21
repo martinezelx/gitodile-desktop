@@ -318,15 +318,17 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
   return [preferences, setPreferences];
 }
 
-/** The rail order that shipped before History moved up beside Changes. Every
- * session writes the whole snapshot back, so by the time the default changed
- * this exact list was already sitting in storage for everyone who had ever
+/** Rail orders that shipped as defaults before the current one: first with
+ * History below Lines, then with History moved up beside Changes. Every
+ * session writes the whole snapshot back, so by the time a default changed
+ * its predecessor was already sitting in storage for everyone who had ever
  * opened the app — including everyone who had never opened Navigation
  * Settings. An order identical to a superseded default is the absence of a
  * choice rather than one, so it adopts the new default; anything else is the
  * user's arrangement and stands. */
 const SUPERSEDED_DESTINATION_ORDERS: readonly (readonly string[])[] = [
   ["overview", "changes", "version-lines", "history", "recovery"],
+  ["overview", "changes", "history", "version-lines", "recovery"],
 ];
 
 function isSupersededOrder(order: readonly string[]): boolean {
@@ -334,6 +336,26 @@ function isSupersededOrder(order: readonly string[]): boolean {
     (superseded) =>
       superseded.length === order.length && superseded.every((id, index) => id === order[index]),
   );
+}
+
+/** Destinations that became one (task 126): Changes and History are the two
+ * tabs of Work now. A stored list keeps its shape — Work takes the place
+ * Changes held, and History drops out — so an arrangement someone made by
+ * hand survives the merge instead of being appended to. Applied before the
+ * unknown-id filter, which would otherwise discard both and put Work last. */
+const MERGED_DESTINATIONS: Readonly<Record<string, string | null>> = {
+  changes: "workbench",
+  history: null,
+};
+
+function migrateDestinationIds(ids: readonly unknown[]): string[] {
+  const migrated: string[] = [];
+  for (const id of ids) {
+    if (typeof id !== "string") continue;
+    const target = id in MERGED_DESTINATIONS ? MERGED_DESTINATIONS[id] : id;
+    if (target !== null) migrated.push(target);
+  }
+  return migrated;
 }
 
 /** Navigation is stored as one validated snapshot: membership, order and
@@ -359,24 +381,23 @@ export function useStoredNavigationPreferences(
       if (!Array.isArray(read.visibleDestinationIds)) return fallback();
       const allowed = new Set(defaultDestinationIds);
       const visibleDestinationIds = Array.from(
-        new Set(
-          read.visibleDestinationIds.filter(
-            (id): id is string => typeof id === "string" && allowed.has(id),
-          ),
-        ),
+        new Set(migrateDestinationIds(read.visibleDestinationIds).filter((id) => allowed.has(id))),
       );
       const displayMode =
         read.displayMode === "icons-only" || read.displayMode === "icons-and-text"
           ? read.displayMode
           : "icons-and-text";
-      const storedOrder = Array.isArray(read.destinationOrderIds)
-        ? read.destinationOrderIds.filter(
-            (id): id is string => typeof id === "string" && allowed.has(id),
-          )
-        : [];
-      const destinationOrderIds = isSupersededOrder(storedOrder)
+      const storedOrder: unknown[] = Array.isArray(read.destinationOrderIds) ? read.destinationOrderIds : [];
+      // A superseded default is recognised as stored, before migration:
+      // it is the old ids that name it.
+      const destinationOrderIds = isSupersededOrder(storedOrder.filter((id): id is string => typeof id === "string"))
         ? [...defaultDestinationIds]
-        : Array.from(new Set([...storedOrder, ...defaultDestinationIds]));
+        : Array.from(
+            new Set([
+              ...migrateDestinationIds(storedOrder).filter((id) => allowed.has(id)),
+              ...defaultDestinationIds,
+            ]),
+          );
       return { visibleDestinationIds, destinationOrderIds, displayMode };
     } catch {
       return fallback();

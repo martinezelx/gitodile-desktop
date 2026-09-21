@@ -1,0 +1,53 @@
+/* The Work screen (task 126): Changes and History in one place, switched by
+   the tab pair at the head of the list panel. The screen is a flex column the
+   way the two panels expect their host to be, and each view slot is
+   `display: contents` — the same trick `.screen-slot` uses one level up — so
+   the panel's own `flex: 1` still reaches the column. */
+.workspace--workbench { overflow-y: hidden; }
+.workbench { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.workbench__view { display: contents; }
+.workbench__view[hidden] { display: none; }
+
+/* Two equal halves filling the panel's header strip, the way GitHub Desktop
+   heads its sidebar. Both tabs are set in the title's own type — size, weight
+   and tracking — so switching moves nothing: only the colour changes, and a
+   2px accent rule sits on the header's bottom edge under the active one. It
+   is the rail's active colour, not the band's "do this" fill; a tab is where
+   you are, not what to do. */
+.workbench-tabs { flex: 1; min-width: 0; align-self: stretch; display: flex; }
+.workbench-tabs__tab {
+  position: relative; flex: 1 1 0; min-width: 0;
+  padding: 0 var(--space-3); border: 0; background: transparent;
+  font: inherit; font-size: var(--text-subtitle); font-weight: var(--weight-title);
+  line-height: var(--leading-tight); letter-spacing: var(--tracking-tight);
+  color: var(--text-secondary-color);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color var(--duration-fast);
+}
+.workbench-tabs__tab:hover { color: var(--text-primary-color); }
+.workbench-tabs__tab--active { color: var(--text-primary-color); }
+.workbench-tabs__tab--active::after {
+  content: ""; position: absolute; left: var(--space-3); right: var(--space-3); bottom: 0;
+  height: 2px; background: var(--accent-primary); border-radius: 2px 2px 0 0;
+}
+.workbench-tabs__tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; border-radius: var(--radius-item); }
+
+/* The fallback while a tab's chunk loads: the list panel's shell — the same
+   column, border and radius the panels draw — with the tab pair in its header
+   and a thread under it, so the strip does not blink out between two tabs. */
+.workbench__loading { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--panel-column) minmax(0, 1fr); gap: var(--space-4); }
+.workbench__loading-panel {
+  min-height: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel);
+}
+.workbench__loading-header {
+  flex: 0 0 auto; height: var(--strip-height); display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.workbench__loading-panel > .loading-state { padding: var(--space-3); }
+@media (max-width: 1200px) {
+  .workbench__loading { grid-template-columns: var(--panel-column-narrow) minmax(0, 1fr); }
+}
+@media (max-width: 1024px) {
+  .workbench__loading { grid-template-columns: 1fr; }
+}

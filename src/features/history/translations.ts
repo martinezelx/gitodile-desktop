@@ -1,5 +1,4 @@
 export interface HistoryTranslations {
-  historyTitle: string;
   historyDescription: string;
   historyRefresh: string;
   historyRefreshing: string;
@@ -144,7 +143,6 @@ export interface HistoryTranslations {
 }
 
 const en: HistoryTranslations = {
-  historyTitle: "History",
   historyDescription: "Saved versions on the current version line, newest first.",
   historyRefresh: "Refresh",
   historyRefreshing: "Refreshing history…",
@@ -288,7 +286,6 @@ const en: HistoryTranslations = {
 };
 
 const es: HistoryTranslations = {
-  historyTitle: "Historial",
   historyDescription: "Versiones guardadas en la línea de versión actual, de más reciente a más antigua.",
   historyRefresh: "Actualizar",
   historyRefreshing: "Actualizando historial…",

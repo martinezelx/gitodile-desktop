@@ -1,11 +1,12 @@
 import React, { Profiler, useEffect, useLayoutEffect, useRef } from "react";
 import { LifeBuoy } from "lucide-react";
 
-import { changesScreenModule, ChangesPanel } from "../features/changes";
+import { ChangesPanel } from "../features/changes";
 import { overviewScreenModule, OverviewPanel } from "../features/overview";
-import { historyScreenModule, HistoryScreen } from "../features/history";
+import { HistoryScreen } from "../features/history";
 import { settingsOverlayModule } from "../features/settings";
 import { versionLinesScreenModule, VersionLinesScreen } from "../features/version-lines";
+import { workbenchScreenModule, WorkbenchScreen } from "../features/workbench";
 import type { ProjectView } from "../runtime/project/sessions";
 import {
   ScreenLifecycleProvider,
@@ -55,7 +56,7 @@ export type NavDestination = {
   overlay?: "settings";
 };
 
-export { ChangesPanel, HistoryScreen, OverviewPanel, VersionLinesScreen };
+export { ChangesPanel, HistoryScreen, OverviewPanel, VersionLinesScreen, WorkbenchScreen };
 
 /** The single place a screen is registered. Nav (expanded and compact), the
  * command palette, idle prefetching, the "leave if the project closed" guard,
@@ -63,15 +64,15 @@ export { ChangesPanel, HistoryScreen, OverviewPanel, VersionLinesScreen };
  * adding an entry here and a component, and nothing else. Order is the order
  * the sidebar shows.
  *
- * History sits directly under Changes because the two are one loop — what has
- * changed, and what has been saved — and they now share a shape as well as a
- * neighbour. Lines follows: switching a version line is a deliberate move
- * between pieces of work, not part of that loop. The order here is only the
- * default; Navigation Settings still lets anyone rearrange the rail. */
+ * Work is what has changed and what has been saved — one loop, one screen,
+ * with Changes and History as its two tabs (task 126; they were neighbouring
+ * screens before that). Lines follows: switching a version line is a
+ * deliberate move between pieces of work, not part of that loop. The order
+ * here is only the default; Navigation Settings still lets anyone rearrange
+ * the rail. */
 export const SCREEN_MODULES = defineScreenModules([
   overviewScreenModule,
-  changesScreenModule,
-  historyScreenModule,
+  workbenchScreenModule,
   versionLinesScreenModule,
   {
     kind: "placeholder",

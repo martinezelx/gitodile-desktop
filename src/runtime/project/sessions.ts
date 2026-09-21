@@ -5,7 +5,12 @@ import { EMPTY_TEAM_SYNC_STATE, type TeamSyncStatus, type TeamSyncViewState } fr
 
 /** Per-project view: `settings` lives outside any session (see `app/App.tsx`), so
  * a session only ever remembers which project screen it was last showing. */
-export type ProjectView = "overview" | "changes" | "version-lines" | "history";
+export type ProjectView = "overview" | "workbench" | "version-lines";
+
+/** The two views of the Work screen (task 126). Which one is showing is the
+ * session's to remember, like its selected file: Back and Forward move
+ * between screens, and a project left on History comes back to History. */
+export type WorkbenchTab = "changes" | "history";
 
 export type ProjectMutationKind = "save" | "publish" | "discard" | "version-line" | "sync";
 export type ProjectMutationPhase =
@@ -51,6 +56,7 @@ export type ProjectSession = {
   lastView: ProjectView;
   viewHistory: ProjectView[];
   viewHistoryIndex: number;
+  workbenchTab: WorkbenchTab;
   changesSelection: ChangesSelectionState;
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
@@ -126,7 +132,8 @@ export type ProjectSessionsAction =
   | { type: "startOperation"; id: string; kind: ProjectMutationKind }
   | { type: "setOperationPhase"; id: string; phase: ProjectMutationPhase }
   | { type: "finishOperation"; id: string }
-  | { type: "setChangesSelection"; id: string; selection: ChangesSelectionState };
+  | { type: "setChangesSelection"; id: string; selection: ChangesSelectionState }
+  | { type: "setWorkbenchTab"; id: string; tab: WorkbenchTab };
 
 export function repositorySessionEpoch(project: RepositoryInfo): string {
   return project.sessionEpoch;
@@ -140,6 +147,7 @@ function freshSession(project: RepositoryInfo): ProjectSession {
     lastView: "overview",
     viewHistory: ["overview"],
     viewHistoryIndex: 0,
+    workbenchTab: "changes",
     changesSelection: EMPTY_CHANGES_SELECTION,
     workingTree: null,
     workingTreeError: null,
@@ -526,6 +534,11 @@ export function projectSessionsReducer(
 
     case "setChangesSelection":
       return updateSession(state, action.id, (session) => ({ ...session, changesSelection: action.selection }));
+
+    case "setWorkbenchTab":
+      return updateSession(state, action.id, (session) =>
+        session.workbenchTab === action.tab ? session : { ...session, workbenchTab: action.tab },
+      );
   }
 }
 

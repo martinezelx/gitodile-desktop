@@ -1,5 +1,4 @@
 export interface ChangesTranslations {
-  changesHeading: string;
   changesSummaryClean: string;
   changesEmptyTitle: string;
   changesEmptyDescription: string;
@@ -165,7 +164,6 @@ export interface ChangesTranslations {
 }
 
 const en: ChangesTranslations = {
-  changesHeading: "Changes",
   changesSummaryClean: "Everything is saved. There is nothing to review.",
   changesEmptyTitle: "Nothing to review",
   changesEmptyDescription: "Every saved file matches the latest saved version. Come back after you make changes.",
@@ -351,7 +349,6 @@ const en: ChangesTranslations = {
 };
 
 const es: ChangesTranslations = {
-  changesHeading: "Cambios",
   changesSummaryClean: "Todo está guardado. No hay nada que revisar.",
   changesEmptyTitle: "Nada que revisar",
   changesEmptyDescription:

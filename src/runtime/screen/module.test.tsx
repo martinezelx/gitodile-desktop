@@ -110,7 +110,7 @@ describe("ScreenModule runtime", () => {
     const testScreen = <RuntimeTestScreen runtime={runtime} onRender={onRender} onPoll={onPoll} />;
 
     const { rerender } = render(
-      <KeepAliveScreens key="epoch:/a" active="overview" screens={{ overview: testScreen, changes: <p>Other</p> }} />,
+      <KeepAliveScreens key="epoch:/a" active="overview" screens={{ overview: testScreen, workbench: <p>Other</p> }} />,
     );
     const originalNode = screen.getByRole("region", { name: "Runtime test screen" });
     const activeRenders = onRender.mock.calls.length;
@@ -122,7 +122,7 @@ describe("ScreenModule runtime", () => {
     expect(onPoll).toHaveBeenCalled();
 
     rerender(
-      <KeepAliveScreens key="epoch:/a" active="changes" screens={{ overview: testScreen, changes: <p>Other</p> }} />,
+      <KeepAliveScreens key="epoch:/a" active="workbench" screens={{ overview: testScreen, workbench: <p>Other</p> }} />,
     );
     const hiddenSlot = originalNode.closest(".screen-slot");
     expect(hiddenSlot).toHaveAttribute("hidden");
@@ -138,14 +138,14 @@ describe("ScreenModule runtime", () => {
     expect(onPoll).toHaveBeenCalledTimes(hiddenPolls);
 
     rerender(
-      <KeepAliveScreens key="epoch:/a" active="overview" screens={{ overview: testScreen, changes: <p>Other</p> }} />,
+      <KeepAliveScreens key="epoch:/a" active="overview" screens={{ overview: testScreen, workbench: <p>Other</p> }} />,
     );
     expect(screen.getByText("Project /c")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Runtime test screen" })).toBe(originalNode);
     expect(screen.getByRole("button", { name: "Local 1" })).toBeInTheDocument();
 
     rerender(
-      <KeepAliveScreens key="epoch:/b" active="overview" screens={{ overview: testScreen, changes: <p>Other</p> }} />,
+      <KeepAliveScreens key="epoch:/b" active="overview" screens={{ overview: testScreen, workbench: <p>Other</p> }} />,
     );
     expect(screen.getByRole("region", { name: "Runtime test screen" })).not.toBe(originalNode);
     expect(screen.getByRole("button", { name: "Local 0" })).toBeInTheDocument();

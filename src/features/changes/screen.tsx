@@ -1,27 +1,12 @@
-import { GitCompare } from "lucide-react";
+import { createLazyScreenContainer } from "../../runtime/screen/module";
 
-import { createLazyScreenContainer, type ScreenModule } from "../../runtime/screen/module";
-
+/** Changes is a view of the Work screen (task 126), not a screen of its own,
+ * so this is the lazy chunk and its preload rather than a registry entry. The
+ * workbench module lists the preload so the idle prefetch still warms it. */
 const container = createLazyScreenContainer(
   () => import("./ChangesPanel"),
   (module) => module.ChangesPanel,
 );
 
 export const ChangesPanel = container.Component;
-
-export const changesScreenModule = {
-  kind: "screen",
-  id: "changes",
-  section: "project",
-  labelKey: "navChanges",
-  disabledLabelKey: "navChangesTitle",
-  commandLabelKey: "navChanges",
-  icon: <GitCompare />,
-  requiresProject: true,
-  inCompactNav: true,
-  container,
-  additionalPreloads: [],
-  lifecycle: { hidden: "retain-suspended", evict: "project-session" },
-  accessibility: { inactive: "hidden-inert", announcements: "active-only" },
-  performanceBudget: { warmSwitchWarningMs: 40, warmSwitchFailureMs: 50, maxVisibleDescendants: 1200 },
-} as const satisfies ScreenModule;
+export const preloadChangesPanel = container.preload;

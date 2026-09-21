@@ -14,6 +14,7 @@ import { settingsTranslations } from "../features/settings/translations";
 import { statusTranslations } from "../features/status/translations";
 import { syncTranslations } from "../features/sync/translations";
 import { versionLinesTranslations } from "../features/version-lines/translations";
+import { workbenchTranslations } from "../features/workbench/translations";
 import {
   DEFAULT_DATE_FORMAT,
   DEFAULT_NUMBER_FORMAT,
@@ -61,6 +62,7 @@ export const translationNamespaces = {
   projectSettings: projectSettingsTranslations,
   publish: publishTranslations,
   versionLines: versionLinesTranslations,
+  workbench: workbenchTranslations,
 } as const;
 
 const en = {
@@ -79,6 +81,7 @@ const en = {
   ...projectSettingsTranslations.en,
   ...publishTranslations.en,
   ...versionLinesTranslations.en,
+  ...workbenchTranslations.en,
 };
 
 export type Translations = typeof en;
@@ -99,6 +102,7 @@ const es: Translations = {
   ...projectSettingsTranslations.es,
   ...publishTranslations.es,
   ...versionLinesTranslations.es,
+  ...workbenchTranslations.es,
 };
 
 /** All namespaces are composed eagerly so lazy screens never paint keys or a fallback locale. */

@@ -1079,6 +1079,7 @@ function FileListRows(props: FileListRowsProps): React.JSX.Element {
 }
 
 export function ChangesPanel({
+  tabs,
   projectPath,
   workingTree,
   workingTreeError,
@@ -1099,6 +1100,10 @@ export function ChangesPanel({
   onDiscardClose,
   onDiscardPhaseChange,
 }: {
+  /** The Work screen's tab pair, drawn as the list panel's header in every
+   * state this panel has — it is what names the column now (task 126), and
+   * the way to History has to stay reachable when there is nothing to list. */
+  tabs: React.ReactNode;
   projectPath: string;
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
@@ -1386,10 +1391,10 @@ export function ChangesPanel({
     }
   };
 
+  // The state row's message; only the listing state draws it, so a clean
+  // tree never reaches here.
   let headerMessage: React.ReactNode = null;
-  if (isLoadingList) {
-    headerMessage = <p>{t.statusCheckingMessage}</p>;
-  } else if (workingTree) {
+  if (workingTree && !workingTree.isClean) {
     const { total } = workingTree.counts;
     // The same breakdown, with the same glyphs in the same colours, that the
     // Overview band's Changes tile shows — a reader who arrives from that
@@ -1400,19 +1405,15 @@ export function ChangesPanel({
     const breakdownText = breakdown.map((item) => t[BREAKDOWN_LABEL_KEYS[item.category]](item.count)).join(" · ");
     headerMessage = (
       <p className="changes-view__summary">
-        {workingTree.isClean ? (
-          <span>{t.changesSummaryClean}</span>
-        ) : (
-          <span className="changes-view__breakdown" aria-label={breakdownText}>
-            {breakdown.map((item) => (
-              <span key={item.category} className={`changes-view__kind changes-view__kind--${item.category}`}>
-                {CHANGE_CATEGORY_ICONS[item.category]}
-                {t[BREAKDOWN_LABEL_KEYS[item.category]](item.count)}
-              </span>
-            ))}
-          </span>
-        )}
-        {!workingTree.isClean && lineTotals && (
+        <span className="changes-view__breakdown" aria-label={breakdownText}>
+          {breakdown.map((item) => (
+            <span key={item.category} className={`changes-view__kind changes-view__kind--${item.category}`}>
+              {CHANGE_CATEGORY_ICONS[item.category]}
+              {t[BREAKDOWN_LABEL_KEYS[item.category]](item.count)}
+            </span>
+          ))}
+        </span>
+        {lineTotals && (
           <>
             <span className="changes-view__summary-separator" aria-hidden="true">
               ·
@@ -1433,7 +1434,7 @@ export function ChangesPanel({
             its changes, not beside the search box: the strip's job is finding
             a file, and the count was taking a third of it to answer a question
             nobody asks while typing. */}
-        {!workingTree.isClean && !allSelected && (
+        {!allSelected && (
           <>
             <span className="changes-view__summary-separator" aria-hidden="true">
               ·
@@ -1472,190 +1473,204 @@ export function ChangesPanel({
         </div>
       )}
 
-      {isLoadingList ? (
-        <LoadingBar label={t.commonLoading} />
-      ) : !workingTree ? null : workingTree.isClean ? (
-        <div className="changes-empty">
-          {/* The panel that carries the screen's name is not drawn when there
-              is nothing to list, so the name is still here for a screen
-              reader, just not for the eye: the rail says it there. */}
-          <h1 className="visually-hidden">{t.changesHeading}</h1>
-          <div className="changes-empty__icon" aria-hidden="true">
-            <CheckCircle2 />
-          </div>
-          <h2>{t.changesEmptyTitle}</h2>
-          <p>{t.changesEmptyDescription}</p>
-          <div className="changes-empty__actions">
-            <button className="secondary-button" type="button" onClick={onNavigateOverview}>
-              {t.changesBackToOverview}
-            </button>
-            {/* Discarding everything empties this screen, and the file list
-                takes the menu that reaches stored copies with it. Without this
-                the way back would exist only while there was still something
-                to review — which is exactly when nobody needs it. */}
-            {hasRecoveries && (
-              <button className="ghost-button" type="button" onClick={() => requestDiscard({ mode: "restore", selectedPath: null })}>
-                <RotateCcw aria-hidden="true" />
-                {t.changesRestoreDiscarded}
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}`}>
-          <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
-            {/* The panel is the card. The screen's name and its state used to
-                be a page row over both panels — a Linear-style header on a
-                workbench, with a corner waiting for controls that live in
-                the panels — so they are the list panel's own header now, at
-                the height of a strip so the diff's header beside it starts
-                on the same pixel row. At its head, where a card would put a
-                glyph circle, stands the include-everything checkbox: the
-                rail already names this screen with that glyph, and the
-                checkbox is what heads this column — the same inset as the
-                rows' own, so it reads as theirs (GitHub Desktop heads its
-                list the same way). Two lines, fixed: a band that grew with
-                what it said would be a strip that never stays level. */}
-            <header className="changes-file-list__header">
-              <span className="changes-file-list__select-all">
-                {canChooseFiles ? (
-                  <input
-                    ref={selectAllRef}
-                    className="app-checkbox changes-file-row__checkbox"
-                    type="checkbox"
-                    checked={allSelected}
-                    aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
-                    onChange={() =>
-                      allSelected
-                        ? setExcludedPaths(new Set(entries.map((entry) => entry.path)))
-                        : setExcludedPaths(new Set())
-                    }
-                  />
-                ) : (
-                  <input
-                    className="app-checkbox changes-file-row__checkbox"
-                    type="checkbox"
-                    checked
-                    disabled
-                    aria-label={t.changesPartialUnavailableTruncated}
-                    data-tooltip={t.changesPartialUnavailableTruncated}
-                    readOnly
-                  />
-                )}
-              </span>
-              <div className="changes-file-list__heading">
-                <h1>{t.changesHeading}</h1>
+      {/* The panel is the card, and the tab pair is its header: the row the
+          title used to fill (task 126). It is drawn in every state — loading,
+          nothing to review, listing — because it is also the way to History.
+          With nothing to review the list panel says so in its state row and
+          the empty block moves into the diff panel, where the reading surface
+          would be: the tabs stay where the tabs are, at the list column's
+          width, rather than stretching across a card that has no list. */}
+      <div
+        className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}${
+          !isLoadingList && workingTree?.isClean ? " changes-layout--state" : ""
+        }`}
+      >
+        <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
+          <header className="changes-file-list__header">{tabs}</header>
+          {isLoadingList ? (
+            <div className="changes-file-list__state">
+              <LoadingBar label={t.commonLoading} />
+            </div>
+          ) : !workingTree ? null : workingTree.isClean ? (
+            <div className="changes-file-list__state">
+              <p className="changes-view__summary">
+                <span>{t.changesSummaryClean}</span>
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* One strip for what is listed: the search takes the whole
+                  width, the discard menu the far end. A step quieter than the
+                  header above it, the way History's inner panes step down from
+                  their panel. */}
+              <div className="changes-file-list__toolbar">
+                <SearchBox
+                  value={search}
+                  onChange={setSearch}
+                  placeholder={t.changesSearchPlaceholder}
+                  ariaLabel={t.changesSearchAriaLabel}
+                  clearLabel={t.commonClearSearch}
+                  trailing={<ChangesFilterPanel
+                    filters={filters}
+                    kinds={kindsPresent}
+                    types={typesPresent}
+                    canChooseFiles={canChooseFiles}
+                    onChange={setFilters}
+                    t={t}
+                  />}
+                />
+                <ChangesActionsMenu
+                  controller={controller}
+                  projectPath={projectPath}
+                  sessionEpoch={sessionEpoch}
+                  selectedPath={selectedPath}
+                  disabled={isCheckingChanges}
+                  onChoose={requestDiscard}
+                  t={t}
+                />
+              </div>
+              {/* The state row: what the rows below add up to, and the one
+                  control that reaches all of them. It is the "N changed files"
+                  row GitHub Desktop puts under its tabs, and it holds what the
+                  panel's header held before the tabs took that row (task 126)
+                  — the include-everything checkbox at the rows' own inset, so
+                  it reads as the column's head, and the breakdown beside it in
+                  the band's vocabulary. */}
+              <div className="changes-file-list__state">
+                <span className="changes-file-list__select-all">
+                  {canChooseFiles ? (
+                    <input
+                      ref={selectAllRef}
+                      className="app-checkbox changes-file-row__checkbox"
+                      type="checkbox"
+                      checked={allSelected}
+                      aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
+                      onChange={() =>
+                        allSelected
+                          ? setExcludedPaths(new Set(entries.map((entry) => entry.path)))
+                          : setExcludedPaths(new Set())
+                      }
+                    />
+                  ) : (
+                    <input
+                      className="app-checkbox changes-file-row__checkbox"
+                      type="checkbox"
+                      checked
+                      disabled
+                      aria-label={t.changesPartialUnavailableTruncated}
+                      data-tooltip={t.changesPartialUnavailableTruncated}
+                      readOnly
+                    />
+                  )}
+                </span>
                 {headerMessage}
               </div>
-            </header>
-            {/* One strip for what is listed: the search takes the whole
-                width, the discard menu the far end. A step quieter than the
-                header above it, the way History's inner panes step down from
-                their panel. */}
-            <div className="changes-file-list__toolbar">
-              <SearchBox
-                value={search}
-                onChange={setSearch}
-                placeholder={t.changesSearchPlaceholder}
-                ariaLabel={t.changesSearchAriaLabel}
-                clearLabel={t.commonClearSearch}
-                trailing={<ChangesFilterPanel
-                  filters={filters}
-                  kinds={kindsPresent}
-                  types={typesPresent}
-                  canChooseFiles={canChooseFiles}
-                  onChange={setFilters}
+              <ChangesFilterChips filters={filters} onChange={setFilters} t={t} />
+              <div
+                {...autoHideScrollbarProps<HTMLDivElement>()}
+                ref={fileListScrollRef}
+                className="changes-file-list__scroll auto-hide-scrollbar"
+              >
+                {workingTree.truncated && (
+                  <p className="changes-file-list__truncated" role="status">
+                    {t.statusTruncatedNote(entries.length)}
+                  </p>
+                )}
+                {/* An empty list has to say why it is empty and offer the way
+                    back. The search box carries its own clear control in the
+                    strip above; the filters do not, so the one that can strand a
+                    reader here offers its own undo. */}
+                {visibleEntries.length === 0 && (
+                  <div className="changes-file-list__empty" role="status">
+                    <p>{activeFilterCount > 0 ? t.changesNoFilterMatches : t.changesNoSearchMatches}</p>
+                    {activeFilterCount > 0 && (
+                      <button
+                        className="secondary-button secondary-button--sm"
+                        type="button"
+                        onClick={() => setFilters(NO_CHANGES_FILTERS)}
+                      >
+                        {t.changesFiltersClear}
+                      </button>
+                    )}
+                  </div>
+                )}
+                <FileListRows
+                  entries={visibleEntries}
+                  selectedPath={selectedPath}
+                  excludedPaths={excludedPaths}
+                  canChoose={canChooseFiles}
+                  scrollElement={fileListScrollRef}
+                  onSelect={(entry) => {
+                    onSelectedPathChange(entry.path);
+                    setIsDetailFocused(true);
+                  }}
+                  onToggleIncluded={(entry) =>
+                    setExcludedPaths((current) => {
+                      const next = new Set(current);
+                      if (next.has(entry.path)) {
+                        next.delete(entry.path);
+                      } else {
+                        next.add(entry.path);
+                      }
+                      return next;
+                    })
+                  }
+                  onContextMenu={(event, entry) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setContextMenu({
+                      kind: "file",
+                      x: event.clientX,
+                      y: event.clientY,
+                      path: entry.path,
+                      category: entry.category,
+                      focusTarget: event.currentTarget,
+                    });
+                  }}
                   t={t}
-                />}
-              />
-              <ChangesActionsMenu
-                controller={controller}
+                />
+              </div>
+              <QuickCommitBox
+                ref={quickCommitRef}
                 projectPath={projectPath}
                 sessionEpoch={sessionEpoch}
-                selectedPath={selectedPath}
-                disabled={isCheckingChanges}
-                onChoose={requestDiscard}
-                t={t}
+                selectedPaths={selectedPathsForSave}
+                canSave={canSaveSelection}
+                runHooks={runGitHooks}
+                remoteLabel={workingTree.upstream.upstream}
+                fileListRef={fileListScrollRef}
+                onSaveCompleted={onSaveCompleted}
+                onPublishNow={onPublishNow}
               />
+            </>
+          )}
+        </nav>
+        {!isLoadingList && workingTree?.isClean ? (
+          <div className="changes-diff changes-diff--state">
+            <div className="changes-empty">
+              <div className="changes-empty__icon" aria-hidden="true">
+                <CheckCircle2 />
+              </div>
+              <h2>{t.changesEmptyTitle}</h2>
+              <p>{t.changesEmptyDescription}</p>
+              <div className="changes-empty__actions">
+                <button className="secondary-button" type="button" onClick={onNavigateOverview}>
+                  {t.changesBackToOverview}
+                </button>
+                {/* Discarding everything empties this screen, and the file list
+                    takes the menu that reaches stored copies with it. Without this
+                    the way back would exist only while there was still something
+                    to review — which is exactly when nobody needs it. */}
+                {hasRecoveries && (
+                  <button className="ghost-button" type="button" onClick={() => requestDiscard({ mode: "restore", selectedPath: null })}>
+                    <RotateCcw aria-hidden="true" />
+                    {t.changesRestoreDiscarded}
+                  </button>
+                )}
+              </div>
             </div>
-            <ChangesFilterChips filters={filters} onChange={setFilters} t={t} />
-            <div
-              {...autoHideScrollbarProps<HTMLDivElement>()}
-              ref={fileListScrollRef}
-              className="changes-file-list__scroll auto-hide-scrollbar"
-            >
-              {workingTree.truncated && (
-                <p className="changes-file-list__truncated" role="status">
-                  {t.statusTruncatedNote(entries.length)}
-                </p>
-              )}
-              {/* An empty list has to say why it is empty and offer the way
-                  back. The search box carries its own clear control in the
-                  strip above; the filters do not, so the one that can strand a
-                  reader here offers its own undo. */}
-              {visibleEntries.length === 0 && (
-                <div className="changes-file-list__empty" role="status">
-                  <p>{activeFilterCount > 0 ? t.changesNoFilterMatches : t.changesNoSearchMatches}</p>
-                  {activeFilterCount > 0 && (
-                    <button
-                      className="secondary-button secondary-button--sm"
-                      type="button"
-                      onClick={() => setFilters(NO_CHANGES_FILTERS)}
-                    >
-                      {t.changesFiltersClear}
-                    </button>
-                  )}
-                </div>
-              )}
-              <FileListRows
-                entries={visibleEntries}
-                selectedPath={selectedPath}
-                excludedPaths={excludedPaths}
-                canChoose={canChooseFiles}
-                scrollElement={fileListScrollRef}
-                onSelect={(entry) => {
-                  onSelectedPathChange(entry.path);
-                  setIsDetailFocused(true);
-                }}
-                onToggleIncluded={(entry) =>
-                  setExcludedPaths((current) => {
-                    const next = new Set(current);
-                    if (next.has(entry.path)) {
-                      next.delete(entry.path);
-                    } else {
-                      next.add(entry.path);
-                    }
-                    return next;
-                  })
-                }
-                onContextMenu={(event, entry) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setContextMenu({
-                    kind: "file",
-                    x: event.clientX,
-                    y: event.clientY,
-                    path: entry.path,
-                    category: entry.category,
-                    focusTarget: event.currentTarget,
-                  });
-                }}
-                t={t}
-              />
-            </div>
-            <QuickCommitBox
-              ref={quickCommitRef}
-              projectPath={projectPath}
-              sessionEpoch={sessionEpoch}
-              selectedPaths={selectedPathsForSave}
-              canSave={canSaveSelection}
-              runHooks={runGitHooks}
-              remoteLabel={workingTree.upstream.upstream}
-              fileListRef={fileListScrollRef}
-              onSaveCompleted={onSaveCompleted}
-              onPublishNow={onPublishNow}
-            />
-          </nav>
+          </div>
+        ) : !isLoadingList && workingTree ? (
           <DiffWorkspace
             projectPath={projectPath}
             sessionEpoch={sessionEpoch}
@@ -1672,8 +1687,10 @@ export function ChangesPanel({
             onCodeContextMenu={openCodeContextMenu}
             t={t}
           />
-        </div>
-      )}
+        ) : (
+          <div className="changes-diff" />
+        )}
+      </div>
 
       <span className="visually-hidden" role="status">
         {announcement}

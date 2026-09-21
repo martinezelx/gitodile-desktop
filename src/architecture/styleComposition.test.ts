@@ -20,6 +20,7 @@ const EXPECTED_IMPORTS = [
   "./features/sync/sync.css",
   "./features/version-lines/version-lines.css",
   "./features/history/history.css",
+  "./features/workbench/workbench.css",
   "./features/settings/settings.css",
   "./features/project-settings/project-settings.css",
   "./features/notifications/notifications.css",

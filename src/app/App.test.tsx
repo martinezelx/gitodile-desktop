@@ -1065,17 +1065,17 @@ describe("App project restoration", () => {
       "true",
     );
 
-    await user.click(navigationSettings.getByRole("switch", { name: "Changes" }));
+    await user.click(navigationSettings.getByRole("switch", { name: "Work" }));
     await user.click(navigationSettings.getByRole("radio", { name: /Icons only/ }));
     await user.keyboard("{Escape}");
 
     const projectNavigation = screen.getByRole("navigation", { name: "Project navigation" });
     expect(projectNavigation).toHaveClass("rail-nav--icons-only");
-    expect(within(projectNavigation).queryByRole("button", { name: "Changes" })).toBeNull();
+    expect(within(projectNavigation).queryByRole("button", { name: "Work" })).toBeNull();
     await user.click(within(projectNavigation).getByRole("button", { name: "More" }));
     expect(
       within(screen.getByRole("menu", { name: "More" })).getByText(
-        "Changes — Open a project first",
+        "Work — Open a project first",
       ),
     )
       .toBeInTheDocument();
@@ -1555,11 +1555,17 @@ describe("App project restoration", () => {
     await screen.findByRole("heading", { name: restoredProject.name });
 
     const nav = screen.getByRole("navigation", { name: "Project navigation" });
-    await userEvent.click(within(nav).getByRole("button", { name: "Changes" }));
+    await userEvent.click(within(nav).getByRole("button", { name: "Work" }));
+    // Work opens on Changes: the tab pair heads the list panel and the
+    // screen's one heading names the tab that is showing.
     const changesScreen = (
       await screen.findByRole("heading", { name: "Changes" }, { timeout: 5000 })
-    ).closest(".changes-view");
+    ).closest(".workbench");
     expect(changesScreen).not.toBeNull();
+    // The tabs are on screen from the first frame, in the loading shell; the
+    // panel itself is its own chunk and arrives behind them.
+    expect(screen.getByRole("tab", { name: "Changes" })).toHaveAttribute("aria-selected", "true");
+    await waitFor(() => expect(document.querySelector(".changes-view")).not.toBeNull(), { timeout: 5000 });
     expect(mockedInvoke.mock.calls.some(([command]) => command === "read_working_tree_diffs")).toBe(false);
 
     await userEvent.click(within(nav).getByRole("button", { name: "Overview" }));
@@ -1567,18 +1573,37 @@ describe("App project restoration", () => {
     // Still in the DOM, but hidden: no role query can reach it, so it is out
     // of the tab order and out of the accessibility tree while Overview is
     // the screen the user is on.
-    expect(document.querySelector(".changes-view")).toBe(changesScreen);
+    expect(document.querySelector(".workbench")).toBe(changesScreen);
     expect(screen.queryByRole("heading", { name: "Changes" })).toBeNull();
     expect(changesScreen?.closest(".screen-slot")).toHaveAttribute("hidden");
 
-    await userEvent.click(within(nav).getByRole("button", { name: "Changes" }));
+    await userEvent.click(within(nav).getByRole("button", { name: "Work" }));
 
     // The regression this guards (task 021): the screens used to be a ternary
     // chain, so every visit rebuilt this subtree from scratch — including the
     // diff virtualizer, whose rows measure themselves on first render. Node
     // identity is the evidence that the screen was revealed, not remounted.
     expect(await screen.findByRole("heading", { name: "Changes" })).toBeInTheDocument();
-    expect(document.querySelector(".changes-view")).toBe(changesScreen);
+    expect(document.querySelector(".workbench")).toBe(changesScreen);
+
+    // The tabs switch views inside the screen without a navigation: History
+    // takes the heading, Changes stays mounted but hidden and inert, and the
+    // way back through the rail lands on the tab that was left open.
+    await userEvent.click(screen.getByRole("tab", { name: "History" }));
+    expect(await screen.findByRole("heading", { name: "History" })).toBeInTheDocument();
+    // The tabs never leave the screen, not even while History's chunk loads.
+    expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("aria-selected", "true");
+    // The history port is not mocked here, so the panel lands in its error
+    // state — still inside the tab's slot, still under the same tabs.
+    await waitFor(() => expect(document.querySelector(".history-screen")).not.toBeNull(), { timeout: 5000 });
+    expect(document.querySelector(".history-screen")?.closest(".workbench__view")).not.toHaveAttribute("hidden");
+    expect(document.querySelector(".changes-view")?.closest(".workbench__view")).toHaveAttribute("hidden");
+    expect(screen.queryByRole("heading", { name: "Changes" })).toBeNull();
+    await userEvent.click(within(nav).getByRole("button", { name: "Overview" }));
+    await userEvent.click(within(nav).getByRole("button", { name: "Work" }));
+    expect(await screen.findByRole("heading", { name: "History" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Changes" }));
+    expect(await screen.findByRole("heading", { name: "Changes" })).toBeInTheDocument();
 
     await waitFor(() =>
       expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1),
@@ -1591,7 +1616,8 @@ describe("App project restoration", () => {
     // Screen navigation consumes the cached snapshot. Freshness comes from
     // project activation and repository-watch invalidation, not from arrival.
     expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1);
-  });
+    // Three lazy chunks are fetched cold here — both Work tabs and Lines.
+  }, 15000);
 
   it("rejects an old branch response after the same project is closed and reopened", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");

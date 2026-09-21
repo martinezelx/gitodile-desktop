@@ -43,8 +43,12 @@ function ControlledChangesPanel(
     | "onDiscardClose"
     | "onDiscardPhaseChange"
     | "onOpenSettings"
+    | "tabs"
   > & {
     controller?: ChangesController;
+    /** The Work screen's tab pair, which the real app draws in the list
+     * panel's header; a stub here, since the tabs are the screen's to test. */
+    tabs?: React.ReactNode;
     /** Both default to the app's defaults, so only the tests that are about
      * these preferences have to mention them. */
     watcherState?: "starting" | "watching" | "off" | "unavailable";
@@ -62,6 +66,7 @@ function ControlledChangesPanel(
     <ScreenLifecycleProvider controller={lifecycle.current}>
     <ChangesPanel
       {...props}
+      tabs={props.tabs ?? <div role="tablist" aria-label="Changes or history" />}
       controller={props.controller ?? ownController.current}
       sessionEpoch="test-epoch"
       watcherState={props.watcherState ?? "watching"}
@@ -622,19 +627,25 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
   });
 
-  it("names the screen and its state in the list panel's own header, with every action over the list", () => {
+  it("heads the list panel with the Work tabs and states the tree in a row under the search, with every action over the list", () => {
     renderPanel();
 
-    // No page row over the two panels: the heading is the list panel's card
-    // header, title and state, and it holds no control.
+    // No page row over the two panels, and no title of its own: the list
+    // panel's card header is the Work screen's tab pair (task 126).
     expect(document.querySelector(".screen-header")).toBeNull();
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     const list = screen.getByRole("navigation", { name: "Changed files" });
     const header = list.querySelector(".changes-file-list__header");
     if (!(header instanceof HTMLElement)) throw new Error("no panel header");
-    expect(within(header).getByRole("heading", { level: 1, name: "Changes" })).toBeInTheDocument();
-    expect(within(header).queryByRole("button")).not.toBeInTheDocument();
-    // The state is the band's breakdown, glyph by glyph, not a sentence.
-    expect(within(header).getByLabelText("1 edited · 1 new")).toBeInTheDocument();
+    expect(within(header).getByRole("tablist", { name: "Changes or history" })).toBeInTheDocument();
+    // The state is the band's breakdown, glyph by glyph, not a sentence, in
+    // the row under the search strip beside the include-everything checkbox.
+    const state = list.querySelector(".changes-file-list__state");
+    if (!(state instanceof HTMLElement)) throw new Error("no state row");
+    expect(within(state).getByLabelText("1 edited · 1 new")).toBeInTheDocument();
+    expect(within(state).getByRole("checkbox", { name: "Select none" })).toBeChecked();
+    const search = list.querySelector(".changes-file-list__toolbar");
+    expect(search && (search.compareDocumentPosition(state) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
     // Discarding acts on the files, so its menu sits over the file list; so
     // does saving, in the box docked under them.
     expect(within(list).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
@@ -925,9 +936,9 @@ describe("ChangesPanel review controls", () => {
     const description = await screen.findByText("This screen may be out of date.");
     expect(description).toBeInTheDocument();
     const notice = description.closest(".automatic-updates-notice");
-    const title = screen.getByRole("heading", { name: "Changes" });
+    const tabs = screen.getByRole("tablist", { name: "Changes or history" });
     expect(notice).not.toBeNull();
-    expect((notice as HTMLElement).compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((notice as HTMLElement).compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const update = screen.getByRole("button", { name: "Check local changes" });
     const settings = screen.getByRole("button", { name: "Turn on automatic updates" });
     expect(update).toHaveClass("ghost-button");

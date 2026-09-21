@@ -3,6 +3,10 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+/** The Work screen's tab pair stands in the timeline panel's header; a stub
+ * here, since the tabs are the screen's to test. */
+const TABS = <div role="tablist" aria-label="Changes or history" />;
+
 import { LanguageProvider } from "../../i18n";
 import { createHistoryController } from "./controller";
 import type { HistoryDecoration, HistoryPage, HistoryState, SavedVersionDetail, SavedVersionSummary } from "./domain";
@@ -107,6 +111,7 @@ function renderPanel(
   const utils = render(
     <LanguageProvider>
       <HistoryPanel
+        tabs={TABS}
         controller={historyController}
         query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
         state={historyState}
@@ -211,6 +216,7 @@ describe("HistoryPanel", () => {
     const panel = (historyState: HistoryState) => (
       <LanguageProvider>
         <HistoryPanel
+          tabs={TABS}
           controller={historyController}
           query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
           state={historyState}

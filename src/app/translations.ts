@@ -50,12 +50,10 @@ export interface AppTranslations {
   navProjectAriaLabel: string;
   navApplicationAriaLabel: string;
   navOverview: string;
-  navChanges: string;
-  navChangesTitle: string;
+  navWork: string;
+  navWorkTitle: string;
   navVersionLines: string;
   navVersionLinesTitle: string;
-  navHistory: string;
-  navHistoryTitle: string;
   navRecovery: string;
   navRecoveryTitle: string;
   navSettings: string;
@@ -71,6 +69,8 @@ export interface AppTranslations {
   paletteNoMatches: string;
   commandGoOverview: string;
   commandGoVersionLines: string;
+  commandGoWork: string;
+  commandGoChanges: string;
   commandGoHistory: string;
   commandNewVersionLine: string;
   commandCheckLocalChanges: string;
@@ -246,12 +246,10 @@ const en: AppTranslations = {
   navProjectAriaLabel: "Project navigation",
   navApplicationAriaLabel: "Application",
   navOverview: "Overview",
-  navChanges: "Changes",
-  navChangesTitle: "Changes — Open a project first",
+  navWork: "Work",
+  navWorkTitle: "Work — Open a project first",
   navVersionLines: "Lines",
   navVersionLinesTitle: "Lines — Open a project first",
-  navHistory: "History",
-  navHistoryTitle: "History — Open a project first",
   navRecovery: "Recovery",
   navRecoveryTitle: "Recovery — Coming soon",
   navSettings: "Settings",
@@ -266,6 +264,8 @@ const en: AppTranslations = {
   paletteNoMatches: "No matching commands",
   commandGoOverview: "Go to Overview",
   commandGoVersionLines: "Go to Lines",
+  commandGoWork: "Go to Work",
+  commandGoChanges: "Go to Changes",
   commandGoHistory: "Go to History",
   commandNewVersionLine: "New version line",
   commandCheckLocalChanges: "Check local changes",
@@ -436,12 +436,10 @@ const es: AppTranslations = {
   navProjectAriaLabel: "Navegación del proyecto",
   navApplicationAriaLabel: "Aplicación",
   navOverview: "Resumen",
-  navChanges: "Cambios",
-  navChangesTitle: "Cambios — Abre un proyecto primero",
+  navWork: "Trabajo",
+  navWorkTitle: "Trabajo — Abre un proyecto primero",
   navVersionLines: "Líneas",
   navVersionLinesTitle: "Líneas — Abre un proyecto primero",
-  navHistory: "Historial",
-  navHistoryTitle: "Historial — Abre un proyecto primero",
   navRecovery: "Rescate",
   navRecoveryTitle: "Rescate — Próximamente",
   navSettings: "Ajustes",
@@ -456,6 +454,8 @@ const es: AppTranslations = {
   paletteNoMatches: "No hay coincidencias",
   commandGoOverview: "Ir a Resumen",
   commandGoVersionLines: "Ir a Líneas",
+  commandGoWork: "Ir a Trabajo",
+  commandGoChanges: "Ir a Cambios",
   commandGoHistory: "Ir al Historial",
   commandNewVersionLine: "Nueva línea de versión",
   commandCheckLocalChanges: "Comprobar cambios locales",

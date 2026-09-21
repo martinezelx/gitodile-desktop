@@ -16,6 +16,7 @@
 @import "./features/sync/sync.css";
 @import "./features/version-lines/version-lines.css";
 @import "./features/history/history.css";
+@import "./features/workbench/workbench.css";
 @import "./features/settings/settings.css";
 @import "./features/project-settings/project-settings.css";
 @import "./features/notifications/notifications.css";

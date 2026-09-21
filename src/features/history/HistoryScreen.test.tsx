@@ -2,6 +2,8 @@ import React from "react";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const TABS = <div role="tablist" aria-label="Changes or history" />;
+
 import { LanguageProvider } from "../../i18n";
 import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import { createHistoryController } from "./controller";
@@ -34,7 +36,7 @@ describe("HistoryScreen lifecycle", () => {
     render(
       <LanguageProvider>
         <ScreenLifecycleProvider controller={lifecycle}>
-          <HistoryScreen controller={controller} projectPath="/repo" sessionEpoch="epoch-1" watcherState="watching" onOpenSettings={() => {}} />
+          <HistoryScreen tabs={TABS} controller={controller} projectPath="/repo" sessionEpoch="epoch-1" watcherState="watching" onOpenSettings={() => {}} />
         </ScreenLifecycleProvider>
       </LanguageProvider>,
     );
@@ -66,6 +68,7 @@ describe("HistoryScreen lifecycle", () => {
         <LanguageProvider>
           <ScreenLifecycleProvider controller={lifecycle}>
             <HistoryScreen
+              tabs={TABS}
               controller={controller}
               projectPath="/repo"
               sessionEpoch="epoch-1"
@@ -117,6 +120,7 @@ describe("HistoryScreen lifecycle", () => {
       <LanguageProvider>
         <ScreenLifecycleProvider controller={lifecycle}>
           <HistoryScreen
+            tabs={TABS}
             controller={controller}
             projectPath="/repo"
             sessionEpoch="epoch-1"

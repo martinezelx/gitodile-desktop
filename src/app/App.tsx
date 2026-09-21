@@ -139,6 +139,7 @@ import {
   writeStoredProjects,
   type ProjectMutationPhase,
   type ProjectView,
+  type WorkbenchTab,
 } from "../runtime/project/sessions";
 import {
   forgetRecentProject,
@@ -162,6 +163,7 @@ import {
   OverviewPanel,
   NAV_DESTINATIONS,
   VersionLinesScreen,
+  WorkbenchScreen,
   markScreenSwitchIntent,
   prefetchScreenChunks,
   screenRequiresProject,
@@ -355,6 +357,16 @@ export function App(): React.JSX.Element {
       dispatchSessions({ type: "navigate", id: sessionsState.activeId, view: next });
     }
     setView(next);
+  };
+
+  /** Work on a given tab. The tab is the session's state rather than a view
+   * of its own (task 126): setting it is not a navigation step, so Back from
+   * here returns to the previous *screen*, whatever tab it was left on. */
+  const openWorkbench = (tab: WorkbenchTab): void => {
+    if (sessionsState.activeId) {
+      dispatchSessions({ type: "setWorkbenchTab", id: sessionsState.activeId, tab });
+    }
+    navigateToView("workbench");
   };
 
   const goBack = (): void => {
@@ -1509,6 +1521,14 @@ export function App(): React.JSX.Element {
           action: () => navigateToView(screen),
         },
       ];
+      if (screen === "workbench") {
+        // The two tabs are destinations to a reader who knows where they are
+        // going, even though they are one screen to the registry.
+        entries.push(
+          { id: "go-changes", label: t.commandGoChanges, action: () => openWorkbench("changes") },
+          { id: "go-history", label: t.commandGoHistory, action: () => openWorkbench("history") },
+        );
+      }
       if (screen === "version-lines") {
         entries.push({
           id: "new-version-line",
@@ -1561,7 +1581,7 @@ export function App(): React.JSX.Element {
                 ),
               }]
             : []),
-          ...(view === "history"
+          ...(view === "workbench" && activeSession.workbenchTab === "history"
             ? [{
                 id: "refresh-history",
                 label: t.commandRefreshHistory,
@@ -2054,7 +2074,7 @@ export function App(): React.JSX.Element {
       </header>
 
       <main
-        className={`app-shell${view === "changes" || view === "history" || view === "version-lines" ? " app-shell--internal-scroll" : ""}`}
+        className={`app-shell${view === "workbench" || view === "version-lines" ? " app-shell--internal-scroll" : ""}`}
       >
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}
@@ -2135,7 +2155,7 @@ export function App(): React.JSX.Element {
 
         <section
           {...autoHideScrollbarProps<HTMLElement>()}
-          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}${view === "history" ? " workspace--history" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}`}
+          className={`workspace auto-hide-scrollbar${view === "workbench" ? " workspace--workbench" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}`}
         >
           <div className="compact-nav-row">
             <ProjectSwitcherCompact
@@ -2249,7 +2269,7 @@ export function App(): React.JSX.Element {
                         },
                       });
                     }
-                    navigateToView("changes");
+                    openWorkbench("changes");
                   }}
                   onOpenProject={() => void handleOpenProject()}
                   onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
@@ -2295,48 +2315,78 @@ export function App(): React.JSX.Element {
                   }}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
                   historyController={historyController}
-                  onOpenHistory={() => navigateToView("history")}
+                  onOpenHistory={() => openWorkbench("history")}
                 />
               ),
               // Project-only screens are absent, not disabled, when no
               // project is open: the host drops what it is not given.
               ...(project
                 ? {
-                    changes: (
+                    workbench: (
                       <Suspense fallback={<ViewLoadingFallback />}>
-                        <ChangesPanel
-                          projectPath={project.path}
-                          workingTree={workingTree}
-                          workingTreeError={workingTreeError}
-                          isCheckingChanges={isCheckingChanges}
-                          controller={changesController}
-                          sessionEpoch={activeSession?.epoch ?? ""}
-                          watcherState={activeWatcherState}
-                          confirmBeforeDiscarding={confirmDiscard}
-                          runGitHooks={runGitHooks}
-                          onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
-                          onOpenSettings={() => openSettings("general")}
-                          onSaveCompleted={() => void handleMutationSucceeded(project.path)}
-                          onNavigateOverview={() => navigateToView("overview")}
-                          onPublishNow={() => openPublishDialog()}
-                          selectedPath={activeSession?.changesSelection.selectedPath ?? null}
-                          onSelectedPathChange={(selectedPath) =>
+                        <WorkbenchScreen
+                          tab={activeSession?.workbenchTab ?? "changes"}
+                          onTabChange={(tab) =>
                             sessionsState.activeId &&
-                            dispatchSessions({
-                              type: "setChangesSelection",
-                              id: sessionsState.activeId,
-                              selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
-                            })
+                            dispatchSessions({ type: "setWorkbenchTab", id: sessionsState.activeId, tab })
                           }
-                          onBeginDiscard={() => startSessionOperation("discard")}
-                          onDiscardClose={() => finishSessionOperation(project.path)}
-                          onDiscardPhaseChange={(phase) => {
-                            dispatchSessions({
-                              type: "setOperationPhase",
-                              id: project.path,
-                              phase,
-                            });
-                          }}
+                          renderChanges={(tabs) => (
+                            // The workbench owns the Suspense boundary, so the
+                            // tabs stay on screen while a tab's chunk loads.
+                            <ChangesPanel
+                              tabs={tabs}
+                              projectPath={project.path}
+                              workingTree={workingTree}
+                              workingTreeError={workingTreeError}
+                              isCheckingChanges={isCheckingChanges}
+                              controller={changesController}
+                              sessionEpoch={activeSession?.epoch ?? ""}
+                              watcherState={activeWatcherState}
+                              confirmBeforeDiscarding={confirmDiscard}
+                              runGitHooks={runGitHooks}
+                              onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
+                              onOpenSettings={() => openSettings("general")}
+                              onSaveCompleted={() => void handleMutationSucceeded(project.path)}
+                              onNavigateOverview={() => navigateToView("overview")}
+                              onPublishNow={() => openPublishDialog()}
+                              selectedPath={activeSession?.changesSelection.selectedPath ?? null}
+                              onSelectedPathChange={(selectedPath) =>
+                                sessionsState.activeId &&
+                                dispatchSessions({
+                                  type: "setChangesSelection",
+                                  id: sessionsState.activeId,
+                                  selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
+                                })
+                              }
+                              onBeginDiscard={() => startSessionOperation("discard")}
+                              onDiscardClose={() => finishSessionOperation(project.path)}
+                              onDiscardPhaseChange={(phase) => {
+                                dispatchSessions({
+                                  type: "setOperationPhase",
+                                  id: project.path,
+                                  phase,
+                                });
+                              }}
+                            />
+                          )}
+                          renderHistory={(tabs) => (
+                            <HistoryScreen
+                              tabs={tabs}
+                              controller={historyController}
+                              projectPath={project.path}
+                              sessionEpoch={activeSession?.epoch ?? ""}
+                              watcherState={activeWatcherState}
+                              lines={versionLineNames}
+                              scopeLineIntent={historyScopeLineIntent}
+                              selectCommitIntent={historySelectCommitIntent}
+                              onSelectCommitIntentHandled={clearHistorySelectCommitIntent}
+                              onScopeLineIntentHandled={clearHistoryScopeLineIntent}
+                              onViewLine={viewVersionLine}
+                              onSwitchLine={switchToVersionLine}
+                              onCreateLineFromVersion={createVersionLineFromVersion}
+                              onOpenSettings={() => openSettings("general")}
+                            />
+                          )}
                         />
                       </Suspense>
                     ),
@@ -2354,37 +2404,18 @@ export function App(): React.JSX.Element {
                           onOperationPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
                           onSaveVersion={() => {
                             startSessionOperation("save");
-                            navigateToView("changes");
+                            openWorkbench("changes");
                           }}
-                          onOpenChanges={() => navigateToView("changes")}
+                          onOpenChanges={() => openWorkbench("changes")}
                           onOpenHistory={(name, commit) => {
                             setHistoryScopeLineIntent(name);
                             setHistorySelectCommitIntent(commit ?? null);
-                            navigateToView("history");
+                            openWorkbench("history");
                           }}
                           autoOpenCreate={versionLinesAutoOpenCreate}
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
                           selectLineIntent={linesSelectIntent}
                           onSelectLineIntentHandled={clearLinesSelectIntent}
-                        />
-                      </Suspense>
-                    ),
-                    history: (
-                      <Suspense fallback={<ViewLoadingFallback />}>
-                        <HistoryScreen
-                          controller={historyController}
-                          projectPath={project.path}
-                          sessionEpoch={activeSession?.epoch ?? ""}
-                          watcherState={activeWatcherState}
-                          lines={versionLineNames}
-                          scopeLineIntent={historyScopeLineIntent}
-                          selectCommitIntent={historySelectCommitIntent}
-                          onSelectCommitIntentHandled={clearHistorySelectCommitIntent}
-                          onScopeLineIntentHandled={clearHistoryScopeLineIntent}
-                          onViewLine={viewVersionLine}
-                          onSwitchLine={switchToVersionLine}
-                          onCreateLineFromVersion={createVersionLineFromVersion}
-                          onOpenSettings={() => openSettings("general")}
                         />
                       </Suspense>
                     ),
@@ -2585,7 +2616,7 @@ export function App(): React.JSX.Element {
             }}
             onSaveVersion={() => {
               startSessionOperation("save");
-              navigateToView("changes");
+              openWorkbench("changes");
             }}
             onCreateWithWork={() => {
               if (startVersionLineOperation(project.path)) {

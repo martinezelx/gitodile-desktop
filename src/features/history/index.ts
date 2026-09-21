@@ -5,4 +5,4 @@ export { decorationLabel, HistoryMetaDot, HistoryRefBadge, primaryDecoration } f
 export { useActiveHistoryState, useHistoryState } from "./hooks";
 export type * from "./port";
 export { historyPort } from "./tauriAdapter";
-export { HistoryScreen, historyScreenModule } from "./screen";
+export { HistoryScreen, preloadHistoryScreen } from "./screen";

@@ -6,6 +6,7 @@ import { useActiveHistoryState } from "./hooks";
 import { HistoryPanel, type HistoryLineActions } from "./HistoryPanel";
 
 export function HistoryScreen({
+  tabs,
   controller,
   projectPath,
   sessionEpoch,
@@ -20,6 +21,8 @@ export function HistoryScreen({
   onCreateLineFromVersion,
   onOpenSettings,
 }: {
+  /** The Work screen's tab pair; see `HistoryPanel`. */
+  tabs: React.ReactNode;
   controller: HistoryController;
   projectPath: string;
   sessionEpoch: string;
@@ -76,6 +79,7 @@ export function HistoryScreen({
   );
   return (
     <HistoryPanel
+      tabs={tabs}
       controller={controller}
       query={query}
       state={state}
