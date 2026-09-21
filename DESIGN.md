@@ -95,11 +95,15 @@ The main desktop window should broadly support:
    destinations and utilities alike, since a rail that labels one and not the
    other reads as an accident — and the column narrows to 56px, the icon circle
    plus its padding. The 40px pointer target and accessible name remain.
-   - Overview, Changes, History, Lines, and Recovery keep their order.
-     History sits directly under Changes because the two are one loop — what
-     has changed, and what has been saved — and they share a shape as well as
-     a neighbour: one screen header, one strip per panel, one list column.
-     Lines follows them: switching a version line is a deliberate move between
+   - Overview, Work, Lines, and Recovery keep their order. Work is what has
+     changed and what has been saved — one loop, one screen, with Changes and
+     History as its two tabs (they were neighbouring screens until task 126,
+     and by then shared everything but the rail entry: one strip per panel,
+     one list column, one diff toolbar, one find). The destination is "Work"
+     rather than "Workspace" for two reasons: "Workspace" measures ~54px in
+     the rail's type against the 46px the column was derived from, and
+     "workspace" already means a version line in the vocabulary table. Lines
+     follows: switching a version line is a deliberate move between
      pieces of work rather than a step in that loop. Navigation Settings
      controls which stay in the rail; deselected and height-overflowed
      destinations remain reachable in More, in registry order. Recovery stays
@@ -1280,26 +1284,40 @@ their panels at the toolbar), with a trailing corner waiting for view
 controls that live in the panels. A miniature of the Overview band was tried
 there and read as decoration: the rail already says where you are, the
 status bar what is unsaved, and three grey dots that do nothing answer a
-question nobody asks on this screen. So the name and the state are the list
-panel's own header now, in the shape Overview heads its cards with — the
-title, one line — at the height of a strip
-(`--strip-height`), because the diff panel beside it keeps its one strip —
-the file's icon, its name, its folder, its category, the reading controls —
-and the two must start on the same pixel row. Both are fixed, truncating
-lines: a header that grew with what it said would be a strip that never
-stayed level. The search strip
-under the list's header steps down to `--strip-height-inner`, the way
-History's inner panes step down from their panel; the diff needs no second
-strip and starts its code under its header, which is the page row's height
-given back to it. Where a card would put its glyph circle stands the include-everything
-checkbox: the rail already names the screen with that glyph, and the
-checkbox is what heads this column — at the rows' own inset, with the title
-starting where a file name starts, so the header reads as the column's
-first row (GitHub Desktop heads its list the same way) and the search box
-takes the whole of the strip below. **History follows the same shape.** Its
-timeline panel wears the same card header — the title, and the scope as a chip
-at its trailing edge, removable where it is stated, with the loaded-version
-count gone — and its search strip steps down to `--strip-height-inner`. The
+question nobody asks on this screen. So the list panel's own header is the
+row, at the height of a strip (`--strip-height`), because the diff panel
+beside it keeps its one strip — the file's icon, its name, its folder, its
+category, the reading controls — and the two must start on the same pixel
+row. Both are fixed: a header that grew with what it said would be a strip
+that never stayed level. **The header is the Work screen's tab pair**
+(task 126): two equal halves, Changes and History, the way GitHub Desktop
+heads its sidebar. Both tabs are set in the title's own type — size, weight
+and tracking — so switching moves nothing; only the colour changes, and a 2px
+rule in the accent sits on the header's bottom edge under the active one. It
+is the rail's active colour, not the band's "do this" fill: a tab is where
+you are, not what to do. The Changes tab carries no count, because the status
+bar and the band already say it and nothing is counted twice. The tab pair is
+drawn in every state the panel has — loading, nothing to review, listing —
+because it is also the way to the other tab; and it stays put while a tab's
+chunk loads, in a loading shell of the same column. The search strip under
+the header steps down to `--strip-height-inner`, the way History's inner
+panes step down from their panel; the diff needs no second strip and starts
+its code under its header. Under the search strip a **state row**, at the
+inner strip's height, holds what the header held before the tabs took it:
+the include-everything checkbox at the rows' own inset, so it reads as the
+column's head (GitHub Desktop puts its "N changed files" row here), and
+beside it the tree's state. With nothing to review the list panel keeps its
+tabs and says "Everything is saved" in that row, and the empty block — glyph,
+headline, the way back to Overview — sits in the diff panel, where the
+reading surface would be; in a one-column window the two stack. **History
+follows the same shape.** Its timeline panel wears the same tab pair as its
+header; its search strip steps down to `--strip-height-inner`; and the scope
+— which history is being read, removable where it is stated — is a chip in a
+state row of its own, drawn only while the timeline is not the current
+line's, so the common case keeps its rows one strip down. It stays out of the
+filter chips because it is not a filter: clearing the filters must not change
+the line. Loading, failed and "no saved versions yet" keep the timeline panel
+and its tabs, with the state block in the detail panel. The
 card is a single surface: the version strip carries the subject and its facts
 (author, time, short commit, publication, file count) at `--strip-height`; its
 trailing `Details` opens the story (the full message, what the diff is compared
@@ -1310,7 +1328,7 @@ a find that expands from its icon, and the view picker — live in one toolbar
 across the whole card, over both panes, with the file search stepped down into
 its own pane so that toolbar keeps a whole row's width at any window size.
 Renaming and deleting a line stay on the Lines screen rather than being
-duplicated in every menu. The heading's state is the band's own breakdown
+duplicated in every menu. The state row's line is the band's own breakdown
 — the rows' category glyphs, in the rows' colours, "1 edited · 1 new" — so a
 reader who arrives from the Changes tile reads the same fact in the same
 shape; the selection is named only while it is partial ("4 of 7 selected"),
@@ -1319,7 +1337,11 @@ the diff header is the same glyph with the word beside it rather than a
 pill: a third shape for one fact the row and the band already draw alike.
 The diff strip also carries History's find — one shared control — so a search
 inside the open difference is the same gesture, in the same place, on either
-screen.
+tab. Which tab is showing is the project's to remember, like its selected
+file: Back and Forward move between screens, as they do in GitHub Desktop,
+and a project left on History comes back to History. A hand-off from another
+screen — the band's tiles, "view on History" from Lines, the palette's "Go to
+Changes" and "Go to History" — opens Work on that tab.
 The "everything is saved" state's circle is the band's done tile, light fill
 and no shadow, since nothing there rests on anything. A checked checkbox —
 the app's one definition, `.app-checkbox` — is that same light fill with the

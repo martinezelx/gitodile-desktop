@@ -119,6 +119,19 @@ Use `useActiveProjectSelector` and `useActiveScreenEffect` inside screens.
 Visibility is not freshness: never fetch, poll, or warm a cache merely because
 a screen became visible.
 
+A screen that shows several views in turn — Work, whose Changes and History
+tabs were screens of their own until task 126 — hosts each view in a
+`KeepAliveViewSlot` from `src/runtime/screen/module.tsx`. The slot mounts a
+view on first visit, hides it `hidden` and `inert` afterwards, re-renders the
+hidden element by identity, and hands it a lifecycle controller derived from
+the screen's: `active` only while the screen is active *and* the view is the
+shown one, `hidden` otherwise, evicted with the screen. A feature rendered
+inside reads the same hooks it would read as a screen and cannot tell the
+difference, so the rule above holds one level down. Which view shows is
+session state (`workbenchTab`), not a navigation step: Back and Forward move
+between screens, and a deep link from another screen sets the tab and then
+navigates.
+
 The complete implementation recipe is in the
 [`frontend feature guide`](architecture/frontend-feature-guide.md). Version
 lines remains a concrete
