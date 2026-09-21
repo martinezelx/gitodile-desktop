@@ -10,9 +10,14 @@ export type WorkingTreeEntry = {
 
 export type WorkingTreeCounts = Record<ChangeCategory, number> & { total: number };
 
+/** Added and removed line counts across the working tree. `null` means the
+ * total could not be trusted, not that it is zero. */
+export type LineTotals = { added: number; removed: number };
+
 export type WorkingTreeStatus = {
   isClean: boolean;
   counts: WorkingTreeCounts;
+  lineTotals: LineTotals | null;
   entries: WorkingTreeEntry[];
   truncated: boolean;
   hasPreparedChanges: boolean;
@@ -59,6 +64,9 @@ export function workingTreeSnapshotsEqual(left: WorkingTreeStatus | null, right:
   if (!left || left.isClean !== right.isClean || left.truncated !== right.truncated ||
       left.hasPreparedChanges !== right.hasPreparedChanges ||
       left.hasUnpreparedChanges !== right.hasUnpreparedChanges || left.entries.length !== right.entries.length) return false;
+  if ((left.lineTotals === null) !== (right.lineTotals === null)) return false;
+  if (left.lineTotals && right.lineTotals &&
+      (left.lineTotals.added !== right.lineTotals.added || left.lineTotals.removed !== right.lineTotals.removed)) return false;
   for (const category of [...CATEGORY_ORDER, "total"] as const) {
     if (left.counts[category] !== right.counts[category]) return false;
   }

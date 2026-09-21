@@ -359,6 +359,8 @@
   max-width: min(18vw, 240px);
   color: var(--text-primary-color);
   font-weight: var(--weight-strong);
+  cursor: default;
+  user-select: none;
 }
 .status-bar .version-lines-quick-switch {
   display: flex;
@@ -373,7 +375,16 @@
    tooltip and for the screen reader. Same recipe as `.sidebar-project__badge`
    — a ring the strip's colour so the number sits *on* the icon — at the
    strip's 14px icon size. */
-.status-bar__changes { position: relative; overflow: visible; }
+.status-bar__changes { overflow: visible; cursor: default; user-select: none; }
+/* The icon and its corner badge, one positioned box. The compound selector is
+   deliberate: `.status-bar__item > span` clips its children, and the badge has
+   to overhang this box's corner. */
+.status-bar__changes .status-bar__changes-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  overflow: visible;
+}
 .status-bar__changes-count {
   position: absolute;
   top: -7px;
@@ -393,12 +404,51 @@
   line-height: var(--leading-none);
   font-variant-numeric: tabular-nums;
 }
+/* The line totals as a quiet second fact beside the count: the diff's own two
+   inks at the label size, tabular so the strip does not twitch as they change.
+   `margin-left` clears the corner badge, which is absolutely positioned and
+   would otherwise sit over the first digit. */
+.status-bar__diff-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+}
+.status-bar__diff-stat {
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-none);
+  font-variant-numeric: tabular-nums;
+}
+.status-bar__diff-stat--added { color: var(--diff-added); }
+.status-bar__diff-stat--removed { color: var(--diff-removed); }
 .status-bar__changes--error { color: var(--status-danger); }
 /* The remote fact in one word and one tone: the cloud goes green when all is
    well and amber when the reader should doubt or act, and how it is known —
    snapshot, when it was checked — stays in the tooltip. */
 .status-bar__sync--success { color: var(--status-success); }
 .status-bar__sync--warning { color: var(--status-warning); }
+/* Ahead, the cloud is also the shortcut to publishing, so it wears the strip's
+   one interactive shape: the same 28px pill as the version-line control beside
+   it, on the strip's hover surface, with the same focus ring. A stale, failed
+   or still-loading relation never takes this shape. */
+.status-bar__sync-action {
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+  transition: background var(--duration-fast);
+}
+.status-bar__sync-action:hover { background: var(--surface-hover); }
+.status-bar__sync-action:active { background: var(--surface-active); }
+.status-bar__sync-action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
+}
 .status-bar .version-line-selector {
   width: 100%;
   height: 28px;

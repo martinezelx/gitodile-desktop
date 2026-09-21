@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { GitCommitHorizontal, GitCompare } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import type { WorkbenchTab } from "../../runtime/project/sessions";
@@ -41,6 +42,13 @@ export function WorkbenchTabs({
   const labels: Record<WorkbenchTab, string> = {
     changes: t.workbenchTabChanges,
     history: t.workbenchTabHistory,
+  };
+  // The glyphs the two carried in the rail while they were screens: a tab is
+  // named by its word, and the glyph is what lets the pair be told apart at
+  // a glance and take the accent when active.
+  const glyphs: Record<WorkbenchTab, React.JSX.Element> = {
+    changes: <GitCompare aria-hidden="true" />,
+    history: <GitCommitHorizontal aria-hidden="true" />,
   };
 
   const select = (tab: WorkbenchTab): void => {
@@ -101,7 +109,8 @@ export function WorkbenchTabs({
             onClick={() => select(tab)}
             onKeyDown={onKeyDown}
           >
-            {labels[tab]}
+            {glyphs[tab]}
+            <span className="workbench-tabs__label">{labels[tab]}</span>
           </button>
         );
       })}

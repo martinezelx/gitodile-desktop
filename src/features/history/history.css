@@ -508,15 +508,18 @@
    strip height the timeline panel's header wears, so the panel and the card
    start on the same pixel row. Its trailing controls are the story (`Details`)
    and the version's actions (`More`). */
-/* Two lines need more room than a one-line strip: a minimum of the shared strip
-   height, and 8px above and below so the subject and the author breathe instead
-   of hugging the rule. `align-items: center` keeps the avatar and the trailing
-   pills on the block's centre. */
+/* A fixed height, not a minimum: the timeline panel's header beside it is
+   `--strip-height` exactly, and a strip that grew with its two lines sat its
+   rule ~20px below the tabs' (task 126 found it at 70px — the subject's `h2`
+   still carried the browser's bottom margin, on top of 8px of padding each
+   side). Two lines at lead and label size fit in 52px with air to spare;
+   `align-items: center` keeps the avatar and the trailing controls on the
+   block's centre. */
 .history-detail__strip {
   flex: 0 0 auto; min-width: 0; overflow: hidden;
-  min-height: var(--strip-height);
+  height: var(--strip-height);
   display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
+  padding: 0 var(--space-4) 0 var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
 .history-detail__strip .history-author-avatar { width: 24px; height: 24px; flex-basis: 24px; font-size: var(--text-micro); }
@@ -526,7 +529,7 @@
    truncate, and the strip keeps its single height. */
 .history-detail__strip-identity { min-width: 0; flex: 1 1 auto; display: grid; align-content: center; gap: 2px; overflow: hidden; }
 .history-detail__strip-title {
-  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   font-size: var(--text-lead); font-weight: var(--weight-strong); line-height: var(--leading-snug);
   letter-spacing: var(--tracking-tight);
 }
@@ -538,6 +541,9 @@
    own width. */
 .history-detail__strip-facts strong { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium); }
 .history-detail__strip-facts code { color: inherit; font-size: var(--text-caption); }
+/* At the ref badge's height rather than Details' 23px, so the two capsules
+   sit on one line; it holds its width, the author's name gives way first. */
+.history-detail__strip .history-publication { height: 17px; padding: 0 7px; flex-shrink: 0; }
 .history-detail__strip-trailing { display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; padding-left: var(--space-3); border-left: 1px solid var(--border-divider); }
 /* Two glyph-only controls, the strip's own shape: circles at the control tier,
    as every other icon control in the app is, each named to a screen reader and

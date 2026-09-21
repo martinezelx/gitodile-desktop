@@ -2458,6 +2458,7 @@ export function App(): React.JSX.Element {
               mapSyncError,
             );
           }}
+          onPublish={() => openPublishDialog()}
           onOpenChangelog={() => setIsChangelogOpen(true)}
         />
       </main>

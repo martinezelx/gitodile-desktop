@@ -15,6 +15,10 @@
  * barrel.
  */
 export { autoHideScrollbarProps } from "./autoHideScrollbar";
+/* ADR 0003's two-consumer bar: the Changes file list and the History timeline
+   both needed to animate a row that arrives while the screen is open without
+   animating the list the screen opens with. */
+export { useRowArrival } from "./rowArrival";
 export { useModalFocus } from "./modalFocus";
 export { LoadingBar } from "./loadingBar";
 export { SearchBox } from "./searchBox";

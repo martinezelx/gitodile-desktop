@@ -169,6 +169,7 @@ describe("projectSessionsReducer", () => {
     const staleWorkingTree = {
       isClean: false,
       counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 },
+      lineTotals: null,
       entries: [],
       truncated: false,
       hasPreparedChanges: false,
@@ -206,6 +207,7 @@ describe("projectSessionsReducer", () => {
     const workingTree = {
       isClean: true,
       counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 0 },
+      lineTotals: null,
       entries: [],
       truncated: false,
       hasPreparedChanges: false,

@@ -87,6 +87,7 @@ function ControlledChangesPanel(
 const workingTree: WorkingTreeStatus = {
   isClean: false,
   counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+  lineTotals: null,
   entries: [
     {
       path: "edited.txt",
@@ -565,6 +566,49 @@ describe("ChangesPanel review controls", () => {
     );
   }
 
+  it("opens with its list already there, and animates only a row that arrives later", () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") return Promise.resolve(editedDiff);
+      if (command === "read_working_tree_diffs") {
+        return Promise.resolve({ outcome: "completed", diffs: [editedDiff, newDiff], changedFiles: 2, budgetBytes: 2097152 });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const tree = (added: boolean): WorkingTreeStatus => added
+      ? {
+          ...workingTree,
+          counts: { ...workingTree.counts, new: 2, total: 3 },
+          entries: [...workingTree.entries, {
+            path: "arrived-later.txt", originalPath: null, category: "new", isPrepared: false, hasUnpreparedChanges: true,
+          }],
+        }
+      : workingTree;
+    const panel = (added: boolean): React.JSX.Element => (
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={tree(added)}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onNavigateOverview={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </LanguageProvider>
+    );
+
+    const { container, rerender } = render(panel(false));
+    // A work surface is readable the instant it opens — nothing assembles.
+    expect(container.querySelector(".changes-file-row.row-in")).toBeNull();
+
+    rerender(panel(true));
+
+    const list = within(container.querySelector(".changes-file-list") as HTMLElement);
+    expect(list.getByText("arrived-later.txt").closest(".changes-file-row")).toHaveClass("row-in");
+    // A row the screen already showed does not re-run the arrival.
+    expect(list.getByText("edited.txt").closest(".changes-file-row")).not.toHaveClass("row-in");
+  });
+
   it("expands the unchanged lines between hunks, and keeps a marker for the rest", async () => {
     // The first hunk covers old lines 1-2, the second starts at old line 50,
     // so the gap is 47 lines starting at new line 3. The stub returns two.
@@ -627,7 +671,7 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
   });
 
-  it("heads the list panel with the Work tabs and states the tree in a row under the search, with every action over the list", () => {
+  it("heads the list panel with the Work tabs and the search strip with the include-everything checkbox, with every action over the list", () => {
     renderPanel();
 
     // No page row over the two panels, and no title of its own: the list
@@ -638,27 +682,19 @@ describe("ChangesPanel review controls", () => {
     const header = list.querySelector(".changes-file-list__header");
     if (!(header instanceof HTMLElement)) throw new Error("no panel header");
     expect(within(header).getByRole("tablist", { name: "Changes or history" })).toBeInTheDocument();
-    // The state is the band's breakdown, glyph by glyph, not a sentence, in
-    // the row under the search strip beside the include-everything checkbox.
-    const state = list.querySelector(".changes-file-list__state");
-    if (!(state instanceof HTMLElement)) throw new Error("no state row");
-    expect(within(state).getByLabelText("1 edited · 1 new")).toBeInTheDocument();
-    expect(within(state).getByRole("checkbox", { name: "Select none" })).toBeChecked();
-    const search = list.querySelector(".changes-file-list__toolbar");
-    expect(search && (search.compareDocumentPosition(state) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+    // The include-everything checkbox heads the search strip; the tree's
+    // counts are the Journey band's and the status bar's to say, so the list
+    // has no state row between the strip and its rows.
+    const toolbar = list.querySelector(".changes-file-list__toolbar");
+    if (!(toolbar instanceof HTMLElement)) throw new Error("no search strip");
+    expect(within(toolbar).getByRole("checkbox", { name: "Select none" })).toBeChecked();
+    expect(within(toolbar).getByRole("searchbox", { name: "Search changed files" })).toBeInTheDocument();
+    expect(list.querySelector(".changes-file-list__state")).toBeNull();
+    expect(screen.queryByLabelText("1 edited · 1 new")).not.toBeInTheDocument();
     // Discarding acts on the files, so its menu sits over the file list; so
     // does saving, in the box docked under them.
     expect(within(list).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
     expect(within(list).getByLabelText("Version name")).toBeInTheDocument();
-  });
-
-  it("shows the snapshot's added and removed line totals once the diff cache is warm", async () => {
-    const controller = createChangesController(changesPort);
-    await controller.warmStore(controller.getStore("/repo", "test-epoch", workingTree));
-    renderPanel(controller);
-
-    expect(await screen.findByText("3 lines added")).toBeInTheDocument();
-    expect(screen.getByText("1 line removed")).toBeInTheDocument();
   });
 
   it("narrows the file list as the user searches, and explains an empty result", async () => {
@@ -1306,6 +1342,7 @@ describe("ChangesPanel filters", () => {
   const mixedTree: WorkingTreeStatus = {
     isClean: false,
     counts: { changed: 2, new: 1, deleted: 1, renamed: 0, conflicted: 1, total: 5 },
+    lineTotals: null,
     entries: [
       { path: "conflict.txt", originalPath: null, category: "conflicted", isPrepared: false, hasUnpreparedChanges: true },
       { path: "edited.txt", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
@@ -1374,18 +1411,20 @@ describe("ChangesPanel filters", () => {
     const { container } = renderMixed();
     await screen.findByRole("button", { name: /conflict\.txt/ });
 
-    // Everything selected is not a fraction worth naming; leaving one out is.
-    expect(container.querySelector(".changes-view__selection")).toBeNull();
+    // A partial selection is the include-everything checkbox's own state:
+    // neither checked nor clear, but mixed.
+    const selectAll = () => screen.getByRole("checkbox", { name: /^Select (all|none)$/ }) as HTMLInputElement;
+    expect(selectAll().indeterminate).toBe(false);
     await userEvent.click(screen.getByRole("checkbox", { name: "Include asset.png in this version" }));
-    expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
+    expect(selectAll().indeterminate).toBe(true);
 
     await userEvent.click(screen.getByRole("button", { name: "Filters" }));
     await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("radio", { name: "No" }));
 
     expect(listedFiles(container)).toEqual(["asset.png"]);
-    // Filtering changed only what is listed: the count and the select-all
-    // checkbox still answer for the whole working tree.
-    expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
+    // Filtering changed only what is listed: the select-all checkbox still
+    // answers for the whole working tree.
+    expect(selectAll().indeterminate).toBe(true);
     expect(screen.getByRole("checkbox", { name: "Select all" })).toBeInTheDocument();
   });
 

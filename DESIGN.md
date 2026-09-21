@@ -164,14 +164,25 @@ The main desktop window should broadly support:
    line's name are the sentence, with no words in front of them; the name is
    what keeps the strip saying something once the reader has left Overview,
    and both truncate rather than wrap. Unsaved work is the project switcher's
-   own mark — the changes icon with the count riding its corner — with the
-   sentence ("28 unsaved changes") in the tooltip and for the screen reader;
+   own mark — the changes icon with the count riding its corner, and, after it,
+   the added and removed line totals (`+12 −3`) in the diff's own two inks at
+   the label size, quiet enough to read as a second fact rather than a banner.
+   The sentence ("28 unsaved changes · 12 lines added, 3 lines removed") is in
+   the tooltip and for the screen reader; a total is drawn only when the backend
+   could count the whole tree and at least one line moved, because unknown is
+   not zero and `+0 −0` is noise. Neither the count nor the totals is a run of
+   selectable text: the mark is chrome, so it keeps the default cursor.
    Overview's band is where the number is read in full. The remote fact is one
    word in one tone — the cloud green when all is well, amber when the reader
    should doubt or act — and *how* it is known (a saved snapshot, when it was
    checked) is the tooltip, not a second item; when a result is stale or a
    check failed, the doubt takes the word and the last known state moves to
-   the tooltip, so the strip never reads as current when it is not. The
+   the tooltip, so the strip never reads as current when it is not. When the
+   relation is ahead and known-current, that same cloud is also the shortcut to
+   publishing: it becomes a button wearing the version-line control's 28px
+   pill, and its tooltip names the action ("Publish 3 versions · Checked 5 min
+   ago"). A stale, failed or still-loading answer keeps it a plain fact — it is
+   not a state to act from. The
    branch is also the app's one global version-line control: its dropdown
    switches, creates and hands off to the Lines screen. No screen adds a
    second selector to its own header: two controls answering one question in
@@ -1291,30 +1302,40 @@ category, the reading controls — and the two must start on the same pixel
 row. Both are fixed: a header that grew with what it said would be a strip
 that never stayed level. **The header is the Work screen's tab pair**
 (task 126): two equal halves, Changes and History, the way GitHub Desktop
-heads its sidebar. Both tabs are set in the title's own type — size, weight
-and tracking — so switching moves nothing; only the colour changes, and a 2px
-rule in the accent sits on the header's bottom edge under the active one. It
-is the rail's active colour, not the band's "do this" fill: a tab is where
-you are, not what to do. The Changes tab carries no count, because the status
+heads its sidebar. Each tab is its glyph — the one it carried in the rail
+while it was a screen — and its word, set in the title's own type (size,
+weight and tracking), so switching moves nothing; only the colour changes:
+the active word goes primary, its glyph takes the accent, and a 2px rule in
+the accent sits on the header's bottom edge under it. It is the rail's active
+colour, not the band's "do this" fill: a tab is where you are, not what to
+do. The Changes tab carries no count, because the status
 bar and the band already say it and nothing is counted twice. The tab pair is
 drawn in every state the panel has — loading, nothing to review, listing —
 because it is also the way to the other tab; and it stays put while a tab's
 chunk loads, in a loading shell of the same column. The search strip under
 the header steps down to `--strip-height-inner`, the way History's inner
 panes step down from their panel; the diff needs no second strip and starts
-its code under its header. Under the search strip a **state row**, at the
-inner strip's height, holds what the header held before the tabs took it:
-the include-everything checkbox at the rows' own inset, so it reads as the
-column's head (GitHub Desktop puts its "N changed files" row here), and
-beside it the tree's state. With nothing to review the list panel keeps its
-tabs and says "Everything is saved" in that row, and the empty block — glyph,
+its code under its header. The **include-everything checkbox heads the
+search strip**, at the rows' own inset, so it reads as the column's head
+(GitHub Desktop heads its list the same way) and the search box takes the
+rest of the strip — the shape History's strip has, now that the
+discard/restore `⋯` has gone to the panel's foot, beside the save box:
+outside it, so the destructive menu never lives inside the primary control,
+level with the box's closed row, opening upward and across the diff so what
+is about to be discarded stays in view. The breakdown and the line totals the header used to
+carry beside it are gone: a row of counts between the strip and the files
+took a file's height to say what the Journey band and the status bar already
+say, and a partial selection is the checkbox's own mixed state and the save
+box's plan ("3 of 7 files → main"). Nothing is counted twice. With nothing to
+review the list panel keeps its tabs and says "Everything is saved" in a
+state row at the inner strip's height, and the empty block — glyph,
 headline, the way back to Overview — sits in the diff panel, where the
 reading surface would be; in a one-column window the two stack. **History
 follows the same shape.** Its timeline panel wears the same tab pair as its
 header; its search strip steps down to `--strip-height-inner`; and the scope
 — which history is being read, removable where it is stated — is a chip in a
-state row of its own, drawn only while the timeline is not the current
-line's, so the common case keeps its rows one strip down. It stays out of the
+state row under the search strip, drawn only while the timeline is not the
+current line's, so the common case keeps its rows one strip down. It stays out of the
 filter chips because it is not a filter: clearing the filters must not change
 the line. Loading, failed and "no saved versions yet" keep the timeline panel
 and its tabs, with the state block in the detail panel. The
@@ -1328,11 +1349,14 @@ a find that expands from its icon, and the view picker — live in one toolbar
 across the whole card, over both panes, with the file search stepped down into
 its own pane so that toolbar keeps a whole row's width at any window size.
 Renaming and deleting a line stay on the Lines screen rather than being
-duplicated in every menu. The state row's line is the band's own breakdown
-— the rows' category glyphs, in the rows' colours, "1 edited · 1 new" — so a
-reader who arrives from the Changes tile reads the same fact in the same
-shape; the selection is named only while it is partial ("4 of 7 selected"),
-because "7 of 7" is a mark that says nothing. The open file's category in
+duplicated in every menu. The version strip is a fixed `--strip-height`,
+not a minimum: the timeline panel's header beside it is exactly that, and a
+strip that grew with its two lines sat its rule ~20px below the tabs'. Its
+second line is the author, the reference that points here, and whether the
+version has left the machine — the publication chip `Details` draws, at the
+ref badge's height, and not drawn at all when the answer is unknown, because
+a strip must not say "no idea". The
+open file's category in
 the diff header is the same glyph with the word beside it rather than a
 pill: a third shape for one fact the row and the band already draw alike.
 The diff strip also carries History's find — one shared control — so a search
@@ -1348,12 +1372,18 @@ the app's one definition, `.app-checkbox` — is that same light fill with the
 tick in the accent, everywhere it appears: a file included in the next
 version is a decision made, and a column of solid accent circles beside the
 list competed with the one control on the screen that asks to be pressed.
-Solid is reserved for "do this". The file list's rows
-arrive with Overview's own stagger (`.row-in`, now a primitive the two
-screens share) when the list is drawn all at once, capped at the twelfth row
-so a long list reads as filling in rather than lagging; a virtualized list
-never wears it, since a row mounted by a scroll is not arriving with the
-screen.
+Solid is reserved for "do this". **A row that arrives while the screen is
+open animates; the list the screen opens with does not.** Work is a surface
+you act on, so it is readable the instant it appears — nothing assembles
+itself — and `.row-in` is kept for the work that genuinely shows up: a file
+the watcher just noticed, a version just saved. `useRowArrival`
+(rowArrival.ts, shared by Changes and History) decides that, and the two tabs
+answer it the same way: any file added to the Changes list, and only a commit
+prepended at the head of History's timeline, so loading an older page is not
+mistaken for new work. Up to three arrivals cascade, 40ms apart, so a late
+arrival never waits on a position that has nothing to do with it, and a
+virtualized row is still never animated by a scroll that mounted it. Overview
+keeps the entrance stagger on its sampled lists.
 
 **Dropping a folder on the window** opens it. While a drag is over the window
 — and only then — a window-sized overlay names what a drop will do. It is

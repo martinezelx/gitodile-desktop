@@ -151,6 +151,33 @@ describe("HistoryPanel", () => {
     expect(screen.getByText("Last successful result is still shown.")).toBeInTheDocument();
   });
 
+  it("animates a version saved at the head, not the timeline it opens with", () => {
+    const historyController = controller();
+    const element = (versions: SavedVersionSummary[]): React.JSX.Element => (
+      <LanguageProvider>
+        <HistoryPanel
+          tabs={TABS}
+          controller={historyController}
+          query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
+          state={state(3, { versions })}
+          watcherState="watching"
+          actions={{}}
+          onOpenSettings={() => {}}
+          error={null}
+        />
+      </LanguageProvider>
+    );
+    const opened = [version(2), version(1), version(0)];
+    const { container, rerender } = render(element(opened));
+    // The timeline is simply there when the screen opens.
+    expect(container.querySelector(".history-row.row-in")).toBeNull();
+
+    rerender(element([version(3), ...opened]));
+
+    expect(container.querySelector(`#history-version-${version(3).commit}`)).toHaveClass("row-in");
+    expect(container.querySelector(`#history-version-${version(2).commit}`)).not.toHaveClass("row-in");
+  });
+
   it("keeps refresh contextual to watcher and invokes the history controller", async () => {
     const healthy = renderPanel(state(3));
     expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
@@ -275,14 +302,16 @@ describe("HistoryPanel", () => {
     // The row is the subject, the author and the time — no reference badge.
     expect(selectedRow.querySelector(".history-ref-badge")).toBeNull();
     const detailRegion = screen.getByRole("region", { name: selected.subject });
-    // The strip is the subject, the author and the reference that points here;
-    // the hash and the publication state move behind Details, closed by default.
+    // The strip is the subject, the author, the reference that points here
+    // and whether it has left the machine; the hash moves behind Details,
+    // closed by default, where the publication is also stated in full.
     expect(within(detailRegion).getByText(selected.author!.name)).toBeInTheDocument();
     expect(detailRegion.querySelector(".history-detail__strip .history-ref-badge")).toHaveTextContent("v2.0");
+    expect(detailRegion.querySelector(".history-detail__strip .history-publication")).toHaveTextContent("Published");
     expect(within(detailRegion).queryByText(selected.commit)).not.toBeInTheDocument();
     fireEvent.click(within(detailRegion).getByRole("button", { name: "Details" }));
     expect(within(detailRegion).getByText(selected.commit)).toBeInTheDocument();
-    expect(within(detailRegion).getByText("Published")).toBeInTheDocument();
+    expect(within(detailRegion).getAllByText("Published")).toHaveLength(2);
     expect(within(detailRegion).queryByText("main")).not.toBeInTheDocument();
     expect(detailRegion.querySelector(".history-file__type img")).toBeInTheDocument();
   });

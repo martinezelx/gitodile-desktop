@@ -16,6 +16,7 @@ import { formatRelativeCheckTime, StatusBar, type StatusBarProps } from "./Statu
 const dirtyTree: WorkingTreeStatus = {
   isClean: false,
   counts: { changed: 2, new: 1, deleted: 1, renamed: 0, conflicted: 0, total: 4 },
+  lineTotals: { added: 12, removed: 3 },
   entries: [],
   truncated: false,
   hasPreparedChanges: false,
@@ -102,6 +103,7 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
     onCreateVersionLine: vi.fn(),
     onSeeAllVersionLines: vi.fn(),
     onCheckTeamChanges: vi.fn(),
+    onPublish: vi.fn(),
     onOpenChangelog: vi.fn(),
     ...overrides,
   } as StatusBarProps;
@@ -140,10 +142,13 @@ describe("StatusBar", () => {
 
     expect(screen.getByText("feature/a-very-long-version-line-name")).toBeInTheDocument();
     // The working tree is the switcher's own mark: a count riding the icon,
-    // with the sentence kept for the tooltip and the screen reader.
-    const changes = screen.getByText("4 unsaved changes").closest(".status-bar__changes");
-    expect(changes).toHaveAttribute("data-tooltip", "4 unsaved changes");
+    // with the sentence kept for the tooltip and the screen reader, and the
+    // added/removed line totals as a quieter second fact beside it.
+    const changes = screen.getByText(/4 unsaved changes/).closest(".status-bar__changes");
+    expect(changes).toHaveAttribute("data-tooltip", "4 unsaved changes · 12 lines added, 3 lines removed");
     expect(changes?.querySelector(".status-bar__changes-count")).toHaveTextContent("4");
+    expect(changes?.querySelector(".status-bar__diff-stat--added")).toHaveTextContent("+12");
+    expect(changes?.querySelector(".status-bar__diff-stat--removed")).toHaveTextContent("−3");
     // The remote fact is one word; how it is known lives in its tooltip.
     const sync = screen.getByText("Up to date").closest(".status-bar__sync");
     expect(sync).toHaveClass("status-bar__sync--success");
@@ -159,6 +164,23 @@ describe("StatusBar", () => {
     expect(onCheckTeamChanges).toHaveBeenCalledOnce();
   });
 
+  it("hides the line totals when they are unknown or nothing moved", () => {
+    const { unmount } = renderBar({ workingTree: { ...dirtyTree, lineTotals: null } });
+    expect(document.querySelector(".status-bar__diff-stats")).toBeNull();
+    unmount();
+
+    renderBar({ workingTree: { ...dirtyTree, lineTotals: { added: 0, removed: 0 } } });
+    expect(document.querySelector(".status-bar__diff-stats")).toBeNull();
+  });
+
+  it("names only the side of the line totals that moved", () => {
+    renderBar({ workingTree: { ...dirtyTree, lineTotals: { added: 5, removed: 0 } } });
+    const changes = screen.getByText(/4 unsaved changes/).closest(".status-bar__changes");
+    expect(changes).toHaveAttribute("data-tooltip", "4 unsaved changes · 5 lines added");
+    expect(changes?.querySelector(".status-bar__diff-stat--added")).toHaveTextContent("+5");
+    expect(changes?.querySelector(".status-bar__diff-stat--removed")).toHaveTextContent("−0");
+  });
+
   it.each([
     ["ahead", "2 versions to publish"],
     ["behind", "3 project versions available"],
@@ -171,6 +193,26 @@ describe("StatusBar", () => {
   ] satisfies Array<[TeamSyncState, string]>) ("maps %s without falling back to an optimistic state", (state, label) => {
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) } });
     expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it("opens publish from the cloud when saved versions are ready to send", async () => {
+    const onPublish = vi.fn();
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead") }, onPublish });
+
+    const cloud = screen.getByRole("button", { name: "Publish 2 versions" });
+    expect(cloud).toHaveAttribute("data-tooltip", expect.stringMatching(/^Publish 2 versions · Checked /));
+    await userEvent.click(cloud);
+    expect(onPublish).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the cloud a plain fact when there is nothing to publish or the answer is doubted", () => {
+    const { unmount } = renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("upToDate") } });
+    expect(screen.queryByRole("button", { name: /^Publish / })).toBeNull();
+    unmount();
+
+    // A stale answer may still say "ahead", but it is not a state to act from.
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead"), isStale: true } });
+    expect(screen.queryByRole("button", { name: /^Publish / })).toBeNull();
   });
 
   it("distinguishes loading, failed, cached, and stale knowledge", () => {
@@ -197,6 +239,7 @@ describe("StatusBar", () => {
           onCreateVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
+          onPublish={vi.fn()}
           onOpenChangelog={vi.fn()}
         />
       </LanguageProvider>,
@@ -220,6 +263,7 @@ describe("StatusBar", () => {
           onCreateVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
+          onPublish={vi.fn()}
           onOpenChangelog={vi.fn()}
         />
       </LanguageProvider>,
@@ -235,7 +279,7 @@ describe("StatusBar", () => {
     localStorage.setItem("gitodile-language", "es");
     renderBar();
 
-    expect(screen.getByText("4 cambios sin guardar")).toBeInTheDocument();
+    expect(screen.getByText(/4 cambios sin guardar/)).toBeInTheDocument();
     expect(screen.getByText("Al día").closest(".status-bar__sync")).toHaveAttribute(
       "data-tooltip",
       expect.stringMatching(/Comprobado hace 3 min/),
@@ -265,7 +309,11 @@ describe("formatRelativeCheckTime", () => {
     // project's name comes first, so the strip still says which project this
     // is on every other screen.
     expect(screen.queryByText("Working on")).not.toBeInTheDocument();
-    expect(screen.getByText("gitodile").closest(".status-bar__project")).not.toBeNull();
+    const project = screen.getByText("gitodile").closest(".status-bar__project");
+    expect(project).not.toBeNull();
+    // The custom tooltip carries the full name, the same way every other item
+    // reveals what it had to truncate.
+    expect(project).toHaveAttribute("data-tooltip", "Project: gitodile");
     expect(
       screen.getByRole("button", { name: "Change version line (feature/a-very-long-version-line-name)" }),
     ).toBeInTheDocument();

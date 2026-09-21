@@ -49,6 +49,7 @@ const restoredProject: RepositoryInfo = {
 const cleanStatus: WorkingTreeStatus = {
   isClean: true,
   counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 0 },
+  lineTotals: null,
   entries: [],
   truncated: false,
   hasPreparedChanges: false,

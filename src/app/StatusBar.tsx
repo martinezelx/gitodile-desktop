@@ -35,6 +35,9 @@ export type StatusBarProps = {
   onCreateVersionLine: () => void;
   onSeeAllVersionLines: () => void;
   onCheckTeamChanges: () => void;
+  /** Opens the publish dialog. Offered only when the cloud is ahead, so the
+   * status bar's remote fact doubles as the shortcut to publishing it. */
+  onPublish: () => void;
   onOpenChangelog: () => void;
 };
 
@@ -145,6 +148,7 @@ export function StatusBar({
   onCreateVersionLine,
   onSeeAllVersionLines,
   onCheckTeamChanges,
+  onPublish,
   onOpenChangelog,
 }: StatusBarProps): React.JSX.Element {
   const { t, formats } = useLanguage();
@@ -167,8 +171,31 @@ export function StatusBar({
     ? (teamSync.error ? t.statusBarCheckFailed : t.statusBarMayBeOutdated)
     : teamLabel;
   const teamTooltip = [teamLabel !== visibleTeamLabel ? teamLabel : null, freshness].filter(Boolean).join(" · ");
+  // The cloud becomes the shortcut to publishing when there are saved versions
+  // to send and the relation is known and current. A stale, failed or
+  // still-loading answer keeps it a plain fact: it is not a state to act from.
+  const publishableCount =
+    !teamSync.isCheckingRemote && !isReadingTeamStatus && !teamSync.error && !teamSync.isStale &&
+    teamSync.status?.state === "ahead"
+      ? teamSync.status.ahead
+      : 0;
+  const publishAction = publishableCount > 0 ? t.statusBarPublishAction(publishableCount) : null;
+  const publishTooltip = publishAction ? [publishAction, freshness].filter(Boolean).join(" · ") : null;
   const changesLabel = workingTreeLabel(workingTree, workingTreeError, isCheckingChanges, t);
   const changesCount = workingTree && !isCheckingChanges && !workingTreeError ? workingTree.counts.total : 0;
+  // The line totals ride beside the count as a quieter second fact: the count
+  // is how many files, these are how much. They are drawn only when the
+  // backend could count the whole tree and at least one line moved — `null` is
+  // "unknown", never "zero", and "+0 −0" would be noise.
+  const lineTotals = workingTree && !isCheckingChanges && !workingTreeError ? workingTree.lineTotals : null;
+  const hasLineTotals = lineTotals !== null && (lineTotals.added > 0 || lineTotals.removed > 0);
+  const lineTotalsLabel = lineTotals && hasLineTotals
+    ? [
+        lineTotals.added > 0 ? t.statusBarLinesAdded(lineTotals.added) : null,
+        lineTotals.removed > 0 ? t.statusBarLinesRemoved(lineTotals.removed) : null,
+      ].filter((part): part is string => part !== null).join(", ")
+    : null;
+  const changesTooltip = lineTotalsLabel ? `${changesLabel} · ${lineTotalsLabel}` : changesLabel;
   const canCheckTeam = Boolean(
     project?.headState === "branch" &&
     project.branch &&
@@ -176,6 +203,13 @@ export function StatusBar({
     !isReadingTeamStatus,
   );
   const isBusy = isCheckingChanges || teamSync.isLoading || teamSync.isCheckingRemote;
+  const syncIcon = teamSync.isCheckingRemote || isReadingTeamStatus
+    ? <LoaderCircle className="icon--spinning" aria-hidden="true" />
+    : tone === "success"
+      ? <CloudCheck aria-hidden="true" />
+      : tone === "warning"
+        ? <CloudAlert aria-hidden="true" />
+        : <Cloud aria-hidden="true" />;
 
   return (
     <footer className="status-bar" aria-label={t.statusBarAriaLabel} aria-busy={isBusy}>
@@ -189,7 +223,7 @@ export function StatusBar({
               answering the same question in one window is how the reader
               stops trusting either. */}
           <span className="status-bar__cluster status-bar__working">
-            <span className="status-bar__item status-bar__project" title={project.name}>
+            <span className="status-bar__item status-bar__project" data-tooltip={t.statusBarProjectTooltip(project.name)}>
               <FolderGit2 aria-hidden="true" />
               <span>{project.name}</span>
             </span>
@@ -208,15 +242,30 @@ export function StatusBar({
           </span>
           <span
             className={`status-bar__item status-bar__changes${workingTreeError && !isCheckingChanges ? " status-bar__changes--error" : ""}`}
-            data-tooltip={changesLabel}
+            data-tooltip={changesTooltip}
           >
-            {isCheckingChanges ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : <FileDiff aria-hidden="true" />}
-            {changesCount > 0 && (
-              <span className="status-bar__changes-count" aria-hidden="true">
-                {changesCount > 99 ? "99+" : changesCount}
+            {/* The icon and its corner badge share one positioned box so the
+                badge rides the icon, not the line totals now sitting beside
+                it. */}
+            <span className="status-bar__changes-mark" aria-hidden="true">
+              {isCheckingChanges ? <LoaderCircle className="icon--spinning" /> : <FileDiff />}
+              {changesCount > 0 && (
+                <span className="status-bar__changes-count">
+                  {changesCount > 99 ? "99+" : changesCount}
+                </span>
+              )}
+            </span>
+            {lineTotals && hasLineTotals && (
+              <span className="status-bar__diff-stats" aria-hidden="true">
+                <span className="status-bar__diff-stat status-bar__diff-stat--added">
+                  {`+${lineTotals.added}`}
+                </span>
+                <span className="status-bar__diff-stat status-bar__diff-stat--removed">
+                  {`−${lineTotals.removed}`}
+                </span>
               </span>
             )}
-            <span className="visually-hidden">{changesLabel}</span>
+            <span className="visually-hidden">{changesTooltip}</span>
           </span>
         </div>
       ) : (
@@ -231,20 +280,27 @@ export function StatusBar({
       <div className="status-bar__group status-bar__group--system">
         {project && (
           <span className="status-bar__cluster" aria-live="polite">
-            <span
-              className={`status-bar__item status-bar__sync status-bar__sync--${tone}`}
-              data-tooltip={teamTooltip || undefined}
-            >
-              {teamSync.isCheckingRemote || isReadingTeamStatus
-                ? <LoaderCircle className="icon--spinning" aria-hidden="true" />
-                : tone === "success"
-                  ? <CloudCheck aria-hidden="true" />
-                  : tone === "warning"
-                    ? <CloudAlert aria-hidden="true" />
-                    : <Cloud aria-hidden="true" />}
-              <span>{visibleTeamLabel}</span>
-              {teamTooltip && <span className="visually-hidden"> · {teamTooltip}</span>}
-            </span>
+            {publishAction ? (
+              <button
+                className={`status-bar__item status-bar__sync status-bar__sync--${tone} status-bar__sync-action`}
+                type="button"
+                onClick={onPublish}
+                aria-label={publishAction}
+                data-tooltip={publishTooltip ?? undefined}
+              >
+                {syncIcon}
+                <span>{visibleTeamLabel}</span>
+              </button>
+            ) : (
+              <span
+                className={`status-bar__item status-bar__sync status-bar__sync--${tone}`}
+                data-tooltip={teamTooltip || undefined}
+              >
+                {syncIcon}
+                <span>{visibleTeamLabel}</span>
+                {teamTooltip && <span className="visually-hidden"> · {teamTooltip}</span>}
+              </span>
+            )}
             <button
               className="status-bar__action"
               type="button"

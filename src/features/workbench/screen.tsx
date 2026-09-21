@@ -1,4 +1,4 @@
-import { GitCompare } from "lucide-react";
+import { Layers } from "lucide-react";
 
 import { preloadChangesPanel } from "../changes";
 import { preloadHistoryScreen } from "../history";
@@ -22,7 +22,7 @@ export const workbenchScreenModule = {
   labelKey: "navWork",
   disabledLabelKey: "navWorkTitle",
   commandLabelKey: "commandGoWork",
-  icon: <GitCompare />,
+  icon: <Layers />,
   requiresProject: true,
   inCompactNav: true,
   container,

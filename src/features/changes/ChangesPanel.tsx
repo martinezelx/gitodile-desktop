@@ -21,10 +21,10 @@ import { getFileTypeIcon } from "../../shared/file-icons";
 import {
   AutomaticUpdatesNotice, autoHideScrollbarProps, FilterCapsule, FilterCapsules, FilterChips,
   FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, SearchBox,
-  useAnchoredPopup, type FilterChip,
+  useAnchoredPopup, useRowArrival, type FilterChip,
 } from "../../shared/ui";
 import { QuickCommitBox, type QuickCommitBoxHandle } from "./QuickCommitBox";
-import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, getWorkingTreeBreakdown, splitPath } from "../status";
+import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
@@ -293,66 +293,6 @@ export function fileTypesPresent(entries: WorkingTreeEntry[]): Array<{ key: stri
   });
 }
 
-export type DiffLineTotals = { added: number; removed: number };
-
-/** Added and removed line counts for one file's diff. Only `text` and
- * `conflict` diffs carry hunks; the binary/too-large/unchanged kinds
- * contribute nothing, which is the honest answer — GitOdile never read their
- * contents. */
-export function countDiffLines(diff: FileDiff): DiffLineTotals {
-  const totals = { added: 0, removed: 0 };
-  if (diff.kind !== "text" && diff.kind !== "conflict") {
-    return totals;
-  }
-  for (const hunk of diff.hunks) {
-    for (const line of hunk.lines) {
-      if (line.kind === "addition") {
-        totals.added += 1;
-      } else if (line.kind === "deletion") {
-        totals.removed += 1;
-      }
-    }
-  }
-  return totals;
-}
-
-/** Screen-wide totals, summed over whichever diffs the snapshot's cache
- * currently holds. Returns `null` until every listed file is present, so the
- * subtitle shows nothing rather than a number that keeps climbing while the
- * batch prefetch fills in — a total that is briefly wrong is worse than one
- * that is briefly absent. */
-/** True when a diff's line counts would be a floor rather than the answer:
- * Git stopped early (`truncated`), or the file was never read at all
- * (`too-large`). Binary and unchanged files are not in this set — they
- * genuinely contribute no lines, which is a fact, not a gap. */
-function hasUncountableLines(diff: FileDiff): boolean {
-  if (diff.kind === "too-large") {
-    return true;
-  }
-  return (diff.kind === "text" || diff.kind === "conflict") && diff.truncated;
-}
-
-export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<string, FileDiff>): DiffLineTotals | null {
-  if (entries.length === 0) {
-    return null;
-  }
-  const totals = { added: 0, removed: 0 };
-  for (const entry of entries) {
-    const diff = cache.get(entry.path);
-    // Same rule for "not read yet" and "cannot be counted": show nothing
-    // rather than a total the user would read as exact. A subtitle that
-    // quietly understates a huge change set is worse than one that omits the
-    // number until it can be trusted.
-    if (!diff || hasUncountableLines(diff)) {
-      return null;
-    }
-    const fileTotals = countDiffLines(diff);
-    totals.added += fileTotals.added;
-    totals.removed += fileTotals.removed;
-  }
-  return totals;
-}
-
 function ChangesStatusNotice({ watcherState, error, busy, onRefresh, onOpenSettings, t }: {
   watcherState: "starting" | "watching" | "off" | "unavailable";
   error: string | null;
@@ -435,16 +375,6 @@ const CATEGORY_LABEL_KEYS = {
   deleted: "changesCategoryLabelDeleted",
   renamed: "changesCategoryLabelRenamed",
   conflicted: "changesCategoryLabelConflicted",
-} as const satisfies Record<ChangeCategory, keyof Translations>;
-
-/** The counted labels ("3 edited") the Overview band and the status bar use,
- * as against the bare ones above that name a single row's kind. */
-const BREAKDOWN_LABEL_KEYS = {
-  changed: "statusCategoryChanged",
-  new: "statusCategoryNew",
-  deleted: "statusCategoryDeleted",
-  renamed: "statusCategoryRenamed",
-  conflicted: "statusCategoryConflicted",
 } as const satisfies Record<ChangeCategory, keyof Translations>;
 
 /** An extension as a reader recognises it, and the leftover bucket named in
@@ -909,8 +839,8 @@ function FileListItem({
   virtualIndex?: number;
   virtualCount?: number;
   measureElement?: (node: Element | null) => void;
-  /** This row's place in a list drawn all at once, for the arrival stagger;
-   * absent on a virtualized row. */
+  /** When this row arrived while the screen was open, its place in the
+   * cascade; absent for the list's first draw and for every virtualized row. */
   arrivalIndex?: number;
   t: Translations;
 }): React.JSX.Element {
@@ -926,15 +856,14 @@ function FileListItem({
     ? `${entry.path} — ${categoryLabel} — ${t.changesRenamedFrom(entry.originalPath)}`
     : `${entry.path} — ${categoryLabel}`;
 
-  // The shared arrival stagger (`.row-in`, primitives.css), for the rows a
-  // screen draws all at once. Capped so a list of a hundred is not still
-  // arriving four seconds in; never on a virtualized row, which is mounted
-  // by a scroll rather than with the screen and would otherwise wait out a
-  // delay that has nothing to do with it.
+  // Captured at mount, not read from props: the arrival is decided by the list
+  // (see `useRowArrival`) on the render the row first appears, and a later
+  // render must not strip the class mid-animation. The list is readable the
+  // moment it opens; only a row that arrives afterwards wears `.row-in`. A
+  // virtualized row never does — it is mounted by a scroll, not by the screen.
+  const [arrival] = useState(() => (virtualPosition === undefined ? arrivalIndex : undefined));
   const arrivalStyle: React.CSSProperties | undefined =
-    virtualPosition === undefined && arrivalIndex !== undefined
-      ? ({ "--row-index": Math.min(arrivalIndex, FILE_LIST_ARRIVAL_CAP) } as React.CSSProperties)
-      : undefined;
+    arrival === undefined ? undefined : ({ "--row-index": arrival } as React.CSSProperties);
 
   return (
     <li
@@ -983,13 +912,12 @@ function FileListItem({
 
 const FILE_LIST_VIRTUALIZATION_THRESHOLD = 100;
 const FILE_LIST_ESTIMATED_ROW_HEIGHT = 54;
-/** Past this row the arrival stagger stops growing: 12 × 40ms is the last
- * row of a filled panel landing half a second in, which reads as the list
- * filling; a hundredth row four seconds in would read as the app lagging. */
-const FILE_LIST_ARRIVAL_CAP = 12;
 
 type FileListRowsProps = {
   entries: WorkingTreeEntry[];
+  /** Rows that arrived while this screen was open, keyed by path, valued by
+   * their place in the arrival cascade; empty on the list's first draw. */
+  arrivals: ReadonlyMap<string, number>;
   selectedPath: string | null;
   excludedPaths: Set<string>;
   canChoose: boolean;
@@ -1075,7 +1003,7 @@ function FileListRows(props: FileListRowsProps): React.JSX.Element {
   if (props.entries.length > FILE_LIST_VIRTUALIZATION_THRESHOLD) {
     return <VirtualizedFileListRows {...props} />;
   }
-  return <ul>{props.entries.map((entry, index) => fileListItem(entry, props, undefined, index))}</ul>;
+  return <ul>{props.entries.map((entry) => fileListItem(entry, props, undefined, props.arrivals.get(entry.path)))}</ul>;
 }
 
 export function ChangesPanel({
@@ -1142,6 +1070,12 @@ export function ChangesPanel({
 }): React.JSX.Element {
   const { t } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
+  // Which rows arrive while the screen is open, so the list it opens with is
+  // simply there (see `useRowArrival`). Taken from the whole working tree in
+  // display order rather than the filtered view: narrowing the list is not a
+  // set of arrivals, so a filter change must not animate the rows it reveals.
+  const arrivalKeys = useMemo(() => entries.map((entry) => entry.path), [entries]);
+  const arrivals = useRowArrival(arrivalKeys, `${projectPath}\0${sessionEpoch}`);
   const [announcement, setAnnouncement] = useState("");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ChangesFilters>(NO_CHANGES_FILTERS);
@@ -1378,8 +1312,6 @@ export function ChangesPanel({
     }
   }, [includedCount, totalCount]);
 
-  const lineTotals = sumCachedDiffLines(entries, store.cache);
-
   // File-to-file navigation walks the list the user can actually see, so
   // "next file" during a search means the next match, not the next file
   // hidden behind the filter.
@@ -1390,63 +1322,6 @@ export function ChangesPanel({
       onSelectedPathChange(next.path);
     }
   };
-
-  // The state row's message; only the listing state draws it, so a clean
-  // tree never reaches here.
-  let headerMessage: React.ReactNode = null;
-  if (workingTree && !workingTree.isClean) {
-    const { total } = workingTree.counts;
-    // The same breakdown, with the same glyphs in the same colours, that the
-    // Overview band's Changes tile shows — a reader who arrives from that
-    // tile reads the same fact in the same shape here. It says the count by
-    // category and nothing else: the selection is named only while it is
-    // partial, since "7 of 7 selected" is a mark that says nothing.
-    const breakdown = getWorkingTreeBreakdown(workingTree);
-    const breakdownText = breakdown.map((item) => t[BREAKDOWN_LABEL_KEYS[item.category]](item.count)).join(" · ");
-    headerMessage = (
-      <p className="changes-view__summary">
-        <span className="changes-view__breakdown" aria-label={breakdownText}>
-          {breakdown.map((item) => (
-            <span key={item.category} className={`changes-view__kind changes-view__kind--${item.category}`}>
-              {CHANGE_CATEGORY_ICONS[item.category]}
-              {t[BREAKDOWN_LABEL_KEYS[item.category]](item.count)}
-            </span>
-          ))}
-        </span>
-        {lineTotals && (
-          <>
-            <span className="changes-view__summary-separator" aria-hidden="true">
-              ·
-            </span>
-            <span className="changes-view__line-totals">
-              <span className="changes-view__lines changes-view__lines--added">
-                <span aria-hidden="true">{t.changesLinesAddedTotal(lineTotals.added)}</span>
-                <span className="visually-hidden">{t.changesLinesAddedTotalAriaLabel(lineTotals.added)}</span>
-              </span>
-              <span className="changes-view__lines changes-view__lines--removed">
-                <span aria-hidden="true">{t.changesLinesRemovedTotal(lineTotals.removed)}</span>
-                <span className="visually-hidden">{t.changesLinesRemovedTotalAriaLabel(lineTotals.removed)}</span>
-              </span>
-            </span>
-          </>
-        )}
-        {/* The selection belongs with the other things this screen says about
-            its changes, not beside the search box: the strip's job is finding
-            a file, and the count was taking a third of it to answer a question
-            nobody asks while typing. */}
-        {!allSelected && (
-          <>
-            <span className="changes-view__summary-separator" aria-hidden="true">
-              ·
-            </span>
-            <span className="changes-view__selection">
-              {t.changesSelectionSummary(includedCount, total)}
-            </span>
-          </>
-        )}
-      </p>
-    );
-  }
 
   return (
     <div className="changes-view" aria-busy={isCheckingChanges}>
@@ -1499,44 +1374,17 @@ export function ChangesPanel({
             </div>
           ) : (
             <>
-              {/* One strip for what is listed: the search takes the whole
-                  width, the discard menu the far end. A step quieter than the
+              {/* One strip for what is listed: the include-everything checkbox
+                  at its head, at the rows' own inset so it reads as the
+                  column's first row, and the search taking the rest of the
+                  width — the shape History's strip has. A step quieter than the
                   header above it, the way History's inner panes step down from
-                  their panel. */}
+                  their panel. The breakdown and the line totals that used to
+                  sit beside the checkbox are gone: the Journey band and the
+                  status bar already say them, and a partial selection is the
+                  checkbox's own indeterminate state and the save box's plan
+                  ("3 of 7 files"). */}
               <div className="changes-file-list__toolbar">
-                <SearchBox
-                  value={search}
-                  onChange={setSearch}
-                  placeholder={t.changesSearchPlaceholder}
-                  ariaLabel={t.changesSearchAriaLabel}
-                  clearLabel={t.commonClearSearch}
-                  trailing={<ChangesFilterPanel
-                    filters={filters}
-                    kinds={kindsPresent}
-                    types={typesPresent}
-                    canChooseFiles={canChooseFiles}
-                    onChange={setFilters}
-                    t={t}
-                  />}
-                />
-                <ChangesActionsMenu
-                  controller={controller}
-                  projectPath={projectPath}
-                  sessionEpoch={sessionEpoch}
-                  selectedPath={selectedPath}
-                  disabled={isCheckingChanges}
-                  onChoose={requestDiscard}
-                  t={t}
-                />
-              </div>
-              {/* The state row: what the rows below add up to, and the one
-                  control that reaches all of them. It is the "N changed files"
-                  row GitHub Desktop puts under its tabs, and it holds what the
-                  panel's header held before the tabs took that row (task 126)
-                  — the include-everything checkbox at the rows' own inset, so
-                  it reads as the column's head, and the breakdown beside it in
-                  the band's vocabulary. */}
-              <div className="changes-file-list__state">
                 <span className="changes-file-list__select-all">
                   {canChooseFiles ? (
                     <input
@@ -1563,7 +1411,21 @@ export function ChangesPanel({
                     />
                   )}
                 </span>
-                {headerMessage}
+                <SearchBox
+                  value={search}
+                  onChange={setSearch}
+                  placeholder={t.changesSearchPlaceholder}
+                  ariaLabel={t.changesSearchAriaLabel}
+                  clearLabel={t.commonClearSearch}
+                  trailing={<ChangesFilterPanel
+                    filters={filters}
+                    kinds={kindsPresent}
+                    types={typesPresent}
+                    canChooseFiles={canChooseFiles}
+                    onChange={setFilters}
+                    t={t}
+                  />}
+                />
               </div>
               <ChangesFilterChips filters={filters} onChange={setFilters} t={t} />
               <div
@@ -1596,6 +1458,7 @@ export function ChangesPanel({
                 )}
                 <FileListRows
                   entries={visibleEntries}
+                  arrivals={arrivals}
                   selectedPath={selectedPath}
                   excludedPaths={excludedPaths}
                   canChoose={canChooseFiles}
@@ -1630,18 +1493,37 @@ export function ChangesPanel({
                   t={t}
                 />
               </div>
-              <QuickCommitBox
-                ref={quickCommitRef}
-                projectPath={projectPath}
-                sessionEpoch={sessionEpoch}
-                selectedPaths={selectedPathsForSave}
-                canSave={canSaveSelection}
-                runHooks={runGitHooks}
-                remoteLabel={workingTree.upstream.upstream}
-                fileListRef={fileListScrollRef}
-                onSaveCompleted={onSaveCompleted}
-                onPublishNow={onPublishNow}
-              />
+              {/* The foot: the save box, and beside it the menu that acts
+                  without saving — discard, or bring discarded work back.
+                  It used to sit in the search strip, where it read as a
+                  control over the list rather than over the changes; here
+                  it is the counterpart to the box, outside it so the
+                  destructive menu never lives inside the primary control,
+                  and level with the box's closed row. History's card ends
+                  its strip with the same `⋯`. */}
+              <div className="changes-file-list__foot">
+                <QuickCommitBox
+                  ref={quickCommitRef}
+                  projectPath={projectPath}
+                  sessionEpoch={sessionEpoch}
+                  selectedPaths={selectedPathsForSave}
+                  canSave={canSaveSelection}
+                  runHooks={runGitHooks}
+                  remoteLabel={workingTree.upstream.upstream}
+                  fileListRef={fileListScrollRef}
+                  onSaveCompleted={onSaveCompleted}
+                  onPublishNow={onPublishNow}
+                />
+                <ChangesActionsMenu
+                  controller={controller}
+                  projectPath={projectPath}
+                  sessionEpoch={sessionEpoch}
+                  selectedPath={selectedPath}
+                  disabled={isCheckingChanges}
+                  onChoose={requestDiscard}
+                  t={t}
+                />
+              </div>
             </>
           )}
         </nav>

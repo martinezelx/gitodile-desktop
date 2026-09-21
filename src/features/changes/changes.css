@@ -74,37 +74,12 @@
 .changes-preview__item--conflicted .changes-preview__category { color: var(--status-warning); }
 
 .changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
-/* The header row itself is `.screen-header` in primitives.css: the title and
-   the state of the working tree are one line, not a heading with a paragraph
-   under it, and History opens on the same row. What stays here is what this
-   screen says inside it. */
-/* The state line under the panel's title: one line, truncating, at caption
-   size — the glyph chips, the line totals and the partial selection, in the
-   order they matter, cut from the end when the column is too narrow for all
-   of them. Wrapping would grow the header, and the header's height is the
-   contract that keeps the diff's beside it level. */
+/* The one line the list panel says about the tree when there is nothing to
+   list: "Everything is saved", in the state row under the tabs. */
 .changes-view__summary {
-  display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0;
-  overflow: hidden; white-space: nowrap;
+  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0;
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
 }
-/* "✎ 14 edited · + 7 new": the rows' own category glyphs in the rows' own
-   colours, the same chips the Overview band's Changes tile carries, so the
-   tile and the screen it leads to say the count in one vocabulary. */
-.changes-view__breakdown { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2); flex-shrink: 0; }
-.changes-view__kind { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.changes-view__kind svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-secondary-color); }
-.changes-view__kind--new svg { color: var(--status-success); }
-.changes-view__kind--deleted svg { color: var(--status-danger); }
-.changes-view__kind--renamed svg { color: var(--status-renamed); }
-.changes-view__kind--conflicted { color: var(--status-warning); font-weight: var(--weight-strong); }
-.changes-view__kind--conflicted svg { color: var(--status-warning); }
-.changes-view__summary-separator { color: var(--text-secondary-color); opacity: 0.6; }
-.changes-view__line-totals { display: inline-flex; align-items: baseline; gap: 6px; flex-shrink: 0; }
-.changes-view__selection { font-variant-numeric: tabular-nums; }
-.changes-view__lines { font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); }
-.changes-view__lines--added { color: var(--diff-added); }
-.changes-view__lines--removed { color: var(--diff-removed); }
 .changes-status-notice {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 9px 11px;
@@ -161,8 +136,10 @@
    which. Hung from the trigger's left edge it opens across the diff instead,
    so what is about to be discarded stays on screen while the choice is made.
    There is room for it there: the list panel is 280px at most and the menu is
-   270px, so it clears the diff's own edge by a wide margin. */
-.changes-actions-menu__popup { right: auto; left: 0; min-width: 270px; }
+   270px, so it clears the diff's own edge by a wide margin. It opens upward,
+   since the trigger sits at the foot of the panel beside the save box and a
+   menu dropping from there would fall off the window. */
+.changes-actions-menu__popup { top: auto; bottom: calc(100% + 6px); right: auto; left: 0; min-width: 270px; }
 .changes-actions-menu .app-menu__item--danger { color: var(--status-danger); }
 .changes-actions-menu .app-menu__item--danger svg { color: currentColor; }
 .changes-actions-menu .app-menu__item:disabled { opacity: 0.42; }
@@ -379,24 +356,20 @@
   flex: 0 0 auto; height: var(--strip-height);
   border-bottom: 1px solid var(--border-subtle);
 }
-/* The state row under the search strip: what the rows add up to, and the
-   include-everything checkbox that heads them — the "N changed files" row
-   GitHub Desktop puts under its tabs. The checkbox stands at the rows' own
-   inset (the 8px gutter plus its own 6px) and the line starts where a row's
-   file name starts, so the row reads as the column's first row. One line,
-   fixed: the summary truncates from the end rather than wrapping. A rule
-   under it, because unlike the search box above it has no edge of its own
-   to separate it from the rows. */
+/* The state row under the tabs, drawn only when there is no list: the
+   loading thread while the first check is out, or "Everything is saved". At
+   the inner strip's height, with the line starting where a row's file name
+   starts. The listing state has no such row — the include-everything
+   checkbox heads the search strip instead, and the counts it used to sit
+   beside are said by the Journey band and the status bar. */
 .changes-file-list__state {
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: center;
   flex: 0 0 auto; height: var(--strip-height-inner);
-  padding: 0 var(--space-3) 0 var(--space-2);
+  padding: 0 var(--space-3) 0 calc(var(--space-2) + var(--space-3));
   border-bottom: 1px solid var(--border-subtle);
 }
-.changes-file-list__state .changes-view__summary { flex: 1; padding-left: var(--space-3); margin: 0; }
-/* With nothing to review, or while the first check is still out, the row
-   says so on its own and the checkbox is not drawn. */
-.changes-file-list__state > .loading-state { flex: 1; padding-left: var(--space-3); }
+.changes-file-list__state > .changes-view__summary,
+.changes-file-list__state > .loading-state { flex: 1; }
 /* With nothing to review the diff panel holds the empty block (task 126):
    the list panel keeps the tabs at the list column's width, and the block
    sits where the reading surface would be. Centred in the panel, not at its
@@ -414,7 +387,9 @@
   flex: 0 0 auto; height: var(--strip-height-inner);
   padding: 0 var(--space-2);
 }
-.changes-file-list__select-all { display: inline-flex; }
+/* Heads the search strip at the rows' own inset: the strip's 8px gutter plus
+   the checkbox's 6px margin is the same 14px a row's checkbox stands at. */
+.changes-file-list__select-all { display: inline-flex; flex-shrink: 0; }
 /* The box itself is `.search-box` in primitives.css now. What stays here is
    what this strip asks of it: the free width, and the height contract the
    picker beside it reads — the two have to agree or the strip looks stepped. */
@@ -565,9 +540,17 @@
    `.save-version-dialog` beside it, not a multiline control like the
    textarea it holds — see DESIGN.md § Shape and the concentric chain in
    tokens.css. */
+/* The foot of the list panel: the save box taking the width, and the
+   discard/restore menu beside it at the box's closed height. `align-items:
+   flex-end` keeps the menu on the box's last row when the box opens upward
+   into its fields. */
+.changes-file-list__foot {
+  flex: 0 0 auto; display: flex; align-items: flex-end; gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
+}
+.changes-file-list__foot .changes-actions-menu { margin-bottom: 1px; }
 .changes-quick-commit {
-  flex: 0 0 auto; display: flex; flex-direction: column;
-  margin: 0 var(--space-2) var(--space-2);
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: var(--surface-hover);
   transition: border-color var(--duration-normal), background var(--duration-fast);

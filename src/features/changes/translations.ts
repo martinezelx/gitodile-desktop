@@ -60,10 +60,6 @@ export interface ChangesTranslations {
   changesDiffTruncatedNote: (shownLines: number) => string;
   changesLineAddedLabel: string;
   changesLineRemovedLabel: string;
-  changesLinesAddedTotal: (count: number) => string;
-  changesLinesRemovedTotal: (count: number) => string;
-  changesLinesAddedTotalAriaLabel: (count: number) => string;
-  changesLinesRemovedTotalAriaLabel: (count: number) => string;
   changesSearchPlaceholder: string;
   changesSearchAriaLabel: string;
   changesNoSearchMatches: string;
@@ -107,7 +103,6 @@ export interface ChangesTranslations {
    * count, and "of N" only when the selection leaves files behind. */
   changesQuickPlanFiles: (total: number, remaining: number) => string;
 
-  changesSelectionSummary: (selected: number, total: number) => string;
   changesSelectAll: string;
   changesSelectNone: string;
   changesIncludeFile: (path: string) => string;
@@ -230,10 +225,6 @@ const en: ChangesTranslations = {
   changesDiffTruncatedNote: (shownLines) => `Showing the first ${shownLines} lines of this difference.`,
   changesLineAddedLabel: "Added:",
   changesLineRemovedLabel: "Removed:",
-  changesLinesAddedTotal: (count) => `+${count}`,
-  changesLinesRemovedTotal: (count) => `−${count}`,
-  changesLinesAddedTotalAriaLabel: (count) => (count === 1 ? "1 line added" : `${count} lines added`),
-  changesLinesRemovedTotalAriaLabel: (count) => (count === 1 ? "1 line removed" : `${count} lines removed`),
   changesSearchPlaceholder: "Search files…",
   changesSearchAriaLabel: "Search changed files",
   changesNoSearchMatches: "No changed file matches your search.",
@@ -285,7 +276,6 @@ const en: ChangesTranslations = {
         ? "1 file"
         : `${total} files`,
 
-  changesSelectionSummary: (selected, total) => `${selected} of ${total} selected`,
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
   changesIncludeFile: (path) => `Include ${path} in this version`,
@@ -416,10 +406,6 @@ const es: ChangesTranslations = {
   changesDiffTruncatedNote: (shownLines) => `Mostrando las primeras ${shownLines} líneas de esta diferencia.`,
   changesLineAddedLabel: "Añadida:",
   changesLineRemovedLabel: "Eliminada:",
-  changesLinesAddedTotal: (count) => `+${count}`,
-  changesLinesRemovedTotal: (count) => `−${count}`,
-  changesLinesAddedTotalAriaLabel: (count) => (count === 1 ? "1 línea añadida" : `${count} líneas añadidas`),
-  changesLinesRemovedTotalAriaLabel: (count) => (count === 1 ? "1 línea eliminada" : `${count} líneas eliminadas`),
   changesSearchPlaceholder: "Buscar archivos…",
   changesSearchAriaLabel: "Buscar archivos con cambios",
   changesNoSearchMatches: "Ningún archivo con cambios coincide con tu búsqueda.",
@@ -466,8 +452,6 @@ const es: ChangesTranslations = {
         ? "1 archivo"
         : `${total} archivos`,
 
-  changesSelectionSummary: (selected, total) =>
-    selected === 1 ? `${selected} de ${total} seleccionado` : `${selected} de ${total} seleccionados`,
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",
   changesIncludeFile: (path) => `Incluir ${path} en esta versión`,

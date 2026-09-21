@@ -121,6 +121,7 @@ export interface AppTranslations {
   projectSwitcherCloseBlocked: (name: string) => string;
   statusBarAriaLabel: string;
   statusBarNoProject: string;
+  statusBarProjectTooltip: (name: string) => string;
   statusBarDetached: string;
   statusBarUnbornLine: string;
   statusBarVersionLineUnavailable: string;
@@ -129,6 +130,8 @@ export interface AppTranslations {
   statusBarChangesNotChecked: string;
   statusBarEverythingSaved: string;
   statusBarUnsaved: (count: number) => string;
+  statusBarLinesAdded: (count: number) => string;
+  statusBarLinesRemoved: (count: number) => string;
   statusBarUpToDate: string;
   statusBarAhead: (count: number) => string;
   statusBarBehind: (count: number) => string;
@@ -148,6 +151,7 @@ export interface AppTranslations {
   statusBarJustNow: string;
   statusBarLastChecked: (relative: string) => string;
   statusBarCheckNow: string;
+  statusBarPublishAction: (count: number) => string;
   statusBarVersion: (version: string) => string;
   statusBarOpenChangelog: (version: string, channel: string) => string;
   titlebarHideSidebar: string;
@@ -318,6 +322,7 @@ const en: AppTranslations = {
     `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
   statusBarAriaLabel: "Project status",
   statusBarNoProject: "No project open",
+  statusBarProjectTooltip: (name) => `Project: ${name}`,
   statusBarDetached: "Specific saved version",
   statusBarUnbornLine: "New version line",
   statusBarVersionLineUnavailable: "Version line unavailable",
@@ -326,6 +331,8 @@ const en: AppTranslations = {
   statusBarChangesNotChecked: "Changes not checked",
   statusBarEverythingSaved: "Everything is saved",
   statusBarUnsaved: (count) => (count === 1 ? "1 unsaved change" : `${count} unsaved changes`),
+  statusBarLinesAdded: (count) => (count === 1 ? "1 line added" : `${count} lines added`),
+  statusBarLinesRemoved: (count) => (count === 1 ? "1 line removed" : `${count} lines removed`),
   statusBarUpToDate: "Up to date",
   statusBarAhead: (count) => `${count} ${count === 1 ? "version" : "versions"} to publish`,
   statusBarBehind: (count) => `${count} project ${count === 1 ? "version" : "versions"} available`,
@@ -345,6 +352,7 @@ const en: AppTranslations = {
   statusBarJustNow: "just now",
   statusBarLastChecked: (relative) => `Checked ${relative}`,
   statusBarCheckNow: "Check remote project changes",
+  statusBarPublishAction: (count) => (count === 1 ? "Publish 1 version" : `Publish ${count} versions`),
   statusBarVersion: (version) => `v${version}`,
   statusBarOpenChangelog: (version, channel) => `What's new in GitOdile v${version} ${channel}`,
   titlebarHideSidebar: "Hide sidebar",
@@ -508,6 +516,7 @@ const es: AppTranslations = {
     `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
   statusBarAriaLabel: "Estado del proyecto",
   statusBarNoProject: "Ningún proyecto abierto",
+  statusBarProjectTooltip: (name) => `Proyecto: ${name}`,
   statusBarDetached: "Versión guardada concreta",
   statusBarUnbornLine: "Línea de versión nueva",
   statusBarVersionLineUnavailable: "Línea de versión no disponible",
@@ -516,6 +525,8 @@ const es: AppTranslations = {
   statusBarChangesNotChecked: "Cambios sin comprobar",
   statusBarEverythingSaved: "Todo está guardado",
   statusBarUnsaved: (count) => (count === 1 ? "1 cambio sin guardar" : `${count} cambios sin guardar`),
+  statusBarLinesAdded: (count) => (count === 1 ? "1 línea añadida" : `${count} líneas añadidas`),
+  statusBarLinesRemoved: (count) => (count === 1 ? "1 línea eliminada" : `${count} líneas eliminadas`),
   statusBarUpToDate: "Al día",
   statusBarAhead: (count) => `${count} ${count === 1 ? "versión por publicar" : "versiones por publicar"}`,
   statusBarBehind: (count) => `${count} ${count === 1 ? "versión del proyecto disponible" : "versiones del proyecto disponibles"}`,
@@ -535,6 +546,7 @@ const es: AppTranslations = {
   statusBarJustNow: "ahora mismo",
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
   statusBarCheckNow: "Comprobar cambios del proyecto remoto",
+  statusBarPublishAction: (count) => (count === 1 ? "Publicar 1 versión" : `Publicar ${count} versiones`),
   statusBarVersion: (version) => `v${version}`,
   statusBarOpenChangelog: (version, channel) => `Novedades de GitOdile v${version} ${channel}`,
   titlebarHideSidebar: "Ocultar la barra lateral",

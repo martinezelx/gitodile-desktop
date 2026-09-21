@@ -9,6 +9,7 @@ function tree(counts: Partial<WorkingTreeStatus["counts"]>): WorkingTreeStatus {
   return {
     isClean: full.total === 0,
     counts: full,
+    lineTotals: null,
     entries: [],
     truncated: false,
     hasPreparedChanges: false,

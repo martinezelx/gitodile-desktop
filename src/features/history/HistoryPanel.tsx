@@ -9,7 +9,7 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, SearchBox, toDate, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, SearchBox, toDate, useRowArrival, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
 import { ChangesContextMenu, DiffFind, DiffResultView, DiffStepNav, DiffViewSelector, PictureDiffControls, usePictureDiff, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -135,13 +135,18 @@ function HistoryVersionMenu({ anchor, version, currentBranch, actions, line, onC
  * draws that is not either structure or the selection itself. */
 type RailFill = "filled" | "half" | null;
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, onSelect, onMove, onOpenDetail, onContextMenu }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
+const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, arrival, onSelect, onMove, onOpenDetail, onContextMenu }: {
+  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; arrival?: number; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
   const date = formatHistoryDate(version.authoredAt, formats);
   const author = version.author?.name.trim() || t.historyAuthorUnknown;
+  // Captured at mount: the arrival belongs to the render the row first
+  // appears on (see `useRowArrival`), and a later render must not strip the
+  // class mid-animation. The timeline it opens with is simply there.
+  const [arrivalIndex] = useState(arrival);
+  const arrivalStyle = arrivalIndex === undefined ? undefined : ({ "--row-index": arrivalIndex } as React.CSSProperties);
   // The row names the version and nothing else: the reference that points at it
   // seats itself in the detail strip beside it, which has room for it.
   const label = selected ? t.historySelectedVersion(title) : title;
@@ -154,7 +159,7 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
     onMove(target);
   };
   return (
-    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}`} type="button" role="option" aria-selected={selected} aria-label={label} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown} onContextMenu={onContextMenu ? (event) => { onSelect(version.commit); onContextMenu(event, version); } : undefined}>
+    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}${arrivalStyle ? " row-in" : ""}`} style={arrivalStyle} type="button" role="option" aria-selected={selected} aria-label={label} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown} onContextMenu={onContextMenu ? (event) => { onSelect(version.commit); onContextMenu(event, version); } : undefined}>
       <span className="history-row__node" aria-hidden="true" />
       <span className="history-row__body"><span className="history-row__title" title={title}>{title}</span><span className="history-row__meta"><span className="history-row__author" title={author}>{author}</span>{date && <><HistoryMetaDot /><span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span></>}</span></span>
     </button>
@@ -183,6 +188,11 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, se
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusCommit = versions.some((version) => version.commit === selectedCommit) ? selectedCommit : versions[0]?.commit ?? null;
   const selectedIndex = versions.findIndex((version) => version.commit === selectedCommit);
+  // A version saved while this timeline is open arrives at the head and
+  // animates; the timeline it opens with is simply there, and loading an older
+  // page is not a set of arrivals (see `useRowArrival`).
+  const arrivalKeys = useMemo(() => versions.map((version) => version.commit), [versions]);
+  const arrivals = useRowArrival(arrivalKeys, currentBranch ?? "", "prepended");
   const filtered = countActiveFilters(filters) > 0;
   const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: () => 64, overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
   const rows = virtualizer.getVirtualItems();
@@ -275,7 +285,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, se
       {isLoading && versions.length > 0 && <div className="history-timeline__progress"><LoadingBar label={t.historyLoading} /></div>}
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
+          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; return <div key={virtualRow.key} className="history-timeline__virtual-row" style={{ transform: `translateY(${virtualRow.start}px)` }}><TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} arrival={arrivals.get(version.commit)} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
         </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
@@ -355,6 +365,19 @@ function HistoryDetailStrip({ detail, currentBranch, actions, detailsOpen, onTog
         <p className="history-detail__strip-facts">
           <strong>{version.author?.name || t.historyAuthorUnknown}</strong>
           <HistoryRefBadge version={version} currentBranch={currentBranch} />
+          {/* Whether this has left the machine, at a glance: the same chip
+              `Details` draws, at the ref badge's height. Not drawn when the
+              answer is unknown (no upstream) — a strip must not say "no
+              idea"; `Details` still states it in full. */}
+          {version.publication !== "unknown" && (
+            <>
+              <HistoryMetaDot />
+              <span className={`history-publication history-publication--${version.publication}`}>
+                <PublicationIcon publication={version.publication} />
+                {publicationCopy(version.publication, t)}
+              </span>
+            </>
+          )}
         </p>
       </div>
       <div className="history-detail__strip-trailing">

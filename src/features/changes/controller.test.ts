@@ -6,7 +6,7 @@ import type { WorkingTreeStatus } from "../status";
 import type { ChangesPort } from "./port";
 
 const diff = (path: string): FileDiff => ({ kind: "unchanged", path, originalPath: null, change: "changed" });
-const tree: WorkingTreeStatus = { isClean: false, counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 }, entries: [], truncated: false, hasPreparedChanges: false, hasUnpreparedChanges: true, upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 } };
+const tree: WorkingTreeStatus = { isClean: false, counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 }, lineTotals: null, entries: [], truncated: false, hasPreparedChanges: false, hasUnpreparedChanges: true, upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 } };
 const batch = (diffs: FileDiff[], outcome: DiffWarmOutcome = "completed"): WorkingTreeDiffBatch => ({
   outcome,
   diffs,

@@ -50,8 +50,10 @@ Constraints that shaped the decisions below:
 - **The header carried more than the title.** Changes' header held the
   include-everything checkbox and the state line (category breakdown, line
   totals, partial selection); History's held the scope chip. Two equal tabs fill
-  the row, so those move to a state row under the search strip — the "3 changed
-  files" row GitHub Desktop puts under its tabs.
+  the row. The checkbox moves to the head of the search strip; the state line
+  goes (a first cut kept it in a row under the strip and it cost the list a
+  file's height to say what the band and the status bar say); the scope chip
+  moves to a row under History's search strip, drawn only off the current line.
 - **Nothing is counted twice** (DESIGN.md § Core screens): the Changes tab
   carries no count badge; the status bar and the Journey band already say it.
 - **A screen that is not showing must be quiet** (frontend-feature-guide): the
@@ -80,20 +82,23 @@ Registry and shell:
 
 Tabs:
 
-- A `tablist` of two `tab`s, each half the panel's width, at `--strip-height`.
-  The active one is in the primary colour with a 2px accent rule along the
-  header's bottom edge; the inactive one in the secondary colour, same size and
-  weight so nothing shifts on switch. Left/Right and Home/End move between them;
+- A `tablist` of two `tab`s, each half the panel's width, at `--strip-height`,
+  each its rail glyph (`GitCompare`, `GitCommitHorizontal`) and its word. The
+  active one is in the primary colour, its glyph in the accent, with a 2px
+  accent rule along the header's bottom edge; the inactive one in the
+  secondary colour, same size and weight so nothing shifts on switch. Left/Right and Home/End move between them;
   the panel below is the `tabpanel`.
 - One visually hidden `h1` names the active view; the panels' own `h1`s go.
 
 Changes:
 
-- The list panel's header is the tab pair. The include-everything checkbox and
-  the state line move to a state row under the search strip, the checkbox at
-  the rows' inset as before.
+- The list panel's header is the tab pair. The include-everything checkbox
+  heads the search strip at the rows' inset; the breakdown, the line totals and
+  the "4 of 7 selected" line are removed with their strings, helpers and CSS.
+- The discard/restore `⋯` leaves the search strip for the panel's foot, beside
+  the save box (`.changes-file-list__foot`), and its menu opens upward.
 - Nothing to review: the list panel keeps the tabs and says "Everything is
-  saved" in its state row; the empty-state block (glyph, headline, the way back
+  saved" in a state row; the empty-state block (glyph, headline, the way back
   to Overview, "Restore discarded") moves into the diff panel. In one-column
   windows the two panels stack so the block stays reachable.
 - Loading and the no-working-tree case keep the tabs visible.
@@ -103,6 +108,11 @@ History:
 - The timeline panel's header is the tab pair. The scope chip moves to a state
   row under the search strip and is drawn only when the scope is not the
   current line, so the timeline's first row does not move for the common case.
+- The detail card's version strip becomes a fixed `--strip-height`: it was
+  `min-height` plus padding, with the subject's `h2` still carrying the
+  browser's bottom margin, so its rule sat ~20px below the timeline header's.
+- The strip's facts line gains the publication chip (`Details`' own, at the
+  ref badge's 17px), hidden when the state is unknown.
 - Loading, error and "no saved versions yet" keep the timeline panel and its
   tabs, with the state block in the detail panel; one-column windows stack.
 
@@ -127,9 +137,9 @@ History:
       from Lines.
 - [x] Stored navigation preferences with `changes`/`history` adopt `workbench`
       in place; the superseded default order adopts the new default.
-- [x] Changes' checkbox and state line, and History's scope chip, live in a
-      state row under the search strip; the panels' first strips still start on
-      the same pixel row.
+- [x] Changes' checkbox heads the search strip and History's scope chip has a
+      row of its own; both list headers and the History version strip are
+      `--strip-height`, so the two panels' first rules sit on one pixel row.
 - [x] Both languages are complete; dead CSS, translation keys and screen
       modules are removed.
 - [x] `pnpm run check` passes.
@@ -170,9 +180,13 @@ Builds on tasks 112–125, which made the two screens one shape.
   the larger change for the same picture. Instead each panel takes the tab pair
   as its list header and renders it wherever it used to render its title —
   including the states that used to drop the panel altogether.
-- **A state row, not a shorter header.** The breakdown, the totals and the
-  partial selection are the facts a reader checks before saving; the scope is
-  the fact a reader checks before trusting the timeline. They earn a row.
+- **No counts between the strip and the files.** A first cut kept the
+  breakdown, the totals and the partial selection in a state row under the
+  search strip; on a real tree it read as a row taken from the files to say
+  what the band, the status bar and the save box's plan already say. The
+  checkbox alone heads the strip. The scope is different — it is the fact a
+  reader checks before trusting the timeline, and it is only drawn when it is
+  not the default — so it keeps a row.
 - **Nested lifecycle, not a second host.** The inactive tab is the same problem
   as an inactive screen, so the runtime grows one slot that derives its
   controller from the screen's, and the workbench uses it twice.
@@ -214,24 +228,32 @@ per-screen modifiers. Stored navigation preferences run through a merge map
 before the unknown-id filter (`changes → workbench` in place, `history`
 dropped), and the History-under-Changes default joins the superseded orders.
 
-**Changes.** The list panel's header is `{tabs}`; the checkbox and the
-breakdown moved to `.changes-file-list__state` under the search strip, at
-`--strip-height-inner` with a rule under it. Nothing to review renders the
+**Changes.** The list panel's header is `{tabs}`; the checkbox heads
+`.changes-file-list__toolbar` before the search box, at the rows' inset. The
+breakdown, the line totals and the selection line are gone with their
+strings, `countDiffLines`/`sumCachedDiffLines` and the `.changes-view__*`
+summary CSS. `.changes-file-list__state` remains for the two states with no
+list — loading, and "Everything is saved". Nothing to review renders the
 layout with `.changes-layout--state`: the list panel keeps the tabs and says
-"Everything is saved" in the state row, and `.changes-diff--state` holds the
-empty block; the one-column media query stacks the two. The panel's
-visually-hidden `h1` is gone — the workbench renders one for the shown tab.
+so in that row, and `.changes-diff--state` holds the empty block; the
+one-column media query stacks the two. The panel's visually-hidden `h1` is
+gone — the workbench renders one for the shown tab.
 
 **History.** The timeline header is `{tabs}`; the scope chip moved to
 `.history-timeline__state`, drawn only when the scope is not the current line.
+`.history-detail__strip` is `height: var(--strip-height)` with no vertical
+padding and the title's margin reset; its facts line ends with the
+`.history-publication` chip, sized to the ref badge by a strip-scoped rule.
 The loading, error and no-versions returns render `.history-layout--state`
 with the tabs in the timeline panel and the block in `.history-detail--state`.
 
 **Verified by hand** in a throwaway Vite harness (removed afterwards)
 rendering both panels from fixtures inside the shell's workspace box, dark
-theme, at 1280, 1100 and 900px: both headers 52px on the same pixel row; the
-state row's checkbox at the rows' inset (x = 103 on both); the scope chip in
-its own row; the clean, empty, loading and error states with the tabs in
+theme, at 1280, 1100 and 900px: both headers 52px on the same pixel row, and
+the History version strip level with them (bottom edge at the same pixel, the
+search strip and the diff toolbar under them at one height); the strip's
+checkbox at the rows' inset (same x as a row's); the scope chip in its own
+row; the clean, empty, loading and error states with the tabs in
 place; the one-column stack at 900px.
 
 **Follow-up.** The entry chunk grew 1.6 kB (580.8 → 582.4 kB minified: the
@@ -239,13 +261,49 @@ tabs, the slot and the strings). The 500 kB warning predates this task.
 
 # Validation
 
-- `pnpm run check:frontend` — architecture check (387 modules), `tsc -b`,
-  **881 frontend tests** across 91 files, `vite build`.
+- `pnpm run check:frontend` — architecture check (388 modules), `tsc -b`,
+  **885 frontend tests** across 92 files, `vite build`.
 - `pnpm run check:docs` — passes with the task in `done/`.
 - `pnpm run check:rust` — `cargo fmt --check`, `cargo clippy -D warnings`,
-  **407 Rust tests**. No Rust changed in this task.
+  **411 Rust tests**. Rust changed only in the follow-up below.
 - New tests: `KeepAliveViewSlot` (hidden view frozen, silent, resumed;
   hidden with its screen), `WorkbenchScreen` (tabs drawn by the view, hidden
   and inert sibling, keyboard shape with focus following the switch), the
   App-level keep-alive test now crosses the tabs, and the navigation
   preference migration.
+
+# Follow-up in the same commit
+
+The Work screen's own polish, plus two status-bar facts, are uncommitted
+alongside this task and travel in the same commit. None of it changes the
+screen structure above.
+
+**Work rows arrive; they do not assemble.** `useRowArrival`
+(`src/shared/ui/rowArrival.ts`, shared by Changes and History) animates only a
+row that appears *while the screen is open*; the list the screen opens with is
+readable at once. Changes reports every path it has not seen (`added`), since a
+category re-sort can move a file anywhere; History reports only a commit
+prepended above the row that used to be first (`prepended`), so loading an
+older page is not mistaken for new work. Both reuse `.row-in` with a cap of
+three, so a late arrival never waits on its list position; a virtualized row
+mounted by a scroll is still never animated. Overview keeps its entrance
+stagger on the sampled lists.
+
+**The status bar carries the line totals.** `WorkingTreeStatus.lineTotals`
+(Rust: `changes::working_tree_line_totals`, one `git diff --numstat` plus a
+read of each untracked file; `null` whenever the count would be a floor rather
+than the answer) renders as `+N −M` beside the changes count, in the diff's own
+two inks, not selectable, with the tooltip and the screen-reader sentence
+extended. The project's name dropped its text cursor and now wears the shared
+tooltip (`Project: <name>`).
+
+**The cloud is the shortcut to publishing.** When the relation is `ahead` and
+current (not stale, failed or loading), the status bar's remote fact becomes a
+button that opens the publish dialog through the app's existing
+`openPublishDialog`; every other state keeps it a plain fact.
+
+Added tests: `useRowArrival` (5), the Changes and History arrival rows, the
+`workingTreeSnapshotsEqual` line-total case, the StatusBar publish action and
+the line-total/project-tooltip rendering, and, in Rust, `parse_numstat` (2) plus
+two `read_working_tree_status` integration tests.
+
