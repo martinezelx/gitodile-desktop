@@ -43,11 +43,11 @@ input:focus-visible,
 
 @media (prefers-reduced-motion: reduce) {
   body, .window-control, .titlebar-icon-button, .window-titlebar__mark, .sidebar, .primary-button, .secondary-button, .segmented-control__option, .project-switcher__button, .project-switcher__close, .project-switcher__add, .project-switcher-compact__trigger,
-  /* About's stack chips lift and their arrow slides in — the only movement on
-     that surface, and the only reason it belongs on this list. A control whose
-     transition is colour alone (the dialog's close button) is not movement and
-     is deliberately absent. */
-  .about-stack__item, .about-stack__go {
+  /* About's credit row fades its outward arrow in — the only movement on that
+     surface, and the only reason it belongs on this list. A control whose
+     transition is colour alone (the dialog's close button, the credit name that
+     takes the accent on hover) is not movement and is deliberately absent. */
+  .about-stack__go {
     transition: none;
   }
 }

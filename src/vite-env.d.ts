@@ -14,6 +14,5 @@ declare const __APP_RELEASE_DATES__: Readonly<Record<string, string>>;
 declare const __STACK_VERSIONS__: {
   tauri: string | null;
   react: string | null;
-  typescript: string | null;
   rust: string | null;
 };

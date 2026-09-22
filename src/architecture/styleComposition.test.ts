@@ -732,11 +732,13 @@ describe("production style composition", () => {
 
     // DESIGN.md § Pointer cursors reserves the hand for real links and text
     // actions deliberately styled as links, and for nothing else — every
-    // ordinary button keeps the platform arrow cursor. Two controls qualify,
-    // both underlined inline disclosures that send the reader somewhere:
-    // Save version's detail toggle, and the licence/source pair in About.
-    // Anything else appearing here is the drift this guard exists to catch.
+    // ordinary button keeps the platform arrow cursor. Three controls qualify,
+    // all underlined inline disclosures that send the reader somewhere: the
+    // update link and the licence/source pair in About, and Save version's
+    // detail toggle. Anything else appearing here is the drift this guard
+    // exists to catch.
     expect(pointerRules).toEqual([
+      "app/app-shell.css: .about-dialog__update-link",
       "app/app-shell.css: .about-dialog__legal button",
       "features/save-version/save-version.css: .save-version-detail__toggle",
     ]);

@@ -20,7 +20,6 @@
         { "url": "https://git-scm.com/download/*" },
         { "url": "https://tauri.app/*" },
         { "url": "https://react.dev/*" },
-        { "url": "https://www.typescriptlang.org/*" },
         { "url": "https://www.rust-lang.org/*" }
       ]
     },

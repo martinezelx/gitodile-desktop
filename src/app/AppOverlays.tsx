@@ -30,13 +30,55 @@ import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
-import type { AppUpdatesController, AppUpdatesSnapshot } from "../features/app-updates";
+import type { AppUpdatesController, AppUpdatesSnapshot, UpdateState } from "../features/app-updates";
 import { AppUpdateDialog, AppUpdateSettingsControl, appUpdateTranslations } from "../features/app-updates";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
 import { describeStack, describeStackHost } from "./stack";
 import { OperatingSystemMark, StackMark } from "./vendorMarks";
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
+
+/** The one line About can honestly say about updates: what the release model
+ * knows and a person can act on. Every state names itself, so the line is never
+ * blank — a development build with no feed reads "Updates unavailable" rather
+ * than going silent — and only the one transient state with nothing useful to
+ * say (`installing`) yields null. The design's own message is `upToDateLabel`
+ * ("Up to date"), kept short because it rides the version line; the rest reuse
+ * the update copy so the two surfaces cannot describe one build differently. */
+function aboutUpdateStatus(
+  state: UpdateState | undefined,
+  t: ReturnType<typeof appUpdateTranslations>,
+  upToDateLabel: string,
+  unavailableLabel: string,
+): { tone: "ok" | "attention" | "busy" | "muted"; label: string } | null {
+  if (state === undefined) {
+    return null;
+  }
+  switch (state.kind) {
+    case "current":
+      return { tone: "ok", label: upToDateLabel };
+    case "idle":
+      return { tone: "muted", label: t.status.idle };
+    case "unavailable":
+    case "failed":
+    case "cancelled":
+      return { tone: "muted", label: unavailableLabel };
+    case "checking":
+      return { tone: "busy", label: t.checking };
+    case "downloading":
+      return { tone: "busy", label: t.downloading };
+    case "verifying":
+      return { tone: "busy", label: t.verifying };
+    case "available":
+      return { tone: "attention", label: t.available(state.candidate.version) };
+    case "ready":
+      return { tone: "attention", label: t.ready };
+    case "blocked":
+      return { tone: "attention", label: t.status.blocked };
+    default:
+      return null;
+  }
+}
 
 export type AppOverlaysProps = {
   issueReport: IssueReportState;
@@ -138,6 +180,7 @@ export function AppOverlays({
     appUpdateState?.kind === "available" || appUpdateState?.kind === "ready"
       ? appUpdateTranslations(language).available(appUpdateState.candidate.version)
       : null;
+  const aboutUpdate = aboutUpdateStatus(appUpdateState, appUpdateTranslations(language), t.aboutUpToDate, t.aboutUpdateUnavailable);
   const settingsRef = useRef<HTMLDivElement>(null);
   const projectSettingsRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
@@ -372,13 +415,17 @@ export function AppOverlays({
             tabIndex={-1}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="about-dialog__brand">
+            <DialogCloseButton label={t.commonClose} onClick={() => about.setOpen(false)} />
+            {/* The mark at hero scale, then the name, then the promise. The
+                mark is decorative and stays out of the accessibility tree, and
+                the h2 still carries the product name, so the dialog is named by
+                the app it belongs to before it states its promise. */}
+            <div className="about-dialog__hero">
+              <span className="about-dialog__mark">{CROCODILE_MARK}</span>
               <h2 id="about-title">
                 <span className="about-dialog__product-name">{t.aboutProductName}</span>{" "}
-                <span className="about-dialog__mark" aria-hidden="true">{CROCODILE_MARK}</span>{" "}
                 <span className="about-dialog__tagline">{t.aboutHeading}</span>
               </h2>
-              <DialogCloseButton label={t.commonClose} onClick={() => about.setOpen(false)} />
             </div>
             <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version} ${CURRENT_APP_RELEASE.channel}`}>
               <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
@@ -386,10 +433,48 @@ export function AppOverlays({
                 <span className="channel-badge channel-badge--preview" aria-hidden="true">preview</span>
               )}
             </p>
-            <p>{t.aboutDescription}</p>
+            {/* The one line About can say about updates, and the way to the
+                release notes. The state is named whenever the release model has
+                one, so the slot is never blank and never an alarm About cannot
+                explain; only `installing` leaves it to the link alone. */}
+            <p className="about-dialog__update">
+              {aboutUpdate && (
+                <>
+                  <span className={`about-dialog__update-status about-dialog__update-status--${aboutUpdate.tone}`}>
+                    {aboutUpdate.tone === "ok" && <Check aria-hidden="true" />}
+                    {aboutUpdate.label}
+                  </span>
+                  <span className="about-dialog__update-dot" aria-hidden="true">·</span>
+                </>
+              )}
+              <button
+                className="about-dialog__update-link"
+                type="button"
+                onClick={() => { about.setOpen(false); changelog.setOpen(true); }}
+              >
+                {t.changelogTitle}
+              </button>
+            </p>
+            <p className="about-dialog__description">{t.aboutDescription}</p>
+            <div className="about-dialog__rule" aria-hidden="true" />
             {(systemInfo || webviewVersion || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">
-                <h3 id="about-technical-title">{t.aboutTechnicalDetails}</h3>
+                {/* The copy control heads the rows it copies rather than
+                    following them: "Your system" and the way to put it on the
+                    clipboard are one thing, and a full-width button under the
+                    list spent a line of height on the same idea. */}
+                <div className="about-technical__head">
+                  <h3 id="about-technical-title">{t.aboutTechnicalDetails}</h3>
+                  <button
+                    className="about-technical__copy"
+                    type="button"
+                    aria-label={didCopyDiagnostics ? undefined : t.aboutCopySystemInfo}
+                    onClick={() => void copyDiagnostics()}
+                  >
+                    {didCopyDiagnostics ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                    {didCopyDiagnostics ? t.aboutCopied : t.aboutCopy}
+                  </button>
+                </div>
                 <dl className="about-details">
                   {systemInfo && (
                     <>
@@ -416,21 +501,11 @@ export function AppOverlays({
                 </dl>
               </section>
             )}
-            {/* The copy control follows the rows it copies rather than the
-                credits. It used to be the dialog's last child, 130px below the
-                facts it puts on the clipboard and directly under "Built with",
-                so only its label tied it to its own data — the two things a bug
-                reporter needs (the facts and the way to send them) were
-                separated by an unrelated section. */}
-            <button className="secondary-button about-dialog__copy" type="button" onClick={() => void copyDiagnostics()}>
-              {didCopyDiagnostics ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-              {didCopyDiagnostics ? t.aboutCopied : t.aboutCopySystemInfo}
-            </button>
             {/* Credits, kept apart from the diagnostics above because they are
-                not diagnostics: every user on this build runs these same four
+                not diagnostics: every user on this build runs these same
                 versions, so none of them can explain a machine-specific bug.
-                Chips rather than rows for the same reason — they are a lockup
-                of name and number, not a table to read down. */}
+                One inline line rather than a row of tiles — a name and a number
+                do not need a surface of their own. */}
             {stack.length > 0 && (
               <section className="about-stack" aria-labelledby="about-stack-title">
                 <h3 id="about-stack-title">{t.aboutBuiltWith}</h3>

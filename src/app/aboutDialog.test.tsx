@@ -42,7 +42,10 @@ afterEach(() => {
 
 const closedOverlay = { isOpen: false, setOpen: vi.fn() };
 
-function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["diagnostics"]): AppOverlaysProps {
+function buildProps(
+  gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["diagnostics"],
+  appUpdates?: AppOverlaysProps["settings"]["appUpdates"],
+): AppOverlaysProps {
   return {
     issueReport: {
       phase: "closed",
@@ -113,6 +116,7 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
         save: vi.fn(async () => undefined),
       },
       lineEndings: { lineEndings: null, isSaving: false, choose: vi.fn(async () => undefined) },
+      appUpdates,
     },
     projectSettings: {
       ...closedOverlay,
@@ -122,19 +126,23 @@ function buildProps(gitDiagnostics: AppOverlaysProps["settings"]["gitTooling"]["
       cache: createProjectSettingsCache(),
     },
     about: { isOpen: true, setOpen: vi.fn() },
-    changelog: closedOverlay,
+    changelog: { isOpen: false, setOpen: vi.fn() },
     shortcuts: closedOverlay,
     closeConfirmation: { ...closedOverlay, projectName: null, onConfirm: vi.fn() },
     error: { ...closedOverlay, title: "", message: null },
   };
 }
 
-function renderOverlays(): void {
+function renderOverlays(
+  options: { appUpdates?: AppOverlaysProps["settings"]["appUpdates"] } = {},
+): AppOverlaysProps {
+  const props = buildProps({ state: "available", version: "2.45.0" }, options.appUpdates);
   render(
     <LanguageProvider>
-      <AppOverlays {...buildProps({ state: "available", version: "2.45.0" })} />
+      <AppOverlays {...props} />
     </LanguageProvider>,
   );
+  return props;
 }
 
 /** No OS bridge and no Git version: the state a plain browser run is in, and
@@ -214,17 +222,17 @@ describe("readWebviewVersion", () => {
 describe("describeStack", () => {
   it("credits the layers shell-outwards and drops the ones it cannot resolve", () => {
     expect(
-      describeStack({ tauri: "2.11.5", react: "19.2.8", typescript: "6.0.3", rust: "1.90.0" }).map(
+      describeStack({ tauri: "2.11.5", react: "19.2.8", rust: "1.90.0" }).map(
         (layer) => `${layer.name} ${layer.version}`,
       ),
-    ).toEqual(["Tauri 2.11.5", "React 19.2.8", "TypeScript 6.0.3", "Rust 1.90.0"]);
+    ).toEqual(["Tauri 2.11.5", "React 19.2.8", "Rust 1.90.0"]);
 
     // A frontend-only build has no Rust on PATH. The chip goes; the order of
     // what is left does not shuffle to fill the gap.
     expect(
-      describeStack({ tauri: "2.11.5", react: "19.2.8", typescript: null, rust: null }).map((layer) => layer.id),
+      describeStack({ tauri: "2.11.5", react: "19.2.8", rust: null }).map((layer) => layer.id),
     ).toEqual(["tauri", "react"]);
-    expect(describeStack({ tauri: null, react: null, typescript: null, rust: null })).toEqual([]);
+    expect(describeStack({ tauri: null, react: null, rust: null })).toEqual([]);
   });
 });
 
@@ -236,13 +244,12 @@ describe("describeStackHost", () => {
 
   it("points every layer at its own project", () => {
     expect(
-      describeStack({ tauri: "2.11.5", react: "19.2.8", typescript: "6.0.3", rust: "1.90.0" }).map(
+      describeStack({ tauri: "2.11.5", react: "19.2.8", rust: "1.90.0" }).map(
         (layer) => layer.url,
       ),
     ).toEqual([
       "https://tauri.app/",
       "https://react.dev/",
-      "https://www.typescriptlang.org/",
       "https://www.rust-lang.org/",
     ]);
   });
@@ -266,16 +273,19 @@ describe("About dialog", () => {
     renderOverlays();
 
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const hero = dialog.querySelector(".about-dialog__hero");
     const heading = dialog.querySelector("#about-title");
     const productName = heading?.querySelector(".about-dialog__product-name");
-    const mark = heading?.querySelector(".about-dialog__mark");
+    const mark = hero?.querySelector(".about-dialog__mark");
     const tagline = heading?.querySelector(".about-dialog__tagline");
     expect(heading).toHaveTextContent("GitOdile Git without the fear.");
     expect(productName).toHaveTextContent("GitOdile");
     expect(mark).toBeInTheDocument();
     expect(tagline).toHaveTextContent("Git without the fear.");
-    expect(productName!.compareDocumentPosition(mark!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(mark!.compareDocumentPosition(tagline!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The mark leads the identity at hero scale, then the h2 names the product
+    // before it states the promise.
+    expect(mark!.compareDocumentPosition(heading!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(productName!.compareDocumentPosition(tagline!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("describes machine-specific diagnostics as the user's system", () => {
@@ -292,16 +302,18 @@ describe("About dialog", () => {
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     const technical = dialog.querySelector(".about-technical");
     const stack = dialog.querySelector(".about-stack");
-    const copy = dialog.querySelector(".about-dialog__copy");
+    const copy = dialog.querySelector<HTMLElement>(".about-technical__copy");
     expect(technical).toBeInTheDocument();
     expect(stack).toBeInTheDocument();
     expect(copy).toBeInTheDocument();
 
-    // Document order is the contract: the button sits after the rows it puts on
-    // the clipboard and before the credit tiles. It used to be the dialog's
-    // last child, under "Built with", so only its label tied it to its data.
-    expect(technical!.compareDocumentPosition(copy!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(copy!.compareDocumentPosition(stack!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The copy control now heads the section whose rows it puts on the
+    // clipboard — one block, not a button below the list tied to it only by its
+    // label. The credits still come after.
+    expect(technical).toContainElement(copy);
+    expect(copy).toHaveTextContent("Copy");
+    expect(copy).toHaveAccessibleName("Copy system info");
+    expect(technical!.compareDocumentPosition(stack!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows the project license and opens its license and source in the browser", async () => {
@@ -330,10 +342,55 @@ describe("About dialog", () => {
     expect(dialog).toHaveTextContent("Windows 11 (x86_64)");
     expect(dialog).toHaveTextContent("10.0.26200");
     expect(dialog).toHaveTextContent("2.45.0");
-    // The release list moved to its own surface. About is identity and
-    // diagnostics again, which is what the version tag stopped opening.
+    // The release list lives on its own surface; About keeps only the link to
+    // it, which is what the "What's new" entry opens.
     expect(dialog.querySelector(".changelog")).not.toBeInTheDocument();
-    expect(dialog).not.toHaveTextContent("What's new");
+    expect(within(dialog).getByRole("button", { name: "What's new" })).toBeInTheDocument();
+  });
+
+  it("says whether the build is current and links to the release notes", async () => {
+    const props = renderOverlays({
+      appUpdates: {
+        state: { kind: "current", checkedAt: "2026-09-22T10:00:00Z" },
+        startupConfirmation: { kind: "none" },
+        automaticEnabled: true,
+        channel: null,
+      },
+    });
+
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    expect(dialog).toHaveTextContent("Up to date");
+    await userEvent.click(within(dialog).getByRole("button", { name: "What's new" }));
+    // About closes and the changelog opens, so the two backdrops never stack.
+    expect(props.about.setOpen).toHaveBeenCalledWith(false);
+    expect(props.changelog.setOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("keeps the update line quiet when the release model has nothing to say", () => {
+    renderOverlays();
+
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    // No status and no trailing separator without an appUpdates snapshot: only
+    // the way to the notes, never an alarm About cannot explain.
+    expect(dialog.querySelector(".about-dialog__update-status")).not.toBeInTheDocument();
+    expect(dialog.querySelector(".about-dialog__update-dot")).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "What's new" })).toBeInTheDocument();
+  });
+
+  it("says why it cannot report an update rather than leaving the line blank", () => {
+    renderOverlays({
+      appUpdates: {
+        state: { kind: "unavailable", error: { code: "feed_unavailable", stage: "check", retryable: false } },
+        startupConfirmation: { kind: "none" },
+        automaticEnabled: true,
+        channel: null,
+      },
+    });
+
+    // A development build configures no update feed, so the slot names the
+    // check as unavailable rather than reading as a fault or going blank.
+    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    expect(dialog).toHaveTextContent("Updates unavailable");
   });
 
   it("lists the technical environment rows in a fixed order", () => {
@@ -392,7 +449,7 @@ describe("About dialog", () => {
     // Asserted as an order, not a set. Which layers resolve depends on the
     // machine that ran the build — a frontend-only one has no Rust — but
     // whichever do must appear shell-outwards, never reshuffled to fill a gap.
-    expect(names).toEqual(["Tauri", "React", "TypeScript", "Rust"].filter((name) => names.includes(name)));
+    expect(names).toEqual(["Tauri", "React", "Rust"].filter((name) => names.includes(name)));
     // Real versions off the lockfiles, not placeholders. Pinning the numbers
     // would mean editing this test on every dependency bump.
     for (const tile of tiles) {
@@ -436,7 +493,10 @@ describe("About dialog", () => {
     renderOverlaysWithoutGit();
 
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    // The copy control lives in that section, so with nothing to report there is
+    // nothing to copy and no orphaned button either.
     expect(dialog.querySelector(".about-technical")).not.toBeInTheDocument();
+    expect(dialog.querySelector(".about-technical__copy")).not.toBeInTheDocument();
   });
 
   it("copies a diagnostics block for a bug report", async () => {

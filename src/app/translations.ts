@@ -182,7 +182,17 @@ export interface AppTranslations {
      name is not what the press acts on. */
   aboutStackLink: (name: string, site: string) => string;
   aboutCopySystemInfo: string;
+  /* The visible label of the copy action, short because it heads the section it
+     copies; `aboutCopySystemInfo` stays its accessible name. */
+  aboutCopy: string;
   aboutCopied: string;
+  /* The one short thing About says when the release model reports the running
+     build as current. A word, not a sentence: it sits on the version line. */
+  aboutUpToDate: string;
+  /* The same slot when the build cannot answer at all: a development build
+     configures no update feed. Short, and about the check rather than the whole
+     installation, so it reads as a state and not as a fault. */
+  aboutUpdateUnavailable: string;
   /* Split around the heart so it can be colored, and so both halves stay
      translatable — word order around it is not the same in every language. */
   aboutFooterMadeWith: string;
@@ -378,7 +388,10 @@ const en: AppTranslations = {
   aboutBuiltWith: "Built with",
   aboutStackLink: (name, site) => `${name} — open ${site}`,
   aboutCopySystemInfo: "Copy system info",
+  aboutCopy: "Copy",
   aboutCopied: "Copied",
+  aboutUpToDate: "Up to date",
+  aboutUpdateUnavailable: "Updates unavailable",
   aboutFooterMadeWith: "Made with",
   aboutFooterByAuthor: "by Luis M. Martínez.",
   aboutHeartLabel: "love",
@@ -572,7 +585,10 @@ const es: AppTranslations = {
   aboutBuiltWith: "Hecho con",
   aboutStackLink: (name, site) => `${name} — abrir ${site}`,
   aboutCopySystemInfo: "Copiar info del sistema",
+  aboutCopy: "Copiar",
   aboutCopied: "Copiado",
+  aboutUpToDate: "Al día",
+  aboutUpdateUnavailable: "Actualizaciones no disponibles",
   aboutFooterMadeWith: "Hecho con",
   aboutFooterByAuthor: "por Luis M. Martínez.",
   aboutHeartLabel: "amor",

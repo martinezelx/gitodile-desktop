@@ -1061,7 +1061,7 @@
   position: relative;
   width: min(100%, 420px);
   max-height: calc(100vh - 48px);
-  padding: 32px;
+  padding: 28px 30px 24px;
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
@@ -1191,28 +1191,57 @@
   position: sticky;
   top: var(--space-2);
   z-index: 1;
-  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) calc(-1 * var(--about-close-size)) auto;
+  margin: 0 calc(-1 * var(--space-3)) calc(-1 * var(--about-close-size)) auto;
 }
+/* The changelog and the shortcut sheet extend About's shell, but they are
+   documents to read rather than an identity card, so they keep the roomier
+   padding the identity dialog gave up to stay within one screen. */
+.changelog-dialog,
+.shortcuts-dialog { padding: 32px; }
 @media (pointer: coarse) {
   .about-dialog > .dialog-close-button { --about-close-size: var(--control-height-lg); }
 }
-/* One compact header row. Name and promise share a type scale, so weight and
-   colour create the hierarchy without three competing sizes. */
-.about-dialog__brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: 0 0 var(--space-2);
+/* The mark at hero scale, on its own line, in the app's canonical identity
+   treatment — the bare silhouette in `--accent-primary`, never a tile
+   (DESIGN.md § Brand). It used to be a 24px separator wedged between the name
+   and the promise, which read as a divider rather than a logo. */
+.about-dialog__hero { display: flex; flex-direction: column; align-items: center; }
+.about-dialog__mark { display: block; width: 92px; margin: 0 auto; color: var(--accent-primary); }
+.about-dialog .about-dialog__hero h2 {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 0; margin: var(--space-4) 0 0;
 }
-.about-dialog__brand > .dialog-close-button { flex: 0 0 auto; }
-.about-dialog__mark { flex: 0 0 24px; width: 24px; height: 20px; display: inline-grid; place-items: center; color: var(--accent-primary); }
-.about-dialog__mark .gitodile-mark { width: 24px; height: 13px; }
-.about-dialog__copy {
-  width: 100%; margin-top: var(--space-3); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: var(--text-body);
+.about-dialog__product-name { font-size: var(--text-hero); font-weight: var(--weight-title); letter-spacing: var(--tracking-hero); color: var(--text-primary-color); }
+.about-dialog__tagline { color: var(--text-secondary-color); font-size: var(--text-title); font-weight: var(--weight-heading); letter-spacing: var(--tracking-tight); }
+/* The app's state line, then the way to the release notes. It is the one place
+   About answers "am I current?" without leaving the dialog, and it borrows the
+   same success/attention colours the status bar uses for the same facts. */
+.about-dialog__update { display: flex; align-items: center; justify-content: center; gap: 9px; margin: var(--space-2) 0 0; font-size: var(--text-label); }
+.about-dialog__update-status { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary-color); }
+.about-dialog__update-status--ok { color: var(--status-success); }
+.about-dialog__update-status--attention { color: var(--status-warning); }
+.about-dialog__update-status--muted { color: var(--text-secondary-color); }
+.about-dialog__update-status svg { width: 14px; height: 14px; }
+.about-dialog__update-dot { color: var(--border-control); }
+.about-dialog__update-link { border: 0; background: transparent; color: var(--accent-primary); font: inherit; font-weight: var(--weight-medium); cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+.about-dialog__update-link:hover { color: var(--text-primary-color); }
+.about-dialog__description { margin: var(--space-4) 0 0; text-align: center; color: var(--text-secondary-color); }
+/* A single quiet rule between the product introduction and the facts, exactly
+   as the design draws it; the licence block carries its own rule at the foot. */
+.about-dialog__rule { height: 1px; background: var(--border-divider); margin: 18px 0 0; }
+/* The copy control heads the rows it copies, rather than following them in a
+   full-width button that spent a row of height restating the same thing. It is
+   a text action, not a labelled button: the section heading already says what
+   is being copied. */
+.about-technical__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.about-technical__copy {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  padding: 2px 0; border: 0; background: transparent;
+  color: var(--accent-primary); font-size: var(--text-label); font-weight: var(--weight-medium);
 }
-.about-dialog__copy svg { width: 15px; height: 15px; }
-.about-dialog__footer { margin: 20px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center; }
+.about-technical__copy:hover { color: var(--text-primary-color); }
+.about-technical__copy svg { width: 13px; height: 13px; }
+.about-dialog__footer { margin: 18px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center; }
 .about-dialog__heart { color: var(--accent-heart); }
 /* Licensing is supporting information, not part of the product introduction.
    It closes the dialog after the credits, separated by a quiet rule so the
@@ -1224,7 +1253,7 @@
   justify-content: space-between;
   gap: var(--space-1) var(--space-3);
   margin-top: var(--space-3);
-  padding-top: var(--space-2);
+  padding-top: var(--space-3);
   border-top: 1px solid var(--border-divider);
   color: var(--text-secondary-color);
   font-size: var(--text-label);
@@ -1238,14 +1267,12 @@
   font-weight: var(--weight-title);
   letter-spacing: var(--tracking-tight);
 }
-.about-dialog__brand h2 { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-2); min-width: 0; font-size: var(--text-title); }
-.about-dialog__product-name { color: var(--accent-primary); }
-.about-dialog__tagline { color: var(--text-primary-color); font-weight: var(--weight-heading); letter-spacing: var(--tracking-tight); }
 .about-dialog__release {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
-  margin: 0 0 12px;
+  margin: var(--space-3) 0 0;
   color: var(--text-secondary-color);
 }
 .about-dialog__release-version { font-size: var(--text-label); font-weight: var(--weight-heading); font-variant-numeric: tabular-nums; }
@@ -1259,93 +1286,52 @@
 .about-technical h3,
 .about-stack h3 { margin: 0; font-size: var(--text-body); font-weight: var(--weight-title); }
 .about-technical,
-.about-stack { margin-top: 18px; }
-/* Credits, not diagnostics — one column per layer, all on one row.
-   Laid out as capsules first, which is what a mark beside short text asks to
-   be. Four of them measure 468px against the 356px this dialog leaves, so they
-   wrapped three-and-one: a ragged row that read as an accident rather than a
-   set. Putting the mark above the text instead fits four columns in 356px with
-   room to spare, and settles the shape question at the same time — a capsule
-   is a *single-line* control (DESIGN.md § Shape), so a stacked one was never
-   the right container anyway. What is left is a cell inside this section, not a
-   surface of its own, so it takes `--radius-item`.
-
-   `grid-auto-flow: column` rather than a fixed four: a frontend-only build has
-   no Rust tile, and three equal columns stay as balanced as four. */
+.about-stack { margin-top: var(--space-4); }
+/* Credits, not diagnostics — three inline lockups of mark, name and number.
+   The heading stays on the section's left edge with "Your system" above it, so
+   the two sections read as one language, while the row itself centres as a set:
+   a short row centred under a left-aligned heading is a balanced line rather
+   than a cluster against the edge. A credit is not a call to action, so it stays
+   at rest until pointed at; each still opens that project's own site, and the
+   outward arrow that says the press leaves the app is the one thing held back
+   for hover. */
 .about-stack__list {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: var(--space-2);
-  margin: 10px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px var(--space-3);
+  margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
 }
-/* The list item is only the grid cell; the chip inside it is the control, and
-   it fills the cell so the target is the whole tile rather than the text. */
 .about-stack__list > li { display: flex; }
-/* Each chip opens the project's own site, so it is a control and has to look
-   like one on approach — but a credit is not a call to action, so it stays at
-   rest until pointed at. Hover is the neutral vocabulary the rest of the app
-   uses (DESIGN.md § Interaction), warmed by the accent that already carries
-   the identity a few lines above it: the border picks up the accent, the fill
-   goes from the flat `--surface-hover` to a tint of it, and the tile lifts by
-   a pixel. Nothing about the resting state is withheld — name, mark and
-   version are all readable without pointing. */
 .about-stack__item {
-  position: relative;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 10px 4px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-item);
-  background: var(--surface-hover);
+  gap: 6px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
   color: var(--text-primary-color);
+  font: inherit;
   line-height: var(--leading-snug);
-  text-align: center;
-  transition:
-    border-color var(--duration-fast),
-    background var(--duration-fast),
-    box-shadow var(--duration-fast),
-    transform var(--duration-fast);
 }
-.about-stack__item:hover,
-.about-stack__item:focus-visible {
-  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-hover));
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
-}
-/* Presses back into the surface with the same gesture the rail icons use, so
-   a chip answers a click the way every other control in the app does. */
-.about-stack__item:active { transform: translateY(0) scale(0.97); }
-/* The only thing held back for hover, because it is the one fact the resting
-   chip cannot state: this leaves the app. It says "outward", so it is placed
-   where a corner points and arrives from that direction. Small and secondary —
-   it marks the destination, it is not the label. */
+.about-stack__item:hover .about-stack__name,
+.about-stack__item:focus-visible .about-stack__name { color: var(--accent-primary); }
+/* The outward arrow says the press leaves the app, so it arrives only on
+   approach. It is the one fact the resting credit cannot state. */
 .about-stack__go {
-  position: absolute;
-  top: 5px;
-  right: 5px;
   width: 12px;
   height: 12px;
   color: var(--accent-primary);
   opacity: 0;
-  transform: translate(-2px, 2px);
-  transition: opacity var(--duration-fast), transform var(--duration-fast);
+  transition: opacity var(--duration-fast);
 }
 .about-stack__item:hover .about-stack__go,
-.about-stack__item:focus-visible .about-stack__go {
-  opacity: 1;
-  transform: translate(0, 0);
-}
+.about-stack__item:focus-visible .about-stack__go { opacity: 1; }
 /* These are the only fixed vendor colours in the app; see
-   `src/app/vendorMarks.tsx` for why a logo keeps them. 18px rather than the
-   14px it wore inline: with its own line it is the thing the eye lands on. */
-.about-stack__mark { width: 18px; height: 18px; display: block; }
+   `src/app/vendorMarks.tsx` for why a logo keeps them. */
+.about-stack__mark { width: 15px; height: 15px; display: block; }
 .about-stack__name { font-size: var(--text-label); font-weight: var(--weight-strong); }
 .about-stack__version {
   font-size: var(--text-caption);
@@ -1501,8 +1487,8 @@
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.about-details { margin: 8px 0 0; }
-.about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; }
+.about-details { margin: var(--space-2) 0 0; }
+.about-details div { display: flex; justify-content: space-between; gap: 24px; padding: 3px 0; }
 .about-details dt { color: var(--text-secondary-color); }
 .about-details dd { margin: 0; text-align: right; }
 /* The platform mark rides with its value, so the row still has two columns and
