@@ -1,8 +1,20 @@
 export interface ChangesTranslations {
   changesSummaryClean: string;
-  changesEmptyTitle: string;
-  changesEmptyDescription: string;
-  changesBackToOverview: string;
+  changesEmptySavedTitle: string;
+  changesEmptyAheadDescription: (count: number) => string;
+  changesEmptyPublish: (count: number) => string;
+  changesEmptyBehindDescription: (count: number) => string;
+  changesEmptyGetChanges: string;
+  changesEmptyViewHistory: string;
+  changesEmptyUpToDateTitle: string;
+  changesEmptyUpToDateDescription: string;
+  changesEmptyNoRemoteTitle: string;
+  changesEmptyNoRemoteDescription: string;
+  changesEmptyOpenSettings: string;
+  changesEmptyUnbornTitle: string;
+  changesEmptyUnbornDescription: string;
+  changesEmptyDetachedTitle: string;
+  changesEmptyDetachedDescription: string;
   changesBackToList: string;
   changesListAriaLabel: string;
   changesCategoryLabelChanged: string;
@@ -159,10 +171,28 @@ export interface ChangesTranslations {
 }
 
 const en: ChangesTranslations = {
-  changesSummaryClean: "Everything is saved. There is nothing to review.",
-  changesEmptyTitle: "Nothing to review",
-  changesEmptyDescription: "Every saved file matches the latest saved version. Come back after you make changes.",
-  changesBackToOverview: "Back to Overview",
+  changesSummaryClean: "All changes are saved.",
+  changesEmptySavedTitle: "All changes are saved",
+  changesEmptyAheadDescription: (count) =>
+    count === 1
+      ? "1 saved version is still only on this computer. Publish it when you want teammates to see it."
+      : `${count} saved versions are still only on this computer. Publish them when you want teammates to see them.`,
+  changesEmptyPublish: (count) => (count === 1 ? "Publish 1 version" : `Publish ${count} versions`),
+  changesEmptyBehindDescription: (count) =>
+    count === 1
+      ? "1 newer project change is available. Bring it in when you are ready to continue."
+      : `${count} newer project changes are available. Bring them in when you are ready to continue.`,
+  changesEmptyGetChanges: "Get project changes",
+  changesEmptyViewHistory: "View history",
+  changesEmptyUpToDateTitle: "You’re all caught up",
+  changesEmptyUpToDateDescription: "Every change is saved and published. Keep working; this screen will tell you when something is waiting.",
+  changesEmptyNoRemoteTitle: "Everything is saved on this computer",
+  changesEmptyNoRemoteDescription: "Add a remote project in project settings when you want to share your work.",
+  changesEmptyOpenSettings: "Open project settings",
+  changesEmptyUnbornTitle: "No saved versions yet",
+  changesEmptyUnbornDescription: "Your first saved version will start this project’s history.",
+  changesEmptyDetachedTitle: "You’re viewing an old version",
+  changesEmptyDetachedDescription: "This is an exact point in the project’s history, not a version line. Switch back to keep working.",
   changesBackToList: "Back to the file list",
   changesListAriaLabel: "Changed files",
   changesCategoryLabelChanged: "Edited",
@@ -339,11 +369,28 @@ const en: ChangesTranslations = {
 };
 
 const es: ChangesTranslations = {
-  changesSummaryClean: "Todo está guardado. No hay nada que revisar.",
-  changesEmptyTitle: "Nada que revisar",
-  changesEmptyDescription:
-    "Todos los archivos guardados coinciden con la última versión guardada. Vuelve cuando hagas cambios.",
-  changesBackToOverview: "Volver a Resumen",
+  changesSummaryClean: "Todos los cambios están guardados.",
+  changesEmptySavedTitle: "Todos los cambios están guardados",
+  changesEmptyAheadDescription: (count) =>
+    count === 1
+      ? "Queda 1 versión guardada solo en este equipo. Publícala cuando quieras que la vean."
+      : `Quedan ${count} versiones guardadas solo en este equipo. Publícalas cuando quieras que las vean.`,
+  changesEmptyPublish: (count) => (count === 1 ? "Publicar 1 versión" : `Publicar ${count} versiones`),
+  changesEmptyBehindDescription: (count) =>
+    count === 1
+      ? "Hay 1 cambio más reciente en el proyecto remoto. Tráelo cuando quieras continuar."
+      : `Hay ${count} cambios más recientes en el proyecto remoto. Tráelos cuando quieras continuar.`,
+  changesEmptyGetChanges: "Traer cambios del proyecto",
+  changesEmptyViewHistory: "Ver historial",
+  changesEmptyUpToDateTitle: "Todo al día",
+  changesEmptyUpToDateDescription: "Todos los cambios están guardados y publicados. Sigue trabajando; esta pantalla te avisará cuando quede algo pendiente.",
+  changesEmptyNoRemoteTitle: "Todo está guardado en este equipo",
+  changesEmptyNoRemoteDescription: "Añade un proyecto remoto en los ajustes del proyecto cuando quieras compartir tu trabajo.",
+  changesEmptyOpenSettings: "Abrir ajustes del proyecto",
+  changesEmptyUnbornTitle: "Todavía no hay versiones guardadas",
+  changesEmptyUnbornDescription: "Tu primera versión guardada iniciará el historial del proyecto.",
+  changesEmptyDetachedTitle: "Estás viendo una versión antigua",
+  changesEmptyDetachedDescription: "Es un punto exacto del historial del proyecto, no una línea de versión. Vuelve a tu línea para seguir trabajando.",
   changesBackToList: "Volver a la lista de archivos",
   changesListAriaLabel: "Archivos con cambios",
   changesCategoryLabelChanged: "Editado",

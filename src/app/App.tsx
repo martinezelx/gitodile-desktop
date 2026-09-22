@@ -2361,8 +2361,10 @@ export function App(): React.JSX.Element {
                               onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
                               onOpenSettings={() => openSettings("general")}
                               onSaveCompleted={() => void handleMutationSucceeded(project.path)}
-                              onNavigateOverview={() => navigateToView("overview")}
                               onPublishNow={() => openPublishDialog()}
+                              onGetChanges={() => startSessionOperation("sync")}
+                              onOpenHistory={() => openWorkbench("history")}
+                              headState={project.headState}
                               selectedPath={activeSession?.changesSelection.selectedPath ?? null}
                               onSelectedPathChange={(selectedPath) =>
                                 sessionsState.activeId &&

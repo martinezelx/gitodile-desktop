@@ -273,7 +273,7 @@
 .changes-danger-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .changes-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 6px; max-width: 380px; margin: 0 auto; padding: 40px 24px; text-align: center;
+  gap: 6px; max-width: 440px; margin: 0 auto; padding: 40px 24px; text-align: center;
 }
 /* The band's "done" tile at the project's own size: light fill, the
    success tone, and no shadow — nothing is stacked on anything here. */
@@ -284,12 +284,23 @@
 .changes-empty__icon svg { width: 20px; height: 20px; }
 .changes-empty h2 { font-size: var(--text-title); margin-bottom: 6px; }
 .changes-empty p { color: var(--text-secondary-color); font-size: var(--text-lead); line-height: var(--leading-normal); margin-bottom: 22px; }
-/* The empty-state pattern allows a second action; this one stacks under the
-   first rather than sitting beside it, because the block is 380px of prose
-   wide and two capsules do not fit in that. Quieter, too: leaving for Overview
-   is what this screen expects, and reaching for discarded work is the rare
-   errand — which is exactly the difference between a capsule and a ghost. */
-.changes-empty__actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+/* The clean state reads as one decision: a primary action when the situation
+   has one, the secondary exits on a row under it, and the door to discarded
+   work last and quietest. The block is prose-width, so the row wraps rather
+   than overflowing. */
+.changes-empty__actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.changes-empty__secondary { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); }
+/* One run per arrival, never a loop: the same halo the Journey band's current
+   tile uses, borrowed for the one action this screen wants to point at. */
+.changes-empty__primary { animation: attention-breathe var(--attention-duration) ease-out 1; }
+/* The action glyphs at the label's own scale. Un-sized they would take
+   lucide's 24px default and outweigh the 13px word beside them; the rest of the
+   screen sizes a button's icon to its context the same way. */
+.changes-empty__primary svg,
+.changes-empty__secondary svg { width: 15px; height: 15px; flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .changes-empty__primary { animation: none; }
+}
 .changes-layout {
   /* The column track and the strip height are `--panel-column` and
      `--strip-height` in tokens.css. History pairs the same two panels and reads

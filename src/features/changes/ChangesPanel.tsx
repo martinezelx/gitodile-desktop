@@ -9,9 +9,11 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  LoaderCircle,
   Ellipsis,
+  History,
+  LoaderCircle,
   RotateCcw,
+  Settings,
   Trash2,
   X,
 } from "lucide-react";
@@ -36,6 +38,7 @@ import type { DiscardRecovery, FileDiff } from "./domain";
 import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
 import type { ChangesContextMenuState } from "./ChangesContextMenu";
+import { getChangesEmptyState, type ChangesEmptyHeadState } from "./emptyState";
 
 const DiscardChangesDialog = React.lazy(async () => {
   const module = await import("./DiscardChangesDialog");
@@ -1006,6 +1009,19 @@ function FileListRows(props: FileListRowsProps): React.JSX.Element {
   return <ul>{props.entries.map((entry) => fileListItem(entry, props, undefined, props.arrivals.get(entry.path)))}</ul>;
 }
 
+/** One actionable control in the clean state's block. */
+type ChangesEmptyAction = { key: string; label: string; icon: React.ReactNode; onClick: () => void };
+
+/** The copy and the controls the clean state shows for one repository
+ * situation: a headline, a sentence about what that situation means, an
+ * optional primary action and up to two secondary ones. */
+type ChangesEmptyContent = {
+  title: string;
+  description: string;
+  primary: ChangesEmptyAction | null;
+  secondary: ChangesEmptyAction[];
+};
+
 export function ChangesPanel({
   tabs,
   projectPath,
@@ -1020,8 +1036,10 @@ export function ChangesPanel({
   onRefresh,
   onOpenSettings,
   onSaveCompleted,
-  onNavigateOverview,
   onPublishNow,
+  onGetChanges,
+  onOpenHistory,
+  headState = "branch",
   selectedPath,
   onSelectedPathChange,
   onBeginDiscard,
@@ -1055,8 +1073,18 @@ export function ChangesPanel({
   onRefresh: () => void;
   onOpenSettings: () => void;
   onSaveCompleted: () => void;
-  onNavigateOverview: () => void;
+  /** Opens the previewed publish flow: the empty state's primary action when
+   * the line has saved versions the remote does not have yet. */
   onPublishNow: () => void;
+  /** Brings the remote's newer versions in through the same previewed flow
+   * Overview's "review and get team changes" uses. */
+  onGetChanges: () => void;
+  /** Switches the Work screen to History — the natural next look when there is
+   * nothing to review, and a tab away rather than a screen away. */
+  onOpenHistory: () => void;
+  /** The repository's head state, so a clean tree can still tell "nothing to
+   * send" apart from "nothing saved yet" and from an old version being read. */
+  headState?: ChangesEmptyHeadState;
   /** Which file is selected, lifted to the caller so it survives switching
    * away to another project's session and back (see task 012's per-session
    * UI state). `excludedPaths` (the save-version checkbox picks) stays local
@@ -1090,6 +1118,81 @@ export function ChangesPanel({
      that has something to review does not need to know. */
   const [hasRecoveries, setHasRecoveries] = useState(false);
   const isClean = workingTree?.isClean === true;
+  // A clean tree is not one situation, so the block below is chosen from the
+  // snapshot rather than written once. See `getChangesEmptyState`.
+  const emptyState = workingTree ? getChangesEmptyState(workingTree, headState) : null;
+  const emptyContent = useMemo<ChangesEmptyContent | null>(() => {
+    if (!emptyState) return null;
+    const getChanges: ChangesEmptyAction = {
+      key: "get-changes",
+      label: t.changesEmptyGetChanges,
+      icon: <ArrowDown aria-hidden="true" />,
+      onClick: onGetChanges,
+    };
+    const viewHistory: ChangesEmptyAction = {
+      key: "history",
+      label: t.changesEmptyViewHistory,
+      icon: <History aria-hidden="true" />,
+      onClick: onOpenHistory,
+    };
+    switch (emptyState.kind) {
+      case "ahead":
+        return {
+          title: t.changesEmptySavedTitle,
+          description: t.changesEmptyAheadDescription(emptyState.count),
+          primary: {
+            key: "publish",
+            label: t.changesEmptyPublish(emptyState.count),
+            icon: <ArrowUp aria-hidden="true" />,
+            onClick: onPublishNow,
+          },
+          secondary: [getChanges, viewHistory],
+        };
+      case "behind":
+        return {
+          title: t.changesEmptySavedTitle,
+          description: t.changesEmptyBehindDescription(emptyState.count),
+          primary: getChanges,
+          secondary: [viewHistory],
+        };
+      case "no-remote":
+        return {
+          title: t.changesEmptyNoRemoteTitle,
+          description: t.changesEmptyNoRemoteDescription,
+          primary: null,
+          secondary: [
+            {
+              key: "settings",
+              label: t.changesEmptyOpenSettings,
+              icon: <Settings aria-hidden="true" />,
+              onClick: onOpenSettings,
+            },
+            viewHistory,
+          ],
+        };
+      case "unborn":
+        return {
+          title: t.changesEmptyUnbornTitle,
+          description: t.changesEmptyUnbornDescription,
+          primary: null,
+          secondary: [],
+        };
+      case "detached":
+        return {
+          title: t.changesEmptyDetachedTitle,
+          description: t.changesEmptyDetachedDescription,
+          primary: null,
+          secondary: [viewHistory],
+        };
+      case "up-to-date":
+        return {
+          title: t.changesEmptyUpToDateTitle,
+          description: t.changesEmptyUpToDateDescription,
+          primary: null,
+          secondary: [getChanges, viewHistory],
+        };
+    }
+  }, [emptyState, t, onGetChanges, onOpenHistory, onOpenSettings, onPublishNow]);
   useEffect(() => {
     if (!isClean) return undefined;
     let cancelled = false;
@@ -1527,18 +1630,35 @@ export function ChangesPanel({
             </>
           )}
         </nav>
-        {!isLoadingList && workingTree?.isClean ? (
+        {!isLoadingList && workingTree?.isClean && emptyContent ? (
           <div className="changes-diff changes-diff--state">
             <div className="changes-empty">
               <div className="changes-empty__icon" aria-hidden="true">
                 <CheckCircle2 />
               </div>
-              <h2>{t.changesEmptyTitle}</h2>
-              <p>{t.changesEmptyDescription}</p>
+              <h2>{emptyContent.title}</h2>
+              <p>{emptyContent.description}</p>
               <div className="changes-empty__actions">
-                <button className="secondary-button" type="button" onClick={onNavigateOverview}>
-                  {t.changesBackToOverview}
-                </button>
+                {emptyContent.primary && (
+                  <button
+                    className="primary-button changes-empty__primary"
+                    type="button"
+                    onClick={emptyContent.primary.onClick}
+                  >
+                    {emptyContent.primary.icon}
+                    {emptyContent.primary.label}
+                  </button>
+                )}
+                {emptyContent.secondary.length > 0 && (
+                  <div className="changes-empty__secondary">
+                    {emptyContent.secondary.map((action) => (
+                      <button key={action.key} className="secondary-button" type="button" onClick={action.onClick}>
+                        {action.icon}
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {/* Discarding everything empties this screen, and the file list
                     takes the menu that reaches stored copies with it. Without this
                     the way back would exist only while there was still something

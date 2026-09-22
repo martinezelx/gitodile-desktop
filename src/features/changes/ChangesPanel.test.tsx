@@ -43,6 +43,8 @@ function ControlledChangesPanel(
     | "onDiscardClose"
     | "onDiscardPhaseChange"
     | "onOpenSettings"
+    | "onGetChanges"
+    | "onOpenHistory"
     | "tabs"
   > & {
     controller?: ChangesController;
@@ -55,6 +57,8 @@ function ControlledChangesPanel(
     confirmBeforeDiscarding?: boolean;
     runGitHooks?: boolean;
     onOpenSettings?: () => void;
+    onGetChanges?: () => void;
+    onOpenHistory?: () => void;
   },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -79,6 +83,8 @@ function ControlledChangesPanel(
       onDiscardClose={() => {}}
       onDiscardPhaseChange={() => {}}
       onOpenSettings={props.onOpenSettings ?? (() => {})}
+      onGetChanges={props.onGetChanges ?? (() => {})}
+      onOpenHistory={props.onOpenHistory ?? (() => {})}
     />
     </ScreenLifecycleProvider>
   );
@@ -144,7 +150,7 @@ describe("ChangesPanel save selection", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -219,7 +225,7 @@ describe("ChangesPanel save selection", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -253,7 +259,7 @@ describe("ChangesPanel save selection", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -277,7 +283,7 @@ describe("ChangesPanel save selection", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -302,7 +308,7 @@ describe("ChangesPanel save selection", () => {
           isCheckingChanges={false}
           controller={controller}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>
@@ -341,7 +347,7 @@ describe("ChangesPanel save selection", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -371,7 +377,7 @@ describe("ChangesPanel save selection", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -451,7 +457,7 @@ describe("ChangesPanel save selection", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -559,7 +565,7 @@ describe("ChangesPanel review controls", () => {
           isCheckingChanges={false}
           controller={controller}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -591,7 +597,7 @@ describe("ChangesPanel review controls", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>
@@ -778,7 +784,7 @@ describe("ChangesPanel review controls", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -826,7 +832,7 @@ describe("ChangesPanel review controls", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -889,7 +895,7 @@ describe("ChangesPanel review controls", () => {
     });
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -915,7 +921,7 @@ describe("ChangesPanel review controls", () => {
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
     const code = await screen.findByText("const área = ", { exact: false });
@@ -949,7 +955,7 @@ describe("ChangesPanel review controls", () => {
     });
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
     const file = await screen.findByRole("button", { name: /new\.txt/ });
@@ -965,7 +971,7 @@ describe("ChangesPanel review controls", () => {
     const onRefresh = vi.fn();
     const onOpenSettings = vi.fn();
     const panel = (isCheckingChanges: boolean) => <LanguageProvider>
-      <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={isCheckingChanges} watcherState="off" onRefresh={onRefresh} onOpenSettings={onOpenSettings} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+      <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={isCheckingChanges} watcherState="off" onRefresh={onRefresh} onOpenSettings={onOpenSettings} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
     </LanguageProvider>;
     const view = render(panel(false));
 
@@ -998,7 +1004,7 @@ describe("ChangesPanel review controls", () => {
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1015,7 +1021,7 @@ describe("ChangesPanel review controls", () => {
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="starting" onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="starting" onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1030,7 +1036,7 @@ describe("ChangesPanel review controls", () => {
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="unavailable" onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="unavailable" onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1068,7 +1074,7 @@ describe("ChangesPanel review controls", () => {
     });
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} confirmBeforeDiscarding={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} confirmBeforeDiscarding={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1118,7 +1124,7 @@ describe("ChangesPanel review controls", () => {
     });
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1175,7 +1181,7 @@ describe("ChangesPanel review controls", () => {
     });
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1214,7 +1220,7 @@ describe("ChangesPanel review controls", () => {
     });
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1269,12 +1275,16 @@ describe("ChangesPanel review controls", () => {
     };
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={clean} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={clean} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
     // Discarding everything takes the file list away, and its menu with it.
-    expect(screen.getByRole("heading", { name: "Nothing to review" })).toBeInTheDocument();
+    // A clean tree with no upstream reads as a local-only project, not as
+    // "nothing to review".
+    expect(
+      screen.getByRole("heading", { name: "Everything is saved on this computer" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Discard or restore changes" })).not.toBeInTheDocument();
 
     // The door to what was discarded has to survive that.
@@ -1292,7 +1302,7 @@ describe("ChangesPanel review controls", () => {
     });
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1320,7 +1330,7 @@ describe("ChangesPanel review controls", () => {
     });
     render(
       <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
       </LanguageProvider>,
     );
 
@@ -1329,6 +1339,120 @@ describe("ChangesPanel review controls", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard all changes…" }));
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("ChangesPanel clean state", () => {
+  type Upstream = { upstream: string | null; ahead: number; behind: number };
+
+  function cleanTree(upstream: Upstream): WorkingTreeStatus {
+    return {
+      ...workingTree,
+      isClean: true,
+      counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 0 },
+      entries: [],
+      hasUnpreparedChanges: false,
+      upstream: { branch: "main", ...upstream },
+    };
+  }
+
+  function renderClean({
+    upstream,
+    headState,
+    onGetChanges = vi.fn(),
+    onOpenHistory = vi.fn(),
+    onPublishNow = vi.fn(),
+    onOpenSettings = vi.fn(),
+  }: {
+    upstream: Upstream;
+    headState?: "branch" | "detached" | "unborn";
+    onGetChanges?: () => void;
+    onOpenHistory?: () => void;
+    onPublishNow?: () => void;
+    onOpenSettings?: () => void;
+  }) {
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={cleanTree(upstream)}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onPublishNow={onPublishNow}
+          onGetChanges={onGetChanges}
+          onOpenHistory={onOpenHistory}
+          onOpenSettings={onOpenSettings}
+          {...(headState ? { headState } : {})}
+        />
+      </LanguageProvider>,
+    );
+    return { onGetChanges, onOpenHistory, onPublishNow, onOpenSettings };
+  }
+
+  it("offers to publish when saved versions are still only local", async () => {
+    const { onPublishNow, onGetChanges, onOpenHistory } = renderClean({
+      upstream: { upstream: "origin/main", ahead: 4, behind: 0 },
+    });
+
+    expect(screen.getByRole("heading", { name: "All changes are saved" })).toBeInTheDocument();
+    expect(screen.getByText(/4 saved versions/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Publish 4 versions" }));
+    expect(onPublishNow).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "Get project changes" }));
+    expect(onGetChanges).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "View history" }));
+    expect(onOpenHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("brings changes in first when the remote is ahead", async () => {
+    const { onGetChanges, onPublishNow } = renderClean({
+      upstream: { upstream: "origin/main", ahead: 0, behind: 2 },
+    });
+
+    expect(screen.getByText(/2 newer project changes/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Get project changes" }));
+    expect(onGetChanges).toHaveBeenCalledTimes(1);
+    expect(onPublishNow).not.toHaveBeenCalled();
+  });
+
+  it("says everything is settled when there is nothing to send or receive", () => {
+    renderClean({ upstream: { upstream: "origin/main", ahead: 0, behind: 0 } });
+
+    expect(screen.getByRole("heading", { name: "You’re all caught up" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Get project changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View history" })).toBeInTheDocument();
+  });
+
+  it("points to project settings when there is no remote", async () => {
+    const { onOpenSettings } = renderClean({ upstream: { upstream: null, ahead: 0, behind: 0 } });
+
+    expect(
+      screen.getByRole("heading", { name: "Everything is saved on this computer" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Open project settings" }));
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("names an empty project without offering a publish", () => {
+    renderClean({ upstream: { upstream: null, ahead: 0, behind: 0 }, headState: "unborn" });
+
+    expect(screen.getByRole("heading", { name: "No saved versions yet" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish|Get project changes/ })).not.toBeInTheDocument();
+  });
+
+  it("names an old version being read without offering a publish", () => {
+    renderClean({ upstream: { upstream: "origin/main", ahead: 3, behind: 0 }, headState: "detached" });
+
+    expect(screen.getByRole("heading", { name: "You’re viewing an old version" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View history" })).toBeInTheDocument();
   });
 });
 
@@ -1374,7 +1498,7 @@ describe("ChangesPanel filters", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -1567,7 +1691,7 @@ describe("ChangesPanel filters", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -1601,7 +1725,7 @@ describe("ChangesPanel filters", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
@@ -1620,7 +1744,7 @@ describe("ChangesPanel filters", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
       </LanguageProvider>,
