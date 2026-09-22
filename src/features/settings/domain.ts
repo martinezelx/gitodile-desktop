@@ -4,9 +4,10 @@
  * wire-shaped because the Rust side owns their vocabulary, but the feature —
  * not the composition root — owns their meaning. */
 
-/** The user's stored preference, which is not the resolved theme: `system`
- * follows the OS and only resolves at render time. */
-export type ThemePreference = "system" | "light" | "dark";
+/** The stored theme preference is the shared theme module's to define; it is
+ * re-exported here so the app keeps reading the theme vocabulary from the
+ * Settings feature's public API. See ADR 0012. */
+export type { ThemeId, ThemePreference, ThemeScheme } from "../../shared/theme";
 
 /** Network polling is opt-in. Zero means manual checks only, and the presets
  * are the answers most people want without thinking about it.

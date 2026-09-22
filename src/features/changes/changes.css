@@ -510,7 +510,7 @@
   border: 1.5px solid var(--border-strong); background: transparent;
 }
 .changes-journey__step--done .changes-journey__dot { border-color: var(--text-secondary-color); background: var(--text-secondary-color); }
-.changes-journey__step--active .changes-journey__dot { border-color: var(--accent-brand); background: var(--accent-brand); }
+.changes-journey__step--active .changes-journey__dot { border-color: var(--accent-primary-fill); background: var(--accent-primary-fill); }
 .changes-journey__connector { width: 14px; height: 1px; background: var(--border-strong); }
 .changes-journey__connector--done { background: var(--text-secondary-color); }
 .changes-journey__go { width: 13px; height: 13px; color: var(--text-secondary-color); opacity: 0.6; }
@@ -592,9 +592,9 @@
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .changes-quick-commit__glyph svg { width: 13px; height: 13px; }
-.changes-quick-commit__glyph--active { background: var(--accent-brand); color: var(--accent-brand-contrast); }
+.changes-quick-commit__glyph--active { background: var(--accent-primary-fill); color: var(--accent-primary-contrast); }
 .changes-quick-commit__glyph--neutral { background: var(--surface-active); color: var(--text-secondary-color); }
-.changes-quick-commit__glyph--done { background: var(--surface-active); color: var(--status-success); }
+.changes-quick-commit__glyph--done { background: var(--surface-active); color: var(--accent-primary); }
 /* `input` in the selector, not just the class: `input:focus-visible` in
    base.css carries the same (0,1,1) specificity, and without the type here
    that rule's own outline was winning over this one's `none` regardless of

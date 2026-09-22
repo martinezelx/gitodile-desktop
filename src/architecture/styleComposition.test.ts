@@ -3,9 +3,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { THEME_IDS } from "../shared/theme";
 
 const EXPECTED_IMPORTS = [
   "./styles/tokens.css",
+  "./styles/themes.css",
   "./styles/base.css",
   "./styles/theme-transition.css",
   "./app/app-shell.css",
@@ -189,8 +191,13 @@ describe("production style composition", () => {
   });
 
   it("retains theme, focus, reduced-motion and forced-color foundations", () => {
-    expect(readSource("styles/tokens.css")).toContain(':root[data-theme="light"]');
-    expect(readSource("styles/tokens.css")).toContain(':root[data-theme="dark"]');
+    const themes = readSource("styles/themes.css");
+    expect(themes).toContain('[data-theme="gitodile-light"]');
+    expect(themes).toContain('[data-theme="gitodile-dark"]');
+    expect(themes).toContain("@media (prefers-color-scheme: dark)");
+    // The theme layers are the only place colour values live; tokens.css keeps
+    // the non-colour foundations and the brand identity. See ADR 0012.
+    expect(readSource("styles/tokens.css")).not.toContain('[data-theme="');
     expect(readSource("styles/base.css")).toContain("@media (prefers-reduced-motion: reduce)");
     expect(readSource("styles/base.css")).toContain(':root[data-reduced-motion="true"] *');
 
@@ -208,6 +215,69 @@ describe("production style composition", () => {
     expect(primitives).toContain(":focus-visible");
     expect(primitives).toContain("@media (forced-colors: active)");
     expect(primitives).toContain('url("../../assets/gitodile-mark.svg")');
+  });
+
+  // ADR 0012: two layers. The brand identity is declared once in tokens.css
+  // and every theme block fills only the swap-able layer. A theme that set
+  // --accent-brand would recolour the crocodile and the primary action, and a
+  // theme without color-scheme would leave native scrollbars on the old scheme.
+  it("keeps the brand layer out of every theme block", () => {
+    const themes = readSource("styles/themes.css");
+    const brandTokens = ["--accent-brand:", "--accent-brand-contrast:", "--avatar-", "--tooltip-"];
+    const blocks = [...themes.matchAll(/\[data-theme="[^"]+"\]\s*\{([^}]*)\}/g)];
+    expect(blocks.length).toBe(THEME_IDS.length);
+    for (const [, body] of blocks) {
+      for (const token of brandTokens) {
+        expect(body, `${token} leaked into a theme block`).not.toContain(token);
+      }
+      expect(body).toMatch(/color-scheme:\s*(?:light|dark)/);
+    }
+    // Every registry theme has a block, and no block is left unnamed.
+    for (const id of THEME_IDS) {
+      expect(themes).toContain(`[data-theme="${id}"]`);
+    }
+
+    // ADR 0013: the brand lime is identity only. Nothing in the cascade paints
+    // with it except the brand mark itself; the actionable accent is
+    // --accent-primary. A new in-app use of --accent-brand elsewhere is the
+    // regression this guards.
+    const paintedWithBrand: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css") continue;
+      for (const rule of readRules(relativePath)) {
+        if (!rule.body.includes("var(--accent-brand")) continue;
+        // The one licensed use: the crocodile-on-lime plate that marks an
+        // official theme tile. That is the brand lockup, not the accent.
+        if (rule.selector.includes(".theme-card__brand")) continue;
+        paintedWithBrand.push(`${relativePath}: ${rule.selector}`);
+      }
+    }
+    expect(paintedWithBrand).toEqual([]);
+  });
+
+  // The base default and the OS-dark override duplicate the official pair: the
+  // "match device" preference keeps no data-theme attribute and lets the media
+  // query follow the operating system. Duplication is only safe while this
+  // holds the two copies together.
+  it("keeps the default and OS-dark blocks identical to the official themes", () => {
+    const rules = readRules("styles/themes.css");
+    const roots = rules.filter((rule) => rule.selector === ":root");
+    expect(roots).toHaveLength(2);
+    const declarations = (body: string): Record<string, string> =>
+      Object.fromEntries(
+        [...body.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]),
+      );
+    const officialLight = declarations(ruleBody("styles/themes.css", '[data-theme="gitodile-light"]'));
+    const officialDark = declarations(ruleBody("styles/themes.css", '[data-theme="gitodile-dark"]'));
+    const rootLight = declarations(roots[0].body);
+    const rootDark = declarations(roots[1].body);
+    for (const [name, value] of Object.entries(officialLight)) {
+      expect(rootLight[name], `${name} default differs from gitodile-light`).toBe(value);
+    }
+    for (const [name, value] of Object.entries(officialDark)) {
+      expect(rootDark[name], `${name} OS-dark differs from gitodile-dark`).toBe(value);
+    }
   });
 
   // DESIGN.md § Shape: radius states a role, never a size. A raw length here is
@@ -439,8 +509,9 @@ describe("production style composition", () => {
   it("keeps --text-* a size and --text-*-color a color", () => {
     const tokens = readSource("styles/tokens.css");
     expect(tokens).not.toMatch(/--text-(?:primary|secondary):/);
-    expect(tokens).toMatch(/--text-primary-color:/);
-    expect(tokens).toMatch(/--text-secondary-color:/);
+    const themes = readSource("styles/themes.css");
+    expect(themes).toMatch(/--text-primary-color:/);
+    expect(themes).toMatch(/--text-secondary-color:/);
 
     const offenders: string[] = [];
     for (const importPath of EXPECTED_IMPORTS) {

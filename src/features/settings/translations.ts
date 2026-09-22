@@ -32,8 +32,12 @@ export interface SettingsTranslations {
   settingsGitNeedsAttention: string;
   themeAriaLabel: string;
   settingsThemeDescription: string;
-  themeLight: string;
-  themeDark: string;
+  themeMatchDevice: string;
+  settingsThemeOfficialTitle: string;
+  settingsThemeMoreTitle: string;
+  themeSchemeAuto: string;
+  themeSchemeLight: string;
+  themeSchemeDark: string;
   settingsMotionTitle: string;
   reduceMotionLabel: string;
   reduceMotionDescription: string;
@@ -211,9 +215,13 @@ const en: SettingsTranslations = {
   settingsGitTitle: "Git",
   settingsGitNeedsAttention: "Git needs attention",
   themeAriaLabel: "Theme",
-  settingsThemeDescription: '"System" matches your device.',
-  themeLight: "Light",
-  themeDark: "Dark",
+  settingsThemeDescription: "Pick a theme, or match your device.",
+  themeMatchDevice: "Match device",
+  settingsThemeOfficialTitle: "Official",
+  settingsThemeMoreTitle: "More themes",
+  themeSchemeAuto: "follows your device",
+  themeSchemeLight: "light theme",
+  themeSchemeDark: "dark theme",
   settingsMotionTitle: "Motion",
   reduceMotionLabel: "Reduce motion",
   reduceMotionDescription:
@@ -406,9 +414,13 @@ const es: SettingsTranslations = {
   settingsGitTitle: "Git",
   settingsGitNeedsAttention: "Git necesita atención",
   themeAriaLabel: "Tema",
-  settingsThemeDescription: '"Sistema" usa el tema de tu dispositivo.',
-  themeLight: "Claro",
-  themeDark: "Oscuro",
+  settingsThemeDescription: "Elige un tema o usa el del dispositivo.",
+  themeMatchDevice: "Usar el del dispositivo",
+  settingsThemeOfficialTitle: "Oficiales",
+  settingsThemeMoreTitle: "Más temas",
+  themeSchemeAuto: "sigue tu dispositivo",
+  themeSchemeLight: "tema claro",
+  themeSchemeDark: "tema oscuro",
   settingsMotionTitle: "Movimiento",
   reduceMotionLabel: "Reducir movimiento",
   reduceMotionDescription:

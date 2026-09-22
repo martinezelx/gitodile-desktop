@@ -235,6 +235,88 @@
 .settings-notification-event__icon--success svg { color: var(--status-success); }
 .settings-notification-event__icon--warning svg { color: var(--status-warning); }
 
+/* --- Theme picker (Interface > Theme) ------------------------------------
+   Each card previews a theme in its own tokens: `data-theme` scopes the
+   palette to the miniature. The mark and the primary action keep the brand
+   layer, exactly as they do in the app. See ADR 0012. */
+/* The official trio is centered and each tile wears the brand mark, so the
+   three GitOdile themes stand apart from the community grid without a tray or
+   a border around the previews. */
+.theme-picker__official {
+  display: flex; justify-content: center; gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+.theme-picker__official .theme-card { flex: 0 0 calc((100% - 3 * var(--space-3)) / 4); }
+.theme-picker__community {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3);
+}
+/* A square tile: the preview fills it and the name sits on a dark scrim at the
+   bottom, so the tile reads as the theme rather than as a frame around it.
+   `padding: 0` is load-bearing: base.css resets only `font` on buttons, so the
+   user-agent button padding (~1px 6px) would inset the preview and let the
+   background show down the left and right edges. The scrim is dark in every
+   theme — like the tooltip, it has to keep the label legible over colours it
+   does not control — so the label uses the tooltip's own fixed text colour
+   rather than a themed text token. */
+.theme-card {
+  position: relative; display: block; overflow: hidden; padding: 0; text-align: left;
+  border: 0; border-radius: var(--radius-tile);
+  background: transparent; color: var(--tooltip-text);
+  font: inherit;
+  transition: box-shadow var(--duration-fast);
+}
+.theme-card:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-secondary-color) 55%, transparent); }
+.theme-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.theme-card[aria-checked="true"] { box-shadow: 0 0 0 2px var(--accent-primary); }
+.theme-card__tile { display: grid; aspect-ratio: 1; overflow: hidden; }
+/* The brand mark on an official tile: the crocodile on the lime plate, the one
+   fixed brand moment in the picker (ADR 0013). */
+.theme-card__brand {
+  position: absolute; right: 9px; bottom: 9px; z-index: 2;
+  width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--accent-brand); color: var(--accent-brand-contrast);
+  box-shadow: var(--shadow-sm);
+}
+.theme-card__brand .gitodile-mark { width: 14px; }
+.theme-card__split { display: grid; grid-template-columns: 1fr 1fr; }
+.theme-card__label {
+  position: absolute; inset: auto 0 0 0; display: flex; justify-content: center; align-items: flex-end;
+  padding: 40px 12px 11px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.55) 22%,
+    rgba(0, 0, 0, 0.24) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+.theme-card__name {
+  min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-body); font-weight: var(--weight-title); text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* the miniature app drawn in a theme's tokens */
+.theme-preview { display: grid; grid-template-columns: 30px minmax(0, 1fr); background: var(--surface-app); }
+.theme-preview__rail {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0;
+  background: var(--surface-panel); border-right: 1px solid var(--border-subtle);
+}
+.theme-preview__mark { width: 12px; height: 12px; border-radius: var(--radius-round); background: var(--accent-primary); }
+.theme-preview__nav { width: 14px; height: 3px; border-radius: var(--radius-pill); background: var(--border-subtle); }
+.theme-preview__nav--active { background: var(--accent-primary-fill); }
+.theme-preview__main { display: grid; align-content: start; gap: 6px; padding: 10px 8px; }
+.theme-preview__bar { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.theme-preview__file {
+  width: 48%; height: 5px; border-radius: var(--radius-pill);
+  background: var(--text-secondary-color); opacity: 0.5;
+}
+.theme-preview__cta { width: 24px; height: 8px; border-radius: var(--radius-pill); background: var(--accent-primary-fill); }
+.theme-preview__line { height: 6px; border-radius: 2px; background: var(--border-subtle); }
+.theme-preview__line--add { background: color-mix(in srgb, var(--diff-added) 26%, transparent); }
+.theme-preview__line--del { background: color-mix(in srgb, var(--diff-removed) 26%, transparent); }
+
 @media (max-width: 800px) {
   /* Every other row stacks here to give its control the full width. These have
      no control, so stacking would only push the icon onto a line of its own,
@@ -244,6 +326,8 @@
   .identity-fields { grid-template-columns: 1fr; }
   .font-picker { grid-template-columns: 1fr; }
   .format-picker { grid-template-columns: 1fr; }
+  .theme-picker__community { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .theme-picker__official .theme-card { flex-basis: calc((100% - var(--space-3)) / 2); }
   .navigation-display { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .remote-check-cadence { width: 100%; }

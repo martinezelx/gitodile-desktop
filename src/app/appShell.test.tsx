@@ -28,10 +28,23 @@ describe("application-shell preferences", () => {
   it("applies and persists the selected theme", () => {
     const { result } = renderHook(() => useThemePreference());
 
-    act(() => result.current[1]("dark"));
+    act(() => result.current[1]("gitodile-dark"));
 
-    expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(localStorage.getItem("gitodile-theme")).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe("gitodile-dark");
+    expect(localStorage.getItem("gitodile-theme")).toBe("gitodile-dark");
+  });
+
+  // The stored values predate the theme registry; the read upgrades them once,
+  // and anything unrecognised falls back to following the device.
+  it("migrates a stored light/dark theme and rejects an unknown one", () => {
+    localStorage.setItem("gitodile-theme", "dark");
+    const migrated = renderHook(() => useThemePreference());
+    expect(migrated.result.current[0]).toBe("gitodile-dark");
+    expect(localStorage.getItem("gitodile-theme")).toBe("gitodile-dark");
+
+    localStorage.setItem("gitodile-theme", "solarized");
+    const invalid = renderHook(() => useThemePreference());
+    expect(invalid.result.current[0]).toBe("system");
   });
 
   it("validates and persists navigation membership, order and display mode together", () => {

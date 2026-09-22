@@ -103,7 +103,7 @@
   padding: 6px var(--space-3);
   font-size: var(--control-font-sm);
 }
-.primary-button { background: var(--accent-brand); color: var(--accent-brand-contrast); border-color: transparent; font-weight: var(--weight-title); }
+.primary-button { background: var(--accent-primary-fill); color: var(--accent-primary-contrast); border-color: transparent; font-weight: var(--weight-title); }
 .primary-button:not(:disabled):hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .secondary-button { background: var(--surface-hover); color: var(--text-primary-color); }
 .secondary-button:not(:disabled):hover { background: var(--surface-active); }

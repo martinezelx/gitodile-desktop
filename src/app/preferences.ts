@@ -10,8 +10,13 @@ import {
   isRemoteCheckIntervalMinutes,
   type NavigationPreferences,
   type RemoteCheckIntervalMinutes,
-  type ThemePreference,
 } from "../features/settings";
+import {
+  isThemeId,
+  themeById,
+  type ThemeId,
+  type ThemePreference,
+} from "../shared/theme";
 import { stopActiveThemeTransition } from "./themeTransition";
 
 const THEME_STORAGE_KEY = "gitodile-theme";
@@ -173,14 +178,25 @@ export function readStoredBoolean(key: string, defaultValue: boolean): boolean {
   return stored === null ? defaultValue : stored === "true";
 }
 
+/** The stored preference, migrated once from the pre-theme values. `light` and
+ * `dark` were the old union's members; they now name the official themes.
+ * Anything unrecognised falls back to following the device. The first write
+ * after a read lands the migrated value back in storage, so this is a one-way
+ * upgrade rather than a repeated translation. */
 function readStoredTheme(): ThemePreference {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
-  return stored === "light" || stored === "dark" ? stored : "system";
+  if (stored === "light") return "gitodile-light";
+  if (stored === "dark") return "gitodile-dark";
+  return stored !== null && isThemeId(stored) ? stored : "system";
 }
 
 /** Exported so the titlebar reveal can pin the attribute inside its view
  * transition callback: the hook below applies it from a passive effect, which
- * is not guaranteed to have run by the time the transition captures the DOM. */
+ * is not guaranteed to have run by the time the transition captures the DOM.
+ *
+ * "system" keeps no attribute at all, so the `prefers-color-scheme` media
+ * query in `styles/themes.css` follows the operating system live. Every other
+ * preference pins a `[data-theme]` block. */
 export function applyTheme(theme: ThemePreference): void {
   if (theme === "system") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
@@ -219,9 +235,21 @@ export function useReducedMotionPreference(): [boolean, Dispatch<SetStateAction<
   return [reducedMotion, setReducedMotion];
 }
 
-export function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {
+/** The theme actually in effect, as a concrete theme id: `system` resolves to
+ * one of the official pair from the operating-system colour scheme. Used for
+ * the titlebar glyph and the toggle's direction, never to pick token values —
+ * those come from the `[data-theme]` blocks in CSS. */
+export function resolveEffectiveThemeId(theme: ThemePreference): ThemeId {
   if (theme !== "system") return theme;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "gitodile-dark"
+    : "gitodile-light";
+}
+
+/** The scheme of the theme a preference resolves to, for a caller that only
+ * needs to know which way the light/dark glyph should face. */
+export function resolveEffectiveThemeScheme(theme: ThemePreference): "light" | "dark" {
+  return themeById(resolveEffectiveThemeId(theme)).scheme;
 }
 
 /**

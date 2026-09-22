@@ -124,8 +124,12 @@
    layer instead of dissolving along with the rest of the window. Granted only
    while a theme change is in flight: a bare `view-transition-name` would enlist
    this icon in every future view transition in the app. The choreography for the
-   name lives with the other view-transition rules in styles/theme-transition.css. */
-:root[data-theme-transition] .titlebar-theme-icon {
+   name lives with the other view-transition rules in styles/theme-transition.css.
+
+   Skipped while a modal is open: the glyph is behind the modal's blurred
+   backdrop, and a named layer composites above it, so the icon would flash over
+   the dialog. The code sets `data-theme-transition-glyph="off"` for that case. */
+:root[data-theme-transition]:not([data-theme-transition-glyph="off"]) .titlebar-theme-icon {
   view-transition-name: theme-toggle-icon;
 }
 .titlebar-history-controls { display: flex; align-items: center; gap: 2px; }
@@ -397,8 +401,8 @@
   justify-content: center;
   border-radius: var(--radius-pill);
   border: 2px solid var(--surface-app);
-  background: var(--accent-brand);
-  color: var(--accent-brand-contrast);
+  background: var(--accent-primary-fill);
+  color: var(--accent-primary-contrast);
   font-size: var(--text-micro);
   font-weight: var(--weight-title);
   line-height: var(--leading-none);

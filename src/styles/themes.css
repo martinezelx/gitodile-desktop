@@ -1,0 +1,554 @@
+/* ---------------------------------------------------------------------------
+ * Layer 3: theme colour tokens (ADR 0012, DESIGN.md § Theming).
+ *
+ * Each block fills only the swap-able layer. The brand identity
+ * (--accent-brand, --accent-brand-contrast, --avatar-*, --tooltip-*) is
+ * declared once in `tokens.css` and must never appear here. That layer is the
+ * mark and identity colours; the actionable accent is themed, so the primary
+ * action, the notification badge and the attention halo all follow the theme
+ * and a community palette is never fighting the brand lime.
+ *
+ * The default (`:root`) and the OS-dark override are the official GitOdile
+ * Light and Dark values. They are declared again in the explicit
+ * `[data-theme="gitodile-light"|"gitodile-dark"]` blocks because "match
+ * device" keeps no attribute and lets the media query follow the system live.
+ * `themeContrast.test.ts` holds the two copies together.
+ *
+ * Explicit theme blocks come last so they win over the OS-dark media block at
+ * equal specificity: a pinned theme never changes with the operating system.
+ *
+ * Community palettes are canonical. Base surfaces, text and accents are taken
+ * from the published spec; the mapping onto GitOdile's extra roles (diff,
+ * syntax, renamed, heart, and a derived warning for the light palette) is ours
+ * and is documented beside each block.
+ * ------------------------------------------------------------------------- */
+
+/* Official GitOdile Light - also the default for "match device" on a light OS. */
+:root {
+  color-scheme: light dark;
+  --surface-app: #faf8f5;
+  --surface-panel: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-code: #f5f5f4;
+  --surface-hover: rgba(28, 25, 23, 0.05);
+  --surface-active: rgba(107, 155, 46, 0.12);
+  --surface-control: #f4f2ef;
+  --border-control: #dcd9d4;
+  --text-primary-color: #1c1917;
+  --text-secondary-color: #6f6a64;
+  --border-subtle: #e7e5e4;
+  --border-divider: #e7e5e4;
+  --accent-primary: #527e26;
+  --accent-primary-contrast: #14170f;
+  --accent-primary-fill: #9bd65a;
+  --status-success: #4f751e;
+  --status-warning: #8a5b00;
+  --status-danger: #b3261e;
+  --status-danger-contrast: #fff7f5;
+  --status-renamed: #2f6fb3;
+  --accent-heart: #cc2936;
+  --diff-added: #4f751e;
+  --diff-removed: #b3261e;
+  --syntax-comment: #586250;
+  --syntax-string: #7b5b12;
+  --syntax-number: #604080;
+  --syntax-keyword: #275f8f;
+  --syntax-type: #176f68;
+  --syntax-property: #8b3e6d;
+  --focus-ring: #527e26;
+  --overlay: rgba(28, 25, 23, 0.4);
+  --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
+  --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
+  --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+}
+
+/* Official GitOdile Dark - the default for "match device" on a dark OS. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-app: #0c0a09;
+    --surface-panel: #1c1917;
+    --surface-raised: #292524;
+    --surface-code: #201d1b;
+    --surface-hover: rgba(250, 250, 249, 0.06);
+    --surface-active: rgba(155, 214, 90, 0.14);
+    --surface-control: #24211f;
+    --border-control: #44403c;
+    --text-primary-color: #fafaf9;
+    --text-secondary-color: #a8a29e;
+    --border-subtle: #38322f;
+    --border-divider: #44403c;
+    --accent-primary: #527e26;
+    --accent-primary-contrast: #0c0a09;
+    --accent-primary-fill: #9bd65a;
+    --status-success: #9bd65a;
+    --status-warning: #e8b339;
+    --status-danger: #ff6b5b;
+    --status-danger-contrast: #1c1917;
+    --status-renamed: #6ea8fe;
+    --accent-heart: #ff7a6b;
+    --diff-added: #9bd65a;
+    --diff-removed: #ff6b5b;
+    --syntax-comment: #a7b09a;
+    --syntax-string: #d6b56f;
+    --syntax-number: #c8a6ff;
+    --syntax-keyword: #8fc9ff;
+    --syntax-type: #72d6c9;
+    --syntax-property: #e0a6c7;
+    --focus-ring: #527e26;
+    --overlay: rgba(0, 0, 0, 0.68);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+  }
+}
+
+[data-theme="gitodile-light"] {
+  color-scheme: light;
+  --surface-app: #faf8f5;
+  --surface-panel: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-code: #f5f5f4;
+  --surface-hover: rgba(28, 25, 23, 0.05);
+  --surface-active: rgba(107, 155, 46, 0.12);
+  --surface-control: #f4f2ef;
+  --border-control: #dcd9d4;
+  --text-primary-color: #1c1917;
+  --text-secondary-color: #6f6a64;
+  --border-subtle: #e7e5e4;
+  --border-divider: #e7e5e4;
+  --accent-primary: #527e26;
+  --accent-primary-contrast: #14170f;
+  --accent-primary-fill: #9bd65a;
+  --status-success: #4f751e;
+  --status-warning: #8a5b00;
+  --status-danger: #b3261e;
+  --status-danger-contrast: #fff7f5;
+  --status-renamed: #2f6fb3;
+  --accent-heart: #cc2936;
+  --diff-added: #4f751e;
+  --diff-removed: #b3261e;
+  --syntax-comment: #586250;
+  --syntax-string: #7b5b12;
+  --syntax-number: #604080;
+  --syntax-keyword: #275f8f;
+  --syntax-type: #176f68;
+  --syntax-property: #8b3e6d;
+  --focus-ring: #527e26;
+  --overlay: rgba(28, 25, 23, 0.4);
+  --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
+  --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
+  --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+}
+
+[data-theme="gitodile-dark"] {
+  color-scheme: dark;
+  --surface-app: #0c0a09;
+  --surface-panel: #1c1917;
+  --surface-raised: #292524;
+  --surface-code: #201d1b;
+  --surface-hover: rgba(250, 250, 249, 0.06);
+  --surface-active: rgba(155, 214, 90, 0.14);
+  --surface-control: #24211f;
+  --border-control: #44403c;
+  --text-primary-color: #fafaf9;
+  --text-secondary-color: #a8a29e;
+  --border-subtle: #38322f;
+  --border-divider: #44403c;
+  --accent-primary: #527e26;
+  --accent-primary-contrast: #0c0a09;
+  --accent-primary-fill: #9bd65a;
+  --status-success: #9bd65a;
+  --status-warning: #e8b339;
+  --status-danger: #ff6b5b;
+  --status-danger-contrast: #1c1917;
+  --status-renamed: #6ea8fe;
+  --accent-heart: #ff7a6b;
+  --diff-added: #9bd65a;
+  --diff-removed: #ff6b5b;
+  --syntax-comment: #a7b09a;
+  --syntax-string: #d6b56f;
+  --syntax-number: #c8a6ff;
+  --syntax-keyword: #8fc9ff;
+  --syntax-type: #72d6c9;
+  --syntax-property: #e0a6c7;
+  --focus-ring: #527e26;
+  --overlay: rgba(0, 0, 0, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Catppuccin Mocha - catppuccin.com/palette (MIT).
+   Mapping: crust/base/mantle/surface0/1 for surfaces; text/subtext0 for text;
+   mauve for the accent; green/yellow/red/blue for status; syntax from the
+   palette's own editor theme. */
+[data-theme="catppuccin-mocha"] {
+  color-scheme: dark;
+  --surface-app: #11111b;
+  --surface-panel: #1e1e2e;
+  --surface-raised: #1e1e2e;
+  --surface-code: #181825;
+  --surface-hover: rgba(205, 214, 244, 0.07);
+  --surface-active: rgba(203, 166, 247, 0.16);
+  --surface-control: #313244;
+  --border-control: #45475a;
+  --text-primary-color: #cdd6f4;
+  --text-secondary-color: #a6adc8;
+  --border-subtle: #313244;
+  --border-divider: #45475a;
+  --accent-primary: #cba6f7;
+  --accent-primary-contrast: #1e1e2e;
+  --accent-primary-fill: #cba6f7;
+  --status-success: #a6e3a1;
+  --status-warning: #f9e2af;
+  --status-danger: #f38ba8;
+  --status-danger-contrast: #1e1e2e;
+  --status-renamed: #89b4fa;
+  --accent-heart: #f38ba8;
+  --diff-added: #a6e3a1;
+  --diff-removed: #f38ba8;
+  --syntax-comment: #6c7086;
+  --syntax-string: #a6e3a1;
+  --syntax-number: #fab387;
+  --syntax-keyword: #cba6f7;
+  --syntax-type: #f9e2af;
+  --syntax-property: #89b4fa;
+  --focus-ring: #cba6f7;
+  --overlay: rgba(28, 25, 23, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Catppuccin Latte - catppuccin.com/palette (MIT).
+   text/subtext1 for text; mauve accent; mauve for the fill with white
+   contrast. Success and diff-added are a darkened Latte green (#357a20) and
+   warning a darkened yellow (#a06a00): the published green and yellow fail
+   3:1 as small text on a light surface. Syntax comment uses overlay1 rather
+   than overlay0 for the same reason. */
+[data-theme="catppuccin-latte"] {
+  color-scheme: light;
+  --surface-app: #e6e9ef;
+  --surface-panel: #eff1f5;
+  --surface-raised: #ffffff;
+  --surface-code: #e6e9ef;
+  --surface-hover: rgba(76, 79, 105, 0.06);
+  --surface-active: rgba(136, 57, 239, 0.12);
+  --surface-control: #e6e9ef;
+  --border-control: #ccd0da;
+  --text-primary-color: #4c4f69;
+  --text-secondary-color: #5c5f77;
+  --border-subtle: #ccd0da;
+  --border-divider: #bcc0cc;
+  --accent-primary: #8839ef;
+  --accent-primary-contrast: #ffffff;
+  --accent-primary-fill: #8839ef;
+  --status-success: #357a20;
+  --status-warning: #a06a00;
+  --status-danger: #d20f39;
+  --status-danger-contrast: #ffffff;
+  --status-renamed: #1e66f5;
+  --accent-heart: #d20f39;
+  --diff-added: #357a20;
+  --diff-removed: #d20f39;
+  --syntax-comment: #7c7f93;
+  --syntax-string: #40a02b;
+  --syntax-number: #fe640b;
+  --syntax-keyword: #8839ef;
+  --syntax-type: #df8e1d;
+  --syntax-property: #1e66f5;
+  --focus-ring: #8839ef;
+  --overlay: rgba(76, 79, 105, 0.4);
+  --shadow-sm: 0 2px 8px rgba(76, 79, 105, 0.08);
+  --shadow-md: 0 8px 20px rgba(76, 79, 105, 0.1);
+  --shadow-lg: 0 24px 60px rgba(76, 79, 105, 0.16);
+}
+
+/* Nord - nordtheme.com (MIT).
+   Mapping: polar night for surfaces, snow storm for text, frost for the
+   accent, aurora for status. Danger is a lightened aurora red (#d0848b):
+   the published #bf616a fails 3:1 as text on polar night. There is no
+   canonical comment colour; #7b88a1 is the closest muted step that still
+   clears 3:1 on the code surface. */
+[data-theme="nord"] {
+  color-scheme: dark;
+  --surface-app: #2e3440;
+  --surface-panel: #3b4252;
+  --surface-raised: #3b4252;
+  --surface-code: #2e3440;
+  --surface-hover: rgba(236, 239, 244, 0.06);
+  --surface-active: rgba(136, 192, 208, 0.16);
+  --surface-control: #434c5e;
+  --border-control: #4c566a;
+  --text-primary-color: #eceff4;
+  --text-secondary-color: #d8dee9;
+  --border-subtle: #434c5e;
+  --border-divider: #4c566a;
+  --accent-primary: #88c0d0;
+  --accent-primary-contrast: #2e3440;
+  --accent-primary-fill: #88c0d0;
+  --status-success: #a3be8c;
+  --status-warning: #ebcb8b;
+  --status-danger: #d0848b;
+  --status-danger-contrast: #2e3440;
+  --status-renamed: #81a1c1;
+  --accent-heart: #d0848b;
+  --diff-added: #a3be8c;
+  --diff-removed: #d0848b;
+  --syntax-comment: #7b88a1;
+  --syntax-string: #a3be8c;
+  --syntax-number: #b48ead;
+  --syntax-keyword: #81a1c1;
+  --syntax-type: #8fbcbb;
+  --syntax-property: #d08770;
+  --focus-ring: #88c0d0;
+  --overlay: rgba(20, 23, 28, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Tokyo Night - enkia/tokyo-night-vscode-theme (MIT).
+   bg_dark/base for surfaces, fg_dark for secondary text, blue for the accent;
+   dark5 (#737aa2) for the comment so it clears 3:1 on the code surface. */
+[data-theme="tokyo-night"] {
+  color-scheme: dark;
+  --surface-app: #16161e;
+  --surface-panel: #1a1b26;
+  --surface-raised: #1a1b26;
+  --surface-code: #16161e;
+  --surface-hover: rgba(192, 202, 245, 0.06);
+  --surface-active: rgba(122, 162, 247, 0.16);
+  --surface-control: #292e42;
+  --border-control: #3b4261;
+  --text-primary-color: #c0caf5;
+  --text-secondary-color: #a9b1d6;
+  --border-subtle: #292e42;
+  --border-divider: #3b4261;
+  --accent-primary: #7aa2f7;
+  --accent-primary-contrast: #1a1b26;
+  --accent-primary-fill: #7aa2f7;
+  --status-success: #9ece6a;
+  --status-warning: #e0af68;
+  --status-danger: #f7768e;
+  --status-danger-contrast: #1a1b26;
+  --status-renamed: #7aa2f7;
+  --accent-heart: #f7768e;
+  --diff-added: #9ece6a;
+  --diff-removed: #f7768e;
+  --syntax-comment: #737aa2;
+  --syntax-string: #9ece6a;
+  --syntax-number: #ff9e64;
+  --syntax-keyword: #bb9af7;
+  --syntax-type: #e0af68;
+  --syntax-property: #7dcfff;
+  --focus-ring: #7aa2f7;
+  --overlay: rgba(10, 10, 16, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Dracula - draculatheme.com (MIT).
+   background/currentLine for surfaces, comment for the muted step, purple for
+   the accent; pink/yellow/cyan/green for syntax. Secondary text is a derived
+   tint of `foreground`: the canonical comment (#6272a4) does not clear 4.5:1. */
+[data-theme="dracula"] {
+  color-scheme: dark;
+  --surface-app: #21222c;
+  --surface-panel: #282a36;
+  --surface-raised: #282a36;
+  --surface-code: #21222c;
+  --surface-hover: rgba(248, 248, 242, 0.06);
+  --surface-active: rgba(189, 147, 249, 0.16);
+  --surface-control: #44475a;
+  --border-control: #6272a4;
+  --text-primary-color: #f8f8f2;
+  --text-secondary-color: #a3a9c4;
+  --border-subtle: #44475a;
+  --border-divider: #6272a4;
+  --accent-primary: #bd93f9;
+  --accent-primary-contrast: #282a36;
+  --accent-primary-fill: #bd93f9;
+  --status-success: #50fa7b;
+  --status-warning: #f1fa8c;
+  --status-danger: #ff5555;
+  --status-danger-contrast: #282a36;
+  --status-renamed: #8be9fd;
+  --accent-heart: #ff5555;
+  --diff-added: #50fa7b;
+  --diff-removed: #ff5555;
+  --syntax-comment: #6272a4;
+  --syntax-string: #f1fa8c;
+  --syntax-number: #bd93f9;
+  --syntax-keyword: #ff79c6;
+  --syntax-type: #8be9fd;
+  --syntax-property: #50fa7b;
+  --focus-ring: #bd93f9;
+  --overlay: rgba(15, 16, 20, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Catppuccin Macchiato - catppuccin.com/palette (MIT). Same role map as Mocha. */
+[data-theme="catppuccin-macchiato"] {
+  color-scheme: dark;
+  --surface-app: #181926;
+  --surface-panel: #24273a;
+  --surface-raised: #24273a;
+  --surface-code: #1e2030;
+  --surface-hover: rgba(202, 211, 245, 0.07);
+  --surface-active: rgba(198, 160, 246, 0.16);
+  --surface-control: #363a4f;
+  --border-control: #494d64;
+  --text-primary-color: #cad3f5;
+  --text-secondary-color: #a5adcb;
+  --border-subtle: #363a4f;
+  --border-divider: #494d64;
+  --accent-primary: #c6a0f6;
+  --accent-primary-contrast: #24273a;
+  --accent-primary-fill: #c6a0f6;
+  --status-success: #a6da95;
+  --status-warning: #eed49f;
+  --status-danger: #ed8796;
+  --status-danger-contrast: #24273a;
+  --status-renamed: #8aadf4;
+  --accent-heart: #ed8796;
+  --diff-added: #a6da95;
+  --diff-removed: #ed8796;
+  --syntax-comment: #6e738d;
+  --syntax-string: #a6da95;
+  --syntax-number: #f5a97f;
+  --syntax-keyword: #c6a0f6;
+  --syntax-type: #eed49f;
+  --syntax-property: #8aadf4;
+  --focus-ring: #c6a0f6;
+  --overlay: rgba(24, 25, 38, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Catppuccin Frappé - catppuccin.com/palette (MIT). Same role map as Mocha. */
+[data-theme="catppuccin-frappe"] {
+  color-scheme: dark;
+  --surface-app: #232634;
+  --surface-panel: #303446;
+  --surface-raised: #303446;
+  --surface-code: #292c3c;
+  --surface-hover: rgba(198, 208, 245, 0.07);
+  --surface-active: rgba(202, 158, 230, 0.16);
+  --surface-control: #414559;
+  --border-control: #51576d;
+  --text-primary-color: #c6d0f5;
+  --text-secondary-color: #a5adce;
+  --border-subtle: #414559;
+  --border-divider: #51576d;
+  --accent-primary: #ca9ee6;
+  --accent-primary-contrast: #303446;
+  --accent-primary-fill: #ca9ee6;
+  --status-success: #a6d189;
+  --status-warning: #e5c890;
+  --status-danger: #e78284;
+  --status-danger-contrast: #303446;
+  --status-renamed: #8caaee;
+  --accent-heart: #e78284;
+  --diff-added: #a6d189;
+  --diff-removed: #e78284;
+  --syntax-comment: #737994;
+  --syntax-string: #a6d189;
+  --syntax-number: #ef9f76;
+  --syntax-keyword: #ca9ee6;
+  --syntax-type: #e5c890;
+  --syntax-property: #8caaee;
+  --focus-ring: #ca9ee6;
+  --overlay: rgba(35, 38, 52, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Solarized Dark - ethanschoonover.com/solarized (MIT). The canonical palette
+   is deliberately flat and low-contrast, so every surface is base03 and depth
+   comes from borders rather than a lighter panel; base0/base1 then clear 4.5:1
+   where Solarized's own base0-on-base02 pairing does not. */
+[data-theme="solarized-dark"] {
+  color-scheme: dark;
+  --surface-app: #002b36;
+  --surface-panel: #002b36;
+  --surface-raised: #002b36;
+  --surface-code: #002b36;
+  --surface-hover: rgba(147, 161, 161, 0.08);
+  --surface-active: rgba(38, 139, 210, 0.18);
+  --surface-control: #073642;
+  --border-control: #586e75;
+  --text-primary-color: #93a1a1;
+  --text-secondary-color: #839496;
+  --border-subtle: #586e75;
+  --border-divider: #657b83;
+  --accent-primary: #268bd2;
+  --accent-primary-contrast: #002b36;
+  --accent-primary-fill: #268bd2;
+  --status-success: #859900;
+  --status-warning: #b58900;
+  --status-danger: #dc322f;
+  --status-danger-contrast: #002b36;
+  --status-renamed: #2aa198;
+  --accent-heart: #dc322f;
+  --diff-added: #859900;
+  --diff-removed: #dc322f;
+  --syntax-comment: #586e75;
+  --syntax-string: #2aa198;
+  --syntax-number: #cb4b16;
+  --syntax-keyword: #859900;
+  --syntax-type: #b58900;
+  --syntax-property: #268bd2;
+  --focus-ring: #268bd2;
+  --overlay: rgba(0, 27, 34, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Solarized Light - ethanschoonover.com/solarized (MIT). Flat like the dark
+   variant. Text, status and syntax are darkened Solarized values: base00 text
+   on base3 measures ~4.1:1 and the aurora hues fall just under 3:1, so they
+   are nudged darker to reach the app's floor. */
+[data-theme="solarized-light"] {
+  color-scheme: light;
+  --surface-app: #fdf6e3;
+  --surface-panel: #fdf6e3;
+  --surface-raised: #fdf6e3;
+  --surface-code: #fdf6e3;
+  --surface-hover: rgba(88, 110, 117, 0.08);
+  --surface-active: rgba(38, 139, 210, 0.14);
+  --surface-control: #eee8d5;
+  --border-control: #93a1a1;
+  --text-primary-color: #4c6268;
+  --text-secondary-color: #586e75;
+  --border-subtle: #ded7c3;
+  --border-divider: #c9c2ae;
+  --accent-primary: #268bd2;
+  --accent-primary-contrast: #fdf6e3;
+  --accent-primary-fill: #268bd2;
+  --status-success: #6b7a00;
+  --status-warning: #8a6800;
+  --status-danger: #dc322f;
+  --status-danger-contrast: #fdf6e3;
+  --status-renamed: #177a72;
+  --accent-heart: #dc322f;
+  --diff-added: #6b7a00;
+  --diff-removed: #dc322f;
+  --syntax-comment: #586e75;
+  --syntax-string: #177a72;
+  --syntax-number: #cb4b16;
+  --syntax-keyword: #6b7a00;
+  --syntax-type: #8a6800;
+  --syntax-property: #268bd2;
+  --focus-ring: #268bd2;
+  --overlay: rgba(0, 43, 54, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 43, 54, 0.08);
+  --shadow-md: 0 8px 20px rgba(0, 43, 54, 0.1);
+  --shadow-lg: 0 24px 60px rgba(0, 43, 54, 0.16);
+}

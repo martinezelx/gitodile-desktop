@@ -50,6 +50,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete root.dataset.themeTransition;
+  delete root.dataset.themeTransitionGlyph;
   delete root.dataset.reducedMotion;
   root.removeAttribute("style");
   Reflect.deleteProperty(document, "startViewTransition");
@@ -96,6 +97,33 @@ describe("theme transitions", () => {
     expect(modeAtCapture).toHaveReturnedWith("fade");
   });
 
+  // A named view-transition layer composites above a modal's blurred backdrop,
+  // so the titlebar glyph flashed over the Settings dialog when the theme
+  // changed from there. With a modal open the glyph is left unnamed and
+  // dissolves with the window instead.
+  it("leaves the titlebar glyph unnamed while a modal is open", () => {
+    stubViewTransitions();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    document.body.appendChild(dialog);
+    const glyphAtCapture = vi.fn(() => root.dataset.themeTransitionGlyph);
+
+    startThemeFade(glyphAtCapture);
+
+    expect(glyphAtCapture).toHaveReturnedWith("off");
+    dialog.remove();
+  });
+
+  it("gives the titlebar glyph its own layer when no modal is open", () => {
+    stubViewTransitions();
+    const glyphAtCapture = vi.fn(() => root.dataset.themeTransitionGlyph);
+
+    startThemeFade(glyphAtCapture);
+
+    expect(glyphAtCapture).toHaveReturnedWith(undefined);
+  });
+
   it("leaves no origin geometry on the root", () => {
     stubViewTransitions();
 
@@ -115,6 +143,25 @@ describe("theme transitions", () => {
     await Promise.resolve();
 
     expect(root.dataset.themeTransition).toBeUndefined();
+  });
+
+  it("clears the glyph flag with the root once a modal-opened change ends", async () => {
+    const { transitions } = stubViewTransitions();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    document.body.appendChild(dialog);
+
+    startThemeFade(vi.fn());
+    expect(root.dataset.themeTransitionGlyph).toBe("off");
+
+    transitions[0].finish();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(root.dataset.themeTransition).toBeUndefined();
+    expect(root.dataset.themeTransitionGlyph).toBeUndefined();
+    dialog.remove();
   });
 
   it("lets a second change interrupt the first without stripping its own state", async () => {

@@ -12,12 +12,9 @@ import {
   GripVertical,
   Info,
   LoaderCircle,
-  Monitor,
-  Moon,
   PanelLeft,
   Palette,
   Settings,
-  Sun,
   TriangleAlert,
   WrapText,
 } from "lucide-react";
@@ -35,6 +32,12 @@ import {
   type NumberFormatPreference,
 } from "../../shared/i18n";
 import { autoHideScrollbarProps, moveFocusWithinRadioGroup, ToggleSwitch } from "../../shared/ui";
+import {
+  COMMUNITY_THEMES,
+  OFFICIAL_THEMES,
+  type ThemeId,
+  type ThemePreference,
+} from "../../shared/theme";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
@@ -67,17 +70,47 @@ import {
   type RemoteCheckIntervalMinutes,
   type RemoteCheckUnit,
   type SettingsSection,
-  type ThemePreference,
 } from "./domain";
 import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from "../notifications";
 import type { SettingsPort } from "./port";
 import { settingsPort } from "./tauriAdapter";
 import type { DefaultBranchState, GitIdentityState, LineEndingsState } from "./useGitConfig";
 
-const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
-  system: <Monitor />,
-  light: <Sun />,
-  dark: <Moon />,
+/** A miniature of the app drawn in a theme's own tokens. `data-theme` scopes
+ * the palette to this subtree, so the preview shows the real thing rather than
+ * a swatch. The mark and the action keep the brand layer, as they do in the
+ * app. */
+function ThemePreview({ theme }: { theme: ThemeId }): React.JSX.Element {
+  return (
+    <span className="theme-preview" data-theme={theme}>
+      <span className="theme-preview__rail">
+        <span className="theme-preview__mark" />
+        <span className="theme-preview__nav theme-preview__nav--active" />
+        <span className="theme-preview__nav" />
+        <span className="theme-preview__nav" />
+      </span>
+      <span className="theme-preview__main">
+        <span className="theme-preview__bar">
+          <span className="theme-preview__file" />
+          <span className="theme-preview__cta" />
+        </span>
+        <span className="theme-preview__line" />
+        <span className="theme-preview__line theme-preview__line--add" />
+        <span className="theme-preview__line theme-preview__line--del" />
+      </span>
+    </span>
+  );
+}
+
+/** One option in the theme picker: "match device" or a real theme, with its
+ * preview and the scheme's words for the accessible name. */
+type ThemeCardOption = {
+  id: ThemePreference;
+  name: string;
+  schemeLabel: string;
+  /** Official GitOdile records wear the brand mark so the three stand apart. */
+  branded: boolean;
+  preview: React.JSX.Element;
 };
 
 /* The characters a monospaced font is actually chosen for: zero against
@@ -86,8 +119,8 @@ const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
    reader will get rather than a flattering enlargement. */
 const CODE_FONT_SAMPLE = "0O 1lI {}[] != =>";
 
-/** Static, like `THEME_ICONS`: nothing about the rail's icons depends on
- * state, a preference or the language. */
+/** Static: nothing about the rail's icons depends on state, a preference or the
+ * language. */
 const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   general: <Settings />,
   notifications: <Bell />,
@@ -136,7 +169,6 @@ const NOTIFICATION_EVENT_ROWS = [
   description: string;
 }>;
 
-const THEME_ORDER: ThemePreference[] = ["system", "light", "dark"];
 const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
 
 /* Deliberately permissive. Git itself accepts almost anything here, so this
@@ -805,6 +837,58 @@ export function SettingsPanel({
     setNavigationPreferences((previous) => ({ ...previous, displayMode }));
   };
 
+  /* The theme picker's options are built here so the two rows share one card
+     renderer and cannot drift. "Match device" is a preference, not a theme, so
+     it takes the split preview rather than a record. */
+  const themeCardOption = (record: (typeof OFFICIAL_THEMES)[number]): ThemeCardOption => ({
+    id: record.id,
+    name: record.name,
+    schemeLabel: record.scheme === "dark" ? t.themeSchemeDark : t.themeSchemeLight,
+    branded: record.source === "official",
+    preview: <ThemePreview theme={record.id} />,
+  });
+  const officialThemeOptions: readonly ThemeCardOption[] = [
+    {
+      id: "system",
+      name: t.themeMatchDevice,
+      schemeLabel: t.themeSchemeAuto,
+      branded: true,
+      preview: (
+        <span className="theme-card__split">
+          <ThemePreview theme="gitodile-light" />
+          <ThemePreview theme="gitodile-dark" />
+        </span>
+      ),
+    },
+    ...OFFICIAL_THEMES.map(themeCardOption),
+  ];
+  const communityThemeOptions: readonly ThemeCardOption[] = COMMUNITY_THEMES.map(themeCardOption);
+  const renderThemeCard = (option: ThemeCardOption, index: number): React.JSX.Element => {
+    const isSelected = theme === option.id;
+    return (
+      <button
+        key={option.id}
+        type="button"
+        role="radio"
+        aria-checked={isSelected}
+        aria-label={`${option.name}, ${option.schemeLabel}`}
+        tabIndex={isRadioTabStop(isSelected, true, index) ? 0 : -1}
+        className="theme-card"
+        onClick={() => setTheme(option.id)}
+      >
+        {option.branded && (
+          <span className="theme-card__brand" aria-hidden="true">
+            <span className="gitodile-mark" />
+          </span>
+        )}
+        <span className="theme-card__tile">{option.preview}</span>
+        <span className="theme-card__label">
+          <span className="theme-card__name">{option.name}</span>
+        </span>
+      </button>
+    );
+  };
+
   return (
     <div className="settings-layout">
       <SettingsNav
@@ -1078,26 +1162,24 @@ export function SettingsPanel({
                 <p>{t.settingsThemeDescription}</p>
               </header>
               <div className="settings-group__body">
+                {/* Two radiogroups so the accessible names still say which
+                    group a theme belongs to; the official three are marked by
+                    the brand badge, not by a label. */}
                 <div
-                  className="segmented-control"
+                  className="theme-picker__official"
                   role="radiogroup"
-                  aria-label={t.themeAriaLabel}
+                  aria-label={t.settingsThemeOfficialTitle}
                   onKeyDown={moveFocusWithinRadioGroup}
                 >
-                  {THEME_ORDER.map((option, index) => (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={theme === option}
-                      tabIndex={isRadioTabStop(theme === option, true, index) ? 0 : -1}
-                      className={`segmented-control__option${theme === option ? " segmented-control__option--active" : ""}`}
-                      onClick={() => setTheme(option)}
-                    >
-                      <span aria-hidden="true">{THEME_ICONS[option]}</span>
-                      {option === "system" ? t.commonSystem : option === "light" ? t.themeLight : t.themeDark}
-                    </button>
-                  ))}
+                  {officialThemeOptions.map(renderThemeCard)}
+                </div>
+                <div
+                  className="theme-picker__community"
+                  role="radiogroup"
+                  aria-label={t.settingsThemeMoreTitle}
+                  onKeyDown={moveFocusWithinRadioGroup}
+                >
+                  {communityThemeOptions.map(renderThemeCard)}
                 </div>
               </div>
             </section>

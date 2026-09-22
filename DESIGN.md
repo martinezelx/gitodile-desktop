@@ -413,6 +413,7 @@ The app should work well between approximately 1024px and large desktop displays
   --radius-item: 10px;
   --radius-control: 14px;
   --radius-surface: 18px;
+  --radius-tile: 28px;
   --radius-pill: 999px;
   --radius-round: 50%;
 
@@ -477,10 +478,10 @@ Colors should be defined semantically rather than by component:
 - `--text-primary-color`
 - `--text-secondary-color`
 - `--border-subtle`
-- `--accent-brand` / `--accent-brand-contrast` (the fixed lime brand mark and primary CTA)
+- `--accent-brand` / `--accent-brand-contrast` (the fixed lime brand mark, never themed)
 - `--accent-primary`
 - `--accent-primary-contrast` (text/icon color placed on top of `--accent-primary`)
-- `--accent-primary-fill` (fixed lime fill for selected controls)
+- `--accent-primary-fill` (theme's solid fill for primary actions and selected controls)
 - `--status-success`
 - `--status-warning`
 - `--status-danger`
@@ -516,6 +517,7 @@ values before this was written down. Choose the tier by what the thing *is*:
 | `--radius-item` (10px) | A row or option that lives inside a container | Menu row, list option, file row, segmented-control option, inline code, keycap, square icon button of 24–36px that is not in an action row |
 | `--radius-control` (14px) | A control that *cannot* be a capsule | Multi-line field (textarea), a frame wrapping its own options (segmented control), a preview box, square icon button of 40px and up that is not in an action row |
 | `--radius-surface` (18px) | A container carrying its own background | Card, dialog, popover, menu, notice, banner, panel |
+| `--radius-tile` (28px) | A large square preview whose own background *is* the object | Theme-picker tile (and the tray that groups them) |
 
 A circle has no "length", so it has no radius to scale — that is why it is a
 role and not a number. Mixing circles with the rectangular tiers in one row is
@@ -781,22 +783,44 @@ The titlebar mark is also the About affordance, as it is in every desktop applic
 
 A control that does nothing yet must not look fully interactive. Navigation entries for screens that don't exist yet (e.g. Changes, History, Recovery before their flows are built) are rendered `disabled` with reduced opacity and a visible “Coming soon” status, rather than looking clickable and silently failing. An upcoming primary-card action may remain visible when it makes the planned next step clear, but it must be disabled and honestly marked as unavailable. Replace the disabled state with a real view as soon as the screen exists — don't leave it disabled out of habit.
 
-### Theming: light and dark
+### Theming: two layers and multiple themes
 
-The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and primary CTA, always paired with its dark contrast color; it is never used as standalone text on a light surface. Semantic green (`--accent-primary`) is deliberately darker in light mode and lighter in dark mode so it can carry small labels, focus, status, and future diff markers accessibly. Each theme gets its own values while retaining the same warm stone/lime family.
+Colour is two layers, and a theme is a record that fills only the second one
+(ADR 0012).
 
-| Token | Dark value | Light value |
+**Brand identity (never themed).** `--accent-brand` and
+`--accent-brand-contrast` — the fixed brand lime and its contrast — plus
+`--avatar-color-*`, `--avatar-foreground` and `--tooltip-*`, are declared once
+in `src/styles/tokens.css`. No theme may set them. This layer is identity, not
+action: the actionable accent is `--accent-primary`, which the theme owns, so
+the primary action, the notification badge, the attention halo, navigation and
+focus all follow the theme rather than fighting it. The fixed lime is `#8bc53f`
+with dark contrast `#14170f`, kept for brand surfaces outside the themed
+workbench (the app icon and lockup), and it is never used as standalone text on
+a light surface.
+
+**Theme colour tokens.** Surfaces, text, borders, the semantic accent
+(`--accent-primary`), status, diff, syntax, focus, overlay and shadows. Each
+theme is a `[data-theme="<id>"]` block in `src/styles/themes.css`, which also
+sets `color-scheme`, plus a record in `src/shared/theme/themes.ts`. The
+official pair shares one semantic accent green (`#527e26`) so the product's
+green is the same in both; the vivid lime stays as the fill of solid actions.
+Success green and diff ink are still per scheme, because they render small
+text and need 4.5:1 on both a light and a near-black surface. Every named theme
+keeps the same token set, so switching leaves no value behind.
+
+| Token | GitOdile Dark | GitOdile Light |
 |---|---|---|
-| `--surface-app` | `#0a0a0a` | `#faf8f5` |
-| `--surface-panel` | `#1a1a1a` | `#ffffff` |
-| `--surface-raised` | `#242424` | `#ffffff` |
-| `--surface-code` | `#1a1a1a` | `#f5f5f4` |
-| `--text-primary-color` | `#fafafa` | `#1c1917` |
-| `--text-secondary-color` | `#a1a1aa` | `#6f6a64` |
-| `--border-subtle` | `#27272a` | `#e7e5e4` |
+| `--surface-app` | `#0c0a09` | `#faf8f5` |
+| `--surface-panel` | `#1c1917` | `#ffffff` |
+| `--surface-raised` | `#292524` | `#ffffff` |
+| `--surface-code` | `#201d1b` | `#f5f5f4` |
+| `--text-primary-color` | `#fafaf9` | `#1c1917` |
+| `--text-secondary-color` | `#a8a29e` | `#6f6a64` |
+| `--border-subtle` | `#38322f` | `#e7e5e4` |
 | `--accent-brand` | `#8bc53f` | `#8bc53f` |
 | `--accent-brand-contrast` | `#14170f` | `#14170f` |
-| `--accent-primary` | `#9bd65a` | `#4f751e` |
+| `--accent-primary` | `#527e26` | `#527e26` |
 | `--accent-primary-contrast` | `#0a0a0a` | `#14170f` |
 | `--accent-primary-fill` | `#9bd65a` | `#9bd65a` |
 | `--status-success` | `#9bd65a` | `#4f751e` |
@@ -804,12 +828,12 @@ The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and prima
 | `--status-danger` | `#ff6b5b` | `#b3261e` |
 | `--status-danger-contrast` | `#14170f` | `#fff7f5` |
 | `--accent-heart` | `#ff7a6b` | `#cc2936` |
-| `--diff-added` | `#9bd65a` | `#496f19` |
+| `--diff-added` | `#9bd65a` | `#4f751e` |
 | `--diff-removed` | `#ff6b5b` | `#b3261e` |
 | `--overlay` | `rgba(0, 0, 0, 0.68)` | `rgba(28, 25, 23, 0.4)` |
-| `--surface-hover` | `rgba(255, 255, 255, 0.06)` | `rgba(28, 25, 23, 0.05)` |
+| `--surface-hover` | `rgba(250, 250, 249, 0.06)` | `rgba(28, 25, 23, 0.05)` |
 | `--surface-active` | `rgba(155, 214, 90, 0.14)` | `rgba(107, 155, 46, 0.12)` |
-| `--focus-ring` | `#9bd65a` | `#4f751e` |
+| `--focus-ring` | `#527e26` | `#527e26` |
 | `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.22)` | `0 2px 8px rgba(28,25,23,0.06)` |
 | `--shadow-md` | `0 8px 20px rgba(0,0,0,0.3)` | `0 8px 20px rgba(28,25,23,0.08)` |
 | `--shadow-lg` | `0 24px 80px rgba(0,0,0,0.45)` | `0 24px 60px rgba(28,25,23,0.14)` |
@@ -818,14 +842,46 @@ The fixed brand lime (`--accent-brand: #8bc53f`) belongs to the mascot and prima
 
 Every text/surface pairing above must hold at least a 4.5:1 contrast ratio (WCAG AA for body text); accent-on-surface pairings used only for large text, icons, or borders may use the AA large-text threshold (3:1) instead.
 
+**Official themes.** GitOdile Light and Dark are the two records that carry the
+brand palette above; they are the default and the pair "match device" resolves
+between. They are not a starting point that community themes replace.
+
+**Community themes.** Only palettes with a canonical, attributable source are
+admitted (Catppuccin, Nord, Tokyo Night, Dracula, Solarized). Their published
+base, text
+and accent colours are used unchanged; the mapping onto GitOdile's extra roles
+— diff, syntax, renamed, heart, and derived tints where the palette lacks a
+readable step — is ours. `themeContrast.test.ts` measures every theme's body
+text at 4.5:1 and its accents at 3:1, and refuses one that fails. A palette
+without a canonical source (for example Vercel/Geist, which is a design system)
+is not admitted, because a "theme" for it would be invented colours.
+
+Status colours keep their meaning across themes, but they mark *status*, not
+*progress*: a completed journey step, its connector, and a celebratory
+all-clear use the theme accent with neutral text, never success green, so the
+progress band never fights the palette. Success green stays on chips,
+confirmations, diff categories, and genuine status marks.
+
 Theme resolution order (highest priority first):
 
-1. An explicit user choice (light/dark), persisted locally and applied immediately.
-2. The OS-level preference, read via `prefers-color-scheme` and followed live if the user has not overridden it.
+1. An explicit theme, persisted locally and applied immediately.
+2. "Match device", which resolves to the official Light or Dark from
+   `prefers-color-scheme` and follows it live through the media query.
 
-The user must always be able to return to "match system" — the toggle is a three-state cycle (`system` → `light` → `dark` → `system`), not a binary switch, so an explicit choice never silently strands the user on a theme that has drifted from their OS setting.
+The user must always be able to return to "match device", so an explicit choice
+never silently strands them on a theme that has drifted from their OS setting.
+A pinned community theme has no official counterpart, so the titlebar toggle
+hands control back to the device — its glyph becomes the monitor, matching
+"Match device"; from the device or an official theme it flips between the
+official light and dark. "Match device" and every named theme stay reachable
+from Settings > Interface > Theme and the command palette. The picker shows
+each theme as a miniature of the app in its own tokens, with the scheme carried
+by a glyph and by the option's accessible name, never by colour alone.
 
-Do not introduce a color anywhere in the product (status badges, diff highlighting, charts, mascot variants) without first checking whether it is expressible through an existing token; new one-off colors fragment the light/dark story.
+Do not introduce a color anywhere in the product (status badges, diff
+highlighting, charts, mascot variants) without first checking whether it is
+expressible through an existing token; new one-off colours fragment the theme
+story.
 
 ## Brand and mascot
 
@@ -866,8 +922,9 @@ the single source for every packaged icon, and `pnpm icons` regenerates them
 
 Inside the application, the crocodile is dark (`#14170f`) in dark mode and
 warm pearl (`#faf8f5`) in light mode. This theme-aware treatment belongs only
-to the decorative brand lockup; primary actions continue to use
-`--accent-brand-contrast` for accessible text and icon contrast.
+to the decorative brand lockup; primary actions use the theme's own
+`--accent-primary-fill` and `--accent-primary-contrast` for accessible text and
+icon contrast.
 
 ## Typography
 

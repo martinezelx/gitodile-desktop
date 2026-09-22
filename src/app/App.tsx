@@ -8,6 +8,7 @@ import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import {
   Sun,
   Moon,
+  Monitor,
   ChevronLeft,
   ChevronRight,
   CloudDownload,
@@ -28,6 +29,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../i18n";
 import { isAppError, localizeAppError } from "../shared/i18n";
+import { isOfficialTheme } from "../shared/theme";
 import type { RepositoryInvalidation } from "../runtime/project/invalidation";
 import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
 import { handlePopupMenuKeyDown, usePortalFlyout } from "../shared/ui";
@@ -114,7 +116,7 @@ import {
   APP_UPDATE_AUTOMATIC_DEFAULT,
   APP_UPDATE_AUTOMATIC_STORAGE_KEY,
   applyTheme,
-  resolveEffectiveTheme,
+  resolveEffectiveThemeScheme,
   useStoredBoolean,
   useStoredFavouriteProjects,
   useStoredDiffPreferences,
@@ -236,7 +238,11 @@ export function App(): React.JSX.Element {
   } | null>(null);
   const [view, setView] = useState<View>("overview");
   const [theme, setTheme] = useThemePreference();
-  const effectiveTheme = resolveEffectiveTheme(theme);
+  const effectiveThemeScheme = resolveEffectiveThemeScheme(theme);
+  // A community theme has no official counterpart to flip to, so there the
+  // toggle hands control back to the device; from the device or an official
+  // theme it flips between the official light and dark. See ADR 0015.
+  const themeIsCommunity = theme !== "system" && !isOfficialTheme(theme);
   // `applyTheme` runs alongside `setTheme` because the hook applies the
   // attribute from a passive effect, which is not guaranteed to have run by the
   // time a transition captures the DOM.
@@ -254,8 +260,20 @@ export function App(): React.JSX.Element {
     startThemeFade(commitTheme(next));
   };
   const toggleTheme = (): void => {
-    startThemeFade(commitTheme(effectiveTheme === "dark" ? "light" : "dark"));
+    if (themeIsCommunity) {
+      changeTheme("system");
+      return;
+    }
+    changeTheme(effectiveThemeScheme === "dark" ? "gitodile-light" : "gitodile-dark");
   };
+  // One control, three meanings: back to the device, or to the other official
+  // scheme. The glyph and the accessible name always describe the change the
+  // press will make.
+  const themeToggle = themeIsCommunity
+    ? { label: t.commandUseSystemTheme, icon: <Monitor className="titlebar-theme-icon" aria-hidden="true" /> }
+    : effectiveThemeScheme === "dark"
+      ? { label: t.titlebarSwitchToLightTheme, icon: <Sun className="titlebar-theme-icon" aria-hidden="true" /> }
+      : { label: t.titlebarSwitchToDarkTheme, icon: <Moon className="titlebar-theme-icon" aria-hidden="true" /> };
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
   const [historyController] = useState(() => createHistoryController(historyPort));
@@ -1613,8 +1631,8 @@ export function App(): React.JSX.Element {
           }))
       : []),
     { id: "theme-system", label: t.commandUseSystemTheme, action: () => changeTheme("system") },
-    { id: "theme-light", label: t.commandUseLightTheme, action: () => changeTheme("light") },
-    { id: "theme-dark", label: t.commandUseDarkTheme, action: () => changeTheme("dark") },
+    { id: "theme-light", label: t.commandUseLightTheme, action: () => changeTheme("gitodile-light") },
+    { id: "theme-dark", label: t.commandUseDarkTheme, action: () => changeTheme("gitodile-dark") },
     ...(project
       ? [
           {
@@ -2006,15 +2024,11 @@ export function App(): React.JSX.Element {
           <button
             className="titlebar-icon-button"
             type="button"
-            aria-label={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
-            data-tooltip={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
+            aria-label={themeToggle.label}
+            data-tooltip={themeToggle.label}
             onClick={toggleTheme}
           >
-            {effectiveTheme === "dark" ? (
-              <Sun className="titlebar-theme-icon" aria-hidden="true" />
-            ) : (
-              <Moon className="titlebar-theme-icon" aria-hidden="true" />
-            )}
+            {themeToggle.icon}
           </button>
         </div>
 

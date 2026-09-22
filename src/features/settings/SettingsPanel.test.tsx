@@ -8,7 +8,7 @@ import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
 import { SettingsPanel } from "./SettingsPanel";
 import { useDefaultBranch, useGitIdentity, useLineEndings } from "./useGitConfig";
 import type { SettingsPort } from "./port";
-import type { GitDiagnostics, GitLineEndings, GitUpdateStatus, SettingsSection } from "./domain";
+import type { GitDiagnostics, GitLineEndings, GitUpdateStatus, SettingsSection, ThemePreference } from "./domain";
 import type { NavigationPreferences } from "./domain";
 
 afterEach(cleanup);
@@ -38,6 +38,8 @@ type PanelOverrides = Partial<{
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   initialSection: SettingsSection;
+  theme: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
   onClose: () => void;
   onRegisterCloseGuard: (guard: (() => boolean) | null) => void;
   setReopenLastProject: (value: boolean) => void;
@@ -83,8 +85,8 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
   const [runGitHooks, setRunGitHooks] = useState(overrides.runGitHooks ?? false);
   return (
     <SettingsPanel
-      theme="system"
-      setTheme={vi.fn()}
+      theme={overrides.theme ?? "system"}
+      setTheme={overrides.setTheme ?? vi.fn()}
       reducedMotion={overrides.reducedMotion ?? false}
       setReducedMotion={overrides.setReducedMotion ?? vi.fn()}
       activeSection={section}
@@ -451,20 +453,39 @@ describe("Settings panel option groups", () => {
     expect(setReducedMotion).toHaveBeenCalledWith(true);
   });
 
+  it("presents each theme as a preview and names its scheme for assistive tech", async () => {
+    const setTheme = vi.fn();
+    renderPanel(createPort(), { initialSection: "appearance", setTheme });
+
+    const official = screen.getByRole("radiogroup", { name: "Official" });
+    // "Match device" carries the auto scheme; the official pair names light/dark.
+    expect(within(official).getByRole("radio", { name: "Match device, follows your device" }))
+      .toHaveAttribute("aria-checked", "true");
+    expect(within(official).getByRole("radio", { name: "GitOdile Light, light theme" }))
+      .toHaveAttribute("aria-checked", "false");
+    // Community palettes live in their own group, each with a miniature.
+    const more = screen.getByRole("radiogroup", { name: "More themes" });
+    expect(within(more).getByRole("radio", { name: "Catppuccin Mocha, dark theme" })).toBeInTheDocument();
+    expect(more.querySelectorAll(".theme-preview").length).toBe(9);
+
+    await userEvent.click(within(more).getByRole("radio", { name: /Catppuccin Mocha/ }));
+    expect(setTheme).toHaveBeenCalledWith("catppuccin-mocha");
+  });
+
   it("is one Tab stop per group, with the arrow keys moving inside it", async () => {
     renderPanel(createPort(), { initialSection: "appearance" });
 
-    const [system, light, dark] = screen.getAllByRole("radio", { name: /System|Light|Dark/ });
-    expect(system).toHaveAttribute("tabindex", "0");
-    expect(light).toHaveAttribute("tabindex", "-1");
+    const official = screen.getByRole("radiogroup", { name: "Official" });
+    const options = within(official).getAllByRole("radio");
+    expect(options.map((option) => option.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]);
 
-    system.focus();
+    options[0].focus();
     await userEvent.keyboard("{ArrowRight}");
-    expect(light).toHaveFocus();
+    expect(options[1]).toHaveFocus();
     await userEvent.keyboard("{End}");
-    expect(dark).toHaveFocus();
+    expect(options[2]).toHaveFocus();
     await userEvent.keyboard("{ArrowRight}");
-    expect(system).toHaveFocus();
+    expect(options[0]).toHaveFocus();
   });
 
   it("does not change a line-ending choice merely by arrowing past it", async () => {

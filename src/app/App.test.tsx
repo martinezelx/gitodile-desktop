@@ -1175,17 +1175,53 @@ describe("App project restoration", () => {
     await user.click(screen.getAllByRole("button", { name: "Settings" })[0]);
     const dialog = screen.getByRole("dialog", { name: "Settings" });
     await user.click(within(dialog).getByRole("tab", { name: "Interface" }));
-    await user.click(within(dialog).getByRole("radio", { name: "Light" }));
+    await user.click(within(dialog).getByRole("radio", { name: /GitOdile Light/ }));
 
     expect(modes).toEqual(["fade", "fade"]);
 
     // Re-picking the option already in effect must not snapshot the window to
     // cross-fade it into an identical frame.
-    await user.click(within(dialog).getByRole("radio", { name: "Light" }));
+    await user.click(within(dialog).getByRole("radio", { name: /GitOdile Light/ }));
     expect(modes).toEqual(["fade", "fade"]);
 
     Reflect.deleteProperty(document, "startViewTransition");
     delete document.documentElement.dataset.themeTransition;
+  });
+
+  // ADR 0015: a community theme has no official counterpart, so the toggle
+  // hands control back to the device; from there it flips the official pair.
+  it("sends a community theme back to the device, then flips the official pair", async () => {
+    localStorage.setItem("gitodile-theme", "catppuccin-mocha");
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "get_git_identity") {
+        return Promise.resolve({ name: "", email: "" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset.theme).toBe("catppuccin-mocha"),
+    );
+    await user.click(screen.getByRole("button", { name: "Use system theme" }));
+    // "Match device" keeps no attribute, so the media query follows the device.
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBeUndefined());
+
+    // With the device selected, the toggle flips the official pair. jsdom's
+    // prefers-color-scheme is light, so the first flip is to the official dark.
+    await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    expect(document.documentElement.dataset.theme).toBe("gitodile-dark");
+    await user.click(screen.getByRole("button", { name: "Switch to light theme" }));
+    expect(document.documentElement.dataset.theme).toBe("gitodile-light");
   });
 
   it("does not overwrite stored projects before startup revalidation completes", async () => {
