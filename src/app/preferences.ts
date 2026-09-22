@@ -17,6 +17,14 @@ import {
   type ThemeId,
   type ThemePreference,
 } from "../shared/theme";
+import {
+  DEFAULT_PROJECT_AVATAR_STYLE,
+  isProjectAvatarStyle,
+  PROJECT_ICON_INITIALS,
+  sanitizeEmoji,
+  type ProjectAvatarStyle,
+  type ProjectIconChoice,
+} from "../shared/ui/projectIdentity";
 import { stopActiveThemeTransition } from "./themeTransition";
 
 const THEME_STORAGE_KEY = "gitodile-theme";
@@ -34,6 +42,8 @@ export const DIFF_PREFERENCES_STORAGE_KEY = "gitodile-diff-preferences";
 export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodile-navigation-preferences";
 export const SIDEBAR_HIDDEN_STORAGE_KEY = "gitodile-sidebar-hidden";
 export const FAVOURITE_PROJECTS_STORAGE_KEY = "gitodile-favourite-projects";
+export const PROJECT_ICONS_STORAGE_KEY = "gitodile-project-icons";
+export const PROJECT_AVATAR_STYLE_STORAGE_KEY = "gitodile-project-avatar-style";
 
 /** Named because two places need to agree on them: the hook that seeds the
  * preference and the Settings panel's "reset this section". */
@@ -291,6 +301,84 @@ export function useStoredFavouriteProjects(): [
   };
 
   return [ids, toggle];
+}
+
+/**
+ * The icon a person picked for a project, stored as a map from the canonical
+ * worktree root — the same identity favourites use — to one short glyph or the
+ * reserved `PROJECT_ICON_INITIALS` for the two-letter chip.
+ *
+ * A missing entry means "automatic": the avatar then follows the app-wide
+ * Project icons style. Removing the choice (setting it to `null`) returns a
+ * project to that automatic behaviour.
+ */
+export function useStoredProjectIconChoices(): [
+  ReadonlyMap<string, string>,
+  (id: string, choice: ProjectIconChoice) => void,
+] {
+  const [choices, setChoices] = useState<ReadonlyMap<string, string>>(() => {
+    try {
+      const stored: unknown = JSON.parse(
+        localStorage.getItem(PROJECT_ICONS_STORAGE_KEY) ?? "null",
+      );
+      if (stored === null || typeof stored !== "object" || Array.isArray(stored)) {
+        return new Map<string, string>();
+      }
+      const entries: Array<[string, string]> = [];
+      for (const [id, value] of Object.entries(stored as Record<string, unknown>)) {
+        const choice = cleanProjectIconChoice(value);
+        if (choice !== null) entries.push([id, choice]);
+      }
+      return new Map(entries);
+    } catch {
+      return new Map<string, string>();
+    }
+  });
+
+  // Sorted keys so the serialization is stable regardless of insertion order;
+  // `usePersistedChoice` compares the string to decide whether to write.
+  usePersistedChoice(
+    PROJECT_ICONS_STORAGE_KEY,
+    JSON.stringify(Object.fromEntries([...choices].sort(([a], [b]) => a.localeCompare(b)))),
+  );
+
+  const setChoice = (id: string, choice: ProjectIconChoice): void => {
+    setChoices((current) => {
+      const next = new Map(current);
+      const clean = cleanProjectIconChoice(choice);
+      if (clean === null) next.delete(id);
+      else next.set(id, clean);
+      return next;
+    });
+  };
+
+  return [choices, setChoice];
+}
+
+/** Accepts the reserved initials value or a single short glyph; anything else
+ * (a long string, a non-string) is not a stored choice. */
+function cleanProjectIconChoice(value: unknown): string | null {
+  if (value === PROJECT_ICON_INITIALS) {
+    return PROJECT_ICON_INITIALS;
+  }
+  return sanitizeEmoji(value);
+}
+
+/**
+ * How project avatars are filled when a project has no chosen emoji. A
+ * machine-wide appearance choice, stored as one of `PROJECT_AVATAR_STYLES`;
+ * `technology` (the detected mark, or initials) is the default.
+ */
+export function useStoredProjectAvatarStyle(): [
+  ProjectAvatarStyle,
+  (style: ProjectAvatarStyle) => void,
+] {
+  const [style, setStyle] = useState<ProjectAvatarStyle>(() => {
+    const stored = localStorage.getItem(PROJECT_AVATAR_STYLE_STORAGE_KEY);
+    return isProjectAvatarStyle(stored) ? stored : DEFAULT_PROJECT_AVATAR_STYLE;
+  });
+  usePersistedChoice(PROJECT_AVATAR_STYLE_STORAGE_KEY, style);
+  return [style, setStyle];
 }
 
 export function useStoredBoolean(

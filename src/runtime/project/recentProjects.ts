@@ -5,8 +5,8 @@
  * `sessions.ts`): that one is the set of projects currently open, and it
  * forgets a project the moment it is closed — which is exactly when a recents
  * list becomes useful. Same privacy envelope as the session store, and no
- * wider: a canonical worktree root and the display name derived from it, never
- * branches, diffs, remotes, credentials, or Git errors.
+ * wider: a canonical worktree root, its display name and the last detected
+ * technology slug, never branches, diffs, remotes, credentials, or Git errors.
  *
  * Nothing here validates that a path still exists. A stale entry is a real
  * possibility (a moved or deleted folder, an unmounted drive) and is reported
@@ -20,6 +20,9 @@ export type RecentProject = {
    * nested folder, an alias or a case variant matches its own recent entry. */
   path: string;
   name: string;
+  /** Last successful local detection. Absent in entries written before task
+   * 130; null means detection found no technology. */
+  technology?: string | null;
 };
 
 export type StoredRecentProjectsV1 = {
@@ -63,7 +66,13 @@ export function readRecentProjects(): RecentProject[] {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (isStoredRecentProjectsV1(parsed)) {
-      return parsed.entries.slice(0, RECENT_PROJECTS_LIMIT);
+      return parsed.entries.slice(0, RECENT_PROJECTS_LIMIT).map((entry) => ({
+        path: entry.path,
+        name: entry.name,
+        ...(typeof entry.technology === "string" || entry.technology === null
+          ? { technology: entry.technology }
+          : {}),
+      }));
     }
   } catch {
     // Fall through as if nothing were stored.
@@ -82,8 +91,30 @@ function write(entries: RecentProject[]): RecentProject[] {
  * entry for the same path — reopening a project promotes it instead of
  * duplicating it, and a renamed folder's new name wins. */
 export function rememberRecentProject(entry: RecentProject): RecentProject[] {
-  const rest = readRecentProjects().filter((candidate) => candidate.path !== entry.path);
-  return write([{ path: entry.path, name: entry.name }, ...rest]);
+  const stored = readRecentProjects();
+  const previous = stored.find((candidate) => candidate.path === entry.path);
+  const rest = stored.filter((candidate) => candidate.path !== entry.path);
+  const technology = entry.technology === undefined ? previous?.technology : entry.technology;
+  return write([{
+    path: entry.path,
+    name: entry.name,
+    ...(technology !== undefined ? { technology } : {}),
+  }, ...rest]);
+}
+
+/** Retain the last successful detection so a closed recent project keeps its
+ * identity across restarts. No entry is created by a late response for a
+ * project the person already removed from Recents. */
+export function rememberRecentProjectTechnology(
+  path: string,
+  technology: string | null,
+): RecentProject[] | null {
+  const entries = readRecentProjects();
+  const index = entries.findIndex((entry) => entry.path === path);
+  if (index < 0 || entries[index].technology === technology) return null;
+  return write(entries.map((entry, position) =>
+    position === index ? { ...entry, technology } : entry,
+  ));
 }
 
 /** Drops one entry for good. The user's own answer to a row that has moved,

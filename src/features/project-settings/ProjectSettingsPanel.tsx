@@ -6,6 +6,7 @@ import {
   EyeOff,
   Info,
   LoaderCircle,
+  Palette,
   TriangleAlert,
   UserRound,
 } from "lucide-react";
@@ -13,7 +14,19 @@ import {
 import { useLanguage } from "../../i18n";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
-import { autoHideScrollbarProps, moveFocusWithinRadioGroup } from "../../shared/ui";
+import {
+  autoHideScrollbarProps,
+  moveFocusWithinRadioGroup,
+  ProjectAvatar,
+  DEFAULT_PROJECT_AVATAR_STYLE,
+  PROJECT_ICON_EMOJIS,
+  PROJECT_ICON_INITIALS,
+  sanitizeEmoji,
+  TECHNOLOGY_LABELS,
+  type ProjectAvatarStyle,
+  type ProjectIconChoice,
+  type TechnologyId,
+} from "../../shared/ui";
 import {
   IGNORE_SCOPES,
   PROJECT_SETTINGS_SECTIONS,
@@ -40,6 +53,7 @@ const SECTION_ICONS: Record<ProjectSettingsSection, React.JSX.Element> = {
   remote: <Cloud />,
   ignored: <EyeOff />,
   identity: <UserRound />,
+  icon: <Palette />,
 };
 
 type Notice = { tone: "success" | "neutral" | "warning" | "danger"; message: string };
@@ -927,9 +941,120 @@ function IdentitySection({
   );
 }
 
+/** The project's identity icon: the detected technology, or a chosen emoji.
+ *
+ * Read-only in the sense that nothing here is a repository mutation — the
+ * choice lives in this machine's preferences, keyed by the project, so it
+ * never touches the repository or Git configuration. "Automatic" removes the
+ * choice and returns the project to the detected mark (or its initials). */
+function IconSection({
+  project,
+  projectName,
+  iconChoice,
+  technology,
+  technologyFailed,
+  avatarStyle,
+  onChooseIcon,
+}: {
+  project: ProjectSettingsTarget;
+  projectName: string;
+  iconChoice: ProjectIconChoice;
+  technology: TechnologyId | null;
+  technologyFailed: boolean;
+  avatarStyle: ProjectAvatarStyle;
+  onChooseIcon: (choice: ProjectIconChoice) => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const emojiLabelId = React.useId();
+  const chosen = sanitizeEmoji(iconChoice);
+  const isInitials = iconChoice === PROJECT_ICON_INITIALS;
+  const isAutomatic = !isInitials && chosen === null;
+  const status = technology
+    ? t.projectSettingsIconDetected(TECHNOLOGY_LABELS[technology])
+    : technologyFailed
+      ? t.projectSettingsIconUnreadable
+      : t.projectSettingsIconNotDetected;
+
+  return (
+    <div className="settings-groups">
+      <section className="settings-group">
+        <header className="settings-group__header">
+          <h3>{t.projectSettingsIconTitle}</h3>
+          <p>{t.projectSettingsIconDescription}</p>
+        </header>
+        <div className="settings-group__body project-settings-body">
+          <div className="project-icon-preview">
+            <ProjectAvatar
+              id={project.path}
+              name={projectName}
+              className="project-icon-preview__avatar"
+              iconChoice={iconChoice}
+              technology={technology}
+              style={avatarStyle}
+            />
+            <p className="settings-row__hint">{status}</p>
+          </div>
+
+          <div className="choice-list">
+            <button
+              type="button"
+              className={`choice-list__option${isAutomatic ? " choice-list__option--active" : ""}`}
+              aria-pressed={isAutomatic}
+              onClick={() => onChooseIcon(null)}
+            >
+              <span className="choice-list__label">{t.projectSettingsIconAutomatic}</span>
+              <span className="choice-list__description">{t.projectSettingsIconAutomaticHint}</span>
+            </button>
+
+            <button
+              type="button"
+              className={`choice-list__option${isInitials ? " choice-list__option--active" : ""}`}
+              aria-pressed={isInitials}
+              onClick={() => onChooseIcon(PROJECT_ICON_INITIALS)}
+            >
+              <span className="choice-list__label">{t.projectSettingsIconInitials}</span>
+              <span className="choice-list__description">{t.projectSettingsIconInitialsHint}</span>
+            </button>
+
+            <div
+              className={`project-icon-picker${chosen !== null ? " project-icon-picker--active" : ""}`}
+              role="group"
+              aria-labelledby={emojiLabelId}
+            >
+              <div className="project-icon-picker__header">
+                <span className="choice-list__label" id={emojiLabelId}>
+                  {t.projectSettingsIconEmoji}
+                </span>
+                <span className="choice-list__description">{t.projectSettingsIconEmojiHint}</span>
+              </div>
+              <div className="project-icon-picker__grid">
+                {PROJECT_ICON_EMOJIS.map((candidate) => {
+                  const isSelected = candidate === chosen;
+                  return (
+                    <button
+                      key={candidate}
+                      type="button"
+                      className={`project-icon-picker__item${isSelected ? " project-icon-picker__item--selected" : ""}`}
+                      aria-pressed={isSelected}
+                      aria-label={t.projectSettingsIconUseEmoji(candidate)}
+                      onClick={() => onChooseIcon(candidate)}
+                    >
+                      {candidate}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 /**
  * The settings that belong to one open project: where it publishes, what it
- * ignores, and who it saves as.
+ * ignores, who it saves as, and the icon it shows.
  *
  * Everything here is repository-scoped, which is why the panel takes a project
  * with its session epoch rather than reading an ambient current one, and why
@@ -942,6 +1067,11 @@ export function ProjectSettingsPanel({
   onSectionChange,
   port = projectSettingsPort,
   cache,
+  iconChoice = null,
+  technology = null,
+  technologyFailed = false,
+  avatarStyle = DEFAULT_PROJECT_AVATAR_STYLE,
+  onChooseIcon = () => undefined,
   onClose,
   onRegisterCloseGuard,
 }: {
@@ -953,6 +1083,19 @@ export function ProjectSettingsPanel({
   /** Answers kept between openings, owned by the shell because this panel is
    * unmounted every time it closes. Absent in tests that want a cold read. */
   cache?: ProjectSettingsCache | null;
+  /** The project's own icon choice (an emoji or "initials"), and the
+   * technology detected for it. The icon section previews the same identity
+   * the rail shows. */
+  iconChoice?: ProjectIconChoice;
+  technology?: TechnologyId | null;
+  /** True when the technology read failed; the section distinguishes that from
+   * a project with nothing detected. */
+  technologyFailed?: boolean;
+  /** The app-wide style, so the Automatic preview shows the identity the rail
+   * would actually use. */
+  avatarStyle?: ProjectAvatarStyle;
+  /** Sets or clears the project's own choice. The shell persists it. */
+  onChooseIcon?: (choice: ProjectIconChoice) => void;
   onClose?: () => void;
   /** Registered while an edit would be lost by closing, exactly as the
    * app-wide Settings panel guards its identity draft. */
@@ -1133,6 +1276,17 @@ export function ProjectSettingsPanel({
             onDraftChange={setIdentityDraft}
             isOverriding={isOverriding}
             onOverrideChange={setIsOverriding}
+          />
+        )}
+        {activeSection === "icon" && (
+          <IconSection
+            project={project}
+            projectName={projectName}
+            iconChoice={iconChoice}
+            technology={technology}
+            technologyFailed={technologyFailed}
+            avatarStyle={avatarStyle}
+            onChooseIcon={onChooseIcon}
           />
         )}
       </div>

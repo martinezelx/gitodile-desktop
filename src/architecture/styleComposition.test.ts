@@ -675,6 +675,16 @@ describe("production style composition", () => {
       ["features/overview/overview.css", ".journey-step__icon", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
       ["features/version-lines/version-lines.css", ".version-lines-avatar", "border-radius: var(--radius-round)"],
+      // Every project chip carries the neutral brand ring. The fixed palette
+      // cannot clear 3:1 on the lighter community dark panels (Nord, Catppuccin
+      // Frappé) with white text still at 4.5:1, so the ring is what keeps the
+      // chip edged against any surface — dropping it from one avatar is the
+      // regression this keeps from returning. See tokens.css and ADR 0012.
+      ["app/app-shell.css", ".sidebar-jump__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".sidebar-project__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".project-switcher__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".project-switcher-compact__avatar", "box-shadow: var(--avatar-ring)"],
+      ["features/overview/overview.css", ".welcome-recents__avatar", "box-shadow: var(--avatar-ring)"],
       // The shared filter trigger, which Changes and History both wear in the
       // trailing slot of their search box: an affordance attached to the box
       // rather than a control of its own, so it stays rectangular.

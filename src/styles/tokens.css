@@ -4,6 +4,11 @@
      the diff's font preference in TypeScript; the two must stay in step. */
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  /* The system colour-emoji stack, for a project's chosen emoji avatar. Left to
+     the platform rather than bundled: the render differs per OS, but an emoji
+     still reads as the emoji the user picked, and a colour-emoji font is a
+     heavy dependency for a decoration. */
+  --font-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 
   font-family: var(--font-sans);
   font-synthesis: none;
@@ -168,14 +173,27 @@
   /* Project avatar identity colors: fixed regardless of theme (like a
      person's avatar color in Slack/Linear/GitHub) — assigned per project by
      hashing its path (see projectAvatar.ts), not by theme or status, so a
-     project's color stays recognizable across light/dark and restarts.
+     project's color stays recognizable across themes and restarts.
      Evenly spaced across the cyan→pink arc, well clear of the brand green
      (~89°) and the warning/danger hues (~5–45°) used elsewhere for status.
      Each was picked to keep its white avatar text at >=4.5:1 contrast (WCAG
-     AA for small text) *and* the chip itself at >=3.7:1 against the dark
-     theme's near-black panels (WCAG's 3:1 minimum for non-text UI
-     components) — the same swatch works unmodified in both themes, no
-     light/dark override needed. */
+     AA for small text) *and* the chip itself at >=3.7:1 against the official
+     near-black panels (WCAG's 3:1 minimum for non-text UI components).
+
+     The palette cannot be re-tuned for every theme: the community dark
+     palettes put the chip on lighter panels (Nord #3b4252, Catppuccin Frappé
+     #303446), where a swatch light enough to clear 3:1 would push its white
+     text below 4.5:1. So the chip carries `--avatar-ring` instead — a neutral,
+     theme-independent dark edge that separates it from any panel without
+     recolouring the identity or needing a per-theme override. Declared once
+     here and never themed, like the swatches themselves.
+
+     It is near-opaque rather than a translucent hairline on purpose: a
+     translucent black composites to a light grey over a light theme, which
+     weakens the chip's edge instead of defining it. Near-opaque keeps the
+     chip bordered by a dark edge in both schemes (a swatch clears 3:1 against
+     it everywhere), while dissolving into the near-black official dark
+     panels where no separator was ever needed. */
   --avatar-color-0: #278657; /* teal   — cw 4.53:1, cd 3.84:1 */
   --avatar-color-1: #26827e; /* cyan   — cw 4.59:1, cd 3.79:1 */
   --avatar-color-2: #317aaa; /* sky    — cw 4.67:1, cd 3.73:1 */
@@ -185,5 +203,6 @@
   --avatar-color-6: #c639aa; /* fuchsia— cw 4.60:1, cd 3.78:1 */
   --avatar-color-7: #c94573; /* pink   — cw 4.58:1, cd 3.80:1 */
   --avatar-foreground: #fff;
+  --avatar-ring: 0 0 0 2px rgba(0, 0, 0, 0.9);
 }
 

@@ -129,8 +129,8 @@ The main desktop window should broadly support:
    - only destinations are captioned. The controls below the rule — project,
      add, Settings, account — carry no visible label in either display mode:
      they are stable shapes, and the two that are less self-evident sit
-     directly under what they act on (the avatar is the project's own
-     initials; the "+" is under it). Captioning four controls that never
+     directly under what they act on (the avatar identifies the active
+     project; the "+" is under it). Captioning four controls that never
      change cost a line of text each and turned the column into a wall of
      words. Their accessible names stay on the buttons and concise localized
      tooltips give pointer and keyboard users the same names. The project
@@ -186,7 +186,10 @@ The main desktop window should broadly support:
    branch is also the app's one global version-line control: its dropdown
    switches, creates and hands off to the Lines screen. No screen adds a
    second selector to its own header: two controls answering one question in
-   one window is how a reader stops trusting either.
+   one window is how a reader stops trusting either. A small project-settings
+   gear sits between the project name and the version-line control on every
+   screen with an open project. It names that project for keyboard and screen-
+   reader users and is absent from the no-project state.
    - it is chrome, not content: no fill, no radius, no shadow. Shadow signals
      stacking order, and this strip is the floor of the window rather than
      something resting on it; at 30px tall it could not carry the 14–18px card
@@ -768,6 +771,27 @@ verb, and keeps its plane.
 
 That rule governs **controls** — the glyph vocabulary a user learns to operate the app. It does not govern **artwork naming somebody else's product**, which Lucide has no glyphs for at all: file-type icons in the Changes list, and the stack and operating-system marks in About. Those come from the vscode-icons set already installed for file types, or — for the three OS marks, which that set does not carry — are drawn in `src/app/vendorMarks.tsx` and used nowhere else. They keep their vendor colours, because a logo reduced to one ink stops being recognizable at 14px, which is the only job it has. That is the trade: About accepts a handful of fixed colours it does not own so that nothing else in the app has to. The exception is a mark whose brand colour is an ink rather than a hue — Apple's, monochrome by its own definition, and Tux's black body, which is a hole in the layout on the dark dialog surface. Those take `currentColor` and the dialog's own surface, so they are legible in both themes; what identifies Tux at 14px is the silhouette and the yellow beak, not which side of the ink it is on.
 
+**A project's identity icon says what the project is.** The rail, the project
+switcher and the welcome recents draw one chip per project. A per-project choice
+— an emoji chosen by the user, or the two letters — wins; otherwise the chip
+follows the app-wide **Interface → Project icons** setting, which offers three
+styles and defaults to **Technology**: the language or framework detected from
+the project's own root manifests (a desktop platform such as Tauri first, then a
+framework, then a language — a bounded, read-only local scan, see
+`src-tauri/src/technology.rs`); **Initials**, the colour-and-initials chip the
+app has always used; or **Random**, a stable animal per project that the user
+can then replace in that project's own settings. The detected mark is vendor
+artwork from the same vscode-icons set with its own colours, so it sits on a
+neutral tray rather than the identity colour; the emoji uses the system emoji
+font and is sized from the chip rather than from the initials' text, because
+bundling a colour-emoji font for a decoration is not worth the weight. A
+per-project choice is stored per machine, keyed by the project, never in the
+  repository, and the project's own **Project settings → Icon** section is where
+  it is picked or returned to automatic. The chip keeps `--avatar-ring` and stays
+  fixed across themes: the choice is identity, not theme. A closed recent
+  project keeps its last detected mark across restarts; an entry never triggers
+  a repository scan merely because the welcome screen appears.
+
 Brand identity (mark + name) appears in exactly one visible place at a time, never two. **The titlebar is the canonical one**, and the rail carries no brand block: a 40px lockup at the top of the rail spent that column's most valuable real estate on something that never changes, and forced the titlebar to suppress its own mark to avoid reading as a double logo. One mark, in the window furniture, next to the controls it belongs with. The wordmark joins it only below the 800px breakpoint, where the rail is gone and nothing else on screen names the app.
 
 The mark is the crocodile silhouette itself, not a silhouette knocked out of a green tile, and it is painted in `--accent-primary` — *not* `--accent-brand`. This follows the standing rule below rather than breaking it: the brand lime is a single fixed value in both themes, which works behind a tile it also supplies the contrast for, but a bare mark on the light app surface measures 1.95:1 with it. `--accent-primary` is the per-theme green and measures 5.09:1 on light and 11.46:1 on dark. The About dialog uses the same treatment at hero scale — one identity, one rendering.
@@ -802,8 +826,11 @@ Colour is two layers, and a theme is a record that fills only the second one
 
 **Brand identity (never themed).** `--accent-brand` and
 `--accent-brand-contrast` — the fixed brand lime and its contrast — plus
-`--avatar-color-*`, `--avatar-foreground` and `--tooltip-*`, are declared once
-in `src/styles/tokens.css`. No theme may set them. This layer is identity, not
+`--avatar-color-*`, `--avatar-foreground`, `--avatar-ring` and `--tooltip-*`,
+are declared once in `src/styles/tokens.css`. No theme may set them.
+`--avatar-ring` is a neutral dark edge the project chip carries so it stays
+separated from the lighter panels of some community palettes (Nord, Catppuccin
+Frappé) without a per-theme colour override. This layer is identity, not
 action: the actionable accent is `--accent-primary`, which the theme owns, so
 the primary action, the notification badge, the attention halo, navigation and
 focus all follow the theme rather than fighting it. The fixed lime is `#8bc53f`

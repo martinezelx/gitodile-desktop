@@ -15,8 +15,14 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage } from "../../i18n";
-import { avatarColorVar, avatarInitials } from "../../shared/ui/projectAvatar";
-import { handlePopupMenuKeyDown, usePortalFlyout } from "../../shared/ui";
+import {
+  handlePopupMenuKeyDown,
+  usePortalFlyout,
+  ProjectAvatar,
+  type ProjectAvatarStyle,
+  type ProjectIconChoice,
+  type TechnologyId,
+} from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui/autoHideScrollbar";
 
 export type ProjectSwitcherEntry = {
@@ -27,6 +33,13 @@ export type ProjectSwitcherEntry = {
   hasOperationInProgress: boolean;
   hasUnsavedChanges: boolean;
   isFavourite: boolean;
+  /** The project's own icon choice (an emoji or "initials"), or null to follow
+   * the global style. */
+  iconChoice?: ProjectIconChoice;
+  /** The detected technology, shown under the emoji and over the initials. */
+  technology?: TechnologyId | null;
+  /** The global avatar appearance preference carried onto every row. */
+  avatarStyle?: ProjectAvatarStyle;
 };
 
 type ProjectSwitcherProps = {
@@ -292,13 +305,14 @@ function ProjectSwitcherRows({
               data-tooltip={!canSwitch && !isActive ? t.projectSwitcherSwitchBlockedHint : undefined}
               onClick={() => onActivate(entry.id)}
             >
-              <span
+              <ProjectAvatar
+                id={entry.id}
+                name={entry.name}
                 className="project-switcher__avatar"
-                aria-hidden="true"
-                style={{ backgroundColor: avatarColorVar(entry.id) }}
-              >
-                {avatarInitials(entry.name)}
-              </span>
+                iconChoice={entry.iconChoice}
+                technology={entry.technology}
+                style={entry.avatarStyle}
+              />
               <span className="project-switcher__copy">
                 <span className="project-switcher__name">{entry.name}</span>
                 {entry.contextLabel && (
@@ -440,13 +454,14 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
               isOpen ? close(true) : (setQuery(""), setFavouritesOnly(false), setIsOpen(true));
             }}
           >
-            <span
+            <ProjectAvatar
+              id={activeEntry.id}
+              name={activeEntry.name}
               className="sidebar-project__avatar"
-              aria-hidden="true"
-              style={{ backgroundColor: avatarColorVar(activeEntry.id) }}
-            >
-              {avatarInitials(activeEntry.name)}
-            </span>
+              iconChoice={activeEntry.iconChoice}
+              technology={activeEntry.technology}
+              style={activeEntry.avatarStyle}
+            />
             <span className="sidebar-project__chevron" aria-hidden="true">
               <ChevronDown />
             </span>
@@ -625,13 +640,14 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
         onClick={() => setIsOpen((open) => !open)}
       >
         {activeEntry && (
-          <span
+          <ProjectAvatar
+            id={activeEntry.id}
+            name={activeEntry.name}
             className="project-switcher-compact__avatar"
-            aria-hidden="true"
-            style={{ backgroundColor: avatarColorVar(activeEntry.id) }}
-          >
-            {avatarInitials(activeEntry.name)}
-          </span>
+            iconChoice={activeEntry.iconChoice}
+            technology={activeEntry.technology}
+            style={activeEntry.avatarStyle}
+          />
         )}
       </button>
       {isOpen && (

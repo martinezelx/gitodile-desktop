@@ -41,6 +41,15 @@ export interface SettingsTranslations {
   settingsMotionTitle: string;
   reduceMotionLabel: string;
   reduceMotionDescription: string;
+  settingsProjectIconsTitle: string;
+  settingsProjectIconsDescription: string;
+  settingsProjectIconsAriaLabel: string;
+  projectIconsStyleTechnology: string;
+  projectIconsStyleInitials: string;
+  projectIconsStyleRandom: string;
+  projectIconsStyleTechnologyHint: string;
+  projectIconsStyleInitialsHint: string;
+  projectIconsStyleRandomHint: string;
   settingsGeneralTitle: string;
   settingsNotificationsTitle: string;
   settingsNotificationsWhileAwayTitle: string;
@@ -226,6 +235,16 @@ const en: SettingsTranslations = {
   reduceMotionLabel: "Reduce motion",
   reduceMotionDescription:
     "Turn off interface transitions and animations. Your system motion preference is always respected.",
+  settingsProjectIconsTitle: "Project icons",
+  settingsProjectIconsDescription:
+    "The default for every project, changeable in each project's settings.",
+  settingsProjectIconsAriaLabel: "Project icon style",
+  projectIconsStyleTechnology: "Technology",
+  projectIconsStyleInitials: "Initials",
+  projectIconsStyleRandom: "Random",
+  projectIconsStyleTechnologyHint: "The detected logo.",
+  projectIconsStyleInitialsHint: "The project's two letters.",
+  projectIconsStyleRandomHint: "A different animal per project.",
   settingsGeneralTitle: "General",
   settingsNotificationsTitle: "Notifications",
   settingsNotificationsWhileAwayTitle: "While you're doing something else",
@@ -425,6 +444,16 @@ const es: SettingsTranslations = {
   reduceMotionLabel: "Reducir movimiento",
   reduceMotionDescription:
     "Desactiva las transiciones y animaciones de la interfaz. La preferencia de movimiento del sistema se respeta siempre.",
+  settingsProjectIconsTitle: "Iconos de proyecto",
+  settingsProjectIconsDescription:
+    "El valor por defecto para todos los proyectos, cambiable en los ajustes de cada uno.",
+  settingsProjectIconsAriaLabel: "Estilo del icono de proyecto",
+  projectIconsStyleTechnology: "Tecnología",
+  projectIconsStyleInitials: "Iniciales",
+  projectIconsStyleRandom: "Aleatorio",
+  projectIconsStyleTechnologyHint: "El logo detectado.",
+  projectIconsStyleInitialsHint: "Las dos letras del proyecto.",
+  projectIconsStyleRandomHint: "Un animal distinto por proyecto.",
   settingsGeneralTitle: "General",
   settingsNotificationsTitle: "Notificaciones",
   settingsNotificationsWhileAwayTitle: "Mientras estás en otra cosa",

@@ -42,6 +42,7 @@
   width: 20px; height: 20px; flex-shrink: 0;
   display: grid; place-items: center;
   border-radius: var(--radius-round); color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
   font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
 
@@ -366,6 +367,7 @@
   cursor: default;
   user-select: none;
 }
+.status-bar__project-settings { color: var(--text-secondary-color); }
 .status-bar .version-lines-quick-switch {
   display: flex;
   align-items: center;
@@ -697,6 +699,7 @@
 .sidebar-project__avatar {
   width: 36px; height: 36px; display: grid; place-items: center;
   border-radius: var(--radius-round); color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
   font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
   transition: filter var(--duration-fast), transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -891,7 +894,9 @@
 .project-switcher__button:disabled { opacity: 0.45; }
 .project-switcher__avatar {
   flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
-  border-radius: var(--radius-round); color: var(--avatar-foreground); font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
+  border-radius: var(--radius-round); color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
+  font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
 .project-switcher__button--active .project-switcher__avatar { box-shadow: 0 0 0 2px var(--accent-primary); }
 .project-switcher__copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
@@ -990,7 +995,9 @@
 .project-switcher-compact__trigger svg { width: 16px; height: 16px; }
 .project-switcher-compact__avatar {
   width: 100%; height: 100%; display: grid; place-items: center;
-  border-radius: var(--radius-round); color: var(--avatar-foreground); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
+  border-radius: var(--radius-round); color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
+  font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
 .project-switcher-compact__popover {
   position: absolute; z-index: 5; top: calc(100% + var(--space-2)); left: 0; min-width: 220px;

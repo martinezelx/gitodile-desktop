@@ -103,6 +103,7 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
     onCreateVersionLine: vi.fn(),
     onSeeAllVersionLines: vi.fn(),
     onCheckTeamChanges: vi.fn(),
+    onOpenProjectSettings: vi.fn(),
     onPublish: vi.fn(),
     onOpenChangelog: vi.fn(),
     ...overrides,
@@ -132,7 +133,24 @@ describe("StatusBar", () => {
     await userEvent.click(release);
     expect(onOpenChangelog).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Settings for/ })).not.toBeInTheDocument();
     expect(screen.queryByText("Up to date")).not.toBeInTheDocument();
+  });
+
+  it("opens the active project's settings between its name and version line", async () => {
+    const onOpenProjectSettings = vi.fn();
+    const onPrefetchProjectSettings = vi.fn();
+    renderBar({ onOpenProjectSettings, onPrefetchProjectSettings });
+
+    const button = screen.getByRole("button", { name: "Settings for gitodile" });
+    expect(button).toHaveAttribute("data-tooltip", "Project settings");
+    expect(button.previousElementSibling).toHaveClass("status-bar__project");
+    expect(button.nextElementSibling).toHaveClass("version-lines-quick-switch");
+    await userEvent.hover(button);
+    button.focus();
+    expect(onPrefetchProjectSettings).toHaveBeenCalled();
+    await userEvent.click(button);
+    expect(onOpenProjectSettings).toHaveBeenCalledOnce();
   });
 
   it("shows real line, working-tree, remote, freshness, and refresh state", async () => {
@@ -239,6 +257,7 @@ describe("StatusBar", () => {
           onCreateVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
+          onOpenProjectSettings={vi.fn()}
           onPublish={vi.fn()}
           onOpenChangelog={vi.fn()}
         />
@@ -263,6 +282,7 @@ describe("StatusBar", () => {
           onCreateVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
+          onOpenProjectSettings={vi.fn()}
           onPublish={vi.fn()}
           onOpenChangelog={vi.fn()}
         />

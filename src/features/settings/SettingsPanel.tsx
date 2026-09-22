@@ -31,7 +31,16 @@ import {
   type DateFormatPreference,
   type NumberFormatPreference,
 } from "../../shared/i18n";
-import { autoHideScrollbarProps, moveFocusWithinRadioGroup, ToggleSwitch } from "../../shared/ui";
+import {
+  autoHideScrollbarProps,
+  moveFocusWithinRadioGroup,
+  ToggleSwitch,
+  DEFAULT_PROJECT_AVATAR_STYLE,
+  ProjectAvatar,
+  PROJECT_AVATAR_STYLES,
+  type ProjectAvatarStyle,
+  type TechnologyId,
+} from "../../shared/ui";
 import {
   COMMUNITY_THEMES,
   OFFICIAL_THEMES,
@@ -75,6 +84,15 @@ import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from ".
 import type { SettingsPort } from "./port";
 import { settingsPort } from "./tauriAdapter";
 import type { DefaultBranchState, GitIdentityState, LineEndingsState } from "./useGitConfig";
+
+/** Three fixed sample projects the appearance picker previews each style with.
+ * The same names, ids and technologies are shown under all three options, so
+ * the comparison is of the style, not of the samples. */
+const PROJECT_ICON_SAMPLES: ReadonlyArray<{ id: string; name: string; technology: TechnologyId }> = [
+  { id: "/samples/gitodile", name: "gitodile", technology: "tauri" },
+  { id: "/samples/atlas", name: "atlas", technology: "rust" },
+  { id: "/samples/web", name: "web app", technology: "react" },
+];
 
 /** A miniature of the app drawn in a theme's own tokens. `data-theme` scopes
  * the palette to this subtree, so the preview shows the real thing rather than
@@ -311,6 +329,8 @@ export function SettingsPanel({
   setTheme,
   reducedMotion,
   setReducedMotion,
+  projectAvatarStyle = DEFAULT_PROJECT_AVATAR_STYLE,
+  setProjectAvatarStyle = () => undefined,
   activeSection,
   onSectionChange,
   gitDiagnostics,
@@ -351,6 +371,8 @@ export function SettingsPanel({
   setTheme: (theme: ThemePreference) => void;
   reducedMotion: boolean;
   setReducedMotion: (value: boolean) => void;
+  projectAvatarStyle?: ProjectAvatarStyle;
+  setProjectAvatarStyle?: (style: ProjectAvatarStyle) => void;
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   gitDiagnostics: GitDiagnostics | null;
@@ -1198,6 +1220,62 @@ export function SettingsPanel({
                     checked={reducedMotion}
                     onChange={setReducedMotion}
                   />
+                </div>
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsProjectIconsTitle}</h3>
+                <p>{t.settingsProjectIconsDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                <div
+                  className="project-icons-picker"
+                  role="radiogroup"
+                  aria-label={t.settingsProjectIconsAriaLabel}
+                  onKeyDown={moveFocusWithinRadioGroup}
+                >
+                  {PROJECT_AVATAR_STYLES.map((option) => {
+                    const isActive = projectAvatarStyle === option;
+                    const label =
+                      option === "initials"
+                        ? t.projectIconsStyleInitials
+                        : option === "random"
+                          ? t.projectIconsStyleRandom
+                          : t.projectIconsStyleTechnology;
+                    const hint =
+                      option === "initials"
+                        ? t.projectIconsStyleInitialsHint
+                        : option === "random"
+                          ? t.projectIconsStyleRandomHint
+                          : t.projectIconsStyleTechnologyHint;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        tabIndex={isActive ? 0 : -1}
+                        className={`project-icons-card${isActive ? " project-icons-card--active" : ""}`}
+                        onClick={() => setProjectAvatarStyle(option)}
+                      >
+                        <span className="project-icons-card__preview" aria-hidden="true">
+                          {PROJECT_ICON_SAMPLES.map((sample) => (
+                            <ProjectAvatar
+                              key={sample.id}
+                              id={sample.id}
+                              name={sample.name}
+                              className="project-icons-card__avatar"
+                              technology={sample.technology}
+                              style={option}
+                            />
+                          ))}
+                        </span>
+                        <span className="project-icons-card__label">{label}</span>
+                        <span className="project-icons-card__hint">{hint}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </section>

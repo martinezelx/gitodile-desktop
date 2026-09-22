@@ -103,9 +103,11 @@ describe("section labels", () => {
       projectSettingsRemote: "Remote",
       projectSettingsIgnored: "Ignored files",
       projectSettingsIdentity: "Identity",
+      projectSettingsIcon: "Icon",
     };
     expect(projectSettingsSectionLabel("remote", t)).toBe("Remote");
     expect(projectSettingsSectionLabel("ignored", t)).toBe("Ignored files");
     expect(projectSettingsSectionLabel("identity", t)).toBe("Identity");
+    expect(projectSettingsSectionLabel("icon", t)).toBe("Icon");
   });
 });

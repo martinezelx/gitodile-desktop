@@ -29,6 +29,7 @@ mod save_version;
 mod session;
 mod status;
 mod sync;
+mod technology;
 mod tooling;
 mod version_lines;
 mod watch;
@@ -133,6 +134,7 @@ pub fn run() {
             ipc::clear_project_identity,
             ipc::read_ignore_file,
             ipc::write_ignore_file,
+            ipc::read_project_technology,
             ipc::read_team_sync_status,
             ipc::check_team_changes,
             ipc::plan_get_team_changes,

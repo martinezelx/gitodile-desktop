@@ -114,6 +114,19 @@ Split the colour token contract into two layers, declared in one stylesheet:
 - Record each admitted community palette and its role mapping in the same
   place, with the palette's canonical source.
 
+### Amendment: avatar outline for the lighter community panels
+
+The original palette guarantee held against the official near-black panels (the
+`cd` figures in `tokens.css`). The community dark palettes broke it: Nord
+(`#3b4252`) and Catppuccin Frappé (`#303446`) place the chip on a panel light
+enough that no swatch can keep white text at 4.5:1 *and* clear 3:1 against the
+panel. Re-tuning the palette cannot help - it already sits at the white-text
+ceiling - and a per-theme `--avatar-color-*` override is both forbidden here and
+would break the recognisable per-project colour. So the chip carries a neutral,
+theme-independent dark edge instead: `--avatar-ring`, declared once in
+`tokens.css` beside the swatches. It stays in Layer A and is guarded by the same
+contract test.
+
 ## Consequences
 
 - Adding a theme is a CSS record plus a registry entry; it does not touch

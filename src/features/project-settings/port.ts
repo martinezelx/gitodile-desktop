@@ -7,6 +7,7 @@ import type {
   ProjectRemotes,
   ProjectSettingsTarget,
 } from "./domain";
+import type { ProjectTechnology } from "../../shared/ui";
 
 /**
  * Everything this panel can ask of the open project.
@@ -48,6 +49,9 @@ export interface ProjectSettingsPort {
   setIdentity(project: ProjectSettingsTarget, identity: IdentityDraft): Promise<ProjectIdentity>;
   /** Removes the local override so the project inherits again. */
   clearIdentity(project: ProjectSettingsTarget): Promise<ProjectIdentity>;
+  /** The language or framework detected for the open project, for its identity
+   * icon. Read-only and local; `null` technology means nothing was recognised. */
+  readTechnology(project: ProjectSettingsTarget): Promise<ProjectTechnology>;
   readIgnoreFile(project: ProjectSettingsTarget, scope: IgnoreScope): Promise<IgnoreFile>;
   /** `stateToken` is the one from the read this edit started from; a file
    * changed on disk since then is refused rather than overwritten. */

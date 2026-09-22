@@ -55,6 +55,7 @@
     { "name": "clear_project_identity", "arguments": ["path", "sessionEpoch"], "response": "ProjectIdentity" },
     { "name": "read_ignore_file", "arguments": ["path", "sessionEpoch", "scope"], "response": "IgnoreFile" },
     { "name": "write_ignore_file", "arguments": ["path", "sessionEpoch", "scope", "contents", "stateToken"], "response": "IgnoreFile" },
+    { "name": "read_project_technology", "arguments": ["path", "sessionEpoch"], "response": "ProjectTechnology" },
     { "name": "read_team_sync_status", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
     { "name": "check_team_changes", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
     { "name": "plan_get_team_changes", "arguments": ["path", "sessionEpoch", "onProgress"], "response": "GetTeamChangesPlan" },

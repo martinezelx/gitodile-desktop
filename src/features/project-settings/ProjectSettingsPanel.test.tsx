@@ -66,6 +66,7 @@ function createPort(overrides: Partial<ProjectSettingsPort> = {}): ProjectSettin
     })),
     connectRemote: vi.fn(async () => undefined),
     readIdentity: vi.fn(async () => IDENTITY),
+    readTechnology: vi.fn(async () => ({ path: "/repo", technology: null, source: null })),
     setIdentity: vi.fn(async (_project, draft) => ({
       ...IDENTITY,
       localName: draft.name,

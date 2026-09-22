@@ -915,6 +915,7 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   place-items: center;
   border-radius: var(--radius-round);
   color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
   font-size: var(--text-micro);
   font-weight: var(--weight-title);
   letter-spacing: var(--tracking-wide);

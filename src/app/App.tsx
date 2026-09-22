@@ -119,6 +119,8 @@ import {
   resolveEffectiveThemeScheme,
   useStoredBoolean,
   useStoredFavouriteProjects,
+  useStoredProjectAvatarStyle,
+  useStoredProjectIconChoices,
   useStoredDiffPreferences,
   useStoredNavigationPreferences,
   useStoredRemoteCheckInterval,
@@ -147,6 +149,7 @@ import {
   forgetRecentProject,
   readRecentProjects,
   rememberRecentProject,
+  rememberRecentProjectTechnology,
   type RecentProject,
 } from "../runtime/project/recentProjects";
 import { createProjectRuntime, scheduleIdleTask, useProjectSelector } from "../runtime/project/runtime";
@@ -157,7 +160,9 @@ import {
   type ProjectSwitcherEntry,
   orderByFavourite,
 } from "./project-switcher/ProjectSwitcher";
-import { avatarColorVar, avatarInitials } from "../shared/ui/projectAvatar";
+import { ProjectAvatar } from "../shared/ui/projectAvatarView";
+import { isTechnologyId } from "../shared/ui/projectIdentity";
+import { useProjectTechnologies } from "./projectTechnologies";
 import {
   ChangesPanel,
   HistoryScreen,
@@ -328,6 +333,19 @@ export function App(): React.JSX.Element {
   );
   const sessionsState = useProjectSelector(projectRuntime, (snapshot) => snapshot);
   const dispatchSessions = projectRuntime.dispatch;
+  // The technology detected for each open project, read once per session and
+  // cached. The identity chip prefers it over the initials and under a chosen
+  // emoji (task 130).
+  const technologyTargets = useMemo(
+    () =>
+      sessionsState.order.map((id) => {
+        const session = sessionsState.byId[id];
+        return { id, path: session.project.path, sessionEpoch: session.epoch };
+      }),
+    [sessionsState.order, sessionsState.byId],
+  );
+  const { technologies: projectTechnologies, failed: technologyFailures } =
+    useProjectTechnologies(technologyTargets);
   // Tracks only native watcher registrations. Read generations, mutation
   // deferral and diff retention belong to the feature controllers above.
   const watchedSessionsRef = useRef<Record<string, string>>({});
@@ -690,6 +708,8 @@ export function App(): React.JSX.Element {
     SIDEBAR_HIDDEN_DEFAULT,
   );
   const [favouriteProjectIds, toggleFavouriteProject] = useStoredFavouriteProjects();
+  const [projectIconChoices, setProjectIconChoice] = useStoredProjectIconChoices();
+  const [projectAvatarStyle, setProjectAvatarStyle] = useStoredProjectAvatarStyle();
   // A short jump menu hanging off the collapse control, for reaching a
   // destination while the rail is away. Hover-opened, so it needs the same
   // grace period any hover menu does: the menu portals to `body` and sits a
@@ -789,12 +809,36 @@ export function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionsState.order, sessionsState.byId]);
 
+  // A successful read updates the recent entry once. The welcome list can
+  // then show a closed project's last detected mark after an app restart,
+  // without reading a repository merely to render that list.
+  useEffect(() => {
+    let updated: RecentProject[] | null = null;
+    for (const project of technologyTargets) {
+      if (!projectTechnologies.has(project.id) || technologyFailures.has(project.id)) continue;
+      const entries = rememberRecentProjectTechnology(
+        project.id,
+        projectTechnologies.get(project.id) ?? null,
+      );
+      if (entries) updated = entries;
+    }
+    if (updated) setRecentProjects(updated);
+  }, [technologyTargets, projectTechnologies, technologyFailures]);
+
   // Favourites first, then by recency — ordered *before* the welcome screen
   // takes its slice, so a project someone starred stays reachable there after
   // it has aged out of the newest few. The star itself is the app's existing
   // project favourite, not a second list-local mark.
   const recentProjectEntries = orderByFavourite(
-    recentProjects.map((entry) => ({ ...entry, isFavourite: favouriteProjectIds.has(entry.path) })),
+    recentProjects.map((entry) => ({
+      ...entry,
+      isFavourite: favouriteProjectIds.has(entry.path),
+      iconChoice: projectIconChoices.get(entry.path) ?? null,
+      technology: projectTechnologies.has(entry.path)
+        ? (projectTechnologies.get(entry.path) ?? null)
+        : (isTechnologyId(entry.technology) ? entry.technology : null),
+      avatarStyle: projectAvatarStyle,
+    })),
   );
 
   const openPalette = (): void => {
@@ -1678,6 +1722,9 @@ export function App(): React.JSX.Element {
       ),
       hasUnsavedChanges: Boolean(session.workingTree && !session.workingTree.isClean),
       isFavourite: favouriteProjectIds.has(id),
+      iconChoice: projectIconChoices.get(id) ?? null,
+      technology: projectTechnologies.get(id) ?? null,
+      avatarStyle: projectAvatarStyle,
     };
   });
   /**
@@ -1898,13 +1945,14 @@ export function App(): React.JSX.Element {
                     activateSession(entry.id);
                   }}
                 >
-                  <span
+                  <ProjectAvatar
+                    id={entry.id}
+                    name={entry.name}
                     className="sidebar-jump__avatar"
-                    aria-hidden="true"
-                    style={{ backgroundColor: avatarColorVar(entry.id) }}
-                  >
-                    {avatarInitials(entry.name)}
-                  </span>
+                    iconChoice={entry.iconChoice}
+                    technology={entry.technology}
+                    style={entry.avatarStyle}
+                  />
                   <span>{entry.name}</span>
                 </button>
               ))}
@@ -2474,6 +2522,8 @@ export function App(): React.JSX.Element {
               mapSyncError,
             );
           }}
+          onOpenProjectSettings={() => openProjectSettings()}
+          onPrefetchProjectSettings={() => prefetchProjectSettings()}
           onPublish={() => openPublishDialog()}
           onOpenChangelog={() => setIsChangelogOpen(true)}
         />
@@ -2694,6 +2744,13 @@ export function App(): React.JSX.Element {
           section: projectSettingsSection,
           setSection: setProjectSettingsSection,
           cache: projectSettingsCache,
+          iconChoice: project ? (projectIconChoices.get(project.path) ?? null) : null,
+          technology: project ? (projectTechnologies.get(project.path) ?? null) : null,
+          technologyFailed: project ? technologyFailures.has(project.path) : false,
+          avatarStyle: projectAvatarStyle,
+          onChooseIcon: (choice: string | null) => {
+            if (project) setProjectIconChoice(project.path, choice);
+          },
         }}
         settings={{
           isOpen: isSettingsOpen,
@@ -2702,6 +2759,8 @@ export function App(): React.JSX.Element {
           setTheme: changeTheme,
           reducedMotion,
           setReducedMotion,
+          projectAvatarStyle,
+          setProjectAvatarStyle,
           section: settingsSection,
           setSection: setSettingsSection,
           gitTooling,

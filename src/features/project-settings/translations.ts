@@ -79,6 +79,20 @@ export interface ProjectSettingsTranslations {
   projectSettingsIdentityInvalid: string;
   projectSettingsIdentitySaved: string;
   projectSettingsIdentityCleared: string;
+
+  projectSettingsIcon: string;
+  projectSettingsIconTitle: string;
+  projectSettingsIconDescription: string;
+  projectSettingsIconAutomatic: string;
+  projectSettingsIconAutomaticHint: string;
+  projectSettingsIconInitials: string;
+  projectSettingsIconInitialsHint: string;
+  projectSettingsIconDetected: (technology: string) => string;
+  projectSettingsIconNotDetected: string;
+  projectSettingsIconUnreadable: string;
+  projectSettingsIconEmoji: string;
+  projectSettingsIconEmojiHint: string;
+  projectSettingsIconUseEmoji: (emoji: string) => string;
 }
 
 export const projectSettingsTranslations: {
@@ -184,6 +198,21 @@ export const projectSettingsTranslations: {
     projectSettingsIdentityInvalid: "Enter a name and an email address.",
     projectSettingsIdentitySaved: "This project now saves under its own identity.",
     projectSettingsIdentityCleared: "This project is back to your Git identity.",
+
+    projectSettingsIcon: "Icon",
+    projectSettingsIconTitle: "Project icon",
+    projectSettingsIconDescription:
+      "Give this project its own icon, or leave it on automatic to follow the Project icons style in Appearance.",
+    projectSettingsIconAutomatic: "Automatic",
+    projectSettingsIconAutomaticHint: "Follow the app's project icon setting.",
+    projectSettingsIconInitials: "Initials",
+    projectSettingsIconInitialsHint: "Show this project's two letters.",
+    projectSettingsIconDetected: (technology) => `Detected: ${technology}`,
+    projectSettingsIconNotDetected: "No known technology detected.",
+    projectSettingsIconUnreadable: "Couldn't read this project's technology.",
+    projectSettingsIconEmoji: "Emoji",
+    projectSettingsIconEmojiHint: "Pick a face or an animal.",
+    projectSettingsIconUseEmoji: (emoji) => `Use ${emoji} for this project`,
   },
   es: {
     projectSettingsTitle: "Ajustes del proyecto",
@@ -284,5 +313,20 @@ export const projectSettingsTranslations: {
     projectSettingsIdentityInvalid: "Escribe un nombre y un correo electrónico.",
     projectSettingsIdentitySaved: "Este proyecto ya guarda con su propia identidad.",
     projectSettingsIdentityCleared: "Este proyecto vuelve a tu identidad de Git.",
+
+    projectSettingsIcon: "Icono",
+    projectSettingsIconTitle: "Icono del proyecto",
+    projectSettingsIconDescription:
+      "Dale a este proyecto su propio icono o déjalo en automático para seguir el estilo de Iconos de proyecto de Apariencia.",
+    projectSettingsIconAutomatic: "Automático",
+    projectSettingsIconAutomaticHint: "Sigue el ajuste de iconos de proyecto de la aplicación.",
+    projectSettingsIconInitials: "Iniciales",
+    projectSettingsIconInitialsHint: "Muestra las dos letras de este proyecto.",
+    projectSettingsIconDetected: (technology) => `Detectado: ${technology}`,
+    projectSettingsIconNotDetected: "No se ha detectado ninguna tecnología conocida.",
+    projectSettingsIconUnreadable: "No se pudo leer la tecnología de este proyecto.",
+    projectSettingsIconEmoji: "Emoji",
+    projectSettingsIconEmojiHint: "Elige una cara o un animal.",
+    projectSettingsIconUseEmoji: (emoji) => `Usar ${emoji} para este proyecto`,
   },
 };

@@ -31,6 +31,7 @@ use crate::{
         self, ConnectRemotePlan, ConnectRemoteResult, GetTeamChangesPhase, GetTeamChangesPlan,
         GetTeamChangesResult, ProjectRemotes, RemoteDiscovery, TeamSyncStatus,
     },
+    technology::{self, ProjectTechnology},
     tooling::{
         self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
         GitUpdateLaunchResult, GitUpdateStatus,
@@ -757,6 +758,20 @@ pub(crate) fn write_ignore_file(
         (|| {
             validate_session(&path, &session_epoch)?;
             project_settings::write_ignore_file(path, scope, contents, state_token)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_project_technology(
+    path: String,
+    session_epoch: String,
+) -> Result<ProjectTechnology, AppError> {
+    report_result(
+        "read_project_technology",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            technology::read_project_technology(path)
         })(),
     )
 }

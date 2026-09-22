@@ -116,6 +116,44 @@
 }
 .project-settings-caveat svg { flex-shrink: 0; width: 14px; height: 14px; margin-top: 2px; }
 
+/* The icon section: a preview of the identity the rail shows, the automatic
+   choice, and the emoji picker. The preview box mirrors an avatar's own shape
+   (round, brand ring) at a comfortable size. */
+.project-icon-preview {
+  display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4);
+}
+.project-icon-preview__avatar {
+  width: 56px; height: 56px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: var(--radius-round); color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
+  font-size: var(--text-subtitle); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
+}
+.project-icon-picker {
+  display: grid; gap: 3px; padding: 10px var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+  background: var(--surface-raised);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.project-icon-picker--active {
+  border-color: var(--text-secondary-color);
+  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-raised));
+}
+.project-icon-picker__header { display: grid; gap: 3px; }
+.project-icon-picker__grid { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.project-icon-picker__item {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  font-family: var(--font-emoji); font-size: var(--text-display); line-height: var(--leading-none);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-raised);
+  transition: background var(--duration-fast), border-color var(--duration-fast), transform var(--duration-fast);
+}
+.project-icon-picker__item:hover { background: var(--surface-hover); transform: translateY(-1px); }
+.project-icon-picker__item--selected {
+  border-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
 @media (max-width: 800px) {
   .project-settings-remote__row { flex-direction: column; align-items: stretch; }
   .project-settings-identity__fields { grid-template-columns: 1fr; }

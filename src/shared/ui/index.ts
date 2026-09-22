@@ -71,3 +71,25 @@ export { ToggleSwitch } from "./toggleSwitch";
    the welcome screen's recent-projects list needed the same identity — same
    colour, same initials, for the same project. */
 export { avatarColorVar, avatarInitials } from "./projectAvatar";
+/* Task 130: the same identity, now topping out at a chosen emoji or a detected
+   technology before it reaches the initials. One component keeps the five
+   avatar call sites from re-deriving the precedence and the artwork. */
+export { ProjectAvatar, type ProjectAvatarProps } from "./projectAvatarView";
+export {
+  DEFAULT_PROJECT_AVATAR_STYLE,
+  isProjectAvatarStyle,
+  isTechnologyId,
+  PROJECT_ICON_INITIALS,
+  resolveProjectIdentity,
+  sanitizeEmoji,
+  PROJECT_AVATAR_STYLES,
+  PROJECT_ICON_EMOJIS,
+  TECHNOLOGY_IDS,
+  TECHNOLOGY_LABELS,
+  type ProjectAvatarStyle,
+  type ProjectIconChoice,
+  type ProjectIdentity,
+  type ProjectTechnology,
+  type TechnologyId,
+  type TechnologySource,
+} from "./projectIdentity";

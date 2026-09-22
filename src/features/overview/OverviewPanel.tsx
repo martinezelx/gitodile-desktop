@@ -15,7 +15,12 @@ import {
 
 import { useLanguage } from "../../i18n";
 import type { RecentProject } from "../../runtime/project/recentProjects";
-import { avatarColorVar, avatarInitials } from "../../shared/ui";
+import {
+  ProjectAvatar,
+  type ProjectAvatarStyle,
+  type ProjectIconChoice,
+  type TechnologyId,
+} from "../../shared/ui";
 import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
 import { getWorkingTreeBreakdown, type WorkingTreeStatus } from "../status";
 import type { PendingVersionsResult } from "../publish";
@@ -75,7 +80,12 @@ export function ProjectPath({ path, onCopyError }: { path: string; onCopyError: 
  * store, so a project starred in either place is starred in both. Ordering is
  * done by the caller (`orderByFavourite`), which owns that rule for every list
  * that shows favourites. */
-type WelcomeRecentEntry = RecentProject & { isFavourite: boolean };
+type WelcomeRecentEntry = RecentProject & {
+  isFavourite: boolean;
+  iconChoice?: ProjectIconChoice;
+  technology?: TechnologyId | null;
+  avatarStyle?: ProjectAvatarStyle;
+};
 
 /** How many recent projects the welcome screen lists. The store keeps more
  * (see `RECENT_PROJECTS_LIMIT`) so closing a project does not truncate the
@@ -120,9 +130,14 @@ function WelcomeRecentRow({
         aria-describedby={pathId}
         onClick={() => onOpen(entry.path)}
       >
-        <span className="welcome-recents__avatar" aria-hidden="true" style={{ backgroundColor: avatarColorVar(entry.path) }}>
-          {avatarInitials(entry.name)}
-        </span>
+        <ProjectAvatar
+          id={entry.path}
+          name={entry.name}
+          className="welcome-recents__avatar"
+          iconChoice={entry.iconChoice}
+          technology={entry.technology}
+          style={entry.avatarStyle}
+        />
         <span className="welcome-recents__copy">
           <span className="welcome-recents__name" id={nameId}>
             {entry.name}

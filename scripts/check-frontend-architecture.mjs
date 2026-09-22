@@ -214,7 +214,15 @@ function cruise(target, useConfig) {
     cwd: repositoryRoot,
     encoding: "utf8",
     windowsHide: true,
+    // The dependency graph is a JSON document of every cruised module and its
+    // edges. It passed Node's 1 MB default once already and truncated the
+    // output mid-string, so the ceiling is deliberately generous rather than a
+    // limit the graph can quietly outgrow.
+    maxBuffer: 64 * 1024 * 1024,
   });
+  if (result.error) {
+    throw new Error(`dependency-cruiser could not be run: ${result.error.message}`);
+  }
   if (!result.stdout) {
     throw new Error(result.stderr || `dependency-cruiser exited ${result.status}`);
   }

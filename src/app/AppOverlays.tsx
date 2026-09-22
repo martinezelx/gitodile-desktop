@@ -23,7 +23,13 @@ import {
   type ProjectSettingsSection,
   type ProjectSettingsTarget,
 } from "../features/project-settings";
-import { DialogCloseButton, autoHideScrollbarProps } from "../shared/ui";
+import {
+  DialogCloseButton,
+  autoHideScrollbarProps,
+  type ProjectAvatarStyle,
+  type ProjectIconChoice,
+  type TechnologyId,
+} from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { CROCODILE_MARK, MOD_KEY_LABEL } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
@@ -89,6 +95,8 @@ export type AppOverlaysProps = {
     setTheme: (theme: ThemePreference) => void;
     reducedMotion: boolean;
     setReducedMotion: BooleanSetter;
+    projectAvatarStyle?: ProjectAvatarStyle;
+    setProjectAvatarStyle?: (style: ProjectAvatarStyle) => void;
     section: SettingsSection;
     setSection: (section: SettingsSection) => void;
     gitTooling: GitToolingState;
@@ -135,6 +143,15 @@ export type AppOverlaysProps = {
      * what makes reopening it show the project's settings on the first frame
      * instead of a spinner. */
     cache: ProjectSettingsCache;
+    /** The project's own icon choice and detected technology, for the icon
+     * section; the choice is persisted by the shell, per project. */
+    iconChoice?: ProjectIconChoice;
+    technology?: TechnologyId | null;
+    /** True when the technology read failed, so the section can say so rather
+     * than claim nothing was detected. */
+    technologyFailed?: boolean;
+    avatarStyle?: ProjectAvatarStyle;
+    onChooseIcon?: (choice: ProjectIconChoice) => void;
   };
   about: { isOpen: boolean; setOpen: BooleanSetter };
   changelog: { isOpen: boolean; setOpen: BooleanSetter };
@@ -311,6 +328,8 @@ export function AppOverlays({
               setTheme={settings.setTheme}
               reducedMotion={settings.reducedMotion}
               setReducedMotion={settings.setReducedMotion}
+              projectAvatarStyle={settings.projectAvatarStyle}
+              setProjectAvatarStyle={settings.setProjectAvatarStyle}
               activeSection={settings.section}
               onSectionChange={settings.setSection}
               gitDiagnostics={settings.gitTooling.diagnostics}
@@ -394,6 +413,11 @@ export function AppOverlays({
               }}
               projectName={projectSettings.project.name}
               cache={projectSettings.cache}
+              iconChoice={projectSettings.iconChoice}
+              technology={projectSettings.technology}
+              technologyFailed={projectSettings.technologyFailed}
+              avatarStyle={projectSettings.avatarStyle}
+              onChooseIcon={projectSettings.onChooseIcon}
               activeSection={projectSettings.section}
               onSectionChange={projectSettings.setSection}
               onClose={closeProjectSettings}

@@ -8,6 +8,7 @@ import {
   FolderGit2,
   LoaderCircle,
   RotateCw,
+  Settings,
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../i18n";
@@ -35,6 +36,8 @@ export type StatusBarProps = {
   onCreateVersionLine: () => void;
   onSeeAllVersionLines: () => void;
   onCheckTeamChanges: () => void;
+  onOpenProjectSettings: () => void;
+  onPrefetchProjectSettings?: () => void;
   /** Opens the publish dialog. Offered only when the cloud is ahead, so the
    * status bar's remote fact doubles as the shortcut to publishing it. */
   onPublish: () => void;
@@ -148,6 +151,8 @@ export function StatusBar({
   onCreateVersionLine,
   onSeeAllVersionLines,
   onCheckTeamChanges,
+  onOpenProjectSettings,
+  onPrefetchProjectSettings,
   onPublish,
   onOpenChangelog,
 }: StatusBarProps): React.JSX.Element {
@@ -227,6 +232,17 @@ export function StatusBar({
               <FolderGit2 aria-hidden="true" />
               <span>{project.name}</span>
             </span>
+            <button
+              className="status-bar__action status-bar__project-settings"
+              type="button"
+              aria-label={t.projectSettingsOpenFor(project.name)}
+              data-tooltip={t.projectSettingsOpen}
+              onPointerEnter={onPrefetchProjectSettings}
+              onFocus={onPrefetchProjectSettings}
+              onClick={onOpenProjectSettings}
+            >
+              <Settings aria-hidden="true" />
+            </button>
             <VersionLineQuickSwitch
               snapshot={versionLines}
               isLoadingSnapshot={isLoadingVersionLines}
