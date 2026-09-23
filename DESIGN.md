@@ -1378,26 +1378,33 @@ plan and the box did not; opened together they put two accent-filled buttons
 on one screen, which is the thing the Journey page's band was built to stop
 ("a button under the band said the tile twice"). Now the box is the one save
 control on the screen and the heading carries only the title and the state.
-The box absorbs what the dialog knew: opening it asks Rust for the plan and
-states it in one line — `3 of 7 files → main`, the count first and the line
-in the status bar's own mono — with, under it, only the notes that apply to
-this plan (files left behind, a first version, changes already prepared, no
-line to land on), the same lines the dialog prints in full, from one list so
-the two cannot explain a plan differently. The flow underneath is one
-implementation (`useSaveVersionFlow`) in two frames: the box here, the modal
-dialog on the screens with nowhere to type — Overview's active tile, saving
-before switching a line. The box's glyph is the band's tile vocabulary at row
-size, and the accent moves rather than doubles: closed, the solid accent
-circle *is* the action, breathing with the one attention animation while
-there is something to save and nobody is saving it (the same halo the band's
-active step wears, since this is that step seen from its own screen); open,
-the Save button is the action — at the row tier, its own width, at the end
-of the foot, with no icon because the glyph at the head of the box is the
-save mark — so the circle steps down to the neutral tile; saved, it takes
-the light "done" fill with a check, with "Publish now" offered as a quiet
-link under the saved line — the band's Publish tile is where that step is
-said in full, so it is not a second primary here. One accent fill in every
-state of the box. **The panel is the card.** The screen's name and its
+**The box is a composer docked under the list, not a card that grows out of
+a field.** It is a section of the list panel — a hairline over it, the
+panel's own background — the way GitHub Desktop and Fork dock their commit
+box. At rest it is one row: the name field, a pill like every single-line
+input, and the Save button beside it, so the one thing to do is visible
+without a click and nothing decorative stands in for it. An earlier version
+led the field with the Overview band's solid, breathing glyph circle; it
+looked like a button and was not one, so it is gone, and the breathing halo
+stays the band's. Focus opens the box upward without changing its shape:
+the plan over the field — `3 of 7 files → main`, the count first and the
+line in the status bar's own mono, since the panel header is the tab pair
+and names no line — then the details (a textarea at `--radius-control`),
+only the notes the plan line cannot say (a first version, changes already
+prepared, no line to land on; files left behind are the line's to count),
+any failure with the hooks escape, and a foot with "Also publish" and the
+button. "Also publish" is a checkbox, because it is an option of this save
+and not a setting that takes effect on its own, and the button says the
+consequence: "Save", or "Save and publish" — at the list's width the longer
+label takes a line of its own under the option rather than clipping either.
+Saved, the plan's slot says what was saved, with a check in the success
+colour and "Publish now" as a quiet link — the band's Publish tile is where
+that step is said in full. Escape clears the draft and folds the box back.
+The flow underneath is one implementation (`useSaveVersionFlow`) in two
+frames: the box here, the modal dialog on the screens with nowhere to type —
+Overview's active tile, saving before switching a line — and the notes come
+from one list so the two cannot explain a plan differently. One accent fill
+in every state of the box: the button. **The panel is the card.** The screen's name and its
 state used to be a page row over both panels — the Linear-style header a
 workbench does not have (GitHub Desktop, Fork, Tower and VS Code all start
 their panels at the toolbar), with a trailing corner waiting for view
@@ -1427,11 +1434,11 @@ panes step down from their panel; the diff needs no second strip and starts
 its code under its header. The **include-everything checkbox heads the
 search strip**, at the rows' own inset, so it reads as the column's head
 (GitHub Desktop heads its list the same way) and the search box takes the
-rest of the strip — the shape History's strip has, now that the
-discard/restore `⋯` has gone to the panel's foot, beside the save box:
-outside it, so the destructive menu never lives inside the primary control,
-level with the box's closed row, opening upward and across the diff so what
-is about to be discarded stays in view. The breakdown and the line totals the header used to
+rest of the strip — the shape History's strip has — with the
+discard/restore `⋯` at its end: it acts on the list it heads, and it stays
+out of the save box, so the destructive menu never lives inside the primary
+control. It drops down and across the diff so what is about to be discarded
+stays in view. The breakdown and the line totals the header used to
 carry beside it are gone: a row of counts between the strip and the files
 took a file's height to say what the Journey band and the status bar already
 say, and a partial selection is the checkbox's own mixed state and the save
