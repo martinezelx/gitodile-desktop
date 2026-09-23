@@ -598,6 +598,7 @@
   font-size: var(--text-caption); line-height: var(--leading-snug);
 }
 .changes-quick-commit__plan { color: var(--text-secondary-color); }
+.changes-quick-commit__plan-body { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .changes-quick-commit__plan svg { width: 12px; height: 12px; flex: 0 0 auto; }
 .changes-quick-commit__branch {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -649,6 +650,9 @@ input.changes-quick-commit__summary:focus { border-color: var(--focus-ring); bac
 .changes-quick-commit__foot {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2) var(--space-3);
 }
+/* Open, the foot is its own row under the details: a step of space so the
+   button does not sit on the textarea's edge. */
+.changes-quick-commit--expanded .changes-quick-commit__foot { margin-top: var(--space-3); }
 .changes-quick-commit__publish {
   display: none; align-items: center; gap: 8px; flex-shrink: 0; margin-right: auto; padding-left: var(--space-2);
   color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);

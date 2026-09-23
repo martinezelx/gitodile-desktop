@@ -220,7 +220,7 @@ export function QuickCommitBox({
       <div className="changes-quick-commit__head">
         <div>
           {isSaved ? (
-            <p className="changes-quick-commit__success" role="status">
+            <p className="changes-quick-commit__success row-in" role="status">
               <Check aria-hidden="true" />
               {/* One line at the list's width, so a long name truncates;
                   the whole sentence stays on the tooltip. */}
@@ -239,8 +239,15 @@ export function QuickCommitBox({
             </p>
           ) : (
             <p className="changes-quick-commit__plan">
+              {/* The plan is Rust's answer, so it lands a beat after the box
+                  opens: it arrives the way a new row does (`.row-in`) rather
+                  than snapping on, and again whenever the selection changes
+                  what it says. */}
               {plan && (
-                <>
+                <span
+                  key={`${plan.totalFiles}/${plan.remainingFiles}/${plan.branch ?? ""}`}
+                  className="changes-quick-commit__plan-body row-in"
+                >
                   <span>{t.changesQuickCommitFiles(plan.totalFiles, plan.totalFiles + plan.remainingFiles)}</span>
                   {plan.branch && (
                     <>
@@ -248,7 +255,7 @@ export function QuickCommitBox({
                       <span className="changes-quick-commit__branch">{plan.branch}</span>
                     </>
                   )}
-                </>
+                </span>
               )}
             </p>
           )}
