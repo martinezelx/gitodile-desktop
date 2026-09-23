@@ -128,17 +128,23 @@ that signing layer.
 
 ## Preparing a candidate
 
-1. From a clean, up-to-date `main`, run
-   `pnpm run release:prepare <version>`. The command creates only
-   `release/<version>`, updates npm, Cargo, Cargo lock, Tauri and README version
+1. From a clean, up-to-date `main`, or from a clean work branch that contains
+   `origin/main` and carries the product changes for this version, run
+   `pnpm run release:prepare <version>`. From `main` the command creates
+   `release/<version>`; from a work branch it renames that branch to
+   `release/<version>` in place, and refuses if the branch changes `.github/`
+   or `scripts/release/`. It updates npm, Cargo, Cargo lock, Tauri and README version
    metadata, and creates the required notes file and the app's highlights
    file (`docs/release/highlights/v<version>.json`, which What's new shows).
    Review and replace every notes placeholder, fill the highlights in both
    languages, run `pnpm run release:notes` to render the notes' Highlights
    block from them, run the complete repository gate, commit, push the one
    release branch and open a same-repository pull request to `main`.
-2. Require the complete named check set to succeed, review the allowlisted
-   release-only diff and merge the pull request. Direct pushes, fork pull
+2. Require the complete named check set to succeed, review the diff and merge
+   the pull request. The coordinator requires every release-preparation file
+   and rejects any change, rename or removal under `.github/` or
+   `scripts/release/`: release automation reaches `main` in its own pull
+   request before a release can use it. Direct pushes, fork pull
    requests, manual tags and other branch names do not enter this release path.
    The default-branch coordinator revalidates the merge and creates
    `v<version>` idempotently at the exact merge SHA before dispatching the
