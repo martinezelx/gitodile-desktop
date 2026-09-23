@@ -17,7 +17,7 @@ import {
 
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
-import { DialogCloseButton, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
+import { ChannelGlyph, DialogCloseButton, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
 import { APP_CHANGELOG, type AppReleaseEntry, type HighlightIcon } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
@@ -78,9 +78,7 @@ function ReleaseNotes({
           </span>
           <span className="changelog-release__identity">
             <h3>{t.changelogVersionHeading(release.version)}</h3>
-            <span className={`channel-badge changelog-release__channel channel-badge--${release.channel}`}>
-              {release.channel}
-            </span>
+            <ChannelGlyph channel={release.channel} />
             {isCurrent && <span className="changelog-release__current">{t.changelogCurrentRelease}</span>}
           </span>
           {releaseDate && release.date && (

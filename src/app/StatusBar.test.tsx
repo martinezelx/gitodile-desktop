@@ -129,7 +129,9 @@ describe("StatusBar", () => {
 
     expect(screen.getByText("No project open")).toBeInTheDocument();
     const release = screen.getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__} preview` });
-    expect(release).toHaveTextContent(`v${__APP_VERSION__}preview`);
+    // The version already names the channel; a preview adds a glyph, not the word again.
+    expect(release.textContent).toBe(`v${__APP_VERSION__}`);
+    expect(release.querySelector(".channel-glyph")).not.toBeNull();
     await userEvent.click(release);
     expect(onOpenChangelog).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();

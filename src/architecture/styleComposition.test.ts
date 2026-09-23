@@ -147,14 +147,15 @@ describe("production style composition", () => {
     expect(appShell).toContain(".window-titlebar__mark");
     expect(appShell).not.toContain(".window-titlebar__name");
 
-    // The channel badge — the pill naming which build the reader is running —
-    // is stated on three surfaces: the status bar, About and the changelog.
-    // Three hand-written copies had already drifted (6px of inline padding
-    // against 7px, and the tracking on two of them), and those three exist to
-    // describe one build identically, so exactly one sheet may define it.
-    expect(primitiveChrome).toContain(".channel-badge {");
-    expect(primitiveChrome).toContain(".channel-badge--preview {");
+    // The preview glyph beside a build's version is stated on the status bar,
+    // About, the changelog and the update dialog. Hand-written channel pills
+    // had drifted across those surfaces, which exist to describe one build
+    // identically, so exactly one sheet may define the mark and no surface
+    // may bring a textual pill back.
+    expect(primitiveChrome).toContain(".channel-glyph {");
+    expect(primitiveChrome).not.toContain(".channel-badge");
     const channelSelectors = [
+      "channel-badge",
       "status-bar__channel",
       "about-dialog__release-channel",
       "changelog-release__channel",

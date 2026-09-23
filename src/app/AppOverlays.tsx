@@ -24,6 +24,7 @@ import {
   type ProjectSettingsTarget,
 } from "../features/project-settings";
 import {
+  ChannelGlyph,
   DialogCloseButton,
   autoHideScrollbarProps,
   type ProjectAvatarStyle,
@@ -453,9 +454,7 @@ export function AppOverlays({
             </div>
             <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version} ${CURRENT_APP_RELEASE.channel}`}>
               <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
-              {CURRENT_APP_RELEASE.channel === "preview" && (
-                <span className="channel-badge channel-badge--preview" aria-hidden="true">preview</span>
-              )}
+              <ChannelGlyph channel={CURRENT_APP_RELEASE.channel} />
             </p>
             {/* The one line About can say about updates, and the way to the
                 release notes. The state is named whenever the release model has

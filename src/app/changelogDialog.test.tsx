@@ -109,7 +109,7 @@ describe("Changelog dialog", () => {
     for (const [index, release] of APP_CHANGELOG.entries()) {
       const rendered = releases[index] as HTMLElement;
       expect(within(rendered).getByRole("heading", { name: `v${release.version}` })).toBeInTheDocument();
-      expect(rendered).toHaveTextContent(release.channel);
+      expect(rendered.querySelector(".channel-glyph") !== null).toBe(release.channel === "preview");
       if (release.date === null) {
         expect(rendered.querySelector("time")).toBeNull();
       } else {

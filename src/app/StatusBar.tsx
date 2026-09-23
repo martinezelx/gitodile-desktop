@@ -17,6 +17,7 @@ import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type { TeamSyncState, TeamSyncViewState } from "../features/sync";
 import { VersionLineQuickSwitch, type VersionLinesSnapshot } from "../features/version-lines";
+import { ChannelGlyph } from "../shared/ui";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 
 const CLOCK_TICK_MS = 30_000;
@@ -337,9 +338,7 @@ export function StatusBar({
           data-tooltip={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
         >
           <span className="status-bar__version">{t.statusBarVersion(CURRENT_APP_RELEASE.version)}</span>
-          {CURRENT_APP_RELEASE.channel === "preview" && (
-            <span className="channel-badge channel-badge--preview" aria-hidden="true">preview</span>
-          )}
+          <ChannelGlyph channel={CURRENT_APP_RELEASE.channel} />
         </button>
       </div>
     </footer>

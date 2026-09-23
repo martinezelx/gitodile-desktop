@@ -93,3 +93,7 @@ export {
   type TechnologyId,
   type TechnologySource,
 } from "./projectIdentity";
+/* ADR 0003's two-consumer bar: the status bar, About, the changelog and the
+   update dialog all mark a preview build beside its version, and had drifted
+   into three pill recipes — two of them naming classes no sheet defined. */
+export { ChannelGlyph } from "./channelGlyph";

@@ -16,7 +16,7 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { DialogCloseButton, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
+import { ChannelGlyph, DialogCloseButton, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { UpdateCandidate, UpdateChannel, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -97,16 +97,14 @@ function StatusLine({ line, className = "" }: { line: StatusLine; className?: st
 }
 
 /** The installed build, the way About and the changelog show it: version in
- * the label weight, the channel as a chip only when it is not stable. */
+ * the label weight, the preview glyph only when it is not stable. */
 function InstalledLine({ installed, language }: { installed: InstalledRelease; language: Language }) {
   const t = appUpdateTranslations(language);
   return (
     <p className="about-dialog__release app-update-dialog__installed" aria-label={`${t.installedLabel} ${installed.version} ${installed.channel}`}>
       <span className="app-update-dialog__installed-label">{t.installedLabel}</span>
       <span className="about-dialog__release-version">v{installed.version}</span>
-      {installed.channel === "preview" && (
-        <span className="about-dialog__release-channel" aria-hidden="true">preview</span>
-      )}
+      <ChannelGlyph channel={installed.channel} />
     </p>
   );
 }
@@ -143,7 +141,7 @@ function Progress({ state, language }: { state: UpdateState; language: Language 
 }
 
 /** The offered release as a card: identity row in the changelog's vocabulary
- * (version, channel chip, date), then its notes as bounded plain text. */
+ * (version, preview glyph, date), then its notes as bounded plain text. */
 function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate; language: Language }) {
   const { formats } = useLanguage();
   const t = appUpdateTranslations(language);
@@ -152,7 +150,7 @@ function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate;
     <section className="app-update-candidate" aria-labelledby="app-update-candidate-title">
       <div className="app-update-candidate__identity">
         <h3 id="app-update-candidate-title">v{candidate.version}</h3>
-        <span className={`changelog-release__channel changelog-release__channel--${candidate.channel}`}>{candidate.channel}</span>
+        <ChannelGlyph channel={candidate.channel} />
         {publishedAt && candidate.publishedAt && (
           <time className="app-update-candidate__date" dateTime={candidate.publishedAt}>{publishedAt}</time>
         )}
@@ -309,9 +307,7 @@ export function AppUpdateSettingsControl({
               <p className="version-line">
                 <span className="version-line__label">{t.installedLabel}</span>
                 <span className="version-line__value">v{installed.version}</span>
-                {installed.channel === "preview" && (
-                  <span className="changelog-release__channel changelog-release__channel--preview">preview</span>
-                )}
+                <ChannelGlyph channel={installed.channel} />
               </p>
               <StatusLine line={line} />
             </div>

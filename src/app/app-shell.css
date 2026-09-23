@@ -1283,10 +1283,8 @@
   color: var(--text-secondary-color);
 }
 .about-dialog__release-version { font-size: var(--text-label); font-weight: var(--weight-heading); font-variant-numeric: tabular-nums; }
-/* The `preview` pill is `.channel-badge` now (shared with the status bar and
-   the changelog): three hand-written copies of one recipe had drifted on
-   padding and tracking, and the three surfaces exist to say the same thing
-   about one build. Only the spacing between version and chip is About's. */
+/* The preview mark is `.channel-glyph` (primitives), shared with the status
+   bar, the changelog and the update dialog. Only the spacing is About's. */
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary-color); line-height: var(--leading-normal); }
 /* About's two lower sections are siblings in weight as well as in role, so they
    share a heading and a rhythm rather than each inventing one. */
@@ -1419,12 +1417,9 @@
   color: var(--accent-primary);
 }
 .changelog-release h3 { margin: 0; font-size: var(--text-subtitle); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
-/* The channel pill is `.channel-badge` (primitives): the recipe was written
-   out here, in the status bar and in About, and the three had already drifted.
-   The "you are running this" marker is a different statement — it names no
-   channel — so it keeps its own neutral pill rather than borrowing the
-   channel's colour vocabulary. What is left here is layout only. */
-.changelog-release__channel { flex-shrink: 0; }
+/* The preview mark is `.channel-glyph` (primitives). The "you are running
+   this" marker is a different statement — it names no channel — so it keeps
+   its own neutral pill rather than borrowing the channel's colour. */
 .changelog-release__current {
   flex-shrink: 0;
   padding: 2px 7px;
