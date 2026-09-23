@@ -143,13 +143,46 @@ test("release preparation takes one version, with or without pnpm's forwarded se
   expectCode("usage", () => parseCommandLine(["0.2.0-preview.11", "extra"]));
 });
 
-test("release preparation rejects dirty, non-main and unchanged starts", () => {
+test("release preparation turns a work branch into the release branch in place", () => {
+  const repo = repository();
+  git(repo.root, "switch", "-c", "feature/work");
+  fs.writeFileSync(path.join(repo.root, "feature.txt"), "product work\n");
+  git(repo.root, "add", ".");
+  git(repo.root, "commit", "-m", "feat: product work");
+  const work = git(repo.root, "rev-parse", "HEAD");
+  const result = prepareRelease({ root: repo.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: repo.bare });
+  assert.equal(result.branch, "release/0.2.0-preview.10");
+  assert.equal(result.renamedFrom, "feature/work");
+  assert.equal(git(repo.root, "branch", "--show-current"), result.branch);
+  assert.equal(git(repo.root, "rev-parse", "HEAD"), work);
+  assert.equal(git(repo.root, "branch", "--list", "feature/work"), "");
+  assert.match(fs.readFileSync(path.join(repo.root, "package.json"), "utf8"), /0\.2\.0-preview\.10/);
+});
+
+test("release preparation rejects dirty, detached, stale, automation-carrying and unchanged starts", () => {
   const dirty = repository();
   fs.writeFileSync(path.join(dirty.root, "dirty.txt"), "x");
   expectCode("working_tree_dirty", () => prepareRelease({ root: dirty.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: dirty.bare }));
-  const branch = repository();
-  git(branch.root, "switch", "-c", "feature/x");
-  expectCode("wrong_branch", () => prepareRelease({ root: branch.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: branch.bare }));
+  const detached = repository();
+  git(detached.root, "switch", "--detach");
+  expectCode("wrong_branch", () => prepareRelease({ root: detached.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: detached.bare }));
+  const otherRelease = repository();
+  git(otherRelease.root, "switch", "-c", "release/0.2.0-preview.9");
+  expectCode("wrong_branch", () => prepareRelease({ root: otherRelease.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: otherRelease.bare }));
+  const stale = repository();
+  git(stale.root, "switch", "-c", "feature/stale");
+  git(stale.root, "switch", "main");
+  fs.writeFileSync(path.join(stale.root, "main.txt"), "x");
+  git(stale.root, "add", "."); git(stale.root, "commit", "-m", "main moves on"); git(stale.root, "push", "origin", "main");
+  git(stale.root, "switch", "feature/stale");
+  expectCode("main_not_current", () => prepareRelease({ root: stale.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: stale.bare }));
+  const automation = repository();
+  git(automation.root, "switch", "-c", "feature/automation");
+  fs.mkdirSync(path.join(automation.root, ".github", "workflows"), { recursive: true });
+  fs.writeFileSync(path.join(automation.root, ".github", "workflows", "x.yml"), "name: x\n");
+  git(automation.root, "add", "."); git(automation.root, "commit", "-m", "ci: change");
+  expectCode("release_scope_invalid", () => prepareRelease({ root: automation.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: automation.bare }));
+  assert.equal(git(automation.root, "branch", "--show-current"), "feature/automation");
   const same = repository();
   expectCode("version_unchanged", () => prepareRelease({ root: same.root, version: "0.2.0-preview.5", runChecks: false, expectedOrigin: same.bare }));
   const older = repository();
@@ -189,7 +222,30 @@ test("merge preparation binds metadata, scope, curated notes and authorization b
   git(repo.root, "add", "."); git(repo.root, "commit", "-m", "block without markers");
   expectCode("notes_incomplete", () => validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }));
   git(repo.root, "switch", "release/0.2.0-preview.10");
+  // Product work may ride along, including removals and renames.
+  assert.match(validateReleasePreparation({
+    root: repo.root,
+    authorization: identity,
+    changedFiles: [
+      ...files,
+      { filename: "src/app/App.tsx", status: "modified" },
+      { filename: "src/old.ts", status: "removed" },
+      { filename: "src/new.ts", previous_filename: "src/renamed.ts", status: "renamed" },
+    ],
+  }).notesSha256, /^[0-9a-f]{64}$/);
+  // Release automation may not, in any direction.
   expectCode("release_scope_invalid", () => validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: [...files, "scripts/release/evil.mjs"] }));
+  expectCode("release_scope_invalid", () => validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: [...files, ".github/workflows/merge-driven-release.yml"] }));
+  expectCode("release_scope_invalid", () => validateReleasePreparation({
+    root: repo.root,
+    authorization: identity,
+    changedFiles: [...files, { filename: "scripts/moved.mjs", previous_filename: "scripts/release/merge-release.mjs", status: "renamed" }],
+  }));
+  expectCode("release_scope_invalid", () => validateReleasePreparation({
+    root: repo.root,
+    authorization: identity,
+    changedFiles: files.map((filename) => filename === "package.json" ? { filename, status: "removed" } : filename),
+  }));
   expectCode("release_scope_invalid", () => validateReleasePreparation({
     root: repo.root,
     authorization: identity,

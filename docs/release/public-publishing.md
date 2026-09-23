@@ -119,8 +119,12 @@ environment without the secret fails closed before any destination request.
 
 1. Add reviewed notes at `docs/release/notes/v<version>.md`, and the
    bilingual in-app highlights at `docs/release/highlights/v<version>.json`,
-   on the one `release/<version>` branch created by
-   `pnpm run release:prepare <version>`; then run `pnpm run release:notes`
+   on the one `release/<version>` branch produced by
+   `pnpm run release:prepare <version>`. Run it from a clean, current `main`
+   to cut a release of what is already there, or from the work branch that
+   holds the release's product changes: that branch must contain
+   `origin/main`, must not touch `.github/` or `scripts/release/`, and is
+   renamed in place to `release/<version>`. Then run `pnpm run release:notes`
    so the notes' `## Highlights` block is rendered from the highlights file
    (the coordinator refuses a release whose two descriptions disagree).
    Do not generate
