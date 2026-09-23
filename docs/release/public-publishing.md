@@ -91,6 +91,13 @@ structure kept (`normalizeNotes`): hard-wrapped lines of one paragraph or
 list item are joined, list items keep a `- ` marker and one newline between
 them, paragraphs keep a blank line, and the 16 KiB bound still applies.
 
+The manifest also carries `highlights`: the lines of
+`docs/release/highlights/v<version>.json` (`--highlights`, required), in both
+languages with their glyph names, so the update dialog shows what a version
+brings the way What's new does, in the reader's language. An empty list adds
+no field and the app falls back to the notes. See
+[app-update contracts](../architecture/app-update-contracts.md).
+
 Only the `publish` job enters a destination environment and receives
 `GITODILE_PUBLIC_RELEASE_TOKEN`. Use a short-lived GitHub App installation token
 with Contents write access only to `martinezelx/gitodile`; a narrowly
