@@ -899,14 +899,10 @@ export function SettingsPanel({
         className="theme-card"
         onClick={() => setTheme(option.id)}
       >
-        {option.official && (
-          <span className="theme-card__official" aria-hidden="true">
-            <BadgeCheck />
-          </span>
-        )}
         <span className="theme-card__tile">{option.preview}</span>
         <span className="theme-card__label">
           <span className="theme-card__name">{option.name}</span>
+          {option.official && <BadgeCheck className="theme-card__official" aria-hidden="true" />}
         </span>
       </button>
     );

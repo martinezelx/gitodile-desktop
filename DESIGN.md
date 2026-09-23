@@ -918,7 +918,7 @@ official light and dark. "Match device" and every named theme stay reachable
 from Settings > Interface > Theme and the command palette. The picker shows
 each theme as a miniature of the app in its own tokens, with the scheme carried
 by a glyph and by the option's accessible name, never by colour alone. The
-official tiles carry a lime verified rosette centred above the name — a seal,
+official tiles carry a lime verified rosette right after the name — a seal,
 not a check, because selection is the ring.
 
 Do not introduce a color anywhere in the product (status badges, diff
