@@ -9,6 +9,16 @@ const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
 const SOURCE_REMOTE = `https://github.com/${SOURCE_REPOSITORY}.git`;
 export const NOTES_PLACEHOLDER = "Replace this comment with curated public release notes before opening the pull request.";
 
+/** Paths a release pull request may not touch. A release branch may carry the
+ * product work it ships, but the automation that authorizes, builds, signs and
+ * publishes the release must already be on main, reviewed on its own, before
+ * a merge can trigger it. */
+export const PROTECTED_RELEASE_PREFIXES = Object.freeze([".github/", "scripts/release/"]);
+
+export function isProtectedReleasePath(file) {
+  return typeof file === "string" && PROTECTED_RELEASE_PREFIXES.some((prefix) => file.startsWith(prefix));
+}
+
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
 }
@@ -52,8 +62,10 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   if (git(repositoryRoot, ["status", "--porcelain=v1", "--untracked-files=all"]).stdout !== "") {
     fail("working_tree_dirty", "release preparation requires a clean working tree");
   }
-  if (git(repositoryRoot, ["symbolic-ref", "--quiet", "--short", "HEAD"], { allowFailure: true }).stdout.trim() !== "main") {
-    fail("wrong_branch", "release preparation must start on main");
+  const startBranch = git(repositoryRoot, ["symbolic-ref", "--quiet", "--short", "HEAD"], { allowFailure: true }).stdout.trim();
+  if (startBranch === "") fail("wrong_branch", "release preparation needs a branch, not a detached HEAD");
+  if (startBranch.startsWith("release/") && startBranch !== branch) {
+    fail("wrong_branch", `already on ${startBranch}; it cannot be prepared as ${branch}`);
   }
   const remote = git(repositoryRoot, ["remote", "get-url", "origin"]).stdout.trim().replace(/^git@github\.com:/, "https://github.com/");
   const normalizedExpected = expectedOrigin.replace(/^git@github\.com:/, "https://github.com/");
@@ -63,8 +75,21 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   git(repositoryRoot, ["fetch", "--no-tags", "origin", "+refs/heads/main:refs/remotes/origin/main"]);
   const head = git(repositoryRoot, ["rev-parse", "HEAD"]).stdout.trim();
   const upstream = git(repositoryRoot, ["rev-parse", "refs/remotes/origin/main"]).stdout.trim();
-  if (head !== upstream) fail("main_not_current", "local main must exactly match origin/main");
-  if (git(repositoryRoot, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }).status === 0) {
+  if (startBranch === "main") {
+    if (head !== upstream) fail("main_not_current", "local main must exactly match origin/main");
+  } else {
+    // A work branch becomes the release branch in place, so it must already
+    // contain everything main has and must not carry release automation.
+    if (git(repositoryRoot, ["merge-base", "--is-ancestor", upstream, head], { allowFailure: true }).status !== 0) {
+      fail("main_not_current", `${startBranch} does not contain origin/main; merge or rebase it first`);
+    }
+    const protectedChanges = git(repositoryRoot, ["diff", "--name-only", "--no-renames", `${upstream}...${head}`]).stdout
+      .split("\n").map((line) => line.trim()).filter(isProtectedReleasePath);
+    if (protectedChanges.length > 0) {
+      fail("release_scope_invalid", `release automation changes must reach main in their own pull request first: ${protectedChanges.join(", ")}`);
+    }
+  }
+  if (startBranch !== branch && git(repositoryRoot, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }).status === 0) {
     fail("branch_exists", `local branch already exists: ${branch}`);
   }
   if (git(repositoryRoot, ["ls-remote", "--exit-code", "--heads", "origin", branch], { allowFailure: true }).status === 0) {
@@ -89,7 +114,8 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   };
   if (fs.existsSync(files.notes)) fail("notes_exist", `release notes already exist: docs/release/notes/v${version}.md`);
   if (fs.existsSync(files.highlights)) fail("notes_exist", `release highlights already exist: ${HIGHLIGHTS_DIRECTORY}/${highlightsFileName(version)}`);
-  git(repositoryRoot, ["switch", "-c", branch]);
+  if (startBranch === "main") git(repositoryRoot, ["switch", "-c", branch]);
+  else if (startBranch !== branch) git(repositoryRoot, ["branch", "-m", branch]);
   const packageJson = JSON.parse(fs.readFileSync(files.package, "utf8"));
   packageJson.version = version;
   writeJson(files.package, packageJson);
@@ -134,6 +160,7 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   }
   return {
     branch,
+    renamedFrom: startBranch === "main" || startBranch === branch ? null : startBranch,
     version,
     channel: release.channel,
     notes: path.relative(repositoryRoot, files.notes).replaceAll("\\", "/"),
@@ -157,7 +184,7 @@ function listChangesSince(root, previousVersion) {
  * the usage check; one leading separator is accepted and dropped. */
 export function parseCommandLine(args) {
   const positional = args[0] === "--" ? args.slice(1) : args;
-  if (positional.length !== 1) fail("usage", "usage: pnpm run release:prepare <semver>");
+  if (positional.length !== 1) fail("usage", "usage: pnpm run release:prepare <semver> (from main, or from the work branch that becomes the release)");
   return { version: positional[0] };
 }
 
@@ -166,6 +193,9 @@ if (isMain) {
   try {
     const { version } = parseCommandLine(process.argv.slice(2));
     const result = prepareRelease({ root: process.cwd(), version });
+    if (result.renamedFrom) {
+      process.stdout.write(`Renamed ${result.renamedFrom} to ${result.branch}. If ${result.renamedFrom} was already pushed, close its pull request; only a pull request from ${result.branch} releases.\n`);
+    }
     process.stdout.write(`Prepared ${result.branch}. Fill ${result.highlights}, run pnpm run release:notes, and replace the placeholder in ${result.notes} before committing.\n`);
     if (result.changesSince.length > 0) {
       process.stdout.write(`Changes since the previous release, for reference:\n${result.changesSince.map((line) => `  - ${line}`).join("\n")}\n`);
