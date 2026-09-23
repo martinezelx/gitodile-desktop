@@ -124,7 +124,29 @@ export function derivePublicationMode(release, qualification) {
   return qualified ? "preview-qualified" : "preview-testing";
 }
 
-export function preparePublication({ signedDirectory, notesMarkdown, qualification, mode, publicFiles = [] }) {
+/** The release's bilingual What's new lines as the feed carries them, so the
+ * update dialog can say what a version brings in the reader's language
+ * rather than in the English release notes. `check:docs` and the merge
+ * coordinator have already validated the file against the glyph catalogue;
+ * this repeats only what the feed relies on, and stays self-contained because
+ * the publisher runtime ships without `highlights.mjs`. An empty list adds no
+ * field, and the app then shows the notes. */
+export function manifestHighlights(file, version) {
+  if (file === null || typeof file !== "object" || Array.isArray(file)) fail("highlights_invalid", "highlights file must be an object");
+  if (file.version !== version) fail("highlights_invalid", `highlights file describes ${file.version}, not ${version}`);
+  if (!Array.isArray(file.highlights) || file.highlights.length > 8) fail("highlights_invalid", "highlights must be a list of at most 8 lines");
+  return file.highlights.map((entry, index) => {
+    const name = (value) => typeof value === "string" && /^[A-Za-z0-9-]{1,64}$/.test(value);
+    const sentence = (value) => typeof value === "string" && value.trim() === value && value !== ""
+      && [...value].length <= 240 && !/[<>\u0000-\u001f\u007f]/.test(value);
+    if (!name(entry?.id) || !name(entry?.icon) || !sentence(entry?.en) || !sentence(entry?.es)) {
+      fail("highlights_invalid", `highlights[${index}] is not a bounded plain-text line`);
+    }
+    return { id: entry.id, icon: entry.icon, en: entry.en, es: entry.es };
+  });
+}
+
+export function preparePublication({ signedDirectory, notesMarkdown, highlights = null, qualification, mode, publicFiles = [] }) {
   const matrixPath = path.join(signedDirectory, "matrix.json");
   if (!fs.existsSync(matrixPath)) fail("matrix_record_missing", "private signed matrix record is missing");
   const matrix = readJson(matrixPath);
@@ -175,9 +197,11 @@ export function preparePublication({ signedDirectory, notesMarkdown, qualificati
   }
   // The manifest is fixed except for `pub_date`, which is the release's real
   // publication time and therefore known only to the `publish` job.
+  const feedHighlights = highlights === null ? [] : manifestHighlights(highlights, candidate.release.version);
   const manifest = {
     version: candidate.release.version,
     notes: normalizeNotes(publishedNotes),
+    ...(feedHighlights.length > 0 ? { highlights: feedHighlights } : {}),
     platforms,
   };
   // Size is checked here, before the pipeline stages anything; the epoch
@@ -213,7 +237,13 @@ export function renderPublication(plan, publishedAt) {
   if (!parsedDate || Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().replace(".000Z", "Z") !== publishedAt) {
     fail("publication_date_invalid", "feed publication needs the release's canonical UTC publication timestamp");
   }
-  const manifest = { version: plan.manifest.version, notes: plan.manifest.notes, pub_date: publishedAt, platforms: plan.manifest.platforms };
+  const manifest = {
+    version: plan.manifest.version,
+    notes: plan.manifest.notes,
+    ...(plan.manifest.highlights ? { highlights: plan.manifest.highlights } : {}),
+    pub_date: publishedAt,
+    platforms: plan.manifest.platforms,
+  };
   const manifestBytes = `${JSON.stringify(manifest, null, 2)}\n`;
   if (Buffer.byteLength(manifestBytes) > 262_144) fail("manifest_too_large", "manifest exceeds 256 KiB");
   const sha256 = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
@@ -288,6 +318,7 @@ export function runPrepareCli(argv) {
   const plan = preparePublication({
     signedDirectory: path.resolve(args.get("signed")),
     notesMarkdown: fs.readFileSync(path.resolve(args.get("notes")), "utf8"),
+    highlights: args.has("highlights") ? readJson(path.resolve(args.get("highlights"))) : fail("highlights_missing", "--highlights is required"),
     qualification: readJson(path.resolve(args.get("qualification"))),
     mode: args.get("mode"),
     publicFiles: (args.get("public-file") ?? []).map((value) => {

@@ -27,6 +27,7 @@ import {
   derivePublicationMode,
   feedsForPromotion,
   normalizeNotes,
+  manifestHighlights,
   preparePublication,
   renderPublication,
   runPrepareCli,
@@ -250,6 +251,23 @@ test("the publication mode is derived from the version and the qualification reg
   const testing = preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "preview-testing" });
   assert.match(testing.notesMarkdown, /Testing preview/);
   assert.match(testing.manifest.notes, /does not claim platform qualification/);
+});
+
+test("the manifest carries the release's bilingual highlights for the update dialog", () => {
+  const root = signedMatrix("0.2.0-preview.9");
+  const line = { id: "fasterUpdates", icon: "cloud-download", en: "Faster updates.", es: "Actualizaciones más rápidas." };
+  const highlights = { version: "0.2.0-preview.9", date: "2026-09-14", highlights: [line] };
+  const plan = preparePublication({ signedDirectory: root, notesMarkdown: "Notes", highlights, qualification: qualification(false), mode: "preview-testing" });
+  const rendered = renderPublication(plan, PUBLISHED_AT);
+  assert.deepEqual(Object.keys(rendered.manifest), ["version", "notes", "highlights", "pub_date", "platforms"]);
+  assert.deepEqual(rendered.manifest.highlights, [line]);
+  // An empty list adds no field: the app then shows the notes.
+  const empty = preparePublication({ signedDirectory: signedMatrix("0.2.0-preview.9"), notesMarkdown: "Notes", highlights: { ...highlights, highlights: [] }, qualification: qualification(false), mode: "preview-testing" });
+  assert.equal(Object.hasOwn(renderPublication(empty, PUBLISHED_AT).manifest, "highlights"), false);
+  assert.throws(() => manifestHighlights({ ...highlights, version: "0.2.0-preview.8" }, "0.2.0-preview.9"), /describes 0\.2\.0-preview\.8/);
+  assert.throws(() => manifestHighlights({ ...highlights, highlights: [{ ...line, en: "<b>Faster</b>" }] }, "0.2.0-preview.9"), /bounded plain-text line/);
+  assert.throws(() => manifestHighlights({ ...highlights, highlights: [{ ...line, es: "x".repeat(241) }] }, "0.2.0-preview.9"), /bounded plain-text line/);
+  assert.throws(() => manifestHighlights({ ...highlights, highlights: Array.from({ length: 9 }, (_, index) => ({ ...line, id: `line${index}` })) }, "0.2.0-preview.9"), /at most 8/);
 });
 
 test("manifest notes keep paragraphs and bullets, unwrap soft line breaks and stay bounded", () => {
@@ -641,7 +659,9 @@ function stagedPublication(version, mode) {
   fs.writeFileSync(notes, `# GitOdile ${version}\n\nFirst public preview.\n`);
   const qualificationFile = path.join(path.dirname(output), "qualification.json");
   fs.writeFileSync(qualificationFile, JSON.stringify(qualification(false)));
-  runPrepareCli(["--signed", signed, "--notes", notes, "--qualification", qualificationFile, "--mode", mode, "--output", output]);
+  const highlights = path.join(path.dirname(output), "highlights.json");
+  fs.writeFileSync(highlights, JSON.stringify({ version, date: "2026-09-14", highlights: [{ id: "firstPreview", icon: "sparkles", en: "First public preview.", es: "Primera preview pública." }] }));
+  runPrepareCli(["--signed", signed, "--notes", notes, "--highlights", highlights, "--qualification", qualificationFile, "--mode", mode, "--output", output]);
   assert.deepEqual(fs.readdirSync(output).filter((name) => name === "latest.json" || name === "SHA256SUMS"), []);
   return output;
 }
