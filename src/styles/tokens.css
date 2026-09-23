@@ -26,10 +26,6 @@
   --radius-item: 10px;    /* a row or option living inside a container */
   --radius-control: 14px; /* multiline controls and attached icon tiles ≥40px */
   --radius-surface: 18px; /* a container with its own background: card, dialog, popover, notice */
-  /* A large preview tile: a square whose own background should read as one
-     soft object rather than as a framed thumbnail. Standalone, not part of the
-     item/control/surface chain above, and reached only by the theme picker. */
-  --radius-tile: 28px;
   --radius-pill: 999px;   /* a capsule: badge, count, short-text chip */
   --radius-round: 50%;    /* a circle: avatar, single-glyph control */
 

@@ -418,7 +418,6 @@ The app should work well between approximately 1024px and large desktop displays
   --radius-item: 10px;
   --radius-control: 14px;
   --radius-surface: 18px;
-  --radius-tile: 28px;
   --radius-pill: 999px;
   --radius-round: 50%;
 
@@ -520,9 +519,8 @@ values before this was written down. Choose the tier by what the thing *is*:
 | `--radius-round` (50%) | An atomic thing with no reading direction | Project avatar, **any single glyph on a fill** (section, status and dialog-header icons), rail destination, refresh, create, overflow trigger, checkbox, timeline node |
 | `--radius-pill` (999px) | **Any single-line control**, a capsule of short text, or a pure geometric form | Labelled button, single-line input, search box, selector or trigger; badge, count, status chip, progress bar, scrollbar thumb, toggle track |
 | `--radius-item` (10px) | A row or option that lives inside a container | Menu row, list option, file row, segmented-control option, inline code, keycap, square icon button of 24–36px that is not in an action row |
-| `--radius-control` (14px) | A control that *cannot* be a capsule | Multi-line field (textarea), a frame wrapping its own options (segmented control), a preview box, square icon button of 40px and up that is not in an action row |
+| `--radius-control` (14px) | A control that *cannot* be a capsule | Multi-line field (textarea), a frame wrapping its own options (segmented control), a preview box (a theme-picker card), square icon button of 40px and up that is not in an action row |
 | `--radius-surface` (18px) | A container carrying its own background | Card, dialog, popover, menu, notice, banner, panel |
-| `--radius-tile` (28px) | A large square preview whose own background *is* the object | Theme-picker tile (and the tray that groups them) |
 
 A circle has no "length", so it has no radius to scale — that is why it is a
 role and not a number. Mixing circles with the rectangular tiers in one row is
@@ -917,9 +915,11 @@ hands control back to the device — its glyph becomes the monitor, matching
 official light and dark. "System" and every named theme stay reachable
 from Settings > Interface > Theme and the command palette. The picker shows
 each theme as a miniature of the app in its own tokens, with the scheme carried
-by a glyph and by the option's accessible name, never by colour alone. The
-official tiles carry a lime verified rosette right after the name — a seal,
-not a check, because selection is the ring.
+by a glyph and by the option's accessible name, never by colour alone. Each
+option is a bordered card in the project-icon picker's language, with a 16:10
+miniature and the name beneath it; the official cards carry a verified rosette
+in `--accent-primary` right after the name — a seal, not a check, because
+selection is the accent border.
 
 Do not introduce a color anywhere in the product (status badges, diff
 highlighting, charts, mascot variants) without first checking whether it is

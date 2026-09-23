@@ -248,9 +248,6 @@ describe("production style composition", () => {
       if (relativePath === "styles/tokens.css") continue;
       for (const rule of readRules(relativePath)) {
         if (!rule.body.includes("var(--accent-brand")) continue;
-        // The one licensed use: the lime rosette that marks an official theme
-        // tile. That is a brand moment, not the accent.
-        if (rule.selector.includes(".theme-card__official")) continue;
         paintedWithBrand.push(`${relativePath}: ${rule.selector}`);
       }
     }
