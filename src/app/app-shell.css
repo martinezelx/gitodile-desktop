@@ -671,9 +671,6 @@
    nothing else. */
 .app-window--icons-only .sidebar-foot { gap: var(--space-2); }
 .app-window--icons-only .sidebar-project-group { gap: var(--space-2); }
-/* The rule spans a 40px column now, so it needs proportionally less inset to
-   still read as a divider and not as a stray dash. */
-.app-window--icons-only .sidebar-divider { margin: var(--space-3) 2px; }
 .sidebar-round {
   width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
@@ -866,16 +863,19 @@
   .app-tooltip--above { animation: none; transform: translate(-50%, -100%); }
   .app-tooltip--below { animation: none; transform: translate(-50%, 0); }
 }
-/* The one rule in the column. It separates "where am I in this project" from
-   "which project, and which app control" — the split spacing alone stopped
-   carrying once the utilities gained captions of their own and the whole
-   column became evenly stacked tiles. Fading at both ends keeps it from
-   reading as the edge of a panel now that there is no panel. */
+/* The boundary between the destinations and the project/app foot: a short
+   capsule, not a rule across the column. A full-width hairline was the one
+   straight line in a column of circles, and sitting on top of the project
+   chip it read as a stray stroke rather than a boundary. The capsule states
+   the split in the rail's own shape and holds it when a short window closes
+   the free space above; the square project chip under it does the rest. Its
+   length does not depend on the column, so both display modes share it. */
 .sidebar-divider {
-  height: 1px;
-  margin: var(--space-3) 4px;
-  border: 0;
-  background: linear-gradient(90deg, transparent, var(--border-divider) 25%, var(--border-divider) 75%, transparent);
+  align-self: center;
+  width: 18px; height: 3px;
+  margin: var(--space-3) 0;
+  border: 0; border-radius: var(--radius-pill);
+  background: var(--border-control);
   flex-shrink: 0;
 }
 .project-switcher__list { display: grid; gap: 2px; list-style: none; margin: 0; padding: 0; }

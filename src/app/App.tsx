@@ -2151,10 +2151,10 @@ export function App(): React.JSX.Element {
           />
 
           {/* Slack-like hierarchy: the destinations answer "where in this
-              project am I", everything below the rule answers "which project,
-              and which app-level control". Spacing alone used to carry that
-              split; at 88px the eye reads a column of evenly stacked circles
-              instead, so the rule states it. */}
+              project am I", everything below the capsule answers "which
+              project, and which app-level control". The free height above
+              carries the split in a tall window; the capsule keeps it when a
+              short one closes that gap. */}
           <hr className="sidebar-divider" />
 
           <div className="sidebar-project-section" data-flyout-group-anchor="">

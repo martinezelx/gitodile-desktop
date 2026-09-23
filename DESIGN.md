@@ -144,12 +144,15 @@ The main desktop window should broadly support:
      change. It never lifts or enlarges rail furniture, and never borrows the
      accent-tinted selected surface. Accent fill and green iconography remain
      reserved for the active destination or selected control;
-   - a single faded rule separates the destinations from everything below.
-     Spacing alone used to carry that split, and did while the utilities were
-     unlabelled; once they gained captions the whole column became evenly
-     stacked tiles and the interval stopped reading as a boundary. This is the
-     documented exception to "separate rows with spacing alone": it divides two
-     *groups*, not consecutive rows within one.
+   - a short capsule (18×3px, `--radius-pill`) separates the destinations from
+     everything below. A full-width faded rule did this first, added while the
+     utilities carried captions and the column read as evenly stacked tiles;
+     once the captions went, that line was the one straight stroke in a column
+     of circles and sat on the project chip like a stray mark. The free height
+     above the foot carries the split in a tall window, and the capsule keeps
+     it when a short window closes that gap. This is the documented exception
+     to "separate rows with spacing alone": it divides two *groups*, not
+     consecutive rows within one.
    - the rail can be collapsed entirely (`Ctrl`/`Cmd`+`B`, or the titlebar
      control), giving the window over to content. Collapsed means `display:
      none`, never a zero width or a transparent column: a rail still in the tab
