@@ -127,6 +127,11 @@ theme-independent dark edge instead: `--avatar-ring`, declared once in
 `tokens.css` beside the swatches. It stays in Layer A and is guarded by the same
 contract test.
 
+The ring resolves through `light-dark()` to transparent in a light
+`color-scheme`, where every swatch already clears 4.5:1 against the panel and
+the edge only read as a heavy outline. It still has one declaration and no
+per-theme value; an engine without `light-dark()` keeps the ring everywhere.
+
 ## Consequences
 
 - Adding a theme is a CSS record plus a registry entry; it does not touch

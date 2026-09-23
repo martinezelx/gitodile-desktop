@@ -195,11 +195,16 @@
      here and never themed, like the swatches themselves.
 
      It is near-opaque rather than a translucent hairline on purpose: a
-     translucent black composites to a light grey over a light theme, which
-     weakens the chip's edge instead of defining it. Near-opaque keeps the
-     chip bordered by a dark edge in both schemes (a swatch clears 3:1 against
-     it everywhere), while dissolving into the near-black official dark
-     panels where no separator was ever needed. */
+     translucent black composites to a grey, which weakens the chip's edge
+     instead of defining it. It dissolves into the near-black official dark
+     panels, where no separator was ever needed.
+
+     Dark schemes only. On a light panel every swatch already clears 4.5:1
+     (the `cw` figures), so the edge was never doing work there — it only drew
+     a sticker-like black outline round every chip. `light-dark()` resolves
+     against the `color-scheme` each theme block declares, so the ring still
+     needs no per-theme override; an engine without it keeps the ring in
+     both schemes, which is the old behaviour rather than a regression. */
   --avatar-color-0: #278657; /* teal   — cw 4.53:1, cd 3.84:1 */
   --avatar-color-1: #26827e; /* cyan   — cw 4.59:1, cd 3.79:1 */
   --avatar-color-2: #317aaa; /* sky    — cw 4.67:1, cd 3.73:1 */
@@ -210,5 +215,9 @@
   --avatar-color-7: #c94573; /* pink   — cw 4.58:1, cd 3.80:1 */
   --avatar-foreground: #fff;
   --avatar-ring: 0 0 0 2px rgba(0, 0, 0, 0.9);
+}
+
+@supports (color: light-dark(#000, #fff)) {
+  :root { --avatar-ring: 0 0 0 2px light-dark(transparent, rgba(0, 0, 0, 0.9)); }
 }
 

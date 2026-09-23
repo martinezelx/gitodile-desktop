@@ -830,7 +830,10 @@ Colour is two layers, and a theme is a record that fills only the second one
 are declared once in `src/styles/tokens.css`. No theme may set them.
 `--avatar-ring` is a neutral dark edge the project chip carries so it stays
 separated from the lighter panels of some community palettes (Nord, Catppuccin
-Frappé) without a per-theme colour override. This layer is identity, not
+Frappé) without a per-theme colour override. It is drawn in dark schemes
+only — `light-dark()` against each theme's `color-scheme` — because on a light
+panel every swatch already clears 4.5:1 and the edge only read as an outline.
+This layer is identity, not
 action: the actionable accent is `--accent-primary`, which the theme owns, so
 the primary action, the notification badge, the attention halo, navigation and
 focus all follow the theme rather than fighting it. The fixed lime is `#8bc53f`
