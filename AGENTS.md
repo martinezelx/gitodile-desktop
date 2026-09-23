@@ -228,7 +228,15 @@ In summary:
 
 ## Development conventions
 
-- Work directly on `main`. Do not create feature branches or worktrees for routine changes; only branch when the user explicitly asks for one (e.g. to isolate a risky or long-running experiment).
+- Develop the next version on a work branch (for example `feature/<topic>`),
+  not directly on `main`. When that branch holds everything the version ships,
+  run `pnpm run release:prepare <version>` on it: the branch must contain
+  `origin/main`, and it becomes `release/<version>` in place with the version
+  bump, notes and highlights. Merging its pull request tags and releases.
+  Do not create extra branches or worktrees beyond that unless the user asks.
+- Changes to `.github/` or `scripts/release/` never ride on a release branch;
+  the release coordinator rejects them. Land them on `main` in their own pull
+  request first.
 - Never add `Co-Authored-By` (or similar AI-attribution) trailers to commit messages.
 - TypeScript strict mode must stay enabled.
 - Rust code must pass `cargo fmt` and `cargo clippy`.

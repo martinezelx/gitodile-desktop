@@ -8,7 +8,7 @@ import {
   readReleaseMetadata,
   ReleaseValidationError,
 } from "./release-candidate.mjs";
-import { NOTES_PLACEHOLDER } from "./release-prepare.mjs";
+import { isProtectedReleasePath, NOTES_PLACEHOLDER, PROTECTED_RELEASE_PREFIXES } from "./release-prepare.mjs";
 import { extractHighlightsBlock, highlightsFileName, parseHighlights, renderHighlightsBlock } from "./highlights.mjs";
 
 export const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
@@ -96,13 +96,17 @@ export function validateReleasePreparation({ root, authorization, changedFiles }
     `docs/release/notes/${authorization.tag}.md`,
     `docs/release/highlights/${authorization.tag}.json`,
   ]);
-  const allowedFiles = new Set([...expectedFiles, "docs/release/update-target-qualifications.json"]);
   if (!Array.isArray(changedFiles)) fail("release_scope_invalid", "release pull request file list is invalid");
   const changes = changedFiles.map((file) => typeof file === "string" ? { filename: file, status: "modified" } : file);
-  if (changes.some((file) =>
-    !allowedFiles.has(file?.filename) || file.previous_filename !== undefined ||
-    !new Set(["added", "modified"]).has(file.status)
-  )) fail("release_scope_invalid", "release pull request changes, removes or renames files outside the release-preparation contract");
+  // The branch may carry the product work it releases, but never the release
+  // automation itself, on either side of a rename.
+  const touched = changes.flatMap((file) => [file?.filename, file?.previous_filename]).filter((file) => file !== undefined);
+  if (touched.some((file) => typeof file !== "string" || isProtectedReleasePath(file))) {
+    fail("release_scope_invalid", `release pull request changes protected release automation (${PROTECTED_RELEASE_PREFIXES.join(", ")}); land it on main in its own pull request first`);
+  }
+  if (changes.some((file) => expectedFiles.has(file.filename) && (file.previous_filename !== undefined || !new Set(["added", "modified"]).has(file.status)))) {
+    fail("release_scope_invalid", "release pull request removes or renames a release-preparation file");
+  }
   const names = changes.map((file) => file.filename);
   for (const file of expectedFiles) if (!names.includes(file)) fail("release_scope_invalid", `release pull request did not prepare ${file}`);
   const metadata = readReleaseMetadata(root, authorization.mergeSha);
@@ -154,6 +158,11 @@ export async function authorizeMergedRelease({ event, token, root, fetchImpl = f
       status,
     })));
     if (batch.length < 100) break;
+  }
+  // GitHub stops listing a pull request's files at 3,000. The scope check is
+  // only as good as the list, so a truncated one fails closed.
+  if (!Number.isSafeInteger(pull.changed_files) || files.length !== pull.changed_files) {
+    fail("release_scope_invalid", "the release pull request's file list is incomplete; split the release into smaller pull requests");
   }
   git(root, ["fetch", "--no-tags", "origin", "+refs/heads/main:refs/remotes/origin/main"]);
   if (git(root, ["merge-base", "--is-ancestor", identity.mergeSha, "refs/remotes/origin/main"], { allowFailure: true }).status !== 0) {

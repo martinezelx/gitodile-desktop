@@ -137,9 +137,10 @@ The completed History implementation and its validation are recorded in
 ## Publication checks
 
 The planned updater uses two channels, `stable` and `preview`, both released
-from tagged commits on `main`. Start only from a clean, current `main` with
-`pnpm run release:prepare <semver>`; it creates the sole valid
-`release/<semver>` branch and prepares the authoritative metadata, the public
+from tagged commits on `main`. Run `pnpm run release:prepare <semver>` from a
+clean, current `main`, or from the clean work branch that holds the release's
+changes and already contains `origin/main`; it produces the sole valid
+`release/<semver>` branch (renaming a work branch in place) and prepares the authoritative metadata, the public
 notes and the in-app highlights file that What's new is built from; after
 filling the highlights, `pnpm run release:notes` renders the notes' Highlights
 section from them.
