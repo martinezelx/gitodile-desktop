@@ -97,3 +97,12 @@ export {
    update dialog all mark a preview build beside its version, and had drifted
    into three pill recipes — two of them naming classes no sheet defined. */
 export { ChannelGlyph } from "./channelGlyph";
+/* ADR 0003's two-consumer bar: What's new lists the bundled releases'
+   highlights and the update dialog lists the offered release's, from the
+   feed. Both say the same thing about a version, so both draw it one way. */
+export {
+  HIGHLIGHT_ICONS,
+  ReleaseHighlights,
+  type HighlightIcon,
+  type ReleaseHighlightLine,
+} from "./releaseHighlights";

@@ -93,6 +93,36 @@
   vertical-align: -0.125em;
 }
 
+/* A release's highlights — one tinted glyph and one sentence per line — as
+   What's new and the update dialog both draw them. The host owns the
+   list's margin: What's new indents it under its disclosure, and this sheet
+   loads after the app shell, so declaring one here would override that. */
+.release-highlights {
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.release-highlights li {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+}
+.release-highlights__icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: var(--accent-primary);
+}
+.release-highlights__icon svg { width: 14px; height: 14px; }
+
 .eyebrow { margin-bottom: 6px; color: var(--accent-primary); font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 
 /* The labelled button carries its own size. It used to declare padding and

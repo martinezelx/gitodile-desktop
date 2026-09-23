@@ -1,24 +1,11 @@
 import React, { useId, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import {
-  ArrowRight,
-  Bug,
-  ChevronDown,
-  CloudDownload,
-  FolderOpen,
-  GitBranch,
-  History,
-  ListChecks,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Tag,
-} from "lucide-react";
+import { ArrowRight, ChevronDown, Sparkles } from "lucide-react";
 
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
-import { ChannelGlyph, DialogCloseButton, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
-import { APP_CHANGELOG, type AppReleaseEntry, type HighlightIcon } from "./appRelease";
+import { ChannelGlyph, DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
+import { APP_CHANGELOG, type AppReleaseEntry } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
  * same entry reads correctly in every supported language. A missing or unparseable date
@@ -34,22 +21,6 @@ function formatReleaseDate(date: string | null, formats: LocaleFormats): string 
   }
   return formatDate(parsed, formats);
 }
-
-/** Every name in the glyph catalogue, drawn. `Record<HighlightIcon, …>`
- * is what keeps this complete: a name added to the catalogue without a glyph
- * here fails to compile rather than rendering nothing. */
-const HIGHLIGHT_ICON_COMPONENTS: Record<HighlightIcon, React.ComponentType<{ "aria-hidden": true }>> = {
-  bug: Bug,
-  "cloud-download": CloudDownload,
-  "folder-open": FolderOpen,
-  "git-branch": GitBranch,
-  history: History,
-  "list-checks": ListChecks,
-  send: Send,
-  "shield-check": ShieldCheck,
-  sparkles: Sparkles,
-  tag: Tag,
-};
 
 function ReleaseNotes({
   release,
@@ -94,17 +65,7 @@ function ReleaseNotes({
         <p id={notesId} className="changelog-release__empty">{t.changelogNoHighlights}</p>
       )}
       {isExpanded && release.highlights.length > 0 && (
-        <ul id={notesId} className="changelog-release__notes" role="list">
-          {release.highlights.map((highlight) => {
-            const NoteIcon = HIGHLIGHT_ICON_COMPONENTS[highlight.icon];
-            return (
-              <li key={highlight.id}>
-                <span className="changelog-release__note-icon" aria-hidden="true"><NoteIcon aria-hidden /></span>
-                <span>{highlight[language]}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <ReleaseHighlights id={notesId} className="changelog-release__notes" highlights={release.highlights} language={language} />
       )}
     </li>
   );
