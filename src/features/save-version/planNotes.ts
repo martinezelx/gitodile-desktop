@@ -9,10 +9,17 @@ import type { SaveVersionPlan } from "./domain";
  * One list for both frames — the dialog prints every line, the quick box the
  * same lines under its one-line plan — so the two never explain the same plan
  * differently. The always-true "local only" note is not here: the dialog
- * states it, the box says it with its publish toggle. */
-export function getSaveVersionNotes(plan: SaveVersionPlan, t: Translations): string[] {
+ * states it, the box says it with its publish option.
+ *
+ * `countStated` is for a frame whose plan line already reads "3 of 7 files":
+ * the files left behind are that line's to say, and nothing is counted twice. */
+export function getSaveVersionNotes(
+  plan: SaveVersionPlan,
+  t: Translations,
+  { countStated = false }: { countStated?: boolean } = {},
+): string[] {
   const notes: string[] = [];
-  if (plan.remainingFiles > 0) notes.push(t.saveVersionRemainingNote(plan.remainingFiles));
+  if (plan.remainingFiles > 0 && !countStated) notes.push(t.saveVersionRemainingNote(plan.remainingFiles));
   if (plan.hasPreparedChanges) notes.push(t.saveVersionPreparedNote);
   if (plan.isFirstVersion) {
     notes.push(plan.branch ? t.saveVersionFirstVersionOnLineNote(plan.branch) : t.saveVersionFirstVersionNote);

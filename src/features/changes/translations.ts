@@ -110,7 +110,7 @@ export interface ChangesTranslations {
   changesRefreshFailedTitle: string;
   changesDiscardingNow: string;
   changesSaveVersionNoSelectionHint: string;
-  changesQuickCommitDismiss: string;
+  changesQuickCommitFiles: (saved: number, total: number) => string;
 
   changesSelectAll: string;
   changesSelectNone: string;
@@ -295,7 +295,8 @@ const en: ChangesTranslations = {
   changesRefreshFailedTitle: "Changes couldn’t be refreshed",
   changesDiscardingNow: "Discarding…",
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
-  changesQuickCommitDismiss: "Discard draft",
+  changesQuickCommitFiles: (saved, total) =>
+    saved === total ? (total === 1 ? "1 file" : `${total} files`) : `${saved} of ${total} files`,
 
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
@@ -482,7 +483,8 @@ const es: ChangesTranslations = {
   changesRefreshFailedTitle: "No se pudieron actualizar los cambios",
   changesDiscardingNow: "Descartando…",
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
-  changesQuickCommitDismiss: "Descartar borrador",
+  changesQuickCommitFiles: (saved, total) =>
+    saved === total ? (total === 1 ? "1 archivo" : `${total} archivos`) : `${saved} de ${total} archivos`,
 
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",

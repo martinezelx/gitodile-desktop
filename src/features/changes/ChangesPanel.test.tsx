@@ -171,8 +171,8 @@ describe("ChangesPanel save selection", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(mockedInvoke).not.toHaveBeenCalledWith("plan_save_version", expect.anything());
 
-    // Including one file plans for exactly that file, and the box says what
-    // the plan leaves behind — the same note the dialog prints.
+    // Including one file plans for exactly that file, and the box's plan line
+    // says what the press saves out of how many, and where.
     await userEvent.click(edited);
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
@@ -181,10 +181,8 @@ describe("ChangesPanel save selection", () => {
         selectedPaths: ["edited.txt"],
       }),
     );
-    expect(await screen.findByText("1 other file will remain as a pending change.")).toBeInTheDocument();
-    // The redundant files-and-line plan sentence is gone: the list names the
-    // files and the header names the line.
-    expect(screen.queryByText(/will be saved to/)).not.toBeInTheDocument();
+    expect(await screen.findByText("1 of 2 files")).toBeInTheDocument();
+    expect(screen.queryByText("1 other file will remain as a pending change.")).not.toBeInTheDocument();
   });
 
   it("saves through the quick commit box docked under the file list — the screen's one save control", async () => {

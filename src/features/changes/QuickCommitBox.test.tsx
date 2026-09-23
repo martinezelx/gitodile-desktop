@@ -88,26 +88,27 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   // `publishToo` reads this on mount, shared with SaveVersionDialog's own
-  // checkbox — a test that checks the toggle must not leak that choice into
+  // checkbox — a test that checks the option must not leak that choice into
   // the next one.
   localStorage.removeItem(PUBLISH_AFTER_SAVE_STORAGE_KEY);
   localStorage.clear();
 });
 
 describe("QuickCommitBox", () => {
-  it("starts closed and costs Git nothing until it opens", async () => {
+  it("starts closed, with Save beside the field, and costs Git nothing until it opens", async () => {
     stubGit({ plan: plan({ branch: "feature/journey" }) });
     const { container } = renderBox();
     expect(isExpanded(container)).toBe(false);
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(mockedInvoke).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByLabelText("Version name"));
     expect(isExpanded(container)).toBe(true);
-    // One plan read, from the request that will write the version — but the
-    // files-and-line line it used to print is gone: the list already names the
-    // files and the header already names the line.
+    // One plan read, stated in one line over the field: what the press will
+    // save and the line it lands on — the panel header no longer names it.
     await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText(/will be saved to/)).not.toBeInTheDocument();
+    expect(await screen.findByText("2 files")).toBeInTheDocument();
+    expect(screen.getByText("feature/journey")).toBeInTheDocument();
   });
 
   it("asks for no plan while nothing is selected to save", async () => {
@@ -116,12 +117,15 @@ describe("QuickCommitBox", () => {
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 
-  it("prints only the notes that apply to this plan, the same ones the dialog prints", async () => {
+  it("prints only the notes that apply to this plan, and counts a partial selection once", async () => {
     stubGit({ plan: plan({ totalFiles: 1, remainingFiles: 1, isPartial: true, isFirstVersion: true, branch: "main" }) });
     renderBox({ selectedPaths: ["a.txt"] });
     await userEvent.click(screen.getByLabelText("Version name"));
 
-    expect(await screen.findByText("1 other file will remain as a pending change.")).toBeInTheDocument();
+    // The plan line says what is left behind; the dialog's note for it would
+    // count the same files a second time.
+    expect(await screen.findByText("1 of 2 files")).toBeInTheDocument();
+    expect(screen.queryByText("1 other file will remain as a pending change.")).not.toBeInTheDocument();
     expect(screen.getByText("This will be the first saved version on main.")).toBeInTheDocument();
     expect(screen.queryByText(/prepared/i)).not.toBeInTheDocument();
   });
@@ -208,56 +212,24 @@ describe("QuickCommitBox", () => {
       await userEvent.click(screen.getByLabelText("Version name"));
       expect(scrollElement.scrollTop).toBe(400 + (EXPANDED_HEIGHT - COLLAPSED_HEIGHT));
 
-      await userEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+      await userEvent.keyboard("{Escape}");
       expect(scrollElement.scrollTop).toBe(400);
     } finally {
       Element.prototype.getBoundingClientRect = originalRect;
     }
   });
 
-  it("the dismiss button clears the draft and closes the box", async () => {
+  it("Escape clears the draft and closes the box", async () => {
     const { container } = renderBox();
     const title = screen.getByLabelText("Version name");
     await userEvent.type(title, "half-written thought");
     await userEvent.type(screen.getByLabelText("More details (optional)"), "and some detail");
 
-    await userEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    await userEvent.keyboard("{Escape}");
 
     expect(title).toHaveValue("");
     expect(screen.getByLabelText("More details (optional)")).toHaveValue("");
     expect(isExpanded(container)).toBe(false);
-  });
-
-  it("Escape does the same as the dismiss button", async () => {
-    const { container } = renderBox();
-    const title = screen.getByLabelText("Version name");
-    await userEvent.type(title, "half-written thought");
-
-    await userEvent.keyboard("{Escape}");
-
-    expect(title).toHaveValue("");
-    expect(isExpanded(container)).toBe(false);
-  });
-
-  it("does not unfold the box when the trailing menu takes focus", async () => {
-    const { container } = renderBox({ menu: <button type="button">More</button> });
-    expect(isExpanded(container)).toBe(false);
-
-    await userEvent.click(screen.getByRole("button", { name: "More" }));
-
-    expect(isExpanded(container)).toBe(false);
-  });
-
-  it("does not discard a draft when Escape is meant for the trailing menu", async () => {
-    const { container } = renderBox({ menu: <button type="button">More</button> });
-    const title = screen.getByLabelText("Version name");
-    await userEvent.type(title, "half-written thought");
-
-    await userEvent.click(screen.getByRole("button", { name: "More" }));
-    await userEvent.keyboard("{Escape}");
-
-    expect(title).toHaveValue("half-written thought");
-    expect(isExpanded(container)).toBe(true);
   });
 
   it("saves with the typed title and description, then clears the draft", async () => {
@@ -317,23 +289,22 @@ describe("QuickCommitBox", () => {
     expect(save).toHaveAttribute("data-tooltip", "Choose at least one file to save.");
   });
 
-  it("also hands off to Publish after saving when the toggle is on", async () => {
+  it("also hands off to Publish after saving when that is checked, and says so on the button", async () => {
     stubGit();
     const { onPublishNow } = renderBox();
     await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
-    await userEvent.click(screen.getByRole("switch", { name: "Also publish" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Also publish" }));
 
-    // The label stays "Save" regardless of the toggle — see the JSX comment
-    // on why it doesn't vary the way the dialog's own button does.
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    // The button names the consequence: this press publishes too.
+    await userEvent.click(screen.getByRole("button", { name: "Save and publish" }));
 
     await screen.findByText('Saved "fix the thing" as abc123a.');
     expect(onPublishNow).toHaveBeenCalledTimes(1);
-    // The toggle already took the reader there; no second offer.
+    // The option already took the reader there; no second offer.
     expect(screen.queryByRole("button", { name: "Publish now" })).not.toBeInTheDocument();
   });
 
-  it("offers the next step under a saved version when the toggle is off", async () => {
+  it("offers the next step beside a saved version when publishing was not asked for", async () => {
     stubGit();
     const { onPublishNow } = renderBox();
     await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
@@ -345,10 +316,11 @@ describe("QuickCommitBox", () => {
     expect(onPublishNow).toHaveBeenCalledTimes(1);
   });
 
-  it("remembers the publish toggle across remounts, same key SaveVersionDialog reads", () => {
+  it("remembers the publish option across remounts, same key SaveVersionDialog reads", () => {
     localStorage.setItem(PUBLISH_AFTER_SAVE_STORAGE_KEY, "1");
     renderBox();
-    expect(screen.getByRole("switch", { name: "Also publish" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("checkbox", { name: "Also publish" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Save and publish" })).toBeInTheDocument();
   });
 
   it("shows the failure inline and offers a one-time retry without hooks", async () => {

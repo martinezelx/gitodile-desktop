@@ -137,16 +137,13 @@
   text-align: center;
 }
 
-/* Docked at the foot of the list, the same pattern `.changes-quick-commit`
-   established: a pill that reads as a sibling of the search box above it at
-   rest, and a small raised card once it holds more than one row. See that
-   selector's own comment for the shape rationale (DESIGN.md § Shape) and
-   `useScrollAnchoredResize` for why opening or closing it must not just push
-   rows out of view. This block deliberately mirrors `.changes-quick-commit`
-   rule for rule rather than reusing it: the CSS lives with the feature that
-   draws it, same as every other pair of screen styles in this app, and only
-   the two field-count differs enough that a shared class would carry unused
-   selectors on one side or the other. */
+/* Docked at the foot of the list: a pill that reads as a sibling of the
+   search box above it at rest, and a small raised card once it holds more
+   than one row — the shape Changes' save box had before it became a composer
+   docked under its list (DESIGN.md, Changes). See `useScrollAnchoredResize`
+   for why opening or closing it must not just push rows out of view. The CSS
+   lives with the feature that draws it, same as every other pair of screen
+   styles in this app. */
 .version-lines-quick-create {
   flex: 0 0 auto; display: flex; flex-direction: column;
   margin: 0 var(--space-2) var(--space-2);

@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Check, CircleAlert, CloudUpload, LoaderCircle, Save, X } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, CloudUpload, LoaderCircle } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
 import { useScrollAnchoredResize } from "../../shared/ui";
@@ -28,19 +28,19 @@ const isQuickMessage = (value: unknown): value is QuickVersionMessage =>
  * the caret in the name field. The screen's Ctrl/Cmd+S goes here. */
 export type QuickCommitBoxHandle = { focus: () => void };
 
-/** The one place a version is saved from the Changes screen, docked at the
- * foot of the file list it saves.
+/** The one place a version is saved from the Changes screen: a composer
+ * docked at the foot of the file list it saves, the way a chat or a commit
+ * box sits under what it sends.
  *
- * Closed, it is one row — the same height as the search box above it — so
- * it does not cost the list a card's worth of height while nobody is using
- * it; its glyph is the band's solid "do this" circle, breathing while there
- * is something to save (DESIGN.md § Motion). It opens on focus, asks Rust
- * for the plan of what it would save and states it in one line (the files,
- * the line they land on, and any note that applies), and closes again on
- * blur unless there is a draft or an operation in flight to protect. The
- * flow underneath — plan, save, hooks, "also publish" — is
- * `useSaveVersionFlow`, the same one `SaveVersionDialog` runs for the
- * screens with nowhere to type. */
+ * At rest it is one row — the name field and the Save button beside it — so
+ * the action is visible without costing the list a card's worth of height.
+ * It opens on focus and grows upward without changing shape: the plan over
+ * the field (`3 of 7 files → main`, from Rust), the details and any note that
+ * applies under it, and a foot with "Also publish" and the button, whose
+ * label says what the press will do. It closes again on blur unless there is
+ * a draft or an operation in flight to protect. The flow underneath — plan,
+ * save, hooks, "also publish" — is `useSaveVersionFlow`, the same one
+ * `SaveVersionDialog` runs for the screens with nowhere to type. */
 export function QuickCommitBox({
   ref,
   controller = defaultController,
@@ -51,7 +51,6 @@ export function QuickCommitBox({
   runHooks,
   remoteLabel,
   fileListRef,
-  menu,
   onSaveCompleted,
   onPublishNow,
 }: {
@@ -65,9 +64,9 @@ export function QuickCommitBox({
    * this box owns neither the preference nor the request, only the field. */
   runHooks: boolean;
   /** The upstream this would publish to, when one is already tracked — a
-   * tooltip on the toggle, so publishing is not a leap in the dark without
-   * costing the row a second line. `null` before a first publish, when
-   * Publish itself is what asks which remote. */
+   * tooltip on "Also publish", so publishing is not a leap in the dark
+   * without costing the foot a second line. `null` before a first publish,
+   * when Publish itself is what asks which remote. */
   remoteLabel: string | null;
   /** The file list's own scroll container — this box shares a flex column
    * with it, so opening or closing shrinks or grows that scroller by exactly
@@ -78,12 +77,6 @@ export function QuickCommitBox({
    * shortened viewport with no scroll to explain where they went. Matching
    * that clamp everywhere it doesn't happen for free is this ref's only job. */
   fileListRef: React.RefObject<HTMLDivElement | null>;
-  /** The list's own discard/restore menu, docked inside the box's trailing
-   * edge. It used to stand beside the pill as a second round control; the
-   * reader saw two controls where there is one thing — the changes and what
-   * can be done to them — so the `⋯` now rides the pill it acts on. The menu
-   * still opens its own confirmation before anything destructive. */
-  menu?: React.ReactNode;
   onSaveCompleted: () => void;
   onPublishNow: () => void;
 }): React.JSX.Element {
@@ -156,18 +149,14 @@ export function QuickCommitBox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded, canSave, selectedPathsKey, loadPlan, cancel]);
 
-  function collapse(): void {
-    beginExpandedChange(false);
-  }
-  /** The escape hatch for "opened this by accident": clears whatever draft is
-   * there and folds the box back to its one-line rest state, same as Escape
-   * does. Not offered mid-save — the fields disabled then are the same
-   * signal, and clearing what a request already captured would just be
-   * confusing to watch. */
+  /** Escape is the way out for "opened this by accident": it clears whatever
+   * draft is there and folds the box back to its one-row rest state. Not
+   * offered mid-save — clearing what a request already captured would just
+   * be confusing to watch. */
   function handleDismiss(): void {
     if (isBusy) return;
     clearMessageDraft();
-    collapse();
+    beginExpandedChange(false);
   }
   /** A success that is still on screen goes the moment the next draft
    * starts: the line is about the version that was saved, not this one. */
@@ -201,100 +190,107 @@ export function QuickCommitBox({
     }
   }
 
-  // Only the notes that apply to this plan. The line that used to spell out
-  // "N files → branch" is gone: the file list beside this box already names
-  // every file, and the header already names the line, so it was a third
-  // telling of two facts the screen was showing at the same time.
-  const notes = plan ? getSaveVersionNotes(plan, t) : [];
-  /* The glyph is the band's tile vocabulary in miniature, and the accent
-     moves rather than doubles: closed, the solid circle *is* the action and
-     breathes while there is a save to make; open, the action is the Save
-     button, so the circle steps down to the neutral tile; saved, it takes
-     the light "done" fill with a check. One accent fill in every state. */
   const isSaved = status === "success";
-  const breathes = !expanded && canSave && status === "idle";
-  const glyphTone = isSaved ? "done" : expanded ? "neutral" : "active";
+  // The plan line already reads "3 of 7 files", so the files left behind are
+  // its to say; the notes are only what it cannot.
+  const notes = plan && !isSaved ? getSaveVersionNotes(plan, t, { countStated: true }) : [];
 
   return (
     <div
       ref={containerRef}
       className={`changes-quick-commit${expanded ? " changes-quick-commit--expanded" : ""}${isSaved ? " changes-quick-commit--saved" : ""}`}
-      onFocus={(event) => {
-        // The trailing menu is the box's own child now, but touching it is not
-        // a request to type a version name — opening it must not also unfold
-        // the field it sits in. Tested against this box's own slot class, not
-        // the menu's internals, so the two stay decoupled.
-        if ((event.target as HTMLElement).closest(".changes-quick-commit__menu")) return;
-        beginExpandedChange(true);
-      }}
+      onFocus={() => beginExpandedChange(true)}
       onBlur={(event) => {
         if (containerRef.current?.contains(event.relatedTarget as Node | null)) return;
         if (isBusy || title.trim() || description.trim()) return;
-        collapse();
+        beginExpandedChange(false);
       }}
       onKeyDown={(event) => {
-        // Escape inside the trailing menu belongs to the menu: it closes that
-        // and nothing else. Without this the box's own Escape — "throw the
-        // draft away" — fired as the keydown bubbled through the container, so
-        // dismissing the menu also discarded a half-written version.
-        if ((event.target as HTMLElement).closest(".changes-quick-commit__menu")) return;
         if (event.key === "Escape" && expanded) {
           event.preventDefault();
           handleDismiss();
         }
       }}
     >
-      <div className="changes-quick-commit__field">
-        <div className="changes-quick-commit__summary-wrap">
-          <span className={`changes-quick-commit__glyph changes-quick-commit__glyph--${glyphTone}${breathes ? " attention-breathe" : ""}`} aria-hidden="true">
-            {isSaved ? <Check /> : <Save />}
-          </span>
-          <input
-            ref={titleRef}
-            className="changes-quick-commit__summary"
-            type="text"
-            value={title}
-            disabled={isBusy}
-            placeholder={t.saveVersionTitlePlaceholder}
-            aria-label={t.saveVersionTitleLabel}
-            onChange={(event) => {
-              setTitle(event.target.value);
-              clearStaleStatus();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void handleSave();
-              }
-            }}
-          />
-          {/* Hidden by CSS rather than left unmounted while closed — same
-              idiom as the file list's own search box clear button above it,
-              down to the shape: an affordance attached to a field is
-              rectangular, not a circle (DESIGN.md § Shape). */}
-          <button
-            type="button"
-            className="changes-quick-commit__dismiss"
-            aria-label={t.changesQuickCommitDismiss}
-            disabled={isBusy}
-            onClick={handleDismiss}
-          >
-            <X aria-hidden="true" />
-          </button>
-          {menu && <span className="changes-quick-commit__menu">{menu}</span>}
+      {/* What the press will do, over the field it is about: the count
+          first, then the line it lands on in the status bar's own mono. Once
+          saved, the same slot says what was saved and offers the step after
+          it. Kept one line tall while the plan loads, so the field under it
+          does not jump when the answer arrives. */}
+      <div className="changes-quick-commit__head">
+        <div>
+          {isSaved ? (
+            <p className="changes-quick-commit__success" role="status">
+              <Check aria-hidden="true" />
+              {/* One line at the list's width, so a long name truncates;
+                  the whole sentence stays on the tooltip. */}
+              <span data-tooltip={t.saveVersionSuccessDescription(state.result.title, state.result.shortCommit)}>
+                {t.saveVersionSuccessDescription(state.result.title, state.result.shortCommit)}
+              </span>
+              {/* A quiet link, not a second primary: the band's Publish tile
+                  is where that step is said in full. Absent when "Also
+                  publish" already took it there. */}
+              {!publishToo && (
+                <button type="button" className="changes-quick-commit__publish-now" onClick={onPublishNow}>
+                  <CloudUpload aria-hidden="true" />
+                  {t.saveVersionPublishNow}
+                </button>
+              )}
+            </p>
+          ) : (
+            <p className="changes-quick-commit__plan">
+              {plan && (
+                <>
+                  <span>{t.changesQuickCommitFiles(plan.totalFiles, plan.totalFiles + plan.remainingFiles)}</span>
+                  {plan.branch && (
+                    <>
+                      <ArrowRight aria-hidden="true" />
+                      <span className="changes-quick-commit__branch">{plan.branch}</span>
+                    </>
+                  )}
+                </>
+              )}
+            </p>
+          )}
         </div>
       </div>
+      <input
+        ref={titleRef}
+        className="changes-quick-commit__summary"
+        type="text"
+        value={title}
+        disabled={isBusy}
+        placeholder={t.saveVersionTitlePlaceholder}
+        aria-label={t.saveVersionTitleLabel}
+        onChange={(event) => {
+          setTitle(event.target.value);
+          clearStaleStatus();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            void handleSave();
+          }
+        }}
+      />
       <div className="changes-quick-commit__extra">
         <div>
-          {/* What this save would do beyond the obvious: only the notes that
-              apply to this plan, the same ones the dialog prints in full. The
-              count of files and the destination line are deliberately absent —
-              the list above already shows the files and the header already
-              names the line. */}
-          {plan && !isSaved && notes.length > 0 && (
-            <div className="changes-quick-commit__plan">
+          <textarea
+            className="changes-quick-commit__desc"
+            rows={2}
+            value={description}
+            disabled={isBusy}
+            placeholder={t.saveVersionDescriptionPlaceholder}
+            aria-label={t.saveVersionDescriptionLabel}
+            onChange={(event) => {
+              setDescription(event.target.value);
+              clearStaleStatus();
+            }}
+          />
+          {notes.length > 0 && (
+            <div className="changes-quick-commit__notes">
               {notes.map((note) => (
-                <p key={note} className="changes-quick-commit__plan-note">{note}</p>
+                <p key={note}>{note}</p>
               ))}
             </div>
           )}
@@ -313,70 +309,40 @@ export function QuickCommitBox({
               {t.saveVersionSkipHooks}
             </button>
           )}
-          {state.status === "success" && (
-            <div className="changes-quick-commit__success" role="status">
-              <p>{t.saveVersionSuccessDescription(state.result.title, state.result.shortCommit)}</p>
-              {/* The step after this one, offered where the eye already is.
-                  Absent when the toggle already took it there. */}
-              {!publishToo && (
-                <button type="button" className="changes-quick-commit__publish-now" onClick={onPublishNow}>
-                  <CloudUpload aria-hidden="true" />
-                  {t.saveVersionPublishNow}
-                </button>
-              )}
-            </div>
-          )}
-          <textarea
-            className="changes-quick-commit__desc"
-            rows={2}
-            value={description}
-            disabled={isBusy}
-            placeholder={t.saveVersionDescriptionPlaceholder}
-            aria-label={t.saveVersionDescriptionLabel}
-            onChange={(event) => {
-              setDescription(event.target.value);
-              clearStaleStatus();
-            }}
-          />
-          <div className="changes-quick-commit__foot">
-            <div className="changes-quick-commit__publish">
-              <span>{t.saveVersionPublishToggleLabel}</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={publishToo}
-                aria-label={t.saveVersionPublishToggleLabel}
-                data-tooltip={remoteLabel ?? undefined}
-                className={`toggle-switch${publishToo ? " toggle-switch--on" : ""}`}
-                disabled={isBusy}
-                onClick={togglePublishToo}
-              >
-                <span className="toggle-switch__knob" />
-              </button>
-            </div>
-            <button
-              className="primary-button primary-button--sm changes-quick-commit__action"
-              type="button"
-              disabled={!canSave || !title.trim() || isBusy}
-              data-tooltip={!canSave ? t.changesSaveVersionNoSelectionHint : undefined}
-              onClick={() => void handleSave()}
-            >
-              {isBusy ? (
-                <>
-                  <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                  {t.saveVersionSaving}
-                </>
-              ) : (
-                /* Fixed label, unlike the dialog's own button: swapping in
-                   a longer "Save and publish" here on every toggle click is
-                   what reflowed this row before. No icon of its own: the
-                   glyph at the head of the box is the save mark, and a second
-                   disquette 40px under it said it twice. */
-                t.saveVersionConfirm
-              )}
-            </button>
-          </div>
         </div>
+      </div>
+      <div className="changes-quick-commit__foot">
+        {/* An option of this save, not a setting that takes effect on its
+            own, so a checkbox rather than a switch; the button beside it
+            says the consequence. */}
+        <label className="changes-quick-commit__publish" data-tooltip={remoteLabel ?? undefined}>
+          <input
+            className="app-checkbox"
+            type="checkbox"
+            checked={publishToo}
+            disabled={isBusy}
+            onChange={togglePublishToo}
+          />
+          <span>{t.saveVersionPublishToggleLabel}</span>
+        </label>
+        <button
+          className="primary-button primary-button--sm changes-quick-commit__action"
+          type="button"
+          disabled={!canSave || !title.trim() || isBusy}
+          data-tooltip={!canSave ? t.changesSaveVersionNoSelectionHint : undefined}
+          onClick={() => void handleSave()}
+        >
+          {isBusy ? (
+            <>
+              <LoaderCircle aria-hidden="true" className="icon--spinning" />
+              {t.saveVersionSaving}
+            </>
+          ) : publishToo ? (
+            t.saveVersionConfirmAndPublish
+          ) : (
+            t.saveVersionConfirm
+          )}
+        </button>
       </div>
     </div>
   );
