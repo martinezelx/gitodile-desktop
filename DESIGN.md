@@ -906,15 +906,15 @@ confirmations, diff categories, and genuine status marks.
 Theme resolution order (highest priority first):
 
 1. An explicit theme, persisted locally and applied immediately.
-2. "Match device", which resolves to the official Light or Dark from
+2. "System" (the match-device preference), which resolves to the official Light or Dark from
    `prefers-color-scheme` and follows it live through the media query.
 
-The user must always be able to return to "match device", so an explicit choice
+The user must always be able to return to "System", so an explicit choice
 never silently strands them on a theme that has drifted from their OS setting.
 A pinned community theme has no official counterpart, so the titlebar toggle
 hands control back to the device — its glyph becomes the monitor, matching
-"Match device"; from the device or an official theme it flips between the
-official light and dark. "Match device" and every named theme stay reachable
+"System"; from the device or an official theme it flips between the
+official light and dark. "System" and every named theme stay reachable
 from Settings > Interface > Theme and the command palette. The picker shows
 each theme as a miniature of the app in its own tokens, with the scheme carried
 by a glyph and by the option's accessible name, never by colour alone. The

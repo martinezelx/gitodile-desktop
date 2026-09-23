@@ -458,8 +458,8 @@ describe("Settings panel option groups", () => {
     renderPanel(createPort(), { initialSection: "appearance", setTheme });
 
     const official = screen.getByRole("radiogroup", { name: "Official" });
-    // "Match device" carries the auto scheme; the official pair names light/dark.
-    expect(within(official).getByRole("radio", { name: "Match device, follows your device" }))
+    // "System" carries the auto scheme; the official pair names light/dark.
+    expect(within(official).getByRole("radio", { name: "System, light or dark to match your system" }))
       .toHaveAttribute("aria-checked", "true");
     expect(within(official).getByRole("radio", { name: "GitOdile Light, light theme" }))
       .toHaveAttribute("aria-checked", "false");
