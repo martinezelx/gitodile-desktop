@@ -175,10 +175,10 @@ describe("production style composition", () => {
 
     expect(primitives).toContain(".app-menu {");
     // A feature override still has to be able to win on equal specificity —
-    // the discard menu is one, because its trigger rides the save box's
-    // trailing edge at the foot of the list panel, and its items name the list
-    // above it: it opens upward and rightward.
-    expect(changes).toContain(".changes-actions-menu__popup { top: auto; bottom: calc(100% + 6px); right: auto; left: 0;");
+    // the discard menu is one, because its trigger ends the list's search
+    // strip and its items name the list under it: it opens rightward, across
+    // the diff, so the files it names stay in view.
+    expect(changes).toContain(".changes-actions-menu__popup { right: auto; left: 0;");
     expect(versionLines).not.toMatch(/^\s*\.app-menu(?:\s|,|\{)/m);
 
     // The shared view picker is not one, in either of its two hosts. Both put

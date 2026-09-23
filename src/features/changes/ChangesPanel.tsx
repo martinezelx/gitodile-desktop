@@ -1479,14 +1479,15 @@ export function ChangesPanel({
             <>
               {/* One strip for what is listed: the include-everything checkbox
                   at its head, at the rows' own inset so it reads as the
-                  column's first row, and the search taking the rest of the
-                  width — the shape History's strip has. A step quieter than the
+                  column's first row, the search taking the rest of the width —
+                  the shape History's strip has — and the discard/restore `⋯`
+                  at its end. A step quieter than the
                   header above it, the way History's inner panes step down from
                   their panel. The breakdown and the line totals that used to
                   sit beside the checkbox are gone: the Journey band and the
                   status bar already say them, and a partial selection is the
                   checkbox's own indeterminate state and the save box's plan
-                  ("3 of 7 files"). */}
+                  ("3 of 7 files → main"). */}
               <div className="changes-file-list__toolbar">
                 <span className="changes-file-list__select-all">
                   {canChooseFiles ? (
@@ -1528,6 +1529,21 @@ export function ChangesPanel({
                     onChange={setFilters}
                     t={t}
                   />}
+                />
+                {/* What can be done to the listed changes without saving them
+                    — discard, or bring discarded work back — at the strip's
+                    trailing end. It sat inside the save box for a while, which
+                    put a destructive menu in the primary control; up here it
+                    acts on the list it heads, a panel's height away from Save.
+                    It opens its own confirmation before anything is discarded. */}
+                <ChangesActionsMenu
+                  controller={controller}
+                  projectPath={projectPath}
+                  sessionEpoch={sessionEpoch}
+                  selectedPath={selectedPath}
+                  disabled={isCheckingChanges}
+                  onChoose={requestDiscard}
+                  t={t}
                 />
               </div>
               <ChangesFilterChips filters={filters} onChange={setFilters} t={t} />
@@ -1596,14 +1612,10 @@ export function ChangesPanel({
                   t={t}
                 />
               </div>
-              {/* The foot: the save box with the menu that acts without saving
-                  — discard, or bring discarded work back — docked at its
-                  trailing edge. It used to sit in the search strip, then
-                  beside the box; either way it read as a second control for
-                  the same changes, so it now rides the pill it acts on. It
-                  opens its own confirmation before anything destructive, so
-                  nothing is discarded from a single press. History's card
-                  ends its strip with the same `⋯`. */}
+              {/* The foot: the save box, the one place a version is saved
+                  from this screen, docked under the files it saves. Nothing
+                  destructive shares it — the discard/restore `⋯` heads the
+                  list in the strip above. */}
               <div className="changes-file-list__foot">
                 <QuickCommitBox
                   ref={quickCommitRef}
@@ -1614,17 +1626,6 @@ export function ChangesPanel({
                   runHooks={runGitHooks}
                   remoteLabel={workingTree.upstream.upstream}
                   fileListRef={fileListScrollRef}
-                  menu={
-                    <ChangesActionsMenu
-                      controller={controller}
-                      projectPath={projectPath}
-                      sessionEpoch={sessionEpoch}
-                      selectedPath={selectedPath}
-                      disabled={isCheckingChanges}
-                      onChoose={requestDiscard}
-                      t={t}
-                    />
-                  }
                   onSaveCompleted={onSaveCompleted}
                   onPublishNow={onPublishNow}
                 />

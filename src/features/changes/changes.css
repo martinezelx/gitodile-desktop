@@ -136,10 +136,10 @@
    which. Hung from the trigger's left edge it opens across the diff instead,
    so what is about to be discarded stays on screen while the choice is made.
    There is room for it there: the list panel is 280px at most and the menu is
-   270px, so it clears the diff's own edge by a wide margin. It opens upward,
-   since the trigger sits at the foot of the panel beside the save box and a
-   menu dropping from there would fall off the window. */
-.changes-actions-menu__popup { top: auto; bottom: calc(100% + 6px); right: auto; left: 0; min-width: 270px; }
+   270px, so it clears the diff's own edge by a wide margin. It drops down
+   from the trigger at the end of the search strip, the way every strip menu
+   in the app opens. */
+.changes-actions-menu__popup { right: auto; left: 0; min-width: 270px; }
 .changes-actions-menu .app-menu__item--danger { color: var(--status-danger); }
 .changes-actions-menu .app-menu__item--danger svg { color: currentColor; }
 .changes-actions-menu .app-menu__item:disabled { opacity: 0.42; }

@@ -708,10 +708,13 @@ describe("ChangesPanel review controls", () => {
     expect(within(toolbar).getByRole("searchbox", { name: "Search changed files" })).toBeInTheDocument();
     expect(list.querySelector(".changes-file-list__state")).toBeNull();
     expect(screen.queryByLabelText("1 edited · 1 new")).not.toBeInTheDocument();
-    // Discarding acts on the files, so its menu sits over the file list; so
-    // does saving, in the box docked under them.
-    expect(within(list).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
-    expect(within(list).getByLabelText("Version name")).toBeInTheDocument();
+    // Discarding acts on the files, so its menu ends the strip that heads
+    // them — never inside the save box docked under them.
+    expect(within(toolbar).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
+    const foot = list.querySelector(".changes-file-list__foot");
+    if (!(foot instanceof HTMLElement)) throw new Error("no save box foot");
+    expect(within(foot).getByLabelText("Version name")).toBeInTheDocument();
+    expect(within(foot).queryByRole("button", { name: "Discard or restore changes" })).not.toBeInTheDocument();
   });
 
   it("narrows the file list as the user searches, and explains an empty result", async () => {
