@@ -779,7 +779,7 @@ styles and defaults to **Technology**: the language or framework detected from
 the project's own root manifests (a desktop platform such as Tauri first, then a
 framework, then a language — a bounded, read-only local scan, see
 `src-tauri/src/technology.rs`); **Initials**, the colour-and-initials chip the
-app has always used; or **Random**, a stable animal per project that the user
+app has always used; or **Random**, a stable emoji per project, drawn from the whole picker set, that the user
 can then replace in that project's own settings. The detected mark is vendor
 artwork from the same vscode-icons set with its own colours, so it sits on a
 neutral tray rather than the identity colour; the emoji uses the system emoji

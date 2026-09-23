@@ -211,7 +211,7 @@ export const projectSettingsTranslations: {
     projectSettingsIconNotDetected: "No known technology detected.",
     projectSettingsIconUnreadable: "Couldn't read this project's technology.",
     projectSettingsIconEmoji: "Emoji",
-    projectSettingsIconEmojiHint: "Pick a face or an animal.",
+    projectSettingsIconEmojiHint: "Pick an animal or a symbol.",
     projectSettingsIconUseEmoji: (emoji) => `Use ${emoji} for this project`,
   },
   es: {
@@ -326,7 +326,7 @@ export const projectSettingsTranslations: {
     projectSettingsIconNotDetected: "No se ha detectado ninguna tecnología conocida.",
     projectSettingsIconUnreadable: "No se pudo leer la tecnología de este proyecto.",
     projectSettingsIconEmoji: "Emoji",
-    projectSettingsIconEmojiHint: "Elige una cara o un animal.",
+    projectSettingsIconEmojiHint: "Elige un animal o un símbolo.",
     projectSettingsIconUseEmoji: (emoji) => `Usar ${emoji} para este proyecto`,
   },
 };
