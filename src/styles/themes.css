@@ -472,9 +472,11 @@
 /* Solarized Dark - ethanschoonover.com/solarized (MIT). The canonical palette
    is deliberately flat and low-contrast, so every surface is base03 and depth
    comes from borders rather than a lighter panel; base0/base1 then clear 4.5:1
-   where Solarized's own base0-on-base02 pairing does not. */
+   where Solarized's own base0-on-base02 pairing does not. Base0 clears 4.5:1
+   by only 0.25, so the accent wash is halved to keep it there. */
 [data-theme="solarized-dark"] {
   color-scheme: dark;
+  --accent-wash-strength: 4%;
   --surface-app: #002b36;
   --surface-panel: #002b36;
   --surface-raised: #002b36;

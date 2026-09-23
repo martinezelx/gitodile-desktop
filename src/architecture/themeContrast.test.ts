@@ -13,6 +13,7 @@ import { THEME_IDS } from "../shared/theme";
  * here; the roles below are the ones the app uses for words, icons and state. */
 
 const THEMES_CSS = readFileSync(resolve(process.cwd(), "src", "styles", "themes.css"), "utf8");
+const TOKENS_CSS = readFileSync(resolve(process.cwd(), "src", "styles", "tokens.css"), "utf8");
 
 /** Every token a theme must define, so switching leaves no value behind. */
 const REQUIRED_TOKENS = [
@@ -102,6 +103,22 @@ function contrast(foreground: string, background: string): number {
 
 const HEX = /^#[0-9a-fA-F]{3,6}$/;
 
+/** `color-mix(in srgb, <foreground> <weight>, <background>)`, as the browser
+ * resolves it: a straight blend of the encoded channels. */
+function mix(foreground: string, weight: number, background: string): string {
+  const top = toRgb(foreground);
+  const bottom = toRgb(background);
+  return `#${top
+    .map((channel, index) => Math.round(channel * weight + bottom[index] * (1 - weight)))
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function percentage(value: string | undefined): number | null {
+  const match = value?.match(/^(\d+(?:\.\d+)?)%$/);
+  return match ? Number(match[1]) / 100 : null;
+}
+
 describe("theme contrast contract", () => {
   const blocks = readThemeBlocks();
 
@@ -164,6 +181,28 @@ describe("theme contrast contract", () => {
       }
     }
 
+    expect(failures).toEqual([]);
+  });
+
+  // An accent wash is a surface that text sits on — an unread notification is
+  // mostly 11–12px secondary text — so it is held to the same 4.5:1 as the
+  // surfaces it is mixed from. The strength is the tokens.css default unless a
+  // theme lowers it in its own block.
+  it("keeps secondary text at 4.5:1 on the accent wash", () => {
+    const defaultStrength = percentage(TOKENS_CSS.match(/--accent-wash-strength:\s*([^;]+);/)?.[1].trim());
+    expect(defaultStrength, "tokens.css declares --accent-wash-strength").not.toBeNull();
+    const failures: string[] = [];
+    for (const block of blocks) {
+      const strength = percentage(block.tokens["--accent-wash-strength"]) ?? defaultStrength ?? 0;
+      const fill = block.tokens["--accent-primary-fill"];
+      const raised = block.tokens["--surface-raised"];
+      if (!HEX.test(fill ?? "") || !HEX.test(raised ?? "")) continue;
+      const wash = mix(fill, strength, raised);
+      for (const text of ["--text-primary-color", "--text-secondary-color"]) {
+        const ratio = contrast(block.tokens[text], wash);
+        if (ratio < 4.5) failures.push(`${block.id}: ${text} on the accent wash is ${ratio.toFixed(2)}:1`);
+      }
+    }
     expect(failures).toEqual([]);
   });
 

@@ -71,27 +71,33 @@
 
 /* Each entry is its own card, not a flat list with full-width dividers. The
    cards are what let the dot and the per-row dismiss share the row without a
-   rule cutting through either. */
+   rule cutting through either.
+
+   The card takes the panel's own `--surface-raised` and is drawn by its border.
+   `--surface-panel` sank it: themes where panel and raised differ (GitOdile
+   Dark, Catppuccin Latte) showed read rows as wells darker than the panel, and
+   in Latte a read row and an unread one came out at the same lightness. */
 .notification {
   position: relative;
   display: flex; gap: var(--space-3);
   padding: 10px var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item);
-  background: var(--surface-panel);
+  background: var(--surface-raised);
 }
-/* Deliberately a wash, not `--surface-active`. That token is a 12–14% accent
-   wash, and measured on the dark panel it takes `--text-secondary-color` down to
-   4.42:1 — under AA, and these rows are mostly 11px and 12px secondary text.
-   Eight percent mixed opaquely against the raised surface clears it in both
-   themes and still reads as a tint.
-   
+/* Deliberately the accent wash, not `--surface-active`. That token is a 12–14%
+   accent wash, and on dark panels it takes `--text-secondary-color` under AA —
+   and these rows are mostly 11px and 12px secondary text. The wash's strength
+   is a token so a theme with a thin text margin can lower it, and
+   `themeContrast.test.ts` holds the secondary text at 4.5:1 on it in every
+   theme.
+
    Colour alone is not the only signal: an unread row also carries the dot and
    a heavier title, a read one drops to `--weight-medium`, and a screen reader
    gets the word. */
 .notification--unread {
-  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-raised));
-  border-color: color-mix(in srgb, var(--accent-primary) 28%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent-primary-fill) var(--accent-wash-strength), var(--surface-raised));
+  border-color: color-mix(in srgb, var(--accent-primary-fill) 28%, var(--border-subtle));
 }
 .notification--unread .notification__title { font-weight: var(--weight-strong); padding-right: 14px; }
 
