@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BadgeCheck,
   Bell,
   CheckCircle2,
   ChevronDown,
@@ -126,8 +127,8 @@ type ThemeCardOption = {
   id: ThemePreference;
   name: string;
   schemeLabel: string;
-  /** Official GitOdile records wear the brand mark so the three stand apart. */
-  branded: boolean;
+  /** Official GitOdile records wear the official badge so the three stand apart. */
+  official: boolean;
   preview: React.JSX.Element;
 };
 
@@ -866,7 +867,7 @@ export function SettingsPanel({
     id: record.id,
     name: record.name,
     schemeLabel: record.scheme === "dark" ? t.themeSchemeDark : t.themeSchemeLight,
-    branded: record.source === "official",
+    official: record.source === "official",
     preview: <ThemePreview theme={record.id} />,
   });
   const officialThemeOptions: readonly ThemeCardOption[] = [
@@ -874,7 +875,7 @@ export function SettingsPanel({
       id: "system",
       name: t.themeMatchDevice,
       schemeLabel: t.themeSchemeAuto,
-      branded: true,
+      official: true,
       preview: (
         <span className="theme-card__split">
           <ThemePreview theme="gitodile-light" />
@@ -898,9 +899,9 @@ export function SettingsPanel({
         className="theme-card"
         onClick={() => setTheme(option.id)}
       >
-        {option.branded && (
-          <span className="theme-card__brand" aria-hidden="true">
-            <span className="gitodile-mark" />
+        {option.official && (
+          <span className="theme-card__official" aria-hidden="true">
+            <BadgeCheck />
           </span>
         )}
         <span className="theme-card__tile">{option.preview}</span>
@@ -1186,7 +1187,7 @@ export function SettingsPanel({
               <div className="settings-group__body">
                 {/* Two radiogroups so the accessible names still say which
                     group a theme belongs to; the official three are marked by
-                    the brand badge, not by a label. */}
+                    the official badge, not by a label. */}
                 <div
                   className="theme-picker__official"
                   role="radiogroup"
