@@ -551,15 +551,13 @@
    `.save-version-dialog` beside it, not a multiline control like the
    textarea it holds — see DESIGN.md § Shape and the concentric chain in
    tokens.css. */
-/* The foot of the list panel: the save box taking the width, and the
-   discard/restore menu beside it at the box's closed height. `align-items:
-   flex-end` keeps the menu on the box's last row when the box opens upward
-   into its fields. */
+/* The foot of the list panel: just the save box. The discard/restore menu now
+   rides inside the box's trailing edge (see `.changes-quick-commit__menu`), so
+   this row no longer pairs two controls. */
 .changes-file-list__foot {
-  flex: 0 0 auto; display: flex; align-items: flex-end; gap: var(--space-2);
+  flex: 0 0 auto; display: flex; align-items: flex-end;
   padding: 0 var(--space-2) var(--space-2);
 }
-.changes-file-list__foot .changes-actions-menu { margin-bottom: 1px; }
 .changes-quick-commit {
   flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
@@ -631,6 +629,23 @@
 .changes-quick-commit__dismiss:hover:not(:disabled) { background: var(--surface-raised); color: var(--text-primary-color); }
 .changes-quick-commit__dismiss:disabled { opacity: 0.4; }
 .changes-quick-commit__dismiss svg { width: 14px; height: 14px; }
+/* The list's discard/restore menu, docked inside the box's trailing edge. As
+   a standalone control it wore the bordered circle `.changes-actions-menu__trigger`
+   gives it; inside the pill that circle was a second shape in the one shape the
+   box is, so it drops to the glyph alone and borrows the box's own hover. It
+   still carries a border box at the same size, so pointing at either state
+   finds the same target, and pressing it still opens the confirmation before
+   anything is discarded. */
+.changes-quick-commit__menu { flex: 0 0 auto; display: inline-flex; }
+.changes-quick-commit__menu .changes-actions-menu__trigger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary-color);
+}
+.changes-quick-commit__menu .changes-actions-menu__trigger:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary-color);
+}
 /* Grid rows collapse the panel to zero height when closed, same as a
    `.filter-panel` disclosure — snapped, not eased: `grid-template-rows` is
    layout motion, which this app's own architecture check forbids animating
@@ -654,22 +669,11 @@
 @media (prefers-reduced-motion: reduce) {
   .changes-quick-commit, .changes-quick-commit__extra > div { transition: none; }
 }
-/* What the save would do, from the plan that will write it: the files, an
-   arrow, the line they land on in the same mono the status bar names it in.
-   Under it, only the notes that apply, at caption size — the dialog prints
-   the same lines in full; here they are a footnote to a line, not a card. */
+/* Only the notes that apply to this plan, at caption size — the dialog prints
+   the same lines in full; here they are a footnote to the save, not a card.
+   The files-and-destination line that used to head this block is gone: the
+   list above names the files and the header names the line. */
 .changes-quick-commit__plan { display: grid; gap: 2px; padding: 0 var(--space-2); }
-.changes-quick-commit__plan-line {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0;
-  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
-  font-variant-numeric: tabular-nums;
-}
-.changes-quick-commit__plan-destination { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
-.changes-quick-commit__plan-arrow { opacity: 0.7; }
-.changes-quick-commit__plan-branch {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--font-mono); color: var(--text-primary-color);
-}
 .changes-quick-commit__plan-note {
   margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
 }
@@ -751,10 +755,17 @@
 /* `overflow: hidden` is the guard, not a tidy-up: the badge beside the name
    cannot shrink, so under enough pressure the row would keep painting it
    straight over the controls to its right. Clipped, the narrowest pane loses
-   the end of the badge instead of overlapping two things nobody can read. */
+   the end of the badge instead of overlapping two things nobody can read.
+
+   `flex: 1 1 auto`, not `flex: 1`: a `0%` basis left this row with no width to
+   give up, so every pixel the window narrowed came out of the find box instead
+   — the name was eaten whole while the search kept its size. History's strip
+   says the same text as separate `auto`-basis items and shrinks the find with
+   the window; a basis of `auto` here lets this row give way too, so the two
+   strips behave alike. */
 .changes-diff__title-row {
   display: flex; align-items: baseline; gap: var(--space-2);
-  min-width: 0; flex: 1; flex-wrap: nowrap; overflow: hidden;
+  min-width: 0; flex: 1 1 auto; flex-wrap: nowrap; overflow: hidden;
 }
 .changes-diff__path { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; flex: 0 1 auto; margin: 0; }
 .changes-diff__name {
@@ -845,7 +856,10 @@
 .changes-diff__step:disabled { opacity: 0.35; }
 .changes-diff__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .changes-diff__view { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.changes-view-picker { position: relative; display: inline-flex; }
+/* No positioning context of its own any more: the open menu is portalled to
+   the body by `usePortalFlyout`, so nothing absolute is laid out against this
+   wrapper the way the old in-flow `.app-menu` was. */
+.changes-view-picker { display: inline-flex; }
 /* Doubled up on `.version-line-selector` on purpose. The trigger wears that
    class too, and `features/version-lines` loads *after* this file, so at equal
    specificity its `padding: 6px var(--space-4)` was quietly beating the `0`

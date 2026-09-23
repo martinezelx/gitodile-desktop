@@ -95,7 +95,7 @@ afterEach(() => {
 });
 
 describe("QuickCommitBox", () => {
-  it("starts closed and costs Git nothing until it opens, then states the plan", async () => {
+  it("starts closed and costs Git nothing until it opens", async () => {
     stubGit({ plan: plan({ branch: "feature/journey" }) });
     const { container } = renderBox();
     expect(isExpanded(container)).toBe(false);
@@ -103,12 +103,11 @@ describe("QuickCommitBox", () => {
 
     await userEvent.click(screen.getByLabelText("Version name"));
     expect(isExpanded(container)).toBe(true);
-    // One line — the files, then the line they land on — from the plan that
-    // will write the version, so the two cannot disagree.
-    expect(await screen.findByLabelText("2 files will be saved. This version will be saved to feature/journey.")).toBeInTheDocument();
-    expect(screen.getByText("2 files")).toBeInTheDocument();
-    expect(screen.getByText("feature/journey")).toBeInTheDocument();
-    expect(mockedInvoke).toHaveBeenCalledTimes(1);
+    // One plan read, from the request that will write the version — but the
+    // files-and-line line it used to print is gone: the list already names the
+    // files and the header already names the line.
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/will be saved to/)).not.toBeInTheDocument();
   });
 
   it("asks for no plan while nothing is selected to save", async () => {
@@ -122,8 +121,7 @@ describe("QuickCommitBox", () => {
     renderBox({ selectedPaths: ["a.txt"] });
     await userEvent.click(screen.getByLabelText("Version name"));
 
-    expect(await screen.findByText("1 of 2 files")).toBeInTheDocument();
-    expect(screen.getByText("1 other file will remain as a pending change.")).toBeInTheDocument();
+    expect(await screen.findByText("1 other file will remain as a pending change.")).toBeInTheDocument();
     expect(screen.getByText("This will be the first saved version on main.")).toBeInTheDocument();
     expect(screen.queryByText(/prepared/i)).not.toBeInTheDocument();
   });
@@ -239,6 +237,27 @@ describe("QuickCommitBox", () => {
 
     expect(title).toHaveValue("");
     expect(isExpanded(container)).toBe(false);
+  });
+
+  it("does not unfold the box when the trailing menu takes focus", async () => {
+    const { container } = renderBox({ menu: <button type="button">More</button> });
+    expect(isExpanded(container)).toBe(false);
+
+    await userEvent.click(screen.getByRole("button", { name: "More" }));
+
+    expect(isExpanded(container)).toBe(false);
+  });
+
+  it("does not discard a draft when Escape is meant for the trailing menu", async () => {
+    const { container } = renderBox({ menu: <button type="button">More</button> });
+    const title = screen.getByLabelText("Version name");
+    await userEvent.type(title, "half-written thought");
+
+    await userEvent.click(screen.getByRole("button", { name: "More" }));
+    await userEvent.keyboard("{Escape}");
+
+    expect(title).toHaveValue("half-written thought");
+    expect(isExpanded(container)).toBe(true);
   });
 
   it("saves with the typed title and description, then clears the draft", async () => {

@@ -51,6 +51,7 @@ export function QuickCommitBox({
   runHooks,
   remoteLabel,
   fileListRef,
+  menu,
   onSaveCompleted,
   onPublishNow,
 }: {
@@ -77,6 +78,12 @@ export function QuickCommitBox({
    * shortened viewport with no scroll to explain where they went. Matching
    * that clamp everywhere it doesn't happen for free is this ref's only job. */
   fileListRef: React.RefObject<HTMLDivElement | null>;
+  /** The list's own discard/restore menu, docked inside the box's trailing
+   * edge. It used to stand beside the pill as a second round control; the
+   * reader saw two controls where there is one thing — the changes and what
+   * can be done to them — so the `⋯` now rides the pill it acts on. The menu
+   * still opens its own confirmation before anything destructive. */
+  menu?: React.ReactNode;
   onSaveCompleted: () => void;
   onPublishNow: () => void;
 }): React.JSX.Element {
@@ -194,12 +201,11 @@ export function QuickCommitBox({
     }
   }
 
+  // Only the notes that apply to this plan. The line that used to spell out
+  // "N files → branch" is gone: the file list beside this box already names
+  // every file, and the header already names the line, so it was a third
+  // telling of two facts the screen was showing at the same time.
   const notes = plan ? getSaveVersionNotes(plan, t) : [];
-  const planLabel = plan
-    ? [t.saveVersionFilesSummary(plan.totalFiles), plan.branch ? t.saveVersionDestination(plan.branch) : null]
-        .filter((part) => part !== null)
-        .join(" ")
-    : "";
   /* The glyph is the band's tile vocabulary in miniature, and the accent
      moves rather than doubles: closed, the solid circle *is* the action and
      breathes while there is a save to make; open, the action is the Save
@@ -213,13 +219,25 @@ export function QuickCommitBox({
     <div
       ref={containerRef}
       className={`changes-quick-commit${expanded ? " changes-quick-commit--expanded" : ""}${isSaved ? " changes-quick-commit--saved" : ""}`}
-      onFocus={() => beginExpandedChange(true)}
+      onFocus={(event) => {
+        // The trailing menu is the box's own child now, but touching it is not
+        // a request to type a version name — opening it must not also unfold
+        // the field it sits in. Tested against this box's own slot class, not
+        // the menu's internals, so the two stay decoupled.
+        if ((event.target as HTMLElement).closest(".changes-quick-commit__menu")) return;
+        beginExpandedChange(true);
+      }}
       onBlur={(event) => {
         if (containerRef.current?.contains(event.relatedTarget as Node | null)) return;
         if (isBusy || title.trim() || description.trim()) return;
         collapse();
       }}
       onKeyDown={(event) => {
+        // Escape inside the trailing menu belongs to the menu: it closes that
+        // and nothing else. Without this the box's own Escape — "throw the
+        // draft away" — fired as the keydown bubbled through the container, so
+        // dismissing the menu also discarded a half-written version.
+        if ((event.target as HTMLElement).closest(".changes-quick-commit__menu")) return;
         if (event.key === "Escape" && expanded) {
           event.preventDefault();
           handleDismiss();
@@ -263,25 +281,18 @@ export function QuickCommitBox({
           >
             <X aria-hidden="true" />
           </button>
+          {menu && <span className="changes-quick-commit__menu">{menu}</span>}
         </div>
       </div>
       <div className="changes-quick-commit__extra">
         <div>
-          {/* What this save would do, from the plan that will write it, so
-              the line and the save cannot disagree. One line — the files,
-              then the line they land on — and under it only the notes that
-              apply to this plan, the same ones the dialog prints in full. */}
-          {plan && !isSaved && (
+          {/* What this save would do beyond the obvious: only the notes that
+              apply to this plan, the same ones the dialog prints in full. The
+              count of files and the destination line are deliberately absent —
+              the list above already shows the files and the header already
+              names the line. */}
+          {plan && !isSaved && notes.length > 0 && (
             <div className="changes-quick-commit__plan">
-              <p className="changes-quick-commit__plan-line" aria-label={planLabel}>
-                <span aria-hidden="true">{t.changesQuickPlanFiles(plan.totalFiles, plan.remainingFiles)}</span>
-                {plan.branch && (
-                  <span aria-hidden="true" className="changes-quick-commit__plan-destination">
-                    <span className="changes-quick-commit__plan-arrow">→</span>
-                    <span className="changes-quick-commit__plan-branch">{plan.branch}</span>
-                  </span>
-                )}
-              </p>
               {notes.map((note) => (
                 <p key={note} className="changes-quick-commit__plan-note">{note}</p>
               ))}

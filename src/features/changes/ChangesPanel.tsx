@@ -1596,14 +1596,14 @@ export function ChangesPanel({
                   t={t}
                 />
               </div>
-              {/* The foot: the save box, and beside it the menu that acts
-                  without saving — discard, or bring discarded work back.
-                  It used to sit in the search strip, where it read as a
-                  control over the list rather than over the changes; here
-                  it is the counterpart to the box, outside it so the
-                  destructive menu never lives inside the primary control,
-                  and level with the box's closed row. History's card ends
-                  its strip with the same `⋯`. */}
+              {/* The foot: the save box with the menu that acts without saving
+                  — discard, or bring discarded work back — docked at its
+                  trailing edge. It used to sit in the search strip, then
+                  beside the box; either way it read as a second control for
+                  the same changes, so it now rides the pill it acts on. It
+                  opens its own confirmation before anything destructive, so
+                  nothing is discarded from a single press. History's card
+                  ends its strip with the same `⋯`. */}
               <div className="changes-file-list__foot">
                 <QuickCommitBox
                   ref={quickCommitRef}
@@ -1614,17 +1614,19 @@ export function ChangesPanel({
                   runHooks={runGitHooks}
                   remoteLabel={workingTree.upstream.upstream}
                   fileListRef={fileListScrollRef}
+                  menu={
+                    <ChangesActionsMenu
+                      controller={controller}
+                      projectPath={projectPath}
+                      sessionEpoch={sessionEpoch}
+                      selectedPath={selectedPath}
+                      disabled={isCheckingChanges}
+                      onChoose={requestDiscard}
+                      t={t}
+                    />
+                  }
                   onSaveCompleted={onSaveCompleted}
                   onPublishNow={onPublishNow}
-                />
-                <ChangesActionsMenu
-                  controller={controller}
-                  projectPath={projectPath}
-                  sessionEpoch={sessionEpoch}
-                  selectedPath={selectedPath}
-                  disabled={isCheckingChanges}
-                  onChoose={requestDiscard}
-                  t={t}
                 />
               </div>
             </>

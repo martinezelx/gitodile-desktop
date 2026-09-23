@@ -182,7 +182,9 @@ describe("ChangesPanel save selection", () => {
       }),
     );
     expect(await screen.findByText("1 other file will remain as a pending change.")).toBeInTheDocument();
-    expect(screen.getByLabelText("1 file will be saved. This version will be saved to main.")).toBeInTheDocument();
+    // The redundant files-and-line plan sentence is gone: the list names the
+    // files and the header names the line.
+    expect(screen.queryByText(/will be saved to/)).not.toBeInTheDocument();
   });
 
   it("saves through the quick commit box docked under the file list — the screen's one save control", async () => {
@@ -236,8 +238,17 @@ describe("ChangesPanel save selection", () => {
     expect(screen.queryByRole("button", { name: "Save version" })).not.toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText("Version name"), "quick fix");
-    // Opening the box asked for the plan, and the line states it.
-    expect(await screen.findByLabelText("2 files will be saved. This version will be saved to main.")).toBeInTheDocument();
+    // The box still asks Git for the plan that will write the version; it just
+    // no longer restates the file count and the line beside the list and header
+    // that already say them.
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
+        path: "/repo",
+        sessionEpoch: "test-epoch",
+        selectedPaths: ["edited.txt", "new.txt"],
+      }),
+    );
+    expect(screen.queryByText(/will be saved to/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText('Saved "quick fix" as abc123a.')).toBeInTheDocument();

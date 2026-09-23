@@ -1234,8 +1234,12 @@
 .about-dialog__update-link:hover { color: var(--text-primary-color); }
 .about-dialog__description { margin: var(--space-4) 0 0; text-align: center; color: var(--text-secondary-color); }
 /* A single quiet rule between the product introduction and the facts, exactly
-   as the design draws it; the licence block carries its own rule at the foot. */
-.about-dialog__rule { height: 1px; background: var(--border-divider); margin: 18px 0 0; }
+   as the design draws it; the licence block carries its own rule at the foot.
+   Written as a border on a zero-height box, not as a 1px background: the
+   licence rule below is a `border-top`, and at a fractional device scale a
+   1px background and a 1px border snap to different thicknesses, so the two
+   separators on this one surface did not read as the same line. */
+.about-dialog__rule { height: 0; border-top: 1px solid var(--border-divider); margin: 18px 0 0; }
 /* The copy control heads the rows it copies, rather than following them in a
    full-width button that spent a row of height restating the same thing. It is
    a text action, not a labelled button: the section heading already says what

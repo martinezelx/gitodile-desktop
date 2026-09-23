@@ -111,9 +111,6 @@ export interface ChangesTranslations {
   changesDiscardingNow: string;
   changesSaveVersionNoSelectionHint: string;
   changesQuickCommitDismiss: string;
-  /** The quick commit box's one-line plan: what a save would take, as a
-   * count, and "of N" only when the selection leaves files behind. */
-  changesQuickPlanFiles: (total: number, remaining: number) => string;
 
   changesSelectAll: string;
   changesSelectNone: string;
@@ -299,12 +296,6 @@ const en: ChangesTranslations = {
   changesDiscardingNow: "Discarding…",
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
   changesQuickCommitDismiss: "Discard draft",
-  changesQuickPlanFiles: (total, remaining) =>
-    remaining > 0
-      ? `${total} of ${total + remaining} files`
-      : total === 1
-        ? "1 file"
-        : `${total} files`,
 
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
@@ -492,12 +483,6 @@ const es: ChangesTranslations = {
   changesDiscardingNow: "Descartando…",
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
   changesQuickCommitDismiss: "Descartar borrador",
-  changesQuickPlanFiles: (total, remaining) =>
-    remaining > 0
-      ? `${total} de ${total + remaining} archivos`
-      : total === 1
-        ? "1 archivo"
-        : `${total} archivos`,
 
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",

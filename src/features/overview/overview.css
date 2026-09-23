@@ -43,7 +43,11 @@
 .overview-header__glyph svg { width: 21px; height: 21px; }
 .overview-header__copy { min-width: 0; flex: 1; }
 /* Truncated, never wrapped: the header is one row, and the whole name is
-   one hover away. */
+   one hover away. `--leading-snug` rather than `--leading-tight`: the name is
+   clipped by `overflow: hidden` for the ellipsis, and a tight line box cut the
+   descenders of a name like "project-gitodile" off at the path below it. The
+   snug leading is a name's own role anyway, and it leaves the box tall enough
+   to hold a descender (tokens.css). */
 .overview-header__copy h1 {
   overflow: hidden;
   margin-bottom: 2px;
@@ -52,7 +56,7 @@
      screen-title size. */
   font-size: var(--text-hero);
   letter-spacing: var(--tracking-hero);
-  line-height: var(--leading-tight);
+  line-height: var(--leading-snug);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
