@@ -49,6 +49,7 @@
   color: var(--text-secondary-color); font-size: var(--text-micro); font-weight: var(--weight-title);
   letter-spacing: var(--tracking-caps); text-transform: uppercase;
 }
+.app-update-candidate .release-highlights { margin: 0; }
 .app-update-notes {
   margin: 0; max-height: 11rem; overflow: auto;
   color: var(--text-primary-color); line-height: var(--leading-normal);

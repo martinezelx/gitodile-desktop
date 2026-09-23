@@ -10,7 +10,7 @@ import { AppUpdateDialog, AppUpdateSettingsControl } from "./UpdateDialog";
 const candidate = {
   candidateId: "candidate", version: "0.2.0-preview.2", channel: "preview" as const,
   target: "windows-x86_64" as const, publishedAt: null,
-  notes: "Plain <b>text</b>\nhttps://example.invalid/image.png", expectedBytes: null,
+  notes: "Plain <b>text</b>\nhttps://example.invalid/image.png", highlights: [], expectedBytes: null,
 };
 
 const installed = { version: "0.2.0-preview.1", channel: "preview" as const };
@@ -41,6 +41,31 @@ describe("application update dialog", () => {
     expect(screen.getByText("Plain <b>text</b>", { exact: false }).querySelector("b")).toBeNull();
     await user.keyboard("{Escape}");
     expect(trigger).toHaveFocus();
+  });
+
+  it("shows the feed's highlights in the reader's language instead of the notes", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("gitodile-language", "es");
+    try {
+      const highlights = [
+        { id: "faster", icon: "cloud-download", en: "Faster updates.", es: "Actualizaciones más rápidas." },
+        { id: "future", icon: "rocket", en: "A glyph this build does not know.", es: "Un glifo que esta build no conoce." },
+      ];
+      render(<Harness snapshot={{ state: { kind: "available", candidate: { ...candidate, highlights } }, startupConfirmation: { kind: "none" }, automaticEnabled: false, channel: null }} />);
+      await user.click(screen.getByRole("button", { name: "Open" }));
+      const dialog = screen.getByRole("dialog");
+      const list = within(dialog).getByRole("list");
+      expect(within(list).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+        "Actualizaciones más rápidas.",
+        "Un glifo que esta build no conoce.",
+      ]);
+      // An unknown icon name still draws a glyph rather than an empty slot.
+      expect(list.querySelectorAll(".release-highlights__icon svg")).toHaveLength(2);
+      expect(within(dialog).getByText("Novedades")).toBeInTheDocument();
+      expect(dialog.querySelector(".app-update-notes")).toBeNull();
+    } finally {
+      localStorage.removeItem("gitodile-language");
+    }
   });
 
   it("keeps the notes' paragraphs and bullets and offers the manual download for a check-time block", async () => {

@@ -21,8 +21,14 @@ export type UpdateCandidate = Readonly<{
   target: UpdateTarget;
   publishedAt: string | null;
   notes: string;
+  /** The offered release's What's new lines from the feed, or empty when the
+   * feed carries none — then the dialog shows `notes`. `icon` is a name this
+   * build may not know; the renderer falls back to a generic glyph. */
+  highlights: readonly UpdateHighlight[];
   expectedBytes: number | null;
 }>;
+
+export type UpdateHighlight = Readonly<{ id: string; icon: string; en: string; es: string }>;
 
 export type UpdateError = Readonly<{
   code:

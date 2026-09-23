@@ -70,7 +70,7 @@ describe("application update controller", () => {
     vi.useFakeTimers();
     const candidate = {
       candidateId: "c1", version: "0.3.0", channel: "stable" as const, target: "windows-x86_64" as const,
-      publishedAt: null, notes: "", expectedBytes: null,
+      publishedAt: null, notes: "", highlights: [], expectedBytes: null,
     };
     const port = createPort({ check: vi.fn(async () => action({ kind: "available", candidate })) });
     const onBackgroundCheckSettled = vi.fn();
@@ -92,7 +92,7 @@ describe("application update controller", () => {
   it("switches channel only when idle, then mirrors the native reset instead of inventing one", async () => {
     const candidate = {
       candidateId: "c1", version: "0.3.0-preview.1", channel: "preview" as const, target: "windows-x86_64" as const,
-      publishedAt: null, notes: "", expectedBytes: null,
+      publishedAt: null, notes: "", highlights: [], expectedBytes: null,
     };
     const readState = vi.fn(async () => ({ kind: "available", candidate } as UpdateState));
     const setChannel = vi.fn(async (channel: "stable" | "preview") => ({ preferred: channel, buildChannel: "stable" as const, channel }));
@@ -132,7 +132,7 @@ describe("application update controller", () => {
   it("uses the native operation id when cancelling a download", async () => {
     const candidate = {
       candidateId: "candidate-1", version: "0.2.0-preview.2", channel: "preview" as const,
-      target: "windows-x86_64" as const, publishedAt: null, notes: "Notes", expectedBytes: null,
+      target: "windows-x86_64" as const, publishedAt: null, notes: "Notes", highlights: [], expectedBytes: null,
     };
     const cancel = vi.fn(async () => ({ kind: "cancelled", stage: "downloading" } as UpdateState));
     const port = createPort({

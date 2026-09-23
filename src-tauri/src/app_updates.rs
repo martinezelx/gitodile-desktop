@@ -28,6 +28,9 @@ use tokio::sync::watch;
 pub(crate) const UPDATER_PLUGIN_VERSION: &str = "2.11.0";
 pub(crate) const MANIFEST_BYTES_LIMIT: u64 = 256 * 1024;
 pub(crate) const NOTES_BYTES_LIMIT: usize = 16 * 1024;
+const HIGHLIGHTS_LIMIT: usize = 8;
+const HIGHLIGHT_TEXT_CHARS_LIMIT: usize = 240;
+const HIGHLIGHT_NAME_BYTES_LIMIT: usize = 64;
 pub(crate) const PLATFORM_ENTRIES_LIMIT: usize = 8;
 pub(crate) const SIGNATURE_BYTES_LIMIT: usize = 4 * 1024;
 pub(crate) const ARTIFACT_BYTES_LIMIT: u64 = 256 * 1024 * 1024;
@@ -186,7 +189,21 @@ pub(crate) struct UpdateCandidate {
     target: UpdateTarget,
     published_at: Option<String>,
     notes: String,
+    highlights: Vec<CandidateHighlight>,
     expected_bytes: Option<u64>,
+}
+
+/// One line of the offered release's highlights, as the feed's optional
+/// `highlights` field carries it: the same bilingual lines What's new shows
+/// for a bundled release. `icon` is passed through as a name, because a newer
+/// release may use a glyph this build does not know; the renderer draws a
+/// generic one for those.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub(crate) struct CandidateHighlight {
+    id: String,
+    icon: String,
+    en: String,
+    es: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -1304,6 +1321,7 @@ fn validate_candidate(
         target,
         published_at: update.date.and_then(|date| date.format(&Rfc3339).ok()),
         notes,
+        highlights: feed_highlights(&update.raw_json),
         expected_bytes,
     };
     let _ = identity.public_key_id;
@@ -1537,6 +1555,60 @@ fn plain_text_notes(notes: &str) -> Result<String, UpdateError> {
         }
     }
     Ok(plain.trim().to_string())
+}
+
+/// The feed's optional `highlights`, or none. The field is presentation, not
+/// part of what is installed, so it never fails a check: a feed without it
+/// (every release before it existed) or with a malformed one yields an empty
+/// list, and the dialog falls back to the plain-text notes. A list is taken
+/// whole or not at all — a partial list would misstate the release.
+fn feed_highlights(raw_json: &serde_json::Value) -> Vec<CandidateHighlight> {
+    fn name(value: &serde_json::Value) -> Option<String> {
+        value
+            .as_str()
+            .filter(|text| {
+                !text.is_empty()
+                    && text.len() <= HIGHLIGHT_NAME_BYTES_LIMIT
+                    && text
+                        .chars()
+                        .all(|character| character.is_ascii_alphanumeric() || character == '-')
+            })
+            .map(str::to_string)
+    }
+    fn sentence(value: &serde_json::Value) -> Option<String> {
+        value
+            .as_str()
+            .map(str::trim)
+            .filter(|text| {
+                !text.is_empty()
+                    && text.chars().count() <= HIGHLIGHT_TEXT_CHARS_LIMIT
+                    && !text
+                        .chars()
+                        .any(|character| character.is_control() || matches!(character, '<' | '>'))
+            })
+            .map(str::to_string)
+    }
+    let Some(entries) = raw_json
+        .get("highlights")
+        .and_then(serde_json::Value::as_array)
+    else {
+        return Vec::new();
+    };
+    if entries.len() > HIGHLIGHTS_LIMIT {
+        return Vec::new();
+    }
+    entries
+        .iter()
+        .map(|entry| {
+            Some(CandidateHighlight {
+                id: name(entry.get("id")?)?,
+                icon: name(entry.get("icon")?)?,
+                en: sentence(entry.get("en")?)?,
+                es: sentence(entry.get("es")?)?,
+            })
+        })
+        .collect::<Option<Vec<_>>>()
+        .unwrap_or_default()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2439,6 +2511,55 @@ mod tests {
         let stable = service.set_channel(ReleaseChannel::Stable).unwrap();
         assert_eq!(stable.channel, ReleaseChannel::Stable);
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn feed_highlights_are_optional_bounded_and_taken_whole() {
+        let line = |id: &str| serde_json::json!({ "id": id, "icon": "cloud-download", "en": "Faster updates.", "es": "Actualizaciones más rápidas." });
+        assert_eq!(
+            feed_highlights(&serde_json::json!({ "version": "1.0.0" })),
+            vec![]
+        );
+        assert_eq!(
+            feed_highlights(&serde_json::json!({ "highlights": [line("fasterUpdates")] })),
+            vec![CandidateHighlight {
+                id: "fasterUpdates".into(),
+                icon: "cloud-download".into(),
+                en: "Faster updates.".into(),
+                es: "Actualizaciones más rápidas.".into(),
+            }]
+        );
+        // An icon this build does not know still passes; the renderer draws a generic glyph.
+        let mut future = line("future");
+        future["icon"] = "rocket".into();
+        assert_eq!(
+            feed_highlights(&serde_json::json!({ "highlights": [future] })).len(),
+            1
+        );
+        // One malformed line drops the whole list rather than a part of it.
+        let mut markup = line("markup");
+        markup["en"] = "<b>bold</b>".into();
+        assert_eq!(
+            feed_highlights(&serde_json::json!({ "highlights": [line("ok"), markup] })),
+            vec![]
+        );
+        let mut long = line("long");
+        long["es"] = "x".repeat(HIGHLIGHT_TEXT_CHARS_LIMIT + 1).into();
+        assert_eq!(
+            feed_highlights(&serde_json::json!({ "highlights": [long] })),
+            vec![]
+        );
+        let too_many: Vec<_> = (0..=HIGHLIGHTS_LIMIT)
+            .map(|index| line(&format!("line{index}")))
+            .collect();
+        assert_eq!(
+            feed_highlights(&serde_json::json!({ "highlights": too_many })),
+            vec![]
+        );
+        assert_eq!(
+            feed_highlights(&serde_json::json!({ "highlights": "Faster" })),
+            vec![]
+        );
     }
 
     #[test]

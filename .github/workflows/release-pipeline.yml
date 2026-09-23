@@ -490,7 +490,7 @@ jobs:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           PUBLICATION_MODE: ${{ steps.release.outputs.mode }}
         run: >-
-          node scripts/release/public-release.mjs --signed signed --notes "docs/release/notes/$RELEASE_TAG.md" --qualification docs/release/update-target-qualifications.json --mode "$PUBLICATION_MODE" --public-file license=LICENSE --public-file third-party-notices=THIRD_PARTY_LICENSES.md --output public-bundle
+          node scripts/release/public-release.mjs --signed signed --notes "docs/release/notes/$RELEASE_TAG.md" --highlights "docs/release/highlights/$RELEASE_TAG.json" --qualification docs/release/update-target-qualifications.json --mode "$PUBLICATION_MODE" --public-file license=LICENSE --public-file third-party-notices=THIRD_PARTY_LICENSES.md --output public-bundle
       - name: Add reviewed publisher runtime without application source
         run: |
           mkdir -p public-bundle/runtime/scripts/release public-bundle/runtime/docs/architecture

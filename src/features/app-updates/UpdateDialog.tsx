@@ -16,7 +16,7 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { ChannelGlyph, DialogCloseButton, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
+import { ChannelGlyph, DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { UpdateCandidate, UpdateChannel, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -141,7 +141,10 @@ function Progress({ state, language }: { state: UpdateState; language: Language 
 }
 
 /** The offered release as a card: identity row in the changelog's vocabulary
- * (version, preview glyph, date), then its notes as bounded plain text. */
+ * (version, preview glyph, date), then what it brings. A release whose feed
+ * carries highlights shows them the way What's new does, in the reader's
+ * language; one that carries none (every release before the field existed)
+ * falls back to its notes as bounded plain text. */
 function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate; language: Language }) {
   const { formats } = useLanguage();
   const t = appUpdateTranslations(language);
@@ -155,8 +158,17 @@ function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate;
           <time className="app-update-candidate__date" dateTime={candidate.publishedAt}>{publishedAt}</time>
         )}
       </div>
-      <p className="app-update-candidate__notes-label">{t.releaseNotes}</p>
-      <p className="app-update-notes">{candidate.notes.trim() || t.noNotes}</p>
+      {candidate.highlights.length > 0 ? (
+        <>
+          <p className="app-update-candidate__notes-label">{t.highlights}</p>
+          <ReleaseHighlights highlights={candidate.highlights} language={language} />
+        </>
+      ) : (
+        <>
+          <p className="app-update-candidate__notes-label">{t.releaseNotes}</p>
+          <p className="app-update-notes">{candidate.notes.trim() || t.noNotes}</p>
+        </>
+      )}
     </section>
   );
 }
