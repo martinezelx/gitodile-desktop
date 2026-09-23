@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0-preview.13",
+  "date": "2026-09-23",
+  "highlights": [
+    {
+      "id": "overviewJourney",
+      "icon": "list-checks",
+      "en": "Overview now walks you through three steps, Changes, Save and Publish, and points out the one to do next.",
+      "es": "Resumen te guía ahora por tres pasos, Cambios, Guardar y Publicar, y te señala cuál toca a continuación."
+    },
+    {
+      "id": "workScreen",
+      "icon": "history",
+      "en": "Changes and History are now the two tabs of one Work screen. With nothing to save, it tells you what to do next, like publishing or getting project changes.",
+      "es": "Cambios e Historial son ahora las dos pestañas de una sola pantalla, Trabajo. Cuando no hay nada que guardar, te dice qué hacer, como publicar u obtener los cambios del proyecto."
+    },
+    {
+      "id": "colourThemes",
+      "icon": "sparkles",
+      "en": "Choose a colour theme in Settings: besides GitOdile's own light and dark, there are Catppuccin, Nord, Tokyo Night, Dracula and Solarized.",
+      "es": "Elige un tema de color en Ajustes: además del claro y el oscuro de GitOdile, tienes Catppuccin, Nord, Tokyo Night, Dracula y Solarized."
+    },
+    {
+      "id": "updateChannelAndHighlights",
+      "icon": "cloud-download",
+      "en": "Choose between stable and preview updates in Settings → Updates. The update dialog now lists what a new version brings, in your language.",
+      "es": "Elige entre actualizaciones estables y preview en Ajustes → Actualizaciones. El diálogo de actualización muestra ahora qué trae la nueva versión, en tu idioma."
+    },
+    {
+      "id": "newIconAndInstaller",
+      "icon": "tag",
+      "en": "GitOdile has a new crocodile icon, and the Windows installer now carries the brand and speaks English and Spanish.",
+      "es": "GitOdile estrena icono de cocodrilo, y el instalador de Windows lleva ahora la marca y está en inglés y en español."
+    }
+  ]
+}
