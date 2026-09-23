@@ -27,7 +27,14 @@
   --radius-control: 14px; /* multiline controls and attached icon tiles ≥40px */
   --radius-surface: 18px; /* a container with its own background: card, dialog, popover, notice */
   --radius-pill: 999px;   /* a capsule: badge, count, short-text chip */
-  --radius-round: 50%;    /* a circle: avatar, single-glyph control */
+  --radius-round: 50%;    /* a circle: a person, single-glyph control */
+  /* A project's identity chip: a rounded square, proportional so it keeps the
+     same shape from the 20px jump list to the 56px settings preview. A fixed
+     tier would close into a circle at the small sizes. Square for a project,
+     round for a person or a control — the convention GitHub orgs, Slack
+     workspaces and Discord servers taught, and in the rail it is what sets the
+     project apart from the round +, settings and account buttons beside it. */
+  --radius-identity: 28%;
 
   --space-1: 4px;
   --space-2: 8px;

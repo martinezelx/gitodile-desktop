@@ -667,6 +667,15 @@ describe("production style composition", () => {
       ["app/app-shell.css", ".palette-list", "padding: var(--space-2)"],
       ["app/app-shell.css", ".project-switcher-compact__popover", "padding: var(--space-2)"],
       ["app/app-shell.css", ".sidebar-project__badge", "border-radius: var(--radius-pill)"],
+      // A project's chip is the same rounded square wherever it is drawn —
+      // one left round is the drift that made "the same project" look like two.
+      ["app/app-shell.css", ".sidebar-jump__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".sidebar-project__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".project-switcher__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".project-switcher-compact__avatar", "border-radius: var(--radius-identity)"],
+      ["features/overview/overview.css", ".welcome-recents__avatar", "border-radius: var(--radius-identity)"],
+      ["features/settings/settings.css", ".project-icons-card__avatar", "border-radius: var(--radius-identity)"],
+      ["features/project-settings/project-settings.css", ".project-icon-preview__avatar", "border-radius: var(--radius-identity)"],
       ["features/clone/clone.css", ".clone-dialog__progress li > span", "border-radius: var(--radius-round)"],
       ["features/initialize-project/initialize-project.css", ".initialize-dialog__progress li > svg, .initialize-dialog__progress li > span", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],

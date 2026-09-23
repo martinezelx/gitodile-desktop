@@ -913,7 +913,7 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   height: 24px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-identity);
   color: var(--avatar-foreground);
   box-shadow: var(--avatar-ring);
   font-size: var(--text-micro);

@@ -418,6 +418,7 @@ The app should work well between approximately 1024px and large desktop displays
   --radius-item: 10px;
   --radius-control: 14px;
   --radius-surface: 18px;
+  --radius-identity: 28%;
   --radius-pill: 999px;
   --radius-round: 50%;
 
@@ -516,7 +517,8 @@ values before this was written down. Choose the tier by what the thing *is*:
 
 | Token | What it is | Examples |
 | --- | --- | --- |
-| `--radius-round` (50%) | An atomic thing with no reading direction | Project avatar, **any single glyph on a fill** (section, status and dialog-header icons), rail destination, refresh, create, overflow trigger, checkbox, timeline node |
+| `--radius-round` (50%) | An atomic thing with no reading direction | Person avatar, **any single glyph on a fill** (section, status and dialog-header icons), rail destination, refresh, create, overflow trigger, checkbox, timeline node |
+| `--radius-identity` (28%) | A project's identity chip — proportional, so it is the same rounded square from 20px to 56px | Rail project chip, project switcher, jump list, welcome recents, project-icon previews |
 | `--radius-pill` (999px) | **Any single-line control**, a capsule of short text, or a pure geometric form | Labelled button, single-line input, search box, selector or trigger; badge, count, status chip, progress bar, scrollbar thumb, toggle track |
 | `--radius-item` (10px) | A row or option that lives inside a container | Menu row, list option, file row, segmented-control option, inline code, keycap, square icon button of 24–36px that is not in an action row |
 | `--radius-control` (14px) | A control that *cannot* be a capsule | Multi-line field (textarea), a frame wrapping its own options (segmented control), a preview box (a theme-picker card), square icon button of 40px and up that is not in an action row |
@@ -787,7 +789,7 @@ font and is sized from the chip rather than from the initials' text, because
 bundling a colour-emoji font for a decoration is not worth the weight. A
 per-project choice is stored per machine, keyed by the project, never in the
   repository, and the project's own **Project settings → Icon** section is where
-  it is picked or returned to automatic. The chip keeps `--avatar-ring` and stays
+  it is picked or returned to automatic. The chip is a rounded square (`--radius-identity`) — a project, not a person, and in the rail it stands apart from the round controls beside it. It keeps `--avatar-ring` and stays
   fixed across themes: the choice is identity, not theme. A closed recent
   project keeps its last detected mark across restarts; an entry never triggers
   a repository scan merely because the welcome screen appears.

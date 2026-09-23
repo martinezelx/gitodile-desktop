@@ -125,7 +125,7 @@
 .project-icon-preview__avatar {
   width: 56px; height: 56px; flex-shrink: 0;
   display: grid; place-items: center;
-  border-radius: var(--radius-round); color: var(--avatar-foreground);
+  border-radius: var(--radius-identity); color: var(--avatar-foreground);
   box-shadow: var(--avatar-ring);
   font-size: var(--text-subtitle); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
