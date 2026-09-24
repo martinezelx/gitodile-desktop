@@ -16,7 +16,11 @@ import { formatDate, formatRelativeCheckTime, type LocaleFormats } from "../shar
 import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type { TeamSyncState, TeamSyncViewState } from "../features/sync";
-import { VersionLineQuickSwitch, type VersionLinesSnapshot } from "../features/version-lines";
+import {
+  VersionLineQuickSwitch,
+  type VersionLineCreateContext,
+  type VersionLinesSnapshot,
+} from "../features/version-lines";
 import { ChannelGlyph } from "../shared/ui";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 
@@ -34,7 +38,8 @@ export type StatusBarProps = {
   onToggleFavouriteVersionLine?: (name: string) => void;
   teamSync: TeamSyncViewState;
   onSwitchVersionLine: (target: string) => void;
-  onCreateVersionLine: () => void;
+  /** Where the quick switch makes a new line, inside its own popup. */
+  versionLineCreate?: VersionLineCreateContext;
   onSeeAllVersionLines: () => void;
   onCheckTeamChanges: () => void;
   onOpenProjectSettings: () => void;
@@ -149,7 +154,7 @@ export function StatusBar({
   onToggleFavouriteVersionLine,
   teamSync,
   onSwitchVersionLine,
-  onCreateVersionLine,
+  versionLineCreate,
   onSeeAllVersionLines,
   onCheckTeamChanges,
   onOpenProjectSettings,
@@ -253,7 +258,7 @@ export function StatusBar({
               favouriteLines={favouriteVersionLines}
               onToggleFavourite={onToggleFavouriteVersionLine}
               onSwitch={onSwitchVersionLine}
-              onCreate={onCreateVersionLine}
+              create={versionLineCreate}
               onSeeAll={onSeeAllVersionLines}
             />
           </span>

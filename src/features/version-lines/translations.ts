@@ -2,14 +2,12 @@ import type { LineNameIssue } from "./lineNames";
 
 export interface VersionLinesTranslations {
   versionLinesTitle: string;
-  versionLinesExplanation: string;
   versionLinesSearchPlaceholder: string;
   versionLinesSearchAriaLabel: string;
   versionLinesLoading: string;
   versionLinesErrorLoading: string;
   versionLinesRetry: string;
   versionLinesActiveLabel: string;
-  versionLinesNewButton: string;
   versionLinesEmptyOthers: string;
   versionLinesNoSearchMatches: string;
   versionLinesTruncatedNote: (visible: number, total: number) => string;
@@ -28,6 +26,10 @@ export interface VersionLinesTranslations {
   versionLinesQuickSwitchEmpty: string;
   versionLinesQuickSwitchSeeAll: string;
   versionLinesQuickSwitchNew: string;
+  /** The quick switch's offer to make the line a search named, when no line
+   * has that name, and what pressing it leads to. */
+  versionLinesQuickSwitchCreateNamed: (name: string) => string;
+  versionLinesQuickSwitchCreateHint: string;
   versionLinesQuickSwitchActions: (name: string) => string;
   versionLinesQuickSwitchBack: string;
   versionLinesMergeInto: (name: string) => string;
@@ -40,10 +42,9 @@ export interface VersionLinesTranslations {
   versionLinesDetachedRecoverButton: string;
   versionLinesUnbornTitle: string;
   versionLinesUnbornDescription: string;
-  versionLinesUpstreamLabel: (upstream: string) => string;
   versionLinesNoUpstreamLabel: string;
   versionLinesCheckedOutElsewhere: (path: string) => string;
-  versionLinesUniqueCommits: (count: number) => string;
+  versionLinesUniqueCommits: (count: number, main: string) => string;
   versionLinesSavedLabel: (date: string) => string;
   createVersionLineTitle: string;
   createVersionLineNameLabel: string;
@@ -55,15 +56,22 @@ export interface VersionLinesTranslations {
   createVersionLineCreating: string;
   createVersionLineSuccessTitle: string;
   createVersionLineDone: string;
-  /** The quick create box docked under the Lines list — the fast path, next
-   * to "New line" (`versionLinesNewButton`) rather than instead of it. Its
+  /** The quick create box docked under the Lines list — the way this screen
+   * starts a line. Its
    * own strings for the name field, the switch checkbox and the confirm
    * button, distinct from `createVersionLine*`'s: the box and the full
    * dialog can be on screen together, and sharing an accessible name across
    * two live controls would be as ambiguous to a screen reader as it is to
    * an automated query. */
   versionLinesQuickCreateNameLabel: string;
+  /** The name field's question, asked the way the save box asks "What
+   * changed?" — the name is what the line is for. */
   versionLinesQuickCreateNamePlaceholder: string;
+  /** Under the open field while it is empty: how a name is written, by
+   * example. */
+  /** Before the example name; the name itself follows in mono. */
+  versionLinesQuickCreateNameHint: string;
+  versionLinesQuickCreateNameExample: string;
   /** The label before the main/selected capsules — shown only when the
    * default line and the one highlighted in the list actually differ, so
    * there is a real choice to name. */
@@ -74,10 +82,14 @@ export interface VersionLinesTranslations {
    * reads "Create and switch" whenever the press also switches. */
   versionLinesQuickCreateConfirmLabel: string;
   versionLinesQuickCreateConfirmAndSwitch: string;
+  /** The button at rest, beside the one-row field: a word short enough to
+   * leave the field's question whole. Its accessible name stays the
+   * consequence. */
+  versionLinesQuickCreateConfirmShort: string;
   versionLinesQuickCreateSuccess: (name: string, switched: boolean) => string;
   /** The name field's example when the project's own lines share a prefix
    * (`fix/…`), so it teaches the convention the project already has. */
-  versionLinesQuickCreateNamePlaceholderFor: (prefix: string) => string;
+  versionLinesQuickCreateNameExampleFor: (prefix: string) => string;
   /** Why a typed name would be refused, said under the field before the
    * press — see `checkLineName`. */
   versionLinesNameIssue: (issue: LineNameIssue) => string;
@@ -100,7 +112,6 @@ export interface VersionLinesTranslations {
   versionLinesSortUnpublished: string;
   versionLinesSwitchShort: string;
   versionLinesSwitchToLineLabel: (name: string) => string;
-  versionLinesNewFromLine: string;
   versionLinesSyncUpToDate: string;
   versionLinesSyncNoUpstream: string;
   versionLinesSyncGone: string;
@@ -109,7 +120,17 @@ export interface VersionLinesTranslations {
   versionLinesSyncAheadBehind: (ahead: number, behind: number) => string;
   versionLinesDeletablePill: string;
   versionLinesNotDeletablePill: string;
+  /** What each state glyph on a Lines row means, as its tooltip — a sentence,
+   * where the short labels above are what a screen reader hears. */
+  versionLinesGlyphActive: string;
+  versionLinesGlyphLocalOnly: string;
+  versionLinesGlyphGone: string;
+  versionLinesGlyphProtected: string;
+  versionLinesGlyphDeletable: string;
+  versionLinesGlyphNotDeletable: string;
   versionLinesDeleteReadyTooltip: (name: string) => string;
+  /** Delete on a line whose work reached the main line as copies. */
+  versionLinesDeleteCopiedTooltip: (name: string, base: string) => string;
   versionLinesDeleteBlockedTooltip: (name: string) => string;
   versionLinesDeleteElsewhereTooltip: (name: string) => string;
   versionLinesListAriaLabel: string;
@@ -122,6 +143,46 @@ export interface VersionLinesTranslations {
   versionLinesStateTracking: string;
   versionLinesLatestSavedLabel: string;
   versionLinesVersionsTitle: string;
+  /** The Lines detail's drawing of where the line left the main line, and
+   * the sentence under it that carries its numbers. */
+  versionLinesRouteTitle: string;
+  /** The Lines detail's comparison with the main line, under the route. */
+  versionLinesChangesTitle: (base: string) => string;
+  versionLinesChangesBroughtTitle: (base: string) => string;
+  versionLinesChangesFiles: (count: number, formatted: string) => string;
+  versionLinesChangesSince: string;
+  versionLinesChangesMore: (count: number, formatted: string) => string;
+  versionLinesChangesBinary: string;
+  versionLinesCompareShort: string;
+  /** The last row of the shortened saved-versions list. */
+  versionLinesVersionsMore: (count: number, formatted: string) => string;
+  versionLinesRouteLoading: string;
+  versionLinesRouteSummary: (facts: {
+    base: string;
+    date: string;
+    own: string;
+    unpublished: string | null;
+    since: string | null;
+  }) => string;
+  versionLinesRouteMerged: (base: string, since: string) => string;
+  versionLinesRouteReturned: (facts: {
+    base: string;
+    left: string;
+    back: string;
+    own: string;
+    since: string | null;
+  }) => string;
+  versionLinesRouteSame: (base: string) => string;
+  /** A line whose work came back as copies — squashed or rebased — so its own
+   * versions are still only on it. */
+  versionLinesRouteCopied: (facts: {
+    base: string;
+    left: string;
+    back: string;
+    own: string;
+    squashed: boolean;
+    since: string | null;
+  }) => string;
   versionLinesOpenVersionLabel: (subject: string) => string;
   versionLinesPublishedPill: string;
   versionLinesUnpublishedPill: string;
@@ -134,11 +195,10 @@ export interface VersionLinesTranslations {
   versionLinesRelationshipLocalOnlyDetail: string;
   versionLinesRelationshipActiveTitle: string;
   versionLinesRelationshipActiveDetail: string;
-  versionLinesRelationshipUniqueDetail: string;
-  versionLinesRelationshipMergedTitle: string;
-  versionLinesRelationshipMergedDetail: string;
+  versionLinesRelationshipUniqueDetail: (main: string) => string;
+  versionLinesRelationshipMergedTitle: (main: string) => string;
+  versionLinesRelationshipMergedDetail: (main: string) => string;
   versionLinesRelationshipElsewhereTitle: string;
-  versionLinesHistoryTitle: string;
   versionLinesHistoryDescription: string;
   versionLinesHistoryScopedDescription: (name: string) => string;
   versionLinesHistoryAction: string;
@@ -156,6 +216,11 @@ export interface VersionLinesTranslations {
   deleteVersionLineOpenChangesAction: string;
   deleteVersionLineSwitchAction: string;
   deleteVersionLineSafeLead: string;
+  /** A line whose work reached the main line only as copies: what is on the
+   * main line already, and the recovery point kept for its originals. */
+  deleteVersionLineCopiedLead: (base: string, squashed: boolean, shortCommit: string) => string;
+  deleteVersionLineCopiedRecovery: string;
+  deleteVersionLineRecoveryKept: string;
   deleteVersionLineWarning: string;
   deleteVersionLineConfirm: string;
   deleteVersionLineDeleting: string;
@@ -167,10 +232,14 @@ export interface VersionLinesTranslations {
   deleteVersionLineRemoteDoneLead: string;
   deleteVersionLineRemoteFailedLead: string;
   renameVersionLineTitle: (name: string) => string;
-  renameVersionLineNameLabel: string;
   renameVersionLineNote: string;
   renameVersionLineUpstreamNote: (upstream: string) => string;
   renameVersionLineConfirm: string;
+  /** The line under the name while it is being edited in the Lines detail
+   * strip — the short form of the two notes above, which it carries whole on
+   * its tooltip. */
+  versionLinesRenameInlineNote: string;
+  versionLinesRenameInlineUpstreamNote: (upstream: string) => string;
   renameVersionLineRenaming: string;
   versionLinesRenameShort: string;
   versionLinesDeleteShort: string;
@@ -185,15 +254,12 @@ export interface VersionLinesTranslations {
 
 const en: VersionLinesTranslations = {
   versionLinesTitle: "Lines",
-  versionLinesExplanation:
-    "Separate tracks for your saved versions. Switch lines to work in a different one.",
   versionLinesSearchPlaceholder: "Search version lines…",
   versionLinesSearchAriaLabel: "Search version lines",
   versionLinesLoading: "Loading version lines…",
   versionLinesErrorLoading: "GitOdile couldn't load this project's version lines.",
   versionLinesRetry: "Try again",
   versionLinesActiveLabel: "Active",
-  versionLinesNewButton: "New line",
   versionLinesEmptyOthers: "There are no other version lines in this project yet.",
   versionLinesNoSearchMatches: "No version lines match that search.",
   versionLinesTruncatedNote: (visible, total) => `Showing the ${visible} most recently saved of ${total}.`,
@@ -215,6 +281,8 @@ const en: VersionLinesTranslations = {
   versionLinesQuickSwitchEmpty: "There are no other version lines yet.",
   versionLinesQuickSwitchSeeAll: "Manage lines",
   versionLinesQuickSwitchNew: "New line",
+  versionLinesQuickSwitchCreateNamed: (name) => `Create “${name}”`,
+  versionLinesQuickSwitchCreateHint: "A new line — choose where it starts next",
   versionLinesQuickSwitchActions: (name) => `What “${name}” can do`,
   versionLinesQuickSwitchBack: "Back",
   versionLinesMergeInto: (name) => `Merge into “${name}”`,
@@ -228,11 +296,10 @@ const en: VersionLinesTranslations = {
   versionLinesDetachedRecoverButton: "Create a version line here",
   versionLinesUnbornTitle: "Save a version first",
   versionLinesUnbornDescription: "This version line has no saved versions yet, so there's nothing to branch from.",
-  versionLinesUpstreamLabel: (upstream) => `Tracks ${upstream}`,
   versionLinesNoUpstreamLabel: "Local only",
   versionLinesCheckedOutElsewhere: (path) => `Open in another workspace at ${path}. Switch to it from there.`,
-  versionLinesUniqueCommits: (count) =>
-    count === 1 ? "1 version not on the active line" : `${count} versions not on the active line`,
+  versionLinesUniqueCommits: (count, main) =>
+    count === 1 ? `1 version not on ${main}` : `${count} versions not on ${main}`,
   versionLinesSavedLabel: (date) => `Saved ${date}`,
   createVersionLineTitle: "New version line",
   createVersionLineNameLabel: "Name",
@@ -247,14 +314,17 @@ const en: VersionLinesTranslations = {
   createVersionLineSuccessTitle: "Version line created",
   createVersionLineDone: "Done",
   versionLinesQuickCreateNameLabel: "New line name",
-  versionLinesQuickCreateNamePlaceholder: "feature/new-feature",
+  versionLinesQuickCreateNamePlaceholder: "What will you work on?",
+  versionLinesQuickCreateNameHint: "Like",
+  versionLinesQuickCreateNameExample: "feature/new-feature",
   versionLinesQuickCreateSourceLabel: "Create from",
   versionLinesQuickCreateSwitchLabel: "Switch to it",
   versionLinesQuickCreateConfirmLabel: "Create line",
+  versionLinesQuickCreateConfirmShort: "Create",
   versionLinesQuickCreateConfirmAndSwitch: "Create and switch",
   versionLinesQuickCreateSuccess: (name, switched) =>
     switched ? `Created “${name}” and switched to it.` : `Created “${name}”.`,
-  versionLinesQuickCreateNamePlaceholderFor: (prefix) => `${prefix}/short-name`,
+  versionLinesQuickCreateNameExampleFor: (prefix) => `${prefix}/short-name`,
   versionLinesNameIssue: (issue) => {
     switch (issue.kind) {
       case "space":
@@ -302,7 +372,6 @@ const en: VersionLinesTranslations = {
   versionLinesSortUnpublished: "Local first",
   versionLinesSwitchShort: "Switch",
   versionLinesSwitchToLineLabel: (name) => `Switch to “${name}”`,
-  versionLinesNewFromLine: "New version from this line",
   versionLinesSyncUpToDate: "Up to date with the remote",
   versionLinesSyncNoUpstream: "No upstream configured",
   versionLinesSyncGone: "Remote branch deleted",
@@ -311,6 +380,14 @@ const en: VersionLinesTranslations = {
   versionLinesSyncAheadBehind: (ahead, behind) => `${ahead} not pushed, ${behind} not pulled`,
   versionLinesDeletablePill: "Safe to delete",
   versionLinesNotDeletablePill: "Can't be deleted yet",
+  versionLinesGlyphActive: "Active — the line you're working on",
+  versionLinesGlyphLocalOnly: "Local only — never published, so it exists only on this computer",
+  versionLinesGlyphGone: "Its remote branch was deleted",
+  versionLinesGlyphProtected: "Main line — it can't be renamed or deleted",
+  versionLinesGlyphDeletable: "Safe to delete — its saved versions are kept somewhere else",
+  versionLinesGlyphNotDeletable: "Can't be deleted yet — it has saved versions no other line has",
+  versionLinesDeleteCopiedTooltip: (name, base) =>
+    `Delete “${name}”: its work is already on ${base} as a copy; GitOdile keeps a recovery point first.`,
   versionLinesDeleteReadyTooltip: (name) =>
     `Delete “${name}” — its saved work is already kept somewhere else.`,
   versionLinesDeleteBlockedTooltip: (name) =>
@@ -328,6 +405,34 @@ const en: VersionLinesTranslations = {
   versionLinesStateTracking: "Tracking a remote",
   versionLinesLatestSavedLabel: "Latest saved",
   versionLinesVersionsTitle: "Saved versions",
+  versionLinesRouteTitle: "Route",
+  versionLinesChangesTitle: (base) => `What changes against ${base}`,
+  versionLinesChangesBroughtTitle: (base) => `What it brought to ${base}`,
+  versionLinesChangesFiles: (count, formatted) => (count === 1 ? "1 file" : `${formatted} files`),
+  versionLinesChangesSince: "since it left",
+  versionLinesChangesMore: (count, formatted) => (count === 1 ? "and 1 more file" : `and ${formatted} more files`),
+  versionLinesChangesBinary: "binary",
+  versionLinesCompareShort: "Compare",
+  versionLinesVersionsMore: (count, formatted) =>
+    count === 1 ? "1 more in History" : `${formatted} more in History`,
+  versionLinesRouteLoading: "Reading where this line left main…",
+  versionLinesRouteSummary: ({ base, date, own, unpublished, since }) =>
+    `Left ${base}${date ? ` on ${date}` : ""}. ${own === "1" ? "1 version" : `${own} versions`} of its own${
+      unpublished ? ` (${unpublished} not published yet)` : ""
+    }; ${since ? `${base} has saved ${since} since` : `${base} hasn't moved since`}.`,
+  versionLinesRouteMerged: (base, since) =>
+    `Everything on it is already on ${base}, which has saved ${since} ${since === "1" ? "version" : "versions"} since.`,
+  versionLinesRouteSame: (base) => `It stands where ${base} does — no versions of its own yet.`,
+  versionLinesRouteCopied: ({ base, left, back, own, squashed, since }) =>
+    `Left ${base}${left ? ` on ${left}` : ""}. Its work came back${back ? ` on ${back}` : ""} ${
+      squashed ? "squashed into one version" : "as copies, one by one"
+    }; the ${own === "1" ? "original version is" : `${own} original versions are`} only on this line. ${
+      since ? `${base} has saved ${since} since.` : `${base} hasn't moved since.`
+    }`,
+  versionLinesRouteReturned: ({ base, left, back, own, since }) =>
+    `Left ${base}${left ? ` on ${left}` : ""} and came back${back ? ` on ${back}` : ""} with ${
+      own === "1" ? "1 version" : `${own} versions`
+    }; ${since ? `${base} has saved ${since} since` : `${base} hasn't moved since`}.`,
   versionLinesOpenVersionLabel: (subject) => `Open “${subject}” in History`,
   versionLinesPublishedPill: "Published",
   versionLinesUnpublishedPill: "Not published yet",
@@ -345,12 +450,10 @@ const en: VersionLinesTranslations = {
     "This line has never been published, so it only exists on this computer.",
   versionLinesRelationshipActiveTitle: "This is the line you're working on",
   versionLinesRelationshipActiveDetail: "Saving a version adds it to this line.",
-  versionLinesRelationshipUniqueDetail:
-    "Switch to this line, or bring its work into the active one, to keep it going.",
-  versionLinesRelationshipMergedTitle: "Already on the active line",
-  versionLinesRelationshipMergedDetail: "Everything saved here is also reachable from the line you're on.",
+  versionLinesRelationshipUniqueDetail: (main) => `Its work isn't on ${main} yet — bring it in when it's ready.`,
+  versionLinesRelationshipMergedTitle: (main) => `Already on ${main}`,
+  versionLinesRelationshipMergedDetail: (main) => `Everything saved here is also on ${main}.`,
   versionLinesRelationshipElsewhereTitle: "Open in another workspace",
-  versionLinesHistoryTitle: "Explore the full history of this line",
   versionLinesHistoryDescription: "View all versions, compare changes, and restore previous states.",
   versionLinesHistoryScopedDescription: (name) =>
     `Opens History reading “${name}”. Nothing is checked out, so this project stays where it is.`,
@@ -379,6 +482,11 @@ const en: VersionLinesTranslations = {
   deleteVersionLineSafeLead:
     "Only the local name is removed. The saved work itself is already kept elsewhere:",
   deleteVersionLineWarning: "This can't be undone from GitOdile.",
+  deleteVersionLineCopiedLead: (base, squashed, shortCommit) =>
+    `Its work is already on ${base}, ${squashed ? "squashed into one version" : "copied version by version"} (${shortCommit}). Its original versions exist only on this line.`,
+  deleteVersionLineCopiedRecovery:
+    "Before deleting it, GitOdile keeps a local recovery point with those original versions — one of the newest 20 for this project.",
+  deleteVersionLineRecoveryKept: "Its original versions are kept in a local recovery point.",
   deleteVersionLineConfirm: "Delete",
   deleteVersionLineDeleting: "Deleting…",
   deleteVersionLineSuccessTitle: "Version line deleted",
@@ -390,11 +498,12 @@ const en: VersionLinesTranslations = {
   deleteVersionLineRemoteFailedLead:
     "The version line is gone from this computer, but the published copy is still there.",
   renameVersionLineTitle: (name) => `Rename “${name}”`,
-  renameVersionLineNameLabel: "New name",
   renameVersionLineNote: "Only the name changes. Every saved version on this line stays exactly where it is.",
   renameVersionLineUpstreamNote: (upstream) =>
     `This line goes on tracking ${upstream}, which keeps its own name. Renaming it there is a separate decision.`,
   renameVersionLineConfirm: "Rename",
+  versionLinesRenameInlineNote: "Only the name changes — every saved version stays where it is",
+  versionLinesRenameInlineUpstreamNote: (upstream) => `Only the name changes — it still tracks ${upstream}`,
   renameVersionLineRenaming: "Renaming…",
   versionLinesRenameShort: "Rename",
   versionLinesDeleteShort: "Delete",
@@ -410,15 +519,12 @@ const en: VersionLinesTranslations = {
 
 const es: VersionLinesTranslations = {
   versionLinesTitle: "Líneas",
-  versionLinesExplanation:
-    "Vías independientes para tus versiones guardadas. Cambia de línea para trabajar en otra.",
   versionLinesSearchPlaceholder: "Buscar líneas de versión…",
   versionLinesSearchAriaLabel: "Buscar líneas de versión",
   versionLinesLoading: "Cargando líneas de versión…",
   versionLinesErrorLoading: "GitOdile no pudo cargar las líneas de versión de este proyecto.",
   versionLinesRetry: "Intentar de nuevo",
   versionLinesActiveLabel: "Activa",
-  versionLinesNewButton: "Nueva línea",
   versionLinesEmptyOthers: "Todavía no hay otras líneas de versión en este proyecto.",
   versionLinesNoSearchMatches: "Ninguna línea de versión coincide con esa búsqueda.",
   versionLinesTruncatedNote: (visible, total) => `Se muestran las ${visible} guardadas más recientemente de ${total}.`,
@@ -441,6 +547,8 @@ const es: VersionLinesTranslations = {
   versionLinesQuickSwitchEmpty: "Todavía no hay otras líneas de versión.",
   versionLinesQuickSwitchSeeAll: "Gestionar líneas",
   versionLinesQuickSwitchNew: "Nueva línea",
+  versionLinesQuickSwitchCreateNamed: (name) => `Crear «${name}»`,
+  versionLinesQuickSwitchCreateHint: "Una línea nueva: a continuación eliges desde dónde empieza",
   versionLinesQuickSwitchActions: (name) => `Qué se puede hacer con «${name}»`,
   versionLinesQuickSwitchBack: "Volver",
   versionLinesMergeInto: (name) => `Fusionar con «${name}»`,
@@ -454,11 +562,10 @@ const es: VersionLinesTranslations = {
   versionLinesDetachedRecoverButton: "Crear una línea de versión aquí",
   versionLinesUnbornTitle: "Guarda una versión primero",
   versionLinesUnbornDescription: "Esta línea de versión todavía no tiene versiones guardadas, así que no hay nada de qué partir.",
-  versionLinesUpstreamLabel: (upstream) => `Sigue a ${upstream}`,
   versionLinesNoUpstreamLabel: "Solo local",
   versionLinesCheckedOutElsewhere: (path) => `Abierta en otro espacio de trabajo en ${path}. Cámbiate a ella desde ahí.`,
-  versionLinesUniqueCommits: (count) =>
-    count === 1 ? "1 versión fuera de la línea activa" : `${count} versiones fuera de la línea activa`,
+  versionLinesUniqueCommits: (count, main) =>
+    count === 1 ? `1 versión fuera de ${main}` : `${count} versiones fuera de ${main}`,
   versionLinesSavedLabel: (date) => `Guardada el ${date}`,
   createVersionLineTitle: "Nueva línea de versión",
   createVersionLineNameLabel: "Nombre",
@@ -473,14 +580,17 @@ const es: VersionLinesTranslations = {
   createVersionLineSuccessTitle: "Línea de versión creada",
   createVersionLineDone: "Listo",
   versionLinesQuickCreateNameLabel: "Nombre de la nueva línea",
-  versionLinesQuickCreateNamePlaceholder: "feature/nueva-funcionalidad",
+  versionLinesQuickCreateNamePlaceholder: "¿En qué vas a trabajar?",
+  versionLinesQuickCreateNameHint: "Como",
+  versionLinesQuickCreateNameExample: "feature/nueva-funcionalidad",
   versionLinesQuickCreateSourceLabel: "Crear desde",
   versionLinesQuickCreateSwitchLabel: "Cambiar a ella",
   versionLinesQuickCreateConfirmLabel: "Crear línea",
+  versionLinesQuickCreateConfirmShort: "Crear",
   versionLinesQuickCreateConfirmAndSwitch: "Crear y cambiar",
   versionLinesQuickCreateSuccess: (name, switched) =>
     switched ? `Se creó «${name}» y se cambió a ella.` : `Se creó «${name}».`,
-  versionLinesQuickCreateNamePlaceholderFor: (prefix) => `${prefix}/nombre-corto`,
+  versionLinesQuickCreateNameExampleFor: (prefix) => `${prefix}/nombre-corto`,
   versionLinesNameIssue: (issue) => {
     switch (issue.kind) {
       case "space":
@@ -528,7 +638,6 @@ const es: VersionLinesTranslations = {
   versionLinesSortUnpublished: "Locales antes",
   versionLinesSwitchShort: "Cambiar",
   versionLinesSwitchToLineLabel: (name) => `Cambiar a «${name}»`,
-  versionLinesNewFromLine: "Nueva versión desde esta línea",
   versionLinesSyncUpToDate: "Al día con el remoto",
   versionLinesSyncNoUpstream: "Sin remoto configurado",
   versionLinesSyncGone: "Rama remota eliminada",
@@ -537,6 +646,14 @@ const es: VersionLinesTranslations = {
   versionLinesSyncAheadBehind: (ahead, behind) => `${ahead} sin subir, ${behind} sin bajar`,
   versionLinesDeletablePill: "Se puede eliminar",
   versionLinesNotDeletablePill: "Todavía no se puede eliminar",
+  versionLinesGlyphActive: "Activa: la línea en la que estás trabajando",
+  versionLinesGlyphLocalOnly: "Solo local: nunca se ha publicado, así que solo existe en este ordenador",
+  versionLinesGlyphGone: "Su rama en el remoto se eliminó",
+  versionLinesGlyphProtected: "Línea principal: no se puede renombrar ni eliminar",
+  versionLinesGlyphDeletable: "Se puede eliminar: sus versiones guardadas ya están en otro sitio",
+  versionLinesGlyphNotDeletable: "Todavía no se puede eliminar: tiene versiones guardadas que no están en ninguna otra línea",
+  versionLinesDeleteCopiedTooltip: (name, base) =>
+    `Eliminar «${name}»: su trabajo ya está en ${base} como copia; GitOdile guarda antes un punto de recuperación.`,
   versionLinesDeleteReadyTooltip: (name) =>
     `Eliminar «${name}»: su trabajo guardado ya se conserva en otro sitio.`,
   versionLinesDeleteBlockedTooltip: (name) =>
@@ -555,6 +672,35 @@ const es: VersionLinesTranslations = {
   versionLinesStateTracking: "Sigue a un remoto",
   versionLinesLatestSavedLabel: "Última guardada",
   versionLinesVersionsTitle: "Versiones guardadas",
+  versionLinesRouteTitle: "Recorrido",
+  versionLinesChangesTitle: (base) => `Qué cambia respecto a ${base}`,
+  versionLinesChangesBroughtTitle: (base) => `Lo que trajo a ${base}`,
+  versionLinesChangesFiles: (count, formatted) => (count === 1 ? "1 archivo" : `${formatted} archivos`),
+  versionLinesChangesSince: "desde la salida",
+  versionLinesChangesMore: (count, formatted) =>
+    count === 1 ? "y 1 archivo más" : `y ${formatted} archivos más`,
+  versionLinesChangesBinary: "binario",
+  versionLinesCompareShort: "Comparar",
+  versionLinesVersionsMore: (count, formatted) =>
+    count === 1 ? "1 más en Historial" : `${formatted} más en Historial`,
+  versionLinesRouteLoading: "Leyendo por dónde salió esta línea de main…",
+  versionLinesRouteSummary: ({ base, date, own, unpublished, since }) =>
+    `Se separó de ${base}${date ? ` el ${date}` : ""}. ${own === "1" ? "1 versión propia" : `${own} versiones propias`}${
+      unpublished ? ` (${unpublished} sin publicar)` : ""
+    }; ${since ? `${base} ha guardado ${since} desde entonces` : `${base} no se ha movido desde entonces`}.`,
+  versionLinesRouteMerged: (base, since) =>
+    `Todo su trabajo ya está en ${base}, que ha guardado ${since} ${since === "1" ? "versión" : "versiones"} más desde entonces.`,
+  versionLinesRouteSame: (base) => `Está en el mismo punto que ${base}: aún no tiene versiones propias.`,
+  versionLinesRouteCopied: ({ base, left, back, own, squashed, since }) =>
+    `Salió de ${base}${left ? ` el ${left}` : ""}. Su trabajo volvió${back ? ` el ${back}` : ""} ${
+      squashed ? "unido en una sola versión" : "copiado versión a versión"
+    }; ${own === "1" ? "la versión original solo está" : `las ${own} versiones originales solo están`} en esta línea. ${
+      since ? `${base} ha guardado ${since} desde entonces.` : `${base} no se ha movido desde entonces.`
+    }`,
+  versionLinesRouteReturned: ({ base, left, back, own, since }) =>
+    `Salió de ${base}${left ? ` el ${left}` : ""} y volvió${back ? ` el ${back}` : ""} con ${
+      own === "1" ? "1 versión" : `${own} versiones`
+    }; ${since ? `${base} ha guardado ${since} desde entonces` : `${base} no se ha movido desde entonces`}.`,
   versionLinesOpenVersionLabel: (subject) => `Abrir «${subject}» en Historial`,
   versionLinesPublishedPill: "Publicada",
   versionLinesUnpublishedPill: "Todavía sin publicar",
@@ -572,13 +718,10 @@ const es: VersionLinesTranslations = {
     "Esta línea nunca se ha publicado, así que solo existe en este ordenador.",
   versionLinesRelationshipActiveTitle: "Es la línea en la que estás trabajando",
   versionLinesRelationshipActiveDetail: "Guardar una versión la añade a esta línea.",
-  versionLinesRelationshipUniqueDetail:
-    "Cámbiate a esta línea, o lleva su trabajo a la activa, para seguir con él.",
-  versionLinesRelationshipMergedTitle: "Ya está en la línea activa",
-  versionLinesRelationshipMergedDetail:
-    "Todo lo guardado aquí también es accesible desde la línea en la que estás.",
+  versionLinesRelationshipUniqueDetail: (main) => `Su trabajo aún no está en ${main}: llévalo cuando esté listo.`,
+  versionLinesRelationshipMergedTitle: (main) => `Ya está en ${main}`,
+  versionLinesRelationshipMergedDetail: (main) => `Todo lo guardado aquí también está en ${main}.`,
   versionLinesRelationshipElsewhereTitle: "Abierta en otro espacio de trabajo",
-  versionLinesHistoryTitle: "Explora el historial completo de esta línea",
   versionLinesHistoryDescription:
     "Ve todas las versiones, compara cambios y restaura estados anteriores.",
   versionLinesHistoryScopedDescription: (name) =>
@@ -609,6 +752,11 @@ const es: VersionLinesTranslations = {
   deleteVersionLineSafeLead:
     "Solo se elimina el nombre local. El trabajo guardado ya se conserva en otro sitio:",
   deleteVersionLineWarning: "Esto no se puede deshacer desde GitOdile.",
+  deleteVersionLineCopiedLead: (base, squashed, shortCommit) =>
+    `Su trabajo ya está en ${base}, ${squashed ? "unido en una sola versión" : "copiado versión a versión"} (${shortCommit}). Sus versiones originales solo existen en esta línea.`,
+  deleteVersionLineCopiedRecovery:
+    "Antes de eliminarla, GitOdile guarda un punto de recuperación local con esas versiones originales — uno de los 20 más recientes de este proyecto.",
+  deleteVersionLineRecoveryKept: "Sus versiones originales quedan guardadas en un punto de recuperación local.",
   deleteVersionLineConfirm: "Eliminar",
   deleteVersionLineDeleting: "Eliminando…",
   deleteVersionLineSuccessTitle: "Línea de versión eliminada",
@@ -621,12 +769,13 @@ const es: VersionLinesTranslations = {
   deleteVersionLineRemoteFailedLead:
     "La línea de versión ya no está en este ordenador, pero la copia publicada sigue ahí.",
   renameVersionLineTitle: (name) => `Renombrar «${name}»`,
-  renameVersionLineNameLabel: "Nombre nuevo",
   renameVersionLineNote:
     "Solo cambia el nombre. Todas las versiones guardadas de esta línea se quedan exactamente donde están.",
   renameVersionLineUpstreamNote: (upstream) =>
     `Esta línea sigue apuntando a ${upstream}, que conserva su nombre. Renombrarla ahí es otra decisión.`,
   renameVersionLineConfirm: "Renombrar",
+  versionLinesRenameInlineNote: "Solo cambia el nombre: cada versión guardada se queda donde está",
+  versionLinesRenameInlineUpstreamNote: (upstream) => `Solo cambia el nombre: sigue apuntando a ${upstream}`,
   renameVersionLineRenaming: "Renombrando…",
   versionLinesRenameShort: "Renombrar",
   versionLinesDeleteShort: "Eliminar",

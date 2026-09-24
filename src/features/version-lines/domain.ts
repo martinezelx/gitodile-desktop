@@ -22,6 +22,9 @@ export type VersionLine = {
   isRetainedElsewhere: boolean;
   /** Commits unique to this line relative to the active one, when
    * meaningful (never set for the active line itself). */
+  /** Versions on this line and not on the project's main line (the remote's
+   * default) — the line the detail's route is drawn against. `null` for the
+   * main line itself, and in a project with no main line. */
   uniqueCommitCount: number | null;
   /** Set when this line is checked out in a different linked worktree —
    * this window cannot switch to or delete it. */
@@ -79,6 +82,67 @@ export type VersionLineHistory = {
   totalCount: number | null;
   versions: VersionLineVersion[];
   hasMore: boolean;
+  /** Where this line left the project's main line. `null` for the main line
+   * itself, a project with no main line, a shallow clone, or when Git could
+   * not say. */
+  route: VersionLineRoute | null;
+};
+
+/** Mirrors the Rust `VersionLineRoute` contract — a line against the
+ * project's main line: where the two parted, the versions each saved while
+ * apart, and the merge that brought it back, if one did. Each count comes with
+ * up to eight of its versions, newest first, so a drawn dot is a real one. */
+export type VersionLineRoute = {
+  base: string;
+  forkCommit: string;
+  /** ISO 8601, of the version where the two parted. */
+  forkedAt: string;
+  /** Versions this line saved away from the main line — still away, or until
+   * it came back. Zero with no `merge`: its versions were always the main
+   * line's own. */
+  ownCount: number;
+  ownVersions: VersionLineVersion[];
+  /** Versions the main line saved after the parting — up to the merge, when
+   * the line came back. */
+  baseCount: number;
+  baseVersions: VersionLineVersion[];
+  merge: VersionLineMerge | null;
+  /** What the line changes against the main line since the parting — or what
+   * it brought, for a line that came back. `null` when it never left. */
+  changes: LineChanges | null;
+};
+
+/** Mirrors the Rust `LineChanges` contract: totals over every file, and the
+ * files that change most, largest first. */
+export type LineChanges = {
+  filesChanged: number;
+  additions: number;
+  deletions: number;
+  files: ChangedFile[];
+};
+
+/** Mirrors the Rust `ChangedFile` contract. Counts are `null` for a binary
+ * file. */
+export type ChangedFile = {
+  path: string;
+  status: "added" | "deleted" | "modified" | "renamed";
+  additions: number | null;
+  deletions: number | null;
+};
+
+/** Mirrors the Rust `VersionLineMerge` contract: the merge by which a line came
+ * back into the main line, and what the main line saved after it. */
+export type VersionLineMerge = {
+  /** `merge`: the line's own versions came in. `squash` / `rebase`: copies of
+   * them did — one version with their whole change, or one per version — and
+   * the originals are still only on the line. */
+  kind: "merge" | "squash" | "rebase";
+  /** The main line's version that brought the work in. */
+  commit: string;
+  /** ISO 8601. */
+  mergedAt: string;
+  afterCount: number;
+  afterVersions: VersionLineVersion[];
 };
 
 /** Mirrors the Rust `CreateVersionLinePlan` contract. */
@@ -137,6 +201,9 @@ export type DeleteVersionLineResult = {
   /** Set when one was asked for and refused. The local line is gone either
    * way; this says the published copy is not. */
   remoteError: unknown | null;
+  /** The recovery point kept before the line was removed, when its versions
+   * were held nowhere else. */
+  recoveryReference: string | null;
 };
 
 /** Mirrors the Rust `RenameVersionLinePlan` contract. */
@@ -172,4 +239,23 @@ export type DeleteVersionLinePlan = {
   /** The published copy this delete can clear away too, when there is one and
    * it still exists on the remote. */
   published: PublishedLine | null;
+  /** Set when no other line holds these versions but their work reached the
+   * main line as copies. The delete then keeps `recoveryPoint` first. */
+  copiedInto: CopiedInto | null;
+  recoveryPoint: RecoveryPointPreview | null;
+};
+
+/** Mirrors the Rust `CopiedInto` contract. */
+export type CopiedInto = {
+  base: string;
+  kind: "merge" | "squash" | "rebase";
+  commit: string;
+};
+
+/** Mirrors the Rust `HistoryRecoveryPreview` contract. */
+export type RecoveryPointPreview = {
+  reference: string;
+  explanation: string;
+  retention: string;
+  retentionLimit: number;
 };

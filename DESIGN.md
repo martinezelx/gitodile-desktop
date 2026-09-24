@@ -187,7 +187,8 @@ The main desktop window should broadly support:
    ago"). A stale, failed or still-loading answer keeps it a plain fact — it is
    not a state to act from. The
    branch is also the app's one global version-line control: its dropdown
-   switches, creates and hands off to the Lines screen. No screen adds a
+   switches, creates — in place, see Lines — and hands off to the Lines
+   screen. No screen adds a
    second selector to its own header: two controls answering one question in
    one window is how a reader stops trusting either. A small project-settings
    gear sits between the project name and the version-line control on every
@@ -662,18 +663,153 @@ second panel 44px of window width before the other. Four values in
 | `--strip-height-inner` | A strip *inside* a panel — the History workspace's file and diff panes — one step quieter |
 
 Lines pairs those two panels too, and reads at the same density as the screens
-either side of it. Its rows are two lines and one height: the name with when
-the line last moved at the trailing end, then the states worth flagging under
-it. The date sits up there rather than beside the chips because at 272px
-`last month · Local only · Can't be deleted yet` is 250px of content in 240px
-of row, and every crowded line then wrapped to a third one — a row that grows
-when it has more to say is a list that never scans the same way twice.
+either side of it. **Its rows are two lines and one height**: the name alone,
+then — quieter, under it — the states worth flagging as glyphs and when the
+line last moved at the trailing end. The states were
+text chips first, and at 272px `Local only · Can't be deleted yet` is most of
+the row; then glyphs on the name's own line, which left a long name
+(`feature/windows-installe…`) half the row. The name is what the list is
+scanned for, so it has the first line to itself, and every row keeps the
+second line — for the date if nothing else — so every row is the same height.
+As glyphs the states cost 14px each: the active line is a ringed dot in the
+accent, first;
+local only is a laptop; unpublished and not-yet-pulled versions are arrows with
+their counts (↑2 ↓3, the convention every Git client shares); a remote branch
+that was deleted is a cloud struck through, in the warning tone; the main line
+is a shield in the accent; safe to delete is a tick in the success tone, and
+not yet deletable a warning triangle. Up to date with its remote draws nothing,
+as it always did. A glyph has to be learned, so each one explains itself: its
+tooltip is a sentence (`Local only — never published, so it exists only on this
+computer`), the row's accessible description reads the states out in words,
+and the filter panel lists the same glyphs beside their names, which makes it
+the list's legend as well as its filter. `Active` is a word only in the detail
+strip: the active line heads the list and the strip beside it names it, so a
+chip on the row as well was the same word twice on one line of the screen.
 
-Its detail panel is one surface divided by rules, not a tray of cards: an
-identity header — the name and its actions on one row, where the line lives and
-who last saved to it on the row under them — then two sections separated by a
-hairline, where the line stands and the versions on it, and a footer leading to
-History. A card inside a card is two borders describing one thing.
+**Lines has no page row either; the list panel's header is the screen's name.**
+It follows the Work screen's shape: the list panel opens with a header at
+`--strip-height` — the rail's Lines glyph in the accent and the word in the
+tab's title type, the way Work's active tab is set — and its search strip
+steps down to `--strip-height-inner` under it. The row that used to sit over
+both panels held the name, a sentence about what a line is, and "New line";
+with the docked composer under the list starting lines, it was a name the
+rail already states, and the panels now start where the screen does.
+
+Its detail panel is one surface divided by rules, not a tray of cards. It
+opens with the line's strip, a fixed `--strip-height` level with the list's
+header, the way History's version strip is level with its tabs: the name (and
+`Active`) on the first line, who last saved to it and when on the second, one
+tone quieter, and the line's actions at the trailing end — Switch as the one
+labelled action, a capsule with a hairline and no fill, and Rename and Delete
+as the icon-only circles History's version strip gives Details and More,
+named on their tooltips (Rename's names its F2), Delete's glyph in the danger
+tone. They were three grey capsules, the heaviest strip in the app beside a
+list just made lighter; a labelled capsule next to circles reads as the
+primary one without spending the accent, and Switch keeps its word because it
+is what the reader came to do. The upstream is
+not in the strip: the first state under it names it, or says there is none,
+in a sentence about where the line stands, and the strip saying it again was
+the panel repeating itself across a rule. **Where the line left the main line
+is drawn, between where it stands and its versions** — a "Route" section,
+the project map's reading in miniature for the one line selected. Time runs
+to the right. The main line is the top lane in the panel's quiet ink, its
+dots the versions it has saved since the two parted; this line leaves it at
+the version where they parted — a ring, the date under it — and runs along a
+second lane in the accent, one dot per version of its own, the ones not yet
+published hollow on a dotted stretch, and a ring round the end when it is the
+active line. A line that came back by a merge draws the whole excursion: it
+leaves at the parting, runs its lane with the versions it saved while away,
+curves back up into the main line at the merge — a filled mark, its date
+under it — and the main line goes on with what it saved after. The main
+line's versions between the parting and the merge sit on their own stretch,
+kept off both ends. A line whose versions were always the main line's own —
+fast-forwarded into it, or never saved to — never left it: it is a mark on
+the main lane at its newest version, and the drawing is one lane tall; Git
+keeps no record of an excursion there, and none is invented. **A line merged
+by squash or rebase came back as copies**, and is drawn so: the same
+excursion, its way back fainter and landing on a ring rather than a filled
+mark, and the sentence saying what happened — "Its work came back on 18 Sept
+squashed into one version; the 4 original versions are only on this line."
+To Git the line is still away, and the drawing does not pretend otherwise:
+the work is on the main line, the versions on the lane are not. It is found
+by comparing changes rather than commits (`git patch-id --stable`): the
+line's whole change since the parting against each of the main line's since
+(squash), or each of its versions' against them (rebase) — read only, for the
+selected line, and given up past a thousand of the main line's versions.
+Such a line can be deleted: the delete dialog says where its work is
+("already on main, squashed into one version (abc1234)") and that GitOdile
+keeps a local recovery point with the original versions first, and the result
+says the point was kept (ADR 0016). A line whose work is nowhere else is still
+refused.
+**Every dot is a saved version.** Each lane is drawn from the versions the
+route sends with it, newest eight at most: the dot's tooltip is the version's
+subject, date and short commit, it grows a step under the pointer, and a
+press opens that version in History on the line it belongs to — the route's
+dots and the list of saved versions under it lead to the same place. The dots
+are for the pointer only; the list is the same answer for the keyboard.
+Past eight, the lane says how many earlier versions it leaves out ("+33")
+over its oldest drawn dot, and the sentence under the drawing says the numbers ("Left main on 12 Sept. 5
+versions of its own (2 not published yet); main has saved 3 since."), which is
+also what a screen reader hears; the drawing is hidden from it. It is measured
+against the main line always, the remote's default: "where did it come from"
+is asked of the main line, whichever line is active. The states over it count
+against the same line — "3 versions not on main", "Already on main", for the
+active line too — and while the route is drawn those two states give way to
+it, since its sentence says the same count: a fact is said once. The number
+and the dots are one answer;
+counted against the active line they disagreed whenever the reader stood
+anywhere but main. A project with no main line gets no count rather than a
+count against something else in the same words. The main line itself, a
+project with none, and a shallow clone — where the parting Git reports is
+where this machine's history stops — draw nothing rather than a guess. The
+figures come with the selected line's history read — the merge base, the two
+sides' counts and their newest versions, and for a line that is back on the
+main line the first-parent walk that finds the merge — never one read per
+listed line. **It is read fast and waited for in place.** The questions that do
+not depend on one another are asked side by side, because on Windows the
+reader waits on process launches more than on the walks; and a row the pointer
+rests on for a moment starts its line's read, so the press usually finds it
+answered. While the read is out, a line that will have a route keeps the
+section's whole place with the main lane already drawn and named, and the
+shared loading thread where the sentence will be — the answer grows into a
+space that was waiting for it rather than pushing the versions down when it
+lands. It arrives with the one motion the drawing has: the line draws itself
+out of the parting, its versions appear along it left to right, the sentence
+settles — about a third of a second, all of it after the answer is in, and
+none of it with reduced motion. **From one line to the next it cross-fades
+instead.** Two routes share most of their pixels — the main lane, its name,
+the parting at a fixed place, the general shape — so blinking the section out
+and drawing the next one from nothing made two similar pictures look like two
+unrelated events, and it was most jarring exactly when the read was fast. The
+previous line's drawing is held, quieter, while the next one is read (in
+place of the empty lane), then laid over the new one and faded out as the new
+one fades in, in 200ms: what the two share stays still and only what differs
+dissolves — the same idea as the window's theme cross-fade. The draw-out is
+kept for a route that appears where there was none. Morphing the dots and
+curves from one position to the next was weighed and left: animating a
+path's shape is not supported in the WebKit that GitOdile runs in on macOS,
+and a transition that only works on one platform is not one to design on. It
+is not drawn beside the list: the list's rows are lines ordered by name or
+date, not versions, and a lane joining two neighbouring rows would claim a
+kinship the order does not have. **A line is renamed in its strip,
+not in a dialog.** Rename — from the strip, the row's menu, or F2 on the row —
+turns the name into the field, a pill in mono with the name selected; the line
+under it into what renaming does and does not touch ("Only the name changes —
+it still tracks `origin/…`", the whole sentence on its tooltip), or into why Git
+would refuse the name, said before the press by the composer's own mirror of
+Git's rules; and the actions into Cancel and Rename. Enter renames and Escape
+puts the name back. The strip keeps its height, so nothing on the panel moves.
+A rename moves no saved version and no file, and the dialog it replaces was a
+title, that same field and two notes over the screen that already shows the
+line. The lock is taken at the press and released when the answer is in, the
+composer's rule. Under the strip, where the line
+stands — its states without a heading, since each
+says what it is — then the versions, whose label carries "Open in History" at
+its far end: the list is a preview of the sequence History draws in full, so
+the way to all of it sits beside its name rather than in a footer band of its
+own. The strip may grow only in a one-column window, where nothing beside it
+has to be level with it. A card inside a card is two borders describing one
+thing.
 
 **A new line is named in the same docked composer Changes saves from.** The
 box under the list is built and behaves as the save box does (see Changes):
@@ -687,7 +823,11 @@ what it is on its tooltip and keeping its width while the active one's name
 gives way. On a detached `HEAD` the line explains the one honest starting
 point instead. "Switch to it" is a checkbox in the foot, and the button says
 the consequence — "Create and switch", or "Create line" — named apart from
-the dialog's own "Create", since the two can be on screen together. Created,
+the dialog's own "Create", since the two can be on screen together. At rest,
+where the button shares the field's row in a column under 300px, it says only
+"Create", so the field's question is not cut; its accessible name is still the
+consequence, and opening the box — which is where "Switch to it" appears —
+shows the consequence in words beside the choice that decides it. Created,
 the plan's slot says what was created. What Git would refuse in the name is said under
 the field before the press, in the shared `.field-error` look, by a local
 mirror of Rust's own checks (`checkLineName`: `check-ref-format --branch`
@@ -695,13 +835,40 @@ and the loaded lines, exactly or by letter case) — Rust stays the authority.
 What typing on cannot fix — a space, a forbidden character, a taken name —
 is said as it appears and holds the button; how a half-typed name ends
 (`feature/`, `v1.`) is said only when the reader asks to create, so the box
-never scolds a name for being unfinished. The field's example is the
-project's own convention when it has one — the prefix at least two of its
-lines share, `fix/short-name` — and `feature/new-feature` otherwise. Nothing
+never scolds a name for being unfinished. The field asks what the line is for
+— "What will you work on?", the way the save box asks "What changed?" — and
+while it is empty, the line under it says how a name is written: "Like
+`fix/short-name`", one line in any language, the example truncating rather
+than wrapping and whole on its tooltip — by an example
+in the project's own convention when it has one (the prefix at least two of
+its lines share, `fix/short-name`) and `feature/new-feature` otherwise. The
+example used to be the placeholder itself, which told the format and never
+the purpose; it gives way to what Git would refuse once there is a name. Nothing
 in it moves: an example that types and erases itself would be a second
 moving thing on a screen that keeps one. When it folds is the same shared rule
-(`useDockedComposerFocus`). "New line" in the header still opens the dialog
-with its full plan, for the cases that want one.
+(`useDockedComposerFocus`). It is the screen's one way to start a line: there
+is no "New line" in a header and no "new line from here" among the active
+line's actions, since both opened a form for what the box already does. The
+dialog with its full plan stays for the palette's "New version line" and the
+detached-`HEAD` banner.
+
+**The quick switch makes a line in place too.** In the status bar and on
+Overview, "New line" — and a search that names no line, offered as the last
+row, "Create “feature/login”" — open the composer's own fields docked at the
+popup's foot, where the footer was, under the list that stays: a title row
+("New line", and an × back to the footer), where the new line starts, the
+name, "Switch to it", and the button that says the consequence. It docks
+rather than replacing the list because the popup is measured and placed once,
+for the list: a view that replaced it shrank the popup to the composer's
+height and left it hanging — above the status bar, a gap opened between the
+popup and its trigger. Docked, the popup keeps its size and its place and the
+list gives the composer the room, as the Lines list does. Escape folds it back
+into the footer and leaves the popup open. It is the same flow (`useLineCreateFlow`) in a second frame, so the
+two cannot explain one create differently. A search row opens this view with
+the name in it rather than creating at once — a search is a question, and
+Enter on it must not make a line by accident. Made, the popup closes: the
+control it hangs from names the new line, which is the confirmation. A
+failure stays under the field to retry.
 
 **The quick switch states a line's actions where the line is.** Each row carries
 an always-visible `⋯` — not a hover-only affordance — that shows that line's
@@ -713,6 +880,19 @@ deleting a line stay on the Lines screen; the row's menu does not duplicate
 them. They replace the list inside the popup rather than opening a nested menu,
 because that popup clips its overflow and dismisses on a press outside itself.
 
+**A line's right-click menu groups what other Git clients group.** Going to
+it (Switch); what it can do with the line the project is on — "Merge into
+“main”", "Rebase “main” onto this", "Compare with “main”", the quick switch's
+own three in its words, each naming both ends — stated, disabled and marked
+`Soon` until their flows exist rather than hidden; renaming it and copying its
+name; and, after a rule, Delete, the one destructive action, last. The three
+are offered only for a line that is not the active one: the active line has
+nothing to merge into itself. Switch wears the glyph the detail strip's Switch
+does, and compare its own, so no glyph means two things across the screen. The
+rules between groups are `.app-menu__divider`, the one rule every menu in the
+app draws — a top border, so it lands on a whole device pixel and weighs the
+same in every menu at any display scale.
+
 **The panel does not scroll; the section that can outgrow it does.** Where a
 line stands is three lines that never grow, and a panel that scrolls as a whole
 carries them off the top to reach the list underneath — the answer leaving to
@@ -720,6 +900,25 @@ show the question. The body divides its height between the sections instead,
 and the list of versions takes what is left and scrolls inside itself, which
 also keeps the way through to History against the bottom edge where a way out
 belongs.
+
+**Under the route, what the line changes against the main line.** "What
+changes against main" — for a line that came back, "What it brought to main"
+— compares the parting with the line's tip, the way a pull request compares:
+what the main line did meanwhile is not the line's change. The totals on one
+line ("23 files +1482 −356 since it left"), then the files that change most,
+largest first: the glyph and colour Changes and History give a changed, new,
+removed or renamed file, the file's name whole
+and its folder after it, quieter and the part that gives way, the counts, and
+a bar as long as the file's change beside the largest one, split between
+green added and red removed. It takes the height the panel has left and lists
+as many as fit, never scrolled, with the rest counted ("and 14 more files").
+The saved versions, the least of the three, step down to four under it with
+"208 more in History"; on the main line, which has no comparison, they keep
+the height. The section keeps its place while the read is out, like the
+route. Its corner says "Compare · Soon": pressing a file opens nothing yet,
+because a diff between two points in a line is the Compare flow still to come.
+The figures are two more read-only Git calls (`--numstat`, `--name-status`,
+renames followed) in the route's own read.
 
 **Each fact is stated once on a panel, in the place that says it best.** This
 panel used to close with a Status table whose five pairs were all answered
@@ -730,9 +929,9 @@ not thorough; it is a screen where the reader has to check whether the second
 statement means something new. The upstream is named in the header, who last
 saved and when in the byline, and every saved version exactly once in the list,
 the newest carrying the two things only it can say: whether it is published,
-and its hash. The list is eight deep rather than four, which is what makes it a
-preview worth the section rather than three rows under half a panel of nothing,
-and every row opens that version in History — the screen that draws the same
+and its hash. The list is eight deep where it has the panel to itself — on the main
+line — and four beside the comparison with the main line, and every row opens
+that version in History — the screen that draws the same
 sequence in full.
 
 **A third screen asking the same question uses the same surface.** Lines
@@ -765,14 +964,14 @@ grid is one column again.
 The heights are a `calc` off `--control-height-sm` rather than sizes of their
 own, for the same reason a control's height is a token: a strip is the control
 that lives in it plus its air, so it cannot be right at one number and wrong at
-another. The screen header above them is one shared rule too — `.screen-header`
-in `primitives.css`, which measures a labelled action whether or not the screen
-has one. Without that the panels beneath started 12px lower on the screen whose
-header carries a button, and the same 22px title did not even measure the same
-on the two screens: one pinned its leading and the other left it to the
-browser. Changes has since moved its heading into its list panel (§ Core
-screens, "the panel is the card"), and History is to follow; the rule stays
-for Lines and any screen that keeps a page row.
+another. There is no screen header above them to measure: Changes, History and
+Lines head their list panels instead (§ Core screens, "the panel is the card"),
+and the shared page row they used to open on — `.screen-header` — went with the
+last of them. It had been one rule rather than a copy per screen because two
+hand-written copies had already drifted: the panels beneath started 12px lower
+on the screen whose header carried a button, and the same 22px title did not
+measure the same on two screens. A screen that wants a page row again starts
+from that lesson, not from a private copy.
 
 There are no exceptions. There was one — the History diff pane's footer ran its
 buttons at 30px, below even `sm`, on the grounds that the pane around it is a

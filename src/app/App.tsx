@@ -89,6 +89,7 @@ import {
   useStoredFavouriteVersionLines,
   useVersionLinesState,
   versionLinesPort,
+  type VersionLineCreateContext,
 } from "../features/version-lines";
 import { createHistoryController, historyPort } from "../features/history";
 import { appUpdatesPort, createAppUpdatesController, useAppUpdatesController, type UpdateState } from "../features/app-updates";
@@ -1068,6 +1069,25 @@ export function App(): React.JSX.Element {
   }, []);
 
   const projectPath = project?.path ?? null;
+  /* Where the quick switches in the status bar and on Overview make a new
+     line, inside their own popup: the lock every version-line change takes,
+     and on success the same hand-back the create dialog gives — the session
+     cache first, then everything that depends on which line is active. */
+  const versionLineCreate: VersionLineCreateContext | undefined =
+    project && activeSession
+      ? {
+          projectPath: project.path,
+          sessionEpoch: activeSession.epoch,
+          onOperationStart: () => startVersionLineOperation(project.path),
+          onOperationFinish: () => finishSessionOperation(project.path),
+          onOperationPhaseChange: (phase) => setVersionLineOperationPhase(project.path, phase),
+          onCreated: (snapshot) => {
+            versionLinesController.commit(activeVersionLinesQuery, snapshot);
+            void handleVersionLineChanged(project.path);
+            finishSessionOperation(project.path);
+          },
+        }
+      : undefined;
   // `pendingVersions` is the real, local-only list of not-yet-published
   // saved versions (see `list_unpublished_versions`'s doc comment for the
   // "cached, possibly optimistic" caveat — it reflects the last-known
@@ -1926,7 +1946,7 @@ export function App(): React.JSX.Element {
                 </button>
               ))}
 
-              <div className="sidebar-jump__divider" role="separator" />
+              <div className="app-menu__divider" role="separator" />
 
               {/* The project group, flattened. The rail spends an avatar and a
                   "+" on two menus of their own; a list this short can just say
@@ -1996,7 +2016,7 @@ export function App(): React.JSX.Element {
                 <span>{t.projectSwitcherCloneProject}</span>
               </button>
 
-              <div className="sidebar-jump__divider" role="separator" />
+              <div className="app-menu__divider" role="separator" />
 
               {/* The foot, in the same order the rail stacks it. */}
               {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map(
@@ -2354,11 +2374,7 @@ export function App(): React.JSX.Element {
                       setVersionLineSwitchTarget(target);
                     }
                   }}
-                  onQuickCreateVersionLine={(forceSwitch) => {
-                    if (projectPath && startVersionLineOperation(projectPath)) {
-                      setCreateLineRequest({ forceSwitch });
-                    }
-                  }}
+                  versionLineCreate={versionLineCreate}
                   onOpenProjectSettings={() => openProjectSettings()}
                   onPrefetchProjectSettings={() => prefetchProjectSettings()}
                   onGoToVersionLines={() => navigateToView("version-lines")}
@@ -2508,11 +2524,7 @@ export function App(): React.JSX.Element {
               setVersionLineSwitchTarget(target);
             }
           }}
-          onCreateVersionLine={() => {
-            if (projectPath && startVersionLineOperation(projectPath)) {
-              setCreateLineRequest({ forceSwitch: false });
-            }
-          }}
+          versionLineCreate={versionLineCreate}
           onSeeAllVersionLines={() => navigateToView("version-lines")}
           onCheckTeamChanges={() => {
             if (!activeSession) return;

@@ -125,7 +125,7 @@ export function ChangesContextMenu({
           {/* A rule before the destructive item. The two above it are harmless
               and this one throws work away; a menu that puts them on one
               uninterrupted list invites the wrong click. */}
-          <div className="changes-context-menu__divider" role="separator" />
+          <div className="app-menu__divider" role="separator" />
           <button
             className="app-menu__item app-menu__item--danger"
             role="menuitem"

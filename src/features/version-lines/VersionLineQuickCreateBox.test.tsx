@@ -360,14 +360,17 @@ describe("VersionLineQuickCreateBox", () => {
     expect(screen.getByRole("button", { name: "Create and switch" })).toBeEnabled();
   });
 
-  it("takes its example from the prefix the project's lines share", () => {
+  it("asks what the line is for, and takes its example from the prefix the project's lines share", () => {
     renderBox({ existingNames: ["main", "fix/a", "fix/b", "docs/c"] });
-    expect(screen.getByLabelText("New line name")).toHaveAttribute("placeholder", "fix/short-name");
+    expect(screen.getByLabelText("New line name")).toHaveAttribute("placeholder", "What will you work on?");
+    expect(screen.getByText("fix/short-name")).toBeInTheDocument();
   });
 
-  it("keeps the generic example when the project has no convention yet", () => {
+  it("keeps the generic example when the project has no convention yet, until a name is typed", async () => {
     renderBox({ existingNames: ["main", "fix/a"] });
-    expect(screen.getByLabelText("New line name")).toHaveAttribute("placeholder", "feature/new-feature");
+    expect(screen.getByText("feature/new-feature")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("New line name"), "feature/z");
+    expect(screen.queryByText("feature/new-feature")).not.toBeInTheDocument();
   });
 
   it("does nothing without a name, even if Create is reached some other way", async () => {

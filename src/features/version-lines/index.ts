@@ -5,6 +5,7 @@ export type { VersionLinesQuery } from "./port";
 export { versionLinesPort } from "./tauriAdapter";
 export { VersionLinesScreen, versionLinesScreenModule } from "./screen";
 export { VersionLineQuickSwitch, type VersionLineQuickSwitchProps } from "./VersionLineQuickSwitch";
+export type { VersionLineCreateContext } from "./VersionLineQuickCreateBox";
 export {
   FAVOURITE_VERSION_LINES_STORAGE_KEY,
   useStoredFavouriteVersionLines,

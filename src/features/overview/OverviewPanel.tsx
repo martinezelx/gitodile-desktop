@@ -25,7 +25,11 @@ import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
 import { getWorkingTreeBreakdown, type WorkingTreeStatus } from "../status";
 import type { PendingVersionsResult } from "../publish";
 import type { HistoryController } from "../history";
-import { VersionLineQuickSwitch, type VersionLinesSnapshot } from "../version-lines";
+import {
+  VersionLineQuickSwitch,
+  type VersionLineCreateContext,
+  type VersionLinesSnapshot,
+} from "../version-lines";
 import type { TeamSyncViewState } from "../sync";
 import { ChangedFilesSection } from "./ChangedFilesSection";
 import { deriveJourney } from "./journey";
@@ -324,7 +328,7 @@ function OverviewHeader({
   favouriteVersionLines,
   onToggleFavouriteVersionLine,
   onQuickSwitchVersionLine,
-  onQuickCreateVersionLine,
+  versionLineCreate,
   onGoToVersionLines,
   onCopyPathError,
   onOpenProjectSettings,
@@ -338,7 +342,7 @@ function OverviewHeader({
   favouriteVersionLines: ReadonlySet<string>;
   onToggleFavouriteVersionLine: (name: string) => void;
   onQuickSwitchVersionLine: (target: string) => void;
-  onQuickCreateVersionLine: (forceSwitch: boolean) => void;
+  versionLineCreate?: VersionLineCreateContext;
   onGoToVersionLines: () => void;
   onCopyPathError: () => void;
   /** The same panel the project switcher's gear opens, for the project this
@@ -377,7 +381,7 @@ function OverviewHeader({
               favouriteLines={favouriteVersionLines}
               onToggleFavourite={onToggleFavouriteVersionLine}
               onSwitch={onQuickSwitchVersionLine}
-              onCreate={() => onQuickCreateVersionLine(overview.isDetached)}
+              create={versionLineCreate}
               showCreateControl={false}
               onSeeAll={onGoToVersionLines}
             />
@@ -425,7 +429,7 @@ export function OverviewPanel({
   favouriteVersionLines,
   onToggleFavouriteVersionLine,
   onQuickSwitchVersionLine,
-  onQuickCreateVersionLine,
+  versionLineCreate,
   onGoToVersionLines,
   onCopyPathError,
   onOpenSaveVersion,
@@ -479,7 +483,8 @@ export function OverviewPanel({
   onPublish: () => void;
   onPublishUpTo: (commit: string) => void;
   onQuickSwitchVersionLine: (target: string) => void;
-  onQuickCreateVersionLine: (forceSwitch: boolean) => void;
+  /** Where the header's quick switch makes a new line, inside its popup. */
+  versionLineCreate?: VersionLineCreateContext;
   onGoToVersionLines: () => void;
   onCopyPathError: () => void;
   /** Opens this project's own settings — the remote it publishes to, the files
@@ -537,7 +542,7 @@ export function OverviewPanel({
           favouriteVersionLines={favouriteVersionLines}
           onToggleFavouriteVersionLine={onToggleFavouriteVersionLine}
           onQuickSwitchVersionLine={onQuickSwitchVersionLine}
-          onQuickCreateVersionLine={onQuickCreateVersionLine}
+          versionLineCreate={versionLineCreate}
           onGoToVersionLines={onGoToVersionLines}
           onCopyPathError={onCopyPathError}
           onOpenProjectSettings={onOpenProjectSettings}

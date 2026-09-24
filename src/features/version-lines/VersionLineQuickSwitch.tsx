@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeftRight,
   ArrowRight,
   ChevronDown,
   ChevronLeft,
@@ -10,15 +9,18 @@ import {
   GitBranch,
   GitBranchPlus,
   GitCommitHorizontal,
+  GitCompare,
   GitMerge,
   LoaderCircle,
   Search,
   Star,
+  X,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { autoHideScrollbarProps, usePortalFlyout } from "../../shared/ui";
 import type { VersionLine, VersionLinesSnapshot } from "./domain";
+import { LineCreateFields, useLineCreateFlow, type VersionLineCreateContext } from "./VersionLineQuickCreateBox";
 
 export type VersionLineQuickSwitchProps = {
   snapshot: VersionLinesSnapshot | null;
@@ -37,7 +39,11 @@ export type VersionLineQuickSwitchProps = {
   favouriteLines?: ReadonlySet<string>;
   onToggleFavourite?: (name: string) => void;
   onSwitch: (target: string) => void;
-  onCreate?: () => void;
+  /** Where a line created from this control is made. With it, "New line" and
+   * a search that names no line open a create view inside the popup — the
+   * Lines composer's fields and flow, in place of the list — rather than a
+   * dialog. Without it, the control only chooses. */
+  create?: VersionLineCreateContext;
   onSeeAll: () => void;
 };
 
@@ -57,7 +63,7 @@ export function VersionLineQuickSwitch({
   favouriteLines = new Set<string>(),
   onToggleFavourite,
   onSwitch,
-  onCreate,
+  create,
   onSeeAll,
 }: VersionLineQuickSwitchProps): React.JSX.Element {
   const { t } = useLanguage();
@@ -70,6 +76,9 @@ export function VersionLineQuickSwitch({
    * anchored to a row would be cut off or would close the control that opened
    * it. */
   const [actionLine, setActionLine] = useState<VersionLine | null>(null);
+  /** The composer docked at the popup's foot in place of its footer, holding
+   * the name it opened with. */
+  const [creating, setCreating] = useState<{ initialName: string } | null>(null);
   // Read by the rows, which render in the branch where `actionLine` is `null`
   // and would therefore be narrowed away if they asked it directly.
   const openActionsName = actionLine?.name ?? null;
@@ -91,10 +100,23 @@ export function VersionLineQuickSwitch({
         )
     : null;
   const visibleLines = matches?.slice(0, variant === "status" ? 6 : 9) ?? null;
+  /* A line can be started from here only where there is a commit for it to
+     point at — not on an unborn `HEAD`, the case Lines hides its composer for. */
+  const canCreate = create !== undefined && snapshot !== null && snapshot.headState !== "unborn";
+  /* A search that names no line — the active one included, which the list
+     leaves out — is offered as the name of a new one. */
+  const typed = query.trim();
+  const offersCreate =
+    canCreate && typed !== "" && !snapshot.lines.some((line) => line.name === typed);
   const close = (restoreFocus: boolean): void => {
     setIsOpen(false);
     setActionLine(null);
+    setCreating(null);
     if (restoreFocus) triggerRef.current?.focus();
+  };
+  const startCreate = (initialName: string): void => {
+    setActionLine(null);
+    setCreating({ initialName });
   };
   useEffect(() => {
     if (actionLine) backRef.current?.focus();
@@ -116,6 +138,7 @@ export function VersionLineQuickSwitch({
     setQuery("");
     setFavouritesOnly(false);
     setActionLine(null);
+    setCreating(null);
     setIsOpen(true);
   };
 
@@ -151,11 +174,16 @@ export function VersionLineQuickSwitch({
       {/* Only where the control has room for it. The status strip is 34px of
           chrome across the whole window, and its dropdown now carries the same
           action. */}
-      {onCreate && variant === "control" && showCreateControl && (
+      {canCreate && variant === "control" && showCreateControl && (
         <button
           className="secondary-button version-lines-quick-switch__create"
           type="button"
-          onClick={onCreate}
+          onClick={() => {
+            setQuery("");
+            setFavouritesOnly(false);
+            startCreate("");
+            setIsOpen(true);
+          }}
           aria-label={t.versionLinesQuickSwitchNew}
           data-tooltip={t.versionLinesQuickSwitchNew}
         >
@@ -166,7 +194,7 @@ export function VersionLineQuickSwitch({
       {isOpen && createPortal(
         <div
           ref={popupRef}
-          className={`app-menu version-lines-quick-switch__menu version-lines-quick-switch__menu--${variant}${actionLine ? " version-lines-quick-switch__menu--actions" : ""}`}
+          className={`app-menu version-lines-quick-switch__menu version-lines-quick-switch__menu--${variant}`}
           role="dialog"
           aria-label={t.versionLinesQuickSwitchTitle}
           style={style}
@@ -200,7 +228,7 @@ export function VersionLineQuickSwitch({
                 <span className="version-lines-quick-switch__soon">{t.versionLinesSoon}</span>
               </button>
               <button className="app-menu__item" type="button" role="menuitem" disabled aria-disabled="true">
-                <ArrowLeftRight aria-hidden="true" />
+                <GitCompare aria-hidden="true" />
                 <span className="version-lines-quick-switch__actions-label">{t.versionLinesCompareWith(currentValue)}</span>
                 <span className="version-lines-quick-switch__soon">{t.versionLinesSoon}</span>
               </button>
@@ -215,6 +243,13 @@ export function VersionLineQuickSwitch({
               placeholder={t.versionLinesQuickSwitchSearchPlaceholder}
               aria-label={t.versionLinesQuickSwitchSearchPlaceholder}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                // Enter on a name no line has is the create row's press.
+                if (event.key === "Enter" && offersCreate && (visibleLines?.length ?? 0) === 0) {
+                  event.preventDefault();
+                  startCreate(typed);
+                }
+              }}
             />
             {onToggleFavourite && (
               <button
@@ -241,7 +276,7 @@ export function VersionLineQuickSwitch({
               <LoaderCircle aria-hidden="true" className="icon--spinning" />
               <span className="visually-hidden">{t.versionLinesLoading}</span>
             </div>
-          ) : visibleLines === null || visibleLines.length === 0 ? (
+          ) : (visibleLines === null || visibleLines.length === 0) && !(offersCreate && !creating) ? (
             <p className="version-lines-quick-switch__empty">
               {favouritesOnly && !needle
                 ? t.versionLinesQuickSwitchFavouritesEmpty
@@ -251,7 +286,7 @@ export function VersionLineQuickSwitch({
             </p>
           ) : (
             <ul className="version-lines-quick-switch__list" role="list">
-              {visibleLines.map((line) => {
+              {(visibleLines ?? []).map((line) => {
                 const isFavourite = favouriteLines.has(line.name);
                 return (
                   <li key={line.name} className="version-lines-quick-switch__item">
@@ -314,28 +349,66 @@ export function VersionLineQuickSwitch({
                   </li>
                 );
               })}
+              {/* The name typed is no line's, so it is offered as a new one —
+                  last, under whatever the search did match, so choosing an
+                  existing line stays the first thing in reach. It opens the
+                  create view with the name in it rather than creating at
+                  once: a search is a question, and Enter on it must not make
+                  a line by accident. */}
+              {offersCreate && !creating && (
+                <li className="version-lines-quick-switch__item">
+                  <button
+                    type="button"
+                    className="version-lines-quick-switch__choose version-lines-quick-switch__offer"
+                    title={typed}
+                    onClick={() => startCreate(typed)}
+                  >
+                    <span className="version-lines-quick-switch__glyph" aria-hidden="true">
+                      <GitBranchPlus />
+                    </span>
+                    <span className="version-lines-quick-switch__copy">
+                      <span className="version-lines-quick-switch__name">{t.versionLinesQuickSwitchCreateNamed(typed)}</span>
+                      <span className="version-lines-quick-switch__context">{t.versionLinesQuickSwitchCreateHint}</span>
+                    </span>
+                  </button>
+                </li>
+              )}
             </ul>
           )}
           </div>
           {/* The two things this control cannot answer by choosing from the
               list above it: a line that does not exist yet, and everything
-              about a line that is not "which one am I on". Both hand off to the
-              flow that owns them — there is no second way to create a line and
-              no second Lines screen. */}
+              about a line that is not "which one am I on". The first is made
+              right here, with the Lines composer's own flow; the second hands
+              off to the Lines screen — there is no second one. */}
           {/* One row, not two: these are the two things choosing from the list
               above cannot answer, and a popup that spends two full rows on them
               is a popup with less room for the lines it exists to show. Ghost
               buttons rather than menu rows — they leave this control instead of
               choosing inside it. */}
+          {/* A new line is named at the popup's foot, where "New line" was —
+              the composer docked under the list the way it is under the Lines
+              list. The popup keeps its size and its place: it was a view that
+              replaced the list, which shrank the popup to the composer's
+              height, and a popup measured and placed for the list then hung
+              in the air — above the status bar, a gap opened between it and
+              its trigger. */}
+          {creating && create && snapshot ? (
+            <QuickSwitchComposer
+              key={creating.initialName}
+              snapshot={snapshot}
+              context={create}
+              initialName={creating.initialName}
+              onCancel={() => setCreating(null)}
+              onCreated={() => close(false)}
+            />
+          ) : (
           <div className="version-lines-quick-switch__footer">
-            {onCreate && (
+            {canCreate && (
               <button
                 type="button"
                 className="ghost-button version-lines-quick-switch__new"
-                onClick={() => {
-                  close(false);
-                  onCreate();
-                }}
+                onClick={() => startCreate(offersCreate ? typed : "")}
               >
                 <GitBranchPlus aria-hidden="true" />
                 <span>{t.versionLinesQuickSwitchNew}</span>
@@ -353,10 +426,89 @@ export function VersionLineQuickSwitch({
               <ArrowRight aria-hidden="true" />
             </button>
           </div>
+          )}
           </>)}
         </div>,
         document.body,
       )}
+    </div>
+  );
+}
+
+/** A new line, made inside the popup: the Lines composer's fields and the
+ * same `useLineCreateFlow`, docked at the popup's foot under the list — the
+ * shape the composer has under the Lines list. Started with the name the
+ * search held, if it named no line. Made, the popup closes — the control it
+ * hangs from then names the line, which is the confirmation — and a failure
+ * stays under the field to retry. Escape folds it back into the footer
+ * without closing the popup. */
+function QuickSwitchComposer({
+  snapshot,
+  context,
+  initialName,
+  onCancel,
+  onCreated,
+}: {
+  snapshot: VersionLinesSnapshot;
+  context: VersionLineCreateContext;
+  initialName: string;
+  onCancel: () => void;
+  onCreated: () => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const flow = useLineCreateFlow({
+    ...context,
+    forceSwitch: snapshot.headState === "detached",
+    mainLine: snapshot.lines.find((line) => line.isDefault) ?? null,
+    activeLine: snapshot.lines.find((line) => line.isActive) ?? null,
+    existingNames: snapshot.lines.map((line) => line.name),
+    draftKey: `quick-switch-version-line:${context.projectPath}`,
+    initialName,
+    onCreated: (next) => {
+      context.onCreated(next);
+      onCreated();
+    },
+  });
+  // It opens to be typed in; a frame later than the popup's own
+  // first-control focus when the popup opens straight into it.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const field = nameRef.current;
+      if (!field) return;
+      field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div
+      className="docked-composer docked-composer--expanded version-lines-quick-create version-lines-quick-switch__composer"
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || flow.isBusy) return;
+        // Folds the composer; the popup, which would otherwise close on the
+        // same key, stays open on its list.
+        event.preventDefault();
+        event.stopPropagation();
+        onCancel();
+      }}
+    >
+      <div className="version-lines-quick-switch__composer-title">
+        <GitBranchPlus aria-hidden="true" />
+        <span>{t.versionLinesQuickSwitchNew}</span>
+        <button
+          type="button"
+          className="version-lines-quick-switch__composer-close"
+          aria-label={t.commonCancel}
+          data-tooltip={t.commonCancel}
+          disabled={flow.isBusy}
+          onClick={onCancel}
+        >
+          <X aria-hidden="true" />
+        </button>
+      </div>
+      <LineCreateFields flow={flow} nameRef={nameRef} expanded />
     </div>
   );
 }

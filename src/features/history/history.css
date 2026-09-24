@@ -12,8 +12,6 @@
 .history-notices:empty { display: none; }
 .history-notices { display: grid; gap: 6px; }
 
-/* Title and state on one line: `.screen-header` in primitives.css, the row
-   Changes opens on too. This screen adds nothing to it. */
 .history-banner {
   display: flex;
   align-items: flex-start;

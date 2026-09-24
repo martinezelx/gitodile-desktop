@@ -100,7 +100,14 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
     isLoadingVersionLines: false,
     teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus() },
     onSwitchVersionLine: vi.fn(),
-    onCreateVersionLine: vi.fn(),
+    versionLineCreate: {
+      projectPath: "/repo",
+      sessionEpoch: "epoch-1",
+      onOperationStart: vi.fn(() => true),
+      onOperationFinish: vi.fn(),
+      onOperationPhaseChange: vi.fn(),
+      onCreated: vi.fn(),
+    },
     onSeeAllVersionLines: vi.fn(),
     onCheckTeamChanges: vi.fn(),
     onOpenProjectSettings: vi.fn(),
@@ -256,7 +263,6 @@ describe("StatusBar", () => {
           isLoadingVersionLines={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: cached }}
           onSwitchVersionLine={vi.fn()}
-          onCreateVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
           onOpenProjectSettings={vi.fn()}
@@ -281,7 +287,6 @@ describe("StatusBar", () => {
           isLoadingVersionLines={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(), isStale: true }}
           onSwitchVersionLine={vi.fn()}
-          onCreateVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
           onOpenProjectSettings={vi.fn()}
@@ -343,9 +348,8 @@ describe("formatRelativeCheckTime", () => {
   });
 
   it("puts creating a line and managing them on one row, and hands each to its own flow", async () => {
-    const onCreateVersionLine = vi.fn();
     const onSeeAllVersionLines = vi.fn();
-    renderBar({ onCreateVersionLine, onSeeAllVersionLines });
+    renderBar({ onSeeAllVersionLines });
 
     const trigger = screen.getByRole("button", {
       name: "Change version line (feature/a-very-long-version-line-name)",
@@ -362,11 +366,13 @@ describe("formatRelativeCheckTime", () => {
     expect(footer).toContainElement(manage);
     expect(newLine.compareDocumentPosition(manage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
+    // A new line is named right in the popup, the composer taking the
+    // footer's place; cancelling puts the footer back.
     await userEvent.click(newLine);
-    expect(onCreateVersionLine).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "New line name" })).toBeInTheDocument();
+    expect(dialog.querySelector(".version-lines-quick-switch__footer")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    await userEvent.click(trigger);
     await userEvent.click(screen.getByRole("button", { name: "Manage lines" }));
     expect(onSeeAllVersionLines).toHaveBeenCalledOnce();
   });

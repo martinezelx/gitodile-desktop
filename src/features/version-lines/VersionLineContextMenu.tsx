@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, GitBranch, PenLine, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Copy, GitCommitHorizontal, GitCompare, GitMerge, PenLine, Trash2 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { ContextMenuSurface, copyTextToClipboard, type ContextMenuAnchor } from "../../shared/ui";
@@ -11,9 +11,17 @@ import { deleteActionLabel, versionLineActions } from "./lineActions";
  * must not silently repoint an open menu at a different line. */
 export type VersionLineContextMenuState = ContextMenuAnchor & { line: VersionLine };
 
-/** What a right-click on a version line offers. The same actions the detail
- * panel shows for the selected line, plus the one thing a pointer is for and a
- * panel is not: taking the name away as text.
+/** What a right-click on a version line offers, grouped the way other Git
+ * clients group a branch's menu: going to it; what it can do with the line
+ * the project is on — merge, rebase, compare, stated but not yet offered;
+ * renaming it and taking its name away as text; and, apart and last, the one
+ * destructive action.
+ *
+ * Merge, rebase and compare are the quick switch's own three, in its words —
+ * each names both ends so the direction is never inferred — disabled and
+ * marked `Soon` until their flows exist, rather than hidden (DESIGN.md,
+ * Honest affordances). They are offered only for a line that is not the
+ * active one: the active line has nothing to merge into itself.
  *
  * Availability and the Delete label come from `lineActions`, the one place
  * that decides them — the detail header reads the same functions. A menu that
@@ -21,6 +29,8 @@ export type VersionLineContextMenuState = ContextMenuAnchor & { line: VersionLin
  * two answers to one question. */
 export function VersionLineContextMenu({
   context,
+  activeName,
+  copiedIntoOf,
   onClose,
   onCopied,
   onSwitch,
@@ -28,6 +38,11 @@ export function VersionLineContextMenu({
   onDelete,
 }: {
   context: VersionLineContextMenuState | null;
+  /** The line the project is on, which merge, rebase and compare act with. */
+  activeName: string | null;
+  /** The main line's name when a line's work reached it as copies, if the
+   * line's history has been read — for Delete's label. */
+  copiedIntoOf?: (line: VersionLine) => string | null;
   onClose: (restoreFocus: boolean) => void;
   onCopied: () => void;
   onSwitch: (name: string) => void;
@@ -46,6 +61,18 @@ export function VersionLineContextMenu({
   if (!context) return null;
   const { line } = context;
   const { canSwitch, canRename, canDelete } = versionLineActions(line);
+  const soonActions =
+    !line.isActive && activeName !== null
+      ? [
+          { key: "merge", icon: <GitMerge aria-hidden="true" />, label: t.versionLinesMergeInto(activeName) },
+          {
+            key: "rebase",
+            icon: <GitCommitHorizontal aria-hidden="true" />,
+            label: t.versionLinesRebaseOnto(activeName),
+          },
+          { key: "compare", icon: <GitCompare aria-hidden="true" />, label: t.versionLinesCompareWith(activeName) },
+        ]
+      : [];
 
   const copyName = (): void => {
     if (isCopying) return;
@@ -76,21 +103,12 @@ export function VersionLineContextMenu({
       className="version-lines-context-menu"
       onClose={onClose}
     >
-      <button
-        className="app-menu__item"
-        role="menuitem"
-        type="button"
-        disabled={isCopying}
-        onClick={copyName}
-      >
-        <Copy aria-hidden="true" />
-        {t.versionLinesCopyName}
-      </button>
       {/* Short labels, and the line's name on the accessible one. The menu is
           already titled after the line it acts on, so repeating the name in
           every item only makes the menu as wide as the longest branch name in
-          the project — and these are the same three words the detail header
-          uses, which is what makes the two read as one set of actions. */}
+          the project — and these are the same words the detail header uses,
+          with the same glyphs, which is what makes the two read as one set of
+          actions. */}
       {canSwitch && (
         <button
           className="app-menu__item"
@@ -99,9 +117,29 @@ export function VersionLineContextMenu({
           aria-label={t.versionLinesSwitchToLineLabel(line.name)}
           onClick={run(onSwitch)}
         >
-          <GitBranch aria-hidden="true" />
+          <ArrowLeftRight aria-hidden="true" />
           {t.versionLinesSwitchShort}
         </button>
+      )}
+      {soonActions.length > 0 && (
+        <>
+          {canSwitch && <div className="app-menu__divider" role="separator" />}
+          {soonActions.map(({ key, icon, label }) => (
+            <button
+              key={key}
+              className="app-menu__item"
+              role="menuitem"
+              type="button"
+              disabled
+              aria-disabled="true"
+            >
+              {icon}
+              <span className="version-lines-quick-switch__actions-label">{label}</span>
+              <span className="version-lines-quick-switch__soon">{t.versionLinesSoon}</span>
+            </button>
+          ))}
+          <div className="app-menu__divider" role="separator" />
+        </>
       )}
       {canRename && (
         <button
@@ -115,12 +153,23 @@ export function VersionLineContextMenu({
           {t.versionLinesRenameShort}
         </button>
       )}
+      <button
+        className="app-menu__item"
+        role="menuitem"
+        type="button"
+        disabled={isCopying}
+        onClick={copyName}
+      >
+        <Copy aria-hidden="true" />
+        {t.versionLinesCopyName}
+      </button>
+      {canDelete && <div className="app-menu__divider" role="separator" />}
       {canDelete && (
         <button
           className="app-menu__item app-menu__item--danger"
           role="menuitem"
           type="button"
-          aria-label={deleteActionLabel(line, t)}
+          aria-label={deleteActionLabel(line, t, copiedIntoOf?.(line) ?? null)}
           onClick={run(onDelete)}
         >
           <Trash2 aria-hidden="true" />

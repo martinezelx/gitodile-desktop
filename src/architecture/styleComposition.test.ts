@@ -84,10 +84,10 @@ describe("production style composition", () => {
     expect(settings).not.toContain(".settings-layout {");
     const primitiveChrome = readSource("shared/ui/primitives.css");
     expect(primitiveChrome).toContain(".settings-layout {");
-    // The row a screen opens on — its title, its state and its own actions —
-    // is shared by Changes and History, so exactly one sheet may define it.
-    // Two hand-written copies had already drifted apart on the title's leading.
-    expect(primitiveChrome).toContain(".screen-header {");
+    // No screen opens on a page row any more: Changes, History and Lines head
+    // their list panels instead, so the shared row is gone and must not come
+    // back as a private copy either.
+    expect(primitiveChrome).not.toContain(".screen-header {");
     expect(changes).not.toContain(".changes-view__header");
     expect(readSource("features/history/history.css")).not.toContain(".history-view__header");
     // Stacked option cards are shared by line endings and the per-project
@@ -681,7 +681,6 @@ describe("production style composition", () => {
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".journey-step__icon", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
-      ["features/version-lines/version-lines.css", ".version-lines-avatar", "border-radius: var(--radius-round)"],
       // Every project chip carries the neutral brand ring. The fixed palette
       // cannot clear 3:1 on the lighter community dark panels (Nord, Catppuccin
       // Frappé) with white text still at 4.5:1, so the ring is what keeps the

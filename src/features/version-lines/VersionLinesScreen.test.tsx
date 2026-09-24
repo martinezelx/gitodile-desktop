@@ -36,7 +36,7 @@ function snapshot(name: string): VersionLinesSnapshot {
 /** The detail's on-demand read. It is the selected line's own data rather
  * than the inventory, so it is stubbed rather than asserted on here — the
  * lifecycle these tests cover is the inventory's. */
-const emptyHistory = { name: "main", totalCount: 0, versions: [], hasMore: false };
+const emptyHistory = { name: "main", totalCount: 0, versions: [], hasMore: false, route: null };
 
 afterEach(cleanup);
 

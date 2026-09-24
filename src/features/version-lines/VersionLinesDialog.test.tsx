@@ -124,11 +124,58 @@ function deletePlan(overrides: Partial<DeleteVersionLinePlan> = {}): DeleteVersi
     retainedBy: ["refs/heads/main"],
     upstream: null,
     published: null,
+    copiedInto: null,
+    recoveryPoint: null,
     ...overrides,
   };
 }
 
 describe("DeleteVersionLineDialog", () => {
+  it("offers a line whose work was squashed into main, and says a recovery point keeps its originals", async () => {
+    mockedInvoke.mockResolvedValueOnce(
+      deletePlan({
+        retainedBy: [],
+        copiedInto: { base: "main", kind: "squash", commit: "abc1234def5678" },
+        recoveryPoint: {
+          reference: "refs/gitodile/recovery/v1/delete-version-line/worktree-x/1",
+          explanation: "x",
+          retention: "y",
+          retentionLimit: 20,
+        },
+      }),
+    );
+    mockedInvoke.mockResolvedValueOnce({
+      snapshot: emptySnapshot(),
+      remoteDeleted: null,
+      remoteError: null,
+      recoveryReference: "refs/gitodile/recovery/v1/delete-version-line/worktree-x/1",
+    });
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <DeleteVersionLineDialog
+          isOpen
+          projectPath="/repo"
+          sessionEpoch="epoch-1"
+          target="feature/x"
+          onClose={vi.fn()}
+          onDeleted={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(
+      await screen.findByText(
+        "Its work is already on main, squashed into one version (abc1234). Its original versions exist only on this line.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/GitOdile keeps a local recovery point/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(
+      await screen.findByText("Its original versions are kept in a local recovery point."),
+    ).toBeInTheDocument();
+  });
+
   it("shows the retained-by proof and deletes on confirm", async () => {
     mockedInvoke.mockResolvedValueOnce(deletePlan());
     mockedInvoke.mockResolvedValueOnce({

@@ -150,9 +150,6 @@
   max-width: 280px; margin: 4px 8px 6px; color: var(--status-danger);
   font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere;
 }
-.changes-context-menu__divider {
-  height: 1px; margin: 4px 8px; background: var(--border-divider);
-}
 .changes-diff-context-scope { display: contents; }
 
 .changes-discard-backdrop {
@@ -497,42 +494,8 @@
   font-size: var(--text-caption); color: var(--text-secondary-color);
 }
 @media (forced-colors: active) {
-  .changes-notice, /* The Overview band in miniature at the end of the heading — where the
-   heading's action used to be, and where a screen with none was reading as
-   a hole. Three dots and two connectors in the band's own three tones (done
-   is filled, current is the accent, ahead is hollow), the current step's
-   name a shade darker, and a capsule under the pointer because the whole of
-   it is one quiet button back to Overview. Secondary everywhere: it answers
-   "where am I", and must never compete with the box below that answers
-   "what do I do". */
-.changes-journey {
-  flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--space-2);
-  height: var(--control-height-sm); padding: 0 var(--space-2) 0 var(--space-3);
-  border: 0; border-radius: var(--radius-pill); background: transparent;
-  color: var(--text-secondary-color); font: inherit; font-size: var(--text-label);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.changes-journey:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.changes-journey:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.changes-journey__step { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.changes-journey__step--active { color: var(--text-primary-color); font-weight: var(--weight-strong); }
-.changes-journey__dot {
-  width: 8px; height: 8px; border-radius: var(--radius-round);
-  border: 1.5px solid var(--border-strong); background: transparent;
-}
-.changes-journey__step--done .changes-journey__dot { border-color: var(--text-secondary-color); background: var(--text-secondary-color); }
-.changes-journey__step--active .changes-journey__dot { border-color: var(--accent-primary-fill); background: var(--accent-primary-fill); }
-.changes-journey__connector { width: 14px; height: 1px; background: var(--border-strong); }
-.changes-journey__connector--done { background: var(--text-secondary-color); }
-.changes-journey__go { width: 13px; height: 13px; color: var(--text-secondary-color); opacity: 0.6; }
-.changes-journey:hover .changes-journey__go { opacity: 1; }
-@media (max-width: 800px) {
-  /* `.screen-header` stacks at this width; a wayfinding aid is the first
-     thing to give way to the work under it. */
-  .changes-journey { display: none; }
-}
-
-.changes-status-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
+  .changes-notice,
+  .changes-status-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
 }
 .changes-file-item__origin {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--text-secondary-color);

@@ -1,10 +1,27 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 
 import { LanguageProvider } from "../../i18n";
-import type { VersionLine, VersionLinesSnapshot } from "./domain";
+import type { CreateVersionLinePlan, VersionLine, VersionLinesSnapshot } from "./domain";
+import type { VersionLineCreateContext } from "./VersionLineQuickCreateBox";
 import { VersionLineQuickSwitch } from "./VersionLineQuickSwitch";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+const mockedInvoke = vi.mocked(invoke);
+
+function createContext(overrides: Partial<VersionLineCreateContext> = {}): VersionLineCreateContext {
+  return {
+    projectPath: "/repo",
+    sessionEpoch: "epoch-1",
+    onOperationStart: vi.fn(() => true),
+    onOperationFinish: vi.fn(),
+    onOperationPhaseChange: vi.fn(),
+    onCreated: vi.fn(),
+    ...overrides,
+  };
+}
 
 function line(name: string, options: Partial<VersionLine> = {}): VersionLine {
   return {
@@ -226,9 +243,9 @@ describe("VersionLineQuickSwitch", () => {
     ).toBeInTheDocument();
   });
 
-  it("hands creating a line and managing them to the flows that own them", async () => {
-    const onCreate = vi.fn();
+  it("makes a new line inside the popup, and hands managing lines to the Lines screen", async () => {
     const onSeeAll = vi.fn();
+    const create = createContext();
     render(
       <LanguageProvider>
         <VersionLineQuickSwitch
@@ -239,7 +256,7 @@ describe("VersionLineQuickSwitch", () => {
           canSwitch
           variant="status"
           onSwitch={vi.fn()}
-          onCreate={onCreate}
+          create={create}
           onSeeAll={onSeeAll}
         />
       </LanguageProvider>,
@@ -247,12 +264,109 @@ describe("VersionLineQuickSwitch", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
     await userEvent.click(screen.getByRole("button", { name: "New line" }));
-    expect(onCreate).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // The composer docks at the popup's foot, in place of the footer, under
+    // the list that stays: no modal, and no lock taken until the press.
+    const field = screen.getByRole("textbox", { name: "New line name" });
+    expect(field).toHaveValue("");
+    await waitFor(() => expect(field).toHaveFocus());
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "feature/1" })).toBeInTheDocument();
+    expect(create.onOperationStart).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    // Escape folds it back into the footer and leaves the popup open.
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "New line name" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "New line" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("textbox", { name: "New line name" })).not.toBeInTheDocument();
+
     await userEvent.click(screen.getByRole("button", { name: "Manage lines" }));
     expect(onSeeAll).toHaveBeenCalledOnce();
+  });
+
+  it("offers a searched name no line has as a new line, and creates it in place", async () => {
+    const create = createContext();
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          canSwitch
+          variant="status"
+          onSwitch={vi.fn()}
+          create={create}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    // A name a line already has — the active one, which the list leaves out —
+    // is never offered.
+    await userEvent.type(screen.getByRole("searchbox"), "main");
+    expect(screen.queryByRole("button", { name: /Create “/ })).not.toBeInTheDocument();
+
+    await userEvent.clear(screen.getByRole("searchbox"));
+    await userEvent.type(screen.getByRole("searchbox"), "feature/login");
+    // Enter on a search that matched nothing opens the create view with the
+    // name in it; it does not make the line.
+    await userEvent.keyboard("{Enter}");
+    const field = screen.getByRole("textbox", { name: "New line name" });
+    expect(field).toHaveValue("feature/login");
+    expect(mockedInvoke).not.toHaveBeenCalled();
+
+    const plan: CreateVersionLinePlan = {
+      operationKind: "local-mutation",
+      summary: "Create",
+      steps: [],
+      risks: [],
+      recovery: "",
+      requiresConfirmation: false,
+      stateToken: "create-token",
+      name: "feature/login",
+      headState: "branch",
+      startingCommit: null,
+      fromSavedVersion: false,
+      willSwitch: true,
+      hasUnsavedWork: false,
+    };
+    const created = { ...snapshot, branch: "feature/login" };
+    mockedInvoke.mockResolvedValueOnce(plan);
+    mockedInvoke.mockResolvedValueOnce(created);
+    await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
+
+    await waitFor(() => expect(create.onCreated).toHaveBeenCalledWith(created));
+    expect(create.onOperationStart).toHaveBeenCalledOnce();
+    expect(mockedInvoke).toHaveBeenCalledWith(
+      "create_version_line",
+      expect.objectContaining({ name: "feature/login", switch: true, stateToken: "create-token" }),
+    );
+    // Made, the popup closes: the control it hangs from names the line now.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("offers no way to create a line where the host gives it nowhere to make one", async () => {
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          canSwitch
+          variant="status"
+          onSwitch={vi.fn()}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    await userEvent.type(screen.getByRole("searchbox"), "feature/login");
+    expect(screen.queryByRole("button", { name: "New line" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Create “/ })).not.toBeInTheDocument();
   });
 
   it("keeps the status strip free of a second creation control", async () => {
@@ -264,7 +378,7 @@ describe("VersionLineQuickSwitch", () => {
       currentValue: "main",
       canSwitch: true,
       onSwitch: vi.fn(),
-      onCreate: vi.fn(),
+      create: createContext(),
       onSeeAll: vi.fn(),
     } as const;
     const view = render(
