@@ -528,6 +528,13 @@ in the common Git directory. The newest 20 complete records are retained per
 common repository across linked worktrees, and incomplete or unsupported
 evidence is never guessed at or deleted.
 
+Deleting a version line whose work reached the main line only as copies
+(squash or rebase, found by `git patch-id --stable`) uses the same protocol
+under its own operation — `refs/gitodile/recovery/v1/delete-version-line/`,
+its own manifest folder and its own limit of 20 — before the line is removed
+([ADR 0016](adr/0016-keep-a-recovery-point-when-deleting-a-copied-version-line.md)).
+`recovery::HistoryRecoveryOperation` names the operations; the protocol is one.
+
 Discard follows the same plan/revalidate/execute/verify boundary and creates a
 persistent record under the selected worktree's Git metadata before mutation.
 The record preserves exact target bytes and the real index, can be restored

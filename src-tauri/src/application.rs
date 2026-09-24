@@ -427,6 +427,45 @@ pub(crate) fn current_cancellation() -> Option<CancellationToken> {
     })
 }
 
+/// The running command's frame, carried into a scoped worker thread so the
+/// Git processes a command splits across threads run under the same policy
+/// and cancellation it does. The frame stack is thread-local, and a thread
+/// that starts without it has no policy at all — `require_policy` refuses to
+/// run Git there.
+///
+/// Only for a read that fans out inside one command and joins before the
+/// command returns (`std::thread::scope`): the frame must never outlive the
+/// command that pushed it.
+pub(crate) struct InheritedCommand {
+    frame: CommandFrame,
+}
+
+pub(crate) fn inherit_command() -> Option<InheritedCommand> {
+    POLICY_STACK
+        .with(|stack| stack.borrow().last().cloned())
+        .map(|frame| InheritedCommand { frame })
+}
+
+impl InheritedCommand {
+    /// Pushes the frame on the calling thread until the guard drops.
+    pub(crate) fn enter(self) -> InheritedCommandGuard {
+        POLICY_STACK.with(|stack| stack.borrow_mut().push(self.frame));
+        InheritedCommandGuard { _private: () }
+    }
+}
+
+pub(crate) struct InheritedCommandGuard {
+    _private: (),
+}
+
+impl Drop for InheritedCommandGuard {
+    fn drop(&mut self) {
+        POLICY_STACK.with(|stack| {
+            stack.borrow_mut().pop();
+        });
+    }
+}
+
 fn cancellations() -> &'static Mutex<HashMap<(String, &'static str), CancellationToken>> {
     static CANCELLATIONS: OnceLock<Mutex<HashMap<(String, &'static str), CancellationToken>>> =
         OnceLock::new();

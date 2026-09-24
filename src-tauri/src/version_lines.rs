@@ -1,8 +1,14 @@
 use crate::application;
 use crate::error::{AppError, AppErrorCode};
-use crate::git_command::{checked_git_stdout, git_stdout, run_git};
+use crate::git_command::{
+    checked_git_stdout, git_stdout, run_git, run_git_capped, run_git_with_input_capped,
+};
 use crate::index::prepare_index;
 use crate::operation::{truncate_detail, OperationKind};
+use crate::recovery::{
+    create_history_recovery_for, plan_history_recovery_for, verify_history_recovery,
+    HistoryRecoveryMetadata, HistoryRecoveryOperation, HistoryRecoveryPreview,
+};
 use crate::repository::{
     display_path, git_operation_in_progress, resolve_head_state, validate_branch_ref_name,
     HeadState,
@@ -328,13 +334,10 @@ pub(crate) fn reaching_refs_by_commit(
     Ok(reaching)
 }
 
-pub(crate) fn branch_unique_commit_count(
-    path: &str,
-    active: Option<&str>,
-    tip: &str,
-) -> Option<u32> {
-    let active = active?;
-    let output = run_git(path, &["rev-list", "--count", &format!("{active}..{tip}")]).ok()?;
+/// Versions reachable from `tip` and not from `base` — the main line's ref.
+pub(crate) fn branch_unique_commit_count(path: &str, base: Option<&str>, tip: &str) -> Option<u32> {
+    let base = base?;
+    let output = run_git(path, &["rev-list", "--count", &format!("{base}..{tip}")]).ok()?;
     if !output.status.success() {
         return None;
     }
@@ -613,13 +616,18 @@ pub(crate) const VERSION_LINE_BASE_FORMAT: &str =
 /// walk. Discovery still supports older Git versions: an unsupported atom
 /// makes this first command fail without mutating anything, then the legacy
 /// format and helpers provide exactly the previous answer.
+///
+/// `count_base` is what the ahead count is measured against: the main line's
+/// ref when the project has one, otherwise the current commit — whose counts
+/// the caller then discards, keeping the one inventory walk for the worktree
+/// paths it also answers.
 pub(crate) fn read_version_line_refs(
     path: &str,
-    current_commit: Option<&str>,
+    count_base: Option<&str>,
 ) -> Result<(ParsedVersionLines, bool), AppError> {
-    if let Some(commit) = current_commit {
+    if let Some(base) = count_base {
         let format = format!(
-            "--format={VERSION_LINE_BASE_FORMAT}%00%(ahead-behind:{commit})%00%(worktreepath)"
+            "--format={VERSION_LINE_BASE_FORMAT}%00%(ahead-behind:{base})%00%(worktreepath)"
         );
         let batched = run_git(
             path,
@@ -680,7 +688,26 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
         (_, false) => HeadState::Unborn,
     };
 
-    let (parsed, has_batched_metadata) = read_version_line_refs(&path, current_commit.as_deref())?;
+    // Each line's own versions are counted against the main line — the
+    // remote's default, held locally — the same line the detail's route is
+    // drawn against, so the two never disagree. Without one there is no
+    // count: "not on the active line" would be a different question with the
+    // same words.
+    let default_names = default_branch_names(&path)?;
+    let mut main_line = None;
+    for name in &default_names {
+        let main_ref = format!("refs/heads/{name}");
+        if run_git(&path, &["show-ref", "--verify", "--quiet", &main_ref])?
+            .status
+            .success()
+        {
+            main_line = Some((name.clone(), main_ref));
+            break;
+        }
+    }
+    let main_ref = main_line.as_ref().map(|(_, reference)| reference.as_str());
+    let (parsed, has_batched_metadata) =
+        read_version_line_refs(&path, main_ref.or(current_commit.as_deref()))?;
     let worktrees = if has_batched_metadata {
         Vec::new()
     } else {
@@ -696,7 +723,6 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
     raw_lines.truncate(VERSION_LINE_LIST_CAP);
 
     let reaching_refs = reaching_refs_by_commit(&path)?;
-    let default_names = default_branch_names(&path)?;
     let mut unique_counts_by_tip = std::collections::HashMap::new();
     let mut lines = Vec::with_capacity(raw_lines.len());
     for raw in raw_lines {
@@ -719,16 +745,17 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
             .get(&raw.commit)
             .map(|references| references.iter().any(|reference| reference != &own_ref))
             .unwrap_or(false);
-        let unique_commit_count = if is_active {
+        let is_main_line = main_line
+            .as_ref()
+            .is_some_and(|(name, _)| name == &raw.name);
+        let unique_commit_count = if main_ref.is_none() || is_main_line {
             None
         } else if has_batched_metadata {
             raw.unique_commit_count
         } else {
             *unique_counts_by_tip
                 .entry(raw.commit.clone())
-                .or_insert_with(|| {
-                    branch_unique_commit_count(&path, branch.as_deref(), &raw.commit)
-                })
+                .or_insert_with(|| branch_unique_commit_count(&path, main_ref, &raw.commit))
         };
         // Ahead/behind is only meaningful relative to a configured upstream;
         // an empty `upstream_track` on a line with no upstream must not read
@@ -812,6 +839,819 @@ pub(crate) struct VersionLineHistory {
     /// extra record rather than from `total_count`, so it stays true when the
     /// count is unavailable.
     pub(crate) has_more: bool,
+    /// Where this line left the project's main line, and how far each has
+    /// moved since. `None` for the main line itself, for a project with no
+    /// main line, in a shallow clone, and whenever Git cannot say — it is
+    /// extra detail, and the rest of the answer stands without it.
+    pub(crate) route: Option<VersionLineRoute>,
+}
+
+/// A line's route against the project's main line: the saved version where
+/// the two parted and when, the versions each saved while apart, and — for a
+/// line that has come back — the merge that brought it in and what the main
+/// line has saved since. Every count comes with up to
+/// `VERSION_LINE_ROUTE_VERSIONS` of the versions it counts, newest first, so a
+/// drawn dot is a real saved version the reader can hover.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct VersionLineRoute {
+    /// The main line, by its local name.
+    pub(crate) base: String,
+    pub(crate) fork_commit: String,
+    /// ISO 8601 (`%cI`) of the version where the two parted.
+    pub(crate) forked_at: String,
+    /// Versions this line saved away from the main line — still away from it,
+    /// or until it came back. Zero for a line whose versions were always the
+    /// main line's own (created and never saved to, or fast-forwarded into it).
+    pub(crate) own_count: u32,
+    pub(crate) own_versions: Vec<VersionLineVersion>,
+    /// Versions the main line saved after the parting: up to now, or, for a
+    /// line that came back, up to the merge that brought it in.
+    pub(crate) base_count: u32,
+    pub(crate) base_versions: Vec<VersionLineVersion>,
+    /// The merge by which this line's versions came back into the main line.
+    pub(crate) merge: Option<VersionLineMerge>,
+    /// What the line changes against the main line — from the parting to its
+    /// tip, the way a pull request compares — or, for a line that came back,
+    /// what it brought. `None` for a line that never left the main line, and
+    /// when Git cannot say.
+    pub(crate) changes: Option<LineChanges>,
+}
+
+/// The files a line changes since it parted from the main line, and by how
+/// much. The totals cover every file; `files` is the ones that change most,
+/// at most `MAX_LINE_CHANGE_FILES`.
+#[derive(serde::Serialize, Debug, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LineChanges {
+    pub(crate) files_changed: u32,
+    pub(crate) additions: u32,
+    pub(crate) deletions: u32,
+    pub(crate) files: Vec<ChangedFile>,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ChangedFile {
+    pub(crate) path: String,
+    pub(crate) status: ChangedFileStatus,
+    /// `None` for a binary file, which has no lines to count.
+    pub(crate) additions: Option<u32>,
+    pub(crate) deletions: Option<u32>,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ChangedFileStatus {
+    Added,
+    Deleted,
+    Modified,
+    Renamed,
+}
+
+/// How many of a line's changed files come with the route: more than any
+/// panel shows, few enough that the answer stays small.
+pub(crate) const MAX_LINE_CHANGE_FILES: usize = 40;
+const MAX_LINE_CHANGE_BYTES: usize = 8 * 1024 * 1024;
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct VersionLineMerge {
+    /// How the line's work came back: its own versions, by a merge; or copies
+    /// of them, squashed into one version or rebased one by one — in which
+    /// case the line's own versions still exist only on the line.
+    pub(crate) kind: MergeKind,
+    /// The main line's version that brought the work in: the merge, the
+    /// squashed copy, or the newest of the rebased copies.
+    pub(crate) commit: String,
+    /// ISO 8601 (`%cI`) of that version.
+    pub(crate) merged_at: String,
+    /// Versions the main line saved after the merge, and the newest of them.
+    pub(crate) after_count: u32,
+    pub(crate) after_versions: Vec<VersionLineVersion>,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum MergeKind {
+    Merge,
+    Squash,
+    Rebase,
+}
+
+/// How much of the main line's history, as patches, the copy check reads
+/// before giving up: past this the line is too far behind for "is its work
+/// already there" to be worth the read, and the route says only what it knows.
+const MAX_COPY_CHECK_COMMITS: usize = 1000;
+const MAX_COPY_CHECK_BYTES: usize = 32 * 1024 * 1024;
+
+/// How many of a lane's versions come with the route: the drawing shows at
+/// most this many dots a lane, each one a real version.
+pub(crate) const VERSION_LINE_ROUTE_VERSIONS: usize = 8;
+
+/// The first-parent walk that finds the merge is capped: a main line whose
+/// history since this line's tip outgrows it is too far on to draw the return
+/// anyway, and the route then says only that the work is on the main line.
+const MAX_ROUTE_WALK_BYTES: usize = 4 * 1024 * 1024;
+
+/// The main line is the remote's default (`default_branch_names`), and only a
+/// local line of that name — a route is drawn between two lines this project
+/// holds. Only ever for the one line the reader selected, cached with the rest
+/// of its history read, and as few Git processes deep as the questions allow:
+/// the ones that do not depend on each other run side by side (`in_parallel`),
+/// because on Windows it is the process launches, not the walks, that the
+/// reader waits for.
+fn read_line_route(
+    path: &str,
+    name: &str,
+    branch_ref: &str,
+    tip: &str,
+) -> Result<Option<VersionLineRoute>, AppError> {
+    let defaults = default_branch_names(path)?;
+    // The main line has no route: every other line is measured against it.
+    if defaults.iter().any(|default| default == name) {
+        return Ok(None);
+    }
+    for base in defaults {
+        let base_ref = format!("refs/heads/{base}");
+        // Fails both for a main line this project does not hold locally and
+        // for two lines with no saved version in common: neither has a route.
+        let Some(merge_base) = rev_parse_commit(path, &["merge-base", &base_ref, branch_ref])?
+        else {
+            continue;
+        };
+        if merge_base == tip {
+            return read_returned_route(path, base, &base_ref, branch_ref, tip);
+        }
+        // Still away from the main line: the two sides of the parting — and,
+        // asked alongside them, whether its work came back anyway as copies.
+        let own_range = format!("{base_ref}..{branch_ref}");
+        let base_range = format!("{branch_ref}..{base_ref}");
+        let (((counts, forked_at), (own_versions, base_versions)), copy) = in_parallel(
+            || {
+                in_parallel(
+                    || {
+                        in_parallel(
+                            || count_left_right(path, &format!("{base_ref}...{branch_ref}")),
+                            || commit_date(path, &merge_base),
+                        )
+                    },
+                    || {
+                        in_parallel(
+                            || route_versions(path, &own_range),
+                            || route_versions(path, &base_range),
+                        )
+                    },
+                )
+            },
+            // A failed check is a question unanswered, not an error: the
+            // route then says what it knows — that the line is still away.
+            || {
+                in_parallel(
+                    || detect_copy(path, &base_ref, branch_ref, &merge_base).unwrap_or(None),
+                    || read_line_changes(path, &merge_base, branch_ref).unwrap_or(None),
+                )
+            },
+        );
+        let (copy, changes) = copy;
+        let (
+            Some((base_count, own_count)),
+            Some(forked_at),
+            Some(own_versions),
+            Some(base_versions),
+        ) = (counts?, forked_at?, own_versions?, base_versions?)
+        else {
+            return Ok(None);
+        };
+        let merge = match copy {
+            Some((kind, commit)) => read_copy_return(path, &base_ref, branch_ref, kind, commit)?,
+            None => None,
+        };
+        let (base_count, base_versions, merge) = match merge {
+            Some((before_count, before_versions, merge)) => {
+                (before_count, before_versions, Some(merge))
+            }
+            None => (base_count, base_versions, None),
+        };
+        return Ok(Some(VersionLineRoute {
+            base,
+            fork_commit: merge_base,
+            forked_at,
+            own_count,
+            own_versions,
+            base_count,
+            base_versions,
+            merge,
+            changes,
+        }));
+    }
+    Ok(None)
+}
+
+/// A line whose every version is on the main line. Either it came back by a
+/// merge — the first commit on the main line's first-parent chain that
+/// descends from the tip, when the tip is not on that chain itself — and the
+/// route is its excursion: where it left, what it saved, where it came back.
+/// Or its versions were always the main line's own (fast-forwarded into it, or
+/// never saved to), and the route is a mark on the main line at its tip.
+fn read_returned_route(
+    path: &str,
+    base: String,
+    base_ref: &str,
+    branch_ref: &str,
+    tip: &str,
+) -> Result<Option<VersionLineRoute>, AppError> {
+    let walk = run_git_capped(
+        path,
+        &[
+            "rev-list",
+            "--first-parent",
+            "--ancestry-path",
+            &format!("{branch_ref}..{base_ref}"),
+            "--",
+        ],
+        MAX_ROUTE_WALK_BYTES,
+    )?;
+    let merge = (walk.status.success() && !walk.limit_exceeded)
+        .then(|| {
+            String::from_utf8_lossy(&walk.stdout)
+                .lines()
+                .map(str::trim)
+                .rfind(|line| is_object_id(line))
+                .map(str::to_string)
+        })
+        .flatten();
+
+    if let Some(merge) = merge {
+        let first_parent = format!("{merge}^1");
+        let (fast_forwarded, fork) = in_parallel(
+            || {
+                run_git(
+                    path,
+                    &["merge-base", "--is-ancestor", branch_ref, &first_parent],
+                )
+            },
+            || rev_parse_commit(path, &["merge-base", &first_parent, branch_ref]),
+        );
+        if !fast_forwarded?.status.success() {
+            let Some(fork) = fork? else {
+                return Ok(None);
+            };
+            let own_range = format!("{first_parent}..{branch_ref}");
+            let base_range = format!("{branch_ref}..{first_parent}");
+            let after_range = format!("{merge}..{base_ref}");
+            let (
+                (counts, (dates, changes)),
+                ((own_versions, base_versions), (after_count, after_versions)),
+            ) = in_parallel(
+                || {
+                    in_parallel(
+                        || count_left_right(path, &format!("{first_parent}...{branch_ref}")),
+                        || {
+                            in_parallel(
+                                || commit_dates(path, &[&fork, &merge]),
+                                // What it brought: the line's own change
+                                // from the parting to its tip.
+                                || read_line_changes(path, &fork, branch_ref).unwrap_or(None),
+                            )
+                        },
+                    )
+                },
+                || {
+                    in_parallel(
+                        || {
+                            in_parallel(
+                                || route_versions(path, &own_range),
+                                || route_versions(path, &base_range),
+                            )
+                        },
+                        || {
+                            in_parallel(
+                                || count_range(path, &after_range),
+                                || route_versions(path, &after_range),
+                            )
+                        },
+                    )
+                },
+            );
+            let (
+                Some((base_count, own_count)),
+                Some([forked_at, merged_at]),
+                Some(own_versions),
+                Some(base_versions),
+                Some(after_count),
+                Some(after_versions),
+            ) = (
+                counts?,
+                dates?.and_then(|dates| <[String; 2]>::try_from(dates).ok()),
+                own_versions?,
+                base_versions?,
+                after_count?,
+                after_versions?,
+            )
+            else {
+                return Ok(None);
+            };
+            return Ok(Some(VersionLineRoute {
+                base,
+                fork_commit: fork,
+                forked_at,
+                own_count,
+                own_versions,
+                base_count,
+                base_versions,
+                merge: Some(VersionLineMerge {
+                    kind: MergeKind::Merge,
+                    commit: merge,
+                    merged_at,
+                    after_count,
+                    after_versions,
+                }),
+                changes,
+            }));
+        }
+    }
+
+    // On the main line's own history: a mark at the tip, and what the main
+    // line saved after it.
+    let after_range = format!("{branch_ref}..{base_ref}");
+    let (forked_at, (base_count, base_versions)) = in_parallel(
+        || commit_date(path, tip),
+        || {
+            in_parallel(
+                || count_range(path, &after_range),
+                || route_versions(path, &after_range),
+            )
+        },
+    );
+    let (Some(forked_at), Some(base_count), Some(base_versions)) =
+        (forked_at?, base_count?, base_versions?)
+    else {
+        return Ok(None);
+    };
+    Ok(Some(VersionLineRoute {
+        base,
+        fork_commit: tip.to_string(),
+        forked_at,
+        own_count: 0,
+        own_versions: Vec::new(),
+        base_count,
+        base_versions,
+        merge: None,
+        changes: None,
+    }))
+}
+
+/// Whether a line still away from the main line has come back anyway, as
+/// copies of its versions: squashed into one version on the main line (its
+/// whole change since the parting is one of the main line's changes since),
+/// or rebased onto it one by one (each of its versions' changes is one of
+/// them). Compared by `git patch-id --stable` — the change, not the commit —
+/// and read only: nothing is written to the repository to ask it. Returns
+/// how, and the main line's version that brought the work in (the newest of
+/// the copies, for a rebase).
+fn detect_copy(
+    path: &str,
+    base_ref: &str,
+    branch_ref: &str,
+    fork: &str,
+) -> Result<Option<(MergeKind, String)>, AppError> {
+    let max_count = format!("--max-count={MAX_COPY_CHECK_COMMITS}");
+    let base_log_range = format!("{fork}..{base_ref}");
+    let own_log_range = format!("{base_ref}..{branch_ref}");
+    let (base_patches, (whole_change, own_patches)) = in_parallel(
+        || {
+            run_git_capped(
+                path,
+                &[
+                    "log",
+                    "-p",
+                    "--no-merges",
+                    "--no-color",
+                    "--no-ext-diff",
+                    "--no-textconv",
+                    "--format=commit %H",
+                    &max_count,
+                    &base_log_range,
+                    "--",
+                ],
+                MAX_COPY_CHECK_BYTES,
+            )
+        },
+        || {
+            in_parallel(
+                || {
+                    run_git_capped(
+                        path,
+                        &[
+                            "diff",
+                            "--no-color",
+                            "--no-ext-diff",
+                            "--no-textconv",
+                            fork,
+                            branch_ref,
+                            "--",
+                        ],
+                        MAX_COPY_CHECK_BYTES,
+                    )
+                },
+                || {
+                    run_git_capped(
+                        path,
+                        &[
+                            "log",
+                            "-p",
+                            "--no-merges",
+                            "--no-color",
+                            "--no-ext-diff",
+                            "--no-textconv",
+                            "--format=commit %H",
+                            &max_count,
+                            &own_log_range,
+                            "--",
+                        ],
+                        MAX_COPY_CHECK_BYTES,
+                    )
+                },
+            )
+        },
+    );
+    let (base_patches, whole_change, own_patches) = (base_patches?, whole_change?, own_patches?);
+    let complete = |output: &crate::git_command::CappedOutput| {
+        output.status.success() && !output.limit_exceeded
+    };
+    if !complete(&base_patches) || !complete(&whole_change) || base_patches.stdout.is_empty() {
+        return Ok(None);
+    }
+
+    // The main line's changes since the parting, newest first: the first
+    // commit to carry a change is the one that brought it in.
+    let Some(base_ids) = patch_ids(path, &base_patches.stdout)? else {
+        return Ok(None);
+    };
+    let find = |id: &str| {
+        base_ids
+            .iter()
+            .find(|(patch, _)| patch == id)
+            .map(|(_, commit)| commit.clone())
+    };
+
+    if let Some(whole) =
+        patch_ids(path, &whole_change.stdout)?.and_then(|ids| ids.into_iter().next())
+    {
+        if let Some(commit) = find(&whole.0) {
+            return Ok(Some((MergeKind::Squash, commit)));
+        }
+    }
+
+    if !complete(&own_patches) {
+        return Ok(None);
+    }
+    let Some(own_ids) = patch_ids(path, &own_patches.stdout)? else {
+        return Ok(None);
+    };
+    if own_ids.is_empty() {
+        return Ok(None);
+    }
+    // Every one of the line's versions has its copy on the main line: the
+    // newest of those copies is where the work came back.
+    let mut newest: Option<usize> = None;
+    for (patch, _) in &own_ids {
+        let Some(index) = base_ids
+            .iter()
+            .position(|(base_patch, _)| base_patch == patch)
+        else {
+            return Ok(None);
+        };
+        newest = Some(newest.map_or(index, |current| current.min(index)));
+    }
+    Ok(newest.map(|index| (MergeKind::Rebase, base_ids[index].1.clone())))
+}
+
+/// `git patch-id --stable` over a stream of patches: one `(patch id, commit)`
+/// per change, in the stream's order. A bare diff has no commit, and Git names
+/// it all zeros.
+fn patch_ids(path: &str, patches: &[u8]) -> Result<Option<Vec<(String, String)>>, AppError> {
+    if patches.is_empty() {
+        return Ok(Some(Vec::new()));
+    }
+    let output = run_git_with_input_capped(
+        path,
+        &["patch-id", "--stable"],
+        patches,
+        MAX_COPY_CHECK_BYTES,
+    )?;
+    if !output.status.success() || output.limit_exceeded {
+        return Ok(None);
+    }
+    Ok(Some(
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter_map(|line| {
+                let (patch, commit) = line.trim().split_once(' ')?;
+                (is_object_id(patch) && is_object_id(commit))
+                    .then(|| (patch.to_string(), commit.to_string()))
+            })
+            .collect(),
+    ))
+}
+
+/// The main line around the version that brought a line's copied work in:
+/// what it saved between the parting and that version, and after it.
+fn read_copy_return(
+    path: &str,
+    base_ref: &str,
+    branch_ref: &str,
+    kind: MergeKind,
+    commit: String,
+) -> Result<Option<(u32, Vec<VersionLineVersion>, VersionLineMerge)>, AppError> {
+    let before_range = format!("{branch_ref}..{commit}^");
+    let after_range = format!("{commit}..{base_ref}");
+    let ((before_count, before_versions), ((after_count, after_versions), merged_at)) = in_parallel(
+        || {
+            in_parallel(
+                || count_range(path, &before_range),
+                || route_versions(path, &before_range),
+            )
+        },
+        || {
+            in_parallel(
+                || {
+                    in_parallel(
+                        || count_range(path, &after_range),
+                        || route_versions(path, &after_range),
+                    )
+                },
+                || commit_date(path, &commit),
+            )
+        },
+    );
+    let (
+        Some(before_count),
+        Some(before_versions),
+        Some(after_count),
+        Some(after_versions),
+        Some(merged_at),
+    ) = (
+        before_count?,
+        before_versions?,
+        after_count?,
+        after_versions?,
+        merged_at?,
+    )
+    else {
+        return Ok(None);
+    };
+    Ok(Some((
+        before_count,
+        before_versions,
+        VersionLineMerge {
+            kind,
+            commit,
+            merged_at,
+            after_count,
+            after_versions,
+        },
+    )))
+}
+
+/// What a line changes between `from` and `to`: `--numstat` for the counts,
+/// `--name-status` for what happened to each file, asked side by side. Renames
+/// are followed, so a moved file is one change and not a deletion and an
+/// addition. Read only; `None` when either answer is missing or too large.
+fn read_line_changes(path: &str, from: &str, to: &str) -> Result<Option<LineChanges>, AppError> {
+    let (numstat, statuses) = in_parallel(
+        || {
+            run_git_capped(
+                path,
+                &[
+                    "diff",
+                    "--numstat",
+                    "-z",
+                    "-M",
+                    "--no-color",
+                    "--no-ext-diff",
+                    "--no-textconv",
+                    from,
+                    to,
+                    "--",
+                ],
+                MAX_LINE_CHANGE_BYTES,
+            )
+        },
+        || {
+            run_git_capped(
+                path,
+                &[
+                    "diff",
+                    "--name-status",
+                    "-z",
+                    "-M",
+                    "--no-color",
+                    "--no-ext-diff",
+                    from,
+                    to,
+                    "--",
+                ],
+                MAX_LINE_CHANGE_BYTES,
+            )
+        },
+    );
+    let (numstat, statuses) = (numstat?, statuses?);
+    let complete = |output: &crate::git_command::CappedOutput| {
+        output.status.success() && !output.limit_exceeded
+    };
+    if !complete(&numstat) || !complete(&statuses) {
+        return Ok(None);
+    }
+    Ok(Some(parse_line_changes(
+        &numstat.stdout,
+        &statuses.stdout,
+        MAX_LINE_CHANGE_FILES,
+    )))
+}
+
+/// Joins `git diff --numstat -z` and `--name-status -z` into one list,
+/// largest change first. A path that is not valid UTF-8 is shown lossily —
+/// it names a file in a summary, and nothing addresses it.
+pub(crate) fn parse_line_changes(numstat: &[u8], statuses: &[u8], limit: usize) -> LineChanges {
+    let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
+
+    // `--name-status -z`: `M\0path\0`, or `R100\0old\0new\0` for a rename.
+    let mut status_of = std::collections::HashMap::new();
+    let mut fields = statuses
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty());
+    while let Some(code) = fields.next() {
+        let status = match code.first() {
+            Some(b'A') => ChangedFileStatus::Added,
+            Some(b'D') => ChangedFileStatus::Deleted,
+            Some(b'R') | Some(b'C') => ChangedFileStatus::Renamed,
+            _ => ChangedFileStatus::Modified,
+        };
+        if matches!(code.first(), Some(b'R') | Some(b'C')) {
+            let _old = fields.next();
+        }
+        if let Some(path) = fields.next() {
+            status_of.insert(text(path), status);
+        }
+    }
+
+    // `--numstat -z`: `added\tdeleted\tpath\0`, or, for a rename,
+    // `added\tdeleted\t\0old\0new\0`; `-` counts for a binary file.
+    let mut files = Vec::new();
+    let mut records = numstat.split(|byte| *byte == 0);
+    while let Some(record) = records.next() {
+        if record.is_empty() {
+            continue;
+        }
+        let mut parts = record.splitn(3, |byte| *byte == b'\t');
+        let (Some(added), Some(deleted), Some(rest)) = (parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
+        let path = if rest.is_empty() {
+            let _old = records.next();
+            match records.next() {
+                Some(new) => text(new),
+                None => continue,
+            }
+        } else {
+            text(rest)
+        };
+        let count = |value: &[u8]| {
+            std::str::from_utf8(value)
+                .ok()
+                .and_then(|value| value.parse::<u32>().ok())
+        };
+        files.push(ChangedFile {
+            status: status_of
+                .get(&path)
+                .copied()
+                .unwrap_or(ChangedFileStatus::Modified),
+            path,
+            additions: count(added),
+            deletions: count(deleted),
+        });
+    }
+
+    let mut changes = LineChanges {
+        files_changed: u32::try_from(files.len()).unwrap_or(u32::MAX),
+        additions: files.iter().filter_map(|file| file.additions).sum(),
+        deletions: files.iter().filter_map(|file| file.deletions).sum(),
+        files: Vec::new(),
+    };
+    let churn = |file: &ChangedFile| file.additions.unwrap_or(0) + file.deletions.unwrap_or(0);
+    files.sort_by(|left, right| {
+        churn(right)
+            .cmp(&churn(left))
+            .then_with(|| left.path.cmp(&right.path))
+    });
+    files.truncate(limit);
+    changes.files = files;
+    changes
+}
+
+/// Runs `second` on a scoped worker thread while `first` runs here, and
+/// returns both. The worker carries the running command's policy frame
+/// (`application::inherit_command`), so its Git processes run under the same
+/// policy and cancellation; it joins before this returns, so the frame never
+/// outlives the command. Read-only questions only — nothing that mutates may
+/// race another process.
+fn in_parallel<A, B>(first: impl FnOnce() -> A, second: impl FnOnce() -> B + Send) -> (A, B)
+where
+    B: Send,
+{
+    let inherited = application::inherit_command();
+    std::thread::scope(|scope| {
+        let worker = scope.spawn(move || {
+            let _frame = inherited.map(application::InheritedCommand::enter);
+            second()
+        });
+        let first = first();
+        let second = worker
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+        (first, second)
+    })
+}
+
+/// A command that prints one commit id, or `None` when it fails or prints
+/// something else.
+fn rev_parse_commit(path: &str, args: &[&str]) -> Result<Option<String>, AppError> {
+    let output = run_git(path, args)?;
+    let commit = git_stdout(&output);
+    Ok((output.status.success() && is_object_id(&commit)).then_some(commit))
+}
+
+fn commit_date(path: &str, commit: &str) -> Result<Option<String>, AppError> {
+    let output = run_git(path, &["show", "-s", "--format=%cI", commit, "--"])?;
+    Ok(output.status.success().then(|| git_stdout(&output)))
+}
+
+/// The commit dates of several commits in one process, in the order asked.
+fn commit_dates(path: &str, commits: &[&str]) -> Result<Option<Vec<String>>, AppError> {
+    let mut args = vec!["show", "-s", "--format=%cI"];
+    args.extend_from_slice(commits);
+    args.push("--");
+    let output = run_git(path, &args)?;
+    Ok(output
+        .status
+        .success()
+        .then(|| {
+            git_stdout(&output)
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .filter(|dates| dates.len() == commits.len()))
+}
+
+fn count_range(path: &str, range: &str) -> Result<Option<u32>, AppError> {
+    let output = run_git(path, &["rev-list", "--count", range, "--"])?;
+    Ok(output
+        .status
+        .success()
+        .then(|| git_stdout(&output).parse().ok())
+        .flatten())
+}
+
+fn count_left_right(path: &str, range: &str) -> Result<Option<(u32, u32)>, AppError> {
+    let output = run_git(path, &["rev-list", "--left-right", "--count", range, "--"])?;
+    Ok(output
+        .status
+        .success()
+        .then(|| parse_left_right_count(&git_stdout(&output)))
+        .flatten())
+}
+
+/// The newest versions in `range`, in the shape the history read lists them.
+fn route_versions(path: &str, range: &str) -> Result<Option<Vec<VersionLineVersion>>, AppError> {
+    let max_count = format!("--max-count={VERSION_LINE_ROUTE_VERSIONS}");
+    let format = format!("--format={VERSION_LINE_HISTORY_FORMAT}");
+    let output = run_git(
+        path,
+        &["log", &max_count, &format, "--no-color", range, "--"],
+    )?;
+    Ok(output
+        .status
+        .success()
+        .then(|| parse_version_line_history(&output.stdout, VERSION_LINE_ROUTE_VERSIONS).0))
+}
+
+fn is_object_id(value: &str) -> bool {
+    matches!(value.len(), 40 | 64) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+/// `rev-list --left-right --count A...B` prints the two sides separated by
+/// whitespace: versions only on `A`, then versions only on `B`.
+pub(crate) fn parse_left_right_count(text: &str) -> Option<(u32, u32)> {
+    let mut parts = text.split_whitespace();
+    let left = parts.next()?.parse().ok()?;
+    let right = parts.next()?.parse().ok()?;
+    parts.next().is_none().then_some((left, right))
 }
 
 /// Author names and subjects are bytes, and unlike a ref name nothing here is
@@ -862,25 +1702,70 @@ pub(crate) fn get_version_line_history(
         application::authorize_repository(&path, "get_version_line_history", None)?;
     validate_branch_ref_name(&path, &name)?;
     let branch_ref = format!("refs/heads/{name}");
-    // The fully qualified ref, and `show-ref --verify` over it: a bare name
-    // could resolve to a tag or a remote-tracking branch of the same name, and
-    // this screen is only ever describing a local line.
-    let exists = run_git(&path, &["show-ref", "--verify", "--quiet", &branch_ref])?;
-    if !exists.status.success() {
+    // The fully qualified ref: a bare name could resolve to a tag or a
+    // remote-tracking branch of the same name, and this screen is only ever
+    // describing a local line. One process answers both whether it exists and
+    // which version it stands on — the route needs the second.
+    let Some(tip) = rev_parse_commit(
+        &path,
+        &[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("{branch_ref}^{{commit}}"),
+        ],
+    )?
+    else {
         return Err(AppError::new(
             AppErrorCode::InvalidSelection,
             "That version line no longer exists.",
         )
         .with_remediation("Refresh and try again."));
-    }
+    };
+    let shallow = run_git(&path, &["rev-parse", "--is-shallow-repository"])?;
+    let is_shallow = shallow.status.success() && git_stdout(&shallow) == "true";
 
+    // The versions and the route are separate questions, so they are asked
+    // side by side: the route is most of this read's Git processes, and the
+    // total count below can walk the whole history.
+    let (listed, route) = in_parallel(
+        || read_listed_versions(&path, &branch_ref, is_shallow),
+        || {
+            // A shallow clone's merge base is where this machine's history
+            // stops, not where the lines parted; a failed read is extra detail
+            // missing, not an error for the whole answer.
+            if is_shallow {
+                None
+            } else {
+                read_line_route(&path, &name, &branch_ref, &tip).unwrap_or(None)
+            }
+        },
+    );
+    let (versions, has_more, total_count) = listed?;
+
+    Ok(VersionLineHistory {
+        name,
+        total_count,
+        versions,
+        has_more,
+        route,
+    })
+}
+
+/// The newest versions on a line, whether there are more, and how many there
+/// are in all — `None` in a shallow clone.
+fn read_listed_versions(
+    path: &str,
+    branch_ref: &str,
+    is_shallow: bool,
+) -> Result<(Vec<VersionLineVersion>, bool, Option<u32>), AppError> {
     // One more than the panel shows, so `has_more` is answered by the same
     // walk instead of a second one.
     let max_count = format!("--max-count={}", VERSION_LINE_HISTORY_LIMIT + 1);
     let format = format!("--format={VERSION_LINE_HISTORY_FORMAT}");
     let log = run_git(
-        &path,
-        &["log", &max_count, &format, "--no-color", &branch_ref, "--"],
+        path,
+        &["log", &max_count, &format, "--no-color", branch_ref, "--"],
     )?;
     if !log.status.success() {
         return Err(AppError::new(
@@ -891,25 +1776,17 @@ pub(crate) fn get_version_line_history(
     }
     let (versions, has_more) = parse_version_line_history(&log.stdout, VERSION_LINE_HISTORY_LIMIT);
 
-    let shallow = run_git(&path, &["rev-parse", "--is-shallow-repository"])?;
-    let is_shallow = shallow.status.success() && git_stdout(&shallow) == "true";
     let total_count = if is_shallow {
         None
     } else {
-        let counted = run_git(&path, &["rev-list", "--count", &branch_ref, "--"])?;
+        let counted = run_git(path, &["rev-list", "--count", branch_ref, "--"])?;
         counted
             .status
             .success()
             .then(|| git_stdout(&counted).parse().ok())
             .flatten()
     };
-
-    Ok(VersionLineHistory {
-        name,
-        total_count,
-        versions,
-        has_more,
-    })
+    Ok((versions, has_more, total_count))
 }
 
 // ---- Create a version line ----
@@ -1382,6 +2259,362 @@ mod tests {
         assert_eq!(versions.len(), 1);
         assert_eq!(versions[0].commit, "aaa111");
         assert!(versions[0].author_name.starts_with("Ada "));
+    }
+
+    #[test]
+    fn parse_line_changes_joins_counts_and_statuses_largest_first() {
+        let numstat = b"3\t1\tsrc/a.rs\x0010\t0\tsrc/new.rs\x00-\t-\tlogo.png\x002\t2\t\x00old/b.rs\x00new/b.rs\x00";
+        let statuses = b"M\x00src/a.rs\x00A\x00src/new.rs\x00M\x00logo.png\x00R090\x00old/b.rs\x00new/b.rs\x00";
+        let changes = parse_line_changes(numstat, statuses, 3);
+        assert_eq!(changes.files_changed, 4);
+        assert_eq!(changes.additions, 15);
+        assert_eq!(changes.deletions, 3);
+        let files = changes
+            .files
+            .iter()
+            .map(|file| (file.path.as_str(), file.status, file.additions))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            files,
+            [
+                ("src/new.rs", ChangedFileStatus::Added, Some(10)),
+                ("new/b.rs", ChangedFileStatus::Renamed, Some(2)),
+                ("src/a.rs", ChangedFileStatus::Modified, Some(3)),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_left_right_count_reads_both_sides_and_nothing_else() {
+        assert_eq!(parse_left_right_count("3\t5"), Some((3, 5)));
+        assert_eq!(parse_left_right_count("0 0"), Some((0, 0)));
+        assert_eq!(parse_left_right_count("3"), None);
+        assert_eq!(parse_left_right_count("3 5 7"), None);
+        assert_eq!(parse_left_right_count("x 5"), None);
+    }
+
+    #[test]
+    fn get_version_line_history_draws_a_route_against_the_main_line_only() {
+        let (repo, remote, main) = published_repo_and_remote("vl-route");
+        // What a clone writes, and what makes `main` the project's main line.
+        let status = git_command(&repo)
+            .args(["remote", "set-head", "origin", &main])
+            .status()
+            .expect("run git remote set-head");
+        assert!(status.success());
+
+        let status = git_command(&repo)
+            .args(["switch", "-q", "-c", "feature"])
+            .status()
+            .expect("create feature");
+        assert!(status.success());
+        write_and_commit(&repo, "b.txt", "one\n", "feature one");
+        write_and_commit(&repo, "b.txt", "two\n", "feature two");
+        let status = git_command(&repo)
+            .args(["switch", "-q", &main])
+            .status()
+            .expect("switch back");
+        assert!(status.success());
+        write_and_commit(&repo, "c.txt", "main\n", "main moves on");
+
+        let history = get_version_line_history(repo.clone(), "feature".to_string())
+            .expect("history should read");
+        let route = history.route.expect("a line off the main line has a route");
+        assert_eq!(route.base, main);
+        assert_eq!(route.own_count, 2);
+        assert_eq!(route.base_count, 1);
+        let first = git_command(&repo)
+            .args(["rev-parse", &format!("{main}~1")])
+            .output()
+            .expect("read the fork");
+        assert_eq!(
+            route.fork_commit,
+            String::from_utf8_lossy(&first.stdout).trim()
+        );
+        assert!(!route.forked_at.is_empty());
+        // Each dot is a real version, newest first.
+        let subjects = |versions: &[VersionLineVersion]| {
+            versions
+                .iter()
+                .map(|version| version.subject.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            subjects(&route.own_versions),
+            ["feature two", "feature one"]
+        );
+        assert_eq!(subjects(&route.base_versions), ["main moves on"]);
+        assert!(route.merge.is_none());
+        // What it changes against the main line: one file, two lines written.
+        let changes = route.changes.expect("a line away from main has changes");
+        assert_eq!(changes.files_changed, 1);
+        assert_eq!(changes.files[0].path, "b.txt");
+        assert_eq!(changes.files[0].status, ChangedFileStatus::Added);
+
+        // The main line itself is what the others are measured against.
+        let main_history =
+            get_version_line_history(repo.clone(), main.clone()).expect("history should read");
+        assert!(main_history.route.is_none());
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn get_version_line_history_draws_the_way_back_of_a_merged_line() {
+        let (repo, remote, main) = published_repo_and_remote("vl-route-merged");
+        let run = |args: &[&str]| {
+            let status = git_command(&repo).args(args).status().expect("run git");
+            assert!(status.success(), "git {args:?} should succeed");
+        };
+        run(&["remote", "set-head", "origin", &main]);
+        run(&["switch", "-q", "-c", "feature"]);
+        write_and_commit(&repo, "b.txt", "one\n", "feature one");
+        write_and_commit(&repo, "b.txt", "two\n", "feature two");
+        run(&["switch", "-q", &main]);
+        write_and_commit(&repo, "c.txt", "main\n", "main before");
+        run(&[
+            "-c",
+            "user.name=GitOdile Test",
+            "-c",
+            "user.email=test@gitodile.local",
+            "merge",
+            "-q",
+            "--no-ff",
+            "-m",
+            "bring feature in",
+            "feature",
+        ]);
+        write_and_commit(&repo, "d.txt", "after\n", "main after");
+
+        let history = get_version_line_history(repo.clone(), "feature".to_string())
+            .expect("history should read");
+        let route = history.route.expect("a merged line has a route");
+        assert_eq!(route.own_count, 2);
+        assert_eq!(route.base_count, 1);
+        assert_eq!(route.base_versions[0].subject, "main before");
+        let merge = route.merge.expect("it came back by a merge");
+        assert_eq!(merge.after_count, 1);
+        assert_eq!(merge.after_versions[0].subject, "main after");
+        let merged = git_command(&repo)
+            .args(["rev-parse", &format!("{main}~1")])
+            .output()
+            .expect("read the merge");
+        assert_eq!(merge.commit, String::from_utf8_lossy(&merged.stdout).trim());
+
+        // Fast-forwarded into the main line, a line never left it: a mark.
+        run(&["switch", "-q", "-c", "quick"]);
+        write_and_commit(&repo, "e.txt", "quick\n", "quick fix");
+        run(&["switch", "-q", &main]);
+        run(&["merge", "-q", "--ff-only", "quick"]);
+        let quick = get_version_line_history(repo.clone(), "quick".to_string())
+            .expect("history should read")
+            .route
+            .expect("a line on the main line has a route");
+        assert_eq!(quick.own_count, 0);
+        assert!(quick.merge.is_none());
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn get_version_line_history_sees_a_line_squashed_or_rebased_into_the_main_line() {
+        let (repo, remote, main) = published_repo_and_remote("vl-route-copied");
+        let run = |args: &[&str]| {
+            let status = git_command(&repo).args(args).status().expect("run git");
+            assert!(status.success(), "git {args:?} should succeed");
+        };
+        let commit_as = |args: &[&str]| {
+            let mut full = vec![
+                "-c",
+                "user.name=GitOdile Test",
+                "-c",
+                "user.email=test@gitodile.local",
+            ];
+            full.extend_from_slice(args);
+            run(&full);
+        };
+        run(&["remote", "set-head", "origin", &main]);
+
+        // Squashed: two versions on the line, one copy of their whole change
+        // on the main line, which then moves on.
+        run(&["switch", "-q", "-c", "squashed"]);
+        write_and_commit(&repo, "s.txt", "one\n", "squashed one");
+        write_and_commit(&repo, "s.txt", "two\n", "squashed two");
+        run(&["switch", "-q", &main]);
+        write_and_commit(&repo, "m.txt", "main\n", "main meanwhile");
+        commit_as(&["merge", "-q", "--squash", "squashed"]);
+        commit_as(&["commit", "-q", "-m", "squashed in"]);
+        write_and_commit(&repo, "n.txt", "after\n", "main after");
+
+        let route = get_version_line_history(repo.clone(), "squashed".to_string())
+            .expect("history should read")
+            .route
+            .expect("a line off the main line has a route");
+        assert_eq!(route.own_count, 2);
+        assert_eq!(route.base_count, 1);
+        assert_eq!(route.base_versions[0].subject, "main meanwhile");
+        let merge = route.merge.expect("its work came back as a copy");
+        assert_eq!(merge.kind, MergeKind::Squash);
+        assert_eq!(merge.after_count, 1);
+        assert_eq!(merge.after_versions[0].subject, "main after");
+
+        // Rebased: each version copied onto the main line one by one.
+        run(&["switch", "-q", "-c", "rebased", &format!("{main}~3")]);
+        write_and_commit(&repo, "r.txt", "one\n", "rebased one");
+        write_and_commit(&repo, "r2.txt", "two\n", "rebased two");
+        run(&["switch", "-q", &main]);
+        commit_as(&["cherry-pick", "rebased~1", "rebased"]);
+        let merge = get_version_line_history(repo.clone(), "rebased".to_string())
+            .expect("history should read")
+            .route
+            .expect("a line off the main line has a route")
+            .merge
+            .expect("its work came back as copies");
+        assert_eq!(merge.kind, MergeKind::Rebase);
+        assert_eq!(merge.after_count, 0);
+
+        // Still away: a change the main line does not have.
+        run(&["switch", "-q", "-c", "away"]);
+        write_and_commit(&repo, "a.txt", "away\n", "only here");
+        run(&["switch", "-q", &main]);
+        let away = get_version_line_history(repo.clone(), "away".to_string())
+            .expect("history should read")
+            .route
+            .expect("a line off the main line has a route");
+        assert!(away.merge.is_none());
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn delete_version_line_keeps_a_recovery_point_for_a_line_squashed_into_main() {
+        let (repo, remote, main) = published_repo_and_remote("vl-delete-squashed");
+        let run = |args: &[&str]| {
+            let status = git_command(&repo).args(args).status().expect("run git");
+            assert!(status.success(), "git {args:?} should succeed");
+        };
+        let commit_as = |args: &[&str]| {
+            let mut full = vec![
+                "-c",
+                "user.name=GitOdile Test",
+                "-c",
+                "user.email=test@gitodile.local",
+            ];
+            full.extend_from_slice(args);
+            run(&full);
+        };
+        run(&["remote", "set-head", "origin", &main]);
+        run(&["switch", "-q", "-c", "squashed"]);
+        write_and_commit(&repo, "s.txt", "one\n", "squashed one");
+        write_and_commit(&repo, "s.txt", "two\n", "squashed two");
+        let tip = commit_at(&repo, "squashed");
+        run(&["switch", "-q", &main]);
+        commit_as(&["merge", "-q", "--squash", "squashed"]);
+        commit_as(&["commit", "-q", "-m", "squashed in"]);
+
+        // A line whose work is only on itself stays refused.
+        run(&["switch", "-q", "-c", "unique"]);
+        write_and_commit(&repo, "u.txt", "only\n", "only here");
+        run(&["switch", "-q", &main]);
+        let refused = plan_delete_version_line(repo.clone(), "unique".to_string())
+            .expect_err("unique work is not deletable");
+        assert_eq!(refused.code, AppErrorCode::VersionLineUniqueWork);
+
+        // The squashed line is offered, with a recovery point in the plan.
+        let plan = plan_delete_version_line(repo.clone(), "squashed".to_string())
+            .expect("a squashed line can be deleted");
+        let copy = plan
+            .copied_into
+            .clone()
+            .expect("its work is on main as a copy");
+        assert_eq!(copy.kind, MergeKind::Squash);
+        assert_eq!(copy.base, main);
+        assert!(plan.retained_by.is_empty());
+        assert!(plan.recovery_point.is_some());
+
+        let result = delete_version_line(
+            repo.clone(),
+            "squashed".to_string(),
+            false,
+            plan.state_token.clone(),
+        )
+        .expect("the delete should succeed");
+        assert!(!result
+            .snapshot
+            .lines
+            .iter()
+            .any(|line| line.name == "squashed"));
+        // The originals are kept, by a hidden ref that resolves to the old tip.
+        let reference = result
+            .recovery_reference
+            .expect("a recovery point was kept");
+        assert!(reference.starts_with("refs/gitodile/recovery/v1/delete-version-line/"));
+        assert_eq!(commit_at(&repo, &reference), tip);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn get_version_lines_counts_each_lines_own_versions_against_the_main_line() {
+        let (repo, remote, main) = published_repo_and_remote("vl-count-main");
+        let status = git_command(&repo)
+            .args(["remote", "set-head", "origin", &main])
+            .status()
+            .expect("run git remote set-head");
+        assert!(status.success());
+        let run = |args: &[&str]| {
+            let status = git_command(&repo).args(args).status().expect("run git");
+            assert!(status.success(), "git {args:?} should succeed");
+        };
+        run(&["switch", "-q", "-c", "feature"]);
+        write_and_commit(&repo, "b.txt", "one\n", "feature one");
+        write_and_commit(&repo, "b.txt", "two\n", "feature two");
+        run(&["switch", "-q", "-c", "feature-child"]);
+        write_and_commit(&repo, "c.txt", "child\n", "child one");
+        // Standing on `feature`: against the active line the child would have
+        // one version of its own; against the main line it has three.
+        run(&["switch", "-q", "feature"]);
+
+        let snapshot = get_version_lines(repo.clone()).expect("discovery should succeed");
+        let count = |name: &str| {
+            snapshot
+                .lines
+                .iter()
+                .find(|line| line.name == name)
+                .expect("line listed")
+                .unique_commit_count
+        };
+        assert_eq!(count("feature-child"), Some(3));
+        // The active line is counted too, against the same main line.
+        assert_eq!(count("feature"), Some(2));
+        // The main line is what the others are counted against.
+        assert_eq!(count(&main), None);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn get_version_line_history_has_no_route_without_a_main_line() {
+        let path = unique_temp_dir("vl-route-none");
+        git_init(&path);
+        write_and_commit(&path, "a.txt", "one\n", "first");
+        let status = git_command(&path)
+            .args(["branch", "feature"])
+            .status()
+            .expect("run git branch feature");
+        assert!(status.success());
+
+        // No remote, so no main line — and nothing is drawn on a guess.
+        let history = get_version_line_history(path.clone(), "feature".to_string())
+            .expect("history should read");
+        assert!(history.route.is_none());
+
+        let _ = fs::remove_dir_all(&path);
     }
 
     #[test]
@@ -2607,6 +3840,25 @@ pub(crate) struct DeleteVersionLinePlan {
     /// and it still exists. `None` for a line that was never published, or one
     /// whose remote branch is already gone.
     pub(crate) published: Option<PublishedLine>,
+    /// Set when no other line holds this one's versions but its work reached
+    /// the main line as copies — squashed or rebased. Deleting it then removes
+    /// the only ref to its original versions, so the delete keeps a recovery
+    /// point first (`recovery_point`).
+    pub(crate) copied_into: Option<CopiedInto>,
+    /// The local recovery point this delete creates before removing the line.
+    /// `Some` exactly when `copied_into` is.
+    pub(crate) recovery_point: Option<HistoryRecoveryPreview>,
+}
+
+/// Where a line's work reached the main line as copies.
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CopiedInto {
+    /// The main line, by its local name.
+    pub(crate) base: String,
+    pub(crate) kind: MergeKind,
+    /// The main line's version that brought the work in.
+    pub(crate) commit: String,
 }
 
 /// What a delete actually did. The local half and the remote half can succeed
@@ -2621,6 +3873,9 @@ pub(crate) struct DeleteVersionLineResult {
     /// Set when a remote delete was asked for and refused. The local line is
     /// gone either way; this says the shared copy is not.
     pub(crate) remote_error: Option<AppError>,
+    /// The recovery point kept before the line was removed, when its versions
+    /// were held nowhere else.
+    pub(crate) recovery_reference: Option<String>,
 }
 
 pub(crate) struct ValidatedDelete {
@@ -2629,7 +3884,30 @@ pub(crate) struct ValidatedDelete {
     pub(crate) retained_by: Vec<String>,
     pub(crate) upstream: Option<String>,
     pub(crate) published: Option<PublishedLine>,
+    pub(crate) copied_into: Option<CopiedInto>,
     pub(crate) state_token: String,
+}
+
+/// Whether a line's work reached the main line as copies — squashed or
+/// rebased — the same check the route draws (`detect_copy`), against the same
+/// main line. `None` for the main line itself, for a project with none, and
+/// for a line whose work is not there.
+fn find_copy_into_main(path: &str, name: &str) -> Result<Option<CopiedInto>, AppError> {
+    let defaults = default_branch_names(path)?;
+    if defaults.iter().any(|default| default == name) {
+        return Ok(None);
+    }
+    let branch_ref = format!("refs/heads/{name}");
+    for base in defaults {
+        let base_ref = format!("refs/heads/{base}");
+        let Some(merge_base) = rev_parse_commit(path, &["merge-base", &base_ref, &branch_ref])?
+        else {
+            continue;
+        };
+        return Ok(detect_copy(path, &base_ref, &branch_ref, &merge_base)?
+            .map(|(kind, commit)| CopiedInto { base, kind, commit }));
+    }
+    Ok(None)
 }
 
 pub(crate) fn validate_and_prepare_delete(
@@ -2689,7 +3967,15 @@ pub(crate) fn validate_and_prepare_delete(
     }
 
     let retained_by = retaining_refs(path, name, &tip)?;
-    if retained_by.is_empty() {
+    // No other line holds these versions — but if their work reached the main
+    // line as copies, the line can go, with a recovery point for the
+    // originals. Otherwise it is work that exists nowhere else.
+    let copied_into = if retained_by.is_empty() {
+        find_copy_into_main(path, name)?
+    } else {
+        None
+    };
+    if retained_by.is_empty() && copied_into.is_none() {
         return Err(AppError::new(
             AppErrorCode::VersionLineUniqueWork,
             format!(
@@ -2720,7 +4006,14 @@ pub(crate) fn validate_and_prepare_delete(
         Some(&tip),
         Some(name),
         &status_fingerprint(&status),
-        &format!("delete:{name}:{}", retained_by.join(",")),
+        &format!(
+            "delete:{name}:{}:{}",
+            retained_by.join(","),
+            copied_into
+                .as_ref()
+                .map(|copy| copy.commit.as_str())
+                .unwrap_or("")
+        ),
     );
 
     Ok(ValidatedDelete {
@@ -2729,6 +4022,7 @@ pub(crate) fn validate_and_prepare_delete(
         retained_by,
         upstream,
         published,
+        copied_into,
         state_token,
     })
 }
@@ -2737,18 +4031,48 @@ pub(crate) fn plan_delete_version_line(
     path: String,
     name: String,
 ) -> Result<DeleteVersionLinePlan, AppError> {
-    let (_repository, _access) =
+    let (repository, _access) =
         application::authorize_repository(&path, "plan_delete_version_line", None)?;
     let validated = validate_and_prepare_delete(&path, &name)?;
-    let mut steps = vec![format!(
-        "Remove the local reference \"{}\"; its saved work stays reachable from {}.",
-        validated.name,
-        validated.retained_by.join(", ")
-    )];
-    let mut risks = vec![
-        "This can't be undone from GitOdile; the retained reference(s) above are the only guaranteed way back to this work."
-            .to_string(),
-    ];
+    let recovery_point = validated.copied_into.as_ref().map(|_| {
+        plan_history_recovery_for(&repository, HistoryRecoveryOperation::DeleteVersionLine)
+    });
+    let (mut steps, mut risks, recovery) = match (&validated.copied_into, &recovery_point) {
+        (Some(copy), Some(point)) => (
+            vec![
+                format!(
+                    "Keep a local recovery point with \"{}\"'s original saved versions.",
+                    validated.name
+                ),
+                format!(
+                    "Remove the local reference \"{}\"; its work is already on {} as {}.",
+                    validated.name,
+                    copy.base,
+                    match copy.kind {
+                        MergeKind::Squash => "one squashed version",
+                        _ => "copies of its versions",
+                    }
+                ),
+            ],
+            vec![format!(
+                "The original versions will then live only in that recovery point. {}",
+                point.retention
+            )],
+            format!("Local recovery point: {}", point.reference),
+        ),
+        _ => (
+            vec![format!(
+                "Remove the local reference \"{}\"; its saved work stays reachable from {}.",
+                validated.name,
+                validated.retained_by.join(", ")
+            )],
+            vec![
+                "This can't be undone from GitOdile; the retained reference(s) above are the only guaranteed way back to this work."
+                    .to_string(),
+            ],
+            format!("Reachable from: {}", validated.retained_by.join(", ")),
+        ),
+    };
     if let Some(published) = &validated.published {
         steps.push(format!(
             "Optionally delete \"{}\" on the remote as well.",
@@ -2764,7 +4088,7 @@ pub(crate) fn plan_delete_version_line(
         summary: format!("Delete the version line \"{}\".", validated.name),
         steps,
         risks,
-        recovery: format!("Reachable from: {}", validated.retained_by.join(", ")),
+        recovery,
         requires_confirmation: true,
         state_token: validated.state_token,
         name: validated.name,
@@ -2772,6 +4096,8 @@ pub(crate) fn plan_delete_version_line(
         retained_by: validated.retained_by,
         upstream: validated.upstream,
         published: validated.published,
+        copied_into: validated.copied_into,
+        recovery_point,
     })
 }
 
@@ -2847,7 +4173,7 @@ pub(crate) fn delete_version_line(
     delete_remote: bool,
     state_token: String,
 ) -> Result<DeleteVersionLineResult, AppError> {
-    let (_repository, _access) =
+    let (repository, _access) =
         application::authorize_repository(&path, "delete_version_line", None)?;
     let validated = validate_and_prepare_delete(&path, &name)?;
     if validated.state_token != state_token {
@@ -2857,6 +4183,37 @@ pub(crate) fn delete_version_line(
         )
         .with_remediation("Refresh and try again."));
     }
+
+    // A line whose versions are held nowhere else — its work reached the main
+    // line only as copies — keeps a verified recovery point before anything is
+    // removed (ADR 0016). No recovery point, no delete.
+    let recovery_reference = match &validated.copied_into {
+        Some(copy) => {
+            let point =
+                plan_history_recovery_for(&repository, HistoryRecoveryOperation::DeleteVersionLine);
+            let record = create_history_recovery_for(
+                &repository,
+                HistoryRecoveryOperation::DeleteVersionLine,
+                &point.reference,
+                HistoryRecoveryMetadata {
+                    branch: validated.name.clone(),
+                    previous_commit: validated.tip.clone(),
+                    target_commit: copy.commit.clone(),
+                    remote: validated
+                        .published
+                        .as_ref()
+                        .map(|published| published.remote.clone())
+                        .unwrap_or_default(),
+                    destination_branch: copy.base.clone(),
+                    tracking_ref: validated.upstream.clone().unwrap_or_default(),
+                    state_token: state_token.clone(),
+                },
+            )?;
+            verify_history_recovery(&path, &record)?;
+            Some(record.reference)
+        }
+        None => None,
+    };
 
     // `-d` first, always: Git's own refusal is the outer safety net and it
     // costs nothing to ask for it.
@@ -2871,9 +4228,10 @@ pub(crate) fn delete_version_line(
     // said "Safe to delete", the dialog agreed, and Git then refused.
     //
     // So a `not fully merged` refusal is answered with `-D`, and only ever
-    // after `validate_and_prepare_delete` has just proved retention again and
-    // the state token has confirmed nothing moved since the preview. Every
-    // other refusal stands.
+    // after `validate_and_prepare_delete` has just proved again that the work
+    // survives — retained by another ref, or copied into the main line with a
+    // recovery point verified just above — and the state token has confirmed
+    // nothing moved since the preview. Every other refusal stands.
     let output = run_git(&path, &["branch", "-d", "--", &validated.name])?;
     if !output.status.success() {
         let failure = classify_delete_failure(&output);
@@ -2919,6 +4277,7 @@ pub(crate) fn delete_version_line(
         snapshot: get_version_lines(path)?,
         remote_deleted,
         remote_error,
+        recovery_reference,
     })
 }
 
