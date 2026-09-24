@@ -924,6 +924,7 @@ pub(crate) struct HistoryFilters {
     pub(crate) path: Option<String>,
     pub(crate) no_merges: bool,
     pub(crate) unpublished_only: bool,
+    pub(crate) tagged_only: bool,
 }
 
 /// Validated filters, each already shaped as the argument it will be passed as
@@ -937,6 +938,7 @@ struct PreparedFilters {
     path: Option<String>,
     no_merges: bool,
     unpublished_only: bool,
+    tagged_only: bool,
 }
 
 impl PreparedFilters {
@@ -949,6 +951,7 @@ impl PreparedFilters {
             && self.path.is_none()
             && !self.no_merges
             && !self.unpublished_only
+            && !self.tagged_only
     }
 }
 
@@ -1018,6 +1021,7 @@ fn prepare_filters(filters: Option<HistoryFilters>) -> Result<PreparedFilters, A
         path,
         no_merges: filters.no_merges,
         unpublished_only: filters.unpublished_only,
+        tagged_only: filters.tagged_only,
     })
 }
 
@@ -1065,17 +1069,40 @@ fn read_graph_page(
     limit: usize,
     filters: &PreparedFilters,
     unpublished_upstream: Option<&str>,
-) -> Result<(Vec<CommitGraphRow>, bool), AppError> {
+) -> Result<(Vec<CommitGraphRow>, bool, usize), AppError> {
     let max_count = format!("--max-count={}", limit + 1);
     let skip = format!("--skip={offset}");
-    let mut args = vec![
-        "rev-list",
-        "--topo-order",
-        "--date-order",
-        "--parents",
-        max_count.as_str(),
-        skip.as_str(),
-    ];
+    // "Only tagged" is the one question `rev-list` cannot ask: it keeps the
+    // commits a tag points at, which is `--simplify-by-decoration` narrowed by
+    // `--decorate-refs`, and only `log` takes the second. `%H %P` prints the
+    // same `commit parent…` line `--parents` does, so the parser is shared;
+    // color and signatures are pinned off so no user config can add lines.
+    // Git keeps a root commit through the simplification whether or not a tag
+    // points at it, so `%D` — narrowed by the same `--decorate-refs` — rides
+    // after a tab and an empty one drops the row.
+    let mut args = if filters.tagged_only {
+        vec![
+            "log",
+            "--no-color",
+            "--no-show-signature",
+            "--format=%H %P%x09%D",
+            "--simplify-by-decoration",
+            "--decorate-refs=refs/tags/",
+            "--topo-order",
+            "--date-order",
+            max_count.as_str(),
+            skip.as_str(),
+        ]
+    } else {
+        vec![
+            "rev-list",
+            "--topo-order",
+            "--date-order",
+            "--parents",
+            max_count.as_str(),
+            skip.as_str(),
+        ]
+    };
     if let Some(author) = filters.author.as_deref() {
         // A name is text, not a pattern. Git reads `--author` as a regular
         // expression by default, so a bracket typed into the name field —
@@ -1124,10 +1151,38 @@ fn read_graph_page(
         )
         .with_remediation("Refresh History and try again."));
     }
-    let mut rows = parse_graph_rows(&output.stdout)?;
+    // What Git walked and what the page keeps can differ under "only tagged",
+    // which drops an untagged root after the walk. Paging counts what Git
+    // walked — `--skip` does — so the cursor advances by that, and the next
+    // page neither repeats a row nor skips one.
+    let (text, tagged): (Vec<u8>, Option<Vec<bool>>) = if filters.tagged_only {
+        let mut text = Vec::new();
+        let mut tagged = Vec::new();
+        for line in output.stdout.split(|byte| *byte == b'\n') {
+            let Some(tab) = line.iter().position(|byte| *byte == b'\t') else {
+                continue;
+            };
+            text.extend_from_slice(&line[..tab]);
+            text.push(b'\n');
+            tagged.push(
+                line[tab + 1..]
+                    .iter()
+                    .any(|byte| !byte.is_ascii_whitespace()),
+            );
+        }
+        (text, Some(tagged))
+    } else {
+        (output.stdout, None)
+    };
+    let mut rows = parse_graph_rows(&text)?;
     let has_more = rows.len() > limit;
     rows.truncate(limit);
-    Ok((rows, has_more))
+    let walked = rows.len();
+    if let Some(tagged) = tagged {
+        let mut kept = tagged.into_iter();
+        rows.retain(|_| kept.next().unwrap_or(false));
+    }
+    Ok((rows, has_more, walked))
 }
 
 fn batch_input<'a>(hashes: impl IntoIterator<Item = &'a str>) -> Vec<u8> {
@@ -1575,7 +1630,7 @@ fn read_history_page_impl(
                 .map(|value| value.commit.as_str())
         })
         .flatten();
-    let (rows, has_more) = read_graph_page(
+    let (rows, has_more, walked) = read_graph_page(
         &path,
         &roots,
         offset,
@@ -1644,7 +1699,7 @@ fn read_history_page_impl(
         .collect::<Vec<_>>();
     let next_cursor = has_more.then(|| {
         encode_cursor(&HistoryCursor {
-            offset: offset + rows.len(),
+            offset: offset + walked,
             local_only_seen: local_only_seen + page_local_only,
             snapshot_token: snapshot.token.clone(),
         })

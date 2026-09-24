@@ -19,6 +19,7 @@ export function HistoryScreen({
   onViewLine,
   onSwitchLine,
   onCreateLineFromVersion,
+  onPublish,
   onOpenSettings,
 }: {
   /** The Work screen's tab pair; see `HistoryPanel`. */
@@ -45,6 +46,7 @@ export function HistoryScreen({
   onViewLine?: (name: string) => void;
   onSwitchLine?: (name: string) => void;
   onCreateLineFromVersion?: HistoryLineActions["onCreateLineFromVersion"];
+  onPublish?: () => void;
   onOpenSettings: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -74,8 +76,8 @@ export function HistoryScreen({
     selectCommitIntent,
   ]);
   const actions = useMemo<HistoryLineActions>(
-    () => ({ lines, onViewLine, onSwitchLine, onCreateLineFromVersion }),
-    [lines, onCreateLineFromVersion, onSwitchLine, onViewLine],
+    () => ({ lines, onViewLine, onSwitchLine, onCreateLineFromVersion, onPublish }),
+    [lines, onCreateLineFromVersion, onPublish, onSwitchLine, onViewLine],
   );
   return (
     <HistoryPanel

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -85,5 +85,33 @@ describe("WorkbenchScreen", () => {
     await userEvent.keyboard("{Home}");
     expect(onTabChange).toHaveBeenLastCalledWith("changes");
     expect(onTabChange).toHaveBeenCalledTimes(4);
+  });
+
+  it("keeps a failing view inside its tab, with the tab pair still there to leave it", () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    function Broken(): React.JSX.Element {
+      throw new Error("boom");
+    }
+    function FailingHarness(): React.JSX.Element {
+      const [tab, setTab] = useState<WorkbenchTab>("history");
+      const [lifecycle] = useState(() => createScreenLifecycleController("active"));
+      return (
+        <LanguageProvider>
+          <ScreenLifecycleProvider controller={lifecycle}>
+            <WorkbenchScreen
+              tab={tab}
+              onTabChange={setTab}
+              renderChanges={(tabs) => <section aria-label="Changes view"><header>{tabs}</header><p>the file list</p></section>}
+              renderHistory={() => <Broken />}
+            />
+          </ScreenLifecycleProvider>
+        </LanguageProvider>
+      );
+    }
+    render(<FailingHarness />);
+    expect(screen.getByRole("alert")).toHaveTextContent("This view ran into a problem");
+    fireEvent.click(screen.getByRole("tab", { name: "Changes" }));
+    expect(screen.getByText("the file list")).toBeInTheDocument();
+    logged.mockRestore();
   });
 });

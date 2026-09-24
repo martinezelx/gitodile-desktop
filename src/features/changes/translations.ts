@@ -116,6 +116,11 @@ export interface ChangesTranslations {
   changesSelectAll: string;
   changesSelectNone: string;
   changesIncludeFile: (path: string) => string;
+  changesIncludeFolder: (path: string) => string;
+  changesFolderLabel: (path: string, count: number) => string;
+  changesFileViewFolders: string;
+  changesFileViewShowList: string;
+  changesFileViewShowFolders: string;
   changesPartialUnavailableTruncated: string;
   changesProjectRoot: string;
   changesMoreActions: string;
@@ -253,7 +258,7 @@ const en: ChangesTranslations = {
   changesDiffTruncatedNote: (shownLines) => `Showing the first ${shownLines} lines of this difference.`,
   changesLineAddedLabel: "Added:",
   changesLineRemovedLabel: "Removed:",
-  changesSearchPlaceholder: "Search files…",
+  changesSearchPlaceholder: "Search changes",
   changesSearchAriaLabel: "Search changed files",
   changesNoSearchMatches: "No changed file matches your search.",
   changesNoFilterMatches: "No changed file matches what you are looking for.",
@@ -303,6 +308,11 @@ const en: ChangesTranslations = {
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
   changesIncludeFile: (path) => `Include ${path} in this version`,
+  changesIncludeFolder: (path) => `Include everything in ${path} in this version`,
+  changesFolderLabel: (path, count) => `${path} folder, ${count} file${count === 1 ? "" : "s"}`,
+  changesFileViewFolders: "Show files in folders",
+  changesFileViewShowList: "Showing folders · show as a list",
+  changesFileViewShowFolders: "Showing a list · show in folders",
   changesPartialUnavailableTruncated:
     "This project has more changed files than can be listed safely. Save all changes before using file selection.",
   changesProjectRoot: "Project root",
@@ -447,7 +457,7 @@ const es: ChangesTranslations = {
   changesDiffTruncatedNote: (shownLines) => `Mostrando las primeras ${shownLines} líneas de esta diferencia.`,
   changesLineAddedLabel: "Añadida:",
   changesLineRemovedLabel: "Eliminada:",
-  changesSearchPlaceholder: "Buscar archivos…",
+  changesSearchPlaceholder: "Buscar cambios",
   changesSearchAriaLabel: "Buscar archivos con cambios",
   changesNoSearchMatches: "Ningún archivo con cambios coincide con tu búsqueda.",
   changesNoFilterMatches: "Ningún archivo con cambios coincide con lo que buscas.",
@@ -492,6 +502,11 @@ const es: ChangesTranslations = {
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",
   changesIncludeFile: (path) => `Incluir ${path} en esta versión`,
+  changesIncludeFolder: (path) => `Incluir todo lo de ${path} en esta versión`,
+  changesFolderLabel: (path, count) => `Carpeta ${path}, ${count} archivo${count === 1 ? "" : "s"}`,
+  changesFileViewFolders: "Ver archivos por carpetas",
+  changesFileViewShowList: "Viendo por carpetas · ver en lista",
+  changesFileViewShowFolders: "Viendo en lista · ver por carpetas",
   changesPartialUnavailableTruncated:
     "Este proyecto tiene más archivos modificados de los que se pueden listar con seguridad. Guarda todos los cambios antes de usar la selección.",
   changesProjectRoot: "Raíz del proyecto",

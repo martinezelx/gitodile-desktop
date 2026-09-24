@@ -686,6 +686,77 @@ the list's legend as well as its filter. `Active` is a word only in the detail
 strip: the active line heads the list and the strip beside it names it, so a
 chip on the row as well was the same word twice on one line of the screen.
 
+**History's timeline rows share that shape and that vocabulary.** The subject
+has the first line; under it, from the start, who saved it as initials on
+their own colour, tinted rather than filled so a solo project's column stays
+quiet (`.history-row__avatar`, keyed on the email so two people
+with the same initials still read apart, the full name on its tooltip), then
+the states as glyphs, and the date at the trailing end. The author was spelled
+out there before — the longest and most repetitive fact down the column — and
+the states the row could not say at all. The glyphs are Lines': where you are
+is the ringed dot in the accent, saved locally is the laptop, and a tag and a
+merge wear their Git glyphs — the tag with its name beside it, truncated,
+because which release it marks is the point of a tag; published is the unremarkable state and draws
+nothing. Both lists draw them with the shared `StateGlyph` (`.state-glyph` in
+`primitives.css`), so a glyph cannot look one way on Lines and another on
+History, and the timeline filter's "Only unpublished" switch wears the same
+laptop, as Lines' filter does, and "Only tagged versions" and "Hide branch
+merges" wear theirs, so the panel doubles as the legend. Where the published
+versions begin, a dashed rule crosses the column above the first of them,
+naming both sides — `↑ 4 not published ── Published ↓` — with the remote on
+its tooltip and the rail running through it. A single `Published to
+origin/main` there read as a fact about the row above it, and a release
+branch's name did not fit the column. So "what
+haven't I published?" is one line to find rather than a laptop to read off
+every row; nothing is drawn when every version is on one side of it. On the
+current line its count is also a way to act on it: it opens the publish flow,
+with its preview, as a pointer shortcut beside the toolbar's Publish.
+
+A title reads from what changed: a Conventional Commits prefix
+(`fix(settings): `) is one tone quieter than the words after it, and a merge's
+whole title is, so the text is intact but neither leads. A search marks what
+it matched in the title, and a row found by something it does not show — its
+author, its code, a reference, its message — says where in a small accent glyph,
+so no row is in the results without a reason on it. `Details` scrolls within
+itself at up to 45% of the card: a long message must never push the files and
+the diff out of reach.
+
+**File lists can be read in folders.** Changes' list and a saved version's
+files in History share one layout switch and one preference: a flat list by
+name, or the files grouped in the folders they live in, as an IDE shows them.
+The switch is a single icon after the rule in the list's search pill — the
+part of the pill that acts on the list rather than on what is typed — beside
+Filters in Changes; one control rather than a segmented pair, because the
+Changes strip already carries the select-all box, the pill and `⋯` in ~300px.
+It shows the layout in use and is pressed, in the accent, while the list is
+in folders. In folders, a chain of folders that hold nothing but the next one
+is one row (`src/features/history`); a folder shows how many files it holds
+and which kinds of change they are, as dots, so a folded folder still says
+it; a file under a folder drops its own folder line; each level steps in 16px
+with a hairline under the parent. The project root's own files come last and
+loose, as an IDE draws them, and keep the list's row — name and `Project root`
+under it — because no folder stands over them: the switch never reshapes a
+row it is not grouping. (A `Project root` folder was tried and dropped: it
+added a level that grouped nothing and read as one more real folder.) In Changes a folder carries an include box
+for everything under it — ticked, clear, or indeterminate for part of it. `←`
+and `→` fold and unfold a folder, and stepping through the files follows the
+order they are drawn in, opening a folded folder it steps into. The rows stay
+one flat, virtualized list: the tree changes where a row sits, not the DOM. The pill's placeholder is short —
+`Search changes` — and the field's accessible name says it in full; its two trailing controls sit tight at 22px, so the
+word survives beside the select-all box and `⋯`.
+
+**The Changes include boxes are a size down and say the usual state
+quietly.** 14px rather than the shared control's 18px, closer to the file
+icon: they stand on every row, and at full size with their fill the column was
+louder than the names. Included — the default — is a soft ring and the tick,
+with no fill; left out is an empty ring and the row itself dimmed, so the
+exception is what the eye finds. The tick is the app's Lucide check, masked in the
+accent with round ends, rather than two borders turned 45°, which sat half a
+pixel off centre at this size. A search pill with trailing controls folds its
+empty clear button away, since those controls already keep the text off the
+border. The row's
+accessible description reads the author and the states out in words.
+
 **Lines has no page row either; the list panel's header is the screen's name.**
 It follows the Work screen's shape: the list panel opens with a header at
 `--strip-height` — the rail's Lines glyph in the accent and the word in the
@@ -1504,6 +1575,14 @@ Avoid vague labels such as “Continue” when a more precise action fits.
 
 Each screen must define loading, empty, success, warning, and error states.
 
+**A render error never blanks the window.** Each screen, each Work tab and
+the app itself sit inside an error boundary. A failure shows the error form of
+the empty-state block in the place of what failed — "This view ran into a
+problem", a sentence that the project was not touched, `Try again`, and the
+technical message behind a `Technical details` disclosure — while the rail,
+the status bar, the other screens and the Work tab pair keep working. Outside
+every screen, the window's own notice offers `Reload window`.
+
 Reuse one visual pattern for all of these across screens rather than each screen inventing its own: a centered block with a small icon in a bordered/shadowed circle (`--radius-round`, like every glyph tile), one short headline, one line of supporting copy, and 1–2 actions — see `.empty-state` in `src/shared/ui/primitives.css`, first built for the "no project open" Overview state. A loading state is the same layout with a spinner/skeleton instead of the icon; an error state swaps in `--status-danger`. Do not build a bespoke illustration or a different card shape per screen — that's how a "no repository" panel and a "no results" panel end up looking like they belong to two different apps.
 
 **The welcome screen is the one documented departure, and it departs in one
@@ -1737,11 +1816,13 @@ its own pane so that toolbar keeps a whole row's width at any window size.
 Renaming and deleting a line stay on the Lines screen rather than being
 duplicated in every menu. The version strip is a fixed `--strip-height`,
 not a minimum: the timeline panel's header beside it is exactly that, and a
-strip that grew with its two lines sat its rule ~20px below the tabs'. Its
-second line is the author, the reference that points here, and whether the
-version has left the machine — the publication chip `Details` draws, at the
-ref badge's height, and not drawn at all when the answer is unknown, because
-a strip must not say "no idea". The
+strip that grew with its two lines sat its rule ~20px below the tabs'. It
+carries no avatar — a 24px circle beside the name it abbreviated said who
+saved it twice. Its second line is the author in full, the reference that
+points here, and, for a version that has not left the machine, the timeline
+row's laptop glyph with its tooltip. Published draws nothing, as on the row,
+and neither does an unknown answer, because a strip must not say "no idea";
+`Details` states both in words. The
 open file's category in
 the diff header is the same glyph with the word beside it rather than a
 pill: a third shape for one fact the row and the band already draw alike.

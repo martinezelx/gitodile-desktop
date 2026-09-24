@@ -7,6 +7,8 @@ import { HistoryScreen } from "../features/history";
 import { settingsOverlayModule } from "../features/settings";
 import { versionLinesScreenModule, VersionLinesScreen } from "../features/version-lines";
 import { workbenchScreenModule, WorkbenchScreen } from "../features/workbench";
+import { useLanguage } from "../i18n";
+import { ErrorBoundary, ViewErrorNotice } from "../shared/ui";
 import type { ProjectView } from "../runtime/project/sessions";
 import {
   ScreenLifecycleProvider,
@@ -387,8 +389,50 @@ function KeepAliveScreenSlot({
   return (
     <div className="screen-slot" hidden={!isActive} inert={!isActive}>
       <ScreenLifecycleProvider controller={lifecycle}>
-        {isActive ? children : lastCommittedElement.current}
+        {/* A render error stays in the screen it happened in: the rail, the
+            status bar and every other screen keep working. */}
+        <ScreenErrorBoundary>{isActive ? children : lastCommittedElement.current}</ScreenErrorBoundary>
       </ScreenLifecycleProvider>
     </div>
+  );
+}
+
+/** A failed view's notice, in the reader's language. Only the notice reads
+ * the language: the boundary around a working screen asks nothing of it. */
+function LocalizedViewError({ error, window: inWindow = false, onAction }: {
+  error: Error;
+  window?: boolean;
+  onAction: () => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const labels = inWindow
+    ? { title: t.commonWindowErrorTitle, message: t.commonWindowErrorMessage, action: t.commonWindowErrorReload, details: t.commonViewErrorDetails }
+    : { title: t.commonViewErrorTitle, message: t.commonViewErrorMessage, action: t.commonViewErrorRetry, details: t.commonViewErrorDetails };
+  return <ViewErrorNotice error={error} labels={labels} onAction={onAction} />;
+}
+
+/** A screen's error boundary. */
+export function ScreenErrorBoundary({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <ErrorBoundary fallback={(error, retry) => <LocalizedViewError error={error} onAction={retry} />}>
+      {children}
+    </ErrorBoundary>
+  );
+}
+
+/** The last line: an error outside every screen — in the shell itself —
+ * still leaves a window that says what happened and reloads, never a blank
+ * one. */
+export function WindowErrorBoundary({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <ErrorBoundary
+      fallback={(error) => (
+        <div className="window-error">
+          <LocalizedViewError error={error} window onAction={() => window.location.reload()} />
+        </div>
+      )}
+    >
+      {children}
+    </ErrorBoundary>
   );
 }

@@ -281,27 +281,6 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
    column's constant, and a row with no states keeps it in the same place as a
    row with three. */
 .version-line-row__meta { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
-.version-line-row__glyphs {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.version-line-glyph {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-strong);
-  font-variant-numeric: tabular-nums;
-}
-.version-line-glyph__icon { display: inline-flex; }
-.version-line-glyph svg { width: 14px; height: 14px; }
-.version-line-glyph--positive { color: var(--status-success); }
-.version-line-glyph--warning { color: var(--status-warning); }
-.version-line-glyph--protected { color: var(--accent-primary); }
-.version-line-glyph--active { color: var(--accent-primary); }
 .version-line-row__date {
   flex: 0 0 auto;
   margin-inline-start: auto;

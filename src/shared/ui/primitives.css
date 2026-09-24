@@ -93,6 +93,28 @@
   vertical-align: -0.125em;
 }
 
+/* A state a list row flags as a glyph instead of a text chip — Lines' and
+   History's rows speak one vocabulary: 14px, the caption's weight for a count
+   beside it, and colour only where the state is good, needs a look, or is
+   where the project stands. The unremarkable state draws no glyph at all. */
+.state-glyphs { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: var(--space-2); }
+.state-glyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+.state-glyph__icon { display: inline-flex; }
+.state-glyph { min-width: 0; }
+.state-glyph__text { min-width: 0; max-width: 16ch; margin-inline-start: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium); }
+.state-glyph svg { width: 14px; height: 14px; }
+.state-glyph--positive { color: var(--status-success); }
+.state-glyph--warning { color: var(--status-warning); }
+.state-glyph--accent { color: var(--accent-primary); }
+
 /* A release's highlights — one tinted glyph and one sentence per line — as
    What's new and the update dialog both draw them. The host owns the
    list's margin: What's new indents it under its disclosure, and this sheet
@@ -222,6 +244,16 @@
 /* DESIGN.md § Core screens: an error state is this same block with the danger
    colour swapped into the glyph tile — not a second, differently shaped panel. */
 .empty-state--error .empty-state__icon { border-color: var(--status-danger); color: var(--status-danger); }
+/* A failed view: the error block, its technical message behind a disclosure
+   so the headline stays plain language (AGENTS.md: no raw error first). */
+.view-error { height: 100%; }
+.view-error__details { margin-top: var(--space-4); max-width: 100%; color: var(--text-secondary-color); font-size: var(--text-caption); }
+.view-error__details summary { cursor: default; }
+.view-error__details pre {
+  max-height: 160px; overflow: auto; margin: var(--space-2) 0 0; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-divider); border-radius: var(--radius-item); background: var(--surface-code);
+  font-size: var(--text-caption); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
+}
 
 .restore-skipped-notice {
   display: flex; align-items: center; gap: var(--space-2); justify-content: space-between;
@@ -390,6 +422,10 @@
 }
 .search-box__clear:hover { background: var(--surface-raised); color: var(--text-primary-color); }
 .search-box__clear[data-empty] { visibility: hidden; }
+/* With controls after the rule, those already keep the text off the border,
+   so an empty clear button gives its 24px back to the field — in a ~300px
+   column that is the difference between `Search changes` and `Search chang`. */
+.search-box:has(.search-box__trailing) .search-box__clear[data-empty] { display: none; }
 .search-box__clear svg { width: 14px; height: 14px; }
 .search-box__trailing { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; padding-inline-start: var(--space-2); }
 /* A rule rather than a gap: what follows it acts on the list, not on what is

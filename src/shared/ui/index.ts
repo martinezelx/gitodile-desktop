@@ -110,3 +110,13 @@ export {
   type HighlightIcon,
   type ReleaseHighlightLine,
 } from "./releaseHighlights";
+/* ADR 0003's two-consumer bar: the Lines rows drew their states as glyphs
+   first, and the History timeline needed the same vocabulary for whether a
+   version has left the machine — two glyph recipes for one idea would drift
+   the way the preview pills did. The glyphs are shared; which states a row
+   flags stays with the screen that knows its rows. */
+export { StateGlyph, StateGlyphs, type StateGlyphTone } from "./stateGlyph";
+/* ADR 0003's two-consumer bar, passed by three: the app keeps a render error
+   in the screen it happened in, the Work screen in the tab it happened in,
+   and the root in a window that can still be reloaded — all with one notice. */
+export { ErrorBoundary, ViewErrorNotice, type ViewErrorLabels } from "./errorBoundary";

@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { localizeAppError } from "../../shared/i18n";
+import { localizeAppError, type LocaleFormats } from "../../shared/i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import {
   AutomaticUpdatesNotice, autoHideScrollbarProps, FilterCapsule, FilterCapsules, FilterChips,
@@ -39,6 +39,8 @@ import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
 import type { ChangesContextMenuState } from "./ChangesContextMenu";
 import { getChangesEmptyState, type ChangesEmptyHeadState } from "./emptyState";
+import { flatFileRows, flattenFileTree, isGroupedFileRow, useCollapsedFolders, useFileListView, type FileTreeRow } from "./fileTree";
+import { FileTreeFolderButton, FileViewToggle, treeIndentStyle } from "./FileTreeControls";
 
 const DiscardChangesDialog = React.lazy(async () => {
   const module = await import("./DiscardChangesDialog");
@@ -829,9 +831,14 @@ function FileListItem({
   virtualCount,
   measureElement,
   arrivalIndex,
+  depth,
   t,
 }: {
   entry: WorkingTreeEntry;
+  /** In the folder view, how many folders stand above it; the folder is then
+   * the row's parent, so the row drops its own folder line. Absent in the
+   * list. */
+  depth?: number;
   isSelected: boolean;
   isIncluded: boolean;
   canChoose: boolean;
@@ -870,12 +877,12 @@ function FileListItem({
 
   return (
     <li
-      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}${arrivalStyle ? " row-in" : ""}`}
+      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}${depth === undefined ? "" : " changes-file-row--tree"}${isIncluded ? "" : " changes-file-row--excluded"}${arrivalStyle ? " row-in" : ""}`}
       data-index={virtualIndex}
       ref={measureElement}
       aria-posinset={virtualIndex === undefined ? undefined : virtualIndex + 1}
       aria-setsize={virtualCount}
-      style={virtualPosition === undefined ? arrivalStyle : { transform: `translateY(${virtualPosition}px)` }}
+      style={{ ...(virtualPosition === undefined ? arrivalStyle : { transform: `translateY(${virtualPosition}px)` }), ...(depth === undefined ? undefined : treeIndentStyle(depth)) }}
     >
       <input
         className="app-checkbox changes-file-row__checkbox"
@@ -900,7 +907,7 @@ function FileListItem({
         </span>
         <span className="changes-file-item__details">
           <span className="changes-file-item__name">{name}</span>
-          <span className="changes-file-item__dir">{dir || t.changesProjectRoot}</span>
+          {depth === undefined && <span className="changes-file-item__dir">{dir || t.changesProjectRoot}</span>}
           {entry.originalPath && (
             <span className="changes-file-item__origin">{t.changesRenamedFrom(entry.originalPath)}</span>
           )}
@@ -913,11 +920,57 @@ function FileListItem({
   );
 }
 
+/** A folder in the Changes tree: its include box, then the folder itself.
+ * The box answers for everything under it — ticked when all of it goes into
+ * the version, clear when none does, and indeterminate in between — so a
+ * whole area of the project is included or left out in one press. */
+function FolderListItem({ row, props, virtual }: {
+  row: Extract<FileTreeRow<WorkingTreeEntry>, { kind: "folder" }>;
+  props: FileListRowsProps;
+  virtual?: { index: number; start: number; count: number; measureElement: (node: Element | null) => void };
+}): React.JSX.Element {
+  const included = row.files.filter((entry) => !props.excludedPaths.has(entry.path)).length;
+  const partial = included > 0 && included < row.files.length;
+  return (
+    <li
+      className={`changes-file-row changes-file-row--tree changes-file-row--folder${virtual ? " changes-file-row--virtual" : ""}`}
+      data-index={virtual?.index}
+      ref={virtual?.measureElement}
+      aria-posinset={virtual ? virtual.index + 1 : undefined}
+      aria-setsize={virtual?.count}
+      style={{ ...(virtual ? { transform: `translateY(${virtual.start}px)` } : undefined), ...treeIndentStyle(row.depth) }}
+    >
+      <input
+        ref={(node) => { if (node) node.indeterminate = partial; }}
+        className="app-checkbox changes-file-row__checkbox"
+        type="checkbox"
+        checked={included === row.files.length}
+        disabled={!props.canChoose}
+        aria-label={props.t.changesIncludeFolder(row.path)}
+        onChange={() => props.onToggleFolderIncluded(row.files, included < row.files.length)}
+      />
+      <FileTreeFolderButton row={row} formats={props.formats} onToggle={props.onToggleFolder} t={props.t} />
+    </li>
+  );
+}
+
+const NO_COLLAPSED_FOLDERS: ReadonlySet<string> = new Set();
+const entryPath = (entry: WorkingTreeEntry): string => entry.path;
+
 const FILE_LIST_VIRTUALIZATION_THRESHOLD = 100;
 const FILE_LIST_ESTIMATED_ROW_HEIGHT = 54;
 
 type FileListRowsProps = {
-  entries: WorkingTreeEntry[];
+  /** The rows as drawn: files only in the list, folders and files in the
+   * folder view. */
+  rows: FileTreeRow<WorkingTreeEntry>[];
+  /** Whether the rows are the folder view's, so a file row is indented under
+   * its folder and drops its own folder line. */
+  inFolders: boolean;
+  formats: LocaleFormats;
+  onToggleFolder: (path: string, expanded: boolean) => void;
+  /** Includes every file under a folder, or leaves every one of them out. */
+  onToggleFolderIncluded: (entries: WorkingTreeEntry[], include: boolean) => void;
   /** Rows that arrived while this screen was open, keyed by path, valued by
    * their place in the arrival cascade; empty on the list's first draw. */
   arrivals: ReadonlyMap<string, number>;
@@ -932,7 +985,7 @@ type FileListRowsProps = {
 };
 
 function fileListItem(
-  entry: WorkingTreeEntry,
+  row: FileTreeRow<WorkingTreeEntry>,
   props: FileListRowsProps,
   virtual?: {
     index: number;
@@ -942,10 +995,13 @@ function fileListItem(
   },
   arrivalIndex?: number,
 ): React.JSX.Element {
+  if (row.kind === "folder") return <FolderListItem key={`folder:${row.path}`} row={row} props={props} virtual={virtual} />;
+  const entry = row.item;
   return (
     <FileListItem
       key={entry.path}
       entry={entry}
+      depth={isGroupedFileRow(props.inFolders, row) ? row.depth : undefined}
       arrivalIndex={arrivalIndex}
       isSelected={entry.path === props.selectedPath}
       isIncluded={!props.excludedPaths.has(entry.path)}
@@ -964,9 +1020,12 @@ function fileListItem(
 
 function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
   const virtualizer = useVirtualizer({
-    count: props.entries.length,
+    count: props.rows.length,
     getScrollElement: () => props.scrollElement.current,
-    getItemKey: (index) => props.entries[index]?.path ?? index,
+    getItemKey: (index) => {
+      const row = props.rows[index];
+      return row ? `${row.kind}:${row.path}` : index;
+    },
     estimateSize: () => FILE_LIST_ESTIMATED_ROW_HEIGHT,
     overscan: 6,
     // jsdom and the first pre-layout render have no measured viewport yet.
@@ -974,7 +1033,7 @@ function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
     // ResizeObserver measurement replaces it immediately in WebView2/WebKit.
     initialRect: { width: 320, height: 480 },
   });
-  const selectedIndex = props.entries.findIndex((entry) => entry.path === props.selectedPath);
+  const selectedIndex = props.rows.findIndex((row) => row.kind === "file" && row.path === props.selectedPath);
 
   useEffect(() => {
     if (selectedIndex >= 0) {
@@ -988,12 +1047,12 @@ function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
       style={{ height: virtualizer.getTotalSize() }}
     >
       {virtualizer.getVirtualItems().map((virtualRow) => {
-        const entry = props.entries[virtualRow.index];
-        return entry
-          ? fileListItem(entry, props, {
+        const row = props.rows[virtualRow.index];
+        return row
+          ? fileListItem(row, props, {
               index: virtualRow.index,
               start: virtualRow.start,
-              count: props.entries.length,
+              count: props.rows.length,
               measureElement: virtualizer.measureElement,
             })
           : null;
@@ -1003,10 +1062,10 @@ function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
 }
 
 function FileListRows(props: FileListRowsProps): React.JSX.Element {
-  if (props.entries.length > FILE_LIST_VIRTUALIZATION_THRESHOLD) {
+  if (props.rows.length > FILE_LIST_VIRTUALIZATION_THRESHOLD) {
     return <VirtualizedFileListRows {...props} />;
   }
-  return <ul>{props.entries.map((entry) => fileListItem(entry, props, undefined, props.arrivals.get(entry.path)))}</ul>;
+  return <ul>{props.rows.map((row) => fileListItem(row, props, undefined, row.kind === "file" ? props.arrivals.get(row.path) : undefined))}</ul>;
 }
 
 /** One actionable control in the clean state's block. */
@@ -1096,7 +1155,7 @@ export function ChangesPanel({
   onDiscardClose: () => void;
   onDiscardPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
 }): React.JSX.Element {
-  const { t } = useLanguage();
+  const { t, formats } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
   // Which rows arrive while the screen is open, so the list it opens with is
   // simply there (see `useRowArrival`). Taken from the whole working tree in
@@ -1243,6 +1302,21 @@ export function ChangesPanel({
   );
   // Only the kinds this working tree contains, so the panel never offers an
   // answer that would empty the list on its own.
+  const [fileView, setFileView] = useFileListView();
+  const { collapsed: collapsedFolders, toggle: toggleFolder, reveal: revealFile } = useCollapsedFolders();
+  const inFolders = fileView === "tree";
+  const fileRows = useMemo(
+    () => (inFolders ? flattenFileTree(visibleEntries, entryPath, collapsedFolders) : flatFileRows(visibleEntries, entryPath)),
+    [collapsedFolders, inFolders, visibleEntries],
+  );
+  // The order a step through the files follows: the order they are drawn in,
+  // folded folders included, so the arrows never jump around the tree.
+  const orderedEntries = useMemo(
+    () => (inFolders
+      ? flattenFileTree(visibleEntries, entryPath, NO_COLLAPSED_FOLDERS).flatMap((row) => (row.kind === "file" ? [row.item] : []))
+      : visibleEntries),
+    [inFolders, visibleEntries],
+  );
   const kindsPresent = useMemo(() => changeKindsPresent(entries), [entries]);
   const typesPresent = useMemo(() => fileTypesPresent(entries), [entries]);
   const activeFilterCount = countActiveChangesFilters(filters);
@@ -1418,10 +1492,11 @@ export function ChangesPanel({
   // File-to-file navigation walks the list the user can actually see, so
   // "next file" during a search means the next match, not the next file
   // hidden behind the filter.
-  const visibleIndex = visibleEntries.findIndex((entry) => entry.path === selectedPath);
+  const visibleIndex = orderedEntries.findIndex((entry) => entry.path === selectedPath);
   const selectFileAt = (index: number): void => {
-    const next = visibleEntries[index];
+    const next = orderedEntries[index];
     if (next) {
+      revealFile(next.path);
       onSelectedPathChange(next.path);
     }
   };
@@ -1521,14 +1596,17 @@ export function ChangesPanel({
                   placeholder={t.changesSearchPlaceholder}
                   ariaLabel={t.changesSearchAriaLabel}
                   clearLabel={t.commonClearSearch}
-                  trailing={<ChangesFilterPanel
-                    filters={filters}
-                    kinds={kindsPresent}
-                    types={typesPresent}
-                    canChooseFiles={canChooseFiles}
-                    onChange={setFilters}
-                    t={t}
-                  />}
+                  trailing={<>
+                    <ChangesFilterPanel
+                      filters={filters}
+                      kinds={kindsPresent}
+                      types={typesPresent}
+                      canChooseFiles={canChooseFiles}
+                      onChange={setFilters}
+                      t={t}
+                    />
+                    <FileViewToggle view={fileView} onChange={setFileView} t={t} />
+                  </>}
                 />
                 {/* What can be done to the listed changes without saving them
                     — discard, or bring discarded work back — at the strip's
@@ -1576,7 +1654,19 @@ export function ChangesPanel({
                   </div>
                 )}
                 <FileListRows
-                  entries={visibleEntries}
+                  rows={fileRows}
+                  inFolders={inFolders}
+                  formats={formats}
+                  onToggleFolder={toggleFolder}
+                  onToggleFolderIncluded={(folderEntries, include) =>
+                    setExcludedPaths((current) => {
+                      const next = new Set(current);
+                      for (const entry of folderEntries) {
+                        if (include) next.delete(entry.path); else next.add(entry.path);
+                      }
+                      return next;
+                    })
+                  }
                   arrivals={arrivals}
                   selectedPath={selectedPath}
                   excludedPaths={excludedPaths}

@@ -38,6 +38,16 @@ export interface HistoryTranslations {
   historyFilterPathPlaceholder: string;
   historyFilterHideMerges: string;
   historyFilterUnpublishedOnly: string;
+  historyFilterTaggedOnly: string;
+  historyBoundaryUnpublished: (count: string) => string;
+  historyBoundaryPublished: string;
+  historyBoundaryHint: (remote: string | null) => string;
+  historyBoundaryPublishHint: string;
+  historyMatchAuthor: string;
+  historyMatchCommit: string;
+  historyMatchRef: string;
+  historyMatchMessage: string;
+  historyMatchLabel: (where: string) => string;
   historyScopeLabel: string;
   historyScopeCurrentLine: string;
   historyScopeAllLines: string;
@@ -91,6 +101,11 @@ export interface HistoryTranslations {
   historyAuthorUnknown: string;
   historyPublished: string;
   historyLocalOnly: string;
+  historyCurrentLabel: string;
+  historyMergeLabel: string;
+  historyGlyphCurrent: string;
+  historyGlyphLocalOnly: string;
+  historyGlyphMerge: string;
   historyPublicationUnknown: string;
   historyRoot: string;
   historyMerge: string;
@@ -182,6 +197,16 @@ const en: HistoryTranslations = {
   historyFilterPathPlaceholder: "For example src/app",
   historyFilterHideMerges: "Hide branch merges",
   historyFilterUnpublishedOnly: "Not published yet",
+  historyFilterTaggedOnly: "Only tagged versions",
+  historyBoundaryUnpublished: (count) => `${count} not published`,
+  historyBoundaryPublished: "Published",
+  historyBoundaryPublishHint: "Publish them — you'll see what will be sent first",
+  historyMatchAuthor: "author",
+  historyMatchCommit: "code",
+  historyMatchRef: "tag or line",
+  historyMatchMessage: "message",
+  historyMatchLabel: (where) => `Matches its ${where}`,
+  historyBoundaryHint: (remote) => `The versions above exist only on this computer; the ones below are already ${remote ? `on ${remote}` : "published"}`,
   historyScopeLabel: "Version line",
   historyScopeCurrentLine: "Current line",
   historyScopeAllLines: "All lines",
@@ -234,6 +259,11 @@ const en: HistoryTranslations = {
   historyAuthorUnknown: "Unknown author",
   historyPublished: "Published",
   historyLocalOnly: "Saved locally",
+  historyCurrentLabel: "Where you are",
+  historyMergeLabel: "Joins two lines",
+  historyGlyphCurrent: "Where you are — your files are on this version",
+  historyGlyphLocalOnly: "Saved locally — not published yet, so it exists only on this computer",
+  historyGlyphMerge: "Joins two version lines into one",
   historyPublicationUnknown: "Publication unknown",
   historyRoot: "First version",
   historyMerge: "Combined version",
@@ -325,6 +355,16 @@ const es: HistoryTranslations = {
   historyFilterPathPlaceholder: "Por ejemplo src/app",
   historyFilterHideMerges: "Ocultar uniones de ramas",
   historyFilterUnpublishedOnly: "Sin publicar",
+  historyFilterTaggedOnly: "Solo versiones con etiqueta",
+  historyBoundaryUnpublished: (count) => `${count} sin publicar`,
+  historyBoundaryPublished: "Publicadas",
+  historyBoundaryPublishHint: "Publicarlas: antes verás qué se va a enviar",
+  historyMatchAuthor: "autor",
+  historyMatchCommit: "código",
+  historyMatchRef: "etiqueta o línea",
+  historyMatchMessage: "mensaje",
+  historyMatchLabel: (where) => `Coincide en: ${where}`,
+  historyBoundaryHint: (remote) => `Las versiones de arriba solo están en este ordenador; las de abajo ya están ${remote ? `en ${remote}` : "publicadas"}`,
   historyScopeLabel: "Línea de versión",
   historyScopeCurrentLine: "Línea actual",
   historyScopeAllLines: "Todas las líneas",
@@ -377,6 +417,11 @@ const es: HistoryTranslations = {
   historyAuthorUnknown: "Autor desconocido",
   historyPublished: "Publicada",
   historyLocalOnly: "Guardada localmente",
+  historyCurrentLabel: "Aquí estás",
+  historyMergeLabel: "Une dos líneas",
+  historyGlyphCurrent: "Aquí estás: tus archivos están en esta versión",
+  historyGlyphLocalOnly: "Guardada localmente: aún no se ha publicado, así que solo existe en este ordenador",
+  historyGlyphMerge: "Une dos líneas de versión en una",
   historyPublicationUnknown: "Publicación desconocida",
   historyRoot: "Primera versión",
   historyMerge: "Versión combinada",

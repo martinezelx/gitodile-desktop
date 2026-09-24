@@ -1598,3 +1598,7 @@
 @media (hover: none) {
   .project-switcher__close:not(:disabled) { opacity: 1; }
 }
+
+/* The window's last-resort notice: the app shell itself failed, so it stands
+   alone on the app surface, centred. */
+.window-error { min-height: 100vh; display: grid; place-items: center; background: var(--surface-app); color: var(--text-primary-color); }

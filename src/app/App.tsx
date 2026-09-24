@@ -2464,6 +2464,7 @@ export function App(): React.JSX.Element {
                               onViewLine={viewVersionLine}
                               onSwitchLine={switchToVersionLine}
                               onCreateLineFromVersion={createVersionLineFromVersion}
+                              onPublish={() => openPublishDialog()}
                               onOpenSettings={() => openSettings("general")}
                             />
                           )}

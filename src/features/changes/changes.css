@@ -462,8 +462,83 @@
 }
 /* The control itself is `.app-checkbox` in primitives.css. All this list adds
    is where it stands in the row. */
-.changes-file-row__checkbox { margin: 0 2px 0 6px; }
-.changes-file-row .changes-file-item { flex: 1; width: auto; }
+.changes-file-row__checkbox { margin: 0 0 0 4px; }
+.changes-file-row .changes-file-item { flex: 1; width: auto; padding-inline-start: var(--space-2); }
+/* The list's include boxes, a size down from the shared control: they stand
+   on every row, so at 18px with its fill the column read louder than the
+   names it serves. Included is the usual state, so it is said quietly — a
+   tint-free ring and the tick; left out is the one worth seeing, an empty
+   ring with the row itself dimmed. */
+.changes-file-list .app-checkbox { width: 14px; height: 14px; }
+/* The tick is the app's Lucide check, drawn through a mask so it takes the
+   accent: two borders turned 45° landed half a pixel off centre at this size,
+   with square ends that read as a broken stroke. */
+.changes-file-list .app-checkbox::before {
+  width: 10px; height: 10px; border: 0; background: var(--accent-primary);
+  -webkit-mask: var(--file-check-mask) center / contain no-repeat; mask: var(--file-check-mask) center / contain no-repeat;
+  transform: scale(0);
+}
+.changes-file-list .app-checkbox:checked::before { transform: scale(1); }
+.changes-file-list .app-checkbox:indeterminate::before {
+  width: 6px; height: 1.5px; border: 0; border-radius: var(--radius-pill); -webkit-mask: none; mask: none; transform: scale(1);
+}
+.changes-file-list {
+  --file-check-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
+.changes-file-list .app-checkbox:checked {
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle)); background: transparent;
+}
+.changes-file-list .app-checkbox:checked:hover { border-color: var(--accent-primary); }
+.changes-file-row--excluded .changes-file-item { opacity: 0.55; }
+.changes-file-row--excluded .changes-file-item:hover { opacity: 0.8; }
+/* Filters and the folder switch share the pill's tail: tight, a size down,
+   so the field keeps room for its word. */
+.changes-file-list__toolbar .search-box__trailing { gap: 0; }
+.changes-file-list__toolbar .filter-control__trigger { width: 22px; height: 22px; }
+/* The folder view. A row steps in 16px per folder above it, and draws a
+   hairline at each step under the parent's leading control, so a long branch
+   still reads as one — drawn by the row itself, not by nesting, because a
+   virtualized list places each row on its own. A file under a folder drops its
+   folder line (the folder above it says it) and so takes one line. */
+.changes-file-row--tree {
+  padding-inline-start: calc(var(--tree-depth, 0) * 16px);
+  background-image: repeating-linear-gradient(to right, transparent 0 13px, var(--border-divider) 13px 14px, transparent 14px 16px);
+  background-size: calc(var(--tree-depth, 0) * 16px) 100%;
+  background-repeat: no-repeat;
+}
+.changes-file-row--tree .changes-file-item { padding-block: 7px; align-items: center; }
+
+/* A folder in a file tree, shared by Changes and a saved version's files in
+   History: caret, folder, name, then what it holds — the kinds of change as
+   dots and how many files — so a folded folder still says it. */
+.file-tree-folder {
+  flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: 6px;
+  padding: 0 var(--space-3) 0 6px; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-primary-color); font: inherit; text-align: left;
+}
+.file-tree-folder:hover { background: var(--surface-hover); }
+.file-tree-folder:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.file-tree-folder__caret { width: 14px; height: 14px; flex: 0 0 14px; color: var(--text-secondary-color); transition: transform var(--duration-fast); }
+.file-tree-folder__caret--open { transform: rotate(90deg); }
+.file-tree-folder__icon { width: 15px; height: 15px; flex: 0 0 15px; color: var(--text-secondary-color); }
+.file-tree-folder__name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-label); font-weight: var(--weight-strong);
+}
+.file-tree-folder__summary { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; margin-inline-start: auto; padding-inline-start: var(--space-2); }
+.file-tree-folder__kinds { display: inline-flex; gap: 3px; }
+.file-tree-folder__kind { width: 6px; height: 6px; border-radius: var(--radius-round); background: var(--text-secondary-color); }
+.file-tree-folder__kind--new { background: var(--status-success); }
+.file-tree-folder__kind--deleted { background: var(--status-danger); }
+.file-tree-folder__kind--renamed { background: var(--status-renamed); }
+.file-tree-folder__kind--conflicted { background: var(--status-warning); }
+.file-tree-folder__count { color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .file-tree-folder__caret { transition: none; }
+}
+@media (forced-colors: active) {
+  .file-tree-folder__kind { background: CanvasText; }
+}
 .changes-file-list__truncated {
   margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-item); background: var(--surface-hover);
   color: var(--text-secondary-color); font-size: var(--text-label);

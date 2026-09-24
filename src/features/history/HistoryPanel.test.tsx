@@ -269,6 +269,35 @@ describe("HistoryPanel", () => {
     expect(rail()).toEqual([null, null, null, null]);
   });
 
+  // A version is drawn loading first and with its files next. A hook that only
+  // ran once the files were there changed the hook count between the two, and
+  // React took the whole window down.
+  it("opens a version from loading to loaded without losing the screen", () => {
+    const historyState = state(2);
+    const selected = historyState.versions[0];
+    const detail: SavedVersionDetail = {
+      version: selected,
+      comparisonBase: selected.parents[0] ?? "empty",
+      comparisonIsEmptyTree: false,
+      comparisonIsFirstParent: false,
+      files: [{ path: "src/feature.tsx", originalPath: null, category: "changed" }],
+      fileCounts: { changed: 1, new: 0, deleted: 0, renamed: 0, total: 1 },
+      filesTruncated: false,
+      countsAreMinimum: false,
+    };
+    const panel = (historyState: HistoryState) => (
+      <LanguageProvider>
+        <HistoryPanel tabs={TABS} controller={controller()} query={{ projectId: "/repo", sessionEpoch: "epoch-1" }} state={historyState} watcherState="watching" onOpenSettings={() => {}} error={null} />
+      </LanguageProvider>
+    );
+    const { rerender } = render(panel(state(2, { detail: { detail: null, isLoading: true, error: null } })));
+    expect(screen.getAllByText("Reading this saved version…").length).toBeGreaterThan(0);
+    rerender(panel(state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "src/feature.tsx" })));
+    expect(screen.getByRole("listbox", { name: "Files changed in this saved version" })).toBeInTheDocument();
+    rerender(panel(state(2, { detail: { detail: null, isLoading: true, error: null } })));
+    expect(screen.getAllByText("Reading this saved version…").length).toBeGreaterThan(0);
+  });
+
   it("keeps the selected version identity visible while its files are loading", () => {
     const historyState = state(2, { detail: { detail: null, isLoading: true, error: null } });
     renderPanel(historyState);
@@ -302,18 +331,51 @@ describe("HistoryPanel", () => {
     // The row is the subject, the author and the time — no reference badge.
     expect(selectedRow.querySelector(".history-ref-badge")).toBeNull();
     const detailRegion = screen.getByRole("region", { name: selected.subject });
-    // The strip is the subject, the author, the reference that points here
-    // and whether it has left the machine; the hash moves behind Details,
-    // closed by default, where the publication is also stated in full.
+    // The strip is the subject, the author in full and the reference that
+    // points here — no avatar, and a published version wears no glyph; the
+    // hash moves behind Details, closed by default, where the publication is
+    // stated in full.
     expect(within(detailRegion).getByText(selected.author!.name)).toBeInTheDocument();
     expect(detailRegion.querySelector(".history-detail__strip .history-ref-badge")).toHaveTextContent("v2.0");
-    expect(detailRegion.querySelector(".history-detail__strip .history-publication")).toHaveTextContent("Published");
+    expect(detailRegion.querySelector(".history-detail__strip .history-row__avatar")).toBeNull();
+    expect(detailRegion.querySelector(".history-detail__strip .state-glyph")).toBeNull();
     expect(within(detailRegion).queryByText(selected.commit)).not.toBeInTheDocument();
     fireEvent.click(within(detailRegion).getByRole("button", { name: "Details" }));
     expect(within(detailRegion).getByText(selected.commit)).toBeInTheDocument();
-    expect(within(detailRegion).getAllByText("Published")).toHaveLength(2);
+    expect(within(detailRegion).getAllByText("Published")).toHaveLength(1);
     expect(within(detailRegion).queryByText("main")).not.toBeInTheDocument();
     expect(detailRegion.querySelector(".history-file__type img")).toBeInTheDocument();
+  });
+
+  it("draws a version's files in folders with the file lists' shared switch", () => {
+    try {
+      const historyState = state(2);
+      const selected = historyState.versions[0];
+      const detail: SavedVersionDetail = {
+        version: selected,
+        comparisonBase: selected.parents[0] ?? "empty",
+        comparisonIsEmptyTree: false,
+        comparisonIsFirstParent: false,
+        files: [
+          { path: "src/app/App.tsx", originalPath: null, category: "changed" },
+          { path: "src/app/app.css", originalPath: null, category: "new" },
+          { path: "README.md", originalPath: null, category: "changed" },
+        ],
+        fileCounts: { changed: 2, new: 1, deleted: 0, renamed: 0, total: 3 },
+        filesTruncated: false,
+        countsAreMinimum: false,
+      };
+      renderPanel(state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "README.md" }));
+      expect(screen.getByRole("listbox", { name: "Files changed in this saved version" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Show files in folders" }));
+      const folder = screen.getByRole("button", { name: "src/app folder, 2 files" });
+      expect(folder).toHaveAttribute("aria-expanded", "true");
+      fireEvent.click(folder);
+      expect(folder).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("button", { name: /src\/app\/App\.tsx/ })).not.toBeInTheDocument();
+    } finally {
+      localStorage.removeItem("gitodile-file-list-view");
+    }
   });
 
   it("picks one reference per version: a tag first, the checked-out line over its siblings, a remote last", () => {
@@ -344,7 +406,7 @@ describe("HistoryPanel", () => {
     expect(primaryDecoration({ ...plain, decorations: [] }, "main")).toBeNull();
   });
 
-  it("keeps the timeline row to the author and the time, with no reference badge", () => {
+  it("keeps the timeline row to the author's initials, the states as glyphs and the time, with no reference badge", () => {
     const base = state(2);
     const { container } = renderPanel({
       ...base,
@@ -353,9 +415,91 @@ describe("HistoryPanel", () => {
 
     const rows = container.querySelectorAll<HTMLButtonElement>(".history-row");
     expect(rows[0].querySelector(".history-ref-badge")).toBeNull();
-    expect(metaOrder(rows[0], ".history-row__meta")).toEqual([
-      "history-row__author", "history-meta-dot", "history-row__date",
+    // Published, on a line but not a tag: nothing to flag.
+    expect(metaOrder(rows[0], ".history-row__meta")).toEqual(["history-row__avatar", "history-row__date"]);
+    expect(metaOrder(rows[1], ".history-row__meta")).toEqual(["history-row__avatar", "state-glyphs", "history-row__date"]);
+    const avatar = rows[1].querySelector(".history-row__avatar");
+    expect(avatar).toHaveTextContent("AL");
+    expect(avatar).toHaveAttribute("data-tooltip", "Ada Lovelace");
+    expect(within(rows[1]).queryByText("Ada Lovelace")).not.toBeInTheDocument();
+  });
+
+  it("draws where the published versions begin, once, and nothing when every version is on one side", () => {
+    const base = state(2);
+    const { container, unmount } = renderPanel({ ...base, versions: [version(3), version(1), version(0), version(2)] });
+    const boundaries = container.querySelectorAll(".history-boundary");
+    expect(boundaries).toHaveLength(1);
+    // Both sides named: two unpublished above it, published below.
+    expect(boundaries[0]).toHaveTextContent("2 not published");
+    expect(boundaries[0]).toHaveTextContent("Published");
+    expect(boundaries[0]).toHaveAttribute("data-tooltip", "The versions above exist only on this computer; the ones below are already on origin/main");
+    expect(boundaries[0].closest(".history-timeline__virtual-row")?.querySelector(".history-row")).toHaveAttribute("aria-label", expect.stringContaining("Saved version 0"));
+    unmount();
+
+    const published = renderPanel({ ...base, versions: [version(2), version(0)] });
+    expect(published.container.querySelector(".history-boundary")).toBeNull();
+  });
+
+  it("quiets a Conventional Commits prefix and a merge's title without changing the text", () => {
+    const base = state(1);
+    const { container } = renderPanel({ ...base, versions: [
+      { ...version(2), subject: "fix(settings): call the follow-the-system theme" },
+      { ...version(1), subject: "Merge branch 'feature/composer'", isMerge: true },
+    ] });
+    const [prefixed, merge] = [...container.querySelectorAll<HTMLElement>(".history-row")];
+    expect(prefixed.querySelector(".history-row__title")).toHaveTextContent("fix(settings): call the follow-the-system theme");
+    expect(prefixed.querySelector(".history-title-prefix")).toHaveTextContent("fix(settings):");
+    expect(merge).toHaveClass("history-row--merge");
+    expect(merge.querySelector(".history-title-prefix")).toBeNull();
+  });
+
+  it("marks what a search matched, and says where when the title does not show it", async () => {
+    const user = userEvent.setup();
+    const { container } = renderPanel(state(3));
+    await user.type(screen.getByPlaceholderText("Search saved versions"), "version 2");
+    expect(container.querySelector(".history-row .history-match")).toHaveTextContent("version 2");
+
+    await user.clear(screen.getByPlaceholderText("Search saved versions"));
+    await user.type(screen.getByPlaceholderText("Search saved versions"), "lovelace");
+    const row = screen.getByRole("option", { name: /Saved version 2/ });
+    expect(row).toHaveTextContent("author");
+    expect(row).toHaveAccessibleDescription(expect.stringContaining("Matches its author"));
+  });
+
+  it("publishes from the boundary's count on the current line", () => {
+    const onPublish = vi.fn();
+    const { container } = renderPanel(state(2), null, "watching", { onPublish });
+    const publish = container.querySelector<HTMLButtonElement>(".history-boundary__publish");
+    expect(publish).not.toBeNull();
+    expect(publish).toHaveAttribute("tabindex", "-1");
+    fireEvent.click(publish!);
+    expect(onPublish).toHaveBeenCalledWith();
+  });
+
+  it("flags where you are, what is unpublished, a tag and a merge as glyphs, read out as the row's description", () => {
+    const base = state(1);
+    const flagged: SavedVersionSummary = {
+      ...version(1),
+      isMerge: true,
+      decorations: [
+        { kind: "head", name: "HEAD", fullRef: "HEAD" },
+        { kind: "localBranch", name: "main", fullRef: "refs/heads/main" },
+        { kind: "tag", name: "v2.0", fullRef: "refs/tags/v2.0" },
+      ],
+    };
+    const { container } = renderPanel({ ...base, versions: [flagged] });
+
+    const row = screen.getByRole("option", { name: /Saved version 1/ });
+    expect(row).toHaveAccessibleDescription("Ada Lovelace, Where you are, Saved locally, Tag v2.0, Joins two lines");
+    const glyphs = [...container.querySelectorAll<HTMLElement>(".history-row .state-glyph")];
+    expect(glyphs.map((glyph) => glyph.getAttribute("data-tooltip"))).toEqual([
+      "Where you are — your files are on this version",
+      "Saved locally — not published yet, so it exists only on this computer",
+      "Tag v2.0",
+      "Joins two version lines into one",
     ]);
+    expect(glyphs[0]).toHaveClass("state-glyph--accent");
+    expect(glyphs[2]).toHaveTextContent("v2.0");
   });
 
   it("searches and narrows the visible timeline without changing repository history", async () => {
@@ -383,13 +527,14 @@ describe("HistoryPanel", () => {
       path: "src/app",
       noMerges: true,
       unpublishedOnly: true,
+      taggedOnly: true,
     };
     const { container } = renderPanel(state(4, { filters: every }));
 
     const chips = container.querySelectorAll(".filter-chip");
-    expect(chips).toHaveLength(6);
+    expect(chips).toHaveLength(7);
     expect(container.querySelector(".filter-control__badge")).toHaveTextContent(String(chips.length));
-    expect(screen.getByRole("button", { name: "Filters (6 on)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Filters (7 on)" })).toBeInTheDocument();
   });
 
   // Both halves of the screen-level empty state, which is about the repository

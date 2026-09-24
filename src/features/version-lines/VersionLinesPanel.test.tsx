@@ -223,7 +223,7 @@ describe("VersionLinesPanel", () => {
 
     const row = screen.getByRole("option", { name: "feature/new-thing" });
     expect(row).toHaveAccessibleDescription("Local only, Safe to delete");
-    expect(row.querySelector(".version-line-glyph")).toHaveAttribute(
+    expect(row.querySelector(".state-glyph")).toHaveAttribute(
       "data-tooltip",
       "Local only — never published, so it exists only on this computer",
     );
@@ -231,7 +231,7 @@ describe("VersionLinesPanel", () => {
     // row's accessible name still says it.
     const active = screen.getByRole("option", { name: "main — Active" });
     expect(within(active).queryByText("Active")).not.toBeInTheDocument();
-    expect(active.querySelector(".version-line-glyph--active")).toHaveAttribute(
+    expect(active.querySelector(".state-glyph--accent")).toHaveAttribute(
       "data-tooltip",
       "Active — the line you're working on",
     );
@@ -1062,14 +1062,20 @@ describe("VersionLinesPanel", () => {
       changes: null,
     });
     let answer: (history: VersionLineHistory) => void = () => undefined;
+    // One request for the held line, shared the way the controller shares it:
+    // the press reads it, and so does the hover intent the same click starts
+    // 120ms later. A fresh promise per call let that second read take
+    // `answer` from the one the panel awaits whenever the run was slower than
+    // the hover delay.
+    let pending: Promise<VersionLineHistory> | null = null;
     const lines = withBugfixLine().lines;
     renderPanel({
       snapshot: snapshot({ lines: [{ ...lines[0], isDefault: true }, lines[1], lines[2]], totalCount: 3 }),
       readHistory: (name: string) =>
         name === "bugfix/other"
-          ? new Promise<VersionLineHistory>((resolve) => {
+          ? (pending ??= new Promise<VersionLineHistory>((resolve) => {
               answer = resolve;
-            })
+            }))
           : Promise.resolve(history(name, name === "feature/new-thing" ? { route: routeOf(2) } : {})),
     });
 

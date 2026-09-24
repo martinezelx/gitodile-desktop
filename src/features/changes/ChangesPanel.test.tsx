@@ -116,6 +116,62 @@ const workingTree: WorkingTreeStatus = {
   upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
 };
 
+describe("ChangesPanel folder view", () => {
+  const nested: WorkingTreeStatus = {
+    ...workingTree,
+    counts: { changed: 2, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 3 },
+    entries: [
+      { path: "src/features/history/panel.tsx", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "src/features/history/panel.css", originalPath: null, category: "new", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "README.md", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
+    ],
+  };
+
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command) =>
+      command === "read_file_diff"
+        ? Promise.resolve({ kind: "unchanged", path: "README.md" })
+        : Promise.reject(new Error(`Unexpected command: ${command}`)));
+  });
+  afterEach(() => localStorage.removeItem("gitodile-file-list-view"));
+
+  function renderNested(): void {
+    render(
+      <LanguageProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={nested} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </LanguageProvider>,
+    );
+  }
+
+  it("groups the files in compacted folders, folds them, and includes or leaves out a folder at once", async () => {
+    renderNested();
+    const toggle = screen.getByRole("button", { name: "Show files in folders" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    const folder = screen.getByRole("button", { name: "src/features/history folder, 2 files" });
+    expect(folder).toHaveAttribute("aria-expanded", "true");
+    // Under its folder a file drops its own folder line.
+    expect(document.querySelector(".changes-file-row--tree .changes-file-item__dir")).toBeNull();
+
+    const box = screen.getByRole("checkbox", { name: "Include everything in src/features/history in this version" });
+    expect(box).toBeChecked();
+    await userEvent.click(box);
+    expect(screen.getByRole("checkbox", { name: "Include src/features/history/panel.tsx in this version" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Include src/features/history/panel.css in this version" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Include README.md in this version" })).toBeChecked();
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Include src/features/history/panel.css in this version" }));
+    expect((box as HTMLInputElement).indeterminate).toBe(true);
+
+    await userEvent.click(folder);
+    expect(folder).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("checkbox", { name: "Include src/features/history/panel.tsx in this version" })).not.toBeInTheDocument();
+  });
+});
+
 describe("ChangesPanel save selection", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();

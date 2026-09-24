@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { LanguageProvider } from "./i18n";
 import { App } from "./app/App";
 import { repairEagerlyStoredDefaults } from "./app/preferences";
-import { SwitchMeasurementRoot } from "./app/screens";
+import { SwitchMeasurementRoot, WindowErrorBoundary } from "./app/screens";
 import "./styles/fonts.css";
 
 // Repair known defaults before the first render reads any preference.
@@ -21,7 +21,9 @@ if (rootElement) {
     <React.StrictMode>
       <SwitchMeasurementRoot>
         <LanguageProvider>
-          <App />
+          <WindowErrorBoundary>
+            <App />
+          </WindowErrorBoundary>
         </LanguageProvider>
       </SwitchMeasurementRoot>
     </React.StrictMode>,

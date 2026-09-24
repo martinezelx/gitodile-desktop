@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { useLanguage } from "../../i18n";
 import type { WorkbenchTab } from "../../runtime/project/sessions";
 import { KeepAliveViewSlot } from "../../runtime/screen/module";
-import { LoadingBar } from "../../shared/ui";
+import { ErrorBoundary, LoadingBar, ViewErrorNotice } from "../../shared/ui";
 import { WORKBENCH_TABS, WorkbenchTabs, workbenchPanelId, workbenchTabId } from "./WorkbenchTabs";
 
 /** The Work screen: Changes and History in one place, switched by the tab
@@ -63,7 +63,30 @@ export function WorkbenchScreen({
               </div>
             }
           >
-            {render[id](tabs)}
+            {/* Per tab, inside the screen's own boundary: a failure in one
+                panel keeps the tab pair on screen, so the other tab is one
+                press away. */}
+            <ErrorBoundary
+              fallback={(error, retry) => (
+                <div className="workbench__loading">
+                  <div className="workbench__loading-panel">
+                    <header className="workbench__loading-header">{tabs}</header>
+                  </div>
+                  <ViewErrorNotice
+                    error={error}
+                    labels={{
+                      title: t.commonViewErrorTitle,
+                      message: t.commonViewErrorMessage,
+                      action: t.commonViewErrorRetry,
+                      details: t.commonViewErrorDetails,
+                    }}
+                    onAction={retry}
+                  />
+                </div>
+              )}
+            >
+              {render[id](tabs)}
+            </ErrorBoundary>
           </Suspense>
         </KeepAliveViewSlot>
       ))}

@@ -30,7 +30,10 @@ import {
   FilterSwitch,
   LoadingBar,
   SearchBox,
+  StateGlyph,
+  StateGlyphs,
   autoHideScrollbarProps,
+  type StateGlyphTone,
 } from "../../shared/ui";
 import type { VersionLine, VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, versionLineActions } from "./lineActions";
@@ -79,7 +82,7 @@ const STATE_GLYPHS = {
   "local-only": { icon: <Laptop />, tone: "neutral" },
   deletable: { icon: <CircleCheck />, tone: "positive" },
   blocked: { icon: <TriangleAlert />, tone: "warning" },
-} as const satisfies Record<StateFilter, { icon: React.ReactNode; tone: string }>;
+} as const satisfies Record<StateFilter, { icon: React.ReactNode; tone: StateGlyphTone }>;
 
 const STATE_LABEL_KEYS = {
   tracking: "versionLinesStateTracking",
@@ -159,15 +162,13 @@ const VERSIONS_BESIDE_CHANGES = 4;
 
 /* ---------------------------------------------------------------- list ---- */
 
-type GlyphTone = "neutral" | "positive" | "warning" | "protected" | "active";
-
 /** One state a row flags, as a glyph. `label` is the short name the chip used
  * to spell out — what a screen reader hears, as the row's description —
  * and `tooltip` the sentence that says what the glyph means to someone who has
  * not learned it yet. */
 type RowGlyph = {
   key: string;
-  tone: GlyphTone;
+  tone: StateGlyphTone;
   icon: React.ReactNode;
   /** Drawn beside the icon: how many versions an arrow stands for. */
   count?: string;
@@ -186,7 +187,7 @@ function rowGlyphs(line: VersionLine, t: Translations, formats: LocaleFormats): 
   if (line.isActive) {
     glyphs.push({
       key: "active",
-      tone: "active",
+      tone: "accent",
       icon: <CircleDot />,
       label: "",
       tooltip: t.versionLinesGlyphActive,
@@ -238,7 +239,7 @@ function rowGlyphs(line: VersionLine, t: Translations, formats: LocaleFormats): 
   if (deletability === "protected") {
     glyphs.push({
       key: "protected",
-      tone: "protected",
+      tone: "accent",
       icon: <ShieldCheck />,
       label: t.versionLinesDefaultLineChip,
       tooltip: t.versionLinesGlyphProtected,
@@ -376,18 +377,11 @@ const VersionLineRow = React.memo(function VersionLineRow({
       </span>
       <span className="version-line-row__meta">
       {glyphs.length > 0 && (
-        <span className="version-line-row__glyphs" aria-hidden="true">
+        <StateGlyphs>
           {glyphs.map((glyph) => (
-            <span
-              key={glyph.key}
-              className={`version-line-glyph version-line-glyph--${glyph.tone}`}
-              data-tooltip={glyph.tooltip}
-            >
-              <span className="version-line-glyph__icon">{glyph.icon}</span>
-              {glyph.count && <span>{glyph.count}</span>}
-            </span>
+            <StateGlyph key={glyph.key} tone={glyph.tone} icon={glyph.icon} count={glyph.count} tooltip={glyph.tooltip} />
           ))}
-        </span>
+        </StateGlyphs>
       )}
       {relative && <span className="version-line-row__date">{relative}</span>}
       </span>
@@ -463,9 +457,7 @@ function VersionLinesFilterPanel({
             key={state}
             checked={selectedStates.includes(state)}
             icon={
-              <span className={`version-line-glyph version-line-glyph--${STATE_GLYPHS[state].tone}`} aria-hidden="true">
-                {STATE_GLYPHS[state].icon}
-              </span>
+              <StateGlyph tone={STATE_GLYPHS[state].tone} icon={STATE_GLYPHS[state].icon} />
             }
             label={t[STATE_LABEL_KEYS[state]]}
             count={stateCounts[state]}

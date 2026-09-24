@@ -109,6 +109,13 @@ export interface SharedTranslations {
   commonClose: string;
   commonLoading: string;
   commonClearSearch: string;
+  commonViewErrorTitle: string;
+  commonViewErrorMessage: string;
+  commonViewErrorRetry: string;
+  commonViewErrorDetails: string;
+  commonWindowErrorTitle: string;
+  commonWindowErrorMessage: string;
+  commonWindowErrorReload: string;
   commonCancel: string;
   commonRequiredField: string;
 }
@@ -239,6 +246,13 @@ const en: SharedTranslations = {
   commonClose: "Close",
   commonLoading: "Loading…",
   commonClearSearch: "Clear search",
+  commonViewErrorTitle: "This view ran into a problem",
+  commonViewErrorMessage: "Nothing in your project was changed. The rest of GitOdile keeps working; try showing this view again.",
+  commonViewErrorRetry: "Try again",
+  commonViewErrorDetails: "Technical details",
+  commonWindowErrorTitle: "GitOdile ran into a problem",
+  commonWindowErrorMessage: "Nothing in your project was changed. Reload the window to carry on where you were.",
+  commonWindowErrorReload: "Reload window",
   commonCancel: "Cancel",
   commonRequiredField: "Fill in this field.",
 };
@@ -374,6 +388,13 @@ const es: SharedTranslations = {
   commonClose: "Cerrar",
   commonLoading: "Cargando…",
   commonClearSearch: "Borrar la búsqueda",
+  commonViewErrorTitle: "Esta vista ha tenido un problema",
+  commonViewErrorMessage: "No se ha cambiado nada de tu proyecto. El resto de GitOdile sigue funcionando; prueba a mostrar esta vista de nuevo.",
+  commonViewErrorRetry: "Reintentar",
+  commonViewErrorDetails: "Detalles técnicos",
+  commonWindowErrorTitle: "GitOdile ha tenido un problema",
+  commonWindowErrorMessage: "No se ha cambiado nada de tu proyecto. Recarga la ventana para seguir donde estabas.",
+  commonWindowErrorReload: "Recargar la ventana",
   commonCancel: "Cancelar",
   commonRequiredField: "Rellena este campo.",
 };

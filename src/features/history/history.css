@@ -321,6 +321,37 @@
 }
 .history-timeline__virtual { position: relative; width: 100%; }
 .history-timeline__virtual-row { position: absolute; top: 0; left: 0; width: 100%; height: 64px; padding: 0 5px; contain: layout paint style; }
+/* The published boundary rides on the first published row, so the rows
+   keep one height and the virtualizer only has to know about one taller one. */
+.history-timeline__virtual-row--boundary { height: calc(64px + 26px); }
+/* A rule across the column that names both sides — `↑ 4 not published` at
+   the text's start, `Published ↓` at the end — so it cannot be read as a
+   fact about the one row over it. The remote is on its tooltip. The rail
+   runs through it at the rows' x (the row's 1px border and 17.5px, inside the
+   5px inset), in the accent while the selection sits below it. */
+.history-boundary {
+  position: relative; height: 26px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px 0 41px;
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-medium);
+}
+.history-boundary::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 18.5px; width: 1px; background: var(--border-divider);
+}
+.history-boundary[data-rail]::before { background: color-mix(in srgb, var(--accent-primary) 62%, var(--border-divider)); }
+.history-boundary__rule { flex: 1 1 auto; min-width: 12px; height: 0; border-top: 1px dashed var(--border-subtle); }
+.history-boundary__side { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+/* The count, as a way to publish what it counts: a capsule that shows it is
+   pressable only under the pointer, with the publish glyph arriving there. */
+.history-boundary__publish {
+  height: 20px; margin-inline-start: -7px; padding: 0 7px; border: 1px solid transparent; border-radius: var(--radius-pill);
+  background: transparent; color: inherit; font: inherit;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.history-boundary__publish:hover { background: var(--surface-hover); border-color: var(--border-subtle); color: var(--accent-primary); }
+.history-boundary__publish-icon { opacity: 0; transition: opacity var(--duration-fast); }
+.history-boundary__publish:hover .history-boundary__publish-icon { opacity: 1; }
+.history-boundary svg { width: 12px; height: 12px; }
 .history-timeline__footer { min-height: 48px; display: grid; place-items: center; padding: 8px; }
 .history-timeline__loading-more { width: min(220px, 100%); padding: 4px 0; }
 .history-timeline__loading-more .loading-state { gap: 7px; }
@@ -425,18 +456,30 @@
 /* One line, truncated: the subject gets a full line and the message behind it
    is read in the detail strip, which is the surface that has room for it. */
 .history-row__title { overflow: hidden; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-heading); line-height: var(--leading-snug); text-overflow: ellipsis; white-space: nowrap; }
-/* Author, then the reference, then when — one sentence packed from the left,
-   the same three facts in the same order as the Overview summary's rows. The
-   date used to be justified to the trailing edge by `space-between`, which
-   reads as two columns rather than one line and stops describing the row the
-   moment a third fact can sit between the ends. */
-.history-row__meta { min-width: 0; display: flex; align-items: center; gap: 5px; color: var(--text-secondary-color); font-size: var(--text-caption); }
-.history-row__meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The author is the only one that may give up width: it is the longest of the
-   three and the most repetitive down the column, and the other two are already
-   as short as they can be said. */
-.history-row__author { flex: 0 1 auto; }
-.history-row__date { flex: 0 0 auto; }
+/* Who, then the states, from the row's start; when, at its end — the shape
+   of a Lines row, so the two lists read alike. The author used to be spelled
+   out here, the longest and most repetitive fact down the column; as initials
+   it leaves the glyphs room, and the date keeps one place in every row. */
+.history-row__meta { min-width: 0; display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary-color); font-size: var(--text-caption); }
+.history-row__avatar {
+  width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center;
+  /* Tinted, not filled: a column of solid circles down a solo project's
+     timeline was the loudest thing on the screen. The initials take the
+     author's colour pulled toward the text colour, so they hold contrast on
+     their own tint in either theme. At the micro floor and a medium weight:
+     bold capitals filled an 18px circle edge to edge. */
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--author-color) 20%, var(--surface-panel));
+  color: color-mix(in srgb, var(--author-color) 65%, var(--text-primary-color));
+  font-size: var(--text-micro); font-weight: var(--weight-medium); line-height: var(--leading-none);
+}
+/* The Conventional Commits prefix, one tone quieter than the words after it,
+   and a merge's whole title the same: both are there, neither leads. */
+.history-title-prefix,
+.history-row--merge .history-row__title { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+/* What the search found, in the title it matched. */
+.history-match { background: color-mix(in srgb, var(--accent-primary) 24%, transparent); color: inherit; }
+.history-row__date { flex: 0 0 auto; margin-inline-start: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Shared with the Overview summary, like the badge below it. */
 .history-meta-dot { flex: 0 0 auto; color: var(--border-subtle); }
@@ -511,8 +554,7 @@
    rule ~20px below the tabs' (task 126 found it at 70px — the subject's `h2`
    still carried the browser's bottom margin, on top of 8px of padding each
    side). Two lines at lead and label size fit in 52px with air to spare;
-   `align-items: center` keeps the avatar and the trailing controls on the
-   block's centre. */
+   `align-items: center` keeps the trailing controls on the block's centre. */
 .history-detail__strip {
   flex: 0 0 auto; min-width: 0; overflow: hidden;
   height: var(--strip-height);
@@ -520,7 +562,6 @@
   padding: 0 var(--space-4) 0 var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
-.history-detail__strip .history-author-avatar { width: 24px; height: 24px; flex-basis: 24px; font-size: var(--text-micro); }
 /* Two lines, the way the Changes list panel heads its own column: the subject
    gets a line to itself, and the author sits under it — one tone quieter, so
    the name the row exists to show is never crowded by who saved it. Both lines
@@ -539,9 +580,6 @@
    own width. */
 .history-detail__strip-facts strong { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium); }
 .history-detail__strip-facts code { color: inherit; font-size: var(--text-caption); }
-/* At the ref badge's height rather than Details' 23px, so the two capsules
-   sit on one line; it holds its width, the author's name gives way first. */
-.history-detail__strip .history-publication { height: 17px; padding: 0 7px; flex-shrink: 0; }
 .history-detail__strip-trailing { display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; padding-left: var(--space-3); border-left: 1px solid var(--border-divider); }
 /* Two glyph-only controls, the strip's own shape: circles at the control tier,
    as every other icon control in the app is, each named to a screen reader and
@@ -562,14 +600,13 @@
 .history-details-toggle__caret { width: 16px; height: 16px; transition: transform var(--duration-fast); }
 .history-more-button svg { width: 16px; height: 16px; }
 .history-details-toggle[aria-expanded="true"] .history-details-toggle__caret { transform: rotate(90deg); }
-.history-author-avatar { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 26px; border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle)); border-radius: var(--radius-round); background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-raised)); color: var(--accent-primary); font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide); }
 .history-detail__truncated { margin: 6px 0 0; color: var(--status-warning); font-size: var(--text-caption); }
 
 /* The story of the version, behind `Details`: the full message, what the diff
    is compared against, and the facts the strip cannot carry. Closed by default
    so the diff keeps the whole card. */
 .history-details {
-  flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  flex: 0 1 auto; min-height: 0; max-height: 45%; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
   gap: var(--space-4); padding: var(--space-3) var(--space-4) var(--space-4);
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -613,7 +650,21 @@
 .history-files { flex: 1; min-height: 0; overflow-y: auto; }
 .history-files__virtual { position: relative; }
 .history-files__row { position: absolute; top: 0; left: 0; width: 100%; height: 58px; padding: 2px 6px; }
+/* The folder view: the same steps and hairlines the Changes tree draws, and a
+   file that is one line under its folder. */
+.history-files__row--tree {
+  display: flex; align-items: center;
+  padding-inline-start: calc(6px + var(--tree-depth, 0) * 16px);
+  background-image: repeating-linear-gradient(to right, transparent 0 13px, var(--border-divider) 13px 14px, transparent 14px 16px);
+  background-size: calc(var(--tree-depth, 0) * 16px) 100%;
+  background-position: 6px 0;
+  background-repeat: no-repeat;
+}
 .history-file { width: 100%; height: 54px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius-item); background: transparent; color: var(--text-primary-color); text-align: left; }
+/* After the base rule, which it overrides at the same specificity: before it,
+   the 54px list height won, and the button stood 14px taller than its 40px
+   folder-view row — centred, so the top of the first row was cut off. */
+.history-file--tree { height: 36px; }
 .history-file:hover { background: var(--surface-hover); }
 .history-file--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); }
 .history-file__type { width: 17px; height: 17px; display: grid; place-items: center; flex: 0 0 17px; }
@@ -737,6 +788,7 @@
   .history-banner { outline: 1px solid CanvasText; outline-offset: -1px; }
   .history-row--selected, .history-file--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .history-row__node { border-color: ButtonText; }
+  .history-row__avatar { border: 1px solid CanvasText; }
   .history-row--selected .history-row__node { background: Highlight; }
   /* `color-mix` does not survive a forced palette, so the walked rail names a
      system colour instead of losing its fill entirely. */
