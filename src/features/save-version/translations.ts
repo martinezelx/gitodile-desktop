@@ -3,6 +3,9 @@ export interface SaveVersionTranslations {
   saveVersionDialogTitleFirst: string;
   saveVersionLoadingTitle: string;
   saveVersionTitleLabel: string;
+  /** The two placeholders are a pair of questions: the name says what
+   * changed, the details why — what the name cannot. "What changed", not
+   * "what did you change": the change may be an AI's or a teammate's. */
   saveVersionTitlePlaceholder: string;
   saveVersionTitleGuidance: string;
   saveVersionDescriptionLabel: string;
@@ -38,10 +41,10 @@ const en: SaveVersionTranslations = {
   saveVersionDialogTitleFirst: "Save your first version",
   saveVersionLoadingTitle: "Preparing a preview…",
   saveVersionTitleLabel: "Version name",
-  saveVersionTitlePlaceholder: "Summarize what changed…",
+  saveVersionTitlePlaceholder: "What changed?",
   saveVersionTitleGuidance: "Around 50 characters is easy to scan, but longer names are allowed.",
   saveVersionDescriptionLabel: "More details (optional)",
-  saveVersionDescriptionPlaceholder: "Add more context, if useful…",
+  saveVersionDescriptionPlaceholder: "Why? (optional)",
   saveVersionFilesSummary: (total) => (total === 1 ? "1 file will be saved." : `${total} files will be saved.`),
   saveVersionRemainingNote: (remaining) =>
     remaining === 1 ? "1 other file will remain as a pending change." : `${remaining} other files will remain as pending changes.`,
@@ -78,10 +81,10 @@ const es: SaveVersionTranslations = {
   saveVersionDialogTitleFirst: "Guarda tu primera versión",
   saveVersionLoadingTitle: "Preparando una vista previa…",
   saveVersionTitleLabel: "Nombre de la versión",
-  saveVersionTitlePlaceholder: "Resume qué cambió…",
+  saveVersionTitlePlaceholder: "¿Qué cambió?",
   saveVersionTitleGuidance: "Unas 50 letras se leen de un vistazo, pero se permiten nombres más largos.",
   saveVersionDescriptionLabel: "Más detalles (opcional)",
-  saveVersionDescriptionPlaceholder: "Añade más contexto, si es útil…",
+  saveVersionDescriptionPlaceholder: "¿Por qué? (opcional)",
   saveVersionFilesSummary: (total) =>
     total === 1 ? "Se guardará 1 archivo." : `Se guardarán ${total} archivos.`,
   saveVersionRemainingNote: (remaining) =>

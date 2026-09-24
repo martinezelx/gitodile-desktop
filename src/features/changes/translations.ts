@@ -111,6 +111,7 @@ export interface ChangesTranslations {
   changesDiscardingNow: string;
   changesSaveVersionNoSelectionHint: string;
   changesQuickCommitFiles: (saved: number, total: number) => string;
+  changesQuickCommitSaving: string;
 
   changesSelectAll: string;
   changesSelectNone: string;
@@ -297,6 +298,7 @@ const en: ChangesTranslations = {
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
   changesQuickCommitFiles: (saved, total) =>
     saved === total ? (total === 1 ? "1 file" : `${total} files`) : `${saved} of ${total} files`,
+  changesQuickCommitSaving: "Saving…",
 
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
@@ -485,6 +487,7 @@ const es: ChangesTranslations = {
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
   changesQuickCommitFiles: (saved, total) =>
     saved === total ? (total === 1 ? "1 archivo" : `${total} archivos`) : `${saved} de ${total} archivos`,
+  changesQuickCommitSaving: "Guardando…",
 
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CircleAlert, CloudUpload, LoaderCircle, Save } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { localizeAppError, isAppError } from "../../shared/i18n";
+import { localizeAppError } from "../../shared/i18n";
 import { useModalFocus } from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import { usePersistedInstallDraft } from "../../runtime/drafts";
@@ -10,6 +10,7 @@ import type { ChangeCategory } from "../status";
 import type { SaveVersionController } from "./controller";
 import { createSaveVersionController } from "./controller";
 import { saveVersionPort } from "./tauriAdapter";
+import { FailureDetail } from "./FailureDetail";
 import { getSaveVersionNotes } from "./planNotes";
 import { useSaveVersionFlow, type SaveVersionPhase } from "./useSaveVersionFlow";
 
@@ -62,42 +63,6 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPlan; t: Translations }): R
         <p key={note} className="save-version-note">{note}</p>
       ))}
       <p className="save-version-note">{t.saveVersionLocalOnlyNote}</p>
-    </div>
-  );
-}
-
-function FailureDetail({
-  error,
-  t,
-  startExpanded = false,
-}: {
-  error: unknown;
-  t: Translations;
-  /** A hook rejection opens its own output: the hook's message *is* the
-   * explanation, and hiding the only thing that says what to fix behind a
-   * toggle makes the failure look arbitrary. */
-  startExpanded?: boolean;
-}): React.JSX.Element | null {
-  const [expanded, setExpanded] = useState(startExpanded);
-  if (!isAppError(error) || !error.detail) {
-    return null;
-  }
-  return (
-    <div className="save-version-detail">
-      <button type="button" className="save-version-detail__toggle" onClick={() => setExpanded((value) => !value)}>
-        {expanded ? t.saveVersionHideDetail : t.saveVersionShowDetail}
-      </button>
-      {expanded && (
-        <div>
-          <p className="save-version-detail__heading">{t.saveVersionDetailHeading}</p>
-          <pre
-            {...autoHideScrollbarProps<HTMLPreElement>()}
-            className="save-version-detail__body auto-hide-scrollbar"
-          >
-            {error.detail}
-          </pre>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,11 +1,12 @@
-import React, { useEffect, useImperativeHandle, useRef, useState } from "react";
+import React, { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { ArrowRight, Check, CircleAlert, CloudUpload, LoaderCircle } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
-import { useScrollAnchoredResize } from "../../shared/ui";
+import { autoHideScrollbarProps, useDockedComposerFocus, useScrollAnchoredResize } from "../../shared/ui";
 import { usePersistedInstallDraft } from "../../runtime/drafts";
 import {
   createSaveVersionController,
+  FailureDetail,
   getSaveVersionNotes,
   saveVersionPort,
   useSaveVersionFlow,
@@ -23,6 +24,14 @@ const isQuickMessage = (value: unknown): value is QuickVersionMessage =>
   value !== null &&
   typeof (value as Partial<QuickVersionMessage>).title === "string" &&
   typeof (value as Partial<QuickVersionMessage>).description === "string";
+
+/** Sizes a textarea to what is written in it, within its CSS `min-height` and
+ * `max-height`; past the maximum it scrolls. */
+function fitToContent(field: HTMLTextAreaElement): void {
+  field.style.height = "auto";
+  const border = field.offsetHeight - field.clientHeight;
+  field.style.height = `${field.scrollHeight + border}px`;
+}
 
 /** What the Changes screen can ask of the box from outside: open it and put
  * the caret in the name field. The screen's Ctrl/Cmd+S goes here. */
@@ -83,6 +92,7 @@ export function QuickCommitBox({
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [messageDraft, setMessageDraft, clearMessageDraft] = usePersistedInstallDraft(
     `quick-save-version:${projectPath}`,
     "quick version message",
@@ -91,6 +101,31 @@ export function QuickCommitBox({
     isQuickMessage,
   );
   const { title, description } = messageDraft;
+
+  // The details field fits what is written. Measured rather than left to
+  // `field-sizing: content`, which WebKit — macOS and Linux — does not have.
+  // Before paint, so a new line never shows a frame of scrollbar first; the
+  // CSS `min-height` and `max-height` bound it, and past the maximum it
+  // scrolls. Cleared drafts shrink it back the same way.
+  useLayoutEffect(() => {
+    if (descriptionRef.current) fitToContent(descriptionRef.current);
+  }, [description]);
+  // A change of width rewraps the same text into more or fewer lines — a
+  // narrower window, the list column stepping down at 1200px — so the height
+  // is measured again then too. Only on a change of width: the height this
+  // sets is itself a resize, and answering it would loop.
+  useEffect(() => {
+    const field = descriptionRef.current;
+    if (!field) return;
+    let width = field.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (field.clientWidth === width) return;
+      width = field.clientWidth;
+      fitToContent(field);
+    });
+    observer.observe(field);
+    return () => observer.disconnect();
+  }, []);
   const setTitle = (value: string): void =>
     setMessageDraft((current) => ({ ...current, title: value }));
   const setDescription = (value: string): void =>
@@ -122,10 +157,30 @@ export function QuickCommitBox({
   // already scrolled to its end. See the `fileListRef` prop doc, and
   // `useScrollAnchoredResize`'s own doc, for why and how.
   const { containerRef, snapshot } = useScrollAnchoredResize(fileListRef, expanded);
+  // Only a real change takes a snapshot: one taken while the box is already
+  // in the state asked for is never consumed (the anchoring runs on a change
+  // of `expanded`), and a later un-anchored fold would then apply it — moving
+  // the list to where it stood when that stale snapshot was taken.
   function beginExpandedChange(next: boolean): void {
+    if (next === expanded) return;
     snapshot();
     setExpanded(next);
   }
+
+  // When the box opens and folds — never under the pointer, never because the
+  // window lost focus — is the shared rule for docked compose boxes; see
+  // `useDockedComposerFocus`. Folding loses nothing only with no save in
+  // flight and no draft to protect. The fold after a press elsewhere skips
+  // the scroll anchoring, so the row just pressed stays put.
+  const focusHandlers = useDockedComposerFocus({
+    containerRef,
+    fieldRef: titleRef,
+    expanded,
+    busy: isBusy,
+    canFold: !isBusy && !title.trim() && !description.trim(),
+    onOpen: () => beginExpandedChange(true),
+    onFold: (anchored) => (anchored ? beginExpandedChange(false) : setExpanded(false)),
+  });
 
   // The plan is asked for when the box opens and again whenever the
   // selection under it changes — the checkboxes stay live while it is open,
@@ -198,13 +253,8 @@ export function QuickCommitBox({
   return (
     <div
       ref={containerRef}
-      className={`changes-quick-commit${expanded ? " changes-quick-commit--expanded" : ""}${isSaved ? " changes-quick-commit--saved" : ""}`}
-      onFocus={() => beginExpandedChange(true)}
-      onBlur={(event) => {
-        if (containerRef.current?.contains(event.relatedTarget as Node | null)) return;
-        if (isBusy || title.trim() || description.trim()) return;
-        beginExpandedChange(false);
-      }}
+      className={`docked-composer changes-quick-commit${expanded ? " docked-composer--expanded" : ""}`}
+      {...focusHandlers}
       onKeyDown={(event) => {
         if (event.key === "Escape" && expanded) {
           event.preventDefault();
@@ -217,28 +267,19 @@ export function QuickCommitBox({
           saved, the same slot says what was saved and offers the step after
           it. Kept one line tall while the plan loads, so the field under it
           does not jump when the answer arrives. */}
-      <div className="changes-quick-commit__head">
+      <div className="docked-composer__head">
         <div>
           {isSaved ? (
-            <p className="changes-quick-commit__success row-in" role="status">
+            <p className="docked-composer__line docked-composer__success row-in" role="status">
               <Check aria-hidden="true" />
               {/* One line at the list's width, so a long name truncates;
                   the whole sentence stays on the tooltip. */}
               <span data-tooltip={t.saveVersionSuccessDescription(state.result.title, state.result.shortCommit)}>
                 {t.saveVersionSuccessDescription(state.result.title, state.result.shortCommit)}
               </span>
-              {/* A quiet link, not a second primary: the band's Publish tile
-                  is where that step is said in full. Absent when "Also
-                  publish" already took it there. */}
-              {!publishToo && (
-                <button type="button" className="changes-quick-commit__publish-now" onClick={onPublishNow}>
-                  <CloudUpload aria-hidden="true" />
-                  {t.saveVersionPublishNow}
-                </button>
-              )}
             </p>
           ) : (
-            <p className="changes-quick-commit__plan">
+            <p className="docked-composer__line changes-quick-commit__plan">
               {/* The plan is Rust's answer, so it lands a beat after the box
                   opens: it arrives the way a new row does (`.row-in`) rather
                   than snapping on, and again whenever the selection changes
@@ -252,7 +293,7 @@ export function QuickCommitBox({
                   {plan.branch && (
                     <>
                       <ArrowRight aria-hidden="true" />
-                      <span className="changes-quick-commit__branch">{plan.branch}</span>
+                      <span className="docked-composer__mono">{plan.branch}</span>
                     </>
                   )}
                 </span>
@@ -263,7 +304,7 @@ export function QuickCommitBox({
       </div>
       <input
         ref={titleRef}
-        className="changes-quick-commit__summary"
+        className="docked-composer__field changes-quick-commit__summary"
         type="text"
         value={title}
         disabled={isBusy}
@@ -280,10 +321,15 @@ export function QuickCommitBox({
           }
         }}
       />
-      <div className="changes-quick-commit__extra">
+      <div className="docked-composer__extra">
         <div>
+          {/* Grows with what is written, up to the CSS `max-height` (about
+              eight lines), then scrolls: room for a long message without a
+              second, bigger frame to write it in. */}
           <textarea
-            className="changes-quick-commit__desc"
+            {...autoHideScrollbarProps<HTMLTextAreaElement>()}
+            ref={descriptionRef}
+            className="changes-quick-commit__desc auto-hide-scrollbar"
             rows={2}
             value={description}
             disabled={isBusy}
@@ -302,10 +348,22 @@ export function QuickCommitBox({
             </div>
           )}
           {(status === "save-error" || status === "blocked") && (
-            <p className="changes-quick-commit__error" role="alert">
-              <CircleAlert aria-hidden="true" />
-              {localizeAppError(state.error, t, t.errorGitCommandFailed)}
-            </p>
+            <>
+              <p className="docked-composer__error" role="alert">
+                <CircleAlert aria-hidden="true" />
+                {localizeAppError(state.error, t, t.errorGitCommandFailed)}
+              </p>
+              {/* What Git said, the same toggle the dialog prints: a hook's
+                  output is the only thing that says what to fix, so a hook
+                  rejection opens it. Keyed by the kind of failure because
+                  `startExpanded` only seeds the first render. */}
+              <FailureDetail
+                key={wasRejectedByHook ? "hook" : "generic"}
+                error={state.error}
+                t={t}
+                startExpanded={wasRejectedByHook}
+              />
+            </>
           )}
           {wasRejectedByHook && (
             <button
@@ -318,22 +376,40 @@ export function QuickCommitBox({
           )}
         </div>
       </div>
-      <div className="changes-quick-commit__foot">
-        {/* An option of this save, not a setting that takes effect on its
-            own, so a checkbox rather than a switch; the button beside it
-            says the consequence. */}
-        <label className="changes-quick-commit__publish" data-tooltip={remoteLabel ?? undefined}>
-          <input
-            className="app-checkbox"
-            type="checkbox"
-            checked={publishToo}
-            disabled={isBusy}
-            onChange={togglePublishToo}
-          />
-          <span>{t.saveVersionPublishToggleLabel}</span>
-        </label>
+      <div className="docked-composer__foot">
+        {isSaved && !publishToo ? (
+          /* The step after a save, where "Also publish" stood: that option
+             is spent for this version, and publishing it is what is left to
+             do. A secondary button at the row tier, level with Save — not a
+             second primary, since the band's Publish tile says that step in
+             full. Absent when "Also publish" already took the reader there;
+             the next keystroke clears the saved state and brings the option
+             back. */
+          <button
+            type="button"
+            className="secondary-button secondary-button--sm changes-quick-commit__publish-now"
+            onClick={onPublishNow}
+          >
+            <CloudUpload aria-hidden="true" />
+            {t.saveVersionPublishNow}
+          </button>
+        ) : (
+          /* An option of this save, not a setting that takes effect on its
+             own, so a checkbox rather than a switch; the button beside it
+             says the consequence. */
+          <label className="docked-composer__option" data-tooltip={remoteLabel ?? undefined}>
+            <input
+              className="app-checkbox"
+              type="checkbox"
+              checked={publishToo}
+              disabled={isBusy}
+              onChange={togglePublishToo}
+            />
+            <span>{t.saveVersionPublishToggleLabel}</span>
+          </label>
+        )}
         <button
-          className="primary-button primary-button--sm changes-quick-commit__action"
+          className="primary-button primary-button--sm docked-composer__action"
           type="button"
           disabled={!canSave || !title.trim() || isBusy}
           data-tooltip={!canSave ? t.changesSaveVersionNoSelectionHint : undefined}
@@ -342,7 +418,11 @@ export function QuickCommitBox({
           {isBusy ? (
             <>
               <LoaderCircle aria-hidden="true" className="icon--spinning" />
-              {t.saveVersionSaving}
+              {/* The short form: the dialog's "Saving your version…" is
+                  wider than this row and pushed the button onto a line of
+                  its own mid-save. The spinner and the disabled fields
+                  already say what is happening. */}
+              {t.changesQuickCommitSaving}
             </>
           ) : publishToo ? (
             t.saveVersionConfirmAndPublish

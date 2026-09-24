@@ -60,6 +60,10 @@ export { copyTextToClipboard } from "./clipboard";
    scroll-position correction when the box's own size changes. What is
    shared is the correction; the fields either box holds never were. */
 export { useScrollAnchoredResize, type ScrollAnchor } from "./scrollAnchoredResize";
+/* ADR 0003's two-consumer bar, by the same two boxes: when a docked compose
+   box opens and folds — never under the pointer, never because the window
+   lost focus — is one rule, and two copies of it had already drifted. */
+export { useDockedComposerFocus, type DockedComposerFocusHandlers } from "./dockedComposer";
 export { isReducedMotionRequested } from "./motionPreference";
 /* ADR 0003's two-consumer bar (task 125): Settings' preference rows authored
    the switch, and the notification panel's "turn them back on" needs the same

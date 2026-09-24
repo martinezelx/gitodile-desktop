@@ -538,92 +538,19 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--text-secondary-color);
 }
 
-/* The foot of the list panel: the save composer, and nothing else. It is a
-   section of the panel rather than a card floating on it — a hairline over
-   it, the panel's own background — the way GitHub Desktop and Fork dock
-   their commit box under the file list. The discard/restore `⋯` heads the
+/* The foot of the list panel: the save composer, and nothing else. The box
+   itself is `.docked-composer` in primitives.css — shared with Lines'
+   new-line box — which draws the hairline and the padding; what is left
+   here is what only the save box holds. The discard/restore `⋯` heads the
    list in the search strip, so nothing destructive lives in here. */
-.changes-file-list__foot {
-  flex: 0 0 auto; display: flex;
-  padding: var(--space-2);
-  border-top: 1px solid var(--border-divider);
-}
-/* One grid in two arrangements, so opening never changes the box's shape,
-   only how much of it shows. At rest the field and the foot share a row —
-   the name and its Save button, the one thing to do, visible without a
-   click — and the head and the details are collapsed to nothing. Open, the
-   same four parts stack: plan, field, details, foot. Switching the
-   arrangement is layout, so it snaps (styleComposition.test.ts forbids
-   animating it); only the collapsed parts' content fades in. */
-.changes-quick-commit {
-  flex: 1 1 auto; min-width: 0;
-  display: grid; align-items: center; column-gap: var(--space-2);
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "head head" "title foot" "extra extra";
-}
-.changes-quick-commit--expanded {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "head" "title" "extra" "foot";
-}
-.changes-quick-commit__head { grid-area: head; }
-.changes-quick-commit__summary { grid-area: title; }
-.changes-quick-commit__extra { grid-area: extra; }
-.changes-quick-commit__foot { grid-area: foot; }
-/* Grid rows collapse the head and the details to zero height when closed,
-   same as a `.filter-panel` disclosure — snapped, not eased: `grid-template-rows`
-   is layout motion. The soften-on-open feel comes from the child, on
-   properties the compositor animates for free: opacity and a barely-there
-   scale, kept subtle (0.96) since both hold text. */
-.changes-quick-commit__head, .changes-quick-commit__extra { display: grid; grid-template-rows: 0fr; }
-.changes-quick-commit--expanded .changes-quick-commit__head { grid-template-rows: 1fr; margin-bottom: var(--space-2); }
-.changes-quick-commit--expanded .changes-quick-commit__extra { grid-template-rows: 1fr; margin-top: var(--space-2); }
-.changes-quick-commit__head > div, .changes-quick-commit__extra > div {
-  min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: var(--space-2);
-  opacity: 0; transform: scaleY(0.96);
-  transition: opacity var(--duration-fast), transform var(--duration-normal) ease-out;
-}
-.changes-quick-commit__head > div { transform-origin: bottom; }
-.changes-quick-commit__extra > div { transform-origin: top; }
-.changes-quick-commit--expanded .changes-quick-commit__head > div,
-.changes-quick-commit--expanded .changes-quick-commit__extra > div { opacity: 1; transform: scaleY(1); }
-@media (prefers-reduced-motion: reduce) {
-  .changes-quick-commit__head > div, .changes-quick-commit__extra > div { transition: none; }
-}
-/* The plan: what the press will save and where, at caption size, the count
-   first and the line in the status bar's own mono. One line tall even while
-   the plan loads, so the field under it does not jump when it lands. */
-.changes-quick-commit__plan, .changes-quick-commit__success {
-  display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 18px; margin: 0;
-  padding: 0 var(--space-4);
-  font-size: var(--text-caption); line-height: var(--leading-snug);
-}
-.changes-quick-commit__plan { color: var(--text-secondary-color); }
+.changes-file-list__foot { flex: 0 0 auto; }
+/* The plan: the count first, then the line in the status bar's own mono. */
 .changes-quick-commit__plan-body { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.changes-quick-commit__plan svg { width: 12px; height: 12px; flex: 0 0 auto; }
-.changes-quick-commit__branch {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--text-primary-color); font-family: var(--font-mono);
-}
-/* The single-line field is a pill, like every single-line input in the app
-   (DESIGN.md § Shape) — the search box at the other end of this panel is
-   the same control. `input` in the selector: `input:focus-visible` in
-   base.css carries the same specificity, and the border already says
-   "focused". */
-input.changes-quick-commit__summary {
-  box-sizing: border-box; width: 100%; min-width: 0; height: var(--control-height-sm);
-  padding: 0 var(--space-4);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
-  background: var(--surface-hover); color: var(--text-primary-color);
-  font: inherit; font-size: var(--control-font-sm); outline: none;
-  transition: border-color var(--duration-fast), background var(--duration-fast);
-}
-input.changes-quick-commit__summary:focus { border-color: var(--focus-ring); background: var(--surface-raised); }
-.changes-quick-commit__summary::placeholder { color: var(--text-secondary-color); }
-.changes-quick-commit__summary:disabled { opacity: 0.6; }
 /* Multi-line, so it cannot be a capsule: `--radius-control`, the tier for a
    control that has to stay rectangular. */
 .changes-quick-commit__desc {
-  box-sizing: border-box; width: 100%; resize: none; min-height: 56px; padding: 7px var(--space-4);
+  box-sizing: border-box; width: 100%; resize: none; min-height: 56px; max-height: 184px; overflow-y: auto;
+  padding: 7px var(--space-4);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-hover);
   color: var(--text-primary-color); font: inherit; font-size: var(--text-body); line-height: var(--leading-normal); outline: none;
   transition: border-color var(--duration-fast), background var(--duration-fast);
@@ -637,43 +564,11 @@ input.changes-quick-commit__summary:focus { border-color: var(--focus-ring); bac
 .changes-quick-commit__notes p {
   margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
 }
-.changes-quick-commit__error {
-  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
-  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger);
-  font-size: var(--text-label); line-height: var(--leading-normal);
-}
-.changes-quick-commit__error svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
 .changes-quick-commit__hook-escape { align-self: flex-start; }
-/* At rest only the button shows here, beside the field; open, "Also publish"
-   joins it at the start. Short of the room for both, `flex-wrap` drops the
-   button to a line of its own, still at the end, rather than clipping either. */
-.changes-quick-commit__foot {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2) var(--space-3);
-}
-/* Open, the foot is its own row under the details: a step of space so the
-   button does not sit on the textarea's edge. */
-.changes-quick-commit--expanded .changes-quick-commit__foot { margin-top: var(--space-3); }
-.changes-quick-commit__publish {
-  display: none; align-items: center; gap: 8px; flex-shrink: 0; margin-right: auto; padding-left: var(--space-2);
-  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
-}
-.changes-quick-commit--expanded .changes-quick-commit__publish { display: inline-flex; }
-.changes-quick-commit__action { flex: 0 0 auto; }
-/* The version that was just saved, in the plan's slot: success colour, the
-   check the saved state is drawn with, and the step after it as a quiet link. */
-.changes-quick-commit__success {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); row-gap: 4px; color: var(--status-success);
-}
-.changes-quick-commit__success > svg { width: 13px; height: 13px; }
-.changes-quick-commit__success > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.changes-quick-commit__publish-now {
-  grid-column: 2; justify-self: start; display: inline-flex; align-items: center; gap: 5px;
-  padding: 0; border: 0; background: transparent; color: var(--accent-primary);
-  font: inherit; font-weight: var(--weight-heading);
-}
-.changes-quick-commit__publish-now:hover { text-decoration: underline; }
-.changes-quick-commit__publish-now:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
-.changes-quick-commit__publish-now svg { width: 13px; height: 13px; }
+/* "Publish now" stands where "Also publish" stood, at the start of the foot. */
+.changes-quick-commit__publish-now { margin-right: auto; }
+.changes-quick-commit__publish-now svg { width: 15px; height: 15px; }
+.docked-composer:not(.docked-composer--expanded) .changes-quick-commit__publish-now { display: none; }
 
 .changes-diff {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
