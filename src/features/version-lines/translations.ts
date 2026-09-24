@@ -1,3 +1,5 @@
+import type { LineNameIssue } from "./lineNames";
+
 export interface VersionLinesTranslations {
   versionLinesTitle: string;
   versionLinesExplanation: string;
@@ -67,9 +69,18 @@ export interface VersionLinesTranslations {
    * there is a real choice to name. */
   versionLinesQuickCreateSourceLabel: string;
   versionLinesQuickCreateSwitchLabel: string;
+  /** The box's button, named apart from the dialog's own "Create" for the
+   * same reason as the name field above, and saying the consequence: it
+   * reads "Create and switch" whenever the press also switches. */
   versionLinesQuickCreateConfirmLabel: string;
-  versionLinesQuickCreateDismiss: string;
+  versionLinesQuickCreateConfirmAndSwitch: string;
   versionLinesQuickCreateSuccess: (name: string, switched: boolean) => string;
+  /** The name field's example when the project's own lines share a prefix
+   * (`fix/…`), so it teaches the convention the project already has. */
+  versionLinesQuickCreateNamePlaceholderFor: (prefix: string) => string;
+  /** Why a typed name would be refused, said under the field before the
+   * press — see `checkLineName`. */
+  versionLinesNameIssue: (issue: LineNameIssue) => string;
   switchVersionLineTitle: (to: string) => string;
   switchVersionLineLoading: string;
   switchVersionLineChangedFiles: (count: number) => string;
@@ -240,9 +251,36 @@ const en: VersionLinesTranslations = {
   versionLinesQuickCreateSourceLabel: "Create from",
   versionLinesQuickCreateSwitchLabel: "Switch to it",
   versionLinesQuickCreateConfirmLabel: "Create line",
-  versionLinesQuickCreateDismiss: "Discard draft",
+  versionLinesQuickCreateConfirmAndSwitch: "Create and switch",
   versionLinesQuickCreateSuccess: (name, switched) =>
     switched ? `Created “${name}” and switched to it.` : `Created “${name}”.`,
+  versionLinesQuickCreateNamePlaceholderFor: (prefix) => `${prefix}/short-name`,
+  versionLinesNameIssue: (issue) => {
+    switch (issue.kind) {
+      case "space":
+        return "Names can't contain spaces. Use hyphens instead, like my-line.";
+      case "character":
+        return `Names can't contain “${issue.character}”.`;
+      case "control":
+        return "The name has an invisible character. Retype it.";
+      case "sequence":
+        return `Names can't contain “${issue.sequence}”.`;
+      case "leading":
+        return `Names can't start with “${issue.character}”.`;
+      case "part-leading-dot":
+        return "No part of the name can start with a dot.";
+      case "trailing":
+        return `Names can't end with “${issue.character}”.`;
+      case "lock-suffix":
+        return "No part of the name can end with “.lock”.";
+      case "reserved":
+        return `“${issue.name}” is reserved by Git.`;
+      case "taken":
+        return `A line named “${issue.name}” already exists.`;
+      case "case-collision":
+        return `“${issue.existing}” already exists. Names that differ only in capitals clash on some systems.`;
+    }
+  },
   switchVersionLineTitle: (to) => `Switch to “${to}”`,
   switchVersionLineLoading: "Comparing version lines…",
   switchVersionLineChangedFiles: (count) =>
@@ -439,9 +477,36 @@ const es: VersionLinesTranslations = {
   versionLinesQuickCreateSourceLabel: "Crear desde",
   versionLinesQuickCreateSwitchLabel: "Cambiar a ella",
   versionLinesQuickCreateConfirmLabel: "Crear línea",
-  versionLinesQuickCreateDismiss: "Descartar borrador",
+  versionLinesQuickCreateConfirmAndSwitch: "Crear y cambiar",
   versionLinesQuickCreateSuccess: (name, switched) =>
     switched ? `Se creó «${name}» y se cambió a ella.` : `Se creó «${name}».`,
+  versionLinesQuickCreateNamePlaceholderFor: (prefix) => `${prefix}/nombre-corto`,
+  versionLinesNameIssue: (issue) => {
+    switch (issue.kind) {
+      case "space":
+        return "Los nombres no pueden llevar espacios. Usa guiones, como mi-linea.";
+      case "character":
+        return `Los nombres no pueden llevar «${issue.character}».`;
+      case "control":
+        return "El nombre tiene un carácter invisible. Vuelve a escribirlo.";
+      case "sequence":
+        return `Los nombres no pueden llevar «${issue.sequence}».`;
+      case "leading":
+        return `Los nombres no pueden empezar por «${issue.character}».`;
+      case "part-leading-dot":
+        return "Ninguna parte del nombre puede empezar por un punto.";
+      case "trailing":
+        return `Los nombres no pueden acabar en «${issue.character}».`;
+      case "lock-suffix":
+        return "Ninguna parte del nombre puede acabar en «.lock».";
+      case "reserved":
+        return `«${issue.name}» está reservado por Git.`;
+      case "taken":
+        return `Ya existe una línea llamada «${issue.name}».`;
+      case "case-collision":
+        return `Ya existe «${issue.existing}». Los nombres que solo cambian en mayúsculas chocan en algunos sistemas.`;
+    }
+  },
   switchVersionLineTitle: (to) => `Cambiar a «${to}»`,
   switchVersionLineLoading: "Comparando líneas de versión…",
   switchVersionLineChangedFiles: (count) =>

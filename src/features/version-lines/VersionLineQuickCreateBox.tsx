@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import { CheckCircle2, CircleAlert, GitBranch, GitBranchPlus, LoaderCircle, X } from "lucide-react";
+import React, { useId, useRef, useState } from "react";
+import { Check, CircleAlert, LoaderCircle } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
-import { moveFocusWithinRadioGroup, useScrollAnchoredResize } from "../../shared/ui";
+import { moveFocusWithinRadioGroup, useDockedComposerFocus, useScrollAnchoredResize } from "../../shared/ui";
 import type { VersionLine, VersionLinesSnapshot } from "./domain";
+import { checkLineName, prevailingLinePrefix } from "./lineNames";
 import type { VersionLinesPort } from "./port";
 import { versionLinesPort } from "./tauriAdapter";
 
@@ -14,12 +15,16 @@ type QuickCreateStatus =
   | { kind: "error"; error: unknown }
   | { kind: "success"; name: string; switched: boolean };
 
-/** The fast path for the common case, docked at the foot of the Lines list —
- * the sibling of Changes' `QuickCommitBox`, adapted to this screen's own
- * mutation. Closed, it is one row; it opens on focus and closes again on
- * blur, unless there is a name typed or a create in flight. "New line" in
- * the header still opens the full dialog with its plan preview, for the
- * cases that want one — the two are not exclusive.
+/** The fast path for the common case: a composer docked at the foot of the
+ * Lines list, the sibling of Changes' `QuickCommitBox` and built the same way
+ * (DESIGN.md, Changes). At rest it is one row — the name field and the
+ * Create button beside it. It opens on focus and grows upward without
+ * changing shape: where the line starts over the field (with the choice of
+ * start, when there is one), any failure under it, and a foot with "Switch to
+ * it" and the button, whose label says what the press will do. When it folds
+ * is `useDockedComposerFocus`, shared with Changes' box. "New line" in the
+ * header still opens the full dialog with its plan preview, for the cases
+ * that want one — the two are not exclusive.
  *
  * Unlike the quick commit box, this one takes the same cross-session
  * mutation lock every other version-line change on this screen already
@@ -53,6 +58,7 @@ export function VersionLineQuickCreateBox({
    * another line's detail without switching to it must not silently change
    * what a new line branches from. */
   activeLine,
+  existingNames,
   listRef,
   onOperationStart,
   onOperationFinish,
@@ -65,6 +71,12 @@ export function VersionLineQuickCreateBox({
   forceSwitch: boolean;
   mainLine: VersionLine | null;
   activeLine: VersionLine | null;
+  /** The names of the lines already loaded, for two things said before the
+   * press: a typed name that clashes with one of them, and the prefix they
+   * share, which becomes the name field's example. Rust checks the full set
+   * again on create, so a truncated list only means an earlier warning is
+   * missed, never that a clash gets through. */
+  existingNames: readonly string[];
   /** The Lines list's own scroll container — this box shares a flex column
    * with it, so opening or closing shrinks or grows that scroller by exactly
    * this box's own height change. See `useScrollAnchoredResize`. */
@@ -84,6 +96,12 @@ export function VersionLineQuickCreateBox({
   const [switchChoice, setSwitchChoice] = useState(true);
   const [source, setSource] = useState<"main" | "active">("active");
   const [status, setStatus] = useState<QuickCreateStatus>({ kind: "idle" });
+  const nameRef = useRef<HTMLInputElement>(null);
+  // Set by a press that a name's ending refused (see `checkLineName`'s
+  // `submit` issues); any edit clears it, so the ending is judged again only
+  // when the reader next asks to create.
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const issueId = useId();
   useInstallDraftBlocker(
     `quick-version-line:${projectPath}`,
     "new version line name",
@@ -108,7 +126,11 @@ export function VersionLineQuickCreateBox({
       ? (source === "main" ? mainLine : activeLine)
       : (activeLine ?? mainLine);
   const { containerRef, snapshot } = useScrollAnchoredResize(listRef, expanded);
+  // Only a real change takes a snapshot — see the same guard in
+  // `QuickCommitBox`: a snapshot taken while already in the state asked for
+  // is never consumed, and a later un-anchored fold would apply it.
   function beginExpandedChange(next: boolean): void {
+    if (next === expanded) return;
     snapshot();
     setExpanded(next);
   }
@@ -116,20 +138,49 @@ export function VersionLineQuickCreateBox({
   const isBusy = status.kind === "creating";
   const effectiveSwitch = forceSwitch || switchChoice;
 
+  // What Git would refuse about the name, said under the field before the
+  // press rather than as a failure after it. Checked as it will be sent —
+  // trimmed — so a stray trailing space is not an error. What typing on can
+  // never fix (a space inside, a forbidden character, a taken name) is said
+  // at once and holds the button; how a half-typed name ends (`feature/`) is
+  // said only once the reader asks to create.
+  const nameCheck = checkLineName(name.trim(), existingNames);
+  const nameIssue = nameCheck && (nameCheck.when === "live" || submitAttempted) ? nameCheck.issue : null;
+  const blocksCreate = nameCheck?.when === "live";
+  // The example follows the project's own convention when it has one.
+  const prefix = prevailingLinePrefix(existingNames);
+  const placeholder = prefix
+    ? t.versionLinesQuickCreateNamePlaceholderFor(prefix)
+    : t.versionLinesQuickCreateNamePlaceholder;
+
   function clearStaleStatus(): void {
     if (status.kind === "success" || status.kind === "error") {
       setStatus({ kind: "idle" });
     }
   }
 
-  function collapse(): void {
-    beginExpandedChange(false);
+  function collapse(anchored: boolean = true): void {
+    if (anchored) beginExpandedChange(false);
+    else setExpanded(false);
     setStatus({ kind: "idle" });
   }
 
-  /** The escape hatch for "opened this by accident": clears the draft and
-   * folds the box back to its one-line rest state. Not offered mid-create —
-   * the fields disabled then are the same signal Changes' box uses. */
+  // When the box opens and folds is the rule every docked compose box shares:
+  // see `useDockedComposerFocus`. Folding loses nothing only with no create
+  // in flight and no name typed.
+  const focusHandlers = useDockedComposerFocus({
+    containerRef,
+    fieldRef: nameRef,
+    expanded,
+    busy: isBusy,
+    canFold: !isBusy && !name.trim(),
+    onOpen: () => beginExpandedChange(true),
+    onFold: collapse,
+  });
+
+  /** Escape is the way out for "opened this by accident": it clears the draft
+   * and folds the box back to its one-row rest state. Not offered
+   * mid-create — the disabled fields are the signal then. */
   function handleDismiss(): void {
     if (isBusy) return;
     setName("");
@@ -138,7 +189,12 @@ export function VersionLineQuickCreateBox({
 
   async function handleCreate(): Promise<void> {
     const trimmed = name.trim();
-    if (!trimmed || isBusy) {
+    if (!trimmed || isBusy || blocksCreate) {
+      return;
+    }
+    if (nameCheck) {
+      // A name that only ends wrong: say so now, and ask Git for nothing.
+      setSubmitAttempted(true);
       return;
     }
     if (!onOperationStart()) {
@@ -192,13 +248,8 @@ export function VersionLineQuickCreateBox({
   return (
     <div
       ref={containerRef}
-      className={`version-lines-quick-create${expanded ? " version-lines-quick-create--expanded" : ""}`}
-      onFocus={() => beginExpandedChange(true)}
-      onBlur={(event) => {
-        if (containerRef.current?.contains(event.relatedTarget as Node | null)) return;
-        if (isBusy || name.trim()) return;
-        collapse();
-      }}
+      className={`docked-composer version-lines-quick-create${expanded ? " docked-composer--expanded" : ""}`}
+      {...focusHandlers}
       onKeyDown={(event) => {
         if (event.key === "Escape" && expanded) {
           event.preventDefault();
@@ -206,146 +257,156 @@ export function VersionLineQuickCreateBox({
         }
       }}
     >
-      <div className="version-lines-quick-create__field">
-        <div className="version-lines-quick-create__name-wrap">
-          <GitBranchPlus aria-hidden="true" />
-          <input
-            className="version-lines-quick-create__name"
-            type="text"
-            value={name}
-            disabled={isBusy}
-            placeholder={t.versionLinesQuickCreateNamePlaceholder}
-            aria-label={t.versionLinesQuickCreateNameLabel}
-            onChange={(event) => {
-              setName(event.target.value);
-              clearStaleStatus();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void handleCreate();
-              }
-            }}
-          />
-          {/* Hidden by CSS rather than left unmounted while closed — same
-              idiom as `QuickCommitBox`'s own dismiss control. */}
-          <button
-            type="button"
-            className="version-lines-quick-create__dismiss"
-            aria-label={t.versionLinesQuickCreateDismiss}
-            disabled={isBusy}
-            onClick={handleDismiss}
-          >
-            <X aria-hidden="true" />
-          </button>
+      {/* Where the new line starts, over the field it is about — this box's
+          plan line, known locally so it is there from the first frame. When
+          the default line and the active one differ, the choice between them
+          is made right here rather than in the foot. On a detached `HEAD`
+          the slot explains the one honest starting point instead. Once
+          created, the same slot says what was created. */}
+      <div className="docked-composer__head">
+        <div>
+          {status.kind === "success" ? (
+            <p className="docked-composer__line docked-composer__success row-in" role="status">
+              <Check aria-hidden="true" />
+              <span data-tooltip={t.versionLinesQuickCreateSuccess(status.name, status.switched)}>
+                {t.versionLinesQuickCreateSuccess(status.name, status.switched)}
+              </span>
+            </p>
+          ) : forceSwitch ? (
+            <p className="version-lines-quick-create__note">{t.createVersionLineDetachedNote}</p>
+          ) : showSourceChoice ? (
+            <div className="docked-composer__line version-lines-quick-create__from">
+              <span>{t.versionLinesQuickCreateSourceLabel}</span>
+              {/* Both options by their names, in the same mono as the line
+                  this slot names when there is no choice — "main" reads the
+                  same whether or not it could have been something else; that
+                  it is the main line is on its tooltip. A segmented control,
+                  always exactly two options and never more: real buttons rather than a label wrapping a hidden
+                  radio input, which is what `FilterCapsule` builds — that
+                  indirection is where a first version of this row lost
+                  focus tracking the moment a reader clicked an option with an
+                  empty name field. A directly-focusable button has no such
+                  gap. */}
+              <div
+                className="segmented-control"
+                role="radiogroup"
+                aria-label={t.versionLinesQuickCreateSourceLabel}
+                onKeyDown={moveFocusWithinRadioGroup}
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={source === "main"}
+                  tabIndex={source === "main" ? 0 : -1}
+                  data-tooltip={t.versionLinesDefaultLineChip}
+                  className={`segmented-control__option segmented-control__option--mono${source === "main" ? " segmented-control__option--active" : ""}`}
+                  disabled={isBusy}
+                  onClick={() => setSource("main")}
+                >
+                  {mainLine?.name}
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={source === "active"}
+                  tabIndex={source === "active" ? 0 : -1}
+                  data-tooltip={activeLine?.name}
+                  className={`segmented-control__option segmented-control__option--mono${source === "active" ? " segmented-control__option--active" : ""}`}
+                  disabled={isBusy}
+                  onClick={() => setSource("active")}
+                >
+                  {activeLine?.name}
+                </button>
+              </div>
+            </div>
+          ) : resolvedSource ? (
+            <p className="docked-composer__line version-lines-quick-create__from">
+              <span>{t.versionLinesQuickCreateSourceLabel}</span>
+              <span className="docked-composer__mono">{resolvedSource.name}</span>
+            </p>
+          ) : null}
         </div>
       </div>
 
-      <div className="version-lines-quick-create__extra">
+      <input
+        ref={nameRef}
+        className="docked-composer__field version-lines-quick-create__name"
+        type="text"
+        value={name}
+        disabled={isBusy}
+        placeholder={placeholder}
+        aria-label={t.versionLinesQuickCreateNameLabel}
+        aria-invalid={nameIssue ? true : undefined}
+        aria-describedby={nameIssue ? issueId : undefined}
+        spellCheck={false}
+        autoComplete="off"
+        onChange={(event) => {
+          setName(event.target.value);
+          setSubmitAttempted(false);
+          clearStaleStatus();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            void handleCreate();
+          }
+        }}
+      />
+
+      <div className="docked-composer__extra">
         <div>
+          {/* The shared field-error look, at the field's own inset. Polite,
+              so a reader using a screen reader hears it without it cutting
+              into what they are typing. */}
+          {nameIssue && (
+            <p id={issueId} className="field-error version-lines-quick-create__issue" aria-live="polite">
+              <CircleAlert aria-hidden="true" />
+              {t.versionLinesNameIssue(nameIssue)}
+            </p>
+          )}
           {status.kind === "error" && (
-            <p className="version-lines-quick-create__error" role="alert">
+            <p className="docked-composer__error" role="alert">
               <CircleAlert aria-hidden="true" />
               {localizeAppError(status.error, t, t.errorGitCommandFailed)}
             </p>
           )}
-          {status.kind === "success" && (
-            <p className="version-lines-quick-create__success" role="status">
-              <CheckCircle2 aria-hidden="true" />
-              {t.versionLinesQuickCreateSuccess(status.name, status.switched)}
-            </p>
-          )}
-
-          {forceSwitch && <p className="save-version-note">{t.createVersionLineDetachedNote}</p>}
-
-          {/* One row for everything this box's own footer controls: where
-              the line starts, whether to switch to it, and the action that
-              reads both. Three controls is a lot for ~300px, so this row
-              leans on the same `flex-wrap` `QuickCommitBox`'s foot already
-              uses rather than reserving a line each — most of the time only
-              the switch and the button are here at all (see
-              `showSourceChoice`'s own doc for when the third joins them). */}
-          <div className="version-lines-quick-create__foot">
-            {showSourceChoice && (
-              <div className="version-lines-quick-create__source">
-                <span>{t.versionLinesQuickCreateSourceLabel}</span>
-                {/* A segmented control, always exactly two options and never
-                    more: real buttons rather than a label wrapping a hidden
-                    radio input, which is what `FilterCapsule` builds — that
-                    indirection is where a first version of this row lost
-                    focus tracking (see the blur handler above) the moment a
-                    reader clicked an option with an empty name field. A
-                    directly-focusable button has no such gap. */}
-                <div
-                  className="segmented-control"
-                  role="radiogroup"
-                  aria-label={t.versionLinesQuickCreateSourceLabel}
-                  onKeyDown={moveFocusWithinRadioGroup}
-                >
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={source === "main"}
-                    tabIndex={source === "main" ? 0 : -1}
-                    className={`segmented-control__option${source === "main" ? " segmented-control__option--active" : ""}`}
-                    disabled={isBusy}
-                    onClick={() => setSource("main")}
-                  >
-                    {t.versionLinesDefaultLineChip}
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={source === "active"}
-                    tabIndex={source === "active" ? 0 : -1}
-                    title={activeLine?.name}
-                    className={`segmented-control__option${source === "active" ? " segmented-control__option--active" : ""}`}
-                    disabled={isBusy}
-                    onClick={() => setSource("active")}
-                  >
-                    {activeLine?.name}
-                  </button>
-                </div>
-              </div>
-            )}
-            {!forceSwitch && (
-              <div className="version-lines-quick-create__switch">
-                <span>{t.versionLinesQuickCreateSwitchLabel}</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={switchChoice}
-                  aria-label={t.versionLinesQuickCreateSwitchLabel}
-                  className={`toggle-switch${switchChoice ? " toggle-switch--on" : ""}`}
-                  disabled={isBusy}
-                  onClick={() => setSwitchChoice((value) => !value)}
-                >
-                  <span className="toggle-switch__knob" />
-                </button>
-              </div>
-            )}
-
-            <button
-              className="primary-button primary-button--sm version-lines-quick-create__action"
-              type="button"
-              disabled={!name.trim() || isBusy}
-              aria-label={t.versionLinesQuickCreateConfirmLabel}
-              onClick={() => void handleCreate()}
-            >
-              {isBusy ? (
-                <>
-                  <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                  {t.createVersionLineCreating}
-                </>
-              ) : (
-                <>
-                  <GitBranch aria-hidden="true" />
-                  {t.createVersionLineConfirm}
-                </>
-              )}
-            </button>
-          </div>
         </div>
+      </div>
+
+      <div className="docked-composer__foot">
+        {/* An option of this create, not a setting that takes effect on its
+            own, so a checkbox rather than a switch; the button beside it says
+            the consequence. Absent on a detached `HEAD`, where switching is
+            not a choice — the head slot says why. */}
+        {!forceSwitch && (
+          <label className="docked-composer__option">
+            <input
+              className="app-checkbox"
+              type="checkbox"
+              checked={switchChoice}
+              disabled={isBusy}
+              onChange={() => setSwitchChoice((value) => !value)}
+            />
+            <span>{t.versionLinesQuickCreateSwitchLabel}</span>
+          </label>
+        )}
+        <button
+          className="primary-button primary-button--sm docked-composer__action"
+          type="button"
+          disabled={!name.trim() || isBusy || blocksCreate}
+          onClick={() => void handleCreate()}
+        >
+          {isBusy ? (
+            <>
+              <LoaderCircle aria-hidden="true" className="icon--spinning" />
+              {t.createVersionLineCreating}
+            </>
+          ) : effectiveSwitch ? (
+            t.versionLinesQuickCreateConfirmAndSwitch
+          ) : (
+            t.versionLinesQuickCreateConfirmLabel
+          )}
+        </button>
       </div>
     </div>
   );

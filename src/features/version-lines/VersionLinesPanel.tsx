@@ -1006,6 +1006,10 @@ export function VersionLinesPanel({
   /* The repository's default line — what `VersionLineQuickCreateBox` offers
      as the alternative starting point to `active` when the two differ. */
   const defaultLine = snapshot?.lines.find((line) => line.isDefault) ?? null;
+  /* Every loaded line's name, for the quick create box to warn about a clash
+     and to take its example's prefix from. The whole snapshot, not the
+     filtered list: a search must not hide the line a new name clashes with. */
+  const lineNames = useMemo(() => snapshot?.lines.map((line) => line.name) ?? [], [snapshot]);
   /* The active line heads the list and is exempt from search and filters: it
      is where the project *is*, and a screen that can hide it leaves the reader
      without the one row that answers "where am I". */
@@ -1357,6 +1361,7 @@ export function VersionLinesPanel({
               forceSwitch={snapshot.headState === "detached"}
               mainLine={defaultLine}
               activeLine={active}
+              existingNames={lineNames}
               listRef={listScrollRef}
               onOperationStart={onOperationStart}
               onOperationFinish={onOperationFinish}
