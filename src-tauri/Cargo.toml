@@ -22,7 +22,7 @@ tauri-plugin-updater = "=2.11.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 semver = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 tokio = { version = "1", features = ["macros", "sync", "time"] }
 # The exact updater plugin owns the only HTTP client. This direct dependency is
 # type-level only: it lets GitOdile retain the plugin client's redirect/timeout
