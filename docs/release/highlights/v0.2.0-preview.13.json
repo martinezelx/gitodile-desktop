@@ -17,8 +17,8 @@
     {
       "id": "colourThemes",
       "icon": "sparkles",
-      "en": "Choose a colour theme in Settings: besides GitOdile's own light and dark, there are Catppuccin, Nord, Tokyo Night, Dracula and Solarized.",
-      "es": "Elige un tema de color en Ajustes: además del claro y el oscuro de GitOdile, tienes Catppuccin, Nord, Tokyo Night, Dracula y Solarized."
+      "en": "Choose a colour theme in Settings: besides GitOdile's own light and dark, there are Catppuccin, Nord, Tokyo Night, Dracula, Solarized and Gruvbox.",
+      "es": "Elige un tema de color en Ajustes: además del claro y el oscuro de GitOdile, tienes Catppuccin, Nord, Tokyo Night, Dracula, Solarized y Gruvbox."
     },
     {
       "id": "updateChannelAndHighlights",

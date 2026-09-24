@@ -42,6 +42,10 @@ describe("application-shell preferences", () => {
     expect(migrated.result.current[0]).toBe("gitodile-dark");
     expect(localStorage.getItem("gitodile-theme")).toBe("gitodile-dark");
 
+    localStorage.setItem("gitodile-theme", "catppuccin-macchiato");
+    const retired = renderHook(() => useThemePreference());
+    expect(retired.result.current[0]).toBe("catppuccin-mocha");
+
     localStorage.setItem("gitodile-theme", "solarized");
     const invalid = renderHook(() => useThemePreference());
     expect(invalid.result.current[0]).toBe("system");

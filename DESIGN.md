@@ -1148,11 +1148,13 @@ a light surface.
 (`--accent-primary`), status, diff, syntax, focus, overlay and shadows. Each
 theme is a `[data-theme="<id>"]` block in `src/styles/themes.css`, which also
 sets `color-scheme`, plus a record in `src/shared/theme/themes.ts`. The
-official pair shares one semantic accent green (`#527e26`) so the product's
-green is the same in both; the vivid lime stays as the fill of solid actions.
-Success green and diff ink are still per scheme, because they render small
-text and need 4.5:1 on both a light and a near-black surface. Every named theme
-keeps the same token set, so switching leaves no value behind.
+semantic accent green is per scheme, like success green and diff ink: it
+writes links, labels and the selected rail item, so it needs 4.5:1 on both a
+warm white and a near-black surface, and no single green does both (the old
+shared `#527e26` read at barely 3:1 in Dark). Light's is a deep green, Dark's
+a lighter one, and the vivid lime stays as the fill of solid actions in both.
+Every named theme keeps the same token set, so switching leaves no value
+behind.
 
 | Token | GitOdile Dark | GitOdile Light |
 |---|---|---|
@@ -1162,44 +1164,78 @@ keeps the same token set, so switching leaves no value behind.
 | `--surface-code` | `#201d1b` | `#f5f5f4` |
 | `--text-primary-color` | `#fafaf9` | `#1c1917` |
 | `--text-secondary-color` | `#a8a29e` | `#6f6a64` |
+| `--surface-control` | `#24211f` | `#f4f2ef` |
 | `--border-subtle` | `#38322f` | `#e7e5e4` |
+| `--border-divider` | `#44403c` | `#dedad6` |
+| `--border-control` | `#44403c` | `#dcd9d4` |
 | `--accent-brand` | `#8bc53f` | `#8bc53f` |
 | `--accent-brand-contrast` | `#14170f` | `#14170f` |
-| `--accent-primary` | `#527e26` | `#527e26` |
-| `--accent-primary-contrast` | `#0a0a0a` | `#14170f` |
+| `--accent-primary` | `#86c24a` | `#4b7521` |
+| `--accent-primary-contrast` | `#0c0a09` | `#14170f` |
 | `--accent-primary-fill` | `#9bd65a` | `#9bd65a` |
-| `--status-success` | `#9bd65a` | `#4f751e` |
+| `--status-success` | `#9bd65a` | `#44691c` |
 | `--status-warning` | `#e8b339` | `#8a5b00` |
 | `--status-danger` | `#ff6b5b` | `#b3261e` |
-| `--status-danger-contrast` | `#14170f` | `#fff7f5` |
+| `--status-danger-contrast` | `#1c1917` | `#fff7f5` |
+| `--status-renamed` | `#6ea8fe` | `#2f6fb3` |
 | `--accent-heart` | `#ff7a6b` | `#cc2936` |
-| `--diff-added` | `#9bd65a` | `#4f751e` |
+| `--diff-added` | `#9bd65a` | `#44691c` |
 | `--diff-removed` | `#ff6b5b` | `#b3261e` |
 | `--overlay` | `rgba(0, 0, 0, 0.68)` | `rgba(28, 25, 23, 0.4)` |
 | `--surface-hover` | `rgba(250, 250, 249, 0.06)` | `rgba(28, 25, 23, 0.05)` |
 | `--surface-active` | `rgba(155, 214, 90, 0.14)` | `rgba(107, 155, 46, 0.12)` |
-| `--focus-ring` | `#527e26` | `#527e26` |
+| `--focus-ring` | `#9bd65a` | `#4b7521` |
 | `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.22)` | `0 2px 8px rgba(28,25,23,0.06)` |
 | `--shadow-md` | `0 8px 20px rgba(0,0,0,0.3)` | `0 8px 20px rgba(28,25,23,0.08)` |
 | `--shadow-lg` | `0 24px 80px rgba(0,0,0,0.45)` | `0 24px 60px rgba(28,25,23,0.14)` |
 
 `--surface-active` is accent-tinted rather than neutral gray in both themes — this is what gives the active nav item and selected segmented-control option their "friendly card" warmth instead of a flat gray highlight.
 
-Every text/surface pairing above must hold at least a 4.5:1 contrast ratio (WCAG AA for body text); accent-on-surface pairings used only for large text, icons, or borders may use the AA large-text threshold (3:1) instead.
+Syntax colours are in `src/styles/themes.css` with the rest; they are not
+repeated here.
+
+**The contrast contract.** `src/architecture/themeContrast.test.ts` measures
+every pairing the stylesheets actually paint, in every theme, and refuses a
+theme that fails one:
+
+- Primary and secondary text at 4.5:1 on every surface text sits on: app,
+  panel, raised, code, control, the card, a hovered row, a selected row and
+  the accent wash.
+- Accent, status and diff colours at 4.5:1 on app, panel, raised and card,
+  because each of them is written as words somewhere (a link, a "saved
+  locally" label, a status chip, the status-bar diff stat).
+- A solid button's label at 4.5:1 on its fill. Buttons are 12–13px bold,
+  which is not WCAG "large text", so the 3:1 large-text floor does not apply.
+- Diff ink at 4.5:1 on its own tinted line, and syntax at 4.5:1 on the code
+  well and on both kinds of tinted line; the comment, muted on purpose in
+  every editor palette, at 3:1.
+- The 3:1 non-text floor for the accent glyph on a selected row, the focus
+  ring on every surface it can land on, and the heart.
+- Secondary text measurably quieter than primary (at least 1.25:1 between
+  them), and in dark themes a raised surface lighter than the panel, so a menu
+  lifts off the page instead of reading as a hole in it.
+
+Selected text (`::selection` in `base.css`) is a 24% tint of the accent fill
+written in primary text, the strength at which that text still clears 4.5:1
+on every surface of every theme.
 
 **Official themes.** GitOdile Light and Dark are the two records that carry the
 brand palette above; they are the default and the pair "match device" resolves
 between. They are not a starting point that community themes replace.
 
 **Community themes.** Only palettes with a canonical, attributable source are
-admitted (Catppuccin, Nord, Tokyo Night, Dracula, Solarized). Their published
-base, text
-and accent colours are used unchanged; the mapping onto GitOdile's extra roles
-— diff, syntax, renamed, heart, and derived tints where the palette lacks a
-readable step — is ours. `themeContrast.test.ts` measures every theme's body
-text at 4.5:1 and its accents at 3:1, and refuses one that fails. A palette
-without a canonical source (for example Vercel/Geist, which is a design system)
-is not admitted, because a "theme" for it would be invented colours.
+admitted (Catppuccin Mocha, Latte and Frappé; Nord; Tokyo Night; Dracula;
+Solarized Dark and Light; Gruvbox Dark and Light). Their published surfaces
+and hues are the starting point; the mapping onto GitOdile's extra roles —
+diff, syntax, renamed, heart — is ours, and where a published hue cannot pass
+the contract above it is lifted (dark) or darkened (light) along its own
+lightness until it does, keeping the hue. Each block in `themes.css` names
+the values that moved and why. A palette without a canonical source (for
+example Vercel/Geist, which is a design system) is not admitted, because a
+"theme" for it would be invented colours. A variant too close to one already
+shipped is not admitted either: Catppuccin Macchiato sat between Mocha and
+Frappé, and the picker showed three cards nobody could tell apart. A stored
+Macchiato preference lands on Mocha.
 
 Status colours keep their meaning across themes, but they mark *status*, not
 *progress*: a completed journey step, its connector, and a celebratory

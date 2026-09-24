@@ -466,7 +466,7 @@ describe("Settings panel option groups", () => {
     // Community palettes live in their own group, each with a miniature.
     const more = screen.getByRole("radiogroup", { name: "More themes" });
     expect(within(more).getByRole("radio", { name: "Catppuccin Mocha, dark theme" })).toBeInTheDocument();
-    expect(more.querySelectorAll(".theme-preview").length).toBe(9);
+    expect(more.querySelectorAll(".theme-preview").length).toBe(10);
 
     await userEvent.click(within(more).getByRole("radio", { name: /Catppuccin Mocha/ }));
     expect(setTheme).toHaveBeenCalledWith("catppuccin-mocha");

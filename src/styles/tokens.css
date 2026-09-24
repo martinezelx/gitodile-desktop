@@ -165,11 +165,11 @@
   --surface-card: color-mix(in srgb, var(--surface-raised) 48%, var(--surface-panel));
   /* How much of `--accent-primary-fill` an accent wash mixes into
      `--surface-raised` — an unread notification row today. The fill, not
-     `--accent-primary`: in the official dark theme that accent is a deep green
-     that disappears into near-black, while the fill is the lime the wash is
-     meant to read as. A wash lightens a dark surface and darkens a light one,
-     so it eats the secondary text's margin; a theme with little margin lowers
-     the strength in its own block (Solarized Dark does), and
+     `--accent-primary`: in the official Light theme that accent is a deep
+     green that would read as a grey smudge, while the fill is the lime the
+     wash is meant to read as. A wash lightens a dark surface and darkens a
+     light one, so it eats the secondary text's margin; a theme with little
+     margin lowers the strength in its own block (Solarized Dark does), and
      `themeContrast.test.ts` measures secondary text on the wash in every
      theme. */
   --accent-wash-strength: 8%;

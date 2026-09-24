@@ -190,13 +190,16 @@ export function readStoredBoolean(key: string, defaultValue: boolean): boolean {
 
 /** The stored preference, migrated once from the pre-theme values. `light` and
  * `dark` were the old union's members; they now name the official themes.
- * Anything unrecognised falls back to following the device. The first write
- * after a read lands the migrated value back in storage, so this is a one-way
- * upgrade rather than a repeated translation. */
+ * Catppuccin Macchiato was retired for sitting too close to Mocha, so it lands
+ * on its nearest sibling rather than on the device theme. Anything
+ * unrecognised falls back to following the device. The first write after a
+ * read lands the migrated value back in storage, so this is a one-way upgrade
+ * rather than a repeated translation. */
 function readStoredTheme(): ThemePreference {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "light") return "gitodile-light";
   if (stored === "dark") return "gitodile-dark";
+  if (stored === "catppuccin-macchiato") return "catppuccin-mocha";
   return stored !== null && isThemeId(stored) ? stored : "system";
 }
 

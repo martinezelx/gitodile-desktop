@@ -20,6 +20,13 @@ body {
   transition: color var(--duration-normal), background var(--duration-normal);
 }
 button { font: inherit; }
+/* Selected text follows the theme instead of the platform's blue, which sat
+   on every palette as a colour none of them owns: a tint of the accent fill,
+   with the selection written in primary text. Secondary and accent inks would
+   lose too much on the tint, and 24% is the strength at which primary text
+   still clears 4.5:1 on every surface of every theme (Frappé's control is
+   the tightest). */
+::selection { background: color-mix(in srgb, var(--accent-primary-fill) 24%, transparent); color: var(--text-primary-color); }
 /* `<strong>` marks what a sentence leans on; it is not a request for a weight.
    Left to the browser it lands on 700 — the loudest step the app owns — so a
    screen that reaches for it on every filename, count and value ends up

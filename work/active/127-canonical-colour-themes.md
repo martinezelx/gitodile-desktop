@@ -159,6 +159,19 @@ this task does not re-open them.
   Macchiato and Frappé; Nord; Tokyo Night; Dracula; Solarized Dark and Light.
   Solarized is flat (all surfaces base03/base3) with derived text/status values
   to clear the contrast floor.
+- Contrast pass before release, decided with the owner: the contrast
+  contract in `themeContrast.test.ts` now measures every pairing the app
+  paints (text on control, hover, selection and card; accent and status as
+  words at 4.5:1; button labels at 4.5:1; diff ink on its tinted line; syntax
+  on the code well and the tinted lines; secondary quieter than primary;
+  raised above panel in dark themes). Every theme was brought up to it:
+  GitOdile Dark's accent became `#86c24a` with a lime focus ring (the shared
+  `#527e26` read at 2.7-3.6:1 there), Light's accent/diff green deepened
+  slightly, and each community block lists the hues it lifted or darkened.
+  Catppuccin Macchiato was dropped as indistinguishable from Mocha/Frappé (a
+  stored preference migrates to Mocha); Gruvbox Dark and Light were added as
+  a warm palette and a third light option. `::selection` now follows the
+  theme.
 - Picker shape settled with the owner: square tiles (one per theme, preview
   filling it, name on a dark scrim), the official three centred in their own
   unlabelled tray, the community grid below, and selection shown by the accent

@@ -12,18 +12,23 @@
  * Light and Dark values. They are declared again in the explicit
  * `[data-theme="gitodile-light"|"gitodile-dark"]` blocks because "match
  * device" keeps no attribute and lets the media query follow the system live.
- * `themeContrast.test.ts` holds the two copies together.
+ * `styleComposition.test.ts` holds the two copies together.
  *
  * Explicit theme blocks come last so they win over the OS-dark media block at
  * equal specificity: a pinned theme never changes with the operating system.
  *
  * Community palettes are canonical. Base surfaces, text and accents are taken
  * from the published spec; the mapping onto GitOdile's extra roles (diff,
- * syntax, renamed, heart, and a derived warning for the light palette) is ours
- * and is documented beside each block.
+ * syntax, renamed, heart) is ours, and so is any hue lifted or darkened to
+ * clear the contrast contract. Each block says which values moved and why.
+ * `themeContrast.test.ts` is that contract: every pairing the app paints,
+ * measured in every theme.
  * ------------------------------------------------------------------------- */
 
-/* Official GitOdile Light - also the default for "match device" on a light OS. */
+/* Official GitOdile Light - also the default for "match device" on a light OS.
+   Warm stone neutrals. The accent is a deep green that reads as words at
+   4.5:1 on every surface; the brand lime stays as the fill of solid actions,
+   where it carries dark text. */
 :root {
   color-scheme: light dark;
   --surface-app: #faf8f5;
@@ -37,17 +42,17 @@
   --text-primary-color: #1c1917;
   --text-secondary-color: #6f6a64;
   --border-subtle: #e7e5e4;
-  --border-divider: #e7e5e4;
-  --accent-primary: #527e26;
+  --border-divider: #dedad6;
+  --accent-primary: #4b7521;
   --accent-primary-contrast: #14170f;
   --accent-primary-fill: #9bd65a;
-  --status-success: #4f751e;
+  --status-success: #44691c;
   --status-warning: #8a5b00;
   --status-danger: #b3261e;
   --status-danger-contrast: #fff7f5;
   --status-renamed: #2f6fb3;
   --accent-heart: #cc2936;
-  --diff-added: #4f751e;
+  --diff-added: #44691c;
   --diff-removed: #b3261e;
   --syntax-comment: #586250;
   --syntax-string: #7b5b12;
@@ -55,14 +60,17 @@
   --syntax-keyword: #275f8f;
   --syntax-type: #176f68;
   --syntax-property: #8b3e6d;
-  --focus-ring: #527e26;
+  --focus-ring: #4b7521;
   --overlay: rgba(28, 25, 23, 0.4);
   --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
   --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
   --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
 }
 
-/* Official GitOdile Dark - the default for "match device" on a dark OS. */
+/* Official GitOdile Dark - the default for "match device" on a dark OS.
+   The same stone neutrals, inverted. The accent is a lighter green than
+   Light's: the deep green reads at barely 3:1 on these panels, and it paints
+   links, the selected rail item and focus. */
 @media (prefers-color-scheme: dark) {
   :root {
     --surface-app: #0c0a09;
@@ -77,7 +85,7 @@
     --text-secondary-color: #a8a29e;
     --border-subtle: #38322f;
     --border-divider: #44403c;
-    --accent-primary: #527e26;
+    --accent-primary: #86c24a;
     --accent-primary-contrast: #0c0a09;
     --accent-primary-fill: #9bd65a;
     --status-success: #9bd65a;
@@ -94,7 +102,7 @@
     --syntax-keyword: #8fc9ff;
     --syntax-type: #72d6c9;
     --syntax-property: #e0a6c7;
-    --focus-ring: #527e26;
+    --focus-ring: #9bd65a;
     --overlay: rgba(0, 0, 0, 0.68);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
     --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
@@ -115,17 +123,17 @@
   --text-primary-color: #1c1917;
   --text-secondary-color: #6f6a64;
   --border-subtle: #e7e5e4;
-  --border-divider: #e7e5e4;
-  --accent-primary: #527e26;
+  --border-divider: #dedad6;
+  --accent-primary: #4b7521;
   --accent-primary-contrast: #14170f;
   --accent-primary-fill: #9bd65a;
-  --status-success: #4f751e;
+  --status-success: #44691c;
   --status-warning: #8a5b00;
   --status-danger: #b3261e;
   --status-danger-contrast: #fff7f5;
   --status-renamed: #2f6fb3;
   --accent-heart: #cc2936;
-  --diff-added: #4f751e;
+  --diff-added: #44691c;
   --diff-removed: #b3261e;
   --syntax-comment: #586250;
   --syntax-string: #7b5b12;
@@ -133,7 +141,7 @@
   --syntax-keyword: #275f8f;
   --syntax-type: #176f68;
   --syntax-property: #8b3e6d;
-  --focus-ring: #527e26;
+  --focus-ring: #4b7521;
   --overlay: rgba(28, 25, 23, 0.4);
   --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
   --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
@@ -154,7 +162,7 @@
   --text-secondary-color: #a8a29e;
   --border-subtle: #38322f;
   --border-divider: #44403c;
-  --accent-primary: #527e26;
+  --accent-primary: #86c24a;
   --accent-primary-contrast: #0c0a09;
   --accent-primary-fill: #9bd65a;
   --status-success: #9bd65a;
@@ -171,7 +179,7 @@
   --syntax-keyword: #8fc9ff;
   --syntax-type: #72d6c9;
   --syntax-property: #e0a6c7;
-  --focus-ring: #527e26;
+  --focus-ring: #9bd65a;
   --overlay: rgba(0, 0, 0, 0.68);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
@@ -179,14 +187,16 @@
 }
 
 /* Catppuccin Mocha - catppuccin.com/palette (MIT).
-   Mapping: crust/base/mantle/surface0/1 for surfaces; text/subtext0 for text;
-   mauve for the accent; green/yellow/red/blue for status; syntax from the
-   palette's own editor theme. */
+   crust/base/mantle for app, panel and code; surface0/1 for controls and
+   borders; text/subtext0 for text; mauve for the accent; green/yellow/red/blue
+   for status; syntax from the palette's own editor theme. Raised is a step
+   between base and surface0 so a menu lifts off the panel. The comment is
+   overlay0 lifted until it clears 3:1 on a tinted diff line. */
 [data-theme="catppuccin-mocha"] {
   color-scheme: dark;
   --surface-app: #11111b;
   --surface-panel: #1e1e2e;
-  --surface-raised: #1e1e2e;
+  --surface-raised: #28283a;
   --surface-code: #181825;
   --surface-hover: rgba(205, 214, 244, 0.07);
   --surface-active: rgba(203, 166, 247, 0.16);
@@ -207,31 +217,32 @@
   --accent-heart: #f38ba8;
   --diff-added: #a6e3a1;
   --diff-removed: #f38ba8;
-  --syntax-comment: #6c7086;
+  --syntax-comment: #6c74a9;
   --syntax-string: #a6e3a1;
   --syntax-number: #fab387;
   --syntax-keyword: #cba6f7;
   --syntax-type: #f9e2af;
   --syntax-property: #89b4fa;
   --focus-ring: #cba6f7;
-  --overlay: rgba(28, 25, 23, 0.68);
+  --overlay: rgba(17, 17, 27, 0.68);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
 }
 
 /* Catppuccin Latte - catppuccin.com/palette (MIT).
-   text/subtext1 for text; mauve accent; mauve for the fill with white
-   contrast. Success and diff-added are a darkened Latte green (#357a20) and
-   warning a darkened yellow (#a06a00): the published green and yellow fail
-   3:1 as small text on a light surface. Syntax comment uses overlay1 rather
-   than overlay0 for the same reason. */
+   text/subtext1 for text, mauve for the accent and its fill with white
+   contrast. The code well is base rather than mantle so the diff keeps as
+   much of the palette as it can. Latte's hues are pastel, and on a light
+   well its green, yellow, peach and blue fall to 2-4:1: every status, diff and
+   syntax colour here is the published hue darkened until it reads at 4.5:1
+   on the code well and on a tinted diff line. */
 [data-theme="catppuccin-latte"] {
   color-scheme: light;
   --surface-app: #e6e9ef;
   --surface-panel: #eff1f5;
   --surface-raised: #ffffff;
-  --surface-code: #e6e9ef;
+  --surface-code: #eff1f5;
   --surface-hover: rgba(76, 79, 105, 0.06);
   --surface-active: rgba(136, 57, 239, 0.12);
   --surface-control: #e6e9ef;
@@ -240,23 +251,23 @@
   --text-secondary-color: #5c5f77;
   --border-subtle: #ccd0da;
   --border-divider: #bcc0cc;
-  --accent-primary: #8839ef;
+  --accent-primary: #8737ef;
   --accent-primary-contrast: #ffffff;
   --accent-primary-fill: #8839ef;
-  --status-success: #357a20;
-  --status-warning: #a06a00;
-  --status-danger: #d20f39;
+  --status-success: #33761e;
+  --status-warning: #8e5e00;
+  --status-danger: #d00f38;
   --status-danger-contrast: #ffffff;
-  --status-renamed: #1e66f5;
+  --status-renamed: #125af5;
   --accent-heart: #d20f39;
-  --diff-added: #357a20;
-  --diff-removed: #d20f39;
-  --syntax-comment: #7c7f93;
-  --syntax-string: #40a02b;
-  --syntax-number: #fe640b;
-  --syntax-keyword: #8839ef;
-  --syntax-type: #df8e1d;
-  --syntax-property: #1e66f5;
+  --diff-added: #30701b;
+  --diff-removed: #c00f30;
+  --syntax-comment: #787b8f;
+  --syntax-string: #276e1b;
+  --syntax-number: #a54001;
+  --syntax-keyword: #7d23ef;
+  --syntax-type: #7d5a1d;
+  --syntax-property: #0a4eec;
   --focus-ring: #8839ef;
   --overlay: rgba(76, 79, 105, 0.4);
   --shadow-sm: 0 2px 8px rgba(76, 79, 105, 0.08);
@@ -264,24 +275,68 @@
   --shadow-lg: 0 24px 60px rgba(76, 79, 105, 0.16);
 }
 
+/* Catppuccin Frappé - catppuccin.com/palette (MIT). Same role map as Mocha.
+   Frappé's surface0 is light enough that subtext0 cannot clear 4.5:1 on it
+   and still sit a visible step below text, so the control is a half step
+   darker than surface0 and subtext0 is lifted slightly. Red and the comment
+   are lifted for the tinted diff lines. */
+[data-theme="catppuccin-frappe"] {
+  color-scheme: dark;
+  --surface-app: #232634;
+  --surface-panel: #303446;
+  --surface-raised: #393d50;
+  --surface-code: #292c3c;
+  --surface-hover: rgba(198, 208, 245, 0.07);
+  --surface-active: rgba(202, 158, 230, 0.12);
+  --surface-control: #3a3e51;
+  --border-control: #51576d;
+  --text-primary-color: #c6d0f5;
+  --text-secondary-color: #acb4d8;
+  --border-subtle: #414559;
+  --border-divider: #51576d;
+  --accent-primary: #ca9ee6;
+  --accent-primary-contrast: #303446;
+  --accent-primary-fill: #ca9ee6;
+  --status-success: #a6d189;
+  --status-warning: #e5c890;
+  --status-danger: #ef8d8f;
+  --status-danger-contrast: #303446;
+  --status-renamed: #8caaee;
+  --accent-heart: #e78284;
+  --diff-added: #a6d189;
+  --diff-removed: #ef8d8f;
+  --syntax-comment: #7689b4;
+  --syntax-string: #a6d189;
+  --syntax-number: #ef9f76;
+  --syntax-keyword: #ca9ee6;
+  --syntax-type: #e5c890;
+  --syntax-property: #8caaee;
+  --focus-ring: #ca9ee6;
+  --overlay: rgba(35, 38, 52, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
 /* Nord - nordtheme.com (MIT).
-   Mapping: polar night for surfaces, snow storm for text, frost for the
-   accent, aurora for status. Danger is a lightened aurora red (#d0848b):
-   the published #bf616a fails 3:1 as text on polar night. There is no
-   canonical comment colour; #7b88a1 is the closest muted step that still
-   clears 3:1 on the code surface. */
+   Polar night for surfaces, snow storm for primary text, frost for the accent,
+   aurora for status. Nord's snow storm steps are too close to act as primary
+   and secondary text, so secondary is a derived grey-blue a clear step below.
+   Nord's red, purple, orange and frost blues are lifted until they read at
+   4.5:1 on the lighter polar night panels; there is no canonical comment
+   colour, so it is a muted frost that clears 3:1 on a tinted diff line. */
 [data-theme="nord"] {
   color-scheme: dark;
   --surface-app: #2e3440;
   --surface-panel: #3b4252;
-  --surface-raised: #3b4252;
+  --surface-raised: #3f4758;
   --surface-code: #2e3440;
   --surface-hover: rgba(236, 239, 244, 0.06);
-  --surface-active: rgba(136, 192, 208, 0.16);
+  --surface-active: rgba(136, 192, 208, 0.12);
   --surface-control: #434c5e;
   --border-control: #4c566a;
   --text-primary-color: #eceff4;
-  --text-secondary-color: #d8dee9;
+  --text-secondary-color: #bac2d7;
   --border-subtle: #434c5e;
   --border-divider: #4c566a;
   --accent-primary: #88c0d0;
@@ -289,18 +344,18 @@
   --accent-primary-fill: #88c0d0;
   --status-success: #a3be8c;
   --status-warning: #ebcb8b;
-  --status-danger: #d0848b;
+  --status-danger: #eca0a6;
   --status-danger-contrast: #2e3440;
-  --status-renamed: #81a1c1;
+  --status-renamed: #97b7e0;
   --accent-heart: #d0848b;
   --diff-added: #a3be8c;
-  --diff-removed: #d0848b;
-  --syntax-comment: #7b88a1;
+  --diff-removed: #eca0a6;
+  --syntax-comment: #7d90b1;
   --syntax-string: #a3be8c;
-  --syntax-number: #b48ead;
-  --syntax-keyword: #81a1c1;
+  --syntax-number: #d59fcb;
+  --syntax-keyword: #93b3dc;
   --syntax-type: #8fbcbb;
-  --syntax-property: #d08770;
+  --syntax-property: #e99d86;
   --focus-ring: #88c0d0;
   --overlay: rgba(20, 23, 28, 0.68);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
@@ -310,12 +365,13 @@
 
 /* Tokyo Night - enkia/tokyo-night-vscode-theme (MIT).
    bg_dark/base for surfaces, fg_dark for secondary text, blue for the accent;
-   dark5 (#737aa2) for the comment so it clears 3:1 on the code surface. */
+   dark5 (#737aa2) for the comment. Raised is a step towards bg_highlight so a
+   menu lifts off the panel. */
 [data-theme="tokyo-night"] {
   color-scheme: dark;
   --surface-app: #16161e;
   --surface-panel: #1a1b26;
-  --surface-raised: #1a1b26;
+  --surface-raised: #222534;
   --surface-code: #16161e;
   --surface-hover: rgba(192, 202, 245, 0.06);
   --surface-active: rgba(122, 162, 247, 0.16);
@@ -350,35 +406,38 @@
 }
 
 /* Dracula - draculatheme.com (MIT).
-   background/currentLine for surfaces, comment for the muted step, purple for
-   the accent; pink/yellow/cyan/green for syntax. Secondary text is a derived
-   tint of `foreground`: the canonical comment (#6272a4) does not clear 4.5:1. */
+   background for the panel, the spec's lighter background (#343746) for
+   raised surfaces, current line for controls, purple for the accent; pink,
+   yellow, cyan and green for syntax. Secondary text is a derived tint of
+   foreground: the canonical comment colour does not clear 4.5:1. Dividers are
+   a quiet step rather than the comment blue, which drew every divider as a
+   rule; red and the comment are lifted for the tinted diff lines. */
 [data-theme="dracula"] {
   color-scheme: dark;
   --surface-app: #21222c;
   --surface-panel: #282a36;
-  --surface-raised: #282a36;
+  --surface-raised: #343746;
   --surface-code: #21222c;
   --surface-hover: rgba(248, 248, 242, 0.06);
   --surface-active: rgba(189, 147, 249, 0.16);
   --surface-control: #44475a;
   --border-control: #6272a4;
   --text-primary-color: #f8f8f2;
-  --text-secondary-color: #a3a9c4;
+  --text-secondary-color: #b4b9d1;
   --border-subtle: #44475a;
-  --border-divider: #6272a4;
+  --border-divider: #515468;
   --accent-primary: #bd93f9;
   --accent-primary-contrast: #282a36;
   --accent-primary-fill: #bd93f9;
   --status-success: #50fa7b;
   --status-warning: #f1fa8c;
-  --status-danger: #ff5555;
+  --status-danger: #ff7676;
   --status-danger-contrast: #282a36;
   --status-renamed: #8be9fd;
   --accent-heart: #ff5555;
   --diff-added: #50fa7b;
-  --diff-removed: #ff5555;
-  --syntax-comment: #6272a4;
+  --diff-removed: #ff7676;
+  --syntax-comment: #6a7fbe;
   --syntax-string: #f1fa8c;
   --syntax-number: #bd93f9;
   --syntax-keyword: #ff79c6;
@@ -391,121 +450,46 @@
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
 }
 
-/* Catppuccin Macchiato - catppuccin.com/palette (MIT). Same role map as Mocha. */
-[data-theme="catppuccin-macchiato"] {
-  color-scheme: dark;
-  --surface-app: #181926;
-  --surface-panel: #24273a;
-  --surface-raised: #24273a;
-  --surface-code: #1e2030;
-  --surface-hover: rgba(202, 211, 245, 0.07);
-  --surface-active: rgba(198, 160, 246, 0.16);
-  --surface-control: #363a4f;
-  --border-control: #494d64;
-  --text-primary-color: #cad3f5;
-  --text-secondary-color: #a5adcb;
-  --border-subtle: #363a4f;
-  --border-divider: #494d64;
-  --accent-primary: #c6a0f6;
-  --accent-primary-contrast: #24273a;
-  --accent-primary-fill: #c6a0f6;
-  --status-success: #a6da95;
-  --status-warning: #eed49f;
-  --status-danger: #ed8796;
-  --status-danger-contrast: #24273a;
-  --status-renamed: #8aadf4;
-  --accent-heart: #ed8796;
-  --diff-added: #a6da95;
-  --diff-removed: #ed8796;
-  --syntax-comment: #6e738d;
-  --syntax-string: #a6da95;
-  --syntax-number: #f5a97f;
-  --syntax-keyword: #c6a0f6;
-  --syntax-type: #eed49f;
-  --syntax-property: #8aadf4;
-  --focus-ring: #c6a0f6;
-  --overlay: rgba(24, 25, 38, 0.68);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
-  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
-}
-
-/* Catppuccin Frappé - catppuccin.com/palette (MIT). Same role map as Mocha. */
-[data-theme="catppuccin-frappe"] {
-  color-scheme: dark;
-  --surface-app: #232634;
-  --surface-panel: #303446;
-  --surface-raised: #303446;
-  --surface-code: #292c3c;
-  --surface-hover: rgba(198, 208, 245, 0.07);
-  --surface-active: rgba(202, 158, 230, 0.16);
-  --surface-control: #414559;
-  --border-control: #51576d;
-  --text-primary-color: #c6d0f5;
-  --text-secondary-color: #a5adce;
-  --border-subtle: #414559;
-  --border-divider: #51576d;
-  --accent-primary: #ca9ee6;
-  --accent-primary-contrast: #303446;
-  --accent-primary-fill: #ca9ee6;
-  --status-success: #a6d189;
-  --status-warning: #e5c890;
-  --status-danger: #e78284;
-  --status-danger-contrast: #303446;
-  --status-renamed: #8caaee;
-  --accent-heart: #e78284;
-  --diff-added: #a6d189;
-  --diff-removed: #e78284;
-  --syntax-comment: #737994;
-  --syntax-string: #a6d189;
-  --syntax-number: #ef9f76;
-  --syntax-keyword: #ca9ee6;
-  --syntax-type: #e5c890;
-  --syntax-property: #8caaee;
-  --focus-ring: #ca9ee6;
-  --overlay: rgba(35, 38, 52, 0.68);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
-  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
-}
-
-/* Solarized Dark - ethanschoonover.com/solarized (MIT). The canonical palette
-   is deliberately flat and low-contrast, so every surface is base03 and depth
-   comes from borders rather than a lighter panel; base0/base1 then clear 4.5:1
-   where Solarized's own base0-on-base02 pairing does not. Base0 clears 4.5:1
-   by only 0.25, so the accent wash is halved to keep it there. */
+/* Solarized Dark - ethanschoonover.com/solarized (MIT). Surfaces are base03
+   with base02 for controls and raised surfaces, so depth comes mostly from
+   borders. Primary text is base2 and secondary base1: Solarized's own
+   base1/base0 pairing measures the same, so the two roles would read as one.
+   The accent hues are dark by design and sit at 3-4:1 on base03; every
+   accent, status and syntax colour here is the published hue lifted until it
+   reads at 4.5:1 (3:1 for the comment). Base1 on the accent wash has little
+   margin, so the wash is halved. */
 [data-theme="solarized-dark"] {
   color-scheme: dark;
   --accent-wash-strength: 4%;
   --surface-app: #002b36;
   --surface-panel: #002b36;
-  --surface-raised: #002b36;
+  --surface-raised: #073642;
   --surface-code: #002b36;
   --surface-hover: rgba(147, 161, 161, 0.08);
-  --surface-active: rgba(38, 139, 210, 0.18);
+  --surface-active: rgba(38, 139, 210, 0.14);
   --surface-control: #073642;
   --border-control: #586e75;
-  --text-primary-color: #93a1a1;
-  --text-secondary-color: #839496;
+  --text-primary-color: #eee8d5;
+  --text-secondary-color: #93a1a1;
   --border-subtle: #586e75;
   --border-divider: #657b83;
-  --accent-primary: #268bd2;
+  --accent-primary: #49a0d9;
   --accent-primary-contrast: #002b36;
-  --accent-primary-fill: #268bd2;
-  --status-success: #859900;
-  --status-warning: #b58900;
-  --status-danger: #dc322f;
+  --accent-primary-fill: #49a0d9;
+  --status-success: #8da500;
+  --status-warning: #c19100;
+  --status-danger: #ff6562;
   --status-danger-contrast: #002b36;
-  --status-renamed: #2aa198;
-  --accent-heart: #dc322f;
-  --diff-added: #859900;
-  --diff-removed: #dc322f;
-  --syntax-comment: #586e75;
-  --syntax-string: #2aa198;
-  --syntax-number: #cb4b16;
-  --syntax-keyword: #859900;
-  --syntax-type: #b58900;
-  --syntax-property: #268bd2;
+  --status-renamed: #27aaa1;
+  --accent-heart: #e43734;
+  --diff-added: #8fa800;
+  --diff-removed: #ff6562;
+  --syntax-comment: #588292;
+  --syntax-string: #26ada4;
+  --syntax-number: #ff6e3b;
+  --syntax-keyword: #8fa800;
+  --syntax-type: #c79500;
+  --syntax-property: #33a2f1;
   --focus-ring: #268bd2;
   --overlay: rgba(0, 27, 34, 0.68);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
@@ -514,9 +498,10 @@
 }
 
 /* Solarized Light - ethanschoonover.com/solarized (MIT). Flat like the dark
-   variant. Text, status and syntax are darkened Solarized values: base00 text
-   on base3 measures ~4.1:1 and the aurora hues fall just under 3:1, so they
-   are nudged darker to reach the app's floor. */
+   variant. Primary text is base02 and secondary base01, darkened a touch to
+   clear 4.5:1 on base2 controls. The accent hues are darkened until they
+   read at 4.5:1 on base3 and on a tinted diff line, and until base3 reads on
+   the blue of a primary button. */
 [data-theme="solarized-light"] {
   color-scheme: light;
   --surface-app: #fdf6e3;
@@ -524,33 +509,121 @@
   --surface-raised: #fdf6e3;
   --surface-code: #fdf6e3;
   --surface-hover: rgba(88, 110, 117, 0.08);
-  --surface-active: rgba(38, 139, 210, 0.14);
+  --surface-active: rgba(38, 139, 210, 0.1);
   --surface-control: #eee8d5;
   --border-control: #93a1a1;
-  --text-primary-color: #4c6268;
-  --text-secondary-color: #586e75;
+  --text-primary-color: #073642;
+  --text-secondary-color: #566c73;
   --border-subtle: #ded7c3;
   --border-divider: #c9c2ae;
-  --accent-primary: #268bd2;
+  --accent-primary: #2677aa;
   --accent-primary-contrast: #fdf6e3;
-  --accent-primary-fill: #268bd2;
-  --status-success: #6b7a00;
+  --accent-primary-fill: #2677aa;
+  --status-success: #697700;
   --status-warning: #8a6800;
-  --status-danger: #dc322f;
+  --status-danger: #db2623;
   --status-danger-contrast: #fdf6e3;
   --status-renamed: #177a72;
   --accent-heart: #dc322f;
-  --diff-added: #6b7a00;
-  --diff-removed: #dc322f;
+  --diff-added: #616b00;
+  --diff-removed: #c12623;
   --syntax-comment: #586e75;
-  --syntax-string: #177a72;
-  --syntax-number: #cb4b16;
-  --syntax-keyword: #6b7a00;
-  --syntax-type: #8a6800;
-  --syntax-property: #268bd2;
+  --syntax-string: #177068;
+  --syntax-number: #b13e16;
+  --syntax-keyword: #5f6800;
+  --syntax-type: #7e6000;
+  --syntax-property: #236a90;
   --focus-ring: #268bd2;
   --overlay: rgba(0, 43, 54, 0.4);
   --shadow-sm: 0 2px 8px rgba(0, 43, 54, 0.08);
   --shadow-md: 0 8px 20px rgba(0, 43, 54, 0.1);
   --shadow-lg: 0 24px 60px rgba(0, 43, 54, 0.16);
+}
+
+/* Gruvbox Dark - morhetz/gruvbox (MIT).
+   bg0_h/bg0/bg0_s for app, panel and raised; bg1/bg2 for controls and
+   borders; fg1/fg3 for text; bright aqua for the accent, so it is neither the
+   warning yellow nor the danger red; the bright hues for status and syntax,
+   as in the palette's own editor theme. Red is lifted for the tinted diff
+   line. */
+[data-theme="gruvbox-dark"] {
+  color-scheme: dark;
+  --surface-app: #1d2021;
+  --surface-panel: #282828;
+  --surface-raised: #32302f;
+  --surface-code: #1d2021;
+  --surface-hover: rgba(235, 219, 178, 0.06);
+  --surface-active: rgba(142, 192, 124, 0.16);
+  --surface-control: #3c3836;
+  --border-control: #504945;
+  --text-primary-color: #ebdbb2;
+  --text-secondary-color: #bdae93;
+  --border-subtle: #3c3836;
+  --border-divider: #504945;
+  --accent-primary: #8ec07c;
+  --accent-primary-contrast: #282828;
+  --accent-primary-fill: #8ec07c;
+  --status-success: #b8bb26;
+  --status-warning: #fabd2f;
+  --status-danger: #ff645c;
+  --status-danger-contrast: #282828;
+  --status-renamed: #83a598;
+  --accent-heart: #fb4934;
+  --diff-added: #b8bb26;
+  --diff-removed: #ff645c;
+  --syntax-comment: #928374;
+  --syntax-string: #b8bb26;
+  --syntax-number: #d3869b;
+  --syntax-keyword: #ff665f;
+  --syntax-type: #fabd2f;
+  --syntax-property: #83a598;
+  --focus-ring: #8ec07c;
+  --overlay: rgba(29, 32, 33, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Gruvbox Light - morhetz/gruvbox (MIT).
+   bg0_s/bg0/bg0_h for app, panel and raised; bg1/bg2 for controls and
+   borders; fg1/fg3 for text; faded aqua for the accent; the faded hues for
+   status and syntax, as in the palette's own editor theme. Faded aqua,
+   yellow, green and gray are darkened until they read at 4.5:1 (3:1 for the
+   comment) on the code well and a tinted diff line. */
+[data-theme="gruvbox-light"] {
+  color-scheme: light;
+  --surface-app: #f2e5bc;
+  --surface-panel: #fbf1c7;
+  --surface-raised: #f9f5d7;
+  --surface-code: #f2e5bc;
+  --surface-hover: rgba(60, 56, 54, 0.06);
+  --surface-active: rgba(66, 123, 88, 0.12);
+  --surface-control: #ebdbb2;
+  --border-control: #d5c4a1;
+  --text-primary-color: #3c3836;
+  --text-secondary-color: #665c54;
+  --border-subtle: #ebdbb2;
+  --border-divider: #d5c4a1;
+  --accent-primary: #3d7153;
+  --accent-primary-contrast: #fbf1c7;
+  --accent-primary-fill: #3d7153;
+  --status-success: #6d680e;
+  --status-warning: #8b5d14;
+  --status-danger: #9d0006;
+  --status-danger-contrast: #fbf1c7;
+  --status-renamed: #076678;
+  --accent-heart: #9d0006;
+  --diff-added: #635e0e;
+  --diff-removed: #9d0006;
+  --syntax-comment: #807162;
+  --syntax-string: #5f5a0e;
+  --syntax-number: #893c6e;
+  --syntax-keyword: #9d0006;
+  --syntax-type: #775114;
+  --syntax-property: #076072;
+  --focus-ring: #427b58;
+  --overlay: rgba(60, 56, 54, 0.4);
+  --shadow-sm: 0 2px 8px rgba(60, 56, 54, 0.08);
+  --shadow-md: 0 8px 20px rgba(60, 56, 54, 0.1);
+  --shadow-lg: 0 24px 60px rgba(60, 56, 54, 0.16);
 }

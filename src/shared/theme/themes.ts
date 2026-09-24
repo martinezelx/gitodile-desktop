@@ -16,13 +16,14 @@ export const THEME_IDS = [
   "gitodile-dark",
   "catppuccin-mocha",
   "catppuccin-latte",
-  "catppuccin-macchiato",
   "catppuccin-frappe",
   "nord",
   "tokyo-night",
   "dracula",
   "solarized-dark",
   "solarized-light",
+  "gruvbox-dark",
+  "gruvbox-light",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
@@ -50,16 +51,19 @@ export const THEMES: readonly ThemeRecord[] = [
   { id: "gitodile-dark", name: "GitOdile Dark", scheme: "dark", source: "official" },
   // Canonical palettes: catppuccin.com/palette, nordtheme.com, Tokyo Night
   // (enkia/tokyo-night-vscode-theme), draculatheme.com, Solarized
-  // (ethanschoonover.com/solarized).
+  // (ethanschoonover.com/solarized), Gruvbox (morhetz/gruvbox). Catppuccin
+  // Macchiato is left out: it sits between Mocha and Frappé closely enough
+  // that the picker showed three near-identical cards.
   { id: "catppuccin-mocha", name: "Catppuccin Mocha", scheme: "dark", source: "community" },
   { id: "catppuccin-latte", name: "Catppuccin Latte", scheme: "light", source: "community" },
-  { id: "catppuccin-macchiato", name: "Catppuccin Macchiato", scheme: "dark", source: "community" },
   { id: "catppuccin-frappe", name: "Catppuccin Frappé", scheme: "dark", source: "community" },
   { id: "nord", name: "Nord", scheme: "dark", source: "community" },
   { id: "tokyo-night", name: "Tokyo Night", scheme: "dark", source: "community" },
   { id: "dracula", name: "Dracula", scheme: "dark", source: "community" },
   { id: "solarized-dark", name: "Solarized Dark", scheme: "dark", source: "community" },
   { id: "solarized-light", name: "Solarized Light", scheme: "light", source: "community" },
+  { id: "gruvbox-dark", name: "Gruvbox Dark", scheme: "dark", source: "community" },
+  { id: "gruvbox-light", name: "Gruvbox Light", scheme: "light", source: "community" },
 ];
 
 /** The official pair, in the order the picker and the toggle present them. */
