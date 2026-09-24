@@ -675,6 +675,34 @@ who last saved to it on the row under them — then two sections separated by a
 hairline, where the line stands and the versions on it, and a footer leading to
 History. A card inside a card is two borders describing one thing.
 
+**A new line is named in the same docked composer Changes saves from.** The
+box under the list is built and behaves as the save box does (see Changes):
+a section of the panel with a hairline over it; at rest the name field — a
+pill, the name in mono — with its button beside it; open, the same box grown
+upward. Its plan line is where the new line starts — "Create from `main`",
+known locally, so it is there from the first frame — and when the default
+line and the active one stand at different commits the choice between them
+is made in that line, both by name in the same mono, the default one telling
+what it is on its tooltip and keeping its width while the active one's name
+gives way. On a detached `HEAD` the line explains the one honest starting
+point instead. "Switch to it" is a checkbox in the foot, and the button says
+the consequence — "Create and switch", or "Create line" — named apart from
+the dialog's own "Create", since the two can be on screen together. Created,
+the plan's slot says what was created. What Git would refuse in the name is said under
+the field before the press, in the shared `.field-error` look, by a local
+mirror of Rust's own checks (`checkLineName`: `check-ref-format --branch`
+and the loaded lines, exactly or by letter case) — Rust stays the authority.
+What typing on cannot fix — a space, a forbidden character, a taken name —
+is said as it appears and holds the button; how a half-typed name ends
+(`feature/`, `v1.`) is said only when the reader asks to create, so the box
+never scolds a name for being unfinished. The field's example is the
+project's own convention when it has one — the prefix at least two of its
+lines share, `fix/short-name` — and `feature/new-feature` otherwise. Nothing
+in it moves: an example that types and erases itself would be a second
+moving thing on a screen that keeps one. When it folds is the same shared rule
+(`useDockedComposerFocus`). "New line" in the header still opens the dialog
+with its full plan, for the cases that want one.
+
 **The quick switch states a line's actions where the line is.** Each row carries
 an always-visible `⋯` — not a hover-only affordance — that shows that line's
 actions in place of the list: merging it into the current line, rebasing the
@@ -1389,22 +1417,65 @@ looked like a button and was not one, so it is gone, and the breathing halo
 stays the band's. Focus opens the box upward without changing its shape:
 the plan over the field — `3 of 7 files → main`, the count first and the
 line in the status bar's own mono, since the panel header is the tab pair
-and names no line — then the details (a textarea at `--radius-control`),
-only the notes the plan line cannot say (a first version, changes already
-prepared, no line to land on; files left behind are the line's to count),
-any failure with the hooks escape, and a foot with "Also publish" and the
-button. "Also publish" is a checkbox, because it is an option of this save
-and not a setting that takes effect on its own, and the button says the
-consequence: "Save", or "Save and publish" — at the list's width the longer
-label takes a line of its own under the option rather than clipping either.
-Saved, the plan's slot says what was saved, with a check in the success
-colour and "Publish now" as a quiet link — the band's Publish tile is where
-that step is said in full. Escape clears the draft and folds the box back.
+and names no line — then the details, only the notes the plan line cannot
+say (a first version, changes already prepared, no line to land on; files
+left behind are the line's to count), any failure, and a foot with "Also
+publish" and the button. The plan is Rust's answer and lands a beat after
+the box opens, so its line is held open at its height from the first frame
+and the text arrives with the list's own row entrance (`.row-in`) rather
+than snapping on. The details are a textarea at `--radius-control` that
+grows with what is written, to about eight lines, and then scrolls: room for
+a long message without a second, bigger frame to write it in. The two
+placeholders are a pair of questions — "What changed?" over "Why?
+(optional)" — so the name says what changed and the details say what the
+name cannot, and "what changed" rather than "what did you change", because
+the change may be an AI's or a teammate's. "Also publish"
+is a checkbox, because it is an option of this save and not a setting that
+takes effect on its own, and the button says the consequence: "Save", or
+"Save and publish" — at the list's width the longer label takes a line of
+its own under the option rather than clipping either. While saving it says
+only "Saving…" beside its spinner, at a button icon's size, so the row keeps
+its height and its line. A failure prints the localized message and, under
+it, what Git said behind the same "Show technical details" toggle the dialog
+uses — open from the start when a hook rejected the version, since the
+hook's output is the only thing that says what to fix — then the one-time
+hooks escape. Saved, the plan's slot says what was saved in one line, with a
+check in the success colour, and "Publish now" takes the place of "Also
+publish" at the start of the foot: a secondary button level with Save, the
+step left to do for a version whose option is spent, and not a second
+primary, since the band's Publish tile says that step in full. It is absent
+when "Also publish" already took the reader there, and the next keystroke
+brings the option back.
+
+**The box folds only when leaving it loses nothing, and never under the
+pointer.** It closes when focus leaves it with nothing written and nothing
+in flight; a draft or a save keeps it open, and Escape clears the draft and
+folds it on purpose. Pressing inside the box on something that takes no
+focus — the option's words, a disabled Save, the plan line — is not
+leaving. Neither is the window losing focus: minimized or behind another
+app, the page keeps its focus on the field and hands it back on return, so
+the box stays as it was rather than folding and springing open again. A
+press somewhere else — a file row, the History tab, the diff — lets its
+click land first and folds after, without the scroll anchoring an open
+gets: folding between the press and its release moved the list under the
+pointer, and the release landed on another row or on none. A keyboard move
+away folds at once, since there is no click to protect. The rule is one hook,
+`useDockedComposerFocus`, shared with the new-line box on Lines, and the
+layout is one primitive, `.docked-composer` in primitives.css, so the two
+docked boxes cannot drift apart. A request in flight disables the fields,
+which drops focus to the page; when it ends, focus goes back to the field
+unless the reader has put it somewhere else, so the box can still fold
+when they leave it.
+
 The flow underneath is one implementation (`useSaveVersionFlow`) in two
 frames: the box here, the modal dialog on the screens with nowhere to type —
-Overview's active tile, saving before switching a line — and the notes come
-from one list so the two cannot explain a plan differently. One accent fill
-in every state of the box: the button. **The panel is the card.** The screen's name and its
+Overview's active tile, saving before switching a line — and the notes and
+the failure detail come from one place so the two cannot explain a plan or a
+failure differently. The box offers no way into the dialog: it would be the
+same form in a bigger frame, over the list whose checkboxes stay live while
+the box is open, and a second route to one form is what this screen stopped
+doing. One accent fill in every state of the box: the button. **The panel is
+the card.** The screen's name and its
 state used to be a page row over both panels — the Linear-style header a
 workbench does not have (GitHub Desktop, Fork, Tower and VS Code all start
 their panels at the toolbar), with a trailing corner waiting for view
