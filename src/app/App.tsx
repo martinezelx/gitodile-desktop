@@ -32,7 +32,7 @@ import { isAppError, localizeAppError } from "../shared/i18n";
 import { isOfficialTheme } from "../shared/theme";
 import type { RepositoryInvalidation } from "../runtime/project/invalidation";
 import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
-import { handlePopupMenuKeyDown, usePortalFlyout } from "../shared/ui";
+import { ToastProvider, handlePopupMenuKeyDown, usePortalFlyout } from "../shared/ui";
 import { DiffPreferencesProvider, createChangesController, changesPort } from "../features/changes";
 import { CloneDialog, clonePort, createCloneController, type CloneResult } from "../features/clone";
 import {
@@ -439,6 +439,7 @@ export function App(): React.JSX.Element {
   const [openErrorTitle, setOpenErrorTitle] = useState(t.overviewOpenFailedTitle);
   const [isOpenErrorDialogOpen, setIsOpenErrorDialogOpen] = useState(false);
   const [openErrorRecoveryAction, setOpenErrorRecoveryAction] = useState<{
+    alternative?: { label: string; onAction: () => void };
     label: string;
     onAction: () => void;
   } | null>(null);
@@ -449,6 +450,10 @@ export function App(): React.JSX.Element {
   const [publishDialogSessionId, setPublishDialogSessionId] = useState<string | null>(null);
   const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
   const [saveDialogSessionId, setSaveDialogSessionId] = useState<string | null>(null);
+  /* Get project changes can end in "save your changes first". Save version
+     opens only once that dialog has closed and its operation has finished, or
+     the mutation guard would still see the sync running and refuse. */
+  const [saveAfterSyncSessionId, setSaveAfterSyncSessionId] = useState<string | null>(null);
   const [getTeamDialogSessionId, setGetTeamDialogSessionId] = useState<string | null>(null);
   // App-wide bounded quick-switch and Overview's quick-create are distinct
   // from the Lines screen's own dialog state because neither entry point is
@@ -543,6 +548,16 @@ export function App(): React.JSX.Element {
     }
     return true;
   };
+
+  // Runs on the render after Get project changes closed, when the sessions
+  // state no longer holds its operation (see `saveAfterSyncSessionId`).
+  const startSessionOperationRef = useRef(startSessionOperation);
+  startSessionOperationRef.current = startSessionOperation;
+  useEffect(() => {
+    if (!saveAfterSyncSessionId || getTeamDialogSessionId) return;
+    setSaveAfterSyncSessionId(null);
+    startSessionOperationRef.current("save", undefined, saveAfterSyncSessionId);
+  }, [getTeamDialogSessionId, saveAfterSyncSessionId]);
 
   /* The notification centre's one action.
 
@@ -976,10 +991,18 @@ export function App(): React.JSX.Element {
       setOpenErrorRecoveryAction(
         selectedPath && isAppError(error) && error.code === "not_repository"
           ? {
-              label: t.commandTurnFolderIntoProject,
+              label: t.openErrorTurnIntoProject,
               onAction: () => {
                 setIsOpenErrorDialogOpen(false);
                 setInitializeDialogRequest({ mode: "existing-folder", existingPath: selectedPath ?? undefined });
+              },
+              // The message names two ways out, so the dialog offers both.
+              alternative: {
+                label: t.openErrorChooseAnother,
+                onAction: () => {
+                  setIsOpenErrorDialogOpen(false);
+                  void handleOpenProjectRef.current();
+                },
               },
             }
           : null,
@@ -1834,6 +1857,7 @@ export function App(): React.JSX.Element {
     // versions list under Overview renders diffs too, through an entirely
     // different panel.
     <DiffPreferencesProvider value={diffPreferences}>
+    <ToastProvider>
     <div
       className={
         `app-window` +
@@ -2674,6 +2698,11 @@ export function App(): React.JSX.Element {
               phase,
             })
           }
+          onSaveVersion={() => {
+            finishSessionOperation(getTeamDialogSession.id);
+            setGetTeamDialogSessionId(null);
+            setSaveAfterSyncSessionId(getTeamDialogSession.id);
+          }}
         />
       )}
 
@@ -2832,6 +2861,7 @@ export function App(): React.JSX.Element {
       />
       <TooltipHost />
     </div>
+    </ToastProvider>
     </DiffPreferencesProvider>
   );
 }

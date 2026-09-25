@@ -115,6 +115,7 @@
     "install_blocked",
     "install_handoff_failed",
     "post_install_unconfirmed",
+    "not_configured",
     "internal"
   ],
   "bounds": {

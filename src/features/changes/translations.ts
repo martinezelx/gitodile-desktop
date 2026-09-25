@@ -138,8 +138,6 @@ export interface ChangesTranslations {
   changesDiscardFileTitle: string;
   changesDiscardAllTitle: string;
   changesRestoreTitle: string;
-  changesDiscardDoneTitle: string;
-  changesRestoreDoneTitle: string;
   changesDiscardFileSummary: (path: string) => string;
   changesDiscardAllSummary: (count: number) => string;
   changesDiscardPreparedWarning: string;
@@ -325,17 +323,15 @@ const en: ChangesTranslations = {
   changesDiscardSelected: "Discard this file's changes…",
   changesDiscardAll: "Discard all changes…",
   changesRestoreDiscarded: "Restore discarded changes…",
-  changesDiscardFileTitle: "Discard this file's changes?",
-  changesDiscardAllTitle: "Discard all unsaved changes?",
+  changesDiscardFileTitle: "Discard changes?",
+  changesDiscardAllTitle: "Discard all changes?",
   changesRestoreTitle: "Restore discarded changes",
-  changesDiscardDoneTitle: "Changes discarded",
-  changesRestoreDoneTitle: "Changes restored",
-  changesDiscardFileSummary: (path) => `${path} goes back to its last saved version.`,
+  changesDiscardFileSummary: (path) => `“${path}” goes back to its last saved version.`,
   changesDiscardAllSummary: (count) => count === 1 ? "1 file goes back to its last saved version." : `${count} files go back to their last saved version.`,
   changesDiscardPreparedWarning: "Prepared changes are discarded too.",
   changesDiscardUntrackedWarning: "New files are removed.",
   changesDiscardConflictWarning: "Unresolved conflicts go back to the last saved version.",
-  changesDiscardRecoveryNote: "GitOdile keeps a copy on this computer, so you can undo this.",
+  changesDiscardRecoveryNote: "A copy is kept, so you can undo this.",
   changesDiscardConfirmFile: "Discard changes",
   changesDiscardConfirmAll: "Discard all",
   changesRestoreConfirm: "Restore",
@@ -512,17 +508,15 @@ const es: ChangesTranslations = {
   changesDiscardSelected: "Descartar los cambios de este archivo…",
   changesDiscardAll: "Descartar todos los cambios…",
   changesRestoreDiscarded: "Restaurar cambios descartados…",
-  changesDiscardFileTitle: "¿Descartar los cambios de este archivo?",
-  changesDiscardAllTitle: "¿Descartar todos los cambios sin guardar?",
+  changesDiscardFileTitle: "¿Descartar cambios?",
+  changesDiscardAllTitle: "¿Descartar todos los cambios?",
   changesRestoreTitle: "Restaurar cambios descartados",
-  changesDiscardDoneTitle: "Cambios descartados",
-  changesRestoreDoneTitle: "Cambios restaurados",
-  changesDiscardFileSummary: (path) => `${path} vuelve a su última versión guardada.`,
+  changesDiscardFileSummary: (path) => `«${path}» vuelve a su última versión guardada.`,
   changesDiscardAllSummary: (count) => count === 1 ? "1 archivo vuelve a su última versión guardada." : `${count} archivos vuelven a su última versión guardada.`,
   changesDiscardPreparedWarning: "Los cambios preparados también se descartan.",
   changesDiscardUntrackedWarning: "Los archivos nuevos se eliminan.",
   changesDiscardConflictWarning: "Los conflictos sin resolver vuelven a la última versión guardada.",
-  changesDiscardRecoveryNote: "GitOdile guarda una copia en este ordenador para que puedas deshacerlo.",
+  changesDiscardRecoveryNote: "Se guarda una copia, así que puedes deshacerlo.",
   changesDiscardConfirmFile: "Descartar cambios",
   changesDiscardConfirmAll: "Descartar todo",
   changesRestoreConfirm: "Restaurar",

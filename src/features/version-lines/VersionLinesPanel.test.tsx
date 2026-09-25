@@ -492,7 +492,7 @@ describe("VersionLinesPanel", () => {
     });
     mockedInvoke.mockResolvedValueOnce(snapshot());
 
-    await user.click(screen.getByRole("button", { name: "Create" }));
+    await user.click(screen.getByRole("button", { name: "Create line" }));
 
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     // The snapshot the command already returned goes straight back to the

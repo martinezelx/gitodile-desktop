@@ -25,6 +25,7 @@ import {
 } from "../features/project-settings";
 import {
   ChannelGlyph,
+  Dialog,
   DialogCloseButton,
   autoHideScrollbarProps,
   type ProjectAvatarStyle,
@@ -173,7 +174,7 @@ export type AppOverlaysProps = {
      * opening an ordinary folder. It is the constructive choice, so it takes
      * the primary button and Close steps down to secondary; when there is no
      * recovery, Close is the only action and keeps the primary treatment. */
-    recoveryAction?: { label: string; onAction: () => void } | null;
+    recoveryAction?: { label: string; onAction: () => void; alternative?: { label: string; onAction: () => void } } | null;
   };
 };
 
@@ -602,32 +603,50 @@ export function AppOverlays({
       )}
 
       {closeConfirmation.isOpen && (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => closeConfirmation.setOpen(false)}>
-          <div ref={closeRef} className="message-dialog" role="dialog" aria-modal="true" aria-labelledby="close-confirm-title" aria-describedby="close-confirm-body" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-            <h2 id="close-confirm-title">{t.closeConfirmTitle}</h2>
-            <p id="close-confirm-body">{closeConfirmation.projectName ? t.closeConfirmBodyNamed(closeConfirmation.projectName) : t.closeConfirmBodyGeneric}</p>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={() => closeConfirmation.setOpen(false)}>{t.commonCancel}</button>
-              <button className="primary-button" type="button" onClick={closeConfirmation.onConfirm}>{t.overviewCloseProject}</button>
-            </div>
+        <Dialog
+          size="s"
+          title={t.closeConfirmTitle}
+          titleId="close-confirm-title"
+          descriptionId="close-confirm-body"
+          onClose={() => closeConfirmation.setOpen(false)}
+          closeLabel={t.commonClose}
+          dialogRef={closeRef}
+        >
+          <p className="app-dialog__text" id="close-confirm-body">
+            {closeConfirmation.projectName ? t.closeConfirmBodyNamed(closeConfirmation.projectName) : t.closeConfirmBodyGeneric}
+          </p>
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={() => closeConfirmation.setOpen(false)}>{t.commonCancel}</button>
+            <button className="primary-button" type="button" onClick={closeConfirmation.onConfirm}>{t.overviewCloseProject}</button>
           </div>
-        </div>
+        </Dialog>
       )}
 
       {error.isOpen && error.message && (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => error.setOpen(false)}>
-          {/* `aria-describedby` rather than a `role="alert"` on the message:
-              an alertdialog already announces its own body on open, and the
-              live region made a screen reader read the failure twice. */}
-          <div ref={errorRef} className="message-dialog" role="alertdialog" aria-modal="true" aria-labelledby="open-error-title" aria-describedby="open-error-message" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-            <span className="message-dialog__icon" aria-hidden="true">
-              <CircleAlert />
-            </span>
-            <h2 id="open-error-title">{error.title}</h2>
-            <p id="open-error-message">{error.message}</p>
-            {/* Dismiss first, constructive last — the order every other dialog
-                in the app uses (Cancel then Close project, Cancel then Save). */}
-            <div className="dialog-actions">
+        /* `aria-describedby` rather than a `role="alert"` on the message: an
+           alertdialog already announces its own body on open, and the live
+           region made a screen reader read the failure twice. */
+        <Dialog
+          size="s"
+          role="alertdialog"
+          title={error.title}
+          titleId="open-error-title"
+          descriptionId="open-error-message"
+          icon={<CircleAlert />}
+          tone="danger"
+          onClose={() => error.setOpen(false)}
+          closeLabel={t.commonClose}
+          dialogRef={errorRef}
+        >
+          <p className="app-dialog__text" id="open-error-message">{error.message}</p>
+          {/* Dismiss (or the other way out) first, constructive last — the
+              order every other dialog uses. */}
+          <div className="dialog-actions">
+            {error.recoveryAction?.alternative ? (
+              <button className="secondary-button" type="button" onClick={error.recoveryAction.alternative.onAction}>
+                {error.recoveryAction.alternative.label}
+              </button>
+            ) : (
               <button
                 className={error.recoveryAction ? "secondary-button" : "primary-button"}
                 type="button"
@@ -635,14 +654,14 @@ export function AppOverlays({
               >
                 {t.commonClose}
               </button>
-              {error.recoveryAction && (
-                <button className="primary-button" type="button" onClick={error.recoveryAction.onAction}>
-                  {error.recoveryAction.label}
-                </button>
-              )}
-            </div>
+            )}
+            {error.recoveryAction && (
+              <button className="primary-button" type="button" onClick={error.recoveryAction.onAction}>
+                {error.recoveryAction.label}
+              </button>
+            )}
           </div>
-        </div>
+        </Dialog>
       )}
     </>
   );

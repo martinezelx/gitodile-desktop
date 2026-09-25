@@ -36,7 +36,7 @@ function ReportHarness({ port }: { port: IssueReportPort }) {
 async function openReview(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(screen.getByRole("button", { name: "More actions" }));
   await user.click(screen.getByRole("menuitem", { name: "Report an issue" }));
-  await screen.findByRole("dialog", { name: "Review issue report" });
+  await screen.findByRole("dialog", { name: "Review the report before sending it" });
 }
 
 it("reviews the exact report before copying, saving or opening GitHub", async () => {
@@ -52,7 +52,6 @@ it("reviews the exact report before copying, saving or opening GitHub", async ()
   expect(contents.textContent).toBe(REPORT);
   expect(contents.querySelector("textarea")).toBeNull();
   expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
-  expect(screen.getByText(/attach the file to the issue/i)).toBeVisible();
 
   await user.click(screen.getByRole("button", { name: "Copy" }));
   expect(port.copy).toHaveBeenCalledWith(REPORT);
@@ -81,7 +80,7 @@ it("keeps browser failure, retry and manual-link recovery in the same dialog", a
   await openReview(user);
   await user.click(screen.getByRole("button", { name: "Open issue" }));
 
-  expect(await screen.findByRole("alertdialog")).toHaveAccessibleName("Couldn't open the issue report");
+  expect(await screen.findByRole("alertdialog")).toHaveAccessibleName("The browser didn't open");
   const attemptedUrl = vi.mocked(port.open).mock.calls[0][0];
   await user.click(screen.getByRole("button", { name: "Copy link" }));
   expect(port.copy).toHaveBeenCalledWith(attemptedUrl);

@@ -244,6 +244,7 @@ pub(crate) enum UpdateErrorCode {
     InstallBlocked,
     InstallHandoffFailed,
     PostInstallUnconfirmed,
+    NotConfigured,
     Internal,
 }
 
@@ -1207,8 +1208,10 @@ fn build_update_identity(
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
     {
         return Err(
-            UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false)
-                .detail("Updates aren't set up for this build."),
+            // No usable update key: this build cannot check at all. A code of
+            // its own rather than an English `detail`, so the frontend writes
+            // the sentence in the reader's language.
+            UpdateError::new(UpdateErrorCode::NotConfigured, UpdateStage::Check, false),
         );
     }
     let channel = preference.resolve(build_channel);

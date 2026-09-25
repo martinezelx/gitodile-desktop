@@ -1818,6 +1818,7 @@ export function ChangesPanel({
           onClose={() => { setDiscardRequest(null); onDiscardClose(); }}
           onMutationCompleted={onSaveCompleted}
           onPhaseChange={onDiscardPhaseChange}
+          onFinished={directDiscard.report}
         />
       </React.Suspense>
     </div>

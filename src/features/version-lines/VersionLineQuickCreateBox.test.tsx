@@ -399,7 +399,7 @@ describe("VersionLineQuickCreateBox", () => {
     expect(screen.queryByRole("checkbox", { name: "Switch to it" })).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "You're not on a version line, so GitOdile will switch to the new one to keep this work easy to find.",
+        "You're not on a version line, so you'll switch to the new one to keep this work easy to find.",
       ),
     ).toBeInTheDocument();
 

@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronRight, CircleAlert, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleAlert, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
 import {
   autoHideScrollbarProps,
-  DialogCloseButton,
+  Dialog,
+  DialogBanner,
   moveFocusWithinRadioGroup,
   useModalFocus,
 } from "../../shared/ui";
 import type { ChangesController } from "./controller";
+import type { DirectDiscardOutcome } from "./directDiscard";
 import type {
   DiscardPlan,
   DiscardRecovery,
@@ -120,7 +122,7 @@ function RecoveryRow({
           <button className="secondary-button secondary-button--sm" type="button" onClick={onCancelForget}>
             {t.changesRestoreForgetCancel}
           </button>
-          <button className="changes-danger-button changes-danger-button--sm" type="button" onClick={onForget}>
+          <button className="danger-button danger-button--sm" type="button" onClick={onForget}>
             {t.changesRestoreForgetConfirm}
           </button>
         </div>
@@ -264,6 +266,7 @@ export function DiscardChangesDialog({
   onClose,
   onMutationCompleted,
   onPhaseChange,
+  onFinished,
 }: {
   request: DiscardDialogRequest | null;
   projectPath: string;
@@ -272,6 +275,10 @@ export function DiscardChangesDialog({
   onClose: () => void;
   onMutationCompleted: () => void;
   onPhaseChange?: (phase: "planning" | "executing" | "error" | "success") => void;
+  /** A finished discard or restore, handed to the Changes header's notice as
+   * the dialog closes: the notice carries the Undo, and its Undo claims the
+   * mutation slot the way this dialog does. */
+  onFinished: (outcome: DirectDiscardOutcome) => void;
 }): React.JSX.Element | null {
   const { t, formatDate } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -280,6 +287,8 @@ export function DiscardChangesDialog({
   const onCloseRef = useRef(onClose);
   const onMutationCompletedRef = useRef(onMutationCompleted);
   const onPhaseChangeRef = useRef(onPhaseChange);
+  const onFinishedRef = useRef(onFinished);
+  onFinishedRef.current = onFinished;
   onCloseRef.current = onClose;
   onMutationCompletedRef.current = onMutationCompleted;
   onPhaseChangeRef.current = onPhaseChange;
@@ -337,16 +346,18 @@ export function DiscardChangesDialog({
   const recoveries = state.status === "ready-restore" ? state.recoveries : [];
   const applicable = recoveries.filter((record) => record.availability === "restorable");
   const unavailable = recoveries.filter((record) => record.availability !== "restorable");
-  const hasActions = isFailed
-    || state.status === "ready-discard"
-    || state.status === "discarded"
-    || (state.status === "ready-restore" && applicable.length > 0);
 
   const restore = (record: DiscardRecovery | DiscardRecoveryRecord, stateToken: string): void => {
     setState({ status: "submitting", plan: record });
     onPhaseChangeRef.current?.("executing");
     controller.restoreDiscard(projectPath, sessionEpoch, record.recoveryId, stateToken)
-      .then(() => { setState({ status: "restored", fileCount: record.fileCount }); onPhaseChangeRef.current?.("success"); onMutationCompletedRef.current(); })
+      .then(() => {
+        setState({ status: "restored", fileCount: record.fileCount });
+        onPhaseChangeRef.current?.("success");
+        onMutationCompletedRef.current();
+        onFinishedRef.current({ status: "restored", restoredFiles: record.fileCount });
+        onCloseRef.current();
+      })
       .catch((error: unknown) => { setState({ status: "submit-error", plan: record, error }); onPhaseChangeRef.current?.("error"); });
   };
 
@@ -360,6 +371,8 @@ export function DiscardChangesDialog({
           setState({ status: "discarded", result, recovery: result.recovery });
           onPhaseChangeRef.current?.("success");
           onMutationCompletedRef.current();
+          onFinishedRef.current({ status: "discarded", discardedFiles: result.discardedFiles, recovery: result.recovery });
+          onCloseRef.current();
         })
         .catch((error: unknown) => { setState({ status: "submit-error", plan: currentPlan, error }); onPhaseChangeRef.current?.("error"); });
     } else if (chosen?.stateToken) {
@@ -386,117 +399,114 @@ export function DiscardChangesDialog({
     },
   };
 
-  const undo = (): void => {
-    if (state.status !== "discarded") return;
-    restore(state.recovery, state.recovery.stateToken);
-  };
-
-  /* A dialog that has done the thing stops asking whether to do it: a heading
-     still reading "Discard this file's changes?" over "1 file went back to its
-     last saved version" contradicts itself, and that heading is what a screen
-     reader announces when focus lands here. */
-  const title = state.status === "discarded" ? t.changesDiscardDoneTitle
-    : state.status === "restored" ? t.changesRestoreDoneTitle
-      : isRestore ? t.changesRestoreTitle
-        : request.mode === "selected" ? t.changesDiscardFileTitle : t.changesDiscardAllTitle;
+  /* A finished discard or restore has no question left to ask, so the dialog
+     closes and the Changes header reports it, with the discard's Undo
+     (DESIGN.md § Dialogs). */
+  const title = isRestore ? t.changesRestoreTitle
+    : request.mode === "selected" ? t.changesDiscardFileTitle : t.changesDiscardAllTitle;
+  const canRestore = state.status === "ready-restore" && applicable.length > 0;
 
   return (
-    <div className="changes-discard-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget && !isBusy) onClose();
-    }}>
-      <div ref={dialogRef} className="changes-discard-dialog" role="dialog" aria-modal="true" aria-labelledby="changes-discard-title" tabIndex={-1}>
-        <header className="changes-discard-dialog__header">
-          <h2 id="changes-discard-title" ref={headingRef} tabIndex={-1}>{title}</h2>
-          {/* The same control every other dialog closes with. Gone while a
-              mutation is running, exactly like the backdrop's own dismissal. */}
-          {!isBusy && <DialogCloseButton label={t.commonClose} onClick={onClose} />}
-        </header>
-        {/* Both flows report the same way in both of their waiting states: a
-            spinner and a line saying what is being waited on. The running one
-            matters most — before it, the dialog sat there with its buttons
-            gone and nothing at all in their place. */}
-        {state.status === "loading" && (
-          <p className="changes-discard-status">
-            <LoaderCircle className="icon--spinning" aria-hidden="true" />
-            {isRestore ? t.changesRestoreLoading : t.changesDiscardLoading}
+    <Dialog
+      size={isRestore ? "m" : "s"}
+      title={title}
+      titleId="changes-discard-title"
+      titleRef={headingRef}
+      subtitle={canRestore ? t.changesRestoreChooseIntro : undefined}
+      onClose={onClose}
+      closeLabel={t.commonClose}
+      dismissible={!isBusy}
+      dialogRef={dialogRef}
+      className="changes-discard-dialog"
+    >
+      {/* Both flows report the same way in both of their waiting states: a
+          spinner and a line saying what is being waited on. */}
+      {state.status === "loading" && (
+        <p className="app-dialog__note" role="status">
+          <LoaderCircle className="icon--spinning" aria-hidden="true" />
+          {isRestore ? t.changesRestoreLoading : t.changesDiscardLoading}
+        </p>
+      )}
+      {isBusy && (
+        <p className="app-dialog__note" role="status">
+          <LoaderCircle className="icon--spinning" aria-hidden="true" />
+          {restoringRecovery ? t.changesRestoreSummary(restoringRecovery.fileCount) : t.changesDiscardingNow}
+        </p>
+      )}
+      {discardPlan && (
+        <>
+          <p className="app-dialog__text">
+            {discardPlan.selectedPath ? t.changesDiscardFileSummary(discardPlan.selectedPath) : t.changesDiscardAllSummary(discardPlan.fileCount)}
           </p>
-        )}
-        {isBusy && (
-          <p className="changes-discard-status">
-            <LoaderCircle className="icon--spinning" aria-hidden="true" />
-            {restoringRecovery ? t.changesRestoreSummary(restoringRecovery.fileCount) : t.changesDiscardingNow}
-          </p>
-        )}
-        {discardPlan && (
-          <div className="changes-discard-summary">
-            <p>{discardPlan.selectedPath ? t.changesDiscardFileSummary(discardPlan.selectedPath) : t.changesDiscardAllSummary(discardPlan.fileCount)}</p>
-            <ul>
+          {(discardPlan.affectsPreparedChanges || discardPlan.removesUntrackedFiles || discardPlan.includesConflicts) && (
+            <ul className="changes-discard-warnings">
               {discardPlan.affectsPreparedChanges && <li>{t.changesDiscardPreparedWarning}</li>}
               {discardPlan.removesUntrackedFiles && <li>{t.changesDiscardUntrackedWarning}</li>}
               {discardPlan.includesConflicts && <li>{t.changesDiscardConflictWarning}</li>}
             </ul>
-            <p className="changes-discard-recovery"><RotateCcw aria-hidden="true" />{t.changesDiscardRecoveryNote}</p>
-          </div>
-        )}
-        {state.status === "ready-restore" && (
-          recoveries.length === 0
-            ? <p>{t.changesRestoreEmpty}</p>
-            : (
-              <>
-                <p>{applicable.length > 0 ? t.changesRestoreChooseIntro : t.changesRestoreNoneAvailable}</p>
-                {applicable.length > 0 && (
-                  <RestorePicker
-                    recoveries={applicable}
-                    selectedId={state.selectedId}
-                    onSelect={(recoveryId) => setState({ ...state, selectedId: recoveryId })}
-                    forget={forget}
-                    t={t}
-                    formatWhen={(createdAtMs) => formatDate(new Date(createdAtMs), "date-time")}
-                  />
-                )}
-                {unavailable.length > 0 && (
-                  <UnavailableRecoveries
-                    recoveries={unavailable}
-                    isOpen={showUnavailable}
-                    onToggle={() => setShowUnavailable((value) => !value)}
-                    forget={forget}
-                    t={t}
-                    formatWhen={(createdAtMs) => formatDate(new Date(createdAtMs), "date-time")}
-                  />
-                )}
-              </>
-            )
-        )}
-        {(state.status === "plan-error" || state.status === "submit-error") && (
-          <p className="changes-discard-error" role="alert"><CircleAlert aria-hidden="true" />{localizeAppError(state.error, t, t.changesDiscardUnavailable)}</p>
-        )}
-        {state.status === "discarded" && <div className="changes-discard-success"><CheckCircle2 aria-hidden="true" /><p>{t.changesDiscardSuccess(state.result.discardedFiles)}</p></div>}
-        {state.status === "restored" && <div className="changes-discard-success"><CheckCircle2 aria-hidden="true" /><p>{t.changesRestoreSuccess(state.fileCount)}</p></div>}
-        {/* Rendered only when it holds something. Nothing here dismisses the
-            dialog — that is the corner control's job, and a Close button beside
-            an X is the same door twice — so a state whose work is finished
-            offers no button at all. */}
-        {hasActions && <div className="dialog-actions">
-          {isFailed && <button className="secondary-button" type="button" onClick={() => setRetry((value) => value + 1)}>{t.changesDiffRetry}</button>}
-          {state.status === "discarded" && <button className="secondary-button" type="button" onClick={undo}><RotateCcw aria-hidden="true" />{t.changesUndoDiscard}</button>}
-          {/* No Cancel anywhere: every dialog in here dismisses through the
-              same corner control, the backdrop and Escape. The destructive
-              confirmation keeps its own weight through the danger button being
-              the only thing to press, never through a second way out. */}
-          {state.status === "ready-discard" && <button className="changes-danger-button" type="button" onClick={confirm}><Trash2 aria-hidden="true" />{state.plan.selectedPath ? t.changesDiscardConfirmFile : t.changesDiscardConfirmAll}</button>}
-          {/* Disabled rather than absent when nothing can be restored: the list
-              above is showing why, and a button that vanishes leaves the reader
-              looking for it. */}
-          {state.status === "ready-restore" && applicable.length > 0 && (
-            <button className="primary-button" type="button" disabled={chosen?.stateToken == null} onClick={confirm}>
+          )}
+          <p className="app-dialog__note"><RotateCcw aria-hidden="true" />{t.changesDiscardRecoveryNote}</p>
+        </>
+      )}
+      {state.status === "ready-restore" && (
+        recoveries.length === 0
+          ? <p className="app-dialog__text">{t.changesRestoreEmpty}</p>
+          : (
+            <>
+              {applicable.length === 0 && <p className="app-dialog__text">{t.changesRestoreNoneAvailable}</p>}
+              {applicable.length > 0 && (
+                <RestorePicker
+                  recoveries={applicable}
+                  selectedId={state.selectedId}
+                  onSelect={(recoveryId) => setState({ ...state, selectedId: recoveryId })}
+                  forget={forget}
+                  t={t}
+                  formatWhen={(createdAtMs) => formatDate(new Date(createdAtMs), "date-time")}
+                />
+              )}
+              {unavailable.length > 0 && (
+                <UnavailableRecoveries
+                  recoveries={unavailable}
+                  isOpen={showUnavailable}
+                  onToggle={() => setShowUnavailable((value) => !value)}
+                  forget={forget}
+                  t={t}
+                  formatWhen={(createdAtMs) => formatDate(new Date(createdAtMs), "date-time")}
+                />
+              )}
+            </>
+          )
+      )}
+      {isFailed && (
+        <DialogBanner tone="danger" icon={<CircleAlert />}>
+          <p role="alert">{localizeAppError(state.error, t, t.changesDiscardUnavailable)}</p>
+        </DialogBanner>
+      )}
+      {/* Cancel beside the action, like every other dialog: a destructive
+          confirmation whose only visible button is the destructive one reads
+          as "press this to continue". Nothing to restore offers only Close. */}
+      {state.status !== "loading" && (
+        <div className="dialog-actions">
+          <button className="secondary-button" type="button" onClick={onClose} disabled={isBusy}>
+            {isFailed || (state.status === "ready-restore" && !canRestore) ? t.commonClose : t.commonCancel}
+          </button>
+          {isFailed && (
+            <button className="primary-button" type="button" onClick={() => setRetry((value) => value + 1)}>{t.changesDiffRetry}</button>
+          )}
+          {(state.status === "ready-discard" || (isBusy && discardPlan)) && (
+            <button className="danger-button" type="button" onClick={confirm} disabled={isBusy}>
+              <Trash2 aria-hidden="true" />{discardPlan?.selectedPath ? t.changesDiscardConfirmFile : t.changesDiscardConfirmAll}
+            </button>
+          )}
+          {/* Disabled rather than absent when the chosen copy can't be applied:
+              the list above says why. */}
+          {(canRestore || (isBusy && restoringRecovery)) && (
+            <button className="primary-button" type="button" disabled={isBusy || chosen?.stateToken == null} onClick={confirm}>
               <RotateCcw aria-hidden="true" />{t.changesRestoreConfirm}
             </button>
           )}
-          {/* A finished action gets a button to close on. Nothing to restore
-              is not a finished action — it is a dialog with nothing to press,
-              so it offers nothing and leaves the corner control to do it. */}
-        </div>}
-      </div>
-    </div>
+        </div>
+      )}
+    </Dialog>
   );
 }

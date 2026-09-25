@@ -848,7 +848,6 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
   .version-line-row { transition: none; }
 }
 
-
 @media (forced-colors: active) {
   .version-line-row--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .version-line-chip { border: 1px solid CanvasText; }
@@ -858,16 +857,6 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
   display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 18px;
   color: var(--text-secondary-color); font-size: var(--text-body); overflow-wrap: anywhere;
 }
-
-/* A choice with a consequence under it, so the row is aligned to the top of
-   the label rather than centred on a block of two lines. */
-.version-lines-checkbox {
-  display: flex; align-items: flex-start; gap: var(--space-2);
-  margin: var(--space-3) 0; font-size: var(--text-body);
-}
-.version-lines-checkbox > span { min-width: 0; display: grid; gap: 2px; }
-.version-lines-checkbox strong { font-weight: var(--weight-strong); }
-.version-lines-checkbox .save-version-note { margin: 0; }
 
 .version-lines-quick-switch { position: relative; display: inline-flex; gap: 8px; }
 /* A circle at row scale. `min-height` as well as `height`, because the shared

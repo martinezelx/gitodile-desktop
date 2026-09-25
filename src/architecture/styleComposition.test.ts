@@ -61,7 +61,8 @@ describe("production style composition", () => {
     expect(readSource("features/clone/clone.css")).toContain(".clone-dialog");
     expect(readSource("features/initialize-project/initialize-project.css")).toContain(".initialize-dialog");
     expect(readSource("features/status/status.css")).toContain(".status-breakdown");
-    expect(readSource("features/sync/sync.css")).toContain(".get-team-dialog");
+    expect(readSource("features/sync/sync.css")).toContain(".get-team-plan");
+    expect(readSource("shared/ui/primitives.css")).toContain(".app-dialog");
     expect(readSource("features/app-updates/app-updates.css")).toContain(".app-update-dialog");
     const changes = readSource("features/changes/changes.css");
     expect(changes).toContain(".changes-file-item__type-icon");
@@ -676,8 +677,10 @@ describe("production style composition", () => {
       ["features/overview/overview.css", ".welcome-recents__avatar", "border-radius: var(--radius-identity)"],
       ["features/settings/settings.css", ".project-icons-card__avatar", "border-radius: var(--radius-identity)"],
       ["features/project-settings/project-settings.css", ".project-icon-preview__avatar", "border-radius: var(--radius-identity)"],
-      ["features/clone/clone.css", ".clone-dialog__progress li > span", "border-radius: var(--radius-round)"],
-      ["features/initialize-project/initialize-project.css", ".initialize-dialog__progress li > svg, .initialize-dialog__progress li > span", "border-radius: var(--radius-round)"],
+      // A dialog's header glyph and a progress step's dot are atomic marks
+      // with no reading direction: circles, in every dialog that shows them.
+      ["shared/ui/primitives.css", ".app-dialog__glyph", "border-radius: var(--radius-round)"],
+      ["shared/ui/primitives.css", ".app-dialog__step-dot", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".journey-step__icon", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
@@ -748,14 +751,17 @@ describe("production style composition", () => {
 
     // DESIGN.md § Pointer cursors reserves the hand for real links and text
     // actions deliberately styled as links, and for nothing else — every
-    // ordinary button keeps the platform arrow cursor. Three controls qualify,
-    // all underlined inline disclosures that send the reader somewhere: the
-    // update link and the licence/source pair in About, and Save version's
-    // detail toggle. Anything else appearing here is the drift this guard
-    // exists to catch.
+    // ordinary button keeps the platform arrow cursor. Five controls qualify,
+    // all text actions styled as links: the update link and the licence/source
+    // pair in About, Save version's detail toggle, a dialog's inline way out
+    // ("Add in Settings", "Save without hooks just this once") and a toast's
+    // action. Anything else appearing here is the drift this guard exists to
+    // catch.
     expect(pointerRules).toEqual([
       "app/app-shell.css: .about-dialog__update-link",
       "app/app-shell.css: .about-dialog__legal button",
+      "shared/ui/primitives.css: .app-dialog__link",
+      "shared/ui/primitives.css: .app-toast__action",
       "features/save-version/save-version.css: .save-version-detail__toggle",
     ]);
   });

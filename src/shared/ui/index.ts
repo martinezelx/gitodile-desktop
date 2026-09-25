@@ -24,6 +24,14 @@ export { LoadingBar } from "./loadingBar";
 export { SearchBox } from "./searchBox";
 export { RefreshIconButton } from "./refreshIconButton";
 export { DialogCloseButton } from "./dialogCloseButton";
+/* DESIGN.md § Dialogs: every action dialog (create, clone, save, publish, get
+   changes, discard, the version-line dialogs, updates, the app's messages and
+   the issue report) wears this one shell, so sizes, header and actions can't
+   drift apart again the way seven widths and four paddings once did. */
+export { Dialog, DialogBanner, DialogFacts, type DialogFact, type DialogProps, type DialogSize, type DialogTone } from "./dialog";
+/* The same dialogs' results with no next step: a toast, not a dialog to
+   dismiss. The app shell mounts the provider once. */
+export { ToastProvider, useToast, type ToastRequest } from "./toast";
 export { moveFocusWithinRadioGroup } from "./radioGroup";
 export { AutomaticUpdatesNotice } from "./automaticUpdatesNotice";
 export { useFieldErrors, FieldError } from "./fieldErrors";

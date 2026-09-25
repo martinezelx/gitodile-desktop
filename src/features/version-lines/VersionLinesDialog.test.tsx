@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { LanguageProvider } from "../../i18n";
+import { ToastProvider } from "../../shared/ui";
 import { DeleteVersionLineDialog, SwitchVersionLineDialog } from "./VersionLinesDialog";
 import type { DeleteVersionLinePlan, SwitchVersionLinePlan, VersionLinesSnapshot } from "./domain";
 
@@ -57,7 +58,7 @@ describe("SwitchVersionLineDialog", () => {
     const onCreateWithWork = vi.fn();
     const onClose = vi.fn();
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <SwitchVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -68,11 +69,15 @@ describe("SwitchVersionLineDialog", () => {
           onSaveVersion={onSaveVersion}
           onCreateWithWork={onCreateWithWork}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
-    const newLineButton = await screen.findByRole("button", { name: "New line with these changes" });
-    await userEvent.setup().click(newLineButton);
+    // Two ways through, as a choice: saving is picked first, and the primary
+    // action follows whichever is chosen.
+    const user = userEvent.setup();
+    expect(await screen.findByRole("radio", { name: /Save them as a version/ })).toBeChecked();
+    await user.click(screen.getByRole("radio", { name: /Take them to a new line/ }));
+    await user.click(screen.getByRole("button", { name: "New line with these changes" }));
     expect(onClose).toHaveBeenCalled();
     expect(onCreateWithWork).toHaveBeenCalled();
   });
@@ -83,7 +88,7 @@ describe("SwitchVersionLineDialog", () => {
     const onSwitched = vi.fn();
     const user = userEvent.setup();
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <SwitchVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -94,13 +99,17 @@ describe("SwitchVersionLineDialog", () => {
           onSaveVersion={vi.fn()}
           onCreateWithWork={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     expect(await screen.findByText("1 file will change.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Switch" }));
+    // The recovery note is written in the reader's language from the plan's
+    // facts, never the plan's own English sentence.
+    expect(screen.getByText("“main” stays as it is, and switching back returns these files.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Switch line" }));
 
     await waitFor(() => expect(onSwitched).toHaveBeenCalledWith(emptySnapshot()));
+    expect(await screen.findByText("You're now on “feature/x”.")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("switch_version_line", {
       path: "/repo",
       sessionEpoch: "epoch-1",
@@ -152,7 +161,7 @@ describe("DeleteVersionLineDialog", () => {
     });
     const user = userEvent.setup();
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -161,18 +170,18 @@ describe("DeleteVersionLineDialog", () => {
           onClose={vi.fn()}
           onDeleted={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     expect(
       await screen.findByText(
-        "Its work is already on main, as one combined version (abc1234). The originals are only on this line.",
+        "Its work is already on “main”, combined into one version.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/GitOdile first saves those originals in a local recovery point/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByText("Its original versions are saved as a recovery point first.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete line" }));
     expect(
-      await screen.findByText("Its original versions are kept in a local recovery point."),
+      await screen.findByText("“feature/x” deleted. Its original versions are kept in a recovery point."),
     ).toBeInTheDocument();
   });
 
@@ -186,7 +195,7 @@ describe("DeleteVersionLineDialog", () => {
     const onDeleted = vi.fn();
     const user = userEvent.setup();
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -195,13 +204,13 @@ describe("DeleteVersionLineDialog", () => {
           onClose={vi.fn()}
           onDeleted={onDeleted}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
-    expect(await screen.findByText(/refs\/heads\/main/)).toBeInTheDocument();
+    expect(await screen.findByText("Its work is already on “main”, so nothing is lost.")).toBeInTheDocument();
     // Nothing published, so nothing to ask about.
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete line" }));
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(emptySnapshot()));
     expect(mockedInvoke).toHaveBeenCalledWith("delete_version_line", {
@@ -223,7 +232,7 @@ describe("DeleteVersionLineDialog", () => {
     });
     const user = userEvent.setup();
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -232,22 +241,20 @@ describe("DeleteVersionLineDialog", () => {
           onClose={vi.fn()}
           onDeleted={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     // Deleting a line only here would leave it on everyone else's screen, so
     // the shared copy goes with it unless the user says otherwise.
-    const choice = await screen.findByRole("checkbox", { name: /Also delete origin\/feature\/x/ });
+    const choice = await screen.findByRole("checkbox", { name: /Also delete the published copy/ });
     expect(choice).toBeChecked();
-    expect(screen.getByText("It will be removed for everyone on this project.")).toBeInTheDocument();
+    expect(screen.getByText("Your team won't see it anymore.")).toBeInTheDocument();
 
     await user.click(choice);
-    expect(
-      screen.getByText("origin/feature/x stays, and your team still sees it."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("It stays, and your team still sees it.")).toBeInTheDocument();
 
     await user.click(choice);
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete line" }));
     expect(mockedInvoke).toHaveBeenCalledWith("delete_version_line", {
       path: "/repo",
       sessionEpoch: "epoch-1",
@@ -255,7 +262,7 @@ describe("DeleteVersionLineDialog", () => {
       deleteRemote: true,
       stateToken: "delete-token",
     });
-    expect(await screen.findByText("The published copy was deleted too.")).toBeInTheDocument();
+    expect(await screen.findByText("“feature/x” deleted, and its published copy too.")).toBeInTheDocument();
   });
 
   it("says the local line is gone when only the remote half was refused", async () => {
@@ -269,7 +276,7 @@ describe("DeleteVersionLineDialog", () => {
     const onDeleted = vi.fn();
     const user = userEvent.setup();
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -278,18 +285,18 @@ describe("DeleteVersionLineDialog", () => {
           onClose={vi.fn()}
           onDeleted={onDeleted}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("checkbox");
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete line" }));
 
     // The local delete stands, so the list must be told; the remote refusal is
     // reported as a fact about the remote rather than as a failed operation.
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(emptySnapshot()));
     expect(
       await screen.findByText(
-        "The line is gone from this computer, but the published copy is still there.",
+        "“feature/x” is gone from this computer, but the published copy is still there.",
       ),
     ).toBeInTheDocument();
   });
@@ -303,7 +310,7 @@ describe("DeleteVersionLineDialog", () => {
     const onSwitchInstead = vi.fn();
     const user = userEvent.setup();
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -313,16 +320,17 @@ describe("DeleteVersionLineDialog", () => {
           onDeleted={vi.fn()}
           onSwitchInstead={onSwitchInstead}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     // The refusal is framed as an explanation with a way forward, not as a
     // failure the user could retry into working.
-    expect(await screen.findByText("“feature/x” can't be deleted yet")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Can't delete it yet" })).toBeInTheDocument();
+    expect(screen.getByText(/“feature\/x” has versions that aren't anywhere else/)).toBeInTheDocument();
     expect(
       screen.getByText(/Publish it, so the work is also on the remote/),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete line" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Switch to this line" }));
@@ -338,7 +346,7 @@ describe("DeleteVersionLineDialog", () => {
     const onOpenChanges = vi.fn();
     const user = userEvent.setup();
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -348,15 +356,13 @@ describe("DeleteVersionLineDialog", () => {
           onDeleted={vi.fn()}
           onOpenChanges={onOpenChanges}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
-    expect(
-      await screen.findByText(/A Git operation is unfinished here/),
-    ).toBeInTheDocument();
-    // Conflict resolution isn't built yet, so the dialog says so rather than
-    // implying the Changes screen can fix it.
-    expect(screen.getByText(/Resolving conflicts isn't supported here yet/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "A conflict is unfinished" })).toBeInTheDocument();
+    // Conflict resolution isn't built yet, so the dialog sends the reader to
+    // their Git tool rather than implying the Changes screen can fix it.
+    expect(screen.getByText(/Finish or cancel it in your Git tool/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "See the files in conflict" }));
     expect(onOpenChanges).toHaveBeenCalled();
@@ -369,7 +375,7 @@ describe("DeleteVersionLineDialog", () => {
       remediation: null,
     });
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <DeleteVersionLineDialog
           isOpen
           projectPath="/repo"
@@ -378,7 +384,7 @@ describe("DeleteVersionLineDialog", () => {
           onClose={vi.fn()}
           onDeleted={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();

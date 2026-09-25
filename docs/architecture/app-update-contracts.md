@@ -373,7 +373,7 @@ type UpdateError = Readonly<{
     | "read_only_installation"
     | "notes_too_large" | "payload_too_large" | "truncated_download"
     | "signature_invalid" | "insufficient_space" | "install_blocked"
-    | "install_handoff_failed" | "post_install_unconfirmed" | "internal";
+    | "install_handoff_failed" | "post_install_unconfirmed" | "not_configured" | "internal";
   stage: "check" | "download" | "verify" | "admission" | "install" | "startup";
   retryable: boolean;
   httpStatus?: number;

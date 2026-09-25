@@ -828,9 +828,9 @@ line's whole change since the parting against each of the main line's since
 (squash), or each of its versions' against them (rebase) — read only, for the
 selected line, and given up past a thousand of the main line's versions.
 Such a line can be deleted: the delete dialog says where its work is
-("already on main, squashed into one version (abc1234)") and that GitOdile
-keeps a local recovery point with the original versions first, and the result
-says the point was kept (ADR 0016). A line whose work is nowhere else is still
+("already on “main”, combined into one version") and that GitOdile
+keeps a local recovery point with the original versions first, and the toast
+that reports the deletion says the point was kept (ADR 0016). A line whose work is nowhere else is still
 refused.
 **Every dot is a saved version.** Each lane is drawn from the versions the
 route sends with it, newest eight at most: the dot's tooltip is the version's
@@ -1599,12 +1599,110 @@ opacity and the disabled interaction state carry that meaning.
 
 Reserve the pointing hand for real links and text actions deliberately styled
 as links, where the cursor helps compensate for their lighter affordance — the
-Save version detail disclosure, About's update link, and About's licence and
-source links. Use
+Save version detail disclosure, About's update link, About's licence and
+source links, a dialog's inline way out (`.app-dialog__link`) and a toast's
+action. Use
 special-purpose cursors only when they describe the operation itself, such as
 text selection, resizing, dragging, progress, or a forbidden drop target. A
 guarded list in the style-composition audit names every control allowed to take
 the hand, so this stays a decision rather than a habit.
+
+## Dialogs
+
+Every dialog that asks or tells — create, clone, save, publish, get project
+changes, discard and restore, the version-line dialogs, updates, the app's
+messages and the issue report — wears one shell: `Dialog` in `shared/ui`
+(`.app-dialog`). About, What's new and the shortcut sheet are documents to
+read rather than questions to answer and keep their identity shell. The shell
+exists because the dialogs had drifted to seven widths, four paddings, borders
+on some and not others, and three different headers; a new dialog takes the
+shell and a size, never a width of its own.
+
+**Three sizes, by what the dialog holds.**
+
+| Size | Width | For |
+|---|---|---|
+| `s` | 440px | A message, an error, a confirmation, a result with a next step: discard, delete a line, switch lines, a new line, close a project, anything that failed |
+| `m` | 560px | A short form or a plan: save a version, publish, updates, connecting a remote |
+| `l` | 720px | A flow with a review or lists: create a project, clone, get project changes, the issue report |
+
+A flow may change size between steps — its failure or its result is a short
+message in `s` — but a dialog never picks a width outside the three. All three
+take 28px of padding, a 1px `--border-subtle` border, `--radius-surface`,
+`--shadow-lg` and one `--space-4` gap between parts.
+
+**One header.** The title (`--text-display`, one line), the close button
+always, and nothing else unless the dialog needs it:
+
+- The circular glyph leads the title in `l` flows and in every message whose
+  tone matters before the sentence is read — an error (`danger`), a warning or
+  a block (`warning`), a result (`success`), a cancellation (`neutral`). It
+  sits **beside** the title, centred on the same axis as the title and the
+  close button, never above it: a glyph on its own row pushed a two-line title
+  into the space the close button left.
+- The subtitle belongs to the step it describes. A flow's first step says what
+  the flow is ("Download a copy to this computer and open it"); later steps
+  replace the title and drop the subtitle ("Review before cloning", "Cloning
+  “project”…"). A title and subtitle that never change stacked four levels of
+  text above every review.
+- The close button goes away only while work that cannot be interrupted runs,
+  and the backdrop and Escape follow it. Initial focus never lands on it.
+
+**Titles fit one line.** In `s`, with the glyph beside it, that is about 24
+characters; the fix for a long title is a shorter title, not a smaller type
+size or a stacked header. The detail moves to the body: "Can't delete it yet"
+over "“feature/x” has versions that aren't anywhere else", not the name inside
+the title.
+
+**The body is secondary ink at the body size** (`.app-dialog__text`), and the
+title is the one strong line. What the dialog will do is said as a short list
+of facts (`DialogFacts`) — two or three lines with a glyph each, the line that
+says what stays safe last, in the success tone. It is never a grid of titled
+cards: four cards of equal weight made "nothing is deleted" read like "sign-in"
+and the dialog like a feature page. Mechanism — temporary folders, refs,
+tokens, `.git/config`, a HEAD — goes behind a `Technical details` disclosure,
+if anywhere.
+
+**Conditions and failures are banners** (`DialogBanner`): `danger` for a
+failure, `warning` for something to fix first, each with its way out inside it
+as a text action ("Add in Settings", "Save without hooks just this once").
+
+**Actions sit on the right, dismiss first and the title's verb last.** Every
+form, confirmation and plan has `Cancel` beside its primary action, including
+destructive ones — a confirmation whose only visible button is the destructive
+one reads as "press this to continue". The primary repeats the verb of the
+title ("Save version", "Create line", "Delete line", "Publish changes"), and
+carries an icon only when it is one of the vocabulary's verbs (save, publish,
+get, discard, delete). **Anything that removes work is `danger-button`** — the
+brand green is for the constructive choice, and a delete in green said the
+opposite. A note that belongs to the action ("Only on this computer until you
+publish") takes the left of the same row. A choice made for this action alone
+is an `app-checkbox`; a switch is for a setting that persists. Placeholders are
+set in the sans even where the value is set in the mono.
+
+**A result with no next step is a toast, not a dialog.** A published change, a
+line switched, created or deleted, a discard (whose toast carries `Undo`),
+a restore, a remote connected: the dialog closes and `useToast` says what
+happened, under the window, for a few seconds (paused while pointed at or
+focused). A result stays a dialog only when it offers something — a saved
+version offers Publish, a created project offers connecting a remote.
+
+**A dead end offers the way out, not a retry.** "Nothing to save" and
+"Everything is already published" offer `Close`: retrying cannot change them.
+A block that only the reader can lift offers the action that lifts it
+("Save your changes" → `Save version`). `Try again` is for failures that a
+retry may actually pass.
+
+**Progress is three steps at most.** The native side may report six phases;
+the dialog maps them onto the few the reader can follow ("Downloading",
+"Checking", "Opening") in `.app-dialog__steps`, the active one spinning and the
+done ones ticked.
+
+**Copy follows § Content design**, with one addition for dialogs: the text a
+dialog shows is written in `translations.ts` from facts the native side
+returns. A sentence built in Rust arrives in English whatever the reader's
+language, so the native side sends codes and data, and the updater only shows
+its English safe detail to an English reader.
 
 ## Content design
 
@@ -1972,11 +2070,13 @@ padding — and for a while the open-failure alert and the close-project
 confirmation borrowed its shell, which is why a two-line sentence arrived under
 a heading sized for a logo. (The changelog and the shortcut sheet still extend
 About's shell on purpose: they are documents to read, not messages to answer.)
-Short message dialogs use the same shell as every other dialog in the app: a
-22px heading, 28px of padding, one gap between parts, and `.dialog-actions`
-last. Two rules go with them. An error carries a
-circular `--status-danger` glyph above its heading, because a failure should be
+Short message dialogs use the same shell as every other dialog in the app
+(§ Dialogs, size `s`). Two rules go with them. An error carries a circular
+`--status-danger` glyph beside its heading, because a failure should be
 recognizable before the sentence is read. And **the constructive choice is the
-primary button** — "Turn this folder into a project", not "Close": spending the
-brand green on dismissing a problem tells the user the way out is the way back.
-Dismiss reads first, constructive last, the order every other dialog uses.
+primary button** — "Turn into a project", not "Close": spending the brand green
+on dismissing a problem tells the user the way out is the way back. When the
+message names two ways out ("You can turn it into a project or choose
+another"), the dialog offers both, and the other way out takes the dismiss
+slot. Dismiss reads first, constructive last, the order every other dialog
+uses.

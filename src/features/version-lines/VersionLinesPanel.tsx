@@ -1409,10 +1409,10 @@ export function VersionLinesPanel({
         sessionEpoch={sessionEpoch}
         target={dialog?.kind === "delete" ? dialog.target : ""}
         onClose={closeDialog}
-        // The list and the rest of the app catch up at once, but the dialog
-        // stays on its result until "Done" — that is where it says what
-        // happened on the remote, and that a recovery point was kept. Closing
-        // it (`closeDialog`) gives the mutation slot back.
+        // The list and the rest of the app catch up at once; the dialog then
+        // closes itself with a toast that says what happened on the remote
+        // and whether a recovery point was kept. Closing it (`closeDialog`)
+        // gives the mutation slot back.
         onDeleted={(next) => {
           onSnapshot(next);
           onChanged();

@@ -9,14 +9,13 @@ import {
   FilePenLine,
   FilePlus2,
   GitBranch,
-  History,
-  LoaderCircle,
+  Save,
   ShieldCheck,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { isAppError, localizeAppError } from "../../shared/i18n";
-import { autoHideScrollbarProps, useModalFocus } from "../../shared/ui";
+import { Dialog, DialogBanner, DialogFacts, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
 import type { SyncController } from "./controller";
 import type {
   GetTeamChangesPhase,
@@ -34,14 +33,6 @@ type DialogState =
   | { status: "uncertain"; result: GetTeamChangesResult }
   | { status: "execution-error"; plan: GetTeamChangesPlan; error: unknown };
 
-const PHASES: GetTeamChangesPhase[] = [
-  "checkingTeam",
-  "checkingLocalSafety",
-  "creatingRecovery",
-  "updatingFilesAndHistory",
-  "verifying",
-];
-
 function categoryIcon(category: IncomingFileCategory): React.JSX.Element {
   switch (category) {
     case "added": return <FilePlus2 />;
@@ -51,36 +42,37 @@ function categoryIcon(category: IncomingFileCategory): React.JSX.Element {
   }
 }
 
+/* Five phases on the wire, three steps on screen: the reader needs to know
+   the remote is being read, a recovery point is being kept and files are
+   changing — not which internal check runs in between. */
+const STEPS: { phases: GetTeamChangesPhase[] }[] = [
+  { phases: ["checkingTeam", "checkingLocalSafety"] },
+  { phases: ["creatingRecovery"] },
+  { phases: ["updatingFilesAndHistory", "verifying"] },
+];
+
 function PhaseProgress({ phase }: { phase: GetTeamChangesPhase }): React.JSX.Element {
   const { t } = useLanguage();
-  const current = PHASES.indexOf(phase);
-  const labels: Record<GetTeamChangesPhase, string> = {
-    checkingTeam: t.getTeamPhaseTeam,
-    checkingLocalSafety: t.getTeamPhaseSafety,
-    creatingRecovery: t.getTeamPhaseRecovery,
-    updatingFilesAndHistory: t.getTeamPhaseUpdating,
-    verifying: t.getTeamPhaseVerifying,
-  };
+  const labels = [t.getTeamPhaseTeam, t.getTeamPhaseRecovery, t.getTeamPhaseUpdating];
+  const current = STEPS.findIndex((step) => step.phases.includes(phase));
   return (
     <ol
-      className="get-team-phases"
+      className="app-dialog__steps"
       aria-label={t.getTeamProgressLabel}
       aria-live="polite"
       aria-atomic="false"
     >
-      {PHASES.map((item, index) => {
+      {STEPS.map((_, index) => {
         const complete = index < current;
         const active = index === current;
         return (
           <li
-            key={item}
-            className={active ? "get-team-phases__item--active" : complete ? "get-team-phases__item--complete" : undefined}
+            key={index}
+            className={`app-dialog__step${active ? " app-dialog__step--active" : complete ? " app-dialog__step--done" : ""}`}
             aria-current={active ? "step" : undefined}
           >
-            <span aria-hidden="true">
-              {complete ? <Check /> : active ? <LoaderCircle className="icon--spinning" /> : null}
-            </span>
-            {labels[item]}
+            <span className="app-dialog__step-dot" aria-hidden="true">{complete && <Check />}</span>
+            {labels[index]}
           </li>
         );
       })}
@@ -136,34 +128,14 @@ function PlanContent({ plan }: { plan: GetTeamChangesPlan }): React.JSX.Element 
         </section>
       </div>
 
-      <div className="get-team-plan__assurances">
-        <section>
-          <span className="get-team-plan__assurance-icon" aria-hidden="true"><GitBranch /></span>
-          <div>
-            <h3>{t.getTeamDestinationTitle}</h3>
-            <p>{t.getTeamDestinationDescription(plan.branch, plan.target.remote, plan.target.destinationBranch)}</p>
-          </div>
-        </section>
-        <section>
-          <span className="get-team-plan__assurance-icon" aria-hidden="true"><ArrowDownToLine /></span>
-          <div>
-            <h3>{t.getTeamFastForwardTitle}</h3>
-            <p>{t.getTeamFastForwardDescription}</p>
-          </div>
-        </section>
-        <section>
-          <span className="get-team-plan__assurance-icon" aria-hidden="true"><ShieldCheck /></span>
-          <div>
-            <h3>{t.getTeamRecoveryTitle}</h3>
-            <p>{t.getTeamRecoveryDescription(plan.recovery.retentionLimit)}</p>
-          </div>
-        </section>
-      </div>
-
-      <p className="get-team-plan__local-note">
-        <History aria-hidden="true" />
-        {t.getTeamLocalConsequences}
-      </p>
+      {/* Two lines, not a grid of cards: what happens to the line, and what
+          stays safe. The mechanism is in the technical details. */}
+      <DialogFacts
+        facts={[
+          { icon: <GitBranch />, text: t.getTeamLineCatchesUp(plan.branch) },
+          { icon: <ShieldCheck />, text: t.getTeamRecoveryFirst, safe: true },
+        ]}
+      />
 
       <details className="get-team-technical">
         <summary><ChevronDown aria-hidden="true" />{t.syncTechnicalDetails}</summary>
@@ -206,6 +178,7 @@ export function GetTeamChangesDialog({
   onClose,
   onApplied,
   onPhaseChange,
+  onSaveVersion,
 }: {
   isOpen: boolean;
   controller: SyncController;
@@ -214,8 +187,12 @@ export function GetTeamChangesDialog({
   onClose: () => void;
   onApplied: (result: GetTeamChangesResult) => Promise<void>;
   onPhaseChange: (phase: "planning" | "executing" | "verifying" | "uncertain" | "error" | "success") => void;
+  /** Offered when unsaved work collides with what is coming in: saving it is
+   * the way through, so the dialog hands over to Save version. */
+  onSaveVersion?: () => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
+  const showToast = useToast();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   const phaseRef = useRef(onPhaseChange);
@@ -285,6 +262,10 @@ export function GetTeamChangesDialog({
       await onApplied(result);
       setState({ status: "success", result });
       phaseRef.current("success");
+      // Nothing left to decide, so the result is a toast rather than a screen
+      // to dismiss. The recovery point is still kept, as before.
+      showToast({ icon: <ArrowDownToLine />, message: t.getTeamSuccessToast(result.receivedCount) });
+      closeRef.current();
     }).catch((error: unknown) => {
       setState({ status: "execution-error", plan, error });
       phaseRef.current("error");
@@ -292,95 +273,106 @@ export function GetTeamChangesDialog({
   };
 
   const currentPhase = state.status === "planning" || state.status === "executing" ? state.phase : null;
-  return (
-    <div className="get-team-backdrop" role="presentation" onMouseDown={requestClose}>
-      <div
-        {...autoHideScrollbarProps<HTMLDivElement>()}
-        ref={dialogRef}
-        className="get-team-dialog auto-hide-scrollbar"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="get-team-dialog-title"
-        aria-describedby="get-team-dialog-description"
-        tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
+  const blockedCode = state.status === "blocked" && isAppError(state.error) ? state.error.code : null;
+  const isDiverged = blockedCode === "diverged_histories";
+  // Unsaved work in the way is lifted by saving it. A local file the update
+  // would overwrite is not (it has to be moved), so it keeps its own message.
+  const isCollision = blockedCode === "incoming_tracked_change_collision" || blockedCode === "dirty_working_tree";
+
+  // A blocked or uncertain result is a short message, not a plan: the small
+  // shell, a status glyph, one sentence and the way out.
+  if (state.status === "blocked" || state.status === "uncertain") {
+    const title = state.status === "uncertain"
+      ? t.getTeamUncertainTitle
+      : isDiverged ? t.getTeamDivergedTitle : isCollision ? t.getTeamSaveFirstTitle : t.getTeamBlockedTitle;
+    return (
+      <Dialog
+        size="s"
+        role="alertdialog"
+        title={title}
+        titleId="get-team-dialog-title"
+        descriptionId="get-team-dialog-description"
+        icon={<CircleAlert />}
+        tone={isDiverged ? "danger" : "warning"}
+        onClose={requestClose}
+        closeLabel={t.commonClose}
+        dialogRef={dialogRef}
       >
-        <header className="get-team-dialog__header">
-          <span aria-hidden="true"><ArrowDownToLine /></span>
-          <div>
-            <h2 id="get-team-dialog-title">
-              {state.status === "success" ? t.getTeamSuccessTitle : state.status === "uncertain" ? t.getTeamUncertainTitle : t.getTeamDialogTitle}
-            </h2>
-            <p id="get-team-dialog-description">
-              {state.status === "success" ? t.getTeamSuccessDescription(state.result.receivedCount) : state.status === "uncertain" ? t.getTeamUncertainDescription : t.getTeamDialogDescription}
-            </p>
-          </div>
-        </header>
-
-        {currentPhase && <PhaseProgress phase={currentPhase} />}
-
-        {state.status === "blocked" && (
-          <div className="get-team-message get-team-message--error" role="alert">
-            <CircleAlert aria-hidden="true" />
-            <div>
-              <h3>{isAppError(state.error) && state.error.code === "diverged_histories" ? t.getTeamDivergedTitle : t.getTeamBlockedTitle}</h3>
-              <p>{localizeAppError(state.error, t, t.errorGitCommandFailed)}</p>
-              {isAppError(state.error) && state.error.code === "diverged_histories" && <p>{t.getTeamDivergedNoRetry}</p>}
-            </div>
-          </div>
-        )}
-
-        {plan && state.status !== "success" && state.status !== "uncertain" && <PlanContent plan={plan} />}
-
-        {state.status === "execution-error" && (
-          <div className="get-team-message get-team-message--error" role="alert">
-            <CircleAlert aria-hidden="true" />
-            <p>{localizeAppError(state.error, t, t.errorGitCommandFailed)}</p>
-          </div>
-        )}
-
+        <p className="app-dialog__text" id="get-team-dialog-description">
+          {state.status === "uncertain"
+            ? t.getTeamUncertainInstructions
+            : isDiverged
+              ? t.getTeamDivergedNoRetry
+              : isCollision
+                ? blockedCode === "dirty_working_tree" ? t.getTeamDirtyBody : t.getTeamSaveFirstBody
+                : localizeAppError(state.error, t, t.errorGitCommandFailed)}
+        </p>
         {state.status === "uncertain" && (
-          <div className="get-team-message get-team-message--warning" role="alert">
-            <CircleAlert aria-hidden="true" />
-            <div>
-              <p>{t.getTeamUncertainInstructions}</p>
-              <code>{state.result.recovery.reference}</code>
-              {state.result.observedHead && <p>{t.getTeamObservedHead}: <code>{state.result.observedHead}</code></p>}
-            </div>
-          </div>
+          <details className="app-dialog__details">
+            <summary>{t.syncTechnicalDetails}</summary>
+            <pre>
+              {`${t.getTeamRecoveryReference}: ${state.result.recovery.reference}`}
+              {state.result.observedHead ? `\n${t.getTeamObservedHead}: ${state.result.observedHead}` : ""}
+            </pre>
+          </details>
         )}
-
-        {state.status === "success" && (
-          <div className="get-team-message get-team-message--success" role="status">
-            <ShieldCheck aria-hidden="true" />
-            <div>
-              <p>{t.getTeamSuccessRecovery(state.result.recovery.retentionLimit)}</p>
-              <code>{state.result.recovery.reference}</code>
-            </div>
-          </div>
-        )}
-
-        <div className="dialog-actions get-team-dialog__actions">
-          {state.status === "success" || state.status === "uncertain" ? (
-            <button className="primary-button" type="button" onClick={requestClose}>{t.getTeamDone}</button>
-          ) : (
+        <div className="dialog-actions">
+          {isCollision && onSaveVersion ? (
             <>
-              <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>{t.commonCancel}</button>
-              {state.status === "ready" && (
-                <button className="primary-button" type="button" onClick={execute}>
-                  <ArrowDownToLine aria-hidden="true" />{t.getTeamConfirm}
-                </button>
-              )}
-              {state.status === "execution-error" && (
-                <button className="primary-button" type="button" onClick={replan}>{t.getTeamReviewUpdatedPlan}</button>
-              )}
-              {canRetryBlocked && (
-                <button className="primary-button" type="button" onClick={replan}>{t.getTeamTryAgain}</button>
-              )}
+              <button className="secondary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
+              <button className="primary-button" type="button" onClick={onSaveVersion}>
+                <Save aria-hidden="true" />{t.getTeamSaveVersion}
+              </button>
             </>
+          ) : canRetryBlocked ? (
+            <>
+              <button className="secondary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
+              <button className="primary-button" type="button" onClick={replan}>{t.getTeamTryAgain}</button>
+            </>
+          ) : (
+            <button className="primary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
           )}
         </div>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog
+      size="l"
+      title={t.getTeamDialogTitle}
+      titleId="get-team-dialog-title"
+      subtitle={<span id="get-team-dialog-description">{t.getTeamDialogDescription}</span>}
+      descriptionId="get-team-dialog-description"
+      icon={<ArrowDownToLine />}
+      onClose={requestClose}
+      closeLabel={t.commonClose}
+      dismissible={!isBusy}
+      dialogRef={dialogRef}
+      className="get-team-dialog auto-hide-scrollbar"
+      bodyProps={autoHideScrollbarProps<HTMLDivElement>()}
+    >
+      {currentPhase && <PhaseProgress phase={currentPhase} />}
+
+      {plan && state.status !== "success" && <PlanContent plan={plan} />}
+
+      {state.status === "execution-error" && (
+        <DialogBanner tone="danger" icon={<CircleAlert />}>
+          <p role="alert">{localizeAppError(state.error, t, t.errorGitCommandFailed)}</p>
+        </DialogBanner>
+      )}
+
+      <div className="dialog-actions">
+        <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>{t.commonCancel}</button>
+        {state.status === "ready" && (
+          <button className="primary-button" type="button" onClick={execute}>
+            <ArrowDownToLine aria-hidden="true" />{t.getTeamConfirm}
+          </button>
+        )}
+        {state.status === "execution-error" && (
+          <button className="primary-button" type="button" onClick={replan}>{t.getTeamReviewUpdatedPlan}</button>
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }

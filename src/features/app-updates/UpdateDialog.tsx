@@ -16,7 +16,7 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { ChannelGlyph, DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
+import { ChannelGlyph, Dialog, ReleaseHighlights, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { UpdateCandidate, UpdateChannel, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -86,10 +86,14 @@ function describeDetail(state: UpdateState, language: Language): string[] {
   const t = appUpdateTranslations(language);
   const error = errorState(state);
   if (!error) return [];
-  if (error.safeDetail && state.kind !== "blocked") return [error.safeDetail];
+  // The native side's safe detail is written in English. An English reader
+  // gets it as the more specific cause; anyone else gets the sentence for
+  // the code in their own language rather than a line in another one.
+  const safeDetail = language === "en" ? error.safeDetail : null;
+  if (safeDetail && state.kind !== "blocked") return [safeDetail];
   const lines: string[] = [];
   if (state.kind !== "failed") lines.push(t.errors[error.code]);
-  if (error.safeDetail) lines.push(error.safeDetail);
+  if (safeDetail) lines.push(safeDetail);
   return lines;
 }
 
@@ -110,19 +114,6 @@ function StatusLine({ line, cause = [], className = "" }: { line: StatusLine; ca
 const DIALOG_STATES: ReadonlySet<UpdateState["kind"]> = new Set([
   "available", "downloading", "verifying", "ready", "blocked", "installing",
 ]);
-
-/** The installed build, the way About and the changelog show it: version in
- * the label weight, the preview glyph only when it is not stable. */
-function InstalledLine({ installed, language }: { installed: InstalledRelease; language: Language }) {
-  const t = appUpdateTranslations(language);
-  return (
-    <p className="about-dialog__release app-update-dialog__installed" aria-label={`${t.installedLabel} ${installed.version} ${installed.channel}`}>
-      <span className="app-update-dialog__installed-label">{t.installedLabel}</span>
-      <span className="about-dialog__release-version">v{installed.version}</span>
-      <ChannelGlyph channel={installed.channel} />
-    </p>
-  );
-}
 
 function Progress({ state, language }: { state: UpdateState; language: Language }) {
   const t = appUpdateTranslations(language);
@@ -425,42 +416,65 @@ export function AppUpdateDialog({
     ? t.downloadSized(formatBytes(candidate.expectedBytes, language))
     : t.download;
 
+  const version = candidate ? candidate.version : null;
+  /* The title is the state, so the reader knows what this is about before
+     reading further; the status line only says what the title does not. */
+  const title = confirmingInstall && state.kind === "ready"
+    ? t.confirmTitle
+    : state.kind === "available" ? t.titleAvailable
+      : (state.kind === "downloading" || state.kind === "verifying") && version ? t.titleDownloading(version)
+        : state.kind === "ready" ? t.titleReady
+          : t.title;
+  const titleSaysState = state.kind === "available" || state.kind === "ready"
+    || ((state.kind === "downloading" || state.kind === "verifying") && Boolean(version));
+
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
-      <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={dialogRef} className="about-dialog app-update-dialog auto-hide-scrollbar" role="dialog" aria-modal="true" aria-labelledby="app-update-title" aria-describedby={descriptionId} tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-        <DialogCloseButton label={appT.commonClose} onClick={() => setOpen(false)} />
-        <div className="app-update-dialog__header">
-          <div className="app-update-dialog__mark" aria-hidden="true"><CloudDownload /></div>
-          <h2 id="app-update-title">{t.title}</h2>
-        </div>
-        <InstalledLine installed={installed} language={language} />
-        <div id={descriptionId} className="app-update-dialog__state">
-          {startup && <StatusLine line={startup} />}
-          <StatusLine line={line} cause={detail} />
-        </div>
-        {candidate && <CandidateDetails candidate={candidate} language={language} />}
-        <Progress state={state} language={language} />
-        {confirmingInstall && state.kind === "ready" && (
-          <div className="app-update-confirm" role="group" aria-labelledby="app-update-confirm-title">
-            <h3 id="app-update-confirm-title">{t.confirmTitle}</h3>
-            <p>{t.installExplanation}</p>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={() => setConfirmingInstall(false)}>{t.notNow}</button>
-              <button ref={confirmButtonRef} className="primary-button" type="button" onClick={() => void controller.install()}>{t.install}</button>
-            </div>
-          </div>
-        )}
-        {!confirmingInstall && (
-          <div className="dialog-actions app-update-actions">
+    <Dialog
+      size="m"
+      title={title}
+      titleId="app-update-title"
+      subtitle={
+        <span className="app-update-dialog__installed" aria-label={`${t.installedLabel} ${installed.version} ${installed.channel}`}>
+          {t.installedSubtitle(installed.version)}
+          <ChannelGlyph channel={installed.channel} />
+        </span>
+      }
+      descriptionId={descriptionId}
+      icon={<CloudDownload />}
+      onClose={() => setOpen(false)}
+      closeLabel={appT.commonClose}
+      dialogRef={dialogRef}
+      className="app-update-dialog auto-hide-scrollbar"
+      bodyProps={autoHideScrollbarProps<HTMLDivElement>()}
+    >
+      <div id={descriptionId} className="app-update-dialog__state">
+        {startup && <StatusLine line={startup} />}
+        {confirmingInstall && state.kind === "ready"
+          ? <p className="app-dialog__text">{t.installExplanation}</p>
+          : (!titleSaysState || detail.length > 0) && <StatusLine line={line} cause={detail} />}
+      </div>
+      {candidate && <CandidateDetails candidate={candidate} language={language} />}
+      <Progress state={state} language={language} />
+      {/* The install confirmation is the dialog's own question, not a card
+          inside it: its buttons are the dialog's buttons while it asks. */}
+      <div className="dialog-actions app-update-actions">
+        {confirmingInstall && state.kind === "ready" ? (
+          <>
+            <button className="secondary-button" type="button" onClick={() => setConfirmingInstall(false)}>{t.notNow}</button>
+            <button ref={confirmButtonRef} className="primary-button" type="button" onClick={() => void controller.install()}>{t.install}</button>
+          </>
+        ) : (
+          <>
             {(error || state.kind === "unavailable") && <button className="secondary-button" type="button" onClick={() => void controller.openManualDownload()}><ExternalLink aria-hidden="true" />{t.manual}</button>}
             {cancelOperation && <button className="secondary-button" type="button" onClick={() => void controller.cancel()}>{t.cancel}</button>}
+            {state.kind === "available" && <button className="secondary-button" type="button" onClick={() => setOpen(false)}>{t.notNow}</button>}
             {(state.kind === "idle" || state.kind === "current") && <button className="primary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.check}</button>}
             {state.kind === "available" && <button className="primary-button" type="button" onClick={() => void controller.download()}><Download aria-hidden="true" />{downloadLabel}</button>}
             {state.kind === "ready" && <button className="primary-button" type="button" onClick={() => setConfirmingInstall(true)}>{t.reviewInstall}</button>}
             {canRetry && <button className="primary-button" type="button" onClick={() => void (state.kind === "blocked" ? controller.install() : controller.check())}>{t.retry}</button>}
-          </div>
+          </>
         )}
       </div>
-    </div>
+    </Dialog>
   );
 }

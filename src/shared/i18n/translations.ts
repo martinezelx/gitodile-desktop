@@ -123,7 +123,7 @@ export interface SharedTranslations {
 const en: SharedTranslations = {
   errorPathMissing: "That folder no longer exists. Choose another one.",
   errorPathUnusable: "That folder can't be read. Check its permissions or choose another one.",
-  errorNotRepository: "That folder isn't a Git project. Choose a project folder.",
+  errorNotRepository: "That folder doesn't use Git yet. You can turn it into a project or choose another.",
   errorBareRepository: "That Git repository has no working files, so GitOdile can't open it.",
   errorInvalidCloneSource: "Enter a full HTTPS, SSH, Git or file URL, or a local Git path.",
   errorInvalidCloneDestination: "Choose a valid folder and a new project name.",
@@ -245,7 +245,7 @@ const en: SharedTranslations = {
 const es: SharedTranslations = {
   errorPathMissing: "Esa carpeta ya no existe. Elige otra.",
   errorPathUnusable: "No se puede leer esa carpeta. Comprueba sus permisos o elige otra.",
-  errorNotRepository: "Esa carpeta no es un proyecto de Git. Elige la carpeta de un proyecto.",
+  errorNotRepository: "Esa carpeta aún no usa Git. Puedes convertirla en proyecto o elegir otra.",
   errorBareRepository: "Ese repositorio de Git no tiene archivos de trabajo, así que GitOdile no puede abrirlo.",
   errorInvalidCloneSource: "Escribe una URL HTTPS, SSH, Git o file completa, o una ruta de Git local.",
   errorInvalidCloneDestination: "Elige una carpeta válida y un nombre nuevo para el proyecto.",

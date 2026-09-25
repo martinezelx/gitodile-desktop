@@ -92,9 +92,9 @@ describe("application update dialog", () => {
       channel: null,
     }} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
-    const dialog = screen.getByRole("dialog", { name: "Updates" });
-    expect(within(dialog).getByText("v0.2.0-preview.1")).toBeInTheDocument();
-    expect(within(dialog).getByRole("status")).toHaveTextContent("New version: v0.2.0-preview.2");
+    // The title is the state, and the installed build is the line under it.
+    const dialog = screen.getByRole("dialog", { name: "A new version is available" });
+    expect(within(dialog).getByText("You have v0.2.0-preview.1")).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "v0.2.0-preview.2" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Download (38 MB)" })).toBeInTheDocument();
   });
@@ -161,6 +161,27 @@ describe("application update dialog", () => {
     expect(within(dialog).getByRole("status")).toHaveTextContent("Updates aren't set up for this build.");
     expect(within(dialog).queryByText("Not available for this installation")).toBeNull();
     expect(within(dialog).queryByText(/couldn't be completed/)).toBeNull();
+  });
+
+  it("never shows the native side's English detail to a Spanish reader", async () => {
+    localStorage.setItem("gitodile-language", "es");
+    const user = userEvent.setup();
+    const error = { code: "post_install_unconfirmed" as const, stage: "check" as const, retryable: false, safeDetail: "The running version did not confirm the attempted update." };
+    const snapshot: AppUpdatesSnapshot = { state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false, channel: followBuild };
+    render(<Harness snapshot={snapshot} />);
+    localStorage.removeItem("gitodile-language");
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.queryByText(/did not confirm/)).toBeNull();
+    expect(screen.getByText(/No se encontró la nueva versión|nueva versión/)).toBeInTheDocument();
+  });
+
+  it("names a build that can't check for updates by its own code, in the reader's language", async () => {
+    const user = userEvent.setup();
+    const error = { code: "not_configured" as const, stage: "check" as const, retryable: false };
+    const snapshot: AppUpdatesSnapshot = { state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false, channel: followBuild };
+    render(<Harness snapshot={snapshot} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByRole("status")).toHaveTextContent("This build can't check for updates. Download the latest one manually.");
   });
 
   it("puts the cause in the Settings row and keeps Details for what only the dialog shows", () => {

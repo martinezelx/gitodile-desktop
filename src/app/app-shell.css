@@ -530,7 +530,6 @@
   overflow: hidden;
 }
 
-
 /* The destination map is stable in order, not necessarily in visible count:
    More stays at the end and receives the suffix that no longer fits, matching
    Slack's compact-height behaviour without turning this rail into a scroller. */
@@ -1065,66 +1064,7 @@
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
 }
-/* A short message and the choices that go with it: the open-failure alert and
-   the close-project confirmation. Both used to borrow `.about-dialog`, which
-   is the product-identity surface — a 28px hero heading and 32px of padding,
-   sized for the mark above it — and spent it on two lines of text. This is the
-   same shell vocabulary every other dialog in the app already uses (compare
-   `.changes-discard-dialog`): 22px heading, 28px padding, one gap, actions
-   last. */
-.message-dialog {
-  /* Wide enough for a recovery label beside Close on one row: "Convertir esta
-     carpeta en un proyecto" plus Close needs 405px of the 424 this leaves. */
-  width: min(100%, 480px);
-  max-height: calc(100vh - 48px);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: 28px;
-  overflow-y: auto;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  /* Suppressed here and restored on `:focus-visible` in base.css, exactly as
-     `.about-dialog` does it — these dialogs take focus on open, and a keyboard
-     user has to see where it landed. */
-  outline: none;
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-lg);
-}
-.message-dialog h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
-.message-dialog p { margin: 0; color: var(--text-secondary-color); line-height: var(--leading-normal); }
-/* A capsule is a single-line control (DESIGN.md § Shape), so a label that no
-   longer fits takes its own row rather than wrapping to two lines inside the
-   pill — which is exactly what the welcome screen's old capsule row did, and
-   what a longer translation would do here. */
-.message-dialog .dialog-actions { flex-wrap: wrap; margin-top: var(--space-1); }
-.message-dialog .dialog-actions button { white-space: nowrap; }
-/* DESIGN.md § Shape: a dialog-header glyph is a circle at any size. It is what
-   says "this is a failure" before the sentence is read — the alert had no
-   visual mark of its own at all, only its wording. Tinted fill rather than a
-   solid one, like the settings alert it is a sibling of. */
-.message-dialog__icon {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--status-danger) 14%, transparent);
-  color: var(--status-danger);
-}
-.message-dialog__icon svg { width: 20px; height: 20px; }
 
-.issue-report-dialog { position: relative; width: min(100%, 720px); }
-.issue-report-dialog > .dialog-close-button { position: absolute; top: 18px; right: 18px; }
-/* The only dialog title that never sized itself, so it used to ride the
-   browser's 24px while every sibling dialog sat at 22. It says so now. */
-.issue-report-dialog > h2 { margin-right: 44px; font-size: var(--text-display); }
-.issue-report-dialog__loader {
-  width: 32px;
-  height: 32px;
-  color: var(--accent-primary);
-  animation: spin 900ms linear infinite;
-}
 .issue-report-dialog__report {
   /* Owns the frame so the radius can clip what the scroller paints: an
      element's own border-radius leaves its scrollbar uncut, which let the
@@ -1151,27 +1091,11 @@
   line-height: var(--leading-normal);
   tab-size: 2;
 }
-/* A chip rather than a bordered strip: the guidance is an aside to the report
-   above it, and a rule across the dialog reads as another section beginning. */
-.issue-report-dialog .issue-report-dialog__note {
-  align-self: flex-start;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 13px 6px 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-}
-.issue-report-dialog__note svg { flex: 0 0 auto; width: 15px; height: 15px; }
-.issue-report-dialog .issue-report-dialog__status { min-height: 20px; font-size: var(--text-label); }
-.issue-report-dialog__actions svg { width: 15px; height: 15px; }
 
-@media (prefers-reduced-motion: reduce) {
-  .issue-report-dialog__loader { animation: none; }
-}
+.issue-report-dialog .issue-report-dialog__status { min-height: 20px; margin: 0; font-size: var(--text-label); }
+/* The failed link and its copy button on one row. */
+.issue-report-dialog__link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+.issue-report-dialog__link input { min-width: 0; font-family: var(--font-mono); }
 
 /* The close control is the shared primitive, positioned by this shell instead
    of restated by it. It was a second vocabulary — 30px with a 16px glyph

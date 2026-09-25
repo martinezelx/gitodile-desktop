@@ -152,33 +152,6 @@
 }
 .changes-diff-context-scope { display: contents; }
 
-.changes-discard-backdrop {
-  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: var(--space-5);
-  background: var(--overlay); backdrop-filter: blur(8px);
-}
-.changes-discard-dialog {
-  width: min(100%, 500px); max-height: min(100%, 680px); overflow-y: auto;
-  display: flex; flex-direction: column; gap: var(--space-3); padding: 28px;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); outline: none;
-  background: var(--surface-raised); box-shadow: var(--shadow-lg);
-}
-.changes-discard-dialog h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
-/* The dialog spaces its own parts with one gap, so nothing inside it brings a
-   margin of its own. Discarding said this through a wrapper it happened to
-   have; restoring's sentences sat straight in the column and kept the
-   browser's, which is how two halves of one dialog ended up with different
-   rhythm. */
-.changes-discard-dialog > p { margin: 0; }
-.changes-discard-status { display: flex; align-items: center; gap: 10px; color: var(--text-secondary-color); }
-.changes-discard-status svg { width: 19px; height: 19px; }
-.changes-discard-summary { display: grid; gap: var(--space-3); }
-.changes-discard-summary > p, .changes-discard-summary ul { margin: 0; }
-.changes-discard-summary ul { display: grid; gap: 6px; padding-left: 20px; color: var(--text-secondary-color); font-size: var(--text-body); }
-.changes-discard-recovery {
-  display: flex; align-items: flex-start; gap: 9px; padding: 10px 12px; border-radius: var(--radius-surface);
-  background: var(--surface-active); color: var(--text-primary-color); font-size: var(--text-body);
-}
-.changes-discard-recovery svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; color: var(--accent-primary); }
 /* The stored recoveries scroll inside the dialog rather than growing it: ten
    is the cap Rust keeps, and the actions below have to stay reachable without
    scrolling past the list to find them. The padding is for the focus ring,
@@ -225,13 +198,7 @@
 .changes-restore-row__question { margin: 0; font-size: var(--text-body); line-height: var(--leading-normal); }
 .changes-restore-row__question strong { margin-right: 4px; }
 .changes-restore-row__answers { display: flex; justify-content: flex-end; gap: var(--space-2); }
-/* The row tier from DESIGN.md § Size: this pair lives inside a list row, not
-   in the dialog's own action bar. */
-.changes-danger-button--sm {
-  min-height: var(--control-height-sm);
-  padding: 6px var(--space-3);
-  font-size: var(--control-font-sm);
-}
+
 .changes-restore-unavailable { display: grid; gap: var(--space-2); }
 /* A disclosure, not a control that acts: it reads as the quiet line it is
    until pointed at, and carries its own caret rather than a chevron button. */
@@ -247,27 +214,7 @@
 /* The same card as an option, minus every affordance of one: nothing here is
    pickable, so nothing here hovers, focuses or claims to be a choice. */
 .changes-restore-option--static { opacity: 0.75; background: var(--surface-hover); }
-.changes-discard-dialog__header {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
-}
-.changes-discard-error {
-  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); font-size: var(--text-body);
-}
-.changes-discard-error svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
-.changes-discard-success { display: flex; align-items: flex-start; gap: 9px; color: var(--text-primary-color); }
-.changes-discard-success p { margin: 0; }
-.changes-discard-success svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--status-success); }
-.changes-discard-dialog .dialog-actions button svg { width: 16px; height: 16px; }
-.changes-danger-button {
-  min-height: var(--control-height-md);
-  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
-  padding: 6px var(--space-4); border: 1px solid transparent; border-radius: var(--radius-pill);
-  background: var(--status-danger); color: var(--status-danger-contrast);
-  font: inherit; font-size: var(--control-font-md); font-weight: var(--weight-title);
-}
-.changes-danger-button:hover { filter: brightness(1.06); }
-.changes-danger-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
 .changes-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; max-width: 440px; margin: 0 auto; padding: 40px 24px; text-align: center;
@@ -976,3 +923,9 @@
   width: 2px; margin-left: -1px; background: var(--accent-primary); pointer-events: none;
 }
 
+/* What a discard also does beyond the files going back: plain lines, not a
+   warning box, because each is a consequence already confirmed by the press. */
+.changes-discard-warnings {
+  display: grid; gap: var(--space-1); margin: 0; padding-left: var(--space-5);
+  color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal);
+}

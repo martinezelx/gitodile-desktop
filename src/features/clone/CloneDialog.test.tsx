@@ -87,8 +87,10 @@ describe("CloneDialog", () => {
     await waitFor(() => expect(screen.getByPlaceholderText("https://example.com/team/project.git")).toHaveFocus());
     await enterAndReview();
 
-    expect(screen.getByText(/changes nothing there/i)).toBeInTheDocument();
-    expect(screen.getByText(/credential helper/i)).toBeInTheDocument();
+    expect(screen.getByText("The original project doesn't change.")).toBeInTheDocument();
+    // Sign-in is true and findable, but behind the details rather than beside
+    // the decision.
+    expect(screen.getByText(/your existing Git sign-in is used/i, { ignore: false })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clone and open" }));
 
     await waitFor(() => expect(onVerifiedClone).toHaveBeenCalledWith(result));
@@ -126,7 +128,8 @@ describe("CloneDialog", () => {
 
     expect(cancel).toHaveBeenCalledWith("op-1");
     execution.resolve(result);
-    expect(await screen.findByText(/Clone cancelled before anything was added/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Clone cancelled" })).toBeInTheDocument();
+    expect(screen.getByText("Nothing was added.")).toBeInTheDocument();
     expect(onVerifiedClone).not.toHaveBeenCalled();
   });
 });

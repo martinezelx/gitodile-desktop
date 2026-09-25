@@ -15,7 +15,6 @@ export interface AppTranslations {
   issueReportReviewTitle: string;
   issueReportReviewMessage: string;
   issueReportContentsLabel: string;
-  issueReportAttachmentNote: string;
   issueReportCopyReport: string;
   issueReportReportCopied: string;
   issueReportCopyReportFailed: string;
@@ -92,7 +91,8 @@ export interface AppTranslations {
   commandCloseActiveProject: string;
   commandCloneProject: string;
   commandCreateProject: string;
-  commandTurnFolderIntoProject: string;
+  openErrorTurnIntoProject: string;
+  openErrorChooseAnother: string;
   commandSwitchToProject: (name: string) => string;
   projectSwitcherAriaLabel: string;
   projectSwitchToLabel: (name: string) => string;
@@ -222,10 +222,9 @@ const en: AppTranslations = {
   issueReportHint: "Review your system details and recent activity, then open a public issue on GitHub (account required).",
   issueReportPreparingTitle: "Preparing your report",
   issueReportPreparingMessage: "Gathering app and system details from this session.",
-  issueReportReviewTitle: "Review issue report",
-  issueReportReviewMessage: "Only the versions are filled in. Copy or save the report to add the activity.",
+  issueReportReviewTitle: "Review the report before sending it",
+  issueReportReviewMessage: "GitHub only receives the versions, so copy or save the report to include the activity.",
   issueReportContentsLabel: "Report contents",
-  issueReportAttachmentNote: "If you save the report, attach the file to the issue.",
   issueReportCopyReport: "Copy",
   issueReportReportCopied: "Report copied.",
   issueReportCopyReportFailed: "Couldn't copy the report. Select the text and copy it by hand.",
@@ -234,8 +233,8 @@ const en: AppTranslations = {
   issueReportSaved: "Report saved. Attach the file to your GitHub issue.",
   issueReportSaveFailed: "Couldn't save the report. Choose another location.",
   issueReportContinue: "Open issue",
-  issueReportFailedTitle: "Couldn't open the issue report",
-  issueReportFailedMessage: "Try again, or paste the link into your browser. You can review the report on GitHub before sending it.",
+  issueReportFailedTitle: "The browser didn't open",
+  issueReportFailedMessage: "Copy the link and paste it yourself.",
   issueReportLink: "Report link",
   issueReportCopyLink: "Copy link",
   issueReportCopied: "Link copied.",
@@ -301,7 +300,8 @@ const en: AppTranslations = {
   commandCloseActiveProject: "Close active project",
   commandCloneProject: "Clone a remote project",
   commandCreateProject: "Create a local project",
-  commandTurnFolderIntoProject: "Turn this folder into a project",
+  openErrorTurnIntoProject: "Turn into a project",
+  openErrorChooseAnother: "Choose another folder",
   commandSwitchToProject: (name) => `Switch to ${name}`,
   projectSwitcherAriaLabel: "Open projects",
   projectSwitchToLabel: (name) => `Switch to ${name}`,
@@ -419,10 +419,9 @@ const es: AppTranslations = {
   issueReportHint: "Revisa los datos del sistema y la actividad reciente, y abre una incidencia pública en GitHub (requiere cuenta).",
   issueReportPreparingTitle: "Preparando el informe",
   issueReportPreparingMessage: "Reuniendo los datos de la aplicación y del sistema de esta sesión.",
-  issueReportReviewTitle: "Revisar el informe",
-  issueReportReviewMessage: "Solo se rellenan las versiones. Copia o guarda el informe para añadir la actividad.",
+  issueReportReviewTitle: "Revisa el informe antes de enviarlo",
+  issueReportReviewMessage: "GitHub solo recibe las versiones, así que copia o guarda el informe para incluir la actividad.",
   issueReportContentsLabel: "Contenido del informe",
-  issueReportAttachmentNote: "Si guardas el informe, adjunta el archivo en GitHub.",
   issueReportCopyReport: "Copiar",
   issueReportReportCopied: "Informe copiado.",
   issueReportCopyReportFailed: "No se pudo copiar el informe. Selecciona el texto y cópialo a mano.",
@@ -431,8 +430,8 @@ const es: AppTranslations = {
   issueReportSaved: "Informe guardado. Adjunta el archivo en GitHub.",
   issueReportSaveFailed: "No se pudo guardar el informe. Elige otra ubicación.",
   issueReportContinue: "Reportar en GitHub",
-  issueReportFailedTitle: "No se pudo abrir el informe",
-  issueReportFailedMessage: "Reinténtalo o pega el enlace en tu navegador. Podrás revisar el informe en GitHub antes de enviarlo.",
+  issueReportFailedTitle: "El navegador no se abrió",
+  issueReportFailedMessage: "Copia el enlace y pégalo tú.",
   issueReportLink: "Enlace del informe",
   issueReportCopyLink: "Copiar enlace",
   issueReportCopied: "Enlace copiado.",
@@ -498,7 +497,8 @@ const es: AppTranslations = {
   commandCloseActiveProject: "Cerrar el proyecto activo",
   commandCloneProject: "Clonar un proyecto remoto",
   commandCreateProject: "Crear un proyecto local",
-  commandTurnFolderIntoProject: "Convertir esta carpeta en proyecto",
+  openErrorTurnIntoProject: "Convertir en proyecto",
+  openErrorChooseAnother: "Elegir otra carpeta",
   commandSwitchToProject: (name) => `Cambiar a ${name}`,
   projectSwitcherAriaLabel: "Proyectos abiertos",
   projectSwitchToLabel: (name) => `Cambiar a ${name}`,

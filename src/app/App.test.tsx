@@ -399,7 +399,7 @@ describe("App project restoration", () => {
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Report an issue" }));
     await user.click(await screen.findByRole("button", { name: "Open issue" }));
-    expect(await screen.findByRole("alertdialog")).toHaveAccessibleName("Couldn't open the issue report");
+    expect(await screen.findByRole("alertdialog")).toHaveAccessibleName("The browser didn't open");
     await user.keyboard("{Control>}k{/Control}");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
@@ -704,13 +704,13 @@ describe("App project restoration", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Clone a remote project" }));
-    expect(screen.getByRole("dialog", { name: "Clone a remote project" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Clone a project" })).toBeInTheDocument();
     await user.keyboard("{Escape}");
 
     await user.keyboard("{Control>}k{/Control}");
     await user.type(screen.getByRole("combobox"), "Clone a remote project");
     await user.keyboard("{Enter}");
-    expect(screen.getByRole("dialog", { name: "Clone a remote project" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Clone a project" })).toBeInTheDocument();
   });
 
   it("welcomes with three described entry points under a single heading", async () => {
@@ -931,7 +931,7 @@ describe("App project restoration", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Create a local project" }));
-    expect(screen.getByRole("dialog", { name: "Create a local project" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Create a project" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Location")).toHaveFocus());
   });
 
@@ -962,17 +962,18 @@ describe("App project restoration", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Open a project" }).at(-1)!);
 
-    // The way out of the failure is the primary action; dismissing steps down
-    // to secondary. The alert describes itself through its message rather than
-    // announcing it a second time as a live region.
+    // The message names two ways out and the dialog offers both: choosing
+    // another folder steps down to secondary, turning this one into a project
+    // is the primary. The alert describes itself through its message rather
+    // than announcing it a second time as a live region.
     const alert = await screen.findByRole("alertdialog", { name: "Couldn't open that project" });
-    expect(alert).toHaveAccessibleDescription(/Git project|repository/);
-    const recovery = within(alert).getByRole("button", { name: "Turn this folder into a project" });
+    expect(alert).toHaveAccessibleDescription(/doesn't use Git yet/);
+    const recovery = within(alert).getByRole("button", { name: "Turn into a project" });
     expect(recovery).toHaveClass("primary-button");
-    expect(within(alert).getByRole("button", { name: "Close" })).toHaveClass("secondary-button");
+    expect(within(alert).getByRole("button", { name: "Choose another folder" })).toHaveClass("secondary-button");
 
     await user.click(recovery);
-    expect(screen.getByRole("dialog", { name: "Create a local project" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Create a project" })).toBeInTheDocument();
     expect(screen.getByLabelText("Folder")).toHaveValue("C:\\ordinary folder");
   });
 
@@ -1479,7 +1480,7 @@ describe("App project restoration", () => {
       ([command]) => command === "open_repository",
     ).length;
     await userEvent.click(confirm);
-    await screen.findByRole("heading", { name: "Project changes are in" });
+    await screen.findByText("Project up to date. 1 version came in.");
 
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status"),
@@ -1917,10 +1918,8 @@ describe("App project restoration", () => {
     ));
     await userEvent.click(await screen.findByRole("button", { name: "feature/spike" }));
 
-    const createWithWork = await screen.findByRole("button", {
-      name: "New line with these changes",
-    });
-    await userEvent.click(createWithWork);
+    await userEvent.click(await screen.findByRole("radio", { name: /Take them to a new line/ }));
+    await userEvent.click(screen.getByRole("button", { name: "New line with these changes" }));
 
     // Exactly one dialog: the create dialog replaced the switch dialog
     // rather than rendering on top of it. Both are owned by App state, so

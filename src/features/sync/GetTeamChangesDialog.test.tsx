@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
+import { ToastProvider } from "../../shared/ui";
 import type { SyncController } from "./controller";
 import type { GetTeamChangesPlan, GetTeamChangesResult } from "./domain";
 import { GetTeamChangesDialog } from "./GetTeamChangesDialog";
@@ -101,20 +102,23 @@ function controller(overrides: Partial<SyncController> = {}): SyncController {
   } as unknown as SyncController;
 }
 
-function renderDialog(syncController: SyncController, onApplied = vi.fn(async () => undefined)) {
+function renderDialog(syncController: SyncController, onApplied = vi.fn(async () => undefined), onSaveVersion?: () => void) {
   const onClose = vi.fn();
   const onPhaseChange = vi.fn();
   render(
     <LanguageProvider>
-      <GetTeamChangesDialog
-        isOpen
-        controller={syncController}
-        projectPath="/repo"
-        sessionEpoch="epoch-1"
-        onClose={onClose}
-        onApplied={onApplied}
-        onPhaseChange={onPhaseChange}
-      />
+      <ToastProvider>
+        <GetTeamChangesDialog
+          isOpen
+          controller={syncController}
+          projectPath="/repo"
+          sessionEpoch="epoch-1"
+          onClose={onClose}
+          onApplied={onApplied}
+          onPhaseChange={onPhaseChange}
+          onSaveVersion={onSaveVersion}
+        />
+      </ToastProvider>
     </LanguageProvider>,
   );
   return { onApplied, onClose, onPhaseChange };
@@ -126,8 +130,8 @@ describe("Get project changes dialog", () => {
     expect(await screen.findByRole("heading", { name: "2 incoming versions" })).toBeInTheDocument();
     expect(screen.getByText("Team work")).toBeInTheDocument();
     expect(screen.getByText("new.bin")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Straight ahead only" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "A recovery point first" })).toBeInTheDocument();
+    expect(screen.getByText(/catches up, and nothing is merged or rewritten/)).toBeInTheDocument();
+    expect(screen.getByText(/A recovery point is saved first/)).toBeInTheDocument();
     await userEvent.click(screen.getByText("Technical details"));
     expect(screen.getByText(plan.recovery.reference)).toBeInTheDocument();
     expect(screen.getByText("opaque-token")).toBeInTheDocument();
@@ -145,9 +149,11 @@ describe("Get project changes dialog", () => {
         return result("completed");
       }),
     });
-    const { onPhaseChange } = renderDialog(syncController, onApplied);
+    const { onPhaseChange, onClose } = renderDialog(syncController, onApplied);
     await userEvent.click(await screen.findByRole("button", { name: "Get these versions" }));
-    await screen.findByRole("heading", { name: "Project changes are in" });
+    // Nothing left to decide: the dialog closes and a toast reports it.
+    expect(await screen.findByText("Project up to date. 2 versions came in.")).toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledOnce();
     expect(onApplied).toHaveBeenCalledOnce();
     expect(onPhaseChange).toHaveBeenCalledWith("verifying");
     expect(onPhaseChange).toHaveBeenLastCalledWith("success");
@@ -157,9 +163,10 @@ describe("Get project changes dialog", () => {
     const onApplied = vi.fn(async () => undefined);
     renderDialog(controller({ get: vi.fn(async () => result("uncertain")) }), onApplied);
     await userEvent.click(await screen.findByRole("button", { name: "Get these versions" }));
-    expect(await screen.findByRole("heading", { name: "Check the result" })).toBeInTheDocument();
-    expect(screen.getByText(/Check your files and current version/)).toBeInTheDocument();
-    expect(screen.getByText(plan.recovery.reference)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Result not confirmed" })).toBeInTheDocument();
+    expect(screen.getByText(/Check your files before going on/)).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Technical details"));
+    expect(screen.getByText(new RegExp(plan.recovery.reference))).toBeInTheDocument();
     expect(onApplied).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /Try|Review updated/ })).not.toBeInTheDocument();
   });
@@ -171,11 +178,14 @@ describe("Get project changes dialog", () => {
       }),
     }));
     expect(await screen.findByRole("heading", { name: "Both sides changed" })).toBeInTheDocument();
-    expect(screen.getByText(/retrying would fail again/)).toBeInTheDocument();
+    expect(screen.getByText(/Combine them in another Git tool/)).toBeInTheDocument();
+    // Inside "Get project changes", never "get project changes first".
+    expect(screen.queryByText(/Get project changes first/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });
 
-  it("explains an incoming tracked-file collision without referring to version-line switching", async () => {
+  it("explains an incoming tracked-file collision and hands over to Save version", async () => {
+    const onSaveVersion = vi.fn();
     renderDialog(controller({
       planGet: vi.fn(async (): Promise<GetTeamChangesPlan> => {
         throw {
@@ -184,8 +194,11 @@ describe("Get project changes dialog", () => {
           remediation: null,
         };
       }),
-    }));
-    expect(await screen.findByText(/touch files in the update/)).toBeInTheDocument();
+    }), undefined, onSaveVersion);
+    expect(await screen.findByRole("heading", { name: "Save your changes" })).toBeInTheDocument();
+    expect(screen.getByText("You changed files that are also coming in.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    expect(onSaveVersion).toHaveBeenCalledOnce();
     expect(screen.queryByText(/switch version lines/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });

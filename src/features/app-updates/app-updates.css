@@ -1,31 +1,10 @@
 /* The application updater: the dialog, and the rows it composes into the
-   Updates section of Settings. The dialog wears About's shell (`.about-dialog`)
-   the way the changelog does, so the surface, close button and heading are
-   shared; what is defined here is only the updater's own vocabulary. */
+   Updates section of Settings. The dialog wears the shared action-dialog shell
+   (`.app-dialog`, DESIGN.md § Dialogs), so the surface, close button and
+   heading are shared; what is defined here is only the updater's own
+   vocabulary. */
 
 /* Same width as the changelog: a release note is a sentence, not a label. */
-.app-update-dialog { width: min(100%, 460px); }
-/* The mark sits beside the title rather than above it: one header line, and
-   everything under it shares one left edge. A glyph on a fill, round like
-   every glyph tile, on the changelog's tint — the two dialogs open from
-   adjacent menu items and should read as siblings. */
-.app-update-dialog__header { display: flex; align-items: center; gap: var(--space-3); padding-right: 36px; }
-.app-update-dialog__mark {
-  width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
-  border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
-}
-.app-update-dialog__mark svg { width: 18px; height: 18px; }
-/* About's release line with a caption in front of it, but on the dialog's
-   left edge: About centres its hero, and this dialog is not one. A hairline
-   under it separates the build you have from what is said about the next. */
-.app-update-dialog__installed {
-  justify-content: flex-start;
-  margin-bottom: var(--space-4); padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border-divider);
-}
-.app-update-dialog__installed-label { font-size: var(--text-label); }
 
 /* The state block: the startup receipt when there is one, then the status
    line. Stacked, each line hugging its own text. */
@@ -107,3 +86,6 @@
   .app-update-progress { border: 1px solid CanvasText; }
   .app-update-progress > span { background: Highlight; }
 }
+
+/* The installed build as the dialog's subtitle, with the preview glyph. */
+.app-update-dialog__installed { display: inline-flex; align-items: center; gap: var(--space-1); }

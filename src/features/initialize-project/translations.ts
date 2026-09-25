@@ -12,7 +12,6 @@ export interface InitializeProjectTranslations {
   initializeChooseParent: string;
   initializeNameLabel: string;
   initializeNamePlaceholder: string;
-  initializeNameHelp: string;
   initializeExistingLabel: string;
   initializeExistingPlaceholder: string;
   initializeChooseExisting: string;
@@ -21,7 +20,6 @@ export interface InitializeProjectTranslations {
   initializeReadmeLabel: string;
   initializeReadmeHelp: string;
   initializeFirstVersionLabel: string;
-  initializeFirstVersionHelp: string;
   initializeFirstVersionTitleLabel: string;
   initializeFirstVersionTitlePlaceholder: string;
   initializeFirstVersionDescriptionLabel: string;
@@ -31,28 +29,10 @@ export interface InitializeProjectTranslations {
   initializeRemoteNameLabel: string;
   initializeRemoteUrlLabel: string;
   initializeRemoteUrlPlaceholder: string;
-  initializeReviewAction: string;
   initializeReviewRemoteAction: string;
-  initializePlanning: string;
-  initializeReviewTitle: string;
-  initializeReviewDescription: string;
-  initializeDestinationLabel: string;
-  initializeBranchPreviewLabel: string;
-  initializeLocalEffectsTitle: string;
-  initializeNewLocalEffects: string;
-  initializeExistingLocalEffects: (count: number, truncated: boolean) => string;
-  initializeReadmeEffect: string;
-  initializeNoReadmeEffect: string;
   initializeFirstVersionEffect: string;
-  initializeNoFirstVersionEffect: string;
   initializeRemoteLaterEffect: string;
-  initializeSafetyTitle: string;
   initializeSafetyBody: string;
-  initializeIdentityTitle: string;
-  initializeIdentityReady: string;
-  initializeIdentityMissing: string;
-  initializeOpenIdentitySettings: string;
-  initializeEditAction: string;
   initializeConfirmAction: string;
   initializeProgressTitle: string;
   initializeProgressDescription: string;
@@ -64,10 +44,7 @@ export interface InitializeProjectTranslations {
   initializeCleanupAction: string;
   initializeCleaningUp: string;
   initializeOpeningTitle: string;
-  initializeOpeningDescription: string;
   initializeSavingTitle: string;
-  initializeSavingDescription: string;
-  initializeCreatedTitle: string;
   initializeCreatedDescription: string;
   initializeFirstSaveFailedTitle: string;
   initializeFirstSaveFailedDescription: string;
@@ -77,92 +54,72 @@ export interface InitializeProjectTranslations {
   initializeRetryAction: string;
   initializeTechnicalDetails: string;
   initializeFinishAction: string;
-  initializeRemotePlanning: string;
-  initializeRemoteReviewTitle: string;
   initializeRemoteReviewDescription: string;
   initializeRemoteNamePreview: string;
   initializeRemoteFetchPreview: string;
   initializeRemotePushPreview: string;
-  initializeRemoteLocalEffectsTitle: string;
   initializeRemoteLocalEffects: string;
-  initializeRemoteNetworkEffectsTitle: string;
-  initializeRemoteNoNetworkNow: string;
   initializeRemoteFutureNetwork: string;
   initializeRemoteLocalOnly: string;
-  initializeRemoteCredentialsTitle: string;
   initializeRemoteCredentials: (expectation: ConnectRemoteCredentialExpectation) => string;
-  initializeRemoteSafetyTitle: string;
   initializeRemoteSafety: string;
   initializeEditRemote: string;
   initializeConnectRemote: string;
   initializeConnectingRemote: string;
   initializeRemoteErrorTitle: string;
   initializeSkipRemote: string;
-  initializeRemoteConnectedTitle: string;
-  initializeRemoteConnectedDescription: (name: string) => string;
   initializeChooseParentDialogTitle: string;
+  initializeAdvancedLabel: string;
+  initializeNewFact: (path: string) => string;
+  initializeExistingFact: string;
+  initializeCreatingTitle: (name: string) => string;
+  initializeStep: (step: "folder" | "project" | "opening") => string;
+  initializeReadyTitle: (name: string) => string;
+  initializeConnectRemoteAction: string;
+  initializeRemoteDialogTitle: string;
+  initializeRemoteAddressLabel: string;
+  initializeRemoteConnectedToast: (name: string) => string;
+  initializeIdentityMissingShort: string;
+  initializeAddIdentity: string;
   initializeChooseExistingDialogTitle: string;
 }
 
 const en: InitializeProjectTranslations = {
-  initializeDialogTitle: "Create a local project",
-  initializeDialogDescription: "Start in a new folder, or add Git to a folder you already have.",
-  initializeNewMode: "Create new project",
-  initializeNewModeDescription: "Creates a new folder for the project.",
-  initializeExistingMode: "Turn this folder into a project",
-  initializeExistingModeDescription: "Keeps all your files and adds Git to the folder.",
+  initializeDialogTitle: "Create a project",
+  initializeDialogDescription: "Start in a new folder or use one you already have.",
+  initializeNewMode: "Create a new project",
+  initializeNewModeDescription: "In a new folder.",
+  initializeExistingMode: "Use a folder I already have",
+  initializeExistingModeDescription: "Your files stay as they are.",
   initializeParentLabel: "Location",
-  initializeParentPlaceholder: "Choose where to create the project folder",
+  initializeParentPlaceholder: "Choose where to create the project",
   initializeChooseParent: "Choose folder",
-  initializeNameLabel: "Project folder name",
+  initializeNameLabel: "Project name",
   initializeNamePlaceholder: "my-project",
-  initializeNameHelp: "GitOdile creates this new folder and never replaces an existing one.",
   initializeExistingLabel: "Folder",
   initializeExistingPlaceholder: "Choose a folder that doesn't use Git yet",
   initializeChooseExisting: "Choose folder",
-  initializeBranchLabel: "First version line name",
-  initializeBranchHelp: "main is a common choice, and Git calls this the initial branch.",
+  initializeBranchLabel: "Main version line",
+  initializeBranchHelp: "Git calls it the initial branch, and “main” is the usual choice.",
   initializeReadmeLabel: "Add a README.md",
   initializeReadmeHelp: "A small starter file that describes the project.",
-  initializeFirstVersionLabel: "Save the first version",
-  initializeFirstVersionHelp: "Saves every file in the project once it opens, using your Git identity.",
+  initializeFirstVersionLabel: "Save every file as the first version",
   initializeFirstVersionTitleLabel: "First version name",
   initializeFirstVersionTitlePlaceholder: "First version",
   initializeFirstVersionDescriptionLabel: "Description (optional)",
   initializeFirstVersionDescriptionPlaceholder: "Why this project is starting",
-  initializeRemoteLabel: "Connect a remote afterwards",
-  initializeRemoteHelp: "Adds the address of an existing remote repository without creating one for you.",
+  initializeRemoteLabel: "Connect to a remote project",
+  initializeRemoteHelp: "Paste the address of a project that already exists on GitHub or another server.",
   initializeRemoteNameLabel: "Remote name",
   initializeRemoteUrlLabel: "Remote address",
   initializeRemoteUrlPlaceholder: "https://host.example/team/project.git",
-  initializeReviewAction: "Review setup",
   initializeReviewRemoteAction: "Review remote connection",
-  initializePlanning: "Checking the folder…",
-  initializeReviewTitle: "Review the setup",
-  initializeReviewDescription: "Nothing is created until you confirm, and the remote is reviewed separately afterwards.",
-  initializeDestinationLabel: "Project folder",
-  initializeBranchPreviewLabel: "First version line",
-  initializeLocalEffectsTitle: "Folder",
-  initializeNewLocalEffects: "Creates the folder shown above and adds Git to it, or creates nothing if something already exists there.",
-  initializeExistingLocalEffects: (count, truncated) =>
-    count === 1 && !truncated
-      ? "Adds Git to this folder and leaves its one existing item untouched."
-      : `Adds Git to this folder and leaves its ${truncated ? "999+" : count} existing items untouched.`,
-  initializeReadmeEffect: "Adds README.md, unless the folder already has one.",
-  initializeNoReadmeEffect: "Adds no files of its own, only Git.",
-  initializeFirstVersionEffect: "Then saves every file as the first version, running your hooks and signing as usual.",
-  initializeNoFirstVersionEffect: "No version is saved yet, and you can save the first one whenever you're ready.",
+  initializeFirstVersionEffect: "Then saves every file as the first version.",
   initializeRemoteLaterEffect: "Then you'll review the remote name and address before anything is configured.",
-  initializeSafetyTitle: "What stays safe",
-  initializeSafetyBody: "GitOdile checks the folder again right before writing and never deletes or replaces files that were already there.",
-  initializeIdentityTitle: "Identity for the first version",
-  initializeIdentityReady: "Your Git identity is set, and hooks and signing stay on.",
-  initializeIdentityMissing: "The first version needs your name and email. Add them in Settings, or skip the first version for now.",
-  initializeOpenIdentitySettings: "Open identity settings",
-  initializeEditAction: "Edit setup",
-  initializeConfirmAction: "Create and open project",
+  initializeSafetyBody: "No existing file is deleted or replaced.",
+  initializeConfirmAction: "Create project",
   initializeProgressTitle: "Creating the project",
-  initializeProgressDescription: "Your existing files aren't being moved or changed.",
+  initializeProgressDescription: "Your files aren't moved or changed.",
   initializeProgressPhase: (phase) => ({
     revalidating: "Checking the folder again",
     preparingFolder: "Preparing the folder",
@@ -178,11 +135,8 @@ const en: InitializeProjectTranslations = {
   initializeCleanupAction: "Retry cleanup",
   initializeCleaningUp: "Cleaning up…",
   initializeOpeningTitle: "Opening the project",
-  initializeOpeningDescription: "Almost there.",
   initializeSavingTitle: "Saving the first version",
-  initializeSavingDescription: "Hooks and signing run as usual, and if saving fails, the project stays open with its files unsaved.",
-  initializeCreatedTitle: "Your project is ready",
-  initializeCreatedDescription: "It's open, so add files or save the first version whenever you like.",
+  initializeCreatedDescription: "It's open, and you can start working.",
   initializeFirstSaveFailedTitle: "The project is ready, but the first version wasn't saved",
   initializeFirstSaveFailedDescription: "Nothing was lost, and the project is open with its files shown as unsaved changes.",
   initializeOpenFailedTitle: "The project was created but couldn't be opened",
@@ -190,97 +144,77 @@ const en: InitializeProjectTranslations = {
   initializeErrorTitle: "Couldn't create the project",
   initializeRetryAction: "Review again",
   initializeTechnicalDetails: "Technical details",
-  initializeFinishAction: "View project",
-  initializeRemotePlanning: "Checking the remote…",
-  initializeRemoteReviewTitle: "Review the remote connection",
+  initializeFinishAction: "Go to project",
   initializeRemoteReviewDescription: "This only saves the address in the project, and nothing is sent or downloaded now.",
   initializeRemoteNamePreview: "Remote name",
   initializeRemoteFetchPreview: "Get changes from",
   initializeRemotePushPreview: "Publish to",
-  initializeRemoteLocalEffectsTitle: "In the project",
-  initializeRemoteLocalEffects: "Adds this remote to the project's settings (.git/config) and leaves everything else as it is.",
-  initializeRemoteNetworkEffectsTitle: "Network",
-  initializeRemoteNoNetworkNow: "Nothing is sent over the network now.",
-  initializeRemoteFutureNetwork: "GitOdile only contacts this address when you check, get or publish changes.",
+  initializeRemoteLocalEffects: "Only the address is saved in the project.",
+  initializeRemoteFutureNetwork: "It only connects when you get or publish changes.",
   initializeRemoteLocalOnly: "This address is a local path, so no network is used.",
-  initializeRemoteCredentialsTitle: "Sign-in",
   initializeRemoteCredentials: (expectation) => ({
     none: "No sign-in is expected for this address.",
     "git-credential-helper": "HTTPS sign-in uses your Git credential helper, and GitOdile doesn't store passwords.",
     "ssh-agent-or-key": "SSH uses your system's SSH keys and agent, and GitOdile doesn't store keys.",
   })[expectation],
-  initializeRemoteSafetyTitle: "Address privacy",
   initializeRemoteSafety: "Passwords, tokens and extra parameters are stripped from the address and never saved or shown.",
   initializeEditRemote: "Edit remote",
   initializeConnectRemote: "Connect remote",
   initializeConnectingRemote: "Connecting…",
   initializeRemoteErrorTitle: "The remote wasn't connected",
   initializeSkipRemote: "Finish without a remote",
-  initializeRemoteConnectedTitle: "Project and remote are ready",
-  initializeRemoteConnectedDescription: (name) => `The remote “${name}” is set up, and nothing was sent over the network.`,
   initializeChooseParentDialogTitle: "Choose where to create the project",
+  initializeAdvancedLabel: "More options",
+  initializeNewFact: (path) => `Creates “${path}” and gets it ready to save versions.`,
+  initializeExistingFact: "Gets the folder ready to save versions without touching your files.",
+  initializeCreatingTitle: (name) => `Creating “${name}”…`,
+  initializeStep: (step) => ({ folder: "Creating the folder", project: "Setting up the project", opening: "Opening it" })[step],
+  initializeReadyTitle: (name) => `“${name}” is ready`,
+  initializeConnectRemoteAction: "Connect a remote project",
+  initializeRemoteDialogTitle: "Connect a remote project",
+  initializeRemoteAddressLabel: "Address",
+  initializeRemoteConnectedToast: (name) => `Project connected. You can now publish to “${name}”.`,
+  initializeIdentityMissingShort: "Your name and email are needed to save the first version.",
+  initializeAddIdentity: "Add in Settings",
   initializeChooseExistingDialogTitle: "Choose a folder",
 };
 
 const es: InitializeProjectTranslations = {
-  initializeDialogTitle: "Crear un proyecto local",
-  initializeDialogDescription: "Empieza en una carpeta nueva o añade Git a una carpeta que ya tienes.",
+  initializeDialogTitle: "Crear un proyecto",
+  initializeDialogDescription: "Empieza en una carpeta nueva o usa una que ya tengas.",
   initializeNewMode: "Crear proyecto nuevo",
-  initializeNewModeDescription: "Crea una carpeta nueva para el proyecto.",
-  initializeExistingMode: "Convertir esta carpeta en proyecto",
-  initializeExistingModeDescription: "Conserva todos tus archivos y añade Git a la carpeta.",
+  initializeNewModeDescription: "En una carpeta nueva.",
+  initializeExistingMode: "Usar una carpeta que ya tengo",
+  initializeExistingModeDescription: "Tus archivos se quedan como están.",
   initializeParentLabel: "Ubicación",
-  initializeParentPlaceholder: "Elige dónde crear la carpeta del proyecto",
+  initializeParentPlaceholder: "Elige dónde crear el proyecto",
   initializeChooseParent: "Elegir carpeta",
-  initializeNameLabel: "Nombre de la carpeta del proyecto",
+  initializeNameLabel: "Nombre del proyecto",
   initializeNamePlaceholder: "mi-proyecto",
-  initializeNameHelp: "GitOdile crea esta carpeta nueva y nunca reemplaza una que ya exista.",
   initializeExistingLabel: "Carpeta",
   initializeExistingPlaceholder: "Elige una carpeta que aún no use Git",
   initializeChooseExisting: "Elegir carpeta",
-  initializeBranchLabel: "Nombre de la primera línea de versión",
-  initializeBranchHelp: "main es una opción habitual y Git lo llama rama inicial.",
+  initializeBranchLabel: "Línea de versión principal",
+  initializeBranchHelp: "Git la llama rama inicial y «main» es lo habitual.",
   initializeReadmeLabel: "Añadir un README.md",
   initializeReadmeHelp: "Un pequeño archivo inicial que describe el proyecto.",
-  initializeFirstVersionLabel: "Guardar la primera versión",
-  initializeFirstVersionHelp: "Guarda todos los archivos del proyecto al abrirlo, con tu identidad de Git.",
+  initializeFirstVersionLabel: "Guardar todos los archivos como primera versión",
   initializeFirstVersionTitleLabel: "Nombre de la primera versión",
   initializeFirstVersionTitlePlaceholder: "Primera versión",
   initializeFirstVersionDescriptionLabel: "Descripción (opcional)",
   initializeFirstVersionDescriptionPlaceholder: "Por qué empieza este proyecto",
-  initializeRemoteLabel: "Conectar un remoto después",
-  initializeRemoteHelp: "Añade la dirección de un repositorio remoto que ya existe, sin crearlo por ti.",
+  initializeRemoteLabel: "Conectar con un proyecto remoto",
+  initializeRemoteHelp: "Pega la dirección de un proyecto que ya existe en GitHub u otro servidor.",
   initializeRemoteNameLabel: "Nombre del remoto",
   initializeRemoteUrlLabel: "Dirección del remoto",
   initializeRemoteUrlPlaceholder: "https://host.example/equipo/proyecto.git",
-  initializeReviewAction: "Revisar configuración",
   initializeReviewRemoteAction: "Revisar conexión remota",
-  initializePlanning: "Comprobando la carpeta…",
-  initializeReviewTitle: "Revisa la configuración",
-  initializeReviewDescription: "No se crea nada hasta que confirmes y el remoto se revisa aparte después.",
-  initializeDestinationLabel: "Carpeta del proyecto",
-  initializeBranchPreviewLabel: "Primera línea de versión",
-  initializeLocalEffectsTitle: "Carpeta",
-  initializeNewLocalEffects: "Crea la carpeta indicada arriba y le añade Git, o no crea nada si ya existe algo ahí.",
-  initializeExistingLocalEffects: (count, truncated) =>
-    count === 1 && !truncated
-      ? "Añade Git a esta carpeta sin tocar su único elemento."
-      : `Añade Git a esta carpeta sin tocar sus ${truncated ? "999+" : count} elementos.`,
-  initializeReadmeEffect: "Añade README.md, salvo que la carpeta ya tenga uno.",
-  initializeNoReadmeEffect: "No añade archivos propios, solo Git.",
-  initializeFirstVersionEffect: "Después guarda todos los archivos como primera versión, con tus hooks y firma de siempre.",
-  initializeNoFirstVersionEffect: "Aún no se guarda ninguna versión y podrás guardar la primera cuando quieras.",
+  initializeFirstVersionEffect: "Después guarda todos los archivos como primera versión.",
   initializeRemoteLaterEffect: "Después revisarás el nombre y la dirección del remoto antes de configurar nada.",
-  initializeSafetyTitle: "Qué queda a salvo",
-  initializeSafetyBody: "GitOdile vuelve a comprobar la carpeta justo antes de escribir y nunca borra ni reemplaza archivos que ya estaban.",
-  initializeIdentityTitle: "Identidad para la primera versión",
-  initializeIdentityReady: "Tu identidad de Git está configurada y los hooks y la firma siguen activos.",
-  initializeIdentityMissing: "La primera versión necesita tu nombre y correo. Añádelos en Ajustes o sáltate por ahora la primera versión.",
-  initializeOpenIdentitySettings: "Abrir ajustes de identidad",
-  initializeEditAction: "Editar configuración",
-  initializeConfirmAction: "Crear y abrir proyecto",
+  initializeSafetyBody: "No se borra ni se reemplaza ningún archivo que ya estuviera.",
+  initializeConfirmAction: "Crear proyecto",
   initializeProgressTitle: "Creando el proyecto",
-  initializeProgressDescription: "Tus archivos existentes no se mueven ni se modifican.",
+  initializeProgressDescription: "Tus archivos no se mueven ni se modifican.",
   initializeProgressPhase: (phase) => ({
     revalidating: "Volviendo a comprobar la carpeta",
     preparingFolder: "Preparando la carpeta",
@@ -296,11 +230,8 @@ const es: InitializeProjectTranslations = {
   initializeCleanupAction: "Reintentar limpieza",
   initializeCleaningUp: "Limpiando…",
   initializeOpeningTitle: "Abriendo el proyecto",
-  initializeOpeningDescription: "Ya casi está.",
   initializeSavingTitle: "Guardando la primera versión",
-  initializeSavingDescription: "Los hooks y la firma se ejecutan como siempre y, si falla, el proyecto queda abierto con sus archivos sin guardar.",
-  initializeCreatedTitle: "Tu proyecto está listo",
-  initializeCreatedDescription: "Ya está abierto, así que añade archivos o guarda la primera versión cuando quieras.",
+  initializeCreatedDescription: "Ya está abierto y puedes empezar a trabajar.",
   initializeFirstSaveFailedTitle: "El proyecto está listo, pero no se guardó la primera versión",
   initializeFirstSaveFailedDescription: "No se ha perdido nada y el proyecto está abierto con sus archivos como cambios sin guardar.",
   initializeOpenFailedTitle: "El proyecto se creó, pero no se pudo abrir",
@@ -308,35 +239,38 @@ const es: InitializeProjectTranslations = {
   initializeErrorTitle: "No se pudo crear el proyecto",
   initializeRetryAction: "Revisar de nuevo",
   initializeTechnicalDetails: "Detalles técnicos",
-  initializeFinishAction: "Ver proyecto",
-  initializeRemotePlanning: "Comprobando el remoto…",
-  initializeRemoteReviewTitle: "Revisa la conexión remota",
+  initializeFinishAction: "Ir al proyecto",
   initializeRemoteReviewDescription: "Solo se guarda la dirección en el proyecto y ahora no se envía ni se descarga nada.",
   initializeRemoteNamePreview: "Nombre del remoto",
   initializeRemoteFetchPreview: "Traer cambios de",
   initializeRemotePushPreview: "Publicar en",
-  initializeRemoteLocalEffectsTitle: "En el proyecto",
-  initializeRemoteLocalEffects: "Añade este remoto a la configuración del proyecto (.git/config) y deja todo lo demás igual.",
-  initializeRemoteNetworkEffectsTitle: "Red",
-  initializeRemoteNoNetworkNow: "Ahora no se envía nada por la red.",
-  initializeRemoteFutureNetwork: "GitOdile solo contacta con esta dirección cuando compruebas, traes o publicas cambios.",
+  initializeRemoteLocalEffects: "Solo se guarda la dirección en el proyecto.",
+  initializeRemoteFutureNetwork: "Solo se conecta cuando traes o publicas cambios.",
   initializeRemoteLocalOnly: "Esta dirección es una ruta local, así que no se usa la red.",
-  initializeRemoteCredentialsTitle: "Inicio de sesión",
   initializeRemoteCredentials: (expectation) => ({
     none: "No se espera inicio de sesión para esta dirección.",
     "git-credential-helper": "El acceso HTTPS usa tu gestor de credenciales de Git y GitOdile no guarda contraseñas.",
     "ssh-agent-or-key": "SSH usa las claves y el agente SSH del sistema, y GitOdile no guarda claves.",
   })[expectation],
-  initializeRemoteSafetyTitle: "Privacidad de la dirección",
   initializeRemoteSafety: "Las contraseñas, tokens y parámetros extra se quitan de la dirección y nunca se guardan ni se muestran.",
   initializeEditRemote: "Editar remoto",
   initializeConnectRemote: "Conectar remoto",
   initializeConnectingRemote: "Conectando…",
   initializeRemoteErrorTitle: "No se conectó el remoto",
   initializeSkipRemote: "Terminar sin remoto",
-  initializeRemoteConnectedTitle: "El proyecto y el remoto están listos",
-  initializeRemoteConnectedDescription: (name) => `El remoto «${name}» está configurado y no se envió nada por la red.`,
   initializeChooseParentDialogTitle: "Elige dónde crear el proyecto",
+  initializeAdvancedLabel: "Más opciones",
+  initializeNewFact: (path) => `Crea «${path}» y la prepara para guardar versiones.`,
+  initializeExistingFact: "Prepara la carpeta para guardar versiones sin tocar tus archivos.",
+  initializeCreatingTitle: (name) => `Creando «${name}»…`,
+  initializeStep: (step) => ({ folder: "Creando la carpeta", project: "Preparando el proyecto", opening: "Abriéndolo" })[step],
+  initializeReadyTitle: (name) => `«${name}» está listo`,
+  initializeConnectRemoteAction: "Conectar con un proyecto remoto",
+  initializeRemoteDialogTitle: "Conectar con un proyecto remoto",
+  initializeRemoteAddressLabel: "Dirección",
+  initializeRemoteConnectedToast: (name) => `Proyecto conectado. Ya puedes publicar en «${name}».`,
+  initializeIdentityMissingShort: "Para guardar la primera versión falta tu nombre y correo.",
+  initializeAddIdentity: "Añadir en Ajustes",
   initializeChooseExistingDialogTitle: "Elige una carpeta",
 };
 

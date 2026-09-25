@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, CircleAlert, CloudUpload, LoaderCircle } from "lucide-react";
+import { ChevronDown, CircleAlert, CloudUpload, Info, Laptop, LoaderCircle, Users } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
-import { useModalFocus } from "../../shared/ui";
-import { autoHideScrollbarProps } from "../../shared/ui";
+import { Dialog, DialogBanner, DialogFacts, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
 import { CHANGE_CATEGORY_ICONS } from "../status";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import type { CommitFileChange, PublishPlan, PublishResult, RemoteInfo } from "./domain";
@@ -101,67 +100,45 @@ function PublishSummary({
   );
 
   return (
-    <div className="save-version-summary publish-plan">
-      <section className="publish-plan__section" aria-labelledby="publish-destination-heading">
-        <h3 id="publish-destination-heading">{t.publishDestinationLabel}</h3>
-        <p className="publish-plan__destination">
-          <code>{plan.target.remote}</code>
-          <span aria-hidden="true">→</span>
-          <code>{plan.target.destinationBranch}</code>
-        </p>
-      </section>
-      <section className="publish-plan__section" aria-labelledby="publish-included-heading">
-        <h3 id="publish-included-heading">{t.publishWillPublishLabel}</h3>
-        <p>{t.publishCommitCount(plan.commitCount)}</p>
-        {plan.commitSummary.length > 0 && (
-          <ul
-            {...autoHideScrollbarProps<HTMLUListElement>()}
-            className="publish-commit-list auto-hide-scrollbar"
-            aria-label={t.publishCommitListLabel}
-          >
-            {plan.commitSummary.map((entry) => (
-              <li key={entry.commit} className="publish-commit-list__item">
-                <details onToggle={(event) => handleToggle(entry.commit, event.currentTarget.open)}>
-                  <summary className="publish-commit-list__summary">
-                    <ChevronDown aria-hidden="true" className="publish-commit-list__chevron" />
-                    <span className="publish-commit-list__description">{entry.title}</span>
-                    <code className="publish-commit-list__hash">{entry.shortCommit}</code>
-                  </summary>
-                  {entry.description && (
-                    <p className="publish-commit-list__message-body">{entry.description}</p>
-                  )}
-                  <CommitFilesPanel files={fileChanges[entry.commit]} t={t} />
-                </details>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      {(plan.hasUnsavedFiles || plan.remainingAfterPublish > 0) && (
-        <section className="publish-plan__section" aria-labelledby="publish-stays-heading">
-          <h3 id="publish-stays-heading">{t.publishWillStayLabel}</h3>
-          <div className="publish-stays__pills">
-            {plan.remainingCommitSummary.map((entry) => (
-              <span key={entry.commit} className="publish-stays__pill">
-                {entry.title}
-              </span>
-            ))}
-            {plan.hasUnsavedFiles && (
-              <span className="publish-stays__pill publish-stays__pill--unsaved">{t.publishUnsavedChangesPill}</span>
-            )}
-          </div>
-          {plan.remainingCommitSummary.length < plan.remainingAfterPublish && (
-            <p className="save-version-note">{t.publishRemainingNote(plan.remainingAfterPublish)}</p>
-          )}
-          {plan.hasUnsavedFiles && <p className="save-version-note">{t.publishUnsavedFilesNote}</p>}
-        </section>
+    <>
+      <p className="app-dialog__summary">
+        <strong>{t.publishPlanLine(plan.commitCount, plan.target.remote, plan.target.destinationBranch)}</strong>
+      </p>
+      {plan.commitSummary.length > 0 && (
+        <ul
+          {...autoHideScrollbarProps<HTMLUListElement>()}
+          className="publish-commit-list auto-hide-scrollbar"
+          aria-label={t.publishCommitListLabel}
+        >
+          {plan.commitSummary.map((entry) => (
+            <li key={entry.commit} className="publish-commit-list__item">
+              <details onToggle={(event) => handleToggle(entry.commit, event.currentTarget.open)}>
+                <summary className="publish-commit-list__summary">
+                  <ChevronDown aria-hidden="true" className="publish-commit-list__chevron" />
+                  <span className="publish-commit-list__description">{entry.title}</span>
+                  <code className="publish-commit-list__hash">{entry.shortCommit}</code>
+                </summary>
+                {entry.description && (
+                  <p className="publish-commit-list__message-body">{entry.description}</p>
+                )}
+                <CommitFilesPanel files={fileChanges[entry.commit]} t={t} />
+              </details>
+            </li>
+          ))}
+        </ul>
       )}
-      <section className="publish-plan__section" aria-labelledby="publish-visibility-heading">
-        <h3 id="publish-visibility-heading">{t.publishVisibilityLabel}</h3>
-        <p className="save-version-note">{t.publishTeammatesNote}</p>
-      </section>
-      {plan.willCreateUpstream && <p className="save-version-note">{t.publishUpstreamNote}</p>}
-    </div>
+      {/* What stays behind and who will see it: the facts under the plan,
+          one line each, rather than a section with a heading per sentence. */}
+      <DialogFacts
+        facts={[
+          ...(plan.remainingAfterPublish > 0
+            ? [{ icon: <Laptop />, text: t.publishRemainingNote(plan.remainingAfterPublish) }]
+            : []),
+          ...(plan.hasUnsavedFiles ? [{ icon: <Laptop />, text: t.publishUnsavedFilesNote }] : []),
+          { icon: <Users />, text: t.publishTeammatesNote },
+        ]}
+      />
+    </>
   );
 }
 
@@ -219,6 +196,7 @@ export function PublishDialog({
   ) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
+  const showToast = useToast();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [selectedRemote, setSelectedRemote] = useState<string | null>(null);
@@ -334,6 +312,13 @@ export function PublishDialog({
         await onPublished(result);
         setState({ status: "success", result });
         onPhaseChangeRef.current?.("success");
+        // A publish has no next step, so its result is a toast rather than a
+        // screen to dismiss (DESIGN.md § Dialogs).
+        showToast({
+          icon: <CloudUpload />,
+          message: t.publishSuccessDescription(result.publishedCount, result.target.remote),
+        });
+        onCloseRef.current();
       })
       .catch((error: unknown) => {
         setState({ status: "publish-error", plan, error });
@@ -343,105 +328,107 @@ export function PublishDialog({
       });
   }
 
+  // Retrying can't make versions appear: "everything is published" only
+  // offers the way out. Any other planning failure may pass on a retry.
+  const isNothingToPublish = state.status === "blocked" && isAppError(state.error) && state.error.code === "nothing_to_publish";
+  const title = state.status === "remote-selection"
+    ? t.publishChooseRemoteHeading
+    : isFirstPublish && plan
+      ? t.publishDialogTitleFirst(plan.target.destinationBranch)
+      : t.publishDialogTitle;
+
   return (
-    <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
-      <div
-        {...autoHideScrollbarProps<HTMLDivElement>()}
-        ref={dialogRef}
-        className="save-version-dialog publish-dialog auto-hide-scrollbar"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="publish-dialog-title"
-        tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id="publish-dialog-title">
-          {state.status === "success"
-            ? t.publishSuccessTitle
-            : isFirstPublish
-              ? t.publishDialogTitleFirst
-              : t.publishDialogTitle}
-        </h2>
+    <Dialog
+      size="m"
+      title={title}
+      titleId="publish-dialog-title"
+      subtitle={state.status === "remote-selection" ? t.publishChooseRemoteDescription : undefined}
+      onClose={onClose}
+      closeLabel={t.commonClose}
+      dismissible={!isBusy && !isUncertain}
+      dialogRef={dialogRef}
+      className="publish-dialog auto-hide-scrollbar"
+      bodyProps={autoHideScrollbarProps<HTMLDivElement>()}
+    >
+      {state.status === "loading" && (
+        <p className="app-dialog__note" role="status">
+          <LoaderCircle aria-hidden="true" className="icon--spinning" />
+          {t.publishLoadingTitle}
+        </p>
+      )}
 
-        {state.status === "loading" && (
-          <div className="save-version-status" role="status">
-            <LoaderCircle aria-hidden="true" className="icon--spinning" />
-            <p>{t.publishLoadingTitle}</p>
+      {state.status === "remote-selection" && (
+        <>
+          <div className="choice-list" role="list" aria-label={t.publishChooseRemoteTitle}>
+            {state.remotes.map((remote) => (
+              <button
+                key={remote.name}
+                type="button"
+                role="listitem"
+                className="choice-list__option"
+                onClick={() => setSelectedRemote(remote.name)}
+              >
+                <span className="choice-list__label">{remote.name}</span>
+                <span className="choice-list__description">{remote.url}</span>
+              </button>
+            ))}
           </div>
-        )}
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose}>
+              {t.commonCancel}
+            </button>
+          </div>
+        </>
+      )}
 
-        {state.status === "remote-selection" && (
-          <>
-            <p>{t.publishChooseRemoteDescription}</p>
-            <div className="publish-remote-list" role="list" aria-label={t.publishChooseRemoteTitle}>
-              {state.remotes.map((remote) => (
-                <button
-                  key={remote.name}
-                  type="button"
-                  role="listitem"
-                  className="secondary-button publish-remote-option"
-                  onClick={() => setSelectedRemote(remote.name)}
-                >
-                  <span className="publish-remote-option__name">{remote.name}</span>
-                  <span className="publish-remote-option__url">{remote.url}</span>
+      {state.status === "blocked" && (
+        <>
+          <p className="app-dialog__text" role="alert">
+            {localizeAppError(state.error, t, t.errorGitCommandFailed)}
+          </p>
+          <div className="dialog-actions">
+            {isNothingToPublish ? (
+              <button className="primary-button" type="button" onClick={requestClose}>
+                {t.commonClose}
+              </button>
+            ) : (
+              <>
+                <button className="secondary-button" type="button" onClick={requestClose}>
+                  {t.commonCancel}
                 </button>
-              ))}
-            </div>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose}>
-                {t.commonCancel}
-              </button>
-            </div>
-          </>
-        )}
-
-        {state.status === "blocked" && (
-          <>
-            <p className="save-version-error" role="alert">
-              <CircleAlert aria-hidden="true" />
-              {localizeAppError(state.error, t, t.errorGitCommandFailed)}
-            </p>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose}>
-                {t.commonCancel}
-              </button>
-              <button className="primary-button" type="button" onClick={() => setRetryToken((token) => token + 1)}>
-                {t.saveVersionRetry}
-              </button>
-            </div>
-          </>
-        )}
-
-        {plan && state.status !== "success" && (
-          <>
-            <PublishSummary
-              plan={plan}
-              controller={controller}
-              projectPath={projectPath}
-              sessionEpoch={sessionEpoch}
-              t={t}
-            />
-
-            {state.status === "publish-error" && (
-              <div>
-                <p className="save-version-error" role="alert">
-                  <CircleAlert aria-hidden="true" />
-                  {localizeAppError(state.error, t, t.errorGitCommandFailed)}
-                </p>
-                <FailureDetail error={state.error} t={t} />
-              </div>
+                <button className="primary-button" type="button" onClick={() => setRetryToken((token) => token + 1)}>
+                  {t.saveVersionRetry}
+                </button>
+              </>
             )}
+          </div>
+        </>
+      )}
 
+      {plan && state.status !== "success" && (
+        <>
+          <PublishSummary
+            plan={plan}
+            controller={controller}
+            projectPath={projectPath}
+            sessionEpoch={sessionEpoch}
+            t={t}
+          />
+
+          {state.status === "publish-error" && (
+            <DialogBanner tone="danger" icon={<CircleAlert />}>
+              <p role="alert">{localizeAppError(state.error, t, t.errorGitCommandFailed)}</p>
+              <FailureDetail error={state.error} t={t} />
+            </DialogBanner>
+          )}
+
+          <div className="app-dialog__foot">
             {isBusy && (
-              <p className="publish-operation-status" role="status">
-                <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                <span>
-                  {state.status === "verifying" ? t.publishVerifying : t.publishPublishing}
-                  <small>{t.publishCannotCloseNote}</small>
-                </span>
+              <p className="app-dialog__note" role="status">
+                <Info aria-hidden="true" />
+                {t.publishCannotCloseNote}
               </p>
             )}
-
             <div className="dialog-actions">
               <button
                 className="secondary-button"
@@ -474,21 +461,9 @@ export function PublishDialog({
                 )}
               </button>
             </div>
-          </>
-        )}
-
-        {state.status === "success" && (
-          <>
-            <p>{t.publishSuccessDescription(state.result.publishedCount, state.result.target.remote)}</p>
-            {state.result.createdUpstream && <p className="save-version-note">{t.publishSuccessUpstreamNote}</p>}
-            <div className="dialog-actions">
-              <button className="primary-button" type="button" onClick={requestClose}>
-                {t.publishDone}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          </div>
+        </>
+      )}
+    </Dialog>
   );
 }
