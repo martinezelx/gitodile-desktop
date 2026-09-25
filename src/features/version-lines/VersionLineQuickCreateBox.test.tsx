@@ -314,7 +314,7 @@ describe("VersionLineQuickCreateBox", () => {
     const field = screen.getByLabelText("New line name");
     await userEvent.type(field, "my line");
 
-    expect(screen.getByText("No spaces. Use hyphens instead, like my-line.")).toBeInTheDocument();
+    expect(screen.getByText("Use hyphens instead of spaces, like my-line.")).toBeInTheDocument();
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("button", { name: "Create and switch" })).toBeDisabled();
 

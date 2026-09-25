@@ -965,7 +965,7 @@ describe("App project restoration", () => {
     // The way out of the failure is the primary action; dismissing steps down
     // to secondary. The alert describes itself through its message rather than
     // announcing it a second time as a live region.
-    const alert = await screen.findByRole("alertdialog", { name: "Couldn’t open that project" });
+    const alert = await screen.findByRole("alertdialog", { name: "Couldn't open that project" });
     expect(alert).toHaveAccessibleDescription(/Git project|repository/);
     const recovery = within(alert).getByRole("button", { name: "Turn this folder into a project" });
     expect(recovery).toHaveClass("primary-button");

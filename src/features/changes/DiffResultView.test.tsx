@@ -296,7 +296,7 @@ describe("changed images", () => {
     renderImage(imageDiff(), null);
 
     expect(
-      screen.getByRole("heading", { name: "This file can’t be shown as text" }),
+      screen.getByRole("heading", { name: "This file can't be shown as text" }),
     ).toBeInTheDocument();
   });
 });

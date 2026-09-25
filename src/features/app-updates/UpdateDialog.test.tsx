@@ -77,8 +77,8 @@ describe("application update dialog", () => {
     const dialog = screen.getByRole("dialog", { name: "Updates" });
     const rendered = dialog.querySelector(".app-update-notes");
     expect(rendered?.textContent).toBe(notes);
-    expect(within(dialog).getByRole("status")).toHaveTextContent("Can't install yet");
-    expect(within(dialog).getByText("This build can't update itself. Use the manual download.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("status")).toHaveTextContent("This build can't update itself. Use the manual download.");
+    expect(within(dialog).queryByText("Can't install yet")).toBeNull();
     expect(within(dialog).getByRole("button", { name: "Manual download" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: /^Download/ })).toBeNull();
   });
@@ -153,18 +153,18 @@ describe("application update dialog", () => {
 
   it("says why updates are unavailable once, with the specific cause instead of the generic sentence", async () => {
     const user = userEvent.setup();
-    const error = { code: "internal" as const, stage: "check" as const, retryable: false, safeDetail: "Update verification is not configured for this build." };
+    const error = { code: "internal" as const, stage: "check" as const, retryable: false, safeDetail: "Updates aren't set up for this build." };
     const snapshot: AppUpdatesSnapshot = { state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false, channel: followBuild };
     render(<Harness snapshot={snapshot} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
     const dialog = screen.getByRole("dialog", { name: "Updates" });
-    expect(within(dialog).getByRole("status")).toHaveTextContent("Not available for this installation");
-    expect(within(dialog).getByText("Update verification is not configured for this build.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("status")).toHaveTextContent("Updates aren't set up for this build.");
+    expect(within(dialog).queryByText("Not available for this installation")).toBeNull();
     expect(within(dialog).queryByText(/couldn't be completed/)).toBeNull();
   });
 
   it("puts the cause in the Settings row and keeps Details for what only the dialog shows", () => {
-    const error = { code: "internal" as const, stage: "check" as const, retryable: false, safeDetail: "Update verification is not configured for this build." };
+    const error = { code: "internal" as const, stage: "check" as const, retryable: false, safeDetail: "Updates aren't set up for this build." };
     render(
       <LanguageProvider>
         <AppUpdateSettingsControl
@@ -179,7 +179,7 @@ describe("application update dialog", () => {
     );
     expect(screen.getByRole("heading", { name: "Installed version" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "How you get updates" })).toBeInTheDocument();
-    expect(screen.getByText("Update verification is not configured for this build.")).toBeInTheDocument();
+    expect(screen.getByText("Updates aren't set up for this build.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
   });
 

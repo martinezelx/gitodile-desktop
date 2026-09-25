@@ -169,7 +169,7 @@ describe("InitializeProjectDialog", () => {
     });
     expect(screen.getByLabelText("Folder")).toHaveValue("C:\\ordinary folder");
     await userEvent.click(screen.getByRole("button", { name: "Review setup" }));
-    expect(await screen.findByText(/3 existing items stay untouched/i)).toBeInTheDocument();
+    expect(await screen.findByText(/leaves its 3 existing items untouched/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Create and open project" }));
     expect(await screen.findByText("Your project is ready")).toBeInTheDocument();
     expect(port.execute).toHaveBeenCalledOnce();

@@ -34,8 +34,8 @@ const en: StatusTranslations = {
       : `${conflicted} files have overlapping changes to resolve before you can save.`,
   statusCheckingTitle: "Checking for changes…",
   statusCheckingMessage: "Looking at your project files.",
-  statusCheckFailedTitle: "Couldn’t check for changes",
-  statusCouldntCheck: "Couldn’t check what changed in this project.",
+  statusCheckFailedTitle: "Couldn't check for changes",
+  statusCouldntCheck: "Couldn't check what changed in this project.",
   statusRefresh: "Check for changes",
   statusRefreshing: "Checking…",
   statusBreakdownLabel: "What changed",
@@ -44,8 +44,8 @@ const en: StatusTranslations = {
   statusCategoryDeleted: (count) => (count === 1 ? "1 deleted" : `${count} deleted`),
   statusCategoryRenamed: (count) => (count === 1 ? "1 renamed" : `${count} renamed`),
   statusCategoryConflicted: (count) => (count === 1 ? "1 needs attention" : `${count} need attention`),
-  statusTruncatedNote: (shown) => `Showing the first ${shown} files. The totals include every change.`,
-  statusRefreshFailedNote: "The latest check failed. This is the last known result.",
+  statusTruncatedNote: (shown) => `Showing the first ${shown} files, but the totals include every change.`,
+  statusRefreshFailedNote: "The latest check failed, so this is the last known result.",
 };
 
 const es: StatusTranslations = {
@@ -74,8 +74,8 @@ const es: StatusTranslations = {
   statusCategoryRenamed: (count) => (count === 1 ? "1 renombrado" : `${count} renombrados`),
   statusCategoryConflicted: (count) =>
     count === 1 ? "1 necesita atención" : `${count} necesitan atención`,
-  statusTruncatedNote: (shown) => `Se muestran los primeros ${shown} archivos. Los totales incluyen todos los cambios.`,
-  statusRefreshFailedNote: "La última comprobación falló. Este es el último resultado conocido.",
+  statusTruncatedNote: (shown) => `Se muestran los primeros ${shown} archivos, pero los totales incluyen todos los cambios.`,
+  statusRefreshFailedNote: "La última comprobación falló, así que este es el último resultado conocido.",
 };
 
 export const statusTranslations = { en, es } as const;

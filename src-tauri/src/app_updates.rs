@@ -1208,7 +1208,7 @@ fn build_update_identity(
     {
         return Err(
             UpdateError::new(UpdateErrorCode::Internal, UpdateStage::Check, false)
-                .detail("Update verification is not configured for this build."),
+                .detail("Updates aren't set up for this build."),
         );
     }
     let channel = preference.resolve(build_channel);

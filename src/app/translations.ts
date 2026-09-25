@@ -272,7 +272,7 @@ const en: AppTranslations = {
   navAccount: "Sign in",
   navAccountTitle: "Sign in — coming soon",
   dropFolderTitle: "Drop a folder to open it",
-  dropFolderHint: "One folder at a time. If it isn't a project yet, GitOdile can make it one.",
+  dropFolderHint: "One folder at a time, and if it isn't a project yet, GitOdile can make it one.",
   paletteAriaLabel: "Command palette",
   palettePlaceholder: "Jump to a view or action…",
   paletteNoMatches: "No matching commands",
@@ -293,7 +293,7 @@ const en: AppTranslations = {
   automaticUpdatesUpdating: "Updating…",
   automaticUpdatesOpenSettings: "Turn on automatic updates",
   automaticUpdatesOffTitle: "Automatic updates are off",
-  automaticUpdatesUnavailableTitle: "Automatic updates aren’t available",
+  automaticUpdatesUnavailableTitle: "Automatic updates aren't available",
   automaticUpdatesOutdatedDescription: "This screen may be out of date.",
   commandUseSystemTheme: "Use system theme",
   commandUseLightTheme: "Use light theme",
@@ -327,7 +327,7 @@ const en: AppTranslations = {
   projectSwitcherCreateProject: "Create local project",
   projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
   projectSwitcherMutationBlocked: (name) =>
-    `Wait for the operation in ${name} to finish. Both workspaces share one project.`,
+    `Wait for the operation in ${name} to finish, since both workspaces share one project.`,
   projectSwitcherCloseBlocked: (name) =>
     `Wait for the operation in ${name} to finish. You can work in another project meanwhile.`,
   statusBarAriaLabel: "Project status",
@@ -355,7 +355,7 @@ const en: AppTranslations = {
   statusBarTeamNotChecked: "Remote not checked",
   statusBarCheckingTeam: "Checking the remote…",
   statusBarReadingTeam: "Reading remote status…",
-  statusBarTeamUnavailable: "Couldn’t check the remote",
+  statusBarTeamUnavailable: "Couldn't check the remote",
   statusBarLocalSnapshot: "Local snapshot",
   statusBarMayBeOutdated: "May be out of date",
   statusBarCheckFailed: "Check failed",
@@ -397,13 +397,13 @@ const en: AppTranslations = {
   aboutHeartLabel: "love",
   changelogEyebrow: "Release notes",
   changelogTitle: "What's new",
-  changelogDescription: "Notes for every release, included in this build. No internet needed.",
+  changelogDescription: "Notes for every release, included in this build, so no internet is needed.",
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Your version",
   changelogNoHighlights: "Nothing new to show for this version.",
   closeConfirmTitle: "Close this project?",
-  closeConfirmBodyGeneric: "Nothing on disk changes. You can reopen it anytime.",
-  closeConfirmBodyNamed: (name) => `“${name}” stays as it is on disk. You can reopen it anytime.`,
+  closeConfirmBodyGeneric: "Nothing on disk changes, and you can reopen it anytime.",
+  closeConfirmBodyNamed: (name) => `“${name}” stays as it is on disk, and you can reopen it anytime.`,
 };
 
 const es: AppTranslations = {
@@ -469,7 +469,7 @@ const es: AppTranslations = {
   navAccount: "Iniciar sesión",
   navAccountTitle: "Iniciar sesión — próximamente",
   dropFolderTitle: "Suelta una carpeta para abrirla",
-  dropFolderHint: "Una carpeta cada vez. Si aún no es un proyecto, GitOdile puede convertirla en uno.",
+  dropFolderHint: "Una carpeta cada vez y, si aún no es un proyecto, GitOdile puede convertirla en uno.",
   paletteAriaLabel: "Paleta de comandos",
   palettePlaceholder: "Ir a una vista o acción…",
   paletteNoMatches: "No hay coincidencias",
@@ -524,7 +524,7 @@ const es: AppTranslations = {
   projectSwitcherCreateProject: "Crear proyecto local",
   projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,
   projectSwitcherMutationBlocked: (name) =>
-    `Espera a que termine la operación de ${name}. Los dos espacios de trabajo comparten proyecto.`,
+    `Espera a que termine la operación de ${name}, porque los dos espacios de trabajo comparten proyecto.`,
   projectSwitcherCloseBlocked: (name) =>
     `Espera a que termine la operación de ${name}. Mientras, puedes trabajar en otro proyecto.`,
   statusBarAriaLabel: "Estado del proyecto",
@@ -594,13 +594,13 @@ const es: AppTranslations = {
   aboutHeartLabel: "amor",
   changelogEyebrow: "Notas de versión",
   changelogTitle: "Novedades",
-  changelogDescription: "Las notas de cada versión vienen incluidas en esta build. No hace falta conexión.",
+  changelogDescription: "Las notas de cada versión vienen incluidas en esta build, así que no hace falta conexión.",
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Tu versión",
   changelogNoHighlights: "Esta versión no tiene novedades que mostrar.",
   closeConfirmTitle: "¿Cerrar este proyecto?",
-  closeConfirmBodyGeneric: "No cambia nada en el disco. Puedes volver a abrirlo cuando quieras.",
-  closeConfirmBodyNamed: (name) => `«${name}» se queda tal cual en el disco. Puedes volver a abrirlo cuando quieras.`,
+  closeConfirmBodyGeneric: "No cambia nada en el disco y puedes volver a abrirlo cuando quieras.",
+  closeConfirmBodyNamed: (name) => `«${name}» se queda tal cual en el disco y puedes volver a abrirlo cuando quieras.`,
 };
 
 export const appTranslations = { en, es } as const;

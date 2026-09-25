@@ -231,11 +231,6 @@
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
-/* SentenceLines: each sentence is one unit. Two that fit share a line; when
-   they do not, the second moves down whole, so the break lands on the full
-   stop instead of mid-phrase. */
-.sentence-line { display: inline-block; }
-
 .empty-state {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; max-width: 380px; margin: 0 auto; padding: 40px 24px; text-align: center;
@@ -1196,7 +1191,7 @@
    describes. The icon and the ink carry the tone on their own. */
 .status-line {
   display: inline-flex; align-items: flex-start; gap: 7px;
-  max-width: 60ch; margin: 0; padding: 0;
+  margin: 0; padding: 0;
   color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
 }
 .status-line svg { flex-shrink: 0; width: 14px; height: 14px; margin-top: 2px; }

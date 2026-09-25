@@ -179,7 +179,7 @@ describe("VersionLinesPanel", () => {
   it("keeps the automatic-updates notice mounted while version lines refresh", () => {
     renderPanel({ watcherState: "unavailable", isLoading: true });
 
-    expect(screen.getByText("Automatic updates aren’t available")).toBeInTheDocument();
+    expect(screen.getByText("Automatic updates aren't available")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Loading version lines…" })).toBeDisabled();
   });
 
@@ -270,7 +270,7 @@ describe("VersionLinesPanel", () => {
 
     expect(listedNames()).toContain("feature/new-thing");
     expect(
-      screen.getByText("The latest check failed. This is the last known result."),
+      screen.getByText("The latest check failed, so this is the last known result."),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(onRefresh).toHaveBeenCalledOnce();

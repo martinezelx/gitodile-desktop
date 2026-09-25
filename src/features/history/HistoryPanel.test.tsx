@@ -744,7 +744,7 @@ describe("HistoryPanel", () => {
     await user.click(screen.getByRole("button", { name: "Diff view (Unified)" }));
     await user.click(screen.getByRole("menuitemradio", { name: "Split" }));
     expect(container.querySelector(".diff-split-row")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Search in the selected file’s changes" }));
+    await user.click(screen.getByRole("button", { name: "Search in the selected file's changes" }));
     await user.type(screen.getByPlaceholderText("Search in diff"), "newValue");
     expect(container.querySelector(".diff-search-match")).toHaveTextContent("newValue");
 

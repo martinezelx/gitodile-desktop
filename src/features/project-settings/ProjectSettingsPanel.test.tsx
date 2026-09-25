@@ -174,7 +174,7 @@ describe("the remote section", () => {
 
     expect(
       await screen.findByText(
-        "This address includes hidden sign-in details. Saving a new address removes them.",
+        "This address includes hidden sign-in details, and saving a new address removes them.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -309,7 +309,7 @@ describe("the ignored-files section", () => {
     expect(port.readIgnoreFile).toHaveBeenLastCalledWith(PROJECT, "personal");
     expect(
       screen.getByText(
-        "Kept only in your copy. Nobody else sees these rules and they're never published.",
+        "Kept only in your copy, so nobody else sees these rules and they're never published.",
       ),
     ).toBeInTheDocument();
   });

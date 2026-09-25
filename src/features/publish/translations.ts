@@ -51,7 +51,7 @@ const en: PublishTranslations = {
   publishLoadingDiff: "Loading changes…",
   publishDiffError: "Couldn't load this file's changes.",
   publishUpstreamNote: "This line will start tracking the remote branch.",
-  publishUnsavedFilesNote: "Only saved versions are published. Unsaved changes stay on this computer.",
+  publishUnsavedFilesNote: "Only saved versions are published, and unsaved changes stay on this computer.",
   publishUnsavedChangesPill: "Unsaved changes",
   publishRemainingNote: (count) =>
     count === 1
@@ -92,7 +92,7 @@ const es: PublishTranslations = {
   publishLoadingDiff: "Cargando los cambios…",
   publishDiffError: "No se pudieron cargar los cambios de este archivo.",
   publishUpstreamNote: "Esta línea empezará a seguir la rama remota.",
-  publishUnsavedFilesNote: "Solo se publican las versiones guardadas. Los cambios sin guardar se quedan en este ordenador.",
+  publishUnsavedFilesNote: "Solo se publican las versiones guardadas y los cambios sin guardar se quedan en este ordenador.",
   publishUnsavedChangesPill: "Cambios sin guardar",
   publishRemainingNote: (count) =>
     count === 1

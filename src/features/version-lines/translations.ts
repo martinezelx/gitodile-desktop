@@ -291,7 +291,7 @@ const en: VersionLinesTranslations = {
   versionLinesSoon: "Soon",
   versionLinesActionsSoon: "Merge, rebase and compare are coming soon.",
   versionLinesDetachedTitle: "Not on a version line",
-  versionLinesDetachedDescription: "You're on a specific saved version. Create a line here so this work is easy to find.",
+  versionLinesDetachedDescription: "You're on a specific saved version, so create a line here to keep this work easy to find.",
   versionLinesDetachedRecoverButton: "Create a line here",
   versionLinesUnbornTitle: "Save a version first",
   versionLinesUnbornDescription: "This line has no saved versions yet, so there's nothing to start from.",
@@ -325,7 +325,7 @@ const en: VersionLinesTranslations = {
   versionLinesNameIssue: (issue) => {
     switch (issue.kind) {
       case "space":
-        return "No spaces. Use hyphens instead, like my-line.";
+        return "Use hyphens instead of spaces, like my-line.";
       case "character":
         return `Names can't contain “${issue.character}”.`;
       case "control":
@@ -345,7 +345,7 @@ const en: VersionLinesTranslations = {
       case "taken":
         return `A line named “${issue.name}” already exists.`;
       case "case-collision":
-        return `“${issue.existing}” already exists. Names that differ only in capitals clash on some systems.`;
+        return `“${issue.existing}” already exists, and names that differ only in capitals clash on some systems.`;
     }
   },
   switchVersionLineTitle: (to) => `Switch to “${to}”`,
@@ -433,10 +433,10 @@ const en: VersionLinesTranslations = {
   versionLinesUnpublishedPill: "Not published yet",
   versionLinesRelationshipTitle: "Relationship",
   versionLinesRelationshipSyncedDetail: (upstream) => `In sync with ${upstream}.`,
-  versionLinesRelationshipAheadDetail: (upstream) => `Some versions aren't on ${upstream} yet. Publish to send them.`,
-  versionLinesRelationshipBehindDetail: (upstream) => `${upstream} has newer versions. Get project changes to bring them in.`,
+  versionLinesRelationshipAheadDetail: (upstream) => `Some versions aren't on ${upstream} yet, so publish to send them.`,
+  versionLinesRelationshipBehindDetail: (upstream) => `${upstream} has newer versions, so get project changes to bring them in.`,
   versionLinesRelationshipDivergedDetail: (upstream) => `This line and ${upstream} have both moved on.`,
-  versionLinesRelationshipGoneDetail: (upstream) => `${upstream} no longer exists on the remote. Your work here is still safe.`,
+  versionLinesRelationshipGoneDetail: (upstream) => `${upstream} no longer exists on the remote, but your work here is still safe.`,
   versionLinesRelationshipLocalOnlyDetail: "Never published, so it's only on this computer.",
   versionLinesRelationshipActiveTitle: "The line you're working on",
   versionLinesRelationshipActiveDetail: "New versions you save go here.",
@@ -457,14 +457,14 @@ const en: VersionLinesTranslations = {
   deleteVersionLineBlockedElsewhereLead:
     "This line is open in another workspace. Close it there or switch that workspace to another line, then retry.",
   deleteVersionLineBlockedActiveLead: "This is the line you're working on. Switch to another one first.",
-  deleteVersionLineBlockedDefaultLead: "This is the project's main line, where shared work lives. GitOdile keeps it.",
+  deleteVersionLineBlockedDefaultLead: "This is the project's main line, where shared work lives, so GitOdile keeps it.",
   deleteVersionLineBlockedOperationLead:
-    "A Git operation is unfinished here — usually a merge, rebase or cherry-pick stopped by a conflict. GitOdile won't change any line until it's finished or undone.",
+    "A Git operation is unfinished here, usually a merge, rebase or cherry-pick stopped by a conflict. GitOdile won't change any line until it's finished or undone.",
   deleteVersionLineBlockedOperationNote:
     "Resolving conflicts isn't supported here yet. Finish or abort the operation in your Git tool, then come back.",
   deleteVersionLineOpenChangesAction: "See the files in conflict",
   deleteVersionLineSwitchAction: "Switch to this line",
-  deleteVersionLineSafeLead: "Only the name is removed. Its work is already kept in:",
+  deleteVersionLineSafeLead: "Only the name is removed, and its work is already kept in:",
   deleteVersionLineWarning: "This can't be undone from GitOdile.",
   deleteVersionLineCopiedLead: (base, squashed, shortCommit) =>
     `Its work is already on ${base}, ${squashed ? "as one combined version" : "copied version by version"} (${shortCommit}). The originals are only on this line.`,
@@ -481,7 +481,7 @@ const en: VersionLinesTranslations = {
   deleteVersionLineRemoteDoneLead: "The published copy was deleted too.",
   deleteVersionLineRemoteFailedLead: "The line is gone from this computer, but the published copy is still there.",
   renameVersionLineTitle: (name) => `Rename “${name}”`,
-  renameVersionLineNote: "Only the name changes. Every saved version stays where it is.",
+  renameVersionLineNote: "Only the name changes, and every saved version stays where it is.",
   renameVersionLineUpstreamNote: (upstream) =>
     `It keeps tracking ${upstream}, which keeps its own name. Renaming that is a separate step.`,
   renameVersionLineConfirm: "Rename",
@@ -538,7 +538,7 @@ const es: VersionLinesTranslations = {
   versionLinesSoon: "Pronto",
   versionLinesActionsSoon: "Fusionar, rebasar y comparar llegarán pronto.",
   versionLinesDetachedTitle: "No estás en una línea de versión",
-  versionLinesDetachedDescription: "Estás en una versión guardada concreta. Crea aquí una línea para que este trabajo sea fácil de encontrar.",
+  versionLinesDetachedDescription: "Estás en una versión guardada concreta, así que crea aquí una línea para que este trabajo sea fácil de encontrar.",
   versionLinesDetachedRecoverButton: "Crear una línea aquí",
   versionLinesUnbornTitle: "Guarda una versión primero",
   versionLinesUnbornDescription: "Esta línea aún no tiene versiones guardadas, así que no hay desde dónde partir.",
@@ -572,7 +572,7 @@ const es: VersionLinesTranslations = {
   versionLinesNameIssue: (issue) => {
     switch (issue.kind) {
       case "space":
-        return "Sin espacios. Usa guiones, como mi-linea.";
+        return "Usa guiones en lugar de espacios, como mi-linea.";
       case "character":
         return `Los nombres no pueden llevar «${issue.character}».`;
       case "control":
@@ -592,7 +592,7 @@ const es: VersionLinesTranslations = {
       case "taken":
         return `Ya existe una línea llamada «${issue.name}».`;
       case "case-collision":
-        return `Ya existe «${issue.existing}». Los nombres que solo cambian en mayúsculas chocan en algunos sistemas.`;
+        return `Ya existe «${issue.existing}», y los nombres que solo cambian en mayúsculas chocan en algunos sistemas.`;
     }
   },
   switchVersionLineTitle: (to) => `Cambiar a «${to}»`,
@@ -682,10 +682,10 @@ const es: VersionLinesTranslations = {
   versionLinesUnpublishedPill: "Aún sin publicar",
   versionLinesRelationshipTitle: "Relación",
   versionLinesRelationshipSyncedDetail: (upstream) => `Al día con ${upstream}.`,
-  versionLinesRelationshipAheadDetail: (upstream) => `Algunas versiones aún no están en ${upstream}. Publica para enviarlas.`,
-  versionLinesRelationshipBehindDetail: (upstream) => `${upstream} tiene versiones nuevas. Trae los cambios del proyecto para incorporarlas.`,
+  versionLinesRelationshipAheadDetail: (upstream) => `Algunas versiones aún no están en ${upstream}, así que publícalas para enviarlas.`,
+  versionLinesRelationshipBehindDetail: (upstream) => `${upstream} tiene versiones nuevas, así que trae los cambios del proyecto para incorporarlas.`,
   versionLinesRelationshipDivergedDetail: (upstream) => `Esta línea y ${upstream} han avanzado cada una por su lado.`,
-  versionLinesRelationshipGoneDetail: (upstream) => `${upstream} ya no existe en el remoto. Tu trabajo aquí sigue a salvo.`,
+  versionLinesRelationshipGoneDetail: (upstream) => `${upstream} ya no existe en el remoto, pero tu trabajo aquí sigue a salvo.`,
   versionLinesRelationshipLocalOnlyDetail: "Nunca se ha publicado, así que solo está en este ordenador.",
   versionLinesRelationshipActiveTitle: "La línea en la que estás trabajando",
   versionLinesRelationshipActiveDetail: "Las versiones que guardes van aquí.",
@@ -706,14 +706,14 @@ const es: VersionLinesTranslations = {
   deleteVersionLineBlockedElsewhereLead:
     "Esta línea está abierta en otro espacio de trabajo. Ciérrala ahí o cambia ese espacio a otra línea, y reintenta.",
   deleteVersionLineBlockedActiveLead: "Es la línea en la que estás trabajando. Cambia antes a otra.",
-  deleteVersionLineBlockedDefaultLead: "Es la línea principal del proyecto, donde vive el trabajo compartido. GitOdile la conserva.",
+  deleteVersionLineBlockedDefaultLead: "Es la línea principal del proyecto, donde vive el trabajo compartido, así que GitOdile la conserva.",
   deleteVersionLineBlockedOperationLead:
     "Hay una operación de Git sin terminar: normalmente una fusión, un rebase o un cherry-pick detenido por un conflicto. GitOdile no tocará ninguna línea hasta que se termine o se deshaga.",
   deleteVersionLineBlockedOperationNote:
     "Aún no se pueden resolver conflictos aquí. Termina o cancela la operación en tu herramienta de Git y vuelve.",
   deleteVersionLineOpenChangesAction: "Ver los archivos en conflicto",
   deleteVersionLineSwitchAction: "Cambiar a esta línea",
-  deleteVersionLineSafeLead: "Solo se elimina el nombre. Su trabajo ya está en:",
+  deleteVersionLineSafeLead: "Solo se elimina el nombre y su trabajo ya está en:",
   deleteVersionLineWarning: "Esto no se puede deshacer desde GitOdile.",
   deleteVersionLineCopiedLead: (base, squashed, shortCommit) =>
     `Su trabajo ya está en ${base}, ${squashed ? "unido en una sola versión" : "copiado versión a versión"} (${shortCommit}). Los originales solo están en esta línea.`,
@@ -730,7 +730,7 @@ const es: VersionLinesTranslations = {
   deleteVersionLineRemoteDoneLead: "La copia publicada también se eliminó.",
   deleteVersionLineRemoteFailedLead: "La línea ya no está en este ordenador, pero la copia publicada sigue ahí.",
   renameVersionLineTitle: (name) => `Renombrar «${name}»`,
-  renameVersionLineNote: "Solo cambia el nombre. Todas las versiones guardadas se quedan donde están.",
+  renameVersionLineNote: "Solo cambia el nombre y todas las versiones guardadas se quedan donde están.",
   renameVersionLineUpstreamNote: (upstream) =>
     `Sigue apuntando a ${upstream}, que conserva su nombre. Renombrarla ahí es otro paso.`,
   renameVersionLineConfirm: "Renombrar",

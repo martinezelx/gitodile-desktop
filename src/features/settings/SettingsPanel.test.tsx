@@ -615,7 +615,7 @@ describe("Settings panel Git hooks", () => {
     expect(screen.queryByText(/GitOdile skips hooks in every project/)).toBeNull();
     // The row must not read as a property of the open project: the switch is
     // app-wide, and the copy has to say so where it is set.
-    expect(screen.getByText(/This applies to every project/)).toBeInTheDocument();
+    expect(screen.getByText(/this applies to every project/)).toBeInTheDocument();
   });
 
   it("states the cost as soon as hooks are turned off", async () => {

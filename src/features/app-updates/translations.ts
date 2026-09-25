@@ -25,7 +25,7 @@ const dictionaries = {
     ready: "Ready to install",
     reviewInstall: "Install…",
     confirmTitle: "Install and restart now?",
-    installExplanation: "The app closes to install the update. Your drafts are kept.",
+    installExplanation: "The app closes to install the update, and your drafts are kept.",
     install: "Install and restart",
     notNow: "Not now",
     retry: "Try again",
@@ -36,7 +36,7 @@ const dictionaries = {
     received: (bytes: string) => `${bytes} downloaded`,
     progress: (received: string, total: string) => `${received} of ${total}`,
     installing: "Installing… The app will close.",
-    cancelled: "Cancelled. Nothing was installed.",
+    cancelled: "Cancelled before anything was installed.",
     channelLabel: "Channel",
     channel: { stable: "Stable", preview: "Preview" } satisfies Record<UpdateChannel, string>,
     channelStableDescription: "Stable suits most people.",
@@ -44,7 +44,7 @@ const dictionaries = {
     channelConfirm: {
       preview: {
         title: "Follow preview releases?",
-        explanation: "Previews arrive before stable releases and may have problems. You can switch back anytime; you'll keep your current version until a newer stable one is out.",
+        explanation: "Previews arrive before stable releases and may have problems. You can switch back anytime and keep your current version until a newer stable one is out.",
         confirm: "Follow previews",
       },
       stable: {
@@ -55,7 +55,7 @@ const dictionaries = {
     } satisfies Record<UpdateChannel, { title: string; explanation: string; confirm: string }>,
     receivingTitle: "How you get updates",
     automaticLabel: "Check for updates at startup",
-    automaticDescription: "Checks GitHub at startup and every 24 hours. Sends no project data and downloads nothing by itself.",
+    automaticDescription: "Checks GitHub at startup and every 24 hours, without sending project data or downloading anything by itself.",
     startupConfirmed: (version: string) => `Updated to v${version}`,
     startupUnconfirmed: (version: string) => `Couldn't confirm the update to v${version}. If your version didn't change, use the manual download.`,
     status: {
@@ -78,7 +78,7 @@ const dictionaries = {
       notes_too_large: "The release notes were too large, so the update was ignored.",
       payload_too_large: "The update is larger than allowed, so it wasn't downloaded.",
       truncated_download: "The download stopped early. Try again.",
-      signature_invalid: "The update signature couldn't be verified. Nothing was installed.",
+      signature_invalid: "The update signature couldn't be verified, so nothing was installed.",
       insufficient_space: "Not enough free space. Free some space and try again.",
       install_blocked: "Finish or save the work listed, then try again.",
       install_handoff_failed: "The installer didn't accept the update. Try again or use the manual download.",
@@ -103,7 +103,7 @@ const dictionaries = {
     ready: "Lista para instalar",
     reviewInstall: "Instalar…",
     confirmTitle: "¿Instalar y reiniciar ahora?",
-    installExplanation: "La aplicación se cierra para instalar la actualización. Tus borradores se conservan.",
+    installExplanation: "La aplicación se cierra para instalar la actualización y tus borradores se conservan.",
     install: "Instalar y reiniciar",
     notNow: "Ahora no",
     retry: "Reintentar",
@@ -114,7 +114,7 @@ const dictionaries = {
     received: (bytes: string) => `${bytes} descargados`,
     progress: (received: string, total: string) => `${received} de ${total}`,
     installing: "Instalando… La aplicación se cerrará.",
-    cancelled: "Cancelado. No se ha instalado nada.",
+    cancelled: "Cancelado antes de instalar nada.",
     channelLabel: "Canal",
     // The channel names stay `stable` and `preview` in both locales (DESIGN.md).
     channel: { stable: "Stable", preview: "Preview" } satisfies Record<UpdateChannel, string>,
@@ -123,7 +123,7 @@ const dictionaries = {
     channelConfirm: {
       preview: {
         title: "¿Seguir las versiones preview?",
-        explanation: "Las preview llegan antes que las estables y pueden tener problemas. Puedes volver cuando quieras; conservarás tu versión actual hasta que salga una estable más nueva.",
+        explanation: "Las preview llegan antes que las estables y pueden tener problemas. Puedes volver cuando quieras y conservarás tu versión actual hasta que salga una estable más nueva.",
         confirm: "Seguir las preview",
       },
       stable: {
@@ -134,7 +134,7 @@ const dictionaries = {
     } satisfies Record<UpdateChannel, { title: string; explanation: string; confirm: string }>,
     receivingTitle: "Cómo recibes las actualizaciones",
     automaticLabel: "Buscar actualizaciones al iniciar",
-    automaticDescription: "Consulta GitHub al iniciar y cada 24 horas. No envía datos ni descarga nada por su cuenta.",
+    automaticDescription: "Consulta GitHub al iniciar y cada 24 horas, sin enviar datos ni descargar nada por su cuenta.",
     startupConfirmed: (version: string) => `Actualizado a v${version}`,
     startupUnconfirmed: (version: string) => `No se pudo confirmar la actualización a v${version}. Si tu versión no cambió, usa la descarga manual.`,
     status: {
@@ -157,7 +157,7 @@ const dictionaries = {
       notes_too_large: "Las notas eran demasiado grandes, así que se ignoró la actualización.",
       payload_too_large: "La actualización supera el tamaño permitido, así que no se descargó.",
       truncated_download: "La descarga se cortó. Reinténtalo.",
-      signature_invalid: "No se pudo verificar la firma. No se ha instalado nada.",
+      signature_invalid: "No se pudo verificar la firma, así que no se ha instalado nada.",
       insufficient_space: "No hay espacio libre suficiente. Libera espacio y reinténtalo.",
       install_blocked: "Termina o guarda el trabajo indicado y reinténtalo.",
       install_handoff_failed: "El instalador no aceptó la actualización. Reinténtalo o usa la descarga manual.",

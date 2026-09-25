@@ -16,7 +16,7 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { ChannelGlyph, DialogCloseButton, ReleaseHighlights, SentenceLines, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
+import { ChannelGlyph, DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { UpdateCandidate, UpdateChannel, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -73,9 +73,9 @@ function describeState(state: UpdateState, language: Language): StatusLine {
   }
 }
 
-/** What goes under the status line, if anything: the cause when the line
- * itself is only a verdict (blocked, unavailable), and the adapter's safe
- * detail whenever there is one. Never the same sentence twice.
+/** The cause the status line says in place of its verdict, if any: the cause
+ * when the verdict alone (blocked, unavailable) would not say why, and the
+ * adapter's safe detail whenever there is one. Never the same sentence twice.
  *
  * A specific cause replaces the generic sentence for its code: "The update
  * couldn't be completed" above "Update verification is not configured" said
@@ -93,24 +93,15 @@ function describeDetail(state: UpdateState, language: Language): string[] {
   return lines;
 }
 
-function StatusLine({ line, className = "" }: { line: StatusLine; className?: string }) {
+/** The status, or its cause when it has one: a specific cause says what
+ * happened better than the generic status, so it takes the status's place
+ * rather than following it as a second sentence. */
+function StatusLine({ line, cause = [], className = "" }: { line: StatusLine; cause?: string[]; className?: string }) {
   return (
     <p className={`status-line status-line--${line.tone} ${className}`.trim()} role="status" aria-live="polite" aria-atomic="true">
       {line.icon}
-      <span>{line.message}</span>
+      <span>{cause.length > 0 ? cause.join(" ") : line.message}</span>
     </p>
-  );
-}
-
-/** The cause under a status line, set in from the edge by the line's icon so
- * it reads as the status's second half. The same block in Settings and in the
- * dialog: the reason an update is unavailable should not need a click. */
-function CauseLines({ lines }: { lines: string[] }) {
-  if (lines.length === 0) return null;
-  return (
-    <div className="app-update-detail">
-      {lines.map((text) => <p key={text}>{text}</p>)}
-    </div>
   );
 }
 
@@ -241,7 +232,7 @@ function ChannelControl({
       <div className="settings-row">
         <div>
           <strong>{t.channelLabel}</strong>
-          <p><SentenceLines text={`${t.channelStableDescription} ${t.channelPreviewDescription}`} /></p>
+          <p>{t.channelStableDescription} {t.channelPreviewDescription}</p>
         </div>
         <div
           className="segmented-control"
@@ -348,8 +339,7 @@ export function AppUpdateSettingsControl({
                 <span className="version-line__value">v{installed.version}</span>
                 <ChannelGlyph channel={installed.channel} />
               </p>
-              <StatusLine line={line} />
-              <CauseLines lines={detail} />
+              <StatusLine line={line} cause={detail} />
             </div>
             <div className="settings-row__actions">
               {hasDetails && (
@@ -368,7 +358,7 @@ export function AppUpdateSettingsControl({
         <div className="settings-group__body">
           <ChannelControl snapshot={snapshot} controller={controller} busy={busy} language={language} />
           <div className="settings-row">
-            <div><strong>{t.automaticLabel}</strong><p><SentenceLines text={t.automaticDescription} /></p></div>
+            <div><strong>{t.automaticLabel}</strong><p>{t.automaticDescription}</p></div>
             <button
               type="button"
               role="switch"
@@ -446,8 +436,7 @@ export function AppUpdateDialog({
         <InstalledLine installed={installed} language={language} />
         <div id={descriptionId} className="app-update-dialog__state">
           {startup && <StatusLine line={startup} />}
-          <StatusLine line={line} />
-          <CauseLines lines={detail} />
+          <StatusLine line={line} cause={detail} />
         </div>
         {candidate && <CandidateDetails candidate={candidate} language={language} />}
         <Progress state={state} language={language} />

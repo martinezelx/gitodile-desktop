@@ -318,16 +318,15 @@ The main desktop window should broadly support:
      with the project-refresh group. Neither of its two groups is named
      after the tab. "Installed version" shows the version, then one toned
      status line (the same `.status-line` scale the Git installation row
-     uses: icon and ink, no capsule), then the cause under it when there is
-     one — so "why is it unavailable" needs no click. "Details" opens the
-     dialog only when it has something the row cannot say: a release, a
-     transfer or an install to confirm. The dialog says the same thing the
-     same way: mark beside the title, everything on one left edge, one status
-     and one cause — a specific cause replaces the generic sentence for its
-     code rather than following it. "How you get updates" holds a two-option
-     segmented group,
-     Stable / Preview, chooses which channel to follow, with one sentence per
-     option (stable is what most people should run; previews arrive earlier
+     uses: icon and ink, no capsule, no width cap), and when there is a
+     specific cause the line says the cause instead — so "why is it
+     unavailable" needs no click. "Details" opens the dialog only when it has
+     something the row cannot say: a release, a transfer or an install to
+     confirm. The dialog says the same thing the same way: mark beside the
+     title, everything on one left edge, one status line that is the cause
+     when there is one. "How you get updates" holds a two-option segmented
+     group, Stable / Preview, that chooses which channel to follow, with one
+     sentence per option (stable is what most people should run; previews arrive earlier
      and may break). The group shows the channel a check will actually use —
      a build that has never been told otherwise reads as its own channel, not
      as a third "default" option — and is navigated like every other radio
@@ -1468,10 +1467,11 @@ word alone on the second, and headings take `balance`, so two lines split
 evenly. Both are the longhand, which leaves `text-wrap-mode` alone, so a
 surface's own `nowrap` still wins. A setting's description takes all the width
 its control leaves (a switch leaves most of the row; there is no `ch` measure
-on it), and in Settings, Project settings and Updates it goes through
-`SentenceLines`: each sentence is one inline block, so two that fit share the
-line and, when they do not, the second moves down whole from the full stop
-instead of breaking mid-phrase. Descriptions are written to fit one line.
+on it) and is one plain paragraph that wraps where the width runs out, like
+every other text in the app. Never split copy into one line per sentence or
+per clause, with inline blocks, `<br>` or a component: the lines come out
+uneven and the text reads as a list rather than a sentence. When a hint wraps
+badly, shorten it. Descriptions are written to fit one line.
 None of this is a reason to write long copy: the first fix for a wrapped hint
 is a shorter hint (see Content design).
 
@@ -1634,19 +1634,26 @@ Avoid vague labels such as “Continue” when a more precise action fits.
 **A hint fits on one line; a note says one thing.** Most copy sits in a narrow
 column under a label, so every extra clause becomes a second line of grey text
 that nobody asked for. Say the consequence and stop: the reason behind a
-safety measure belongs in the ADR, not under the switch. When a note really has
-two facts, write them as two short sentences rather than one long one joined by
-a semicolon or a dash. How GitOdile proves something is safe (ownership
-markers, staging folders, state tokens) is implementation, never copy; say
-what stays safe instead.
+safety measure belongs in the ADR, not under the switch. Prefer one sentence,
+even a slightly longer one, over two short ones: two facts that belong together
+join with a comma or "and" (“Only remote information is read, and your files
+don't change.”). Start a second sentence only when the note truly needs one,
+never to chop a thought into fragments, and never join with a semicolon or a
+dash. The usual case that does need one is a fact followed by what to do
+about it (“Couldn't reach GitHub. Check your connection and try again.”): a
+statement and an instruction don't join well. How GitOdile proves something
+is safe (ownership markers, staging folders, state tokens) is implementation,
+never copy; say what stays safe instead.
 
 **One voice across both languages.**
 
-- An error names what failed without a subject: “Couldn’t read this file.”,
-  not “We couldn’t…” or “GitOdile couldn’t…”. Name GitOdile only to tell it
+- An error names what failed without a subject: “Couldn't read this file.”,
+  not “We couldn't…” or “GitOdile couldn't…”. Name GitOdile only to tell it
   apart from Git or from the user.
 - English is American (“favorites”, “color”), and names in running text sit in
-  curly quotes: “main”.
+  curly quotes: “main”. The apostrophe is the straight one (`couldn't`,
+  `file's`), never `’`: the two look alike on screen, so a mix goes unnoticed
+  until a test searches with the other. `copyTypography.test.ts` enforces it.
 - Spanish is Spain’s: *ordenador* for the computer, always, because *equipo*
   already means the team (“tu equipo la sigue viendo”). Get project changes is
   *Traer cambios del proyecto*, retry is *Reintentar*, done is *Listo*, and

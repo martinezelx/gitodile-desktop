@@ -27,17 +27,9 @@
 }
 .app-update-dialog__installed-label { font-size: var(--text-label); }
 
-/* The state block: the startup receipt when there is one, the status line,
-   and its cause. Stacked, each line hugging its own text. */
+/* The state block: the startup receipt when there is one, then the status
+   line. Stacked, each line hugging its own text. */
 .app-update-dialog__state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
-/* The cause is the status line's second half, so it starts where the line's
-   words do — past the 14px icon and its 7px gap — and pulls up against it. */
-.app-update-detail { display: grid; gap: 2px; margin-top: calc(-1 * var(--space-1)); }
-.app-update-detail p {
-  margin: 0; padding-left: 21px;
-  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
-  overflow-wrap: anywhere;
-}
 
 /* The offered release as a card: the changelog's identity row (version,
    channel chip, date), then its notes as bounded plain text with their own
@@ -103,7 +95,6 @@
    column, the buttons keep to the right as in every other row. The group
    heading already says "Installed version", so the line is the version alone. */
 .app-update-settings__identity { flex: 1 1 auto; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }
-.app-update-settings__identity .status-line { max-width: none; }
 .app-update-settings__identity .version-line__value { font-size: var(--text-body); }
 
 @media (prefers-reduced-motion: reduce) {

@@ -54,11 +54,6 @@ export {
   type FilterPanelLabels, type FilterChip,
 } from "./filterPanel";
 export { copyTextToClipboard } from "./clipboard";
-/* ADR 0003's two-consumer bar: Settings, Project settings and the Updates
-   section all describe a setting in a narrow column under its label, and all
-   three wanted a two-sentence description to break at the full stop rather
-   than mid-phrase. */
-export { SentenceLines } from "./sentenceLines";
 /* ADR 0003's two-consumer bar (task 124): the Changes quick commit box and
    the Lines quick create box both dock a closed-until-used compose box under
    a scrollable list that is their flex sibling, and both need the same

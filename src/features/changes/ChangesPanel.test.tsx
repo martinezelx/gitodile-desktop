@@ -736,7 +736,7 @@ describe("ChangesPanel review controls", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Show 47 unchanged lines" }));
 
-    expect(await screen.findByText("Couldn’t read those lines.")).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't read those lines.")).toBeInTheDocument();
     // The diff itself is untouched, and the marker is still a live retry.
     expect(screen.getByText("before one")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
@@ -829,7 +829,7 @@ describe("ChangesPanel review controls", () => {
 
     // The find is an icon until asked for, so it spends no width at rest.
     expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Search in the selected file’s changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Search in the selected file's changes" }));
 
     await userEvent.type(screen.getByPlaceholderText("Search in diff"), "fifty");
     await waitFor(() =>
@@ -839,7 +839,7 @@ describe("ChangesPanel review controls", () => {
     // The pill's single X ends the find and clears the highlight with it.
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Search in the selected file’s changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search in the selected file's changes" })).toBeInTheDocument();
     expect(document.querySelector(".diff-search-match")).toBeNull();
   });
 
@@ -968,8 +968,8 @@ describe("ChangesPanel review controls", () => {
     );
     await screen.findByRole("button", { name: /edited\.txt/ });
     await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Discard this file’s changes…" }));
-    expect(await screen.findByRole("heading", { name: "Discard this file’s changes?" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Discard this file's changes…" }));
+    expect(await screen.findByRole("heading", { name: "Discard this file's changes?" })).toBeInTheDocument();
     await screen.findByText("edited.txt goes back to its last saved version.");
     await userEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(await screen.findByText("1 file is back to its last saved version.")).toBeInTheDocument();
@@ -1108,7 +1108,7 @@ describe("ChangesPanel review controls", () => {
       </LanguageProvider>,
     );
 
-    expect(await screen.findByText("Automatic updates aren’t available")).toBeInTheDocument();
+    expect(await screen.findByText("Automatic updates aren't available")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check local changes" })).toBeEnabled();
   });
 
@@ -1213,7 +1213,7 @@ describe("ChangesPanel review controls", () => {
     // The one whose own files were written again is kept and folded away —
     // its copy is still on disk — and says why when asked for.
     expect(screen.queryByText("a.txt, b.txt, c.txt, d.txt and 1 more")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "1 more can’t be restored now" }));
+    await userEvent.click(screen.getByRole("button", { name: "1 more can't be restored now" }));
     expect(screen.getByText("a.txt, b.txt, c.txt, d.txt and 1 more")).toBeInTheDocument();
     expect(screen.getByText(/A file changed since, so restoring would overwrite newer work/)).toBeInTheDocument();
     // This one matches the project as a whole, so it says nothing about
@@ -1258,7 +1258,7 @@ describe("ChangesPanel review controls", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Restore discarded changes…" }));
 
     expect(await screen.findByRole("radio")).toBeChecked();
-    expect(screen.getByText(/Prepared changes stay as they are/)).toBeInTheDocument();
+    expect(screen.getByText(/leaves prepared changes as they are/)).toBeInTheDocument();
   });
 
   it("asks before deleting a stored copy, and lists what is left afterwards", async () => {
@@ -1492,7 +1492,7 @@ describe("ChangesPanel clean state", () => {
   it("says everything is settled when there is nothing to send or receive", () => {
     renderClean({ upstream: { upstream: "origin/main", ahead: 0, behind: 0 } });
 
-    expect(screen.getByRole("heading", { name: "You’re all caught up" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "You're all caught up" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Get project changes" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View history" })).toBeInTheDocument();
@@ -1518,7 +1518,7 @@ describe("ChangesPanel clean state", () => {
   it("names an old version being read without offering a publish", () => {
     renderClean({ upstream: { upstream: "origin/main", ahead: 3, behind: 0 }, headState: "detached" });
 
-    expect(screen.getByRole("heading", { name: "You’re viewing an old version" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "You're viewing an old version" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View history" })).toBeInTheDocument();
   });
@@ -1687,10 +1687,10 @@ describe("ChangesPanel filters", () => {
 
     // The stub rejects everything but `read_file_diff`. The menu that asked is
     // already gone, so the message needs a surface that outlives it.
-    const notice = await screen.findByText("Couldn’t show that file.");
+    const notice = await screen.findByText("Couldn't show that file.");
     expect(notice.closest(".changes-notice--error")).not.toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
-    expect(screen.queryByText("Couldn’t show that file.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Couldn't show that file.")).not.toBeInTheDocument();
   });
 
   it("offers the file types most of the list first and narrows by one", async () => {

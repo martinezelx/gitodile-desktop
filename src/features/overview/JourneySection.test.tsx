@@ -87,7 +87,7 @@ describe("JourneySection", () => {
     await user.click(within(steps).getByRole("button", { name: "Check remote project changes" }));
     expect(props.onCheckTeamChanges).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Nothing leaves this computer until you publish.");
+    expect(screen.getByRole("status")).toHaveTextContent("and nothing leaves this computer until you publish.");
   });
 
   it("puts overlaps first and says so under the band", async () => {
@@ -145,7 +145,7 @@ describe("JourneySection", () => {
     expect(settings).toHaveLength(2);
     await user.click(settings[0]);
     expect(props.onOpenProjectSettings).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("status")).toHaveTextContent("Add a remote whenever you want to share it.");
+    expect(screen.getByRole("status")).toHaveTextContent("so add a remote whenever you want to share it.");
     cleanup();
 
     renderBand(journey({ activeStep: null, changes: { state: "clean", total: 0, conflicted: 0 }, save: { state: "done" } }));

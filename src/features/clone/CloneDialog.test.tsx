@@ -87,7 +87,7 @@ describe("CloneDialog", () => {
     await waitFor(() => expect(screen.getByPlaceholderText("https://example.com/team/project.git")).toHaveFocus());
     await enterAndReview();
 
-    expect(screen.getByText(/Nothing there is changed/i)).toBeInTheDocument();
+    expect(screen.getByText(/changes nothing there/i)).toBeInTheDocument();
     expect(screen.getByText(/credential helper/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clone and open" }));
 
@@ -126,7 +126,7 @@ describe("CloneDialog", () => {
 
     expect(cancel).toHaveBeenCalledWith("op-1");
     execution.resolve(result);
-    expect(await screen.findByText(/Clone cancelled. Nothing was added/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Clone cancelled before anything was added/i)).toBeInTheDocument();
     expect(onVerifiedClone).not.toHaveBeenCalled();
   });
 });

@@ -48,7 +48,7 @@ const en: NotificationsTranslations = {
   notificationsJustNow: "just now",
   notificationTeamChangesTitle: (count) =>
     `${count} newer ${count === 1 ? "version is" : "versions are"} available`,
-  notificationTeamChangesDescription: "Found by an automatic check. Nothing on your computer has changed yet.",
+  notificationTeamChangesDescription: "Found by an automatic check, and nothing on your computer has changed yet.",
   notificationTeamChangesAction: "Review and get",
   notificationRemoteCheckFailedTitle: "Couldn't check for project changes",
   notificationRemoteCheckFailedDescription: "The last automatic check couldn't reach the remote.",
@@ -56,7 +56,7 @@ const en: NotificationsTranslations = {
     count === 1 ? "Published 1 saved version" : `Published ${count} saved versions`,
   notificationChangesPublishedTo: (destination) => `Sent to ${destination}.`,
   notificationAppUpdateTitle: (version) => `v${version} is available`,
-  notificationAppUpdateDescription: "Found at startup. Nothing has been downloaded.",
+  notificationAppUpdateDescription: "Found at startup, and nothing has been downloaded.",
   notificationAppUpdateAction: "View update",
 };
 
@@ -81,7 +81,7 @@ const es: NotificationsTranslations = {
   notificationsJustNow: "ahora mismo",
   notificationTeamChangesTitle: (count) =>
     `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"}`,
-  notificationTeamChangesDescription: "Encontrada en una comprobación automática. Aún no ha cambiado nada en tu ordenador.",
+  notificationTeamChangesDescription: "Encontrada en una comprobación automática, sin que haya cambiado aún nada en tu ordenador.",
   notificationTeamChangesAction: "Revisar y traer",
   notificationRemoteCheckFailedTitle: "No se pudo comprobar si hay cambios",
   notificationRemoteCheckFailedDescription: "La última comprobación automática no pudo llegar al remoto.",
@@ -89,7 +89,7 @@ const es: NotificationsTranslations = {
     count === 1 ? "Se publicó 1 versión guardada" : `Se publicaron ${count} versiones guardadas`,
   notificationChangesPublishedTo: (destination) => `Enviado a ${destination}.`,
   notificationAppUpdateTitle: (version) => `Nueva versión disponible: v${version}`,
-  notificationAppUpdateDescription: "Detectada al iniciar. No se ha descargado nada.",
+  notificationAppUpdateDescription: "Detectada al iniciar, sin descargar nada.",
   notificationAppUpdateAction: "Ver actualización",
 };
 

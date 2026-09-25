@@ -215,7 +215,7 @@ describe("PublishDialog", () => {
     renderDialog();
 
     expect(
-      await screen.findByText("Only saved versions are published. Unsaved changes stay on this computer."),
+      await screen.findByText("Only saved versions are published, and unsaved changes stay on this computer."),
     ).toBeInTheDocument();
     expect(screen.getByText("Unsaved changes")).toHaveClass("publish-stays__pill--unsaved");
   });

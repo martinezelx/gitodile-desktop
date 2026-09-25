@@ -40,7 +40,6 @@ import {
   DEFAULT_PROJECT_AVATAR_STYLE,
   ProjectAvatar,
   PROJECT_AVATAR_STYLES,
-  SentenceLines,
   type ProjectAvatarStyle,
   type TechnologyId,
 } from "../../shared/ui";
@@ -940,7 +939,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.startupReopenLabel}</strong>
-                    <p><SentenceLines text={t.startupReopenDescription} /></p>
+                    <p>{t.startupReopenDescription}</p>
                   </div>
                   <ToggleSwitch label={t.startupReopenLabel} checked={reopenLastProject} onChange={setReopenLastProject} />
                 </div>
@@ -954,14 +953,14 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.watchingLabel}</strong>
-                    <p><SentenceLines text={t.watchingDescription} /></p>
+                    <p>{t.watchingDescription}</p>
                   </div>
                   <ToggleSwitch label={t.watchingLabel} checked={watchProjects} onChange={setWatchProjects} />
                 </div>
                 <div className="settings-row">
                   <div>
                     <strong>{t.remoteCheckLabel}</strong>
-                    <p><SentenceLines text={t.remoteCheckDescription} /></p>
+                    <p>{t.remoteCheckDescription}</p>
                   </div>
                   <div
                     className="segmented-control remote-check-cadence"
@@ -1095,14 +1094,14 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.safetyConfirmLabel}</strong>
-                    <p><SentenceLines text={t.safetyConfirmDescription} /></p>
+                    <p>{t.safetyConfirmDescription}</p>
                   </div>
                   <ToggleSwitch label={t.safetyConfirmLabel} checked={confirmCloseProject} onChange={setConfirmCloseProject} />
                 </div>
                 <div className="settings-row">
                   <div>
                     <strong>{t.safetyConfirmDiscardLabel}</strong>
-                    <p><SentenceLines text={t.safetyConfirmDiscardDescription} /></p>
+                    <p>{t.safetyConfirmDiscardDescription}</p>
                   </div>
                   <ToggleSwitch
                     label={t.safetyConfirmDiscardLabel}
@@ -1139,7 +1138,7 @@ export function SettingsPanel({
                   </span>
                   <div>
                     <strong>{t.notificationsEnableLabel}</strong>
-                    <p><SentenceLines text={t.notificationsEnableDescription} /></p>
+                    <p>{t.notificationsEnableDescription}</p>
                   </div>
                   <ToggleSwitch
                     label={t.notificationsEnableLabel}
@@ -1199,7 +1198,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.themeAriaLabel}</h3>
-                <p><SentenceLines text={t.settingsThemeDescription} /></p>
+                <p>{t.settingsThemeDescription}</p>
               </header>
               <div className="settings-group__body">
                 {/* Two radiogroups so the accessible names still say which
@@ -1231,7 +1230,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.reduceMotionLabel}</strong>
-                    <p><SentenceLines text={t.reduceMotionDescription} /></p>
+                    <p>{t.reduceMotionDescription}</p>
                   </div>
                   <ToggleSwitch
                     label={t.reduceMotionLabel}
@@ -1244,7 +1243,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsProjectIconsTitle}</h3>
-                <p><SentenceLines text={t.settingsProjectIconsDescription} /></p>
+                <p>{t.settingsProjectIconsDescription}</p>
               </header>
               <div className="settings-group__body">
                 <div
@@ -1300,7 +1299,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsLanguageTitle}</h3>
-                <p><SentenceLines text={t.settingsLanguageDescription} /></p>
+                <p>{t.settingsLanguageDescription}</p>
               </header>
               <div className="settings-group__body">
                 <div
@@ -1333,7 +1332,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsFormatsTitle}</h3>
-                <p><SentenceLines text={t.settingsFormatsDescription} /></p>
+                <p>{t.settingsFormatsDescription}</p>
               </header>
               <div className="settings-group__body">
                 <div className="settings-row settings-row--stacked">
@@ -1416,7 +1415,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsNavigationDestinationsTitle}</h3>
-                <p><SentenceLines text={t.settingsNavigationDestinationsDescription} /></p>
+                <p>{t.settingsNavigationDestinationsDescription}</p>
               </header>
               <div className="settings-group__body navigation-destinations">
                 {navigationItems.map((item, index) => (
@@ -1540,7 +1539,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsNavigationAppearanceTitle}</h3>
-                <p><SentenceLines text={t.settingsNavigationAppearanceDescription} /></p>
+                <p>{t.settingsNavigationAppearanceDescription}</p>
               </header>
               <div
                 className="settings-group__body navigation-display"
@@ -1594,13 +1593,13 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsReadingDiffsTitle}</h3>
-                <p><SentenceLines text={t.settingsReadingDescription} /></p>
+                <p>{t.settingsReadingDescription}</p>
               </header>
               <div className="settings-group__body">
                 <div className="settings-row">
                   <div>
                     <strong>{t.readingWrapLabel}</strong>
-                    <p><SentenceLines text={t.readingWrapDescription} /></p>
+                    <p>{t.readingWrapDescription}</p>
                   </div>
                   <ToggleSwitch
                     label={t.readingWrapLabel}
@@ -1611,7 +1610,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.readingIgnoreWhitespaceLabel}</strong>
-                    <p><SentenceLines text={t.readingIgnoreWhitespaceDescription} /></p>
+                    <p>{t.readingIgnoreWhitespaceDescription}</p>
                   </div>
                   <ToggleSwitch
                     label={t.readingIgnoreWhitespaceLabel}
@@ -1624,7 +1623,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.readingSyntaxLabel}</strong>
-                    <p><SentenceLines text={t.readingSyntaxDescription} /></p>
+                    <p>{t.readingSyntaxDescription}</p>
                   </div>
                   <ToggleSwitch
                     label={t.readingSyntaxLabel}
@@ -1637,7 +1636,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.readingTabWidthLabel}</strong>
-                    <p><SentenceLines text={t.readingTabWidthDescription} /></p>
+                    <p>{t.readingTabWidthDescription}</p>
                   </div>
                   <div
                     className="segmented-control"
@@ -1665,7 +1664,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.readingCodeFontTitle}</h3>
-                <p><SentenceLines text={t.readingCodeFontDescription} /></p>
+                <p>{t.readingCodeFontDescription}</p>
               </header>
               <div className="settings-group__body">
                 <div
@@ -1793,7 +1792,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsDefaultBranchTitle}</h3>
-                <p><SentenceLines text={t.settingsDefaultBranchDescription} /></p>
+                <p>{t.settingsDefaultBranchDescription}</p>
               </header>
               <div className="settings-group__body" onBlur={handleDefaultBranchBlur}>
                 <div className="settings-row">
@@ -1889,7 +1888,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.hooksLabel}</strong>
-                    <p><SentenceLines text={t.hooksDescription} /></p>
+                    <p>{t.hooksDescription}</p>
                   </div>
                   <ToggleSwitch label={t.hooksLabel} checked={runGitHooks} onChange={setRunGitHooks} />
                 </div>
@@ -1907,7 +1906,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsIdentityTitle}</h3>
-                <p><SentenceLines text={t.settingsIdentityDescription} /></p>
+                <p>{t.settingsIdentityDescription}</p>
               </header>
               {/* Saved when focus leaves the pair, not behind a Save button:
                   every other control here applies on change, and the button
@@ -1993,7 +1992,7 @@ export function SettingsPanel({
                   the section's only group, so a heading would repeat it — the
                   redundant heading layer task 057 removed. */}
               <header className="settings-group__header">
-                <p><SentenceLines text={t.settingsLineEndingsDescription} /></p>
+                <p>{t.settingsLineEndingsDescription}</p>
               </header>
               <div className="settings-group__body">
                 {lineEndings === null ? (

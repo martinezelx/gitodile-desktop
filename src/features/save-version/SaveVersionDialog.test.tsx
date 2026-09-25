@@ -227,7 +227,7 @@ describe("SaveVersionDialog", () => {
     expect(await screen.findByText('Saved “fix the thing” as abc123a.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("heading", { name: "Version saved" })).toHaveFocus());
     expect(screen.getByRole("status")).toHaveTextContent('Saved “fix the thing” as abc123a.');
-    expect(screen.getByText("Saved on this computer. Not published yet.")).toBeInTheDocument();
+    expect(screen.getByText("Saved on this computer, but not published yet.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publish now" })).toBeEnabled();
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
