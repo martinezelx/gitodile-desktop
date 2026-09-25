@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
   Bell,
+  BellOff,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -39,6 +40,7 @@ import {
   DEFAULT_PROJECT_AVATAR_STYLE,
   ProjectAvatar,
   PROJECT_AVATAR_STYLES,
+  SentenceLines,
   type ProjectAvatarStyle,
   type TechnologyId,
 } from "../../shared/ui";
@@ -427,6 +429,7 @@ export function SettingsPanel({
   const { t, languagePreference, setLanguagePreference, formats, setDateFormat, setNumberFormat } =
     useLanguage();
   const [gitActionNotice, setGitActionNotice] = useState<Notice | null>(null);
+  const notificationEventsTitleId = useId();
   const [nameInput, setNameInput] = useState(identity.identity.name);
   const [emailInput, setEmailInput] = useState(identity.identity.email);
   const [identityNotice, setIdentityNotice] = useState<Notice | null>(null);
@@ -937,7 +940,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.startupReopenLabel}</strong>
-                    <p>{t.startupReopenDescription}</p>
+                    <p><SentenceLines text={t.startupReopenDescription} /></p>
                   </div>
                   <ToggleSwitch label={t.startupReopenLabel} checked={reopenLastProject} onChange={setReopenLastProject} />
                 </div>
@@ -951,14 +954,14 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.watchingLabel}</strong>
-                    <p>{t.watchingDescription}</p>
+                    <p><SentenceLines text={t.watchingDescription} /></p>
                   </div>
                   <ToggleSwitch label={t.watchingLabel} checked={watchProjects} onChange={setWatchProjects} />
                 </div>
                 <div className="settings-row">
                   <div>
                     <strong>{t.remoteCheckLabel}</strong>
-                    <p>{t.remoteCheckDescription}</p>
+                    <p><SentenceLines text={t.remoteCheckDescription} /></p>
                   </div>
                   <div
                     className="segmented-control remote-check-cadence"
@@ -1092,14 +1095,14 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.safetyConfirmLabel}</strong>
-                    <p>{t.safetyConfirmDescription}</p>
+                    <p><SentenceLines text={t.safetyConfirmDescription} /></p>
                   </div>
                   <ToggleSwitch label={t.safetyConfirmLabel} checked={confirmCloseProject} onChange={setConfirmCloseProject} />
                 </div>
                 <div className="settings-row">
                   <div>
                     <strong>{t.safetyConfirmDiscardLabel}</strong>
-                    <p>{t.safetyConfirmDiscardDescription}</p>
+                    <p><SentenceLines text={t.safetyConfirmDiscardDescription} /></p>
                   </div>
                   <ToggleSwitch
                     label={t.safetyConfirmDiscardLabel}
@@ -1123,10 +1126,20 @@ export function SettingsPanel({
                 <h3>{t.settingsNotificationsWhileAwayTitle}</h3>
               </header>
               <div className="settings-group__body">
-                <div className="settings-row">
+                {/* The switch leads with the bell, in the same icon column as
+                    the events below it, so every label starts on one edge:
+                    the events read as what the switch covers rather than as
+                    four more settings missing their controls. */}
+                <div className="settings-row settings-notifications__master">
+                  <span
+                    className={`settings-notifications__icon${notificationsEnabled ? " settings-notifications__icon--on" : ""}`}
+                    aria-hidden="true"
+                  >
+                    {notificationsEnabled ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+                  </span>
                   <div>
                     <strong>{t.notificationsEnableLabel}</strong>
-                    <p>{t.notificationsEnableDescription}</p>
+                    <p><SentenceLines text={t.notificationsEnableDescription} /></p>
                   </div>
                   <ToggleSwitch
                     label={t.notificationsEnableLabel}
@@ -1134,40 +1147,48 @@ export function SettingsPanel({
                     onChange={setNotificationsEnabled}
                   />
                 </div>
-              </div>
-            </section>
-            {/* Ordinary settings rows rather than a bullet list, because they
-                answer the same question a row does — what is this, and why
-                would I want it — and because each carries the icon the
-                notification itself will wear, so the vocabulary is learned
-                here rather than guessed at in the panel.
-
-                They have no controls on purpose. Per-event muting is a choice
-                nobody can make usefully before they have seen the events, and
-                three of them do not need a preferences matrix. */}
-            <section className="settings-group">
-              <header className="settings-group__header">
-                <h3>{t.notificationsEventsTitle}</h3>
-                <p>{t.notificationsEventsDescription}</p>
-              </header>
-              <div className="settings-group__body">
-                {NOTIFICATION_EVENT_ROWS.map(({ kind, label, description }) => {
-                  const Icon = NOTIFICATION_ICONS[kind];
-                  return (
-                  <div className="settings-row settings-notification-event" key={kind}>
-                    <span
-                      className={`settings-notification-event__icon settings-notification-event__icon--${NOTIFICATION_KINDS[kind].tone}`}
-                      aria-hidden="true"
-                    >
-                      <Icon aria-hidden="true" />
-                    </span>
-                    <div>
-                      <strong>{t[label]}</strong>
-                      <p>{t[description]}</p>
-                    </div>
-                  </div>
-                  );
-                })}
+                {/* A list, not rows, and with no controls on purpose.
+                    Per-event muting is a choice nobody can make usefully
+                    before they have seen the events, and four of them do not
+                    need a preferences matrix. Each carries the icon the
+                    notification itself will wear, so the vocabulary is learned
+                    here. While the switch is off the list stays, dimmed and
+                    down to its names, so what turning it on gives is still
+                    visible. */}
+                <div
+                  className={`settings-notifications__events${notificationsEnabled ? "" : " settings-notifications__events--off"}`}
+                >
+                  <h4 className="settings-notifications__events-title" id={notificationEventsTitleId}>
+                    {notificationsEnabled ? t.notificationsEventsTitle : t.notificationsEventsOffTitle}
+                  </h4>
+                  <ul className="settings-notifications__list" aria-labelledby={notificationEventsTitleId}>
+                    {NOTIFICATION_EVENT_ROWS.map(({ kind, label, description }) => {
+                      const Icon = NOTIFICATION_ICONS[kind];
+                      // A kind recorded as already read never lights the bell;
+                      // the tag says so, where the description used to.
+                      const silent = !NOTIFICATION_KINDS[kind].unreadOnArrival;
+                      return (
+                        <li
+                          className={`settings-notifications__event settings-notifications__event--${NOTIFICATION_KINDS[kind].tone}`}
+                          key={kind}
+                        >
+                          <Icon aria-hidden="true" />
+                          <div>
+                            <strong>
+                              {t[label]}
+                              {silent && (
+                                <span className="settings-notifications__silent" data-tooltip={t.notificationsSilentHint}>
+                                  {t.notificationsSilentTag}
+                                </span>
+                              )}
+                            </strong>
+                            {notificationsEnabled && <p>{t[description]}</p>}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               </div>
             </section>
           </div>
@@ -1178,7 +1199,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.themeAriaLabel}</h3>
-                <p>{t.settingsThemeDescription}</p>
+                <p><SentenceLines text={t.settingsThemeDescription} /></p>
               </header>
               <div className="settings-group__body">
                 {/* Two radiogroups so the accessible names still say which
@@ -1210,7 +1231,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.reduceMotionLabel}</strong>
-                    <p>{t.reduceMotionDescription}</p>
+                    <p><SentenceLines text={t.reduceMotionDescription} /></p>
                   </div>
                   <ToggleSwitch
                     label={t.reduceMotionLabel}
@@ -1223,7 +1244,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsProjectIconsTitle}</h3>
-                <p>{t.settingsProjectIconsDescription}</p>
+                <p><SentenceLines text={t.settingsProjectIconsDescription} /></p>
               </header>
               <div className="settings-group__body">
                 <div
@@ -1279,7 +1300,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsLanguageTitle}</h3>
-                <p>{t.settingsLanguageDescription}</p>
+                <p><SentenceLines text={t.settingsLanguageDescription} /></p>
               </header>
               <div className="settings-group__body">
                 <div
@@ -1312,7 +1333,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsFormatsTitle}</h3>
-                <p>{t.settingsFormatsDescription}</p>
+                <p><SentenceLines text={t.settingsFormatsDescription} /></p>
               </header>
               <div className="settings-group__body">
                 <div className="settings-row settings-row--stacked">
@@ -1395,20 +1416,59 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsNavigationDestinationsTitle}</h3>
-                <p>{t.settingsNavigationDestinationsDescription}</p>
+                <p><SentenceLines text={t.settingsNavigationDestinationsDescription} /></p>
               </header>
               <div className="settings-group__body navigation-destinations">
                 {navigationItems.map((item, index) => (
                   <div
                     data-navigation-id={item.id}
                     className={`navigation-destination${
+                      visibleNavigationIds.has(item.id) ? "" : " navigation-destination--hidden"
+                    }${
                       draggedNavigationId === item.id ? " navigation-destination--dragging" : ""
                     }${
                       dragOverNavigationId === item.id ? " navigation-destination--drag-over" : ""
                     }`}
                     key={item.id}
                   >
+                    <span className="navigation-destination__icon" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    {/* A section turned off keeps its row, dimmed and tagged,
+                        so the list never changes height and its place in the
+                        order stays visible. */}
+                    <span className="navigation-destination__copy">
+                      <strong>{item.label}</strong>
+                      {!visibleNavigationIds.has(item.id) && (
+                        <span className="navigation-destination__tag">{t.settingsNavigationMovedToMore}</span>
+                      )}
+                    </span>
+                    {/* Reordering trails the name: a row says what it is before
+                        how to move it. The arrows surface on hover or focus;
+                        the grip stays, next to the switch. */}
                     <div className="navigation-destination__order-controls">
+                      <div className="navigation-destination__move-buttons">
+                        <button
+                          type="button"
+                          className="navigation-destination__move-button"
+                          aria-label={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
+                          title={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
+                          disabled={index === 0}
+                          onClick={() => moveNavigationDestination(item.id, index - 1)}
+                        >
+                          <ChevronUp aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="navigation-destination__move-button"
+                          aria-label={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
+                          title={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
+                          disabled={index === navigationItems.length - 1}
+                          onClick={() => moveNavigationDestination(item.id, index + 1)}
+                        >
+                          <ChevronDown aria-hidden="true" />
+                        </button>
+                      </div>
                       <button
                         className="navigation-destination__handle"
                         type="button"
@@ -1463,38 +1523,7 @@ export function SettingsPanel({
                       >
                         <GripVertical aria-hidden="true" />
                       </button>
-                      <div className="navigation-destination__move-buttons">
-                        <button
-                          type="button"
-                          className="navigation-destination__move-button"
-                          aria-label={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
-                          title={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
-                          disabled={index === 0}
-                          onClick={() => moveNavigationDestination(item.id, index - 1)}
-                        >
-                          <ChevronUp aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          className="navigation-destination__move-button"
-                          aria-label={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
-                          title={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
-                          disabled={index === navigationItems.length - 1}
-                          onClick={() => moveNavigationDestination(item.id, index + 1)}
-                        >
-                          <ChevronDown aria-hidden="true" />
-                        </button>
-                      </div>
                     </div>
-                    <span className="navigation-destination__icon" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <span className="navigation-destination__copy">
-                      <strong>{item.label}</strong>
-                      {!visibleNavigationIds.has(item.id) && (
-                        <small>{t.settingsNavigationMovedToMore}</small>
-                      )}
-                    </span>
                     <ToggleSwitch
                       label={item.label}
                       checked={visibleNavigationIds.has(item.id)}
@@ -1511,7 +1540,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsNavigationAppearanceTitle}</h3>
-                <p>{t.settingsNavigationAppearanceDescription}</p>
+                <p><SentenceLines text={t.settingsNavigationAppearanceDescription} /></p>
               </header>
               <div
                 className="settings-group__body navigation-display"
@@ -1565,13 +1594,13 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsReadingDiffsTitle}</h3>
-                <p>{t.settingsReadingDescription}</p>
+                <p><SentenceLines text={t.settingsReadingDescription} /></p>
               </header>
               <div className="settings-group__body">
                 <div className="settings-row">
                   <div>
                     <strong>{t.readingWrapLabel}</strong>
-                    <p>{t.readingWrapDescription}</p>
+                    <p><SentenceLines text={t.readingWrapDescription} /></p>
                   </div>
                   <ToggleSwitch
                     label={t.readingWrapLabel}
@@ -1582,7 +1611,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.readingIgnoreWhitespaceLabel}</strong>
-                    <p>{t.readingIgnoreWhitespaceDescription}</p>
+                    <p><SentenceLines text={t.readingIgnoreWhitespaceDescription} /></p>
                   </div>
                   <ToggleSwitch
                     label={t.readingIgnoreWhitespaceLabel}
@@ -1595,7 +1624,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.readingSyntaxLabel}</strong>
-                    <p>{t.readingSyntaxDescription}</p>
+                    <p><SentenceLines text={t.readingSyntaxDescription} /></p>
                   </div>
                   <ToggleSwitch
                     label={t.readingSyntaxLabel}
@@ -1608,7 +1637,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.readingTabWidthLabel}</strong>
-                    <p>{t.readingTabWidthDescription}</p>
+                    <p><SentenceLines text={t.readingTabWidthDescription} /></p>
                   </div>
                   <div
                     className="segmented-control"
@@ -1636,7 +1665,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.readingCodeFontTitle}</h3>
-                <p>{t.readingCodeFontDescription}</p>
+                <p><SentenceLines text={t.readingCodeFontDescription} /></p>
               </header>
               <div className="settings-group__body">
                 <div
@@ -1764,7 +1793,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsDefaultBranchTitle}</h3>
-                <p>{t.settingsDefaultBranchDescription}</p>
+                <p><SentenceLines text={t.settingsDefaultBranchDescription} /></p>
               </header>
               <div className="settings-group__body" onBlur={handleDefaultBranchBlur}>
                 <div className="settings-row">
@@ -1860,7 +1889,7 @@ export function SettingsPanel({
                 <div className="settings-row">
                   <div>
                     <strong>{t.hooksLabel}</strong>
-                    <p>{t.hooksDescription}</p>
+                    <p><SentenceLines text={t.hooksDescription} /></p>
                   </div>
                   <ToggleSwitch label={t.hooksLabel} checked={runGitHooks} onChange={setRunGitHooks} />
                 </div>
@@ -1878,7 +1907,7 @@ export function SettingsPanel({
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsIdentityTitle}</h3>
-                <p>{t.settingsIdentityDescription}</p>
+                <p><SentenceLines text={t.settingsIdentityDescription} /></p>
               </header>
               {/* Saved when focus leaves the pair, not behind a Save button:
                   every other control here applies on change, and the button
@@ -1964,7 +1993,7 @@ export function SettingsPanel({
                   the section's only group, so a heading would repeat it — the
                   redundant heading layer task 057 removed. */}
               <header className="settings-group__header">
-                <p>{t.settingsLineEndingsDescription}</p>
+                <p><SentenceLines text={t.settingsLineEndingsDescription} /></p>
               </header>
               <div className="settings-group__body">
                 {lineEndings === null ? (

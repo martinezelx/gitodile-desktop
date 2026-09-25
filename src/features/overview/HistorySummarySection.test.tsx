@@ -107,7 +107,7 @@ describe("HistorySummarySection", () => {
     expect(screen.getByRole("button", { name: "View all" })).toBeInTheDocument();
     expect(readPage).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Open “Saved version 1” in history" }));
+    await user.click(screen.getByRole("button", { name: "Open “Saved version 1” in History" }));
 
     expect(controller.getSnapshot(query).selectedCommit).toBe(version(1).commit);
     expect(onOpenHistory).toHaveBeenCalledOnce();
@@ -130,9 +130,9 @@ describe("HistorySummarySection", () => {
     expect(badge).toHaveTextContent("main");
     expect(badge).toHaveClass("history-ref-badge--current");
     // Version 2 is still only on this computer, and the label says so last.
-    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in history — Version line main — Not published");
+    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in History — Version line main — Not published");
     expect(rows[1].querySelector(".history-ref-badge")).toBeNull();
-    expect(rows[1].getAttribute("aria-label")).toBe("Open “Saved version 1” in history");
+    expect(rows[1].getAttribute("aria-label")).toBe("Open “Saved version 1” in History");
 
     // Author, reference, time — the same order the History timeline uses.
     const order = (row: HTMLElement): string[] =>

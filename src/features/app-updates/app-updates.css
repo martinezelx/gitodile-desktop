@@ -5,32 +5,39 @@
 
 /* Same width as the changelog: a release note is a sentence, not a label. */
 .app-update-dialog { width: min(100%, 460px); }
-/* A glyph on a fill, round like every glyph tile, on the changelog's tint —
-   the two dialogs open from adjacent menu items and should read as siblings. */
+/* The mark sits beside the title rather than above it: one header line, and
+   everything under it shares one left edge. A glyph on a fill, round like
+   every glyph tile, on the changelog's tint — the two dialogs open from
+   adjacent menu items and should read as siblings. */
+.app-update-dialog__header { display: flex; align-items: center; gap: var(--space-3); padding-right: 36px; }
 .app-update-dialog__mark {
-  width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 24px;
+  width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
   border-radius: var(--radius-round);
   background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--accent-primary);
 }
-.app-update-dialog__mark svg { width: 22px; height: 22px; }
-/* About's release line with a caption in front of it: the dialog is about the
-   next version, so the one you are running has to be stated first. */
-.app-update-dialog__installed { margin-bottom: 18px; }
+.app-update-dialog__mark svg { width: 18px; height: 18px; }
+/* About's release line with a caption in front of it, but on the dialog's
+   left edge: About centres its hero, and this dialog is not one. A hairline
+   under it separates the build you have from what is said about the next. */
+.app-update-dialog__installed {
+  justify-content: flex-start;
+  margin-bottom: var(--space-4); padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-divider);
+}
 .app-update-dialog__installed-label { font-size: var(--text-label); }
 
 /* The state block: the startup receipt when there is one, the status line,
    and its cause. Stacked, each line hugging its own text. */
 .app-update-dialog__state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
-.app-update-detail { display: grid; gap: var(--space-1); }
+/* The cause is the status line's second half, so it starts where the line's
+   words do — past the 14px icon and its 7px gap — and pulls up against it. */
+.app-update-detail { display: grid; gap: 2px; margin-top: calc(-1 * var(--space-1)); }
 .app-update-detail p {
-  margin: 0; padding-left: var(--space-3);
+  margin: 0; padding-left: 21px;
   color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
   overflow-wrap: anywhere;
 }
-/* The adapter's safe detail is a name — the draft or operation that blocks an
-   install — so it is set apart from the sentence above it. */
-.app-update-detail p + p { color: var(--text-primary-color); font-weight: var(--weight-strong); }
 
 /* The offered release as a card: the changelog's identity row (version,
    channel chip, date), then its notes as bounded plain text with their own
@@ -92,9 +99,12 @@
    that asked it. */
 .app-update-confirm--channel { width: 100%; margin-top: 0; }
 
-/* Settings: the version row and the status line stack in the row's text
-   column, the buttons keep to the right as in every other row. */
-.app-update-settings__identity { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+/* Settings: the version, its status and the cause stack in the row's text
+   column, the buttons keep to the right as in every other row. The group
+   heading already says "Installed version", so the line is the version alone. */
+.app-update-settings__identity { flex: 1 1 auto; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+.app-update-settings__identity .status-line { max-width: none; }
+.app-update-settings__identity .version-line__value { font-size: var(--text-body); }
 
 @media (prefers-reduced-motion: reduce) {
   .app-update-progress > span { transition: none; }

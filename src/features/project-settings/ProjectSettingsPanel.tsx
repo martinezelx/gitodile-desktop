@@ -22,6 +22,7 @@ import {
   PROJECT_ICON_EMOJIS,
   PROJECT_ICON_INITIALS,
   sanitizeEmoji,
+  SentenceLines,
   TECHNOLOGY_LABELS,
   type ProjectAvatarStyle,
   type ProjectIconChoice,
@@ -620,7 +621,7 @@ function IgnoredSection({
       <section className="settings-group">
         <header className="settings-group__header">
           <h3>{t.projectSettingsIgnoredTitle}</h3>
-          <p>{t.projectSettingsIgnoredDescription}</p>
+          <p><SentenceLines text={t.projectSettingsIgnoredDescription} /></p>
         </header>
         <div className="settings-group__body project-settings-body">
           <div className="settings-row">
@@ -812,7 +813,7 @@ function IdentitySection({
       <section className="settings-group">
         <header className="settings-group__header">
           <h3>{t.projectSettingsIdentityTitle}</h3>
-          <p>{t.projectSettingsIdentityDescription}</p>
+          <p><SentenceLines text={t.projectSettingsIdentityDescription} /></p>
         </header>
         <div className="settings-group__body project-settings-body">
           {/* The same stacked option cards Settings uses for line endings: each
@@ -980,7 +981,7 @@ function IconSection({
       <section className="settings-group">
         <header className="settings-group__header">
           <h3>{t.projectSettingsIconTitle}</h3>
-          <p>{t.projectSettingsIconDescription}</p>
+          <p><SentenceLines text={t.projectSettingsIconDescription} /></p>
         </header>
         <div className="settings-group__body project-settings-body">
           <div className="project-icon-preview">

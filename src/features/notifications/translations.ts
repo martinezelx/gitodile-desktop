@@ -39,25 +39,24 @@ const en: NotificationsTranslations = {
   notificationsListAriaLabel: "Recent notifications",
   notificationsClear: "Clear all",
   notificationsEmptyTitle: "All caught up",
-  notificationsEmptyLine: "News shows up here.",
+  notificationsEmptyLine: "New notifications show up here.",
   notificationsDisabledTitle: "Notifications are off",
-  notificationsDisabledLine: "Turn them on to get alerts.",
+  notificationsDisabledLine: "Turn them on in Settings.",
   notificationsDismiss: "Delete notification",
   notificationsOpenSettings: "Open notification settings",
   notificationsUnreadLabel: "Unread",
   notificationsJustNow: "just now",
   notificationTeamChangesTitle: (count) =>
-    `${count} newer project ${count === 1 ? "version is" : "versions are"} available`,
-  notificationTeamChangesDescription: "Found by an automatic check. Nothing has changed on your computer yet.",
-  notificationTeamChangesAction: "Review and get them",
+    `${count} newer ${count === 1 ? "version is" : "versions are"} available`,
+  notificationTeamChangesDescription: "Found by an automatic check. Nothing on your computer has changed yet.",
+  notificationTeamChangesAction: "Review and get",
   notificationRemoteCheckFailedTitle: "Couldn't check for project changes",
-  notificationRemoteCheckFailedDescription:
-    "The last automatic check could not reach the remote project.",
+  notificationRemoteCheckFailedDescription: "The last automatic check couldn't reach the remote.",
   notificationChangesPublishedTitle: (count) =>
     count === 1 ? "Published 1 saved version" : `Published ${count} saved versions`,
   notificationChangesPublishedTo: (destination) => `Sent to ${destination}.`,
   notificationAppUpdateTitle: (version) => `v${version} is available`,
-  notificationAppUpdateDescription: "Found by the startup check. Nothing has been downloaded.",
+  notificationAppUpdateDescription: "Found at startup. Nothing has been downloaded.",
   notificationAppUpdateAction: "View update",
 };
 
@@ -73,26 +72,24 @@ const es: NotificationsTranslations = {
   notificationsListAriaLabel: "Notificaciones recientes",
   notificationsClear: "Borrar todo",
   notificationsEmptyTitle: "Todo al día",
-  notificationsEmptyLine: "Aquí verás las novedades.",
+  notificationsEmptyLine: "Aquí verás las notificaciones nuevas.",
   notificationsDisabledTitle: "Notificaciones desactivadas",
-  notificationsDisabledLine: "Actívalas para recibir avisos.",
+  notificationsDisabledLine: "Actívalas en Ajustes.",
   notificationsDismiss: "Eliminar notificación",
   notificationsOpenSettings: "Abrir ajustes de notificaciones",
   notificationsUnreadLabel: "Sin leer",
   notificationsJustNow: "ahora mismo",
   notificationTeamChangesTitle: (count) =>
-    `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"} del proyecto`,
-  notificationTeamChangesDescription:
-    "Lo encontró una comprobación automática. Todavía no ha cambiado nada en tu equipo.",
-  notificationTeamChangesAction: "Revisarlas y obtenerlas",
+    `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"}`,
+  notificationTeamChangesDescription: "Encontrada en una comprobación automática. Aún no ha cambiado nada en tu ordenador.",
+  notificationTeamChangesAction: "Revisar y traer",
   notificationRemoteCheckFailedTitle: "No se pudo comprobar si hay cambios",
-  notificationRemoteCheckFailedDescription:
-    "La última comprobación automática no pudo conectar con el proyecto remoto.",
+  notificationRemoteCheckFailedDescription: "La última comprobación automática no pudo llegar al remoto.",
   notificationChangesPublishedTitle: (count) =>
     count === 1 ? "Se publicó 1 versión guardada" : `Se publicaron ${count} versiones guardadas`,
   notificationChangesPublishedTo: (destination) => `Enviado a ${destination}.`,
-  notificationAppUpdateTitle: (version) => `Hay una versión nueva: v${version}`,
-  notificationAppUpdateDescription: "Lo encontró la comprobación al iniciar. No se ha descargado nada.",
+  notificationAppUpdateTitle: (version) => `Nueva versión disponible: v${version}`,
+  notificationAppUpdateDescription: "Detectada al iniciar. No se ha descargado nada.",
   notificationAppUpdateAction: "Ver actualización",
 };
 

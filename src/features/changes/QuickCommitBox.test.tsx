@@ -360,7 +360,7 @@ describe("QuickCommitBox", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText('Saved "fix the thing" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('Saved “fix the thing” as abc123a.')).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
       path: "/repo",
       sessionEpoch: "epoch-1",
@@ -388,7 +388,7 @@ describe("QuickCommitBox", () => {
 
     await userEvent.keyboard("{Enter}");
 
-    expect(await screen.findByText('Saved "fix the thing" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('Saved “fix the thing” as abc123a.')).toBeInTheDocument();
   });
 
   it("does nothing without a title, even if Save is reached some other way", async () => {
@@ -418,7 +418,7 @@ describe("QuickCommitBox", () => {
     // The button names the consequence: this press publishes too.
     await userEvent.click(screen.getByRole("button", { name: "Save and publish" }));
 
-    await screen.findByText('Saved "fix the thing" as abc123a.');
+    await screen.findByText('Saved “fix the thing” as abc123a.');
     expect(onPublishNow).toHaveBeenCalledTimes(1);
     // The option already took the reader there; no second offer.
     expect(screen.queryByRole("button", { name: "Publish now" })).not.toBeInTheDocument();
@@ -430,7 +430,7 @@ describe("QuickCommitBox", () => {
     await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    await screen.findByText('Saved "fix the thing" as abc123a.');
+    await screen.findByText('Saved “fix the thing” as abc123a.');
     expect(screen.queryByRole("checkbox", { name: "Also publish" })).not.toBeInTheDocument();
     expect(onPublishNow).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
@@ -476,12 +476,12 @@ describe("QuickCommitBox", () => {
     expect(screen.getByLabelText("Version name")).toHaveValue("fix the thing");
 
     stubGit();
-    await userEvent.click(screen.getByRole("button", { name: "Save without running the hooks" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save without running hooks" }));
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", expect.objectContaining({ runHooks: false })),
     );
-    expect(await screen.findByText('Saved "fix the thing" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('Saved “fix the thing” as abc123a.')).toBeInTheDocument();
   });
 
   it("does not offer the hooks escape for a failure that never ran them", async () => {
@@ -497,7 +497,7 @@ describe("QuickCommitBox", () => {
     await userEvent.click(screen.getByRole("button", { name: "Show technical details" }));
     expect(screen.getByText("fatal: signing failed")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Save without running the hooks" }),
+      screen.queryByRole("button", { name: "Save without running hooks" }),
     ).not.toBeInTheDocument();
   });
 });

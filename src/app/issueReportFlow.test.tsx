@@ -52,7 +52,7 @@ it("reviews the exact report before copying, saving or opening GitHub", async ()
   expect(contents.textContent).toBe(REPORT);
   expect(contents.querySelector("textarea")).toBeNull();
   expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
-  expect(screen.getByText(/attach it to the issue yourself/i)).toBeVisible();
+  expect(screen.getByText(/attach the file to the issue/i)).toBeVisible();
 
   await user.click(screen.getByRole("button", { name: "Copy" }));
   expect(port.copy).toHaveBeenCalledWith(REPORT);

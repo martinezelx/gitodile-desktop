@@ -16,7 +16,7 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { ChannelGlyph, DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
+import { ChannelGlyph, DialogCloseButton, ReleaseHighlights, SentenceLines, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { UpdateCandidate, UpdateChannel, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -75,12 +75,18 @@ function describeState(state: UpdateState, language: Language): StatusLine {
 
 /** What goes under the status line, if anything: the cause when the line
  * itself is only a verdict (blocked, unavailable), and the adapter's safe
- * detail — the name of the work that blocks an install, say — whenever there
- * is one. Never the same sentence twice. */
+ * detail whenever there is one. Never the same sentence twice.
+ *
+ * A specific cause replaces the generic sentence for its code: "The update
+ * couldn't be completed" above "Update verification is not configured" said
+ * one thing twice, the first time vaguely and under a verdict ("not
+ * available") it contradicted. Only a blocked install keeps both — the
+ * sentence says what to do, the detail names the work in the way. */
 function describeDetail(state: UpdateState, language: Language): string[] {
   const t = appUpdateTranslations(language);
   const error = errorState(state);
   if (!error) return [];
+  if (error.safeDetail && state.kind !== "blocked") return [error.safeDetail];
   const lines: string[] = [];
   if (state.kind !== "failed") lines.push(t.errors[error.code]);
   if (error.safeDetail) lines.push(error.safeDetail);
@@ -95,6 +101,24 @@ function StatusLine({ line, className = "" }: { line: StatusLine; className?: st
     </p>
   );
 }
+
+/** The cause under a status line, set in from the edge by the line's icon so
+ * it reads as the status's second half. The same block in Settings and in the
+ * dialog: the reason an update is unavailable should not need a click. */
+function CauseLines({ lines }: { lines: string[] }) {
+  if (lines.length === 0) return null;
+  return (
+    <div className="app-update-detail">
+      {lines.map((text) => <p key={text}>{text}</p>)}
+    </div>
+  );
+}
+
+/* The dialog has something the Settings row cannot say only once there is a
+   release to read, a transfer to watch or an install to confirm. */
+const DIALOG_STATES: ReadonlySet<UpdateState["kind"]> = new Set([
+  "available", "downloading", "verifying", "ready", "blocked", "installing",
+]);
 
 /** The installed build, the way About and the changelog show it: version in
  * the label weight, the preview glyph only when it is not stable. */
@@ -217,7 +241,7 @@ function ChannelControl({
       <div className="settings-row">
         <div>
           <strong>{t.channelLabel}</strong>
-          <p>{t.channelStableDescription} {t.channelPreviewDescription}</p>
+          <p><SentenceLines text={`${t.channelStableDescription} ${t.channelPreviewDescription}`} /></p>
         </div>
         <div
           className="segmented-control"
@@ -305,23 +329,27 @@ export function AppUpdateSettingsControl({
   const state = snapshot.state;
   const busy = BUSY_STATES.has(state.kind);
   const line = describeState(state, language);
+  const detail = describeDetail(state, language);
   /* "Details" opens the dialog, where the notes, the progress and the install
-     confirmation live. It is offered only when there is something to see
-     there that this row does not already say. */
-  const hasDetails = onOpenDialog && !["idle", "checking", "current"].includes(state.kind);
+     confirmation live. The cause of a failure is already in the row, so it
+     is offered only when the dialog has something the row does not. */
+  const hasDetails = onOpenDialog && DIALOG_STATES.has(state.kind);
+  /* Two groups, neither named after the tab it sits in: the build you have,
+     and how the next one reaches you. The startup check is a way updates
+     reach you, so it joins the channel rather than heading a group of one. */
   return (
     <div className="settings-groups">
       <section className="settings-group">
-        <header className="settings-group__header"><h3>{t.title}</h3></header>
+        <header className="settings-group__header"><h3>{t.installedLabel}</h3></header>
         <div className="settings-group__body">
           <div className="settings-row">
             <div className="app-update-settings__identity">
               <p className="version-line">
-                <span className="version-line__label">{t.installedLabel}</span>
                 <span className="version-line__value">v{installed.version}</span>
                 <ChannelGlyph channel={installed.channel} />
               </p>
               <StatusLine line={line} />
+              <CauseLines lines={detail} />
             </div>
             <div className="settings-row__actions">
               {hasDetails && (
@@ -333,14 +361,14 @@ export function AppUpdateSettingsControl({
               </button>
             </div>
           </div>
-          <ChannelControl snapshot={snapshot} controller={controller} busy={busy} language={language} />
         </div>
       </section>
       <section className="settings-group">
-        <header className="settings-group__header"><h3>{t.automaticTitle}</h3></header>
+        <header className="settings-group__header"><h3>{t.receivingTitle}</h3></header>
         <div className="settings-group__body">
+          <ChannelControl snapshot={snapshot} controller={controller} busy={busy} language={language} />
           <div className="settings-row">
-            <div><strong>{t.automaticLabel}</strong><p>{t.automaticDescription}</p></div>
+            <div><strong>{t.automaticLabel}</strong><p><SentenceLines text={t.automaticDescription} /></p></div>
             <button
               type="button"
               role="switch"
@@ -411,17 +439,15 @@ export function AppUpdateDialog({
     <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={dialogRef} className="about-dialog app-update-dialog auto-hide-scrollbar" role="dialog" aria-modal="true" aria-labelledby="app-update-title" aria-describedby={descriptionId} tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
         <DialogCloseButton label={appT.commonClose} onClick={() => setOpen(false)} />
-        <div className="app-update-dialog__mark" aria-hidden="true"><CloudDownload /></div>
-        <h2 id="app-update-title">{t.title}</h2>
+        <div className="app-update-dialog__header">
+          <div className="app-update-dialog__mark" aria-hidden="true"><CloudDownload /></div>
+          <h2 id="app-update-title">{t.title}</h2>
+        </div>
         <InstalledLine installed={installed} language={language} />
         <div id={descriptionId} className="app-update-dialog__state">
           {startup && <StatusLine line={startup} />}
           <StatusLine line={line} />
-          {detail.length > 0 && (
-            <div className="app-update-detail">
-              {detail.map((text) => <p key={text}>{text}</p>)}
-            </div>
-          )}
+          <CauseLines lines={detail} />
         </div>
         {candidate && <CandidateDetails candidate={candidate} language={language} />}
         <Progress state={state} language={language} />

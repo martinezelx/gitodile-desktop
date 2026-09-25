@@ -61,7 +61,7 @@ describe("translation composition", () => {
     expect(translations.es.projectSwitcherRailTrigger("  ")).toBe(
       "Proyecto sin nombre — cambiar de proyecto",
     );
-    expect(translations.en.statusChangesMessage(3)).toBe("3 files have changed since your last saved version.");
+    expect(translations.en.statusChangesMessage(3)).toBe("3 files changed since your last saved version.");
     expect(translations.es.statusChangesMessage(3)).toBe("3 archivos han cambiado desde tu última versión guardada.");
   });
 });

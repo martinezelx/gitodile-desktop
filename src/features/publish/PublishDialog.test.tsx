@@ -206,7 +206,7 @@ describe("PublishDialog", () => {
     mockedInvoke.mockResolvedValueOnce(plan({ willCreateUpstream: true }));
     renderDialog();
 
-    expect(await screen.findByText("This version line will start tracking the remote branch.")).toBeInTheDocument();
+    expect(await screen.findByText("This line will start tracking the remote branch.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Publish for the first time" })).toBeInTheDocument();
   });
 
@@ -215,16 +215,16 @@ describe("PublishDialog", () => {
     renderDialog();
 
     expect(
-      await screen.findByText("Unsaved files on this computer will stay local — only saved versions are published."),
+      await screen.findByText("Only saved versions are published. Unsaved changes stay on this computer."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Unsaved file changes")).toHaveClass("publish-stays__pill--unsaved");
+    expect(screen.getByText("Unsaved changes")).toHaveClass("publish-stays__pill--unsaved");
   });
 
   it("shows a localized blocker and offers to try again", async () => {
     mockedInvoke.mockRejectedValueOnce({ code: "nothing_to_publish", message: "x", remediation: null });
     renderDialog();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Every saved version is already published.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Everything is already published.");
 
     mockedInvoke.mockResolvedValueOnce(plan());
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -273,7 +273,7 @@ describe("PublishDialog", () => {
     mockedInvoke.mockResolvedValueOnce(result);
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
 
-    expect(await screen.findByText('1 saved version was published to "origin".')).toBeInTheDocument();
+    expect(await screen.findByText('1 saved version was published to “origin”.')).toBeInTheDocument();
     expect(onPublished).toHaveBeenCalledTimes(1);
     expect(mockedInvoke).toHaveBeenLastCalledWith("publish", {
       path: "/repo",
@@ -302,7 +302,7 @@ describe("PublishDialog", () => {
     mockedInvoke.mockResolvedValueOnce(result);
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
 
-    expect(await screen.findByText("This version line now tracks the remote branch.")).toBeInTheDocument();
+    expect(await screen.findByText("This line now tracks the remote branch.")).toBeInTheDocument();
   });
 
   it("reports a publish failure and keeps the plan visible to retry", async () => {
@@ -318,7 +318,7 @@ describe("PublishDialog", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("The remote project rejected this publish.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("The remote rejected this publish.");
     expect(screen.getByRole("button", { name: "Publish now" })).toBeInTheDocument();
 
     expect(screen.queryByText("pre-receive hook declined")).not.toBeInTheDocument();
@@ -338,7 +338,7 @@ describe("PublishDialog", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
 
-    const reviewButton = await screen.findByRole("button", { name: "Review updated plan" });
+    const reviewButton = await screen.findByRole("button", { name: "Review again" });
     mockedInvoke.mockResolvedValueOnce(plan({ stateToken: "publish-token-2" }));
     await userEvent.click(reviewButton);
 
@@ -365,7 +365,7 @@ describe("PublishDialog", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
 
-    expect(await screen.findByText("Keep this window open while GitOdile confirms the remote result.")).toBeInTheDocument();
+    expect(await screen.findByText("Keep this window open while GitOdile confirms the result.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     await userEvent.keyboard("{Escape}");
     await userEvent.click(container.querySelector(".save-version-backdrop") as HTMLElement);
@@ -381,7 +381,7 @@ describe("PublishDialog", () => {
       createdUpstream: false,
       remainingAfterPublish: 0,
     });
-    expect(await screen.findByText('1 saved version was published to "origin".')).toBeInTheDocument();
+    expect(await screen.findByText('1 saved version was published to “origin”.')).toBeInTheDocument();
   });
 
   it("keeps an uncertain result open and offers a remote recheck", async () => {

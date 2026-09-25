@@ -23,19 +23,19 @@ export interface StatusTranslations {
 
 const en: StatusTranslations = {
   statusCleanTitle: "Everything is saved",
-  statusCleanMessage: "You have no unsaved changes in this project.",
+  statusCleanMessage: "No unsaved changes in this project.",
   statusChangesTitle: "You have unsaved changes",
   statusChangesMessage: (total) =>
-    total === 1 ? "1 file has changed since your last saved version." : `${total} files have changed since your last saved version.`,
+    total === 1 ? "1 file changed since your last saved version." : `${total} files changed since your last saved version.`,
   statusConflictsTitle: "Some files need your attention",
   statusConflictsMessage: (conflicted) =>
     conflicted === 1
-      ? "1 file has overlapping changes that have to be resolved before you can save."
-      : `${conflicted} files have overlapping changes that have to be resolved before you can save.`,
+      ? "1 file has overlapping changes to resolve before you can save."
+      : `${conflicted} files have overlapping changes to resolve before you can save.`,
   statusCheckingTitle: "Checking for changes…",
-  statusCheckingMessage: "GitOdile is looking at your project files.",
-  statusCheckFailedTitle: "We couldn’t check for changes",
-  statusCouldntCheck: "GitOdile couldn’t check what changed in this project.",
+  statusCheckingMessage: "Looking at your project files.",
+  statusCheckFailedTitle: "Couldn’t check for changes",
+  statusCouldntCheck: "Couldn’t check what changed in this project.",
   statusRefresh: "Check for changes",
   statusRefreshing: "Checking…",
   statusBreakdownLabel: "What changed",
@@ -44,13 +44,13 @@ const en: StatusTranslations = {
   statusCategoryDeleted: (count) => (count === 1 ? "1 deleted" : `${count} deleted`),
   statusCategoryRenamed: (count) => (count === 1 ? "1 renamed" : `${count} renamed`),
   statusCategoryConflicted: (count) => (count === 1 ? "1 needs attention" : `${count} need attention`),
-  statusTruncatedNote: (shown) => `Showing the first ${shown} files. The totals above cover every change.`,
-  statusRefreshFailedNote: "This is the last result we could read. The latest check didn’t work.",
+  statusTruncatedNote: (shown) => `Showing the first ${shown} files. The totals include every change.`,
+  statusRefreshFailedNote: "The latest check failed. This is the last known result.",
 };
 
 const es: StatusTranslations = {
   statusCleanTitle: "Todo está guardado",
-  statusCleanMessage: "No tienes cambios sin guardar en este proyecto.",
+  statusCleanMessage: "No hay cambios sin guardar en este proyecto.",
   statusChangesTitle: "Tienes cambios sin guardar",
   statusChangesMessage: (total) =>
     total === 1
@@ -59,12 +59,12 @@ const es: StatusTranslations = {
   statusConflictsTitle: "Algunos archivos necesitan tu atención",
   statusConflictsMessage: (conflicted) =>
     conflicted === 1
-      ? "1 archivo tiene cambios superpuestos que hay que resolver antes de poder guardar."
-      : `${conflicted} archivos tienen cambios superpuestos que hay que resolver antes de poder guardar.`,
+      ? "1 archivo tiene cambios superpuestos que debes resolver antes de guardar."
+      : `${conflicted} archivos tienen cambios superpuestos que debes resolver antes de guardar.`,
   statusCheckingTitle: "Buscando cambios…",
-  statusCheckingMessage: "GitOdile está revisando los archivos de tu proyecto.",
-  statusCheckFailedTitle: "No hemos podido buscar cambios",
-  statusCouldntCheck: "GitOdile no ha podido comprobar qué ha cambiado en este proyecto.",
+  statusCheckingMessage: "Revisando los archivos de tu proyecto.",
+  statusCheckFailedTitle: "No se pudo comprobar si hay cambios",
+  statusCouldntCheck: "No se pudo comprobar qué ha cambiado en este proyecto.",
   statusRefresh: "Buscar cambios",
   statusRefreshing: "Buscando…",
   statusBreakdownLabel: "Qué ha cambiado",
@@ -74,10 +74,8 @@ const es: StatusTranslations = {
   statusCategoryRenamed: (count) => (count === 1 ? "1 renombrado" : `${count} renombrados`),
   statusCategoryConflicted: (count) =>
     count === 1 ? "1 necesita atención" : `${count} necesitan atención`,
-  statusTruncatedNote: (shown) =>
-    `Mostrando los primeros ${shown} archivos. Los totales de arriba incluyen todos los cambios.`,
-  statusRefreshFailedNote:
-    "Este es el último resultado que pudimos leer. La comprobación más reciente no ha funcionado.",
+  statusTruncatedNote: (shown) => `Se muestran los primeros ${shown} archivos. Los totales incluyen todos los cambios.`,
+  statusRefreshFailedNote: "La última comprobación falló. Este es el último resultado conocido.",
 };
 
 export const statusTranslations = { en, es } as const;

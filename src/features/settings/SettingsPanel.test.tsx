@@ -293,7 +293,7 @@ describe("Settings panel identity draft", () => {
 
     // The message used to render with the same success check as "Saved.",
     // so a failure was indistinguishable from a confirmation at a glance.
-    const notice = await screen.findByText("Couldn't save that.");
+    const notice = await screen.findByText("Couldn't save it.");
     expect(notice.closest("p")).toHaveClass("settings-row__hint--danger");
     expect(screen.queryByText("Saved.")).toBeNull();
   });
@@ -366,7 +366,7 @@ describe("Settings panel line endings", () => {
 
     await waitFor(() => expect(port.readLineEndings).toHaveBeenCalledWith(null));
     expect(
-      await screen.findByText("Nothing is set, so Git falls back to its own default for this system."),
+      await screen.findByText("Not set, so Git uses its default for this system."),
     ).toBeInTheDocument();
     // Nothing is in effect, so no option reads as the active one and there is
     // no caveat block to explain away.
@@ -377,7 +377,7 @@ describe("Settings panel line endings", () => {
     // Rust know which config value each choice writes.
     await userEvent.click(
       screen.getByRole("radio", {
-        name: /Save the shared format, keep the Windows one on your computer/,
+        name: /Store the shared format, use Windows format on disk/,
       }),
     );
     await waitFor(() => expect(port.setLineEndings).toHaveBeenCalledWith("windows_checkout"));
@@ -391,7 +391,7 @@ describe("Settings panel line endings", () => {
 
     const recommended = await screen.findByText("Recommended here");
     expect(recommended.closest("[role='radio']")).toHaveTextContent(
-      "Save the shared format, leave your files as they are",
+      "Store the shared format, leave files on disk as they are",
     );
   });
 
@@ -417,14 +417,14 @@ describe("Settings panel line endings", () => {
     );
     expect(
       await screen.findByText(
-        "This project sets its own, so your general choice doesn't apply while you work here.",
+        "This project sets its own, so your choice doesn't apply here.",
       ),
     ).toBeInTheDocument();
     // Both exceptions share one warning block rather than arriving as separate
     // pills in different tones.
     const caveat = document.querySelector(".line-endings__caveat");
     expect(caveat).not.toBeNull();
-    expect(caveat).toHaveTextContent(/ships line-ending rules of its own/);
+    expect(caveat).toHaveTextContent(/has its own line-ending rules/);
     expect(caveat).toHaveTextContent(/core\.eol\): lf/);
   });
 
@@ -434,7 +434,7 @@ describe("Settings panel line endings", () => {
 
     await userEvent.click(await screen.findByRole("radio", { name: /Don't convert anything/ }));
 
-    const notice = await screen.findByText("Couldn't save that.", {
+    const notice = await screen.findByText("Couldn't save it.", {
       selector: ".settings-row__hint--danger span",
     });
     expect(notice).toBeInTheDocument();
@@ -542,7 +542,7 @@ describe("Settings panel default version line", () => {
     // Shown, not stored: nothing is written to the user's Git configuration
     // until they pick an option, and the hint has to say which state this is.
     expect(
-      screen.getByText(/Not saved to your Git configuration yet/),
+      screen.getByText(/Not set in Git yet/),
     ).toBeInTheDocument();
     expect(port.setDefaultBranch).not.toHaveBeenCalled();
   });
@@ -563,7 +563,7 @@ describe("Settings panel default version line", () => {
     await waitFor(() => expect(port.getDefaultBranch).toHaveBeenCalled());
 
     await userEvent.click(screen.getByRole("radio", { name: "Other" }));
-    await userEvent.type(screen.getByLabelText("Version-line name"), "trunk");
+    await userEvent.type(screen.getByLabelText("Version line name"), "trunk");
 
     // Blur fires before click. Committing the draft from the field's own
     // `onBlur` raced this button, and whichever write landed last won.
@@ -589,7 +589,7 @@ describe("Settings panel default version line", () => {
     await waitFor(() => expect(port.getDefaultBranch).toHaveBeenCalled());
 
     await userEvent.click(screen.getByRole("radio", { name: "Other" }));
-    const field = screen.getByLabelText("Version-line name");
+    const field = screen.getByLabelText("Version line name");
     await userEvent.type(field, "trunk");
     await userEvent.tab();
     await waitFor(() => expect(port.setDefaultBranch).toHaveBeenCalledWith("trunk"));
@@ -599,7 +599,7 @@ describe("Settings panel default version line", () => {
     await userEvent.tab();
     // Git's own message, localized here rather than invented by the panel.
     expect(
-      await screen.findByText("Choose a valid initial version-line name such as main."),
+      await screen.findByText("Enter a valid version line name, like main."),
     ).toBeInTheDocument();
   });
 });
@@ -612,10 +612,10 @@ describe("Settings panel Git hooks", () => {
       name: "Run Git hooks when saving and publishing",
     });
     expect(toggle).toHaveAttribute("aria-checked", "true");
-    expect(screen.queryByText(/GitOdile skips them in every project/)).toBeNull();
+    expect(screen.queryByText(/GitOdile skips hooks in every project/)).toBeNull();
     // The row must not read as a property of the open project: the switch is
     // app-wide, and the copy has to say so where it is set.
-    expect(screen.getByText(/applies to every project you open in GitOdile/)).toBeInTheDocument();
+    expect(screen.getByText(/This applies to every project/)).toBeInTheDocument();
   });
 
   it("states the cost as soon as hooks are turned off", async () => {
@@ -629,7 +629,7 @@ describe("Settings panel Git hooks", () => {
     // Turning them off is the choice that costs something, so that is the
     // state that has to explain itself.
     expect(
-      await screen.findByText(/GitOdile skips them in every project/),
+      await screen.findByText(/GitOdile skips hooks in every project/),
     ).toBeInTheDocument();
   });
 });
@@ -647,7 +647,7 @@ describe("Settings panel remote-check cadence", () => {
     const setRemoteCheckInterval = vi.fn();
     renderPanel(createPort(), { setRemoteCheckInterval, remoteCheckInterval: 15 });
 
-    await userEvent.click(screen.getByRole("radio", { name: "A custom frequency" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Custom frequency" }));
     const field = screen.getByLabelText("How often to check");
     await userEvent.clear(field);
     await userEvent.type(field, "5");
@@ -661,7 +661,7 @@ describe("Settings panel remote-check cadence", () => {
     const setRemoteCheckInterval = vi.fn();
     renderPanel(createPort(), { setRemoteCheckInterval, remoteCheckInterval: 15 });
 
-    await userEvent.click(screen.getByRole("radio", { name: "A custom frequency" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Custom frequency" }));
     const field = screen.getByLabelText("How often to check");
     await userEvent.clear(field);
     setRemoteCheckInterval.mockClear();
@@ -678,7 +678,7 @@ describe("Settings panel remote-check cadence", () => {
   it("opens the custom field already showing a stored value the presets cannot express", async () => {
     renderPanel(createPort(), { remoteCheckInterval: 300 });
 
-    expect(screen.getByRole("radio", { name: "A custom frequency" })).toHaveAttribute(
+    expect(screen.getByRole("radio", { name: "Custom frequency" })).toHaveAttribute(
       "aria-checked",
       "true",
     );
@@ -735,7 +735,7 @@ describe("Settings panel section rail", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { name: "Sections shown in the bar" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sections in the bar" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Overview" })).toBeChecked();
     expect(screen.getByRole("radio", { name: /Icons and text/ })).toBeChecked();
 
@@ -880,18 +880,30 @@ describe("Settings panel section rail", () => {
     // The section heading is the rail's job; the groups name the situation and
     // the contents, and never repeat "Notifications" back at the reader.
     expect(screen.getByRole("heading", { name: "While you're doing something else" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "What you'll be told about" })).toBeInTheDocument();
+    const events = screen.getByRole("list", { name: "You'll be told when" });
     for (const event of [
-      "Newer project versions",
-      "A check that couldn't connect",
-      "Changes you published",
+      "Newer project versions are available",
+      "An automatic check can't connect",
+      "A newer version of the app is out",
+      "You publish changes",
     ]) {
-      expect(screen.getByText(event)).toBeInTheDocument();
+      expect(within(events).getByText(event)).toBeInTheDocument();
     }
+    // The one kind recorded as already read says so beside its name.
+    expect(within(events).getAllByText("Silent")).toHaveLength(1);
+    expect(within(events).getByText("A receipt of what you sent.")).toBeInTheDocument();
 
     await userEvent.click(toggle);
 
     expect(setNotificationsEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps the events in view but down to their names while notifications are off", () => {
+    renderPanel(createPort(), { initialSection: "notifications", notificationsEnabled: false });
+
+    const events = screen.getByRole("list", { name: "Turn them on to be told when" });
+    expect(within(events).getByText("You publish changes")).toBeInTheDocument();
+    expect(within(events).queryByText("A receipt of what you sent.")).not.toBeInTheDocument();
   });
 
   it("offers watching and discard confirmation as General toggles, both on by default", async () => {
@@ -915,7 +927,7 @@ describe("Settings panel section rail", () => {
     const setRemoteCheckInterval = vi.fn();
     renderPanel(createPort(), { setRemoteCheckInterval });
 
-    const frequency = screen.getByRole("radiogroup", { name: "Automatic remote check frequency" });
+    const frequency = screen.getByRole("radiogroup", { name: "How often to check the remote" });
     expect(within(frequency).getByRole("radio", { name: "Never" })).toHaveAttribute("aria-checked", "true");
     await userEvent.click(within(frequency).getByRole("radio", { name: "Every 15 minutes" }));
     expect(setRemoteCheckInterval).toHaveBeenCalledWith(15);

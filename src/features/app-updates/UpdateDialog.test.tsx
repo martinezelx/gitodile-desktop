@@ -78,7 +78,7 @@ describe("application update dialog", () => {
     const rendered = dialog.querySelector(".app-update-notes");
     expect(rendered?.textContent).toBe(notes);
     expect(within(dialog).getByRole("status")).toHaveTextContent("Can't install yet");
-    expect(within(dialog).getByText("This build can't install updates by itself. Get the new version with the manual download.")).toBeInTheDocument();
+    expect(within(dialog).getByText("This build can't update itself. Use the manual download.")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Manual download" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: /^Download/ })).toBeNull();
   });
@@ -148,7 +148,39 @@ describe("application update dialog", () => {
     expect(screen.getByText(/Couldn't confirm the update to v0.2.0-preview.2/)).toBeInTheDocument();
     expect(screen.queryByText(/Updated to/)).toBeNull();
     // The failure line is the explanation; it is not repeated under itself.
-    expect(screen.getAllByText(/expected version wasn't found/)).toHaveLength(1);
+    expect(screen.getAllByText(/new version wasn't found/)).toHaveLength(1);
+  });
+
+  it("says why updates are unavailable once, with the specific cause instead of the generic sentence", async () => {
+    const user = userEvent.setup();
+    const error = { code: "internal" as const, stage: "check" as const, retryable: false, safeDetail: "Update verification is not configured for this build." };
+    const snapshot: AppUpdatesSnapshot = { state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false, channel: followBuild };
+    render(<Harness snapshot={snapshot} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const dialog = screen.getByRole("dialog", { name: "Updates" });
+    expect(within(dialog).getByRole("status")).toHaveTextContent("Not available for this installation");
+    expect(within(dialog).getByText("Update verification is not configured for this build.")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/couldn't be completed/)).toBeNull();
+  });
+
+  it("puts the cause in the Settings row and keeps Details for what only the dialog shows", () => {
+    const error = { code: "internal" as const, stage: "check" as const, retryable: false, safeDetail: "Update verification is not configured for this build." };
+    render(
+      <LanguageProvider>
+        <AppUpdateSettingsControl
+          snapshot={{ state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false, channel: followBuild }}
+          controller={controller()}
+          installed={installed}
+          enabled={false}
+          setEnabled={vi.fn()}
+          onOpenDialog={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "Installed version" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How you get updates" })).toBeInTheDocument();
+    expect(screen.getByText("Update verification is not configured for this build.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
   });
 
   it("enables background checks only from the disclosed Settings switch", async () => {
@@ -166,7 +198,7 @@ describe("application update dialog", () => {
         />
       </LanguageProvider>,
     );
-    expect(screen.getByText(/again every 24 hours/)).toBeInTheDocument();
+    expect(screen.getByText(/every 24 hours/)).toBeInTheDocument();
     expect(screen.getByText("v0.2.0-preview.1")).toBeInTheDocument();
     expect(appController.check).not.toHaveBeenCalled();
     await user.click(screen.getByRole("switch", { name: "Check for updates at startup" }));
@@ -208,7 +240,7 @@ describe("application update dialog", () => {
     // A build that has never been told otherwise reads as its own channel.
     expect(stable).toHaveAttribute("aria-checked", "true");
     expect(preview).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByText(/Previews arrive earlier and may break/)).toBeInTheDocument();
+    expect(screen.getByText(/Preview gets new features sooner, but may break/)).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("New version: v0.2.0-preview.2");
 
     stable.focus();
@@ -222,7 +254,7 @@ describe("application update dialog", () => {
     // channel as it was.
     const question = screen.getByRole("group", { name: "Follow preview releases?" });
     expect(within(question).getByRole("button", { name: "Follow previews" })).toHaveFocus();
-    expect(within(question).getByText(/the version you have installed stays/)).toBeInTheDocument();
+    expect(within(question).getByText(/keep your current version/)).toBeInTheDocument();
     expect(setChannel).not.toHaveBeenCalled();
     await user.click(within(question).getByRole("button", { name: "Not now" }));
     expect(screen.queryByRole("group", { name: "Follow preview releases?" })).toBeNull();

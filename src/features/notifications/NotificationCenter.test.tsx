@@ -88,7 +88,7 @@ describe("the titlebar notification centre", () => {
 
     expect(onOpened).toHaveBeenCalledTimes(1);
     const panel = screen.getByRole("dialog", { name: "Notifications" });
-    expect(within(panel).getByText("3 newer project versions are available")).toBeInTheDocument();
+    expect(within(panel).getByText("3 newer versions are available")).toBeInTheDocument();
     expect(within(panel).getByText("Unread", { exact: false })).toBeInTheDocument();
   });
 
@@ -98,7 +98,7 @@ describe("the titlebar notification centre", () => {
     renderCentre({ notifications: [notification], unreadCount: 1, onReviewTeamChanges });
 
     await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
-    await userEvent.click(screen.getByRole("button", { name: "Review and get them" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review and get" }));
 
     expect(onReviewTeamChanges).toHaveBeenCalledWith(notification);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -117,7 +117,7 @@ describe("the titlebar notification centre", () => {
     await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
     const panel = screen.getByRole("dialog", { name: "Notifications" });
     expect(within(panel).getByText("v0.3.0 is available")).toBeInTheDocument();
-    expect(within(panel).getByText("Found by the startup check. Nothing has been downloaded.")).toBeInTheDocument();
+    expect(within(panel).getByText("Found at startup. Nothing has been downloaded.")).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole("button", { name: "View update" }));
 
     expect(onReviewAppUpdate).toHaveBeenCalledOnce();
@@ -137,7 +137,7 @@ describe("the titlebar notification centre", () => {
     const panel = screen.getByRole("dialog", { name: "Notifications" });
     expect(within(panel).getByText("Published 2 saved versions")).toBeInTheDocument();
     expect(within(panel).getByText("Sent to origin/main.")).toBeInTheDocument();
-    expect(within(panel).queryByRole("button", { name: "Review and get them" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: "Review and get" })).not.toBeInTheDocument();
   });
 
   it("prefers the mapped reason over the generic sentence for a failed check", async () => {
@@ -151,7 +151,7 @@ describe("the titlebar notification centre", () => {
     const panel = screen.getByRole("dialog", { name: "Notifications" });
     expect(within(panel).getByText("Couldn't reach origin.")).toBeInTheDocument();
     expect(
-      within(panel).queryByText("The last automatic check could not reach the remote project."),
+      within(panel).queryByText("The last automatic check couldn't reach the remote."),
     ).not.toBeInTheDocument();
   });
 
@@ -298,7 +298,7 @@ describe("the titlebar notification centre", () => {
     const rows = within(screen.getByRole("list", { name: "Recent notifications" })).getAllByRole(
       "listitem",
     );
-    expect(rows[0]?.textContent).toContain("3 newer project versions are available");
+    expect(rows[0]?.textContent).toContain("3 newer versions are available");
     expect(rows[1]?.textContent).toContain("Published 1 saved version");
   });
 

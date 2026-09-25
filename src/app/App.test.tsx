@@ -361,7 +361,7 @@ describe("TitlebarMenu", () => {
     renderMenu({ canReloadWindow: false });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    const reload = screen.getByRole("menuitem", { name: /Reload window.*Finish the current project operation/ });
+    const reload = screen.getByRole("menuitem", { name: /Reload window.*Wait for the current operation to finish/ });
     expect(reload).toHaveAttribute("aria-disabled", "true");
     await user.click(reload);
     expect(screen.getByRole("menu")).toBeInTheDocument();
@@ -469,7 +469,7 @@ describe("App project restoration", () => {
     );
 
     await userEvent.click(within(statusBar).getByRole("button", { name: "Check remote project changes" }));
-    expect(await within(statusBar).findByText("1 project version available")).toBeInTheDocument();
+    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("check_team_changes", {
       path: restoredProject.path,
       sessionEpoch: restoredProject.sessionEpoch,
@@ -490,7 +490,7 @@ describe("App project restoration", () => {
     );
     const changelog = screen.getByRole("dialog", { name: "What's new" });
     expect(within(changelog).getByRole("heading", { name: `v${__APP_VERSION__}` })).toBeInTheDocument();
-    expect(within(changelog).getByText("You are running this")).toBeInTheDocument();
+    expect(within(changelog).getByText("Your version")).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
     await userEvent.click(screen.getByRole("button", { name: "About" }));
@@ -551,14 +551,14 @@ describe("App project restoration", () => {
 
       fireEvent.click(unreadBell);
       const panel = screen.getByRole("dialog", { name: "Notifications" });
-      expect(within(panel).getByText("1 newer project version is available")).toBeInTheDocument();
+      expect(within(panel).getByText("1 newer version is available")).toBeInTheDocument();
       // Reading it is what clears the badge.
       expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
 
-      fireEvent.click(within(panel).getByRole("button", { name: "Review and get them" }));
+      fireEvent.click(within(panel).getByRole("button", { name: "Review and get" }));
       expect(screen.queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument();
       await settle(50);
-      expect(screen.getByRole("dialog", { name: "Review and get project changes" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Get project changes" })).toBeInTheDocument();
       fireEvent.keyDown(document, { key: "Escape" });
       await settle(50);
 
@@ -654,7 +654,7 @@ describe("App project restoration", () => {
     await userEvent.click(
       within(statusBar).getByRole("button", { name: "Check remote project changes" }),
     );
-    expect(await within(statusBar).findByText("1 project version available")).toBeInTheDocument();
+    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
@@ -737,9 +737,9 @@ describe("App project restoration", () => {
     // Each hint has to stay a *description*: folded into the name instead, it
     // would break every "Open a project" lookup in the app.
     for (const [name, hint] of [
-      ["Create a local project", "A new folder, or one you already have"],
-      ["Open a project", "A folder that already uses Git"],
-      ["Clone a remote project", "Download it from a remote server"],
+      ["Create a local project", "A new or existing folder"],
+      ["Open a project", "A folder that uses Git"],
+      ["Clone a remote project", "Download from a server"],
     ]) {
       expect(screen.getByRole("button", { name, description: hint })).toBeEnabled();
     }
@@ -842,7 +842,7 @@ describe("App project restoration", () => {
     expect(listedBefore[0]).toContain(secondProject.name);
 
     await user.click(
-      screen.getByRole("button", { name: `Add ${restoredProject.name} to favourites` }),
+      screen.getByRole("button", { name: `Add ${restoredProject.name} to favorites` }),
     );
 
     // The mark is the app's own project favourite, not a row-local flag.
@@ -850,7 +850,7 @@ describe("App project restoration", () => {
       restoredProject.path,
     ]);
     const star = screen.getByRole("button", {
-      name: `Remove ${restoredProject.name} from favourites`,
+      name: `Remove ${restoredProject.name} from favorites`,
     });
     expect(star).toHaveAttribute("aria-pressed", "true");
 
@@ -863,7 +863,7 @@ describe("App project restoration", () => {
     // With a favourite to filter by, the heading offers to show only those;
     // pressed, the other project leaves the list, and it comes back when the
     // filter is released. A view, not a setting: nothing is stored.
-    const filter = screen.getByRole("button", { name: "Show favourite projects only" });
+    const filter = screen.getByRole("button", { name: "Show favorite projects only" });
     await user.click(filter);
     expect(filter).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: secondProject.name })).not.toBeInTheDocument();
@@ -932,7 +932,7 @@ describe("App project restoration", () => {
 
     await user.click(screen.getByRole("button", { name: "Create a local project" }));
     expect(screen.getByRole("dialog", { name: "Create a local project" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText("Parent folder")).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText("Location")).toHaveFocus());
   });
 
   it("offers contextual initialization when an opened folder is not a repository", async () => {
@@ -965,7 +965,7 @@ describe("App project restoration", () => {
     // The way out of the failure is the primary action; dismissing steps down
     // to secondary. The alert describes itself through its message rather than
     // announcing it a second time as a live region.
-    const alert = await screen.findByRole("alertdialog", { name: "We couldn’t open that project" });
+    const alert = await screen.findByRole("alertdialog", { name: "Couldn’t open that project" });
     expect(alert).toHaveAccessibleDescription(/Git project|repository/);
     const recovery = within(alert).getByRole("button", { name: "Turn this folder into a project" });
     expect(recovery).toHaveClass("primary-button");
@@ -973,7 +973,7 @@ describe("App project restoration", () => {
 
     await user.click(recovery);
     expect(screen.getByRole("dialog", { name: "Create a local project" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Existing ordinary folder")).toHaveValue("C:\\ordinary folder");
+    expect(screen.getByLabelText("Folder")).toHaveValue("C:\\ordinary folder");
   });
 
   it("opens Settings as a sectioned dialog without replacing the active screen", async () => {
@@ -996,9 +996,9 @@ describe("App project restoration", () => {
 
     const trigger = screen.getAllByRole("button", { name: "Settings" })[0];
     expect(trigger).toHaveAttribute("data-tooltip", "Settings");
-    const login = screen.getByRole("button", { name: "Sign in — Coming soon" });
+    const login = screen.getByRole("button", { name: "Sign in — coming soon" });
     expect(login).toHaveAttribute("aria-disabled", "true");
-    expect(login).toHaveAttribute("data-tooltip", "Sign in — Coming soon");
+    expect(login).toHaveAttribute("data-tooltip", "Sign in — coming soon");
     expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
     await user.click(trigger);
 
@@ -1076,7 +1076,7 @@ describe("App project restoration", () => {
     await user.click(within(projectNavigation).getByRole("button", { name: "More" }));
     expect(
       within(screen.getByRole("menu", { name: "More" })).getByText(
-        "Work — Open a project first",
+        "Work — open a project first",
       ),
     )
       .toBeInTheDocument();
@@ -1446,7 +1446,12 @@ describe("App project restoration", () => {
       within(statusBar).getByRole("button", { name: "Check remote project changes" }),
     );
     // The band's Publish tile is where the answer lands now.
-    await screen.findByText("1 newer version available");
+    // The status bar says the same words, so the band is found by its hint class.
+    expect(
+      (await screen.findAllByText("1 newer version available")).some((node) =>
+        node.classList.contains("journey-step__hint"),
+      ),
+    ).toBe(true);
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status"),
     ).toHaveLength(localReadsBeforeRemoteCheck);
@@ -1474,7 +1479,7 @@ describe("App project restoration", () => {
       ([command]) => command === "open_repository",
     ).length;
     await userEvent.click(confirm);
-    await screen.findByRole("heading", { name: "Project changes are now included" });
+    await screen.findByRole("heading", { name: "Project changes are in" });
 
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "read_working_tree_status"),
@@ -1887,7 +1892,7 @@ describe("App project restoration", () => {
       }
       if (command === "plan_switch_version_line") {
         // Blocked by unsaved work: this is the state that offers the two
-        // hand-offs ("Save version" / "New version line with this work"),
+        // hand-offs ("Save version" / "New line with these changes"),
         // and both used to leave this dialog mounted behind whatever they
         // opened next.
         return Promise.reject({
@@ -1913,7 +1918,7 @@ describe("App project restoration", () => {
     await userEvent.click(await screen.findByRole("button", { name: "feature/spike" }));
 
     const createWithWork = await screen.findByRole("button", {
-      name: "New version line with this work",
+      name: "New line with these changes",
     });
     await userEvent.click(createWithWork);
 

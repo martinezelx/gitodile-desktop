@@ -126,7 +126,7 @@ describe("Changelog dialog", () => {
   it("marks the release the user is actually running", () => {
     renderDialog();
 
-    const current = screen.getByText("You are running this");
+    const current = screen.getByText("Your version");
     expect(current).toHaveClass("changelog-release__current");
     expect(current.closest(".changelog-release")).toHaveTextContent(`v${CURRENT_APP_RELEASE.version}`);
   });
@@ -146,7 +146,7 @@ describe("Changelog dialog", () => {
     renderDialog();
 
     const dialog = screen.getByRole("dialog", { name: "Novedades" });
-    expect(within(dialog).getByText("Estás usando esta")).toBeInTheDocument();
+    expect(within(dialog).getByText("Tu versión")).toBeInTheDocument();
     // 0.1.0 always ships highlights; the running build may not (a
     // pipeline-only preview), so the Spanish text is checked on the former.
     const first = APP_CHANGELOG.find((entry) => entry.version === "0.1.0")!;

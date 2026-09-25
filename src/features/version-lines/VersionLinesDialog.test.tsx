@@ -71,7 +71,7 @@ describe("SwitchVersionLineDialog", () => {
       </LanguageProvider>,
     );
 
-    const newLineButton = await screen.findByRole("button", { name: "New version line with this work" });
+    const newLineButton = await screen.findByRole("button", { name: "New line with these changes" });
     await userEvent.setup().click(newLineButton);
     expect(onClose).toHaveBeenCalled();
     expect(onCreateWithWork).toHaveBeenCalled();
@@ -166,10 +166,10 @@ describe("DeleteVersionLineDialog", () => {
 
     expect(
       await screen.findByText(
-        "Its work is already on main, squashed into one version (abc1234). Its original versions exist only on this line.",
+        "Its work is already on main, as one combined version (abc1234). The originals are only on this line.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/GitOdile keeps a local recovery point/)).toBeInTheDocument();
+    expect(screen.getByText(/GitOdile first saves those originals in a local recovery point/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Delete" }));
     expect(
       await screen.findByText("Its original versions are kept in a local recovery point."),
@@ -239,11 +239,11 @@ describe("DeleteVersionLineDialog", () => {
     // the shared copy goes with it unless the user says otherwise.
     const choice = await screen.findByRole("checkbox", { name: /Also delete origin\/feature\/x/ });
     expect(choice).toBeChecked();
-    expect(screen.getByText("This removes it for everyone working on this project.")).toBeInTheDocument();
+    expect(screen.getByText("It will be removed for everyone on this project.")).toBeInTheDocument();
 
     await user.click(choice);
     expect(
-      screen.getByText("origin/feature/x stays as it is, and your team keeps seeing it."),
+      screen.getByText("origin/feature/x stays, and your team still sees it."),
     ).toBeInTheDocument();
 
     await user.click(choice);
@@ -289,7 +289,7 @@ describe("DeleteVersionLineDialog", () => {
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(emptySnapshot()));
     expect(
       await screen.findByText(
-        "The version line is gone from this computer, but the published copy is still there.",
+        "The line is gone from this computer, but the published copy is still there.",
       ),
     ).toBeInTheDocument();
   });
@@ -320,7 +320,7 @@ describe("DeleteVersionLineDialog", () => {
     // failure the user could retry into working.
     expect(await screen.findByText("“feature/x” can't be deleted yet")).toBeInTheDocument();
     expect(
-      screen.getByText(/Publish this line to a remote/),
+      screen.getByText(/Publish it, so the work is also on the remote/),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
@@ -352,11 +352,11 @@ describe("DeleteVersionLineDialog", () => {
     );
 
     expect(
-      await screen.findByText(/in the middle of an unfinished Git operation/),
+      await screen.findByText(/A Git operation is unfinished here/),
     ).toBeInTheDocument();
     // Conflict resolution isn't built yet, so the dialog says so rather than
     // implying the Changes screen can fix it.
-    expect(screen.getByText(/resolving them isn't supported here yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Resolving conflicts isn't supported here yet/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "See the files in conflict" }));
     expect(onOpenChanges).toHaveBeenCalled();

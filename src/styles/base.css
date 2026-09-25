@@ -18,6 +18,12 @@ body {
      API during `pnpm dev`. In the shipped app all three theme controls animate
      the change instead, and styles/theme-transition.css suppresses this. */
   transition: color var(--duration-normal), background var(--duration-normal);
+  /* A sentence that wraps should not strand one word on a line of its own:
+     that orphan read as a stray second line under nearly every hint, note and
+     empty state. `pretty` only rebalances the last lines of a paragraph, so it
+     is cheap; it inherits everywhere, and a one-line label is unaffected. The
+     longhand leaves `text-wrap-mode` alone, so no `nowrap` is ever undone. */
+  text-wrap-style: pretty;
 }
 button { font: inherit; }
 /* Selected text follows the theme instead of the platform's blue, which sat
@@ -40,6 +46,9 @@ h1, h2, h3, p { margin-top: 0; }
 h1 { margin-bottom: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
 h2 { font-size: var(--text-title); font-weight: var(--weight-heading); }
 h3 { font-size: var(--text-subtitle); font-weight: var(--weight-heading); }
+/* A heading that needs two lines splits into two even halves rather than a
+   full line and a leftover word. */
+h1, h2, h3, h4 { text-wrap-style: balance; }
 
 button:focus-visible,
 summary:focus-visible,

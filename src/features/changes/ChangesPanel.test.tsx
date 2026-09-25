@@ -305,7 +305,7 @@ describe("ChangesPanel save selection", () => {
     expect(screen.queryByText(/will be saved to/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText('Saved "quick fix" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('Saved “quick fix” as abc123a.')).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
       path: "/repo",
       sessionEpoch: "test-epoch",
@@ -389,7 +389,7 @@ describe("ChangesPanel save selection", () => {
     // Rendered straight from the cache, with no further Git work: the diff is
     // already on screen and the count is unchanged.
     expect(await panel.findByText("No content changed")).toBeInTheDocument();
-    expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reading changes…")).not.toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
   });
 
@@ -418,11 +418,11 @@ describe("ChangesPanel save selection", () => {
       </LanguageProvider>,
     );
 
-    expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument();
-    expect(await screen.findByText("Reading the difference…")).toBeInTheDocument();
+    expect(screen.queryByText("Reading changes…")).not.toBeInTheDocument();
+    expect(await screen.findByText("Reading changes…")).toBeInTheDocument();
 
     resolvers.get("edited.txt")?.({ kind: "unchanged", path: "edited.txt" });
-    await waitFor(() => expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Reading changes…")).not.toBeInTheDocument());
   });
 
   it("shares an in-flight diff read when returning to the same file", async () => {
@@ -457,7 +457,7 @@ describe("ChangesPanel save selection", () => {
 
     resolvers.get("edited.txt")?.({ kind: "unchanged", path: "edited.txt" });
     resolvers.get("new.txt")?.({ kind: "unchanged", path: "new.txt" });
-    await waitFor(() => expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Reading changes…")).not.toBeInTheDocument());
   });
 
   it("renders a multi-hunk text diff through the virtualized line list", async () => {
@@ -829,7 +829,7 @@ describe("ChangesPanel review controls", () => {
 
     // The find is an icon until asked for, so it spends no width at rest.
     expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Search in the selected file difference" }));
+    await userEvent.click(screen.getByRole("button", { name: "Search in the selected file’s changes" }));
 
     await userEvent.type(screen.getByPlaceholderText("Search in diff"), "fifty");
     await waitFor(() =>
@@ -839,7 +839,7 @@ describe("ChangesPanel review controls", () => {
     // The pill's single X ends the find and clears the highlight with it.
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Search in the selected file difference" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search in the selected file’s changes" })).toBeInTheDocument();
     expect(document.querySelector(".diff-search-match")).toBeNull();
   });
 
@@ -861,7 +861,7 @@ describe("ChangesPanel review controls", () => {
     expect(await screen.findByText("before one")).toBeInTheDocument();
     expect(container.querySelector(".diff-split-row")).toBeNull();
 
-    await userEvent.click(screen.getByRole("button", { name: "Difference view (Unified)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Diff view (Unified)" }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "Split" }));
 
     await waitFor(() => expect(container.querySelector(".diff-split-row")).not.toBeNull());
@@ -918,7 +918,7 @@ describe("ChangesPanel review controls", () => {
     renderPanel();
 
     await screen.findByText("before one");
-    await userEvent.click(screen.getByRole("button", { name: "Difference view (Unified)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Diff view (Unified)" }));
 
     const unified = screen.getByRole("menuitemradio", { name: "Unified" });
     expect(unified).toHaveFocus();
@@ -926,7 +926,7 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("menuitemradio", { name: "Accessible text" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
 
-    const completeDiff = screen.getByLabelText("Complete difference as accessible text");
+    const completeDiff = screen.getByLabelText("All changes as accessible text");
     expect(completeDiff).toHaveTextContent("@@ -1,2 +1,2 @@");
     expect(completeDiff).toHaveTextContent("-before one");
     expect(completeDiff).toHaveTextContent("+after fifty");
@@ -971,8 +971,8 @@ describe("ChangesPanel review controls", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard this file’s changes…" }));
     expect(await screen.findByRole("heading", { name: "Discard this file’s changes?" })).toBeInTheDocument();
     await screen.findByText("edited.txt goes back to its last saved version.");
-    await userEvent.click(screen.getByRole("button", { name: "Discard these changes" }));
-    expect(await screen.findByText("1 file went back to its last saved version.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(await screen.findByText("1 file is back to its last saved version.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo discard" })).toBeInTheDocument();
   });
 
@@ -1058,7 +1058,7 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Check local changes" })).toHaveTextContent("Update now");
     view.rerender(panel(true));
     expect(screen.getByText("Automatic updates are off")).toBeInTheDocument();
-    const busyUpdate = screen.getByRole("button", { name: "GitOdile is looking at your project files." });
+    const busyUpdate = screen.getByRole("button", { name: "Looking at your project files." });
     expect(busyUpdate).toHaveTextContent("Updating…");
     expect(busyUpdate.querySelector(".icon--spinning")).not.toBeNull();
     view.rerender(panel(false));
@@ -1151,14 +1151,14 @@ describe("ChangesPanel review controls", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard all changes…" }));
 
     // No dialog, no second click: the work is gone and the screen says so.
-    expect(await screen.findByText("2 files went back to their last saved version.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files are back to their last saved version.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Discard all unsaved changes?" })).toBeNull();
     expect(discarded).toEqual([
       { path: "/repo", sessionEpoch: "test-epoch", selectedPath: null, stateToken: "before" },
     ]);
 
     await userEvent.click(screen.getByRole("button", { name: "Undo discard" }));
-    expect(await screen.findByText("2 files are back where they were.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files restored.")).toBeInTheDocument();
     expect(restores).toBe(1);
   });
 
@@ -1213,16 +1213,16 @@ describe("ChangesPanel review controls", () => {
     // The one whose own files were written again is kept and folded away —
     // its copy is still on disk — and says why when asked for.
     expect(screen.queryByText("a.txt, b.txt, c.txt, d.txt and 1 more")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "1 more can’t be restored right now" }));
+    await userEvent.click(screen.getByRole("button", { name: "1 more can’t be restored now" }));
     expect(screen.getByText("a.txt, b.txt, c.txt, d.txt and 1 more")).toBeInTheDocument();
-    expect(screen.getByText(/One of these files changed after this discard/)).toBeInTheDocument();
+    expect(screen.getByText(/A file changed since, so restoring would overwrite newer work/)).toBeInTheDocument();
     // This one matches the project as a whole, so it says nothing about
     // prepared changes: it puts them back with the files.
     expect(screen.queryByText(/Prepared changes stay/)).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Restore these changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Restore" }));
 
-    expect(await screen.findByText("2 files are back where they were.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files restored.")).toBeInTheDocument();
     expect(restores).toEqual([
       { path: "/repo", sessionEpoch: "test-epoch", recoveryId: "discard-2", stateToken: "token-2" },
     ]);
@@ -1481,7 +1481,7 @@ describe("ChangesPanel clean state", () => {
       upstream: { upstream: "origin/main", ahead: 0, behind: 2 },
     });
 
-    expect(screen.getByText(/2 newer project changes/)).toBeInTheDocument();
+    expect(screen.getByText(/2 newer versions are available/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Get project changes" }));
@@ -1687,10 +1687,10 @@ describe("ChangesPanel filters", () => {
 
     // The stub rejects everything but `read_file_diff`. The menu that asked is
     // already gone, so the message needs a surface that outlives it.
-    const notice = await screen.findByText("That file couldn't be shown.");
+    const notice = await screen.findByText("Couldn’t show that file.");
     expect(notice.closest(".changes-notice--error")).not.toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
-    expect(screen.queryByText("That file couldn't be shown.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Couldn’t show that file.")).not.toBeInTheDocument();
   });
 
   it("offers the file types most of the list first and narrows by one", async () => {
@@ -1842,7 +1842,7 @@ describe("ChangesPanel filters", () => {
     await userEvent.click(within(panel).getByRole("radio", { name: "No" }));
     await userEvent.keyboard("{Escape}");
 
-    expect(screen.getByText("No changed file matches what you are looking for.")).toBeInTheDocument();
+    expect(screen.getByText("No changed file matches these filters.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
 
     expect(listedFiles(container)).toHaveLength(5);

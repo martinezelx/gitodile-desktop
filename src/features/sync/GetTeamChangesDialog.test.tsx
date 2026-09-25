@@ -123,11 +123,11 @@ function renderDialog(syncController: SyncController, onApplied = vi.fn(async ()
 describe("Get project changes dialog", () => {
   it("leads with incoming versions, affected files, destination, guarantees, and technical evidence", async () => {
     renderDialog(controller());
-    expect(await screen.findByRole("heading", { name: "2 incoming saved versions" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "2 incoming versions" })).toBeInTheDocument();
     expect(screen.getByText("Team work")).toBeInTheDocument();
     expect(screen.getByText("new.bin")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Fast-forward only" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Recovery comes first" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Straight ahead only" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "A recovery point first" })).toBeInTheDocument();
     await userEvent.click(screen.getByText("Technical details"));
     expect(screen.getByText(plan.recovery.reference)).toBeInTheDocument();
     expect(screen.getByText("opaque-token")).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe("Get project changes dialog", () => {
     });
     const { onPhaseChange } = renderDialog(syncController, onApplied);
     await userEvent.click(await screen.findByRole("button", { name: "Get these versions" }));
-    await screen.findByRole("heading", { name: "Project changes are now included" });
+    await screen.findByRole("heading", { name: "Project changes are in" });
     expect(onApplied).toHaveBeenCalledOnce();
     expect(onPhaseChange).toHaveBeenCalledWith("verifying");
     expect(onPhaseChange).toHaveBeenLastCalledWith("success");
@@ -157,8 +157,8 @@ describe("Get project changes dialog", () => {
     const onApplied = vi.fn(async () => undefined);
     renderDialog(controller({ get: vi.fn(async () => result("uncertain")) }), onApplied);
     await userEvent.click(await screen.findByRole("button", { name: "Get these versions" }));
-    expect(await screen.findByRole("heading", { name: "The local result needs inspection" })).toBeInTheDocument();
-    expect(screen.getByText(/Inspect the current files and saved version/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Check the result" })).toBeInTheDocument();
+    expect(screen.getByText(/Check your files and current version/)).toBeInTheDocument();
     expect(screen.getByText(plan.recovery.reference)).toBeInTheDocument();
     expect(onApplied).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /Try|Review updated/ })).not.toBeInTheDocument();
@@ -171,7 +171,7 @@ describe("Get project changes dialog", () => {
       }),
     }));
     expect(await screen.findByRole("heading", { name: "Both sides changed" })).toBeInTheDocument();
-    expect(screen.getByText(/retrying unchanged would fail again/)).toBeInTheDocument();
+    expect(screen.getByText(/retrying would fail again/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });
 
@@ -185,7 +185,7 @@ describe("Get project changes dialog", () => {
         };
       }),
     }));
-    expect(await screen.findByText(/overlap files in the team update/)).toBeInTheDocument();
+    expect(await screen.findByText(/touch files in the update/)).toBeInTheDocument();
     expect(screen.queryByText(/switch version lines/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });

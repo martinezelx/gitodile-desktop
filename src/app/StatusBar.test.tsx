@@ -210,13 +210,13 @@ describe("StatusBar", () => {
 
   it.each([
     ["ahead", "2 versions to publish"],
-    ["behind", "3 project versions available"],
+    ["behind", "3 newer versions available"],
     ["diverged", "Both sides changed"],
     ["noRemote", "No remote connected"],
     ["noUpstream", "No publish destination"],
     ["unborn", "Save a version to compare"],
     ["detached", "Switch lines to compare"],
-    ["unknown", "Project sync unavailable"],
+    ["unknown", "Sync status unavailable"],
   ] satisfies Array<[TeamSyncState, string]>) ("maps %s without falling back to an optimistic state", (state, label) => {
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) } });
     expect(screen.getByText(label)).toBeInTheDocument();
@@ -248,8 +248,8 @@ describe("StatusBar", () => {
       teamSync: { ...EMPTY_TEAM_SYNC_STATE, isLoading: true, isCheckingRemote: true },
     });
     expect(screen.getByText("Checking changes…")).toBeInTheDocument();
-    expect(screen.getByText("Checking project changes…")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Checking project changes…" })).toBeDisabled();
+    expect(screen.getByText("Checking the remote…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Checking the remote…" })).toBeDisabled();
 
     const cached = { ...syncStatus(), knowledge: "cached" as const, checkedAt: null };
     rerender(
@@ -297,7 +297,7 @@ describe("StatusBar", () => {
     );
     expect(screen.getByText("Changes unavailable").closest(".status-bar__changes")).toHaveClass("status-bar__changes--error");
     // Doubt takes the word; the last known state moves to the tooltip.
-    const stale = screen.getByText("May be outdated").closest(".status-bar__sync");
+    const stale = screen.getByText("May be out of date").closest(".status-bar__sync");
     expect(stale).toHaveClass("status-bar__sync--warning");
     expect(stale).toHaveAttribute("data-tooltip", expect.stringContaining("Up to date"));
   });

@@ -167,11 +167,11 @@ describe("InitializeProjectDialog", () => {
       initialMode: "existing-folder",
       initialExistingPath: "C:\\ordinary folder",
     });
-    expect(screen.getByLabelText("Existing ordinary folder")).toHaveValue("C:\\ordinary folder");
-    await userEvent.click(screen.getByRole("button", { name: "Review local setup" }));
-    expect(await screen.findByText(/3 existing top-level items stay byte-for-byte untouched/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Folder")).toHaveValue("C:\\ordinary folder");
+    await userEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    expect(await screen.findByText(/3 existing items stay untouched/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Create and open project" }));
-    expect(await screen.findByText("Your local project is ready")).toBeInTheDocument();
+    expect(await screen.findByText("Your project is ready")).toBeInTheDocument();
     expect(port.execute).toHaveBeenCalledOnce();
     expect(onInitialized).toHaveBeenCalledOnce();
     expect((port.execute as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toMatchObject({
@@ -184,15 +184,15 @@ describe("InitializeProjectDialog", () => {
   it("creates README and saves the first version only after explicit checks", async () => {
     const savePort = makeSavePort();
     const { port, onProjectChanged } = renderDialog({ savePort });
-    await userEvent.type(screen.getByLabelText("Parent folder"), "C:\\projects");
+    await userEvent.type(screen.getByLabelText("Location"), "C:\\projects");
     await userEvent.type(screen.getByLabelText(/^Project folder name/), "demo");
     await userEvent.click(screen.getByLabelText(/^Add a README\.md/));
     await userEvent.click(screen.getByLabelText(/^Save the first version/));
-    await userEvent.click(screen.getByRole("button", { name: "Review local setup" }));
-    expect(await screen.findByText(/Creates README.md only/i)).toBeInTheDocument();
-    expect(screen.getByText(/normal hook- and signing-aware flow/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    expect(await screen.findByText(/Adds README.md, unless/i)).toBeInTheDocument();
+    expect(screen.getByText(/running your hooks and signing as usual/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Create and open project" }));
-    expect(await screen.findByText("Your local project is ready")).toBeInTheDocument();
+    expect(await screen.findByText("Your project is ready")).toBeInTheDocument();
     expect(port.plan).toHaveBeenCalledWith(expect.objectContaining({ createReadme: true, saveInitialVersion: true }));
     expect(savePort.plan).toHaveBeenCalledWith(expect.objectContaining({ sessionEpoch: "epoch-new" }));
     expect(savePort.save).toHaveBeenCalledWith(expect.objectContaining({ title: "First version", stateToken: "save-token" }));
@@ -206,11 +206,11 @@ describe("InitializeProjectDialog", () => {
       identityReady: false,
     })) });
     const { onOpenIdentitySettings, onClose } = renderDialog({ port });
-    await userEvent.type(screen.getByLabelText("Parent folder"), "C:\\projects");
+    await userEvent.type(screen.getByLabelText("Location"), "C:\\projects");
     await userEvent.type(screen.getByLabelText(/^Project folder name/), "demo");
     await userEvent.click(screen.getByLabelText(/^Save the first version/));
-    await userEvent.click(screen.getByRole("button", { name: "Review local setup" }));
-    expect(await screen.findByText(/needs a Git name and email/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Review setup" }));
+    expect(await screen.findByText(/needs your name and email/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create and open project" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Open identity settings" }));
     expect(onClose).toHaveBeenCalledOnce();
@@ -219,33 +219,33 @@ describe("InitializeProjectDialog", () => {
 
   it("keeps remote configuration behind a separate no-network preview", async () => {
     const { port, onProjectChanged } = renderDialog();
-    await userEvent.type(screen.getByLabelText("Parent folder"), "C:\\projects");
+    await userEvent.type(screen.getByLabelText("Location"), "C:\\projects");
     await userEvent.type(screen.getByLabelText(/^Project folder name/), "demo");
-    await userEvent.click(screen.getByLabelText(/^Connect a remote after local setup/));
-    await userEvent.type(screen.getByLabelText("Remote Git URL"), "https://alice:secret@example.test/team/demo.git?token=hidden");
-    await userEvent.click(screen.getByRole("button", { name: "Review local setup" }));
+    await userEvent.click(screen.getByLabelText(/^Connect a remote afterwards/));
+    await userEvent.type(screen.getByLabelText("Remote address"), "https://alice:secret@example.test/team/demo.git?token=hidden");
+    await userEvent.click(screen.getByRole("button", { name: "Review setup" }));
     expect(port.planRemote).not.toHaveBeenCalled();
     await userEvent.click(await screen.findByRole("button", { name: "Create and open project" }));
     expect(await screen.findByText("Review the remote connection")).toBeInTheDocument();
     expect(screen.getAllByText("https://example.test/team/demo.git")).toHaveLength(2);
     expect(screen.queryByText(/alice|secret|token=hidden/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/No network request happens/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is sent over the network now/i)).toBeInTheDocument();
     expect(port.connectRemote).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Connect remote" }));
-    expect(await screen.findByText("Local project and remote are ready")).toBeInTheDocument();
+    expect(await screen.findByText("Project and remote are ready")).toBeInTheDocument();
     expect(port.connectRemote).toHaveBeenCalledOnce();
     expect(onProjectChanged).toHaveBeenCalledWith(project.path);
   });
 
   it("explains an empty required field inline instead of leaving the action disabled", async () => {
     const { port } = renderDialog();
-    const review = screen.getByRole("button", { name: "Review local setup" });
+    const review = screen.getByRole("button", { name: "Review setup" });
     expect(review).toBeEnabled();
     await userEvent.click(review);
 
     expect(port.plan).not.toHaveBeenCalled();
     expect(await screen.findAllByText("Fill in this field.")).toHaveLength(2);
-    const parent = screen.getByLabelText("Parent folder");
+    const parent = screen.getByLabelText("Location");
     expect(parent).toHaveAttribute("aria-invalid", "true");
     expect(parent).toHaveFocus();
 
@@ -257,7 +257,7 @@ describe("InitializeProjectDialog", () => {
 
   it("keeps focus in the dialog and restores the caller through close", async () => {
     const { onClose } = renderDialog();
-    await waitFor(() => expect(screen.getByLabelText("Parent folder")).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText("Location")).toHaveFocus());
     await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledOnce();
   });

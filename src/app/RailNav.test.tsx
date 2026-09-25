@@ -22,7 +22,7 @@ const items = [
   item("Changes"),
   item("Version lines"),
   item("History"),
-  item("Recovery", { isDisabled: true, disabledLabel: "Recovery — Coming soon" }),
+  item("Recovery", { isDisabled: true, disabledLabel: "Recovery — coming soon" }),
 ];
 
 const defaultResizeObserver = globalThis.ResizeObserver;
@@ -55,9 +55,9 @@ describe("RailNav", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["Overview", "Changes", "Version lines", "History", "Recovery", "More"]);
-    const recovery = screen.getByRole("button", { name: "Recovery — Coming soon" });
+    const recovery = screen.getByRole("button", { name: "Recovery — coming soon" });
     expect(recovery).toHaveAttribute("aria-disabled", "true");
-    expect(recovery).toHaveAttribute("data-tooltip", "Recovery — Coming soon");
+    expect(recovery).toHaveAttribute("data-tooltip", "Recovery — coming soon");
     await userEvent.click(recovery);
     expect(items[4].onSelect).not.toHaveBeenCalled();
     expect(screen.getByRole("navigation", { name: "Project navigation" })).not.toHaveClass(
@@ -121,10 +121,10 @@ describe("RailNav", () => {
     expect(within(menu).getAllByRole("menuitem").map((entry) => entry.textContent)).toEqual([
       "Version lines",
       "History",
-      "Recovery — Coming soon",
+      "Recovery — coming soon",
       "Customize navigation bar",
     ]);
-    expect(within(menu).getByRole("menuitem", { name: "Recovery — Coming soon" })).toBeDisabled();
+    expect(within(menu).getByRole("menuitem", { name: "Recovery — coming soon" })).toBeDisabled();
 
     await userEvent.click(within(menu).getByRole("menuitem", { name: "History" }));
     expect(history.onSelect).toHaveBeenCalledOnce();

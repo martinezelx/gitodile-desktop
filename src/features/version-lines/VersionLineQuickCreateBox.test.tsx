@@ -314,7 +314,7 @@ describe("VersionLineQuickCreateBox", () => {
     const field = screen.getByLabelText("New line name");
     await userEvent.type(field, "my line");
 
-    expect(screen.getByText("Names can't contain spaces. Use hyphens instead, like my-line.")).toBeInTheDocument();
+    expect(screen.getByText("No spaces. Use hyphens instead, like my-line.")).toBeInTheDocument();
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("button", { name: "Create and switch" })).toBeDisabled();
 
@@ -399,7 +399,7 @@ describe("VersionLineQuickCreateBox", () => {
     expect(screen.queryByRole("checkbox", { name: "Switch to it" })).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "This project isn't on a version line right now, so GitOdile will switch to the new one to keep this commit easy to find.",
+        "You're not on a version line, so GitOdile will switch to the new one to keep this work easy to find.",
       ),
     ).toBeInTheDocument();
 

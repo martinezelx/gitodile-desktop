@@ -168,10 +168,10 @@ describe("VersionLineQuickSwitch", () => {
     await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
     const lineButtons = screen.getAllByRole("button", { name: /^feature\/\d$/ });
     expect(lineButtons[0]).toHaveAccessibleName("feature/4");
-    await userEvent.click(screen.getByRole("button", { name: "Add feature/2 to favourites" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add feature/2 to favorites" }));
     expect(onToggleFavourite).toHaveBeenCalledWith("feature/2");
 
-    await userEvent.click(screen.getByRole("button", { name: "Show favourites only" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show favorites only" }));
     expect(screen.getByRole("button", { name: "feature/4" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "feature/1" })).not.toBeInTheDocument();
   });

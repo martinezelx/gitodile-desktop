@@ -334,7 +334,7 @@ describe("About dialog", () => {
     renderOverlays();
 
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
-    expect(dialog).toHaveTextContent("Turns version control into clear, worry-free steps.");
+    expect(dialog).toHaveTextContent("Version control in clear, worry-free steps.");
     expect(dialog).toHaveTextContent(`v${__APP_VERSION__}`);
     expect(dialog.querySelector(".about-dialog__release")).toHaveAccessibleName(
       `GitOdile ${__APP_VERSION__} preview`,

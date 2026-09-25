@@ -66,7 +66,7 @@ describe("JourneySection", () => {
     const current = within(steps).getByRole("button", { name: "Save version" });
     expect(current).toHaveAttribute("aria-current", "step");
     expect(current.querySelector(".journey-step__value")).toHaveTextContent("Save version");
-    expect(current.querySelector(".journey-step__hint")).toHaveTextContent("Keep what you have safe");
+    expect(current.querySelector(".journey-step__hint")).toHaveTextContent("Keep your work safe");
     await user.click(current);
     expect(props.onSaveVersion).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "Save version" })).toBe(current);
@@ -145,7 +145,7 @@ describe("JourneySection", () => {
     expect(settings).toHaveLength(2);
     await user.click(settings[0]);
     expect(props.onOpenProjectSettings).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("status")).toHaveTextContent("Add a remote project whenever you want to share it.");
+    expect(screen.getByRole("status")).toHaveTextContent("Add a remote whenever you want to share it.");
     cleanup();
 
     renderBand(journey({ activeStep: null, changes: { state: "clean", total: 0, conflicted: 0 }, save: { state: "done" } }));

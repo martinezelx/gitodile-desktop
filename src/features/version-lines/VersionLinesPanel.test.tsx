@@ -169,7 +169,7 @@ describe("VersionLinesPanel", () => {
 
     const notice = screen.getByText("This screen may be out of date.").closest(".automatic-updates-notice");
     expect(notice).not.toBeNull();
-    await userEvent.click(within(notice as HTMLElement).getByRole("button", { name: "Update version lines" }));
+    await userEvent.click(within(notice as HTMLElement).getByRole("button", { name: "Refresh version lines" }));
     expect(onRefresh).toHaveBeenCalledOnce();
 
     await userEvent.click(within(notice as HTMLElement).getByRole("button", { name: "Turn on automatic updates" }));
@@ -225,7 +225,7 @@ describe("VersionLinesPanel", () => {
     expect(row).toHaveAccessibleDescription("Local only, Safe to delete");
     expect(row.querySelector(".state-glyph")).toHaveAttribute(
       "data-tooltip",
-      "Local only — never published, so it exists only on this computer",
+      "Local only — never published, so it's only on this computer",
     );
     // Active is a glyph on the row — the word is the detail strip's, and the
     // row's accessible name still says it.
@@ -270,7 +270,7 @@ describe("VersionLinesPanel", () => {
 
     expect(listedNames()).toContain("feature/new-thing");
     expect(
-      screen.getByText("This is the last result we could read. The latest check didn’t work."),
+      screen.getByText("The latest check failed. This is the last known result."),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(onRefresh).toHaveBeenCalledOnce();
@@ -415,8 +415,8 @@ describe("VersionLinesPanel", () => {
       snapshot: snapshot({ branch: null, headState: "detached", lines: [snapshot().lines[1]], totalCount: 1 }),
     });
 
-    expect(await screen.findByText("This project isn't on a version line right now")).toBeInTheDocument();
-    expect(screen.getByText("Create a version line here")).toBeInTheDocument();
+    expect(await screen.findByText("Not on a version line")).toBeInTheDocument();
+    expect(screen.getByText("Create a line here")).toBeInTheDocument();
   });
 
   it("disables Switch and Delete for a line checked out in another worktree", async () => {
@@ -429,7 +429,7 @@ describe("VersionLinesPanel", () => {
 
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
-    expect(within(detail).getByText(/Open in another workspace at \/other\/workspace/)).toBeInTheDocument();
+    expect(within(detail).getByText(/Open in another workspace \(\/other\/workspace\)/)).toBeInTheDocument();
     expect(within(detail).getByRole("button", { name: "Switch to “feature/new-thing”" })).toBeDisabled();
     expect(
       within(detail).getByRole("button", { name: /“feature\/new-thing” is open in another workspace/ }),
@@ -442,7 +442,7 @@ describe("VersionLinesPanel", () => {
   it("surfaces a retry action when discovery fails with nothing cached", async () => {
     const { onRefresh } = renderPanel({
       snapshot: null,
-      error: "GitOdile couldn't load this project's version lines.",
+      error: "Couldn't load this project's version lines.",
     });
 
     await userEvent.click(await screen.findByText("Try again"));
@@ -584,7 +584,7 @@ describe("VersionLinesPanel", () => {
     expect(field).toHaveValue("feature/new-thing");
     expect(field).toHaveFocus();
     expect(
-      within(detail).getByText("Only the name changes — every saved version stays where it is"),
+      within(detail).getByText("Only the name changes"),
     ).toBeInTheDocument();
     // Unchanged, there is nothing to rename.
     expect(within(detail).getByRole("button", { name: "Rename" })).toBeDisabled();
@@ -667,7 +667,7 @@ describe("VersionLinesPanel", () => {
     expect(within(detail).queryByRole("button", { name: /^Delete/ })).not.toBeInTheDocument();
     expect(
       within(detail).getByText(
-        "This is where the project's shared work lives, so GitOdile doesn't rename or delete it.",
+        "Shared work lives here, so GitOdile doesn't rename or delete it.",
       ),
     ).toBeInTheDocument();
   });
@@ -678,7 +678,7 @@ describe("VersionLinesPanel", () => {
     // The names themselves are never invented: the count is all the screen can
     // honestly show, and the other lines stay usable.
     expect(
-      screen.getByText(/2 version lines aren't shown: their names use characters/),
+      screen.getByText(/2 version lines are hidden because their names can't be read/),
     ).toBeInTheDocument();
     expect(listedNames()).toContain("feature/new-thing");
   });
@@ -779,10 +779,10 @@ describe("VersionLinesPanel", () => {
     });
 
     const rowFor = (name: string) => screen.getByRole("option", { name });
-    expect(rowFor("feature/ahead")).toHaveAccessibleDescription(expect.stringContaining("2 not pushed"));
+    expect(rowFor("feature/ahead")).toHaveAccessibleDescription(expect.stringContaining("2 not published"));
     // Two arrows on the row, one sentence for a screen reader.
     expect(rowFor("feature/diverged")).toHaveAccessibleDescription(
-      expect.stringContaining("1 not pushed, 3 not pulled"),
+      expect.stringContaining("1 not published, 3 to get"),
     );
     expect(rowFor("feature/diverged").textContent).toContain("1");
     expect(rowFor("feature/gone")).toHaveAccessibleDescription(expect.stringContaining("Remote branch deleted"));
@@ -796,7 +796,7 @@ describe("VersionLinesPanel", () => {
     const detail = detailPanel("feature/synced");
     expect(within(detail).getAllByText("Up to date with the remote").length).toBeGreaterThan(0);
     expect(
-      within(detail).getByText("Your local line is in sync with origin/feature/synced."),
+      within(detail).getByText("In sync with origin/feature/synced."),
     ).toBeInTheDocument();
     // The upstream is named once, in that sentence — not again in the strip
     // over it.
@@ -813,7 +813,7 @@ describe("VersionLinesPanel", () => {
     const detail = detailPanel("feature/new-thing");
     expect(within(detail).getByText("Not published yet")).toBeInTheDocument();
     expect(
-      within(detail).getAllByText("This line has never been published, so it only exists on this computer.").length,
+      within(detail).getAllByText("Never published, so it's only on this computer.").length,
     ).toBeGreaterThan(0);
     // No main line in this project, so no count: "not on the active line"
     // would be a different question asked in the same words.
@@ -834,7 +834,7 @@ describe("VersionLinesPanel", () => {
     });
 
     const active = detailPanel("feature/new-thing");
-    expect(within(active).getByText("This is the line you're working on")).toBeInTheDocument();
+    expect(within(active).getByText("The line you're working on")).toBeInTheDocument();
     expect(within(active).getByText("2 versions not on main")).toBeInTheDocument();
 
     // The main line is what the others are counted against.
@@ -849,7 +849,7 @@ describe("VersionLinesPanel", () => {
 
     expect(within(detailPanel("main")).getByRole("button", { name: "Open in History" })).toHaveAttribute(
       "title",
-      "View all versions, compare changes, and restore previous states.",
+      "See every version, compare changes and go back to earlier states.",
     );
 
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
@@ -857,7 +857,7 @@ describe("VersionLinesPanel", () => {
     const open = within(detail).getByRole("button", { name: "Open in History" });
     expect(open).toHaveAttribute(
       "title",
-      "Opens History reading “feature/new-thing”. Nothing is checked out, so this project stays where it is.",
+      "Shows “feature/new-thing” in History without switching to it.",
     );
 
     // The line being looked at, not the line that happens to be active.
@@ -923,7 +923,7 @@ describe("VersionLinesPanel", () => {
     const route = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "Route" });
     // Never published, so both of its own versions are still on this machine.
     expect(
-      within(route).getByText(/^Left main on .+\. 2 versions of its own \(2 not published yet\); main has saved 3 since\.$/),
+      within(route).getByText(/^Left main on .+\. 2 versions of its own \(2 not published yet\)\. main has 3 new versions since\.$/),
     ).toBeInTheDocument();
   });
 
@@ -955,7 +955,7 @@ describe("VersionLinesPanel", () => {
     const route = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "Route" });
     expect(
       within(route).getByText(
-        /^Left main on .+\. Its work came back on .+ squashed into one version; the 2 original versions are only on this line\. main hasn't moved since\.$/,
+        /^Left main on .+\. Its work came back on .+ as one combined version; the 2 originals are only on this line\. main hasn't moved since\.$/,
       ),
     ).toBeInTheDocument();
     expect(route.querySelector(".version-lines-route__mark--copy")).not.toBeNull();
@@ -998,7 +998,7 @@ describe("VersionLinesPanel", () => {
 
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
-    const changes = await within(detail).findByRole("region", { name: "What changes against main" });
+    const changes = await within(detail).findByRole("region", { name: "Changes compared to main" });
     expect(changes).toHaveTextContent("3 files+42−7since it left");
     expect(within(changes).getByText("new.ts")).toBeInTheDocument();
     expect(within(changes).getAllByText("src/app/")).toHaveLength(2);
@@ -1149,7 +1149,7 @@ describe("VersionLinesPanel", () => {
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
     const route = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "Route" });
     expect(
-      within(route).getByText(/^Left main on .+ and came back on .+ with 2 versions; main has saved 4 since\.$/),
+      within(route).getByText(/^Left main on .+ and came back on .+ with 2 versions\. main has 4 new versions since\.$/),
     ).toBeInTheDocument();
 
     // A dot names its version on the tooltip and opens it on the line it is on.
@@ -1351,7 +1351,7 @@ describe("VersionLinesPanel", () => {
       }),
     });
 
-    const blocked = /“feature\/new-thing” has saved work that isn't kept anywhere else yet/;
+    const blocked = /“feature\/new-thing” has work that exists nowhere else/;
     expect(
       within(detailPanel("main")).queryByRole("button", { name: blocked }),
     ).not.toBeInTheDocument();
@@ -1392,7 +1392,7 @@ describe("VersionLinesPanel", () => {
     await user.click(screen.getByRole("menuitem", { name: "Copy name" }));
 
     expect(
-      await screen.findByText("GitOdile couldn't copy the name to the clipboard."),
+      await screen.findByText("Couldn't copy the name."),
     ).toBeInTheDocument();
     // Still open, so the failure is attached to the thing that failed.
     expect(screen.getByRole("menu")).toBeInTheDocument();

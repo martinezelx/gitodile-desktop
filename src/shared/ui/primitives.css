@@ -171,6 +171,11 @@
   padding: 6px var(--space-3);
   font-size: var(--control-font-sm);
 }
+/* An icon in a labelled button is the label's size, not the icon library's
+   24px default: without this, every button that forgot its own rule drew a
+   glyph twice the height of its text (Check for updates, Manual download). */
+.primary-button svg, .secondary-button svg { flex-shrink: 0; width: 16px; height: 16px; }
+.primary-button--sm svg, .secondary-button--sm svg { width: 14px; height: 14px; }
 .primary-button { background: var(--accent-primary-fill); color: var(--accent-primary-contrast); border-color: transparent; font-weight: var(--weight-title); }
 .primary-button:not(:disabled):hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .secondary-button { background: var(--surface-hover); color: var(--text-primary-color); }
@@ -225,6 +230,11 @@
   from { opacity: 0; transform: translate(-50%, 2px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* SentenceLines: each sentence is one unit. Two that fit share a line; when
+   they do not, the second moves down whole, so the break lands on the full
+   stop instead of mid-phrase. */
+.sentence-line { display: inline-block; }
 
 .empty-state {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1101,7 +1111,7 @@
 .settings-group__header { padding: 0; }
 .settings-group__header h3 { margin: 0 0 4px; font-size: var(--text-lead); line-height: var(--leading-snug); }
 .settings-group__header p {
-  max-width: 68ch; margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal);
+  margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal);
 }
 .settings-group__body {
   padding: 0;
@@ -1142,7 +1152,14 @@
 .settings-row__status { min-height: 18px; }
 .settings-row + .settings-row { margin-top: var(--space-4); }
 .settings-row strong { display: block; margin-bottom: 3px; font-size: var(--text-body); line-height: var(--leading-snug); }
-.settings-row p { max-width: 64ch; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); margin-bottom: 0; }
+/* The label column takes whatever the control leaves. A measure in `ch` sat a
+   description at ~450px beside a 40px switch in a 710px row, so one sentence
+   that fit the row still broke onto a second line. The settings column is
+   itself bounded, which keeps a line comfortably short. The block that grows
+   is the one holding the label, not the first child: a row can lead with an
+   icon (Notifications), and that must keep its own size. */
+.settings-row > :has(> strong) { flex: 1 1 auto; min-width: 0; }
+.settings-row p { color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); margin-bottom: 0; }
 .settings-row__hint {
   display: flex; align-items: center; gap: 6px; margin: 0;
   color: var(--text-secondary-color); font-size: var(--text-label);
@@ -1170,39 +1187,23 @@
 }
 
 /* One line that states a status in a tone the reader can take in before the
-   words: a small icon, one sentence, a tinted capsule. Six tones, and the two
+   words: a small icon and one sentence in the tone's ink. Six tones, and the two
    quiet ones (neutral, progress) share the resting look so that "not checked
    yet" and "checking…" never look like verdicts. Worn by the Git installation
    row and by the application updater, so exactly one sheet defines it. */
+/* Toned text, not a capsule: the capsule's tinted fill and border made a
+   status line the heaviest thing in its row — heavier than the version it
+   describes. The icon and the ink carry the tone on their own. */
 .status-line {
   display: inline-flex; align-items: flex-start; gap: 7px;
-  max-width: 60ch; margin: 0; padding: 5px var(--space-3);
-  border: 1px solid transparent; border-radius: var(--radius-surface);
-  background: var(--surface-hover);
+  max-width: 60ch; margin: 0; padding: 0;
   color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
 }
 .status-line svg { flex-shrink: 0; width: 14px; height: 14px; margin-top: 2px; }
-.status-line--success {
-  border-color: color-mix(in srgb, var(--status-success) 40%, transparent);
-  background: color-mix(in srgb, var(--status-success) 10%, transparent);
-  color: var(--status-success);
-}
-.status-line--accent {
-  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-  color: var(--accent-primary);
-  font-weight: var(--weight-heading);
-}
-.status-line--warning {
-  border-color: color-mix(in srgb, var(--status-warning) 40%, transparent);
-  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
-  color: var(--status-warning);
-}
-.status-line--danger {
-  border-color: color-mix(in srgb, var(--status-danger) 40%, transparent);
-  background: color-mix(in srgb, var(--status-danger) 10%, transparent);
-  color: var(--status-danger);
-}
+.status-line--success { color: var(--status-success); }
+.status-line--accent { color: var(--accent-primary); font-weight: var(--weight-heading); }
+.status-line--warning { color: var(--status-warning); }
+.status-line--danger { color: var(--status-danger); }
 .status-line--neutral,
 .status-line--progress { color: var(--text-secondary-color); }
 

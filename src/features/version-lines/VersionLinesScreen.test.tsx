@@ -71,13 +71,13 @@ describe("VersionLinesScreen lifecycle", () => {
       </LanguageProvider>,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Update version lines" }));
+    await userEvent.click(screen.getByRole("button", { name: "Refresh version lines" }));
     expect(read).toHaveBeenCalledWith(query);
     expect(screen.getByRole("button", { name: "Loading version lines…" })).toBeDisabled();
 
     resolveRead(snapshot("feature/new"));
     expect(await screen.findAllByText("feature/new")).not.toHaveLength(0);
-    expect(screen.getByRole("button", { name: "Update version lines" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Refresh version lines" })).toBeEnabled();
   });
 
   it("does not read on arrival, freezes while hidden, and synchronizes on activation", () => {

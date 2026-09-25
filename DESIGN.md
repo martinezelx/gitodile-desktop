@@ -63,7 +63,15 @@ The main desktop window should broadly support:
      back on, but its place is held, so the empty block never resizes under the
      pointer. The long explanation of what
      gets reported stays in Settings, where it is the point rather than a
-     paragraph under an empty inbox.
+     paragraph under an empty inbox. There it is one group on one icon column:
+     the switch leads with the bell, and the events hang under its label as a
+     bordered list ("You'll be told when…"), each with the icon its
+     notification wears and no control of its own, so they read as what the
+     switch covers rather than as settings missing a switch. A kind recorded as
+     already read carries a "Silent" tag instead of a sentence explaining it.
+     With notifications off the bell is struck through and the list stays, in
+     the secondary ink and down to its names, so what turning it on gives is
+     still in view.
 
 2. **Navigation rail** — a 64px column with no surface of its own: no fill, no
    border, no shadow. The window chrome (titlebar, rail, status bar) is one
@@ -111,7 +119,12 @@ The main desktop window should broadly support:
    - "More" is always the final destination tile. As the window loses height,
      the trailing destinations move into its menu in order instead of making
      the narrow rail scroll. The menu always ends after a separator with
-     "Customize navigation bar", which opens the dedicated Settings section;
+     "Customize navigation bar", which opens the dedicated Settings section.
+     There the destinations are the same bordered list as Notifications: each
+     row reads icon, name, then how to move it (arrows that surface on hover
+     or focus, and the grip), then its switch. A destination switched off keeps
+     its row in the secondary ink with an "In More" tag, so the list never
+     changes height and its place in the order stays visible;
    - below the destinations: the active project as a single circle that opens
      a searchable switcher, plus a same-size "+" holding the three ways to add
      one (open, create, clone);
@@ -302,9 +315,17 @@ The main desktop window should broadly support:
      eager dialog backed by one feature-owned controller, including when no
      project is open. Updates is its own settings section — it has state,
      actions and a dialog of its own, like Git — so it never shares General
-     with the project-refresh group. It shows the installed version first,
-     then one toned status line (the same `.status-line` scale the Git
-     installation row uses); under that row, a two-option segmented group,
+     with the project-refresh group. Neither of its two groups is named
+     after the tab. "Installed version" shows the version, then one toned
+     status line (the same `.status-line` scale the Git installation row
+     uses: icon and ink, no capsule), then the cause under it when there is
+     one — so "why is it unavailable" needs no click. "Details" opens the
+     dialog only when it has something the row cannot say: a release, a
+     transfer or an install to confirm. The dialog says the same thing the
+     same way: mark beside the title, everything on one left edge, one status
+     and one cause — a specific cause replaces the generic sentence for its
+     code rather than following it. "How you get updates" holds a two-option
+     segmented group,
      Stable / Preview, chooses which channel to follow, with one sentence per
      option (stable is what most people should run; previews arrive earlier
      and may break). The group shows the channel a check will actually use —
@@ -321,7 +342,7 @@ The main desktop window should broadly support:
      forgotten and a check of the new channel starts at once, because
      choosing a channel is the question "what is there for me?". Nothing is
      downloaded or installed by the choice.
-     Then it offers one switch, on by default, for the
+     Under it, in the same group, one switch, on by default, for the
      startup check — one bounded request when the app opens, repeated every
      24 hours only while it stays open — disclosing the GitHub contact, that
      repeat and the transmitted-data boundary beside it. A startup check that
@@ -679,7 +700,7 @@ that was deleted is a cloud struck through, in the warning tone; the main line
 is a shield in the accent; safe to delete is a tick in the success tone, and
 not yet deletable a warning triangle. Up to date with its remote draws nothing,
 as it always did. A glyph has to be learned, so each one explains itself: its
-tooltip is a sentence (`Local only — never published, so it exists only on this
+tooltip is a sentence (`Local only — never published, so it's only on this
 computer`), the row's accessible description reads the states out in words,
 and the filter panel lists the same glyphs beside their names, which makes it
 the list's legend as well as its filter. `Active` is a word only in the detail
@@ -820,7 +841,7 @@ dots and the list of saved versions under it lead to the same place. The dots
 are for the pointer only; the list is the same answer for the keyboard.
 Past eight, the lane says how many earlier versions it leaves out ("+33")
 over its oldest drawn dot, and the sentence under the drawing says the numbers ("Left main on 12 Sept. 5
-versions of its own (2 not published yet); main has saved 3 since."), which is
+versions of its own (2 not published yet). main has 3 new versions since."), which is
 also what a screen reader hears; the drawing is hidden from it. It is measured
 against the main line always, the remote's default: "where did it come from"
 is asked of the main line, whichever line is active. The states over it count
@@ -1441,6 +1462,19 @@ to follow.
 | `--tracking-wide` (0.02em) | Small text opened out: initials, a count |
 | `--tracking-caps` (0.06em) | An uppercase label |
 
+Wrapping is set once, in `styles/base.css`: the body takes
+`text-wrap-style: pretty`, so a sentence that needs two lines never leaves one
+word alone on the second, and headings take `balance`, so two lines split
+evenly. Both are the longhand, which leaves `text-wrap-mode` alone, so a
+surface's own `nowrap` still wins. A setting's description takes all the width
+its control leaves (a switch leaves most of the row; there is no `ch` measure
+on it), and in Settings, Project settings and Updates it goes through
+`SentenceLines`: each sentence is one inline block, so two that fit share the
+line and, when they do not, the second moves down whole from the full stop
+instead of breaking mid-phrase. Descriptions are written to fit one line.
+None of this is a reason to write long copy: the first fix for a wrapped hint
+is a shorter hint (see Content design).
+
 ### Family and figures
 
 `--font-sans` and `--font-mono` name the two stacks. Before them the monospace
@@ -1597,6 +1631,27 @@ Action labels should describe outcomes:
 
 Avoid vague labels such as “Continue” when a more precise action fits.
 
+**A hint fits on one line; a note says one thing.** Most copy sits in a narrow
+column under a label, so every extra clause becomes a second line of grey text
+that nobody asked for. Say the consequence and stop: the reason behind a
+safety measure belongs in the ADR, not under the switch. When a note really has
+two facts, write them as two short sentences rather than one long one joined by
+a semicolon or a dash. How GitOdile proves something is safe (ownership
+markers, staging folders, state tokens) is implementation, never copy; say
+what stays safe instead.
+
+**One voice across both languages.**
+
+- An error names what failed without a subject: “Couldn’t read this file.”,
+  not “We couldn’t…” or “GitOdile couldn’t…”. Name GitOdile only to tell it
+  apart from Git or from the user.
+- English is American (“favorites”, “color”), and names in running text sit in
+  curly quotes: “main”.
+- Spanish is Spain’s: *ordenador* for the computer, always, because *equipo*
+  already means the team (“tu equipo la sigue viendo”). Get project changes is
+  *Traer cambios del proyecto*, retry is *Reintentar*, done is *Listo*, and
+  names sit in angle quotes: «main».
+
 ## Core screens for the first design pass
 
 1. Welcome / open project.
@@ -1682,7 +1737,7 @@ explained. All three tiles are buttons in their entirety that lead to the
 screen owning them (Changes, History, the remote check, project settings when
 there is no remote); the tile whose action is the one thing to do now is
 ringed in the accent and *is* the action: its value is the verb ("Save
-version"), its hint the reason ("Keep what you have safe"), and its own glyph
+version"), its hint the reason ("Keep your work safe"), and its own glyph
 circle is filled solid in the accent — the primary button's colour — and
 breathes: a slow, soft halo, the one moving thing on the screen, marking the
 one thing to do. The three fills a glyph circle can take are the band's whole
