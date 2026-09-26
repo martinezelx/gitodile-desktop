@@ -628,7 +628,7 @@
   to { transform: scale(1); }
 }
 
-/* Everything under the rule is one group: project context first, then the
+/* Everything in the tray is one group: project context first, then the
    app-level utilities that desktop users expect at the foot. `.rail-nav`
    grows into the free height above, so this block always sits against the
    bottom without an auto margin fighting it. */
@@ -644,7 +644,7 @@
   gap: var(--space-3);
 }
 
-/* Only destinations are captioned. The controls below the rule — project,
+/* Only destinations are captioned. The controls in the tray — project,
    add, settings, account — are stable shapes, and the two that are less
    self-evident (the avatar, the "+") sit directly under what they act on.
    Naming them cost a line of text each and turned the column into a wall of
@@ -851,21 +851,41 @@
   .app-tooltip--above { animation: none; transform: translate(-50%, -100%); }
   .app-tooltip--below { animation: none; transform: translate(-50%, 0); }
 }
-/* The boundary between the destinations and the project/app foot: a short
-   capsule, not a rule across the column. A full-width hairline was the one
-   straight line in a column of circles, and sitting on top of the project
-   chip it read as a stray stroke rather than a boundary. The capsule states
-   the split in the rail's own shape and holds it when a short window closes
-   the free space above; the square project chip under it does the rest. Its
-   length does not depend on the column, so both display modes share it. */
-.sidebar-divider {
-  align-self: center;
-  width: 18px; height: 3px;
-  margin: var(--space-3) 0;
-  border: 0; border-radius: var(--radius-pill);
-  background: var(--border-control);
+/* The boundary between the destinations and the project/app foot is the
+   foot's own shape: a faint tray behind the project chip and the utilities.
+   A 3px capsule did this before, and a full-width rule before that; both were
+   strokes in a column made of rounded fills, and the capsule, glyph-sized and
+   right above "+", read as a minus button rather than a boundary. The tray
+   says "these belong together" in the rail's own language and still divides
+   when a short window folds destinations into More and closes the free
+   height above.
+
+   At rest it is about a third of the hover fill; resting on it, focusing into
+   it or opening one of its menus brings the whole group up to that fill, so
+   the pointer learns the group's extent. A pill, so it nests concentrically
+   around the 36px circles. The fill lives on a pseudo-element so only its
+   opacity animates. */
+.sidebar-tray {
+  position: relative;
   flex-shrink: 0;
+  margin-top: var(--space-3);
+  padding: 6px 0;
+  isolation: isolate;
 }
+.sidebar-tray::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  opacity: 0.38;
+  pointer-events: none;
+  transition: opacity var(--duration-normal) ease;
+}
+.sidebar-tray:hover::before,
+.sidebar-tray:focus-within::before,
+.sidebar-tray:has([aria-expanded="true"])::before { opacity: 1; }
 .project-switcher__list { display: grid; gap: 2px; list-style: none; margin: 0; padding: 0; }
 .project-switcher__item { display: flex; align-items: center; gap: 2px; }
 .project-switcher__button {
@@ -1419,6 +1439,7 @@
   .rail-more__menu { animation: none; }
   .sidebar-jump__menu { animation: none; }
   .rail-item__icon,
+  .sidebar-tray::before,
   .sidebar-round,
   .sidebar-project__avatar,
   .sidebar-project__chevron svg,

@@ -2195,68 +2195,68 @@ export function App(): React.JSX.Element {
           />
 
           {/* Slack-like hierarchy: the destinations answer "where in this
-              project am I", everything below the capsule answers "which
-              project, and which app-level control". The free height above
-              carries the split in a tall window; the capsule keeps it when a
+              project am I", everything in the tray answers "which project,
+              and which app-level control". The free height above carries the
+              split in a tall window; the tray's own shape keeps it when a
               short one closes that gap. */}
-          <hr className="sidebar-divider" />
+          <div className="sidebar-tray">
+            <div className="sidebar-project-section" data-flyout-group-anchor="">
+              <ProjectSwitcherRail
+                entries={switcherEntries}
+                activeId={sessionsState.activeId}
+                canSwitch={!hasBlockingDialog}
+                isOpening={isOpening}
+                onActivate={activateSession}
+                onClose={requestCloseSession}
+                onOpenAnother={() => void handleOpenProject()}
+                onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
+                onClone={() => setIsCloneOpen(true)}
+                onToggleFavourite={toggleFavouriteProject}
+                onOpenProjectSettings={openProjectSettings}
+                onPrefetchProjectSettings={prefetchProjectSettings}
+              />
+            </div>
 
-          <div className="sidebar-project-section" data-flyout-group-anchor="">
-            <ProjectSwitcherRail
-              entries={switcherEntries}
-              activeId={sessionsState.activeId}
-              canSwitch={!hasBlockingDialog}
-              isOpening={isOpening}
-              onActivate={activateSession}
-              onClose={requestCloseSession}
-              onOpenAnother={() => void handleOpenProject()}
-              onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
-              onClone={() => setIsCloneOpen(true)}
-              onToggleFavourite={toggleFavouriteProject}
-              onOpenProjectSettings={openProjectSettings}
-              onPrefetchProjectSettings={prefetchProjectSettings}
-            />
+            <nav aria-label={t.navApplicationAriaLabel} className="sidebar-foot">
+              {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map((destination) => {
+                const { screen, overlay } = destination;
+                const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
+                const label = t[destination.labelKey];
+                return (
+                  <button
+                    key={destination.id}
+                    className={`sidebar-round${isActive ? " sidebar-round--active" : ""}`}
+                    type="button"
+                    disabled={screen === null && overlay === undefined}
+                    aria-current={screen !== null && isActive ? "page" : undefined}
+                    aria-haspopup={overlay ? "dialog" : undefined}
+                    aria-expanded={overlay ? isSettingsOpen : undefined}
+                    data-tooltip={label}
+                    // These carry no visible name in either display mode, so the
+                    // accessible name lives on the control itself rather than in
+                    // a caption that only one mode renders.
+                    aria-label={label}
+                    onClick={overlay === "settings" ? () => openSettings() : screen ? () => navigateToView(screen) : undefined}
+                  >
+                    {destination.icon}
+                  </button>
+                );
+              })}
+              {/* Signing in is not built yet, but its place in the rail is: it
+                  sits with Settings the way an account always does, disabled
+                  and saying so, rather than appearing later and pushing the
+                  rail's furniture around. */}
+              <button
+                className="sidebar-round"
+                type="button"
+                aria-disabled="true"
+                aria-label={t.navAccountTitle}
+                data-tooltip={t.navAccountTitle}
+              >
+                <UserRound aria-hidden="true" />
+              </button>
+            </nav>
           </div>
-
-          <nav aria-label={t.navApplicationAriaLabel} className="sidebar-foot">
-            {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map((destination) => {
-              const { screen, overlay } = destination;
-              const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
-              const label = t[destination.labelKey];
-              return (
-                <button
-                  key={destination.id}
-                  className={`sidebar-round${isActive ? " sidebar-round--active" : ""}`}
-                  type="button"
-                  disabled={screen === null && overlay === undefined}
-                  aria-current={screen !== null && isActive ? "page" : undefined}
-                  aria-haspopup={overlay ? "dialog" : undefined}
-                  aria-expanded={overlay ? isSettingsOpen : undefined}
-                  data-tooltip={label}
-                  // These carry no visible name in either display mode, so the
-                  // accessible name lives on the control itself rather than in
-                  // a caption that only one mode renders.
-                  aria-label={label}
-                  onClick={overlay === "settings" ? () => openSettings() : screen ? () => navigateToView(screen) : undefined}
-                >
-                  {destination.icon}
-                </button>
-              );
-            })}
-            {/* Signing in is not built yet, but its place in the rail is: it
-                sits with Settings the way an account always does, disabled
-                and saying so, rather than appearing later and pushing the
-                rail's furniture around. */}
-            <button
-              className="sidebar-round"
-              type="button"
-              aria-disabled="true"
-              aria-label={t.navAccountTitle}
-              data-tooltip={t.navAccountTitle}
-            >
-              <UserRound aria-hidden="true" />
-            </button>
-          </nav>
         </aside>
 
         <section

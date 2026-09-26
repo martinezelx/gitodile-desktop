@@ -157,15 +157,21 @@ The main desktop window should broadly support:
      change. It never lifts or enlarges rail furniture, and never borrows the
      accent-tinted selected surface. Accent fill and green iconography remain
      reserved for the active destination or selected control;
-   - a short capsule (18×3px, `--radius-pill`) separates the destinations from
-     everything below. A full-width faded rule did this first, added while the
-     utilities carried captions and the column read as evenly stacked tiles;
-     once the captions went, that line was the one straight stroke in a column
-     of circles and sat on the project chip like a stray mark. The free height
-     above the foot carries the split in a tall window, and the capsule keeps
-     it when a short window closes that gap. This is the documented exception
-     to "separate rows with spacing alone": it divides two *groups*, not
-     consecutive rows within one.
+   - a faint tray separates the destinations from everything below: one pill
+     of `--surface-hover` behind the project chip and the utilities, at about a
+     third of its strength at rest and full strength while the pointer rests
+     on it, focus is inside it or one of its menus is open. It is the only
+     fill the rail carries that is not a control's own, and it marks a
+     *group*, not a surface: no border, no shadow, never raised. A full-width
+     faded rule did this first, then an 18×3px capsule; both were strokes in a
+     column of rounded fills, and the capsule, glyph-sized and right above
+     "+", read as a minus button rather than a boundary. Outlined or
+     edge-lit versions of the tray were tried and dropped: a lit edge gives
+     the foot a 3D lip the flat chrome has nowhere else. The free height above
+     the foot carries the split in a tall window; when a short one folds
+     destinations into More and closes that gap, the tray's own shape keeps
+     it. This is the documented exception to "separate rows with spacing
+     alone": it divides two *groups*, not consecutive rows within one.
    - the rail can be collapsed entirely (`Ctrl`/`Cmd`+`B`, or the titlebar
      control), giving the window over to content. Collapsed means `display:
      none`, never a zero width or a transparent column: a rail still in the tab
