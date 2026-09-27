@@ -118,6 +118,8 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Navigate through a command palette, keyboard-accessible dialogs, and a
   keep-alive screen shell that retains screen state while suspending hidden
   work.
+- Return to Projects from More actions or the command palette while projects stay
+  open, use recent closed projects, and go Back to the project screen you left.
 
 Not yet implemented: non-fast-forward/local-line integration, the recovery
 center, guided conflict

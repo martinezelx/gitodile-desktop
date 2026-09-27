@@ -85,7 +85,7 @@ export function ProjectPath({ path, onCopyError }: { path: string; onCopyError: 
  * store, so a project starred in either place is starred in both. Ordering is
  * done by the caller (`orderByFavourite`), which owns that rule for every list
  * that shows favourites. */
-type WelcomeRecentEntry = RecentProject & {
+export type WelcomeRecentEntry = RecentProject & {
   isFavourite: boolean;
   iconChoice?: ProjectIconChoice;
   technology?: TechnologyId | null;
@@ -597,17 +597,56 @@ export function OverviewPanel({
     );
   }
 
-  // The welcome screen owns the app's only `h1` while no project is open: the
-  // shell drops its "Overview" topbar here, because naming the screen twice —
-  // once as a heading nobody navigated to, once as this headline — spent the
-  // front door's first line on the wrong sentence.
+  return (
+    <WelcomeScreen
+      isOpening={isOpening}
+      recentProjects={recentProjects}
+      onOpenProject={onOpenProject}
+      onCreateProject={onCreateProject}
+      onCloneProject={onCloneProject}
+      onOpenRecentProject={onOpenRecentProject}
+      onToggleFavouriteRecentProject={onToggleFavouriteRecentProject}
+      onForgetRecentProject={onForgetRecentProject}
+      playGreeting={false}
+    />
+  );
+}
+
+/** The app-level Home and the no-project fallback share one launcher. */
+export function WelcomeScreen({
+  isOpening,
+  recentProjects,
+  onOpenProject,
+  onCreateProject,
+  onCloneProject,
+  onOpenRecentProject,
+  onToggleFavouriteRecentProject,
+  onForgetRecentProject,
+  hasOpenProjects = false,
+  playGreeting = true,
+}: {
+  isOpening: boolean;
+  recentProjects: readonly WelcomeRecentEntry[];
+  onOpenProject: () => void;
+  onCreateProject: () => void;
+  onCloneProject: () => void;
+  onOpenRecentProject: (path: string) => void;
+  onToggleFavouriteRecentProject: (path: string) => void;
+  onForgetRecentProject: (path: string) => void;
+  hasOpenProjects?: boolean;
+  playGreeting?: boolean;
+}): React.JSX.Element {
+  const { t } = useLanguage();
   return (
     <div className="empty-state empty-state--welcome" aria-busy={isOpening}>
       {/* The front door is a brand moment, so the mascot greets here rather
           than in the titlebar: it hops in, lifts its glasses once, then a
           star glints on them now and then. Decorative; the h1 names the screen. */}
-      <Mascot motion="greet" className="welcome-mascot" />
-      <h1>{t.overviewEmptyTitle}</h1>
+      <Mascot
+        motion={playGreeting ? "greet" : "glint"}
+        className={playGreeting ? "welcome-mascot" : "welcome-mascot welcome-mascot--settled"}
+      />
+      <h1>{hasOpenProjects ? t.overviewHomeTitle : t.overviewEmptyTitle}</h1>
       <p>{t.overviewEmptyDescription}</p>
       <div className="welcome-actions">
         <WelcomeAction

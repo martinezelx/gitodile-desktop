@@ -647,6 +647,8 @@
   font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
   transition: filter var(--duration-fast), transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
 }
+.sidebar-project__avatar--empty { background: var(--surface-hover); color: var(--text-secondary-color); }
+.sidebar-project__avatar--empty svg { width: 18px; height: 18px; }
 .sidebar-project:hover:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { filter: brightness(1.08); }
 .sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { transform: scale(0.97); }
 .sidebar-project:disabled,

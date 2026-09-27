@@ -1,8 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Bug, CloudDownload, Ellipsis, FolderInput, FolderOpen, FolderX, Info, Keyboard, RotateCw, Settings, Sparkles } from "lucide-react";
+import { Bug, CloudDownload, Ellipsis, FolderGit2, FolderInput, FolderPlus, FolderX, Info, Keyboard, RotateCw, Settings, Sparkles } from "lucide-react";
 import { useLanguage } from "../i18n";
 
 export function TitlebarMenu({
+  onOpenHome,
   onOpenAbout,
   onOpenChangelog,
   onCheckAppUpdates = () => undefined,
@@ -18,6 +19,7 @@ export function TitlebarMenu({
   onReportIssue,
   isReportingIssue,
 }: {
+  onOpenHome: () => void;
   onOpenAbout: () => void;
   onOpenChangelog: () => void;
   onCheckAppUpdates?: () => void;
@@ -126,8 +128,12 @@ export function TitlebarMenu({
           aria-label={t.titlebarMoreActions}
           onKeyDown={handleMenuKeyDown}
         >
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenHome)}>
+            <FolderGit2 aria-hidden="true" />
+            <span>{t.navHome}</span>
+          </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} disabled={isOpeningProject} onClick={() => runMenuAction(onOpenProject)}>
-            <FolderOpen aria-hidden="true" />
+            <FolderPlus aria-hidden="true" />
             <span>{isOpeningProject ? t.overviewOpening : t.titlebarOpenProject}</span>
           </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onCreateProject)}>

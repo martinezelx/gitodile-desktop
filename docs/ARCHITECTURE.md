@@ -101,14 +101,22 @@ navigation, command-palette entries, project guards, chunk prefetching,
 keep-alive mounting, accessibility behavior, and optional performance budgets.
 Do not wire any of those separately in `src/app/App.tsx`.
 
-Overview is eager because it owns first paint. Other functional screens use
+Home and Overview are eager because Home owns first paint and Overview is the
+first project screen. Other functional screens use
 `createLazyScreenContainer`; the same loader promise serves lazy mounting and
 primary preloading. Overlay panels stay eager: an overlay opens from a click
 with no navigation in front of it, and `React.lazy` suspends on first render
 even when its module is already warmed, so code-splitting one buys a fallback
 frame no prefetch can remove.
 
-Visited project screens remain mounted for the active project epoch:
+Visited project screens remain mounted for the active project epoch. Home is an
+application-session screen: switching projects does not evict it, and showing
+it never clears the underlying active project or changes that project's
+`lastView`. It is registered for palette, prefetch and lifecycle but excluded
+from the rail and navigation preferences. Its Back/Forward step is app-level;
+project screen history remains per-session.
+
+Screen lifecycle states are:
 
 - `active`: subscriptions and active-only effects may run;
 - `hidden`: DOM/local UI state is retained, but the subtree is `hidden`,

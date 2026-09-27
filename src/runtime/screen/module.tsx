@@ -53,6 +53,8 @@ export type FunctionalScreenModule<Id extends string = string> = {
   readonly icon: React.JSX.Element;
   readonly requiresProject: boolean;
   readonly inCompactNav: boolean;
+  /** A command-only destination such as Home is registered but absent from navigation. */
+  readonly inRail?: false;
   readonly container: RegisteredScreenContainer;
   readonly additionalPreloads: readonly (() => Promise<unknown>)[];
   readonly lifecycle: {
@@ -108,9 +110,9 @@ export function createLazyScreenContainer<Module, Props extends object>(
 
 /** A screen whose code must already be in the entry chunk.
  *
- * Overview is the screen the app paints with no project open, so deferring it
- * would put a chunk fetch in front of first paint — the cost task 018 exists to
- * avoid. Registering it through a container anyway is what stops it from being
+ * Home owns first paint with no project open, and Overview is the first screen
+ * after a project opens. Deferring either would put a chunk fetch in front of
+ * that transition. Registering them through containers is what stops them from being
  * the one screen the shell composes by hand: nav, palette, keep-alive,
  * lifecycle and eviction all still derive from the descriptor.
  *

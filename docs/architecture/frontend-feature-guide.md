@@ -57,6 +57,12 @@ value is equal must not rerender for another project or feature's transition.
 - `evicted`: the screen unmounts and releases local resources. Project-scoped
   screens are evicted when the active session epoch changes or closes.
 
+An application-session screen such as Home is registered by a feature-owned
+descriptor with `inRail: false` and survives project-session changes. It may
+appear in the command palette without joining the rail or project navigation
+preferences. Its visibility is independent of whether a project session is
+active; project-scoped histories do not record a Home visit.
+
 Visibility is not invalidation. Never fetch, poll or warm a cache because a
 screen became active. A selected detail may perform the read required to show
 that user-requested content; speculative reads belong to the runtime path

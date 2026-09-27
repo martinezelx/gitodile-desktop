@@ -1,5 +1,6 @@
 import React, { Profiler, useEffect, useLayoutEffect, useRef } from "react";
 import { LifeBuoy } from "lucide-react";
+import { homeScreenModule, HomeScreen } from "../features/home";
 
 import { ChangesPanel } from "../features/changes";
 import { overviewScreenModule, OverviewPanel } from "../features/overview";
@@ -20,7 +21,7 @@ import {
 
 /** Every workspace screen the app can show. Settings is an app-level dialog,
  * not a screen, so opening it never changes a project's navigation history. */
-export type ScreenId = ProjectView;
+export type ScreenId = ProjectView | "home";
 
 /** Nav destinations include screens that do not exist yet (currently
  * Recovery). They live in the same table so a destination cannot be
@@ -46,6 +47,7 @@ export type NavDestination = {
   requiresProject: boolean;
   /** Narrow windows show a reduced nav; `false` keeps an entry out of it. */
   inCompactNav: boolean;
+  inRail: boolean;
   /** Command palette label, or `null` to stay out of the palette. */
   commandLabelKey: TextKey | null;
   /** Chunks this destination needs, warmed during idle after first paint so
@@ -58,7 +60,7 @@ export type NavDestination = {
   overlay?: "settings";
 };
 
-export { ChangesPanel, HistoryScreen, OverviewPanel, VersionLinesScreen, WorkbenchScreen };
+export { ChangesPanel, HistoryScreen, HomeScreen, OverviewPanel, VersionLinesScreen, WorkbenchScreen };
 
 /** The single place a screen is registered. Nav (expanded and compact), the
  * command palette, idle prefetching, the "leave if the project closed" guard,
@@ -73,6 +75,7 @@ export { ChangesPanel, HistoryScreen, OverviewPanel, VersionLinesScreen, Workben
  * here is only the default; Navigation Settings still lets anyone rearrange
  * the rail. */
 export const SCREEN_MODULES = defineScreenModules([
+  homeScreenModule,
   overviewScreenModule,
   workbenchScreenModule,
   versionLinesScreenModule,
@@ -102,6 +105,7 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = SCREEN_MODULES.map((m
       icon: module.icon,
       requiresProject: module.requiresProject,
       inCompactNav: module.inCompactNav,
+      inRail: !("inRail" in module && module.inRail === false),
       commandLabelKey: module.commandLabelKey,
       prefetch: [],
     };
@@ -116,6 +120,7 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = SCREEN_MODULES.map((m
       icon: module.icon,
       requiresProject: false,
       inCompactNav: module.inCompactNav,
+      inRail: true,
       commandLabelKey: module.commandLabelKey,
       prefetch: [],
       overlay: module.overlay,
@@ -130,6 +135,7 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = SCREEN_MODULES.map((m
     icon: module.icon,
     requiresProject: module.requiresProject,
     inCompactNav: module.inCompactNav,
+    inRail: true,
     commandLabelKey: null,
     prefetch: [],
   };
@@ -143,6 +149,12 @@ const FUNCTIONAL_SCREEN_MODULES = SCREEN_MODULES.filter(
 /** Screen ids in nav order, which is also the DOM order the keep-alive host
  * mounts them in. */
 export const SCREEN_ORDER: ScreenId[] = FUNCTIONAL_SCREEN_MODULES.map((module) => module.id as ScreenId);
+
+const APPLICATION_SESSION_SCREENS = new Set<ScreenId>(
+  FUNCTIONAL_SCREEN_MODULES.flatMap((module) =>
+    module.lifecycle.evict === "application-session" ? [module.id as ScreenId] : [],
+  ),
+);
 
 const SCREENS_REQUIRING_PROJECT = new Set<ScreenId>(
   NAV_DESTINATIONS.flatMap((destination) =>
@@ -310,15 +322,16 @@ export function SwitchMeasurementRoot({ children }: { children: React.ReactNode 
  *   of the tab order, out of the accessibility tree, and unable to announce
  *   status updates from behind the visible one.
  *
- * Eviction is the caller's job and is done with `key`: keying this host by the
- * active project session drops that session's screens when the project
- * changes or closes, so nothing stale survives and memory does not grow with
- * the number of projects visited. */
+ * Project screens use the active session epoch in their key, so leaving a
+ * project evicts its local state. Application screens such as Home retain a
+ * stable key across project switches. */
 export function KeepAliveScreens({
   active,
   screens,
+  projectEpoch,
 }: {
   active: ScreenId;
+  projectEpoch?: string | null;
   /** The screens available right now. A screen missing from this record (a
    * project-only screen with no project open) is dropped rather than kept
    * alive. */
@@ -327,7 +340,11 @@ export function KeepAliveScreens({
   const mounted = (
     <>
       {SCREEN_ORDER.map((id) => (
-        <KeepAliveScreenSlot key={id} isActive={id === active} isAvailable={id in screens}>
+        <KeepAliveScreenSlot
+          key={`${id}:${APPLICATION_SESSION_SCREENS.has(id) ? "app" : (projectEpoch ?? "no-project")}`}
+          isActive={id === active}
+          isAvailable={id in screens}
+        >
           {screens[id]}
         </KeepAliveScreenSlot>
       ))}

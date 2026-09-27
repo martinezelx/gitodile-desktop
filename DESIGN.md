@@ -36,6 +36,7 @@ Blur/translucency is not the default depth mechanism for GitOdile chrome. Reserv
 The main desktop window should broadly support:
 
 1. **Top bar** — implemented as a custom titlebar rather than a traditional File/Edit/View menu bar, which reads as legacy Win32/desktop-app chrome:
+   - the overflow menu starts with Projects (Proyectos), a quiet way to the project-opening screen while projects remain open. The command palette offers the same destination; the titlebar and rail add no permanent Projects button.
    - no brand: the titlebar is controls only and starts with the overflow menu, centred over the rail's icon column so the titlebar and the rail share one vertical axis (with no rail, it sits at the plain edge inset). It once carried the app mark in the corner (later the full mascot); a colour illustration in a row of line icons drew the eye to a spot that does nothing, and the operating system already shows the app icon. The mascot lives in the brand moments instead (see "Brand and mascot").
    - left: the command-palette trigger (`Ctrl`/`Cmd`+`K`), the rail collapse control, and a compact overflow menu. The palette is a labeled rounded control, making it the visual entry point for app-wide actions instead of another anonymous icon.
    - the collapse control doubles as a jump menu: while the rail is collapsed, resting on it opens the rail's destinations as a short menu hanging off the button, so a destination can be reached without expanding and re-collapsing the rail around a single click. It carries the rail's three groups — destinations, projects (favourites only), and the app-level utilities — with the project group's two nested menus flattened, since a list this short can just say what those menus would have said. It is a menu, not a miniature rail — same furniture as every other flyout in the app.
@@ -1830,6 +1831,15 @@ buttons, so the shape carried a recommendation; as cards it would be a claim
 the screen cannot support, since which action is right depends entirely on what
 the user already has on disk. The hint under each label answers that, and it
 answers it better than a colour that only says "this one".
+The Projects screen can be revisited with projects open. Its heading then asks what to open,
+its recent list excludes projects already open in the switcher, and neither
+the switcher nor the rail marks a current destination. Back returns to the
+project screen that led here; Forward can revisit Projects until another navigation.
+The status bar continues to show the active project's name, working-tree and
+remote state, and available project actions. With no project open, it shows
+the no-project state. The mascot's entrance plays once per application session; later
+visits retain the periodic glint without another entrance.
+
 Progress lives on the card that is working — opening a project reports in the
 Open card — not in a spinner at the top of the screen. This screen also owns
 the app's only `h1` while no project is open; the shell does not additionally

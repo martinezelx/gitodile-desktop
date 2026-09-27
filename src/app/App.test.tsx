@@ -243,6 +243,7 @@ afterEach(() => {
 describe("TitlebarMenu", () => {
   function renderMenu(overrides: Partial<React.ComponentProps<typeof TitlebarMenu>> = {}) {
     const props: React.ComponentProps<typeof TitlebarMenu> = {
+      onOpenHome: vi.fn(),
       onOpenAbout: vi.fn(),
       onOpenChangelog: vi.fn(),
       onOpenProject: vi.fn(),
@@ -273,6 +274,7 @@ describe("TitlebarMenu", () => {
 
     await user.click(trigger);
     const items = screen.getAllByRole("menuitem");
+    expect(items[0]).toHaveTextContent("Projects");
     expect(items[0]).toHaveFocus();
 
     await user.keyboard("{End}");
@@ -305,6 +307,16 @@ describe("TitlebarMenu", () => {
     await user.click(screen.getByRole("menuitem", { name: "Keyboard shortcuts" }));
 
     expect(onOpenShortcuts).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("opens Projects from the first menu item", async () => {
+    const user = userEvent.setup();
+    const onOpenHome = vi.fn();
+    renderMenu({ onOpenHome });
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.keyboard("{Enter}");
+    expect(onOpenHome).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
@@ -772,11 +784,13 @@ describe("App project restoration", () => {
       }
       if (command === "get_git_identity") return Promise.resolve({ name: "", email: "" });
       if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "list_unpublished_versions") {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+      if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
       if (command === "get_version_lines") return Promise.resolve(versionLines);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
@@ -1523,6 +1537,7 @@ describe("App project restoration", () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
       if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
       if (command === "read_working_tree_status") return Promise.resolve(dirtyStatus);
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       if (command === "watch_repository") return Promise.resolve(true);
@@ -1939,5 +1954,139 @@ describe("App project restoration", () => {
     // owned by App state, so nothing else would close the first one.
     await waitFor(() => expect(screen.getByLabelText("Name")).toBeInTheDocument());
     expect(document.querySelectorAll("[role=dialog]")).toHaveLength(1);
+  });
+
+  it("visits Projects with a project open, preserves its status through Back and Forward, and filters recents", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    localStorage.setItem("gitodile-recent-projects", JSON.stringify({
+      version: 1,
+      entries: [
+        { path: restoredProject.path, name: restoredProject.name },
+        { path: secondProject.path, name: secondProject.name },
+      ],
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "get_git_identity") return Promise.resolve({ name: "", email: "" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+      if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Projects" }));
+    expect(screen.getByRole("heading", { name: "What would you like to open?" })).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "Project navigation" })).queryByRole("button", { current: "page" })).toBeNull();
+    expect(screen.getByRole("button", { name: secondProject.name })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: restoredProject.name })).not.toBeInTheDocument();
+    const statusBar = screen.getByRole("contentinfo", { name: "Project status" });
+    expect(within(statusBar).getByText(restoredProject.name)).toBeInTheDocument();
+    expect(within(statusBar).getByText("main")).toBeInTheDocument();
+    expect(within(statusBar).getByText("Everything is saved")).toBeInTheDocument();
+    expect(await within(statusBar).findByText("Up to date")).toBeInTheDocument();
+    await user.click(within(statusBar).getByRole("button", { name: "Check remote project changes" }));
+    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("check_team_changes", {
+      path: restoredProject.path,
+      sessionEpoch: restoredProject.sessionEpoch,
+    });
+    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBe(restoredProject.path);
+
+    await user.click(screen.getAllByRole("button", { name: "Go back" })[0]);
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Go forward" })[0]);
+    expect(screen.getByRole("heading", { name: "What would you like to open?" })).toBeInTheDocument();
+    expect(document.querySelector(".empty-state--welcome .gitodile-mascot")).toHaveClass("gitodile-mascot--glint");
+    await user.click(screen.getByRole("button", { name: "Open projects" }));
+    const switcher = screen.getByRole("dialog", { name: "Open projects" });
+    expect(within(switcher).getByRole("button", { name: restoredProject.name })).not.toHaveAttribute("aria-current");
+    await user.click(within(switcher).getByRole("button", { name: restoredProject.name }));
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Projects" }));
+    await user.click(screen.getAllByRole("button", { name: "Work" })[0]);
+    expect(screen.queryByRole("heading", { name: "What would you like to open?" })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("contentinfo", { name: "Project status" })).getByText(restoredProject.name)).toBeInTheDocument();
+  });
+
+  it("offers Projects from the palette while a project is open", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.resolve(undefined);
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+    await user.click(screen.getByRole("button", { name: "Open command palette" }));
+    const palette = screen.getByRole("dialog", { name: "Command palette" });
+    expect(within(palette).getAllByRole("option")[0]).toHaveTextContent("Go to Projects");
+    expect(within(palette).getByText("Go to Projects")).toBeInTheDocument();
+    await user.click(within(palette).getByText("Go to Projects"));
+    expect(screen.getByRole("heading", { name: "What would you like to open?" })).toBeInTheDocument();
+  });
+
+  it("keeps a project open when a recent project fails to open from Proyectos", async () => {
+    localStorage.setItem("gitodile-language", "es");
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    localStorage.setItem("gitodile-recent-projects", JSON.stringify({
+      version: 1, entries: [{ path: secondProject.path, name: secondProject.name }],
+    }));
+    let rejectRecent!: (reason: unknown) => void;
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "get_git_identity") return Promise.resolve({ name: "", email: "" });
+      if (command === "open_repository") {
+        return invokedPath(args) === secondProject.path
+          ? new Promise((_resolve, reject) => { rejectRecent = reject; })
+          : Promise.resolve(restoredProject);
+      }
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+    await user.click(screen.getByRole("button", { name: "Más acciones" }));
+    await user.click(screen.getByRole("menuitem", { name: "Proyectos" }));
+    expect(screen.getByRole("heading", { name: "¿Qué te gustaría abrir?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: secondProject.name }));
+    expect(screen.getByRole("button", { name: "Abriendo…" })).toBeDisabled();
+    rejectRecent({ code: "repository_not_found", message: "Folder moved.", remediation: null });
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "¿Qué te gustaría abrir?" })).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBe(restoredProject.path);
   });
 });

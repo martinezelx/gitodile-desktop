@@ -21,9 +21,10 @@ const STAR = "M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 
  *
  * - `sweep`: bands of light cross the lenses every few seconds (About).
  * - `greet`: the glasses lift and settle once, then a star glints on the
- *   right lens every few seconds (the no-project welcome).
+ *   right lens every few seconds (the first Home visit).
+ * - `glint`: repeat visits keep only the periodic star.
  */
-export type MascotMotion = "sweep" | "greet";
+export type MascotMotion = "sweep" | "greet" | "glint";
 
 export interface MascotProps {
   /** `body` for anything shown larger than a small square icon; `head` below. */
@@ -65,7 +66,7 @@ export function Mascot({ variant = "body", motion, className }: MascotProps) {
           </g>
         </>
       )}
-      {motion === "greet" && <path className="gitodile-mascot__star" d={STAR} />}
+      {(motion === "greet" || motion === "glint") && <path className="gitodile-mascot__star" d={STAR} />}
     </svg>
   );
 }

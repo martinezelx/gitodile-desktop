@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LayoutDashboard } from "lucide-react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -150,6 +150,24 @@ describe("ScreenModule runtime", () => {
     expect(screen.getByRole("region", { name: "Runtime test screen" })).not.toBe(originalNode);
     expect(screen.getByRole("button", { name: "Local 0" })).toBeInTheDocument();
     vi.useRealTimers();
+  });
+
+  it("retains Home across project epochs while evicting project screens", () => {
+    function Counter({ label }: { label: string }): React.JSX.Element {
+      const [count, setCount] = useState(0);
+      return <button type="button" onClick={() => setCount((value) => value + 1)}>{label} {count}</button>;
+    }
+    const screens = { home: <Counter label="Home" />, overview: <Counter label="Overview" /> };
+    const { rerender } = render(
+      <KeepAliveScreens projectEpoch="epoch:/a" active="home" screens={screens} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Home 0" }));
+    rerender(<KeepAliveScreens projectEpoch="epoch:/a" active="overview" screens={screens} />);
+    fireEvent.click(screen.getByRole("button", { name: "Overview 0" }));
+    rerender(<KeepAliveScreens projectEpoch="epoch:/b" active="home" screens={screens} />);
+    expect(screen.getByRole("button", { name: "Home 1" })).toBeInTheDocument();
+    rerender(<KeepAliveScreens projectEpoch="epoch:/b" active="overview" screens={screens} />);
+    expect(screen.getByRole("button", { name: "Overview 0" })).toBeInTheDocument();
   });
 
   it("keeps a hidden view alive under a lifecycle derived from its screen's", () => {

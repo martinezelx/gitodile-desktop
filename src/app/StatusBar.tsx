@@ -213,7 +213,7 @@ export function StatusBar({
     !teamSync.isCheckingRemote &&
     !isReadingTeamStatus,
   );
-  const isBusy = isCheckingChanges || teamSync.isLoading || teamSync.isCheckingRemote;
+  const isBusy = Boolean(project && (isCheckingChanges || teamSync.isLoading || teamSync.isCheckingRemote));
   const syncIcon = teamSync.isCheckingRemote || isReadingTeamStatus
     ? <LoaderCircle className="icon--spinning" aria-hidden="true" />
     : tone === "success"

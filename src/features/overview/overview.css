@@ -785,6 +785,7 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   margin: 0 auto var(--space-4);
   animation: welcome-mascot-in 620ms cubic-bezier(.2, .9, .3, 1.2) both;
 }
+.welcome-mascot--settled { animation: none; }
 @keyframes welcome-mascot-in {
   0% { opacity: 0; transform: translateY(16px) scale(.96); }
   60% { opacity: 1; transform: translateY(-4px) scale(1.01); }

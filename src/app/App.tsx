@@ -166,6 +166,7 @@ import { useProjectTechnologies } from "./projectTechnologies";
 import {
   ChangesPanel,
   HistoryScreen,
+  HomeScreen,
   KeepAliveScreens,
   OverviewPanel,
   NAV_DESTINATIONS,
@@ -178,8 +179,8 @@ import {
 } from "./screens";
 import "../styles.css";
 
-// Lazily loaded: none of these are needed for the first paint (the Overview
-// screen with no project open), and ChangesPanel/PublishDialog/PendingVersions
+// Lazily loaded: none of these are needed for Home's first paint, and
+// ChangesPanel/PublishDialog/PendingVersions
 // pull in the file-type icon set (~70 SVGs). Deferring them keeps the initial
 // bundle — and therefore first-paint time — small. The two screen panels live
 // in `screens.tsx` next to their registry entries; these are the dialogs,
@@ -196,7 +197,7 @@ const SwitchVersionLineDialog = lazy(() =>
 type View = ScreenId;
 
 const PROJECT_NAV_DESTINATIONS = NAV_DESTINATIONS.filter(
-  (destination) => destination.section === "project",
+  (destination) => destination.section === "project" && destination.inRail,
 );
 const DEFAULT_NAVIGATION_PREFERENCES = {
   visibleDestinationIds: PROJECT_NAV_DESTINATIONS.map((destination) => destination.id),
@@ -241,7 +242,24 @@ export function App(): React.JSX.Element {
     mode: InitializeTargetKind;
     existingPath?: string;
   } | null>(null);
-  const [view, setView] = useState<View>("overview");
+  const [view, setView] = useState<View>(() =>
+    localStorage.getItem("gitodile-reopen-last-project") === "true" && readStoredProjects().order.length > 0
+      ? "overview"
+      : "home",
+  );
+  const [homeHistory, setHomeHistory] = useState<{
+    projectId: string;
+    returnView: ProjectView;
+    canGoForward: boolean;
+  } | null>(null);
+  const hasShownHomeGreeting = useRef(false);
+  const previousViewRef = useRef<View>(view);
+  useEffect(() => {
+    if (previousViewRef.current === "home" && view !== "home") {
+      hasShownHomeGreeting.current = true;
+    }
+    previousViewRef.current = view;
+  }, [view]);
   const [theme, setTheme] = useThemePreference();
   const effectiveThemeScheme = resolveEffectiveThemeScheme(theme);
   // A community theme has no official counterpart to flip to, so there the
@@ -389,7 +407,16 @@ export function App(): React.JSX.Element {
       return;
     }
     markScreenSwitchIntent(view, next);
-    if (sessionsState.activeId) {
+    if (next === "home") {
+      setHomeHistory(activeSession ? {
+        projectId: activeSession.id,
+        returnView: view === "home" ? activeSession.lastView : view,
+        canGoForward: false,
+      } : null);
+    } else {
+      setHomeHistory(null);
+    }
+    if (next !== "home" && sessionsState.activeId) {
       dispatchSessions({ type: "navigate", id: sessionsState.activeId, view: next });
     }
     setView(next);
@@ -406,15 +433,28 @@ export function App(): React.JSX.Element {
   };
 
   const goBack = (): void => {
+    if (view === "home") {
+      if (homeHistory && homeHistory.projectId === activeSession?.id) {
+        setView(homeHistory.returnView);
+        setHomeHistory({ ...homeHistory, canGoForward: true });
+      }
+      return;
+    }
     if (!activeSession || activeSession.viewHistoryIndex === 0) {
       return;
     }
     const nextIndex = activeSession.viewHistoryIndex - 1;
+    setHomeHistory(null);
     dispatchSessions({ type: "goBack", id: activeSession.id });
     setView(activeSession.viewHistory[nextIndex]);
   };
 
   const goForward = (): void => {
+    if (homeHistory?.canGoForward && homeHistory.projectId === activeSession?.id && view === homeHistory.returnView) {
+      setView("home");
+      setHomeHistory({ ...homeHistory, canGoForward: false });
+      return;
+    }
     if (
       !activeSession ||
       activeSession.viewHistoryIndex >= activeSession.viewHistory.length - 1
@@ -422,16 +462,20 @@ export function App(): React.JSX.Element {
       return;
     }
     const nextIndex = activeSession.viewHistoryIndex + 1;
+    setHomeHistory(null);
     dispatchSessions({ type: "goForward", id: activeSession.id });
     setView(activeSession.viewHistory[nextIndex]);
   };
 
-  const canGoBack = Boolean(activeSession && activeSession.viewHistoryIndex > 0);
-  const canGoForward =
+  const canGoBack = view === "home"
+    ? Boolean(homeHistory && homeHistory.projectId === activeSession?.id)
+    : Boolean(activeSession && activeSession.viewHistoryIndex > 0);
+  const canGoForward = view !== "home" && (
+    Boolean(homeHistory?.canGoForward && homeHistory.projectId === activeSession?.id && view === homeHistory.returnView) ||
     Boolean(
       activeSession &&
         activeSession.viewHistoryIndex < activeSession.viewHistory.length - 1,
-    );
+    ));
   // The failed-open message and whether its dialog is showing are tracked
   // separately so closing the overlay can clear stale content independently.
   const [openError, setOpenError] = useState<string | null>(null);
@@ -845,7 +889,7 @@ export function App(): React.JSX.Element {
   // it has aged out of the newest few. The star itself is the app's existing
   // project favourite, not a second list-local mark.
   const recentProjectEntries = orderByFavourite(
-    recentProjects.map((entry) => ({
+    recentProjects.filter((entry) => view !== "home" || !sessionsState.byId[entry.path]).map((entry) => ({
       ...entry,
       isFavourite: favouriteProjectIds.has(entry.path),
       iconChoice: projectIconChoices.get(entry.path) ?? null,
@@ -921,25 +965,24 @@ export function App(): React.JSX.Element {
     dispatchSessions({ type: "setOperationPhase", id: path, phase });
   };
 
-  // Switching or opening a project moves the visible screen to whatever that
-  // session was last showing — unless the user is currently in Settings,
-  // which is application-wide and stays exactly where it is regardless of
-  // which project is active underneath it.
+  // Switching or opening a project restores that session's last project
+  // screen. Home remains independent of the session's own screen history.
   const syncViewToSession = (targetLastView: ProjectView): void => {
+    setHomeHistory(null);
     if (view !== targetLastView) {
       setView(targetLastView);
     }
   };
 
   const activateSession = (id: string): void => {
-    if (hasBlockingDialog || id === sessionsState.activeId) {
+    if (hasBlockingDialog || (id === sessionsState.activeId && view !== "home")) {
       return;
     }
     const target = sessionsState.byId[id];
     if (!target) {
       return;
     }
-    dispatchSessions({ type: "activate", id });
+    if (id !== sessionsState.activeId) dispatchSessions({ type: "activate", id });
     syncViewToSession(target.lastView);
     setProjectAnnouncement(t.projectSwitcherActiveAnnouncement(target.project.name));
     void checkWorkingTree(target.project.path);
@@ -1059,6 +1102,7 @@ export function App(): React.JSX.Element {
     let cancelled = false;
     void (async () => {
       let skipped = 0;
+      let restored = 0;
       for (const path of stored.order) {
         if (cancelled) {
           return;
@@ -1066,6 +1110,7 @@ export function App(): React.JSX.Element {
         try {
           const info = await repositoryController.open({ selectedPath: path });
           dispatchSessions({ type: "open", project: info });
+          restored += 1;
           void checkWorkingTree(info.path, info.sessionEpoch);
         } catch {
           skipped += 1;
@@ -1077,6 +1122,7 @@ export function App(): React.JSX.Element {
       if (stored.activeId) {
         dispatchSessions({ type: "activate", id: stored.activeId });
       }
+      setView(restored > 0 ? "overview" : "home");
       if (skipped > 0) {
         setSkippedRestoreCount(skipped);
       }
@@ -1434,10 +1480,10 @@ export function App(): React.JSX.Element {
   // a project that is no longer open. Which screens those are comes from the
   // registry, so a new project-only screen is covered by declaring itself one.
   useEffect(() => {
-    if (screenRequiresProject(view) && !project) {
-      navigateToView("overview");
+    if (hasCompletedSessionRestore && screenRequiresProject(view) && !project) {
+      navigateToView("home");
     }
-  }, [view, project]);
+  }, [view, project, hasCompletedSessionRestore]);
 
   const performCloseSession = async (id: string): Promise<void> => {
     const closingSession = sessionsState.byId[id];
@@ -1478,7 +1524,8 @@ export function App(): React.JSX.Element {
     historyController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id) {
-      setView(nextSession?.lastView ?? "overview");
+      setHomeHistory(null);
+      setView(view === "home" ? "home" : (nextSession?.lastView ?? "home"));
       if (nextSession) {
         setProjectAnnouncement(
           t.projectSwitcherActiveAnnouncement(nextSession.project.name),
@@ -1875,6 +1922,7 @@ export function App(): React.JSX.Element {
             and About, which the menu and the palette open (DESIGN.md § Brand). */}
         <div className="window-titlebar__actions">
           <TitlebarMenu
+            onOpenHome={() => navigateToView("home")}
             onOpenAbout={() => setIsAboutOpen(true)}
             onOpenChangelog={() => setIsChangelogOpen(true)}
             onCheckAppUpdates={() => {
@@ -1887,7 +1935,7 @@ export function App(): React.JSX.Element {
             onCloseProject={requestCloseActiveProject}
             onOpenSettings={() => openSettings()}
             onOpenShortcuts={() => setIsShortcutsOpen(true)}
-            hasProject={project !== null}
+            hasProject={project !== null && view !== "home"}
             isOpeningProject={isOpening}
             canReloadWindow={!hasUnsettledOperation(sessionsState)}
             onReportIssue={() => void issueReport.report()}
@@ -1959,11 +2007,11 @@ export function App(): React.JSX.Element {
               {jumpMenuEntries.map((entry) => (
                 <button
                   key={entry.id}
-                  className={`app-menu__item${entry.id === sessionsState.activeId ? " app-menu__item--selected" : ""}`}
+                  className={`app-menu__item${view !== "home" && entry.id === sessionsState.activeId ? " app-menu__item--selected" : ""}`}
                   type="button"
                   role="menuitem"
                   disabled={hasBlockingDialog}
-                  aria-current={entry.id === sessionsState.activeId ? "true" : undefined}
+                  aria-current={view !== "home" && entry.id === sessionsState.activeId ? "true" : undefined}
                   aria-label={t.projectSwitcherRailTrigger(entry.name)}
                   onClick={() => {
                     closeJumpMenu();
@@ -2024,7 +2072,7 @@ export function App(): React.JSX.Element {
               <div className="app-menu__divider" role="separator" />
 
               {/* The foot, in the same order the rail stacks it. */}
-              {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map(
+              {NAV_DESTINATIONS.filter((destination) => destination.section === "application" && destination.inRail).map(
                 (destination) => {
                   const { screen, overlay } = destination;
                   const isActive =
@@ -2184,7 +2232,7 @@ export function App(): React.JSX.Element {
             <div className="sidebar-project-section" data-flyout-group-anchor="">
               <ProjectSwitcherRail
                 entries={switcherEntries}
-                activeId={sessionsState.activeId}
+                activeId={view === "home" ? null : sessionsState.activeId}
                 canSwitch={!hasBlockingDialog}
                 isOpening={isOpening}
                 onActivate={activateSession}
@@ -2199,7 +2247,7 @@ export function App(): React.JSX.Element {
             </div>
 
             <nav aria-label={t.navApplicationAriaLabel} className="sidebar-foot">
-              {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map((destination) => {
+              {NAV_DESTINATIONS.filter((destination) => destination.section === "application" && destination.inRail).map((destination) => {
                 const { screen, overlay } = destination;
                 const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
                 const label = t[destination.labelKey];
@@ -2247,7 +2295,7 @@ export function App(): React.JSX.Element {
           <div className="compact-nav-row">
             <ProjectSwitcherCompact
               entries={switcherEntries}
-              activeId={sessionsState.activeId}
+              activeId={view === "home" ? null : sessionsState.activeId}
               canSwitch={!hasBlockingDialog}
               isOpening={isOpening}
               onActivate={activateSession}
@@ -2327,14 +2375,26 @@ export function App(): React.JSX.Element {
             </p>
           )}
 
-          {/* One mounted set of screens per project session: keying the
-              host by the active session drops the previous project's
-              screens instead of keeping them alive against a project the
-              user has left. */}
+          {/* Project screens are keyed by epoch; Home survives project switches
+              and suspends its effects while hidden. */}
           <KeepAliveScreens
-            key={activeSession?.epoch ?? "no-project"}
             active={view}
+            projectEpoch={activeSession?.epoch}
             screens={{
+              home: (
+                <HomeScreen
+                  isOpening={isOpening}
+                  recentProjects={recentProjectEntries}
+                  onOpenProject={() => void handleOpenProject()}
+                  onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
+                  onCloneProject={() => setIsCloneOpen(true)}
+                  onOpenRecentProject={(path) => void handleOpenProject(path)}
+                  onToggleFavouriteRecentProject={toggleFavouriteProject}
+                  onForgetRecentProject={(path) => setRecentProjects(forgetRecentProject(path))}
+                  hasOpenProjects={sessionsState.order.length > 0}
+                  playGreeting={!hasShownHomeGreeting.current}
+                />
+              ),
               overview: (
                 <OverviewPanel
                   project={project}

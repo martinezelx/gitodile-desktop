@@ -5,6 +5,7 @@ import {
   CircleAlert,
   CloudDownload,
   FileDiff,
+  FolderGit2,
   FolderInput,
   FolderPlus,
   LoaderCircle,
@@ -434,7 +435,7 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
 
   return (
     <div className="sidebar-project-group">
-      {activeEntry && (
+      {entries.length > 0 && (
         <>
           <button
             ref={triggerRef}
@@ -444,8 +445,8 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
             // announces that separately, and a trigger whose accessible name
             // changed with every background operation would be a moving
             // target for anyone navigating by voice.
-            aria-label={t.projectSwitcherRailTrigger(activeEntry.name)}
-            data-tooltip={t.projectSwitcherRailTrigger(activeEntry.name)}
+            aria-label={activeEntry ? t.projectSwitcherRailTrigger(activeEntry.name) : t.projectSwitcherAriaLabel}
+            data-tooltip={activeEntry ? t.projectSwitcherRailTrigger(activeEntry.name) : t.projectSwitcherAriaLabel}
             aria-haspopup="dialog"
             aria-expanded={isOpen}
             aria-disabled={!canSwitch || undefined}
@@ -454,14 +455,14 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
               isOpen ? close(true) : (setQuery(""), setFavouritesOnly(false), setIsOpen(true));
             }}
           >
-            <ProjectAvatar
+            {activeEntry ? <ProjectAvatar
               id={activeEntry.id}
               name={activeEntry.name}
               className="sidebar-project__avatar"
               iconChoice={activeEntry.iconChoice}
               technology={activeEntry.technology}
               style={activeEntry.avatarStyle}
-            />
+            /> : <span className="sidebar-project__avatar sidebar-project__avatar--empty"><FolderGit2 aria-hidden="true" /></span>}
             <span className="sidebar-project__chevron" aria-hidden="true">
               <ChevronDown />
             </span>
@@ -639,7 +640,7 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
         aria-controls={isOpen ? popoverId : undefined}
         onClick={() => setIsOpen((open) => !open)}
       >
-        {activeEntry && (
+        {activeEntry ? (
           <ProjectAvatar
             id={activeEntry.id}
             name={activeEntry.name}
@@ -648,7 +649,7 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
             technology={activeEntry.technology}
             style={activeEntry.avatarStyle}
           />
-        )}
+        ) : <FolderGit2 aria-hidden="true" />}
       </button>
       {isOpen && (
         <div

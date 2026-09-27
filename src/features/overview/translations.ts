@@ -88,6 +88,7 @@ export interface OverviewTranslations {
   overviewPublishUpToHint: string;
   overviewCloseProject: string;
   overviewEmptyTitle: string;
+  overviewHomeTitle: string;
   overviewEmptyDescription: string;
   overviewOpening: string;
   overviewOpenProject: string;
@@ -199,6 +200,7 @@ const en: OverviewTranslations = {
   overviewPublishUpToHint: "Publishes this version and all older ones.",
   overviewCloseProject: "Close project",
   overviewEmptyTitle: "No project open",
+  overviewHomeTitle: "What would you like to open?",
   overviewEmptyDescription: "Choose how to start. Everything stays on this computer until you publish.",
   overviewOpening: "Opening…",
   overviewOpenProject: "Open a project",
@@ -303,6 +305,7 @@ const es: OverviewTranslations = {
   overviewPublishUpToHint: "Publica esta versión y todas las anteriores.",
   overviewCloseProject: "Cerrar proyecto",
   overviewEmptyTitle: "Ningún proyecto abierto",
+  overviewHomeTitle: "¿Qué te gustaría abrir?",
   overviewEmptyDescription: "Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.",
   overviewOpening: "Abriendo…",
   overviewOpenProject: "Abrir un proyecto",

@@ -55,6 +55,8 @@ export interface AppTranslations {
   navProjectAriaLabel: string;
   navApplicationAriaLabel: string;
   navOverview: string;
+  navOverviewTitle: string;
+  navHome: string;
   navWork: string;
   navWorkTitle: string;
   navVersionLines: string;
@@ -73,6 +75,7 @@ export interface AppTranslations {
   palettePlaceholder: string;
   paletteNoMatches: string;
   commandGoOverview: string;
+  commandGoHome: string;
   commandGoVersionLines: string;
   commandGoWork: string;
   commandGoChanges: string;
@@ -271,6 +274,8 @@ const en: AppTranslations = {
   navProjectAriaLabel: "Project navigation",
   navApplicationAriaLabel: "Application",
   navOverview: "Overview",
+  navOverviewTitle: "Overview — open a project first",
+  navHome: "Projects",
   navWork: "Work",
   navWorkTitle: "Work — open a project first",
   navVersionLines: "Lines",
@@ -288,6 +293,7 @@ const en: AppTranslations = {
   palettePlaceholder: "Jump to a view or action…",
   paletteNoMatches: "No matching commands",
   commandGoOverview: "Go to Overview",
+  commandGoHome: "Go to Projects",
   commandGoVersionLines: "Go to Lines",
   commandGoWork: "Go to Work",
   commandGoChanges: "Go to Changes",
@@ -474,6 +480,8 @@ const es: AppTranslations = {
   navProjectAriaLabel: "Navegación del proyecto",
   navApplicationAriaLabel: "Aplicación",
   navOverview: "Resumen",
+  navOverviewTitle: "Resumen — abre antes un proyecto",
+  navHome: "Proyectos",
   navWork: "Trabajo",
   navWorkTitle: "Trabajo — abre antes un proyecto",
   navVersionLines: "Líneas",
@@ -491,6 +499,7 @@ const es: AppTranslations = {
   palettePlaceholder: "Ir a una vista o acción…",
   paletteNoMatches: "No hay coincidencias",
   commandGoOverview: "Ir a Resumen",
+  commandGoHome: "Ir a Proyectos",
   commandGoVersionLines: "Ir a Líneas",
   commandGoWork: "Ir a Trabajo",
   commandGoChanges: "Ir a Cambios",
