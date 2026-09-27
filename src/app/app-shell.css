@@ -1374,22 +1374,134 @@
 .about-details__value { display: inline-flex; align-items: center; gap: 6px; }
 .about-details__mark { flex-shrink: 0; width: 14px; height: 14px; }
 
-.shortcuts-dialog { width: min(100%, 380px); }
-.shortcuts-list { list-style: none; margin: 4px 0 0; padding: 0; }
-.shortcuts-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--border-divider); font-size: var(--text-body); color: var(--text-primary-color); }
-.shortcuts-list li:first-child { border-top: 0; }
-.shortcuts-list__keys { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.shortcuts-list kbd {
-  min-width: 20px;
-  padding: 3px 6px;
+.shortcuts-dialog { width: min(100%, 420px); cursor: default; padding: 0 var(--space-6) var(--space-6); }
+/* The sheet's identity is the tile: a keyboard glyph whose corner badge is the
+   mark of the platform being described, so the sheet says which keyboard its
+   keycaps are drawn for without a caption competing with the title for width.
+   The title keeps its own line; the width leaves room for the longest shipped
+   name beside the tile and the close control, so it neither wraps nor slides
+   under the button. The bar is sticky so its close control stays in reach when
+   a short window turns the sheet into the scroller. It carries the dialog's top
+   inset itself — the dialog's own top padding is zero — so it can bleed over
+   the side padding (the negative inline margins) and hide the rows scrolling
+   under it while still pinning flush at the scrollport's top. A negative top
+   margin cannot do that: sticky clamps the box to its containing block, so the
+   header would sit at the padding edge regardless and the first rows would run
+   under it. */
+.shortcuts-dialog__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 calc(-1 * var(--space-6)) 0;
+  padding: var(--space-5) var(--space-6) var(--space-3);
+  background: var(--surface-raised);
+}
+.shortcuts-dialog__header h2 {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shortcuts-dialog__tile {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+.shortcuts-dialog__tile > svg { width: 21px; height: 21px; }
+.shortcuts-dialog__tile-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+.shortcuts-dialog__tile-badge svg { width: 11px; height: 11px; }
+
+/* Sections, not a rule per row: rows in a list separate with space, and only
+   one group is divided from the next. */
+.shortcuts-groups { display: flex; flex-direction: column; gap: var(--space-5); margin-top: var(--space-5); }
+.shortcuts-group__caption {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-secondary-color);
+}
+.shortcuts-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.shortcuts-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 36px;
+  /* The hover fill is inset from the label by this padding and bled back by the
+     matching margin, so the label keeps its column while the row reads as one
+     target. The fill is a wash rather than `--surface-hover` itself: an opaque
+     fill would swallow the resting keycaps, which are that same token. */
+  padding-inline: var(--space-2);
+  margin-inline: calc(-1 * var(--space-2));
+  border-radius: var(--radius-item);
+  font-size: var(--text-body);
+  color: var(--text-primary-color);
+  transition: background var(--duration-fast) ease;
+}
+.shortcuts-row:hover { background: color-mix(in srgb, var(--surface-hover) 60%, transparent); }
+.shortcuts-keys { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.shortcuts-keys kbd {
+  min-width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
   border: 1px solid var(--border-subtle);
+  border-bottom-width: 2px;
   border-radius: var(--radius-item);
   background: var(--surface-hover);
   color: var(--text-secondary-color);
-  font: inherit;
+  font-family: inherit;
   font-size: var(--text-label);
-  text-align: center;
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-none);
 }
+/* Pointing at a shortcut taps its keys in the order they are pressed — `Ctrl`
+   first, then `Shift`, then the letter — so the row demonstrates the chord
+   instead of just highlighting it. Each key returns to rest, so the motion
+   reads as a tap; re-entering the row replays it. Motion is transform and the
+   faked border depth only, never the keycap's box, so the row cannot shift. */
+@keyframes shortcuts-key-press {
+  0%, 100% {
+    transform: translateY(0);
+    border-bottom-width: 2px;
+    background: var(--surface-hover);
+    color: var(--text-secondary-color);
+  }
+  45% {
+    transform: translateY(1px);
+    border-bottom-width: 1px;
+    background: var(--surface-active);
+    color: var(--text-primary-color);
+  }
+}
+.shortcuts-row:hover .shortcuts-keys kbd { animation: shortcuts-key-press calc(var(--duration-normal) * 2) ease both; }
+.shortcuts-row:hover .shortcuts-keys kbd:nth-child(2) { animation-delay: calc(var(--duration-normal) / 2); }
+.shortcuts-row:hover .shortcuts-keys kbd:nth-child(3) { animation-delay: var(--duration-normal); }
 
 @media (prefers-reduced-motion: reduce) {
   .changelog-release__notes { animation: none; }
@@ -1415,6 +1527,14 @@
   .project-switcher-add-menu__trigger[aria-expanded="true"] > svg { transform: rotate(45deg); }
   .project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
     transform: rotate(45deg);
+  }
+  /* The row and its keys still answer the pointer, but without the tap motion:
+     a static colour change stands in for the press. */
+  .shortcuts-row { transition: none; }
+  .shortcuts-row:hover .shortcuts-keys kbd {
+    animation: none;
+    background: var(--surface-active);
+    color: var(--text-primary-color);
   }
 }
 

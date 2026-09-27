@@ -268,6 +268,54 @@ describe("readSystemInfo", () => {
   });
 });
 
+describe("Keyboard shortcuts dialog", () => {
+  function renderShortcuts(): AppOverlaysProps {
+    const props = buildProps(null);
+    props.shortcuts = { isOpen: true, setOpen: vi.fn() };
+    render(
+      <LanguageProvider>
+        <AppOverlays {...props} />
+      </LanguageProvider>,
+    );
+    return props;
+  }
+
+  it("heads the sheet with a keyboard tile carrying the platform's mark", () => {
+    renderShortcuts();
+
+    const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
+    const header = dialog.querySelector(".shortcuts-dialog__header");
+    const tile = header?.querySelector(".shortcuts-dialog__tile");
+    const badge = tile?.querySelector(".shortcuts-dialog__tile-badge");
+
+    // The tile and a title on one row is what removes the old overlap with the
+    // close button; the title is a sibling of the close, not laid under it.
+    expect(tile).toBeInTheDocument();
+    expect(header?.querySelector(".dialog-close-button")).toBeInTheDocument();
+    // The mocked OS bridge reports Windows, so the badge wears its mark.
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+  });
+
+  it("groups the rows and spells the modifiers for the running OS", () => {
+    renderShortcuts();
+
+    const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
+    // The opening group is unlabelled — the sheet's title names it — so the
+    // first caption the reader meets is Projects.
+    expect(within(dialog).queryByRole("heading", { name: "Navigation" })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "Projects" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "Editing" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "Interface" })).toBeInTheDocument();
+
+    // Windows spells the modifiers out rather than using Mac symbols.
+    expect(within(dialog).getAllByText("Ctrl").length).toBeGreaterThan(0);
+    expect(within(dialog).getByText("Shift")).toBeInTheDocument();
+    expect(within(dialog).queryByText("⌘")).not.toBeInTheDocument();
+    // The editing shortcuts are listed too, platform-neutral.
+    expect(within(dialog).getByText("F2")).toBeInTheDocument();
+  });
+});
+
 describe("About dialog", () => {
   it("is named by the app it belongs to, not only by its promise", () => {
     renderOverlays();

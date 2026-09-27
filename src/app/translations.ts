@@ -33,12 +33,18 @@ export interface AppTranslations {
   issueReportRetry: string;
   titlebarKeyboardShortcuts: string;
   shortcutsDialogTitle: string;
+  shortcutsPlatformLabel: (platform: string) => string;
   shortcutsOpenPalette: string;
   shortcutsOpenSettings: string;
   shortcutsToggleSidebar: string;
   shortcutsNextProject: string;
   shortcutsPreviousProject: string;
   shortcutsCloseDialogs: string;
+  shortcutsSaveVersion: string;
+  shortcutsRenameLine: string;
+  shortcutsGroupProjects: string;
+  shortcutsGroupEditing: string;
+  shortcutsGroupInterface: string;
   titlebarGoBack: string;
   titlebarGoForward: string;
   titlebarHistoryControls: string;
@@ -243,12 +249,18 @@ const en: AppTranslations = {
   issueReportRetry: "Try again",
   titlebarKeyboardShortcuts: "Keyboard shortcuts",
   shortcutsDialogTitle: "Keyboard shortcuts",
+  shortcutsPlatformLabel: (platform) => `Shortcuts for ${platform}`,
   shortcutsOpenPalette: "Open command palette",
   shortcutsOpenSettings: "Open Settings",
   shortcutsToggleSidebar: "Show or hide the sidebar",
   shortcutsNextProject: "Next project",
   shortcutsPreviousProject: "Previous project",
   shortcutsCloseDialogs: "Close dialogs and menus",
+  shortcutsSaveVersion: "Save a version",
+  shortcutsRenameLine: "Rename a version line",
+  shortcutsGroupProjects: "Projects",
+  shortcutsGroupEditing: "Editing",
+  shortcutsGroupInterface: "Interface",
   titlebarGoBack: "Go back",
   titlebarGoForward: "Go forward",
   titlebarHistoryControls: "Navigation history",
@@ -440,12 +452,18 @@ const es: AppTranslations = {
   issueReportRetry: "Reintentar",
   titlebarKeyboardShortcuts: "Atajos de teclado",
   shortcutsDialogTitle: "Atajos de teclado",
+  shortcutsPlatformLabel: (platform) => `Atajos para ${platform}`,
   shortcutsOpenPalette: "Abrir la paleta de comandos",
   shortcutsOpenSettings: "Abrir Ajustes",
   shortcutsToggleSidebar: "Mostrar u ocultar la barra lateral",
   shortcutsNextProject: "Proyecto siguiente",
   shortcutsPreviousProject: "Proyecto anterior",
   shortcutsCloseDialogs: "Cerrar diálogos y menús",
+  shortcutsSaveVersion: "Guardar una versión",
+  shortcutsRenameLine: "Renombrar una línea de versión",
+  shortcutsGroupProjects: "Proyectos",
+  shortcutsGroupEditing: "Edición",
+  shortcutsGroupInterface: "Interfaz",
   titlebarGoBack: "Atrás",
   titlebarGoForward: "Adelante",
   titlebarHistoryControls: "Historial de navegación",

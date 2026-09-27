@@ -1612,6 +1612,14 @@ Keyboard shortcuts must use platform conventions:
 - `Ctrl` on Windows/Linux;
 - `Cmd` on macOS.
 
+The shortcut sheet follows them. It lists the app-level shortcuts and groups
+them, and it draws each key in the platform's own form — `Ctrl`, `Shift` and
+`Esc` spelled out on Windows and Linux, `⌘`, `⇧` and `esc` on macOS — under a
+header tile that wears the platform's mark, so what it shows is the keyboard the
+reader actually has. Pointing at a row taps its keys in the order they are
+pressed instead of selecting the label, and the motion is withdrawn under
+reduced-motion.
+
 ### Pointer cursors
 
 Follow desktop rather than browser cursor conventions. Standard controls —

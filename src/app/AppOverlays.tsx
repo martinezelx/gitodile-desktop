@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
-import { ArrowUpRight, Check, CircleAlert, Copy } from "lucide-react";
+import { ArrowUpRight, Check, CircleAlert, Copy, Keyboard } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import {
@@ -34,7 +34,7 @@ import {
   type TechnologyId,
 } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
-import { MOD_KEY_LABEL } from "./branding";
+import { modifierKeyLabels } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
@@ -291,6 +291,63 @@ export function AppOverlays({
   useModalFocus(shortcuts.isOpen, shortcutsRef, shortcuts.setOpen);
   useModalFocus(closeConfirmation.isOpen, closeRef, closeConfirmation.setOpen);
   useModalFocus(error.isOpen, errorRef, error.setOpen);
+
+  /* The shortcut sheet is built here rather than stored, because every label is
+     already translated and the two modifier keys change with the platform. The
+     keycaps spell the OS's own caps — ⌘/⇧ on a Mac, Ctrl/Shift elsewhere — and
+     the sheet's tile wears that platform's mark, so what is drawn is the
+     keyboard the reader actually has. */
+  const shortcutKeys = modifierKeyLabels(systemInfo?.platform);
+  const shortcutKeyLabel = (token: string): string => {
+    switch (token) {
+      case "mod":
+        return shortcutKeys.mod;
+      case "shift":
+        return shortcutKeys.shift;
+      case "tab":
+        return "Tab";
+      case "esc":
+        return shortcutKeys.esc;
+      default:
+        return token;
+    }
+  };
+  const shortcutGroups: { caption: string | null; items: { label: string; keys: string[] }[] }[] = [
+    {
+      // The opening row needs no heading: the sheet's own title already names
+      // it, and a caption here would collide with the keyboard tile above.
+      caption: null,
+      items: [
+        { label: t.shortcutsOpenPalette, keys: ["mod", "K"] },
+        { label: t.shortcutsOpenSettings, keys: ["mod", ","] },
+        { label: t.shortcutsToggleSidebar, keys: ["mod", "B"] },
+      ],
+    },
+    {
+      caption: t.shortcutsGroupProjects,
+      items: [
+        { label: t.shortcutsNextProject, keys: ["mod", "tab"] },
+        { label: t.shortcutsPreviousProject, keys: ["mod", "shift", "tab"] },
+      ],
+    },
+    {
+      caption: t.shortcutsGroupEditing,
+      items: [
+        { label: t.shortcutsSaveVersion, keys: ["mod", "S"] },
+        { label: t.shortcutsRenameLine, keys: ["F2"] },
+      ],
+    },
+    {
+      caption: t.shortcutsGroupInterface,
+      items: [{ label: t.shortcutsCloseDialogs, keys: ["esc"] }],
+    },
+  ];
+  const shortcutPlatform = systemInfo?.platform ?? null;
+  const shortcutPlatformMark: string | null =
+    shortcutPlatform === "windows" || shortcutPlatform === "macos" || shortcutPlatform === "linux"
+      ? shortcutPlatform
+      : null;
+  const shortcutPlatformName = systemInfo ? describePlatform(systemInfo) : "";
 
   return (
     <>
@@ -589,16 +646,44 @@ export function AppOverlays({
       {shortcuts.isOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
           <div ref={shortcutsRef} className="about-dialog shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-            <DialogCloseButton label={t.commonClose} onClick={() => shortcuts.setOpen(false)} />
-            <h2 id="shortcuts-title">{t.shortcutsDialogTitle}</h2>
-            <ul className="shortcuts-list">
-              <li><span>{t.shortcutsOpenPalette}</span><span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>K</kbd></span></li>
-              <li><span>{t.shortcutsOpenSettings}</span><span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>,</kbd></span></li>
-              <li><span>{t.shortcutsToggleSidebar}</span><span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>B</kbd></span></li>
-              <li><span>{t.shortcutsNextProject}</span><span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>Tab</kbd></span></li>
-              <li><span>{t.shortcutsPreviousProject}</span><span className="shortcuts-list__keys"><kbd>{MOD_KEY_LABEL}</kbd><kbd>Shift</kbd><kbd>Tab</kbd></span></li>
-              <li><span>{t.shortcutsCloseDialogs}</span><span className="shortcuts-list__keys"><kbd>Esc</kbd></span></li>
-            </ul>
+            <header className="shortcuts-dialog__header">
+              <span className="shortcuts-dialog__tile">
+                <Keyboard aria-hidden="true" />
+                {shortcutPlatformMark !== null && (
+                  <span
+                    className="shortcuts-dialog__tile-badge"
+                    role="img"
+                    aria-label={t.shortcutsPlatformLabel(shortcutPlatformName)}
+                    data-tooltip={t.shortcutsPlatformLabel(shortcutPlatformName)}
+                  >
+                    <OperatingSystemMark platform={shortcutPlatformMark} />
+                  </span>
+                )}
+              </span>
+              <h2 id="shortcuts-title">{t.shortcutsDialogTitle}</h2>
+              <DialogCloseButton label={t.commonClose} onClick={() => shortcuts.setOpen(false)} />
+            </header>
+            <div className="shortcuts-groups">
+              {shortcutGroups.map((group, groupIndex) => (
+                <section className="shortcuts-group" key={group.caption ?? `shortcut-group-${groupIndex}`}>
+                  {group.caption !== null && (
+                    <h3 className="shortcuts-group__caption">{group.caption}</h3>
+                  )}
+                  <ul className="shortcuts-rows">
+                    {group.items.map((item) => (
+                      <li className="shortcuts-row" key={item.label}>
+                        <span className="shortcuts-row__label">{item.label}</span>
+                        <span className="shortcuts-keys">
+                          {item.keys.map((token, keyIndex) => (
+                            <kbd key={`${token}-${keyIndex}`}>{shortcutKeyLabel(token)}</kbd>
+                          ))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
           </div>
         </div>
       )}
