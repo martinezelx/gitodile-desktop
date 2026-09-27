@@ -707,12 +707,21 @@ claims.
 
 ### Application icon and Windows shortcuts
 
-`src-tauri/icons/source.svg` (the mark on its lime tile, 1024×1024) is the only
-hand-maintained icon file. `pnpm icons` runs `tauri icon` on it, which renders
-every PNG, the macOS `.icns`, the Windows `.ico`, and the Store logos at their
-native sizes (SVG input, so no resampling of an intermediate bitmap); the
-Android/iOS sets it also emits are discarded because GitOdile does not ship
-them. Edit the SVG and regenerate; never touch a generated PNG by hand.
+`scripts/icons/mascot.mjs` is the only hand-maintained icon source. It draws
+the mascot once from shared parts and assembles two variants: the full body
+and the head. `pnpm icons` writes the standalone SVGs and the element tree the
+in-app mark renders inline (`src/shared/ui/mascotArtwork.ts`, so its fill can follow
+the theme) from it, then runs
+`tauri icon` on four 1024×1024 sources (body and head, each transparent and
+on the macOS emerald tile), so every PNG, the macOS `.icns`, the Windows
+`.ico` and the Store logos are rendered from SVG at their native sizes. Sizes
+under 48px take the head (`32x32.png`, the 30 and 44px Store logos, the
+16/24/32px ICO layers and the 16/32px ICNS entries); 48px and up take the
+body. The `.icns` holds only the tiled renders; every other file is
+transparent. The Android/iOS sets `tauri icon` also emits are discarded
+because GitOdile does not ship them. Edit `mascot.mjs` and regenerate; never
+touch a generated SVG, module or PNG by hand. `check:icons` fails when those
+generated files drift from `mascot.mjs`.
 
 `tauri icon` writes every ICO layer PNG-compressed. Windows guarantees PNG only
 for the 256px layer and expects the 16–64px layers as 32-bit DIBs; some shell
@@ -725,8 +734,8 @@ fails the gate when the committed `icon.ico` drifts from that shape.
 The Windows installer is dressed from the same icons. `tauri.windows.conf.json`
 points `bundle.windows.nsis` at `icon.ico` for the installer and uninstaller
 executables and at two bitmaps under `src-tauri/windows/` that Modern UI 2
-draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px tile on the
-brand contrast black, shown on the Welcome and Finish pages) and
+draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px mascot on
+the macOS tile's emerald, shown on the Welcome and Finish pages) and
 `installer-header.bmp` (150×57, the 48px ICO layer on white, shown in the
 header of every other page). `scripts/icons/build-nsis-images.mjs` (the last
 step of `pnpm icons`) composes them as 24-bit BMPs from `128x128.png` and

@@ -37,6 +37,13 @@ inside themed content beside a different theme accent.
   as it already did, so the identity is the silhouette rather than a colour that
   fights the palette. The official themes keep the brand look because their
   `--accent-primary-fill` is the brand lime.
+
+  *Update, task 131 (2026-09-27):* the mark is now the full-colour sunglasses
+  mascot, shown only in the no-project welcome and About. The rule stands for
+  its fill: it follows `--accent-primary-fill`, lifted to OKLCH lightness 0.72
+  or more so the fixed black outline and glasses stay legible, while the
+  GitOdile themes show the mascot's own lime through the brand-layer token
+  `--mascot-brand-fill`. The packaged icons stay lime.
 - The guard from ADR 0012 stands unchanged: a `[data-theme]` block still must
   not set a brand-layer token. `themeContrast.test.ts` now also covers
   `--accent-primary-contrast` on `--accent-primary-fill`, which is what a

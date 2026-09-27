@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="915" height="610" viewBox="545 170 915 610">
+  <title>GitOdile</title>
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <g>
+    <path fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round" d="M605 378 H780"/>
+    <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+    <g fill="#ffffff">
+      <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+      <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+    </g>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg>

@@ -42,65 +42,24 @@
 }
 
 .window-titlebar {
+  /* The first control (the ··· menu) sits centred over the rail's icon
+     column, so the titlebar and the rail share one vertical axis. The inset
+     follows the rail width and the button size; with no rail (hidden, or the
+     compact layout) it falls back to the plain edge inset. */
+  --titlebar-lead-button: 36px;
   height: 44px;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 6px 0 10px;
+  padding: 0 6px 0 calc(var(--rail-width) / 2 - var(--titlebar-lead-button) / 2);
   background: transparent;
   user-select: none;
 }
+.app-window--sidebar-hidden .window-titlebar { padding-left: 10px; }
 
 .window-titlebar__drag { flex: 1; height: 100%; min-width: 0; }
-/* Identity lives here and only here. It used to sit in the sidebar, where a
-   40px lockup spent the rail's most valuable real estate — its top — saying
-   something that never changes, and forced the titlebar to hide its own mark
-   to avoid reading as a double logo. One mark, in the window furniture, next
-   to the controls it belongs with: the rail gets that height back for
-   destinations, and the identity stops moving between two places depending on
-   the viewport. */
-.window-titlebar__brand {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center; margin-right: 4px;
-}
-/* The crocodile itself, not a crocodile-shaped hole in a green tile.
-
-   Anchored to the corner rather than centred over the rail. Centring it meant
-   giving the brand a rail-wide column, and the ~60px of that column the mark
-   did not fill pushed every titlebar control right by the same amount — a
-   permanent cost to the toolbar in exchange for an alignment only visible when
-   you look for it. Desktop Git clients all park a small mark in the corner and
-   start the controls immediately; the mark is window furniture, not a heading.
-
-   `--accent-primary`, not `--accent-brand`. The brand lime is one fixed value
-   in both themes, which is fine behind a tile it also supplies the contrast
-   for — but painted directly on the light app surface it lands at 1.95:1 and
-   the head all but disappears. `--accent-primary` is the per-theme green and
-   measures 5.09:1 on light, 11.46:1 on dark. */
-/* A button, not an ornament: the mark is how About opens, matching the
-   convention every desktop app follows. But it is the quiet route, so it does
-   not dress up as a toolbar control — no fill, no plate, no tooltip. The
-   silhouette itself answers: it deepens toward `--text-primary-color` on hover and
-   presses like the rail icons do, which is enough to tell a pointer that
-   something is there without putting a button where the identity should be.
-
-   The box stays 30px anyway. Nothing paints it, so it costs no ink, and a
-   target wider than the 24px glyph is what keeps an unadvertised control
-   findable once someone has found it. */
-.window-titlebar__mark {
-  width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-round);
-  background: transparent; color: var(--accent-primary);
-  transition: color var(--duration-fast), transform var(--duration-fast);
-}
-.window-titlebar__mark:hover { color: color-mix(in srgb, var(--accent-primary) 76%, var(--text-primary-color)); }
-.window-titlebar__mark:active { transform: scale(0.94); }
-.window-titlebar__mark .gitodile-mark { width: 24px; height: 13px; }
-/* No wordmark beside it. The mark is the identity at every width, and the
-   width where a second name used to appear — under 800px, with the rail gone
-   and the compact nav in its place — is the one with the least room to spare
-   for saying the same thing twice. */
+/* No brand block: the titlebar is controls only (DESIGN.md § Brand). The
+   mascot appears in the no-project welcome and in About. */
 
 .window-titlebar__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
 /* Circular because the titlebar cluster is an action row, the rail's sibling:
@@ -1141,12 +1100,12 @@
 @media (pointer: coarse) {
   .about-dialog > .dialog-close-button { --about-close-size: var(--control-height-lg); }
 }
-/* The mark at hero scale, on its own line, in the app's canonical identity
-   treatment — the bare silhouette in `--accent-primary`, never a tile
-   (DESIGN.md § Brand). It used to be a 24px separator wedged between the name
-   and the promise, which read as a divider rather than a logo. */
+/* The full mascot at hero scale, on its own line, with its theme fill and
+   the `sweep` glasses motion, never on a tile (DESIGN.md § Brand). The mark
+   used to be a 24px separator wedged between the name and the promise, which
+   read as a divider rather than a logo. */
 .about-dialog__hero { display: flex; flex-direction: column; align-items: center; }
-.about-dialog__mark { display: block; width: 92px; margin: 0 auto; color: var(--accent-primary); }
+.about-dialog__mark { display: block; width: 132px; margin: 0 auto; }
 .about-dialog .about-dialog__hero h2 {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   min-width: 0; margin: var(--space-4) 0 0;
@@ -1447,7 +1406,6 @@
     animation: none;
     transition: none;
   }
-  .window-titlebar__mark:active,
   .rail-item:active:not(:disabled):not([aria-disabled="true"]) .rail-item__icon,
   .sidebar-round:active:not(:disabled):not([aria-disabled="true"]),
   .sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar {
@@ -1469,6 +1427,7 @@
   /* The rail is already hidden at this width and the compact nav has replaced
      it, so the toggle has nothing to toggle. */
   .titlebar-sidebar-toggle { display: none; }
+  .window-titlebar { padding-left: 10px; }
   .window-control { width: 38px; }
   .sidebar { display: none; }
   .app-shell {
@@ -1511,7 +1470,7 @@
 }
 
 @media (pointer: coarse) {
-  .window-titlebar__mark,
+  .window-titlebar { --titlebar-lead-button: 44px; }
   .titlebar-icon-button,
   .sidebar-project__filter,
   .project-switcher__close,

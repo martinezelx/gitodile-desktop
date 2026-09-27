@@ -15,6 +15,9 @@
  * barrel.
  */
 export { autoHideScrollbarProps } from "./autoHideScrollbar";
+/* ADR 0003's two-consumer bar: About and the no-project welcome screen both
+   show the mascot, with the same themed fill; each picks its glasses motion. */
+export { Mascot, type MascotMotion, type MascotProps } from "./mascot";
 /* ADR 0003's two-consumer bar: the Changes file list and the History timeline
    both needed to animate a row that arrives while the screen is open without
    animating the list the screen opens with. */

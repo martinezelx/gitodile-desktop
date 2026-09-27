@@ -777,6 +777,19 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
    resolves `auto-fit` against an indefinite size, collapses to one column and
    the three cards wrap 2 + 1. */
 .empty-state--welcome { width: 100%; max-width: 560px; }
+/* The mascot greets on the front door: it hops in once (a rise that
+   overshoots a few pixels and settles), then its `greet` glasses motion takes
+   over (primitives.css). Reduced motion shows it in place, still. */
+.welcome-mascot {
+  width: 168px;
+  margin: 0 auto var(--space-4);
+  animation: welcome-mascot-in 620ms cubic-bezier(.2, .9, .3, 1.2) both;
+}
+@keyframes welcome-mascot-in {
+  0% { opacity: 0; transform: translateY(16px) scale(.96); }
+  60% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
 .empty-state--welcome h1 { margin-bottom: var(--space-1); }
 .empty-state--welcome p { max-width: 420px; text-wrap: balance; }
 
@@ -1008,6 +1021,7 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   .overview-history__node { transition: none; }
   .welcome-action { transition: none; }
   .welcome-action:hover:not(:disabled) { transform: none; }
+  .welcome-mascot { animation: none; }
   .journey-step,
   .journey-step__go,
   .journey-step__icon,

@@ -484,7 +484,7 @@ describe("App project restoration", () => {
     expect(screen.getByRole("dialog", { name: "Updates" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
-    // The version tag is the changelog's entry point; About moved to the mark.
+    // The version tag is the changelog's entry point; About is in the menu.
     await userEvent.click(
       within(statusBar).getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__} preview` }),
     );
@@ -493,7 +493,10 @@ describe("App project restoration", () => {
     expect(within(changelog).getByText("Your version")).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
-    await userEvent.click(screen.getByRole("button", { name: "About" }));
+    // The titlebar carries no mark, so About opens from the overflow menu.
+    expect(screen.queryByRole("button", { name: "About" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "About" }));
     expect(screen.getByRole("dialog", { name: "GitOdile Git without the fear." })).toBeInTheDocument();
   });
 
@@ -733,6 +736,13 @@ describe("App project restoration", () => {
     // titles this screen "Overview" above it.
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("No project open");
     expect(screen.queryByRole("heading", { name: "Overview" })).not.toBeInTheDocument();
+
+    // The mascot greets here, not in the titlebar, and stays decorative.
+    const welcomeMascot = document.querySelector(".empty-state--welcome .gitodile-mascot");
+    expect(welcomeMascot).toHaveAttribute("aria-hidden", "true");
+    expect(welcomeMascot).toHaveClass("gitodile-mascot--greet");
+    expect(welcomeMascot?.querySelector(".gitodile-mascot__star")).not.toBeNull();
+    expect(document.querySelector(".window-titlebar .gitodile-mascot")).toBeNull();
 
     // Each hint has to stay a *description*: folded into the name instead, it
     // would break every "Open a project" lookup in the app.

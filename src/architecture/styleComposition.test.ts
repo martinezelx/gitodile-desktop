@@ -143,9 +143,9 @@ describe("production style composition", () => {
     expect(appShell).not.toContain(".settings-layout");
     expect(appShell).toContain(".project-settings-dialog__project");
     expect(settings).not.toContain(".settings-dialog");
-    // The mark is the whole identity in the window furniture: no wordmark
-    // beside it, at any width.
-    expect(appShell).toContain(".window-titlebar__mark");
+    // The titlebar carries no brand at any width: no mark and no wordmark
+    // (DESIGN.md § Brand). The mascot lives in the welcome screen and About.
+    expect(appShell).not.toContain(".window-titlebar__mark");
     expect(appShell).not.toContain(".window-titlebar__name");
 
     // The preview glyph beside a build's version is stated on the status bar,
@@ -216,7 +216,7 @@ describe("production style composition", () => {
     const primitives = readSource("shared/ui/primitives.css");
     expect(primitives).toContain(":focus-visible");
     expect(primitives).toContain("@media (forced-colors: active)");
-    expect(primitives).toContain('url("../../assets/gitodile-mark.svg")');
+    expect(primitives).toContain(".gitodile-mascot__fill { fill: var(--mascot-fill); }");
   });
 
   // ADR 0012: two layers. The brand identity is declared once in tokens.css
@@ -225,7 +225,7 @@ describe("production style composition", () => {
   // theme without color-scheme would leave native scrollbars on the old scheme.
   it("keeps the brand layer out of every theme block", () => {
     const themes = readSource("styles/themes.css");
-    const brandTokens = ["--accent-brand:", "--accent-brand-contrast:", "--avatar-", "--tooltip-"];
+    const brandTokens = ["--accent-brand:", "--accent-brand-contrast:", "--mascot-brand-fill:", "--avatar-", "--tooltip-"];
     const blocks = [...themes.matchAll(/\[data-theme="[^"]+"\]\s*\{([^}]*)\}/g)];
     expect(blocks.length).toBe(THEME_IDS.length);
     for (const [, body] of blocks) {

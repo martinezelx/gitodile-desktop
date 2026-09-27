@@ -97,7 +97,6 @@ import { TooltipHost } from "../shared/ui/tooltip";
 import { LoadingBar } from "../shared/ui/loadingBar";
 import { AppOverlays } from "./AppOverlays";
 import { useIssueReport } from "./useIssueReport";
-import { CROCODILE_MARK } from "./branding";
 import { CommandPalette, type AppCommand } from "./CommandPalette";
 import {
   CONFIRM_CLOSE_PROJECT_DEFAULT,
@@ -1869,29 +1868,11 @@ export function App(): React.JSX.Element {
         {projectAnnouncement}
       </span>
       <header className="window-titlebar">
-        {/* The mark is the About affordance, the way it is in every desktop
-            app: identity in the corner, and clicking identity tells you what
-            the thing is. Deliberately unadvertised — no tooltip, no fill —
-            because it is the alternative route, not the signposted one; the
-            menu and the palette are where someone looks when they do not
-            already know the convention. The accessible name stays: it is
-            invisible to a sighted user, so it costs the quiet nothing, and
-            without it the button is unnamed to a screen reader.
-
-            `data-tauri-drag-region` stays on the wrapper only — Tauri reads
-            the attribute off the element under the pointer, so the button
-            keeps its click and the chrome around it still drags the window. */}
-        <div className="window-titlebar__brand" data-tauri-drag-region>
-          <button
-            className="window-titlebar__mark"
-            type="button"
-            aria-label={t.aboutGitOdile}
-            onClick={() => setIsAboutOpen(true)}
-          >
-            {CROCODILE_MARK}
-          </button>
-        </div>
-
+        {/* No brand in the corner. The mascot was the only colour illustration
+            in a row of line icons and drew the eye to a spot that does
+            nothing; the operating system already shows the app icon. The
+            mascot lives in the brand moments instead — the no-project welcome
+            and About, which the menu and the palette open (DESIGN.md § Brand). */}
         <div className="window-titlebar__actions">
           <TitlebarMenu
             onOpenAbout={() => setIsAboutOpen(true)}

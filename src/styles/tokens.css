@@ -155,6 +155,9 @@
      `styles/themes.css`; the contract is DESIGN.md § Theming and ADR 0012. */
   --accent-brand: #8bc53f;
   --accent-brand-contrast: #14170f;
+  /* The mascot's lime (`scripts/icons/mascot.mjs`), shown in the GitOdile
+     themes; other themes tint the in-app mascot from their own accent. */
+  --mascot-brand-fill: #a8f442;
   /* The fill of a card sitting *inside* a panel: a section of the History
      overview, a fact card on the version-lines detail. A step off the panel it
      rests on rather than a colour of its own, so it holds in every theme

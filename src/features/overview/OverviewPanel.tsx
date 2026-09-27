@@ -16,6 +16,7 @@ import {
 import { useLanguage } from "../../i18n";
 import type { RecentProject } from "../../runtime/project/recentProjects";
 import {
+  Mascot,
   ProjectAvatar,
   type ProjectAvatarStyle,
   type ProjectIconChoice,
@@ -602,6 +603,10 @@ export function OverviewPanel({
   // front door's first line on the wrong sentence.
   return (
     <div className="empty-state empty-state--welcome" aria-busy={isOpening}>
+      {/* The front door is a brand moment, so the mascot greets here rather
+          than in the titlebar: it hops in, lifts its glasses once, then a
+          star glints on them now and then. Decorative; the h1 names the screen. */}
+      <Mascot motion="greet" className="welcome-mascot" />
       <h1>{t.overviewEmptyTitle}</h1>
       <p>{t.overviewEmptyDescription}</p>
       <div className="welcome-actions">

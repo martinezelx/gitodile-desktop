@@ -1,0 +1,366 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Efectos de las gafas</title><style>
+:root{--page:#f1efeb;--ink:#1c1917;--muted:#6b6760;--fill:#a8f442}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:var(--page);color:var(--ink)}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:26px;margin:0 0 6px} h2{font-size:20px;margin:34px 0 6px} .sub{color:var(--muted);margin:0 0 14px;font-size:14px;line-height:1.5}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.bar button,.replay{font:inherit;font-size:13px;padding:6px 14px;border-radius:999px;border:1px solid #d6d2cb;background:#fff;cursor:pointer;color:inherit}
+.bar button[aria-pressed=true]{background:#1c1917;color:#fff;border-color:#1c1917}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px}
+.card{background:#fff;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 4px #0001}
+.card h3{margin:0;font-size:15px} .card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45} .card .why{color:#3c5f1a}
+.stage{border-radius:10px;display:grid;place-items:center;padding:18px 10px;background:#faf8f5}
+body.dark .stage{background:#1c1a18}
+.stage svg{width:200px;height:auto;display:block;overflow:visible}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tag{font-size:11px;font-weight:700;background:#e6f0d8;color:#3c5f1a;padding:2px 8px;border-radius:999px}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.pair .stage svg{width:170px}
+.mini{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+.welcome{display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 10px}
+.welcome b{font-size:16px} .welcome small{font-size:11px;color:var(--muted)}
+body.dark .welcome b{color:#f5f5f4}
+.verdict{background:#fff;border-radius:14px;padding:16px 20px;margin-top:22px;line-height:1.55;font-size:14px} .verdict ul{margin:6px 0 0;padding-left:20px}
+/* ---- mascot parts ---- */
+.croc .band{transform:translateX(-10px);opacity:0}
+.croc .lensflash{opacity:0}
+.croc .star{opacity:0;transform-box:fill-box;transform-origin:center}
+.croc .shades,.croc .whole,.croc .glints path{transform-box:fill-box}
+.croc .whole{transform-origin:40% 95%}
+.croc .glints path{transform-origin:center}
+/* 1 sweep */
+.fx-sweep .band{opacity:.7;animation:sweep 6.5s ease-in-out .6s infinite}
+@keyframes sweep{0%{transform:translateX(0)}14%,100%{transform:translateX(1000px)}}
+/* 2 star */
+.fx-star .star{animation:star 5s ease-out .6s infinite}
+.fx-star .glints path{animation:glintup 5s ease-out .6s infinite}
+@keyframes star{0%,4%{opacity:0;transform:translate(1250px,318px) scale(.1) rotate(0)}10%{opacity:1;transform:translate(1250px,318px) scale(1) rotate(45deg)}18%{opacity:0;transform:translate(1250px,318px) scale(.2) rotate(90deg)}100%{opacity:0}}
+@keyframes glintup{0%,4%{opacity:1}10%{opacity:1;fill:#fff;transform:scale(1.25)}18%,100%{transform:scale(1)}}
+/* 3 combo */
+.fx-combo .band{opacity:.7;animation:sweep 6.5s ease-in-out .6s infinite}
+.fx-combo .star{animation:starlate 6.5s ease-out .6s infinite}
+@keyframes starlate{0%,11%{opacity:0;transform:translate(1250px,318px) scale(.1) rotate(0)}17%{opacity:1;transform:translate(1250px,318px) scale(1) rotate(45deg)}25%,100%{opacity:0;transform:translate(1250px,318px) scale(.2) rotate(90deg)}}
+/* 4 lens flash */
+.fx-flash .lensflash{animation:flash 5s ease-in-out .6s infinite}
+@keyframes flash{0%,6%{opacity:0}12%{opacity:.35}22%,100%{opacity:0}}
+/* 5 adjust */
+.fx-adjust .shades{animation:adjust 5.5s cubic-bezier(.3,1.6,.5,1) .6s infinite}
+@keyframes adjust{0%,6%{transform:translateY(0)}11%{transform:translateY(-22px)}18%,100%{transform:translateY(0)}}
+/* 6 nod */
+.fx-nod .whole{animation:nod 5.5s ease-in-out .6s infinite}
+.fx-nod .glints path{animation:blink 5.5s ease-in-out .6s infinite}
+@keyframes nod{0%,4%{transform:rotate(0)}9%{transform:rotate(-3deg)}14%{transform:rotate(1.5deg)}19%,100%{transform:rotate(0)}}
+/* 7 glints blink */
+.fx-glints .glints path{animation:blink 4.5s ease-in-out .6s infinite}
+@keyframes blink{0%,8%{transform:scale(1,1)}11%{transform:scale(1,.1)}14%,100%{transform:scale(1,1)}}
+/* 8 drift */
+.fx-drift .band{opacity:.28;animation:drift 7s linear infinite}
+@keyframes drift{0%{transform:translateX(0)}100%{transform:translateX(1000px)}}
+/* combined proposals */
+.fx-about .band{opacity:.7;animation:sweep 6.5s ease-in-out 1.2s infinite}
+.fx-welcome{animation:hop 620ms cubic-bezier(.2,.9,.3,1.2) both}
+.fx-welcome .shades{animation:adjust1 900ms cubic-bezier(.3,1.6,.5,1) 700ms both}
+.fx-welcome .star{animation:star 5.5s ease-out 1.5s infinite}
+.fx-welcome .glints path{animation:glintup 5.5s ease-out 1.5s infinite}
+@keyframes adjust1{0%{transform:translateY(0)}40%{transform:translateY(-22px)}100%{transform:translateY(0)}}
+@keyframes hop{0%{opacity:0;transform:translateY(16px) scale(.96)}60%{opacity:1;transform:translateY(-4px) scale(1.01)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.croc,.croc *{animation:none!important}}
+</style></head><body><div class="wrap">
+<h1>Efectos para las gafas de la mascota</h1>
+<p class="sub">Ocho efectos en bucle, con el dibujo real de la mascota. «Repetir» reinicia la animación. Recreación en el navegador: los tiempos son los que usaría la app.</p>
+<div class="bar" role="group" aria-label="Fondo"><button type="button" data-bg="light" aria-pressed="true">Fondo claro</button><button type="button" data-bg="dark" aria-pressed="false">Fondo oscuro</button></div>
+<h2>Efectos sueltos</h2><div class="grid"><section class="card"><div class="row"><h3>1 · Barrido</h3></div>
+  <div class="stage" data-fx="sweep"><svg class="croc fx-sweep" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-g-sweep"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-g-sweep)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>Lo que hay ahora: dos franjas cruzan las lentes cada 6,5 s.</p><p class="why">Tranquilo, sirve en cualquier sitio.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section><section class="card"><div class="row"><h3>2 · Destello de estrella</h3></div>
+  <div class="stage" data-fx="star"><svg class="croc fx-star" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-g-star"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-g-star)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>Una estrella de cuatro puntas aparece en la esquina de la lente, gira y se apaga. Los brillos blancos se encienden a la vez.</p><p class="why">El «ting» clásico de las gafas de sol.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section><section class="card"><div class="row"><h3>3 · Barrido que acaba en estrella</h3></div>
+  <div class="stage" data-fx="combo"><svg class="croc fx-combo" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-g-combo"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-g-combo)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>La franja cruza las lentes y, al salir, deja la estrella en la esquina.</p><p class="why">La versión elaborada de la 1.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section><section class="card"><div class="row"><h3>4 · Destello de lentes</h3></div>
+  <div class="stage" data-fx="flash"><svg class="croc fx-flash" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-g-flash"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-g-flash)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>Las lentes se aclaran un instante, como si les diera el sol de frente.</p><p class="why">Muy sutil; casi no se nota a tamaño pequeño.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section><section class="card"><div class="row"><h3>5 · Se recoloca las gafas</h3></div>
+  <div class="stage" data-fx="adjust"><svg class="croc fx-adjust" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-g-adjust"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-g-adjust)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>Las gafas suben un poco y vuelven a su sitio, con un pequeño rebote.</p><p class="why">Un gesto con personalidad; mejor una vez que en bucle.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section><section class="card"><div class="row"><h3>6 · Asiente</h3></div>
+  <div class="stage" data-fx="nod"><svg class="croc fx-nod" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-g-nod"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-g-nod)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>El cocodrilo cabecea hacia delante y atrás, y los brillos parpadean.</p><p class="why">Saluda; más presencia que las otras.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section><section class="card"><div class="row"><h3>7 · Parpadeo de brillos</h3></div>
+  <div class="stage" data-fx="glints"><svg class="croc fx-glints" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-g-glints"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-g-glints)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>Solo los dos brillos blancos se encogen y vuelven, como un guiño detrás de las gafas.</p><p class="why">Mínimo y simpático.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section><section class="card"><div class="row"><h3>8 · Reflejo continuo</h3></div>
+  <div class="stage" data-fx="drift"><svg class="croc fx-drift" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-g-drift"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-g-drift)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>Un reflejo muy tenue cruza las lentes despacio y sin pausa.</p><p class="why">Ambiente, no evento; puede cansar.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section></div>
+<h2>Propuesta: uno distinto en cada sitio</h2>
+<p class="sub">Acerca de se queda con el efecto tranquilo; la bienvenida, que es la puerta de entrada, lleva el más expresivo.</p>
+<div class="pair">
+<section class="card"><div class="row"><h3>Acerca de</h3><span class="tag">Propuesta</span></div>
+  <div class="stage"><svg class="croc fx-about" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-p-about"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-p-about)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg></div>
+  <p>El barrido tranquilo de siempre (1). Es una ficha de identidad: calma y constante.</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section>
+<section class="card"><div class="row"><h3>Pantalla de bienvenida</h3><span class="tag">Propuesta</span></div>
+  <div class="stage welcome"><svg class="croc fx-welcome" viewBox="68 176 1400 700" aria-hidden="true">
+  <defs><clipPath id="clip-p-welcome"><path d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/></clipPath></defs>
+  <g class="whole">
+    
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  
+    <g class="shades"><path class="strap" d="M655 378 H780" fill="none" stroke="#000000" stroke-width="50" stroke-linecap="round"/><path class="lens" fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g class="glints" fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  
+      <g clip-path="url(#clip-p-welcome)"><g class="band" fill="#fff"><path d="M450 290 L520 290 L366 500 L296 500 Z"/><path d="M540 290 L560 290 L406 500 L386 500 Z"/></g><rect class="lensflash" x="740" y="280" width="540" height="230" fill="#fff"/></g>
+    </g>
+    <circle cx="1335" cy="450" r="27" fill="#000000"/>
+
+    <path class="star" transform="translate(1250 318)" d="M0 -95 C12 -12 12 -12 95 0 C12 12 12 12 0 95 C-12 12 -12 12 -95 0 C-12 -12 -12 -12 0 -95 Z" fill="#fff" stroke="#000" stroke-width="10"/>
+  </g>
+</svg><b>Ningún proyecto abierto</b><small>Elige cómo empezar.</small></div>
+  <p>Entra con el salto, se recoloca las gafas una vez (5) y después, de vez en cuando, destello de estrella (2).</p>
+  <div class="row"><span></span><button type="button" class="replay">Repetir</button></div></section>
+</div>
+<div class="verdict"><b>Por qué distintos:</b>
+<ul><li>Si los dos sitios hacen lo mismo, el gesto deja de sentirse especial; la bienvenida se ve mucho más y puede tener su propio saludo.</li>
+<li>Acerca de es una ficha que se abre para leer: el barrido acompaña sin distraer.</li>
+<li>La bienvenida es un primer contacto: el «me recoloco las gafas» una sola vez da personalidad, y la estrella ocasional mantiene vida sin movimiento constante.</li>
+<li>Todo se apaga con «Reducir movimiento».</li></ul></div>
+</div>
+<script>
+for (const b of document.querySelectorAll('[data-bg]')) b.addEventListener('click', () => {
+  document.body.classList.toggle('dark', b.dataset.bg === 'dark');
+  for (const o of document.querySelectorAll('[data-bg]')) o.setAttribute('aria-pressed', String(o === b));
+});
+for (const btn of document.querySelectorAll('.replay')) btn.addEventListener('click', () => {
+  const svg = btn.closest('.card').querySelector('svg');
+  const clone = svg.cloneNode(true); svg.replaceWith(clone);
+});
+</script></body></html>

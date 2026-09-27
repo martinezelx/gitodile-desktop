@@ -65,7 +65,8 @@ but must not trivialize errors or destructive operations.
 - Durable product strategy: `docs/PRODUCT_STRATEGY.md`.
 - Interaction and visual direction: `DESIGN.md`.
 - Architecture and safety rules: `docs/ARCHITECTURE.md` and `AGENTS.md`.
-- Existing product mark: `src/assets/gitodile-mark.svg`.
+- Existing product mark: the sunglasses mascot, `src/assets/gitodile-mascot.svg`
+  (full body) and `src/assets/gitodile-mascot-head.svg` (small sizes).
 - Existing Overview, Changes, save-version, publish, project-session, watcher,
   and version-line implementations and tests under `src/` and
   `src-tauri/src/`.

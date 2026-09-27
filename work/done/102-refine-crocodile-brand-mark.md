@@ -1,7 +1,7 @@
 ---
 id: 102
 title: Refine the crocodile mark and its small-size variants
-status: active
+status: done
 priority: normal
 type: design
 areas:
@@ -9,8 +9,16 @@ areas:
   - desktop
   - branding
 created: 2026-09-02
-queue: "18"
+completed: 2026-09-26
 ---
+
+# Superseded
+
+Closed on 2026-09-26 without adopting a refinement of this mark. The user
+replaced the mark with a new full-colour sunglasses mascot in
+[task 131](../active/131-mascot-app-icon.md), which carries the small-size
+work this task was about (a head-only variant for 32px and below). The
+unchecked criteria below were not met and no longer apply.
 
 # Goal
 
@@ -197,15 +205,15 @@ Future proposals need a fresh visual exploration and native-size validation.
 
 # Relevant files
 
-- [Original in-app SVG](../../src/assets/gitodile-mark.svg)
-- [Original desktop SVG](../../src-tauri/icons/source.svg)
+- Original in-app SVG: `src/assets/gitodile-mark.svg` (removed by task 131; see Git history)
+- Original desktop SVG: `src-tauri/icons/source.svg` (removed by task 131; see Git history)
 - [Brand component](../../src/app/branding.tsx)
 - [Titlebar/About styles](../../src/app/app-shell.css)
 - [Mask primitive](../../src/shared/ui/primitives.css)
 - [Theme tokens](../../src/styles/tokens.css)
 - [Design direction](../../DESIGN.md)
 - [Product strategy](../../docs/PRODUCT_STRATEGY.md)
-- [Previous icon task](../done/008-replace-application-icon.md)
+- [Previous icon task](008-replace-application-icon.md)
 
 # Dependencies
 
