@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { ArrowUpRight, Check, CircleAlert, Copy, Keyboard } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
+import type { ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
   isGitInstallationBroken,
@@ -122,6 +123,8 @@ export type AppOverlaysProps = {
     setNavigationPreferences: Dispatch<SetStateAction<NavigationPreferences>>;
     diffPreferences: DiffPreferences;
     setDiffPreferences: Dispatch<SetStateAction<DiffPreferences>>;
+    consolePreferences: ConsolePreferences;
+    setConsolePreferences: Dispatch<SetStateAction<ConsolePreferences>>;
     /** Both read once after first paint and kept above this dialog, which is
      * unmounted on every close. The line-endings state already knows about the
      * open project, so the overlay never has to pass one down. */
@@ -417,6 +420,8 @@ export function AppOverlays({
               setNavigationPreferences={settings.setNavigationPreferences}
               diffPreferences={settings.diffPreferences}
               setDiffPreferences={settings.setDiffPreferences}
+              consolePreferences={settings.consolePreferences}
+              setConsolePreferences={settings.setConsolePreferences}
               identity={settings.identity}
               defaultBranch={settings.defaultBranch}
               lineEndingsState={settings.lineEndings}

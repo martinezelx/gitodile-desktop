@@ -6,6 +6,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { LanguageProvider } from "../i18n";
 import { DEFAULT_DIFF_PREFERENCES } from "../features/changes";
+import { DEFAULT_CONSOLE_PREFERENCES } from "../features/console";
 import { createProjectSettingsCache } from "../features/project-settings";
 import { AppOverlays, type AppOverlaysProps } from "./AppOverlays";
 import { describePlatform, formatDiagnostics, readSystemInfo, readWebviewVersion } from "./systemInfo";
@@ -103,6 +104,8 @@ function buildProps(
       setNavigationPreferences: vi.fn(),
       diffPreferences: DEFAULT_DIFF_PREFERENCES,
       setDiffPreferences: vi.fn(),
+      consolePreferences: DEFAULT_CONSOLE_PREFERENCES,
+      setConsolePreferences: vi.fn(),
       identity: {
         identity: { name: "", email: "" },
         isLoaded: true,

@@ -236,6 +236,7 @@ src-tauri/src/
   application.rs          # execution-policy inventory and authorization entry
   repository_access.rs    # RepositoryContext + fair commonGitDir coordinator
   git_command.rs          # policy-aware domain-facing Git facade
+  git_console.rs          # fixed read-only project-console catalogue
   git.rs                  # bounded process execution and cancellation
   error.rs                # stable structured application errors
   operation.rs            # shared operation kind and safe diagnostic details
@@ -395,6 +396,14 @@ The public IPC surface is pinned in
 TypeScript tests verify command names, arguments, responses, error codes, and
 representative serialization. Intentional changes update the JSON contract and
 both sides in one review.
+
+`run_console_query` accepts a project path, session epoch and one fixed
+operation ID. Rust validates all three before running an allowlisted Git
+template through the repository-read policy (64 KiB stdout, 8 KiB stderr,
+15 seconds). It returns exit status, truncation and sanitized text. Shortcut
+names are an app-wide frontend preference; neither a shell line nor custom
+Git arguments cross IPC. The transcript is held only by the project screen
+and is evicted with its session epoch.
 
 Every command that acts on an already-open repository requires `sessionEpoch`,
 reads and mutations alike, and a missing epoch fails with `stale_session`
@@ -719,7 +728,8 @@ claims.
 the mascot once from shared parts and assembles two variants: the full body
 and the head. `pnpm icons` writes the standalone SVGs and the element tree the
 in-app mark renders inline (`src/shared/ui/mascotArtwork.ts`, so its fill can follow
-the theme) from it, then runs
+the theme) and the console welcome's pixel grid (`src/features/console/mascotPixels.ts`,
+sampled by the dependency-free `scripts/icons/pixel-grid.mjs`) from it, then runs
 `tauri icon` on four 1024×1024 sources (body and head, each transparent and
 on the macOS emerald tile), so every PNG, the macOS `.icns`, the Windows
 `.ico` and the Store logos are rendered from SVG at their native sizes. Sizes

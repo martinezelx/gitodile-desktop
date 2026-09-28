@@ -94,6 +94,7 @@ export const SETTINGS_SECTIONS = [
   "appearance",
   "navigation",
   "reading",
+  "console",
   "git",
   "line-endings",
   "updates",
@@ -115,6 +116,7 @@ export function settingsSectionLabel(
     settingsInterfaceTitle: string;
     settingsNavigationTitle: string;
     settingsReadingTitle: string;
+    settingsConsoleTitle: string;
     settingsGitTitle: string;
     settingsLineEndingsTitle: string;
     settingsUpdatesTitle: string;
@@ -126,6 +128,7 @@ export function settingsSectionLabel(
     appearance: t.settingsInterfaceTitle,
     navigation: t.settingsNavigationTitle,
     reading: t.settingsReadingTitle,
+    console: t.settingsConsoleTitle,
     git: t.settingsGitTitle,
     "line-endings": t.settingsLineEndingsTitle,
     updates: t.settingsUpdatesTitle,

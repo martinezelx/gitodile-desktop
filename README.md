@@ -83,6 +83,13 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - See one version line's recent saved versions, its saved-version count and
   where it stands against its remote, read on demand for the line you select
   rather than for every branch on every refresh.
+- Use a project-scoped Console for eleven fixed read-only Git queries: status,
+  unstaged and staged diffs, recent log, version graph, latest saved version,
+  local branches, tags, remotes, set-aside changes and authors. Short names
+  such as `look` can be added or renamed in GitOdile preferences; the commands
+  themselves cannot be edited. Settings › Console turns suggestions and the
+  welcome on or off and sets the cursor and text size. The transcript stays in
+  memory for the open project session.
 - Browse the active version line as a bounded, read-only saved-version
   timeline. Inspect author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
@@ -229,7 +236,7 @@ separate:
 - `application.rs` assigns one checked execution policy to every command;
 - `repository_access.rs` coordinates concurrent reads and exclusive mutations
   by common Git directory;
-- `repository.rs`, `clone.rs`, `initialize.rs`, `status.rs`, `changes.rs`,
+- `repository.rs`, `clone.rs`, `initialize.rs`, `status.rs`, `changes.rs`, `git_console.rs`,
   `save_version.rs`, `sync.rs`,
   `publish.rs`, `recovery.rs`, and `version_lines.rs` own product behavior;
 - `operation.rs` owns shared mutation classification and bounded/redacted
@@ -318,8 +325,8 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 655 frontend tests, the production build, Rust formatting,
-Clippy with warnings denied, and 321 Rust tests. Individual commands remain
+rules, TypeScript, frontend tests, the production build, Rust formatting,
+Clippy with warnings denied, and Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.
 

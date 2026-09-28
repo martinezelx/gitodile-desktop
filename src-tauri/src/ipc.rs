@@ -15,6 +15,7 @@ use crate::{
     desktop,
     diagnostics::{self, DiagnosticsLog},
     error::AppError,
+    git_console::{self, ConsoleQueryResult},
     history::{self, HistoryPage, SavedVersionDetail},
     initialize::{
         self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
@@ -309,6 +310,21 @@ pub(crate) fn read_working_tree_status(
         (|| {
             validate_session(&path, &session_epoch)?;
             status::read_working_tree_status(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn run_console_query(
+    path: String,
+    session_epoch: String,
+    operation_id: String,
+) -> Result<ConsoleQueryResult, AppError> {
+    report_result(
+        "run_console_query",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            git_console::run_console_query(path, operation_id)
         })(),
     )
 }
@@ -1236,6 +1252,19 @@ mod session_boundary_tests {
         let epoch = session::global().open(&path, None).unwrap();
 
         assert!(read_working_tree_status(path.clone(), epoch.clone()).is_ok());
+        assert!(run_console_query(path.clone(), epoch.clone(), "status".into()).is_ok());
+        assert_eq!(
+            run_console_query(path.clone(), "not-an-epoch".into(), "status".into())
+                .unwrap_err()
+                .code,
+            AppErrorCode::StaleSession
+        );
+        assert_eq!(
+            run_console_query(path.clone(), epoch.clone(), "status --porcelain".into())
+                .unwrap_err()
+                .code,
+            AppErrorCode::InvalidSelection
+        );
         assert_eq!(
             read_working_tree_status(path.clone(), "not-an-epoch".into())
                 .unwrap_err()
@@ -1450,6 +1479,7 @@ mod contract_tests {
             AppErrorCode::GitMissing,
             AppErrorCode::GitUnusable,
             AppErrorCode::GitCommandFailed,
+            AppErrorCode::GitTimeout,
             AppErrorCode::InvalidIdentity,
             AppErrorCode::GitConfigWriteFailed,
             AppErrorCode::PathInvalid,

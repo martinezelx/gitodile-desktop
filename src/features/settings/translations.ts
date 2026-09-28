@@ -176,6 +176,17 @@ export interface SettingsTranslations {
   settingsLanguageDescription: string;
   languageAriaLabel: string;
   settingsReadingTitle: string;
+  settingsConsoleTitle: string;
+  settingsConsoleDescription: string;
+  consoleSettingsAutocompleteLabel: string;
+  consoleSettingsAutocompleteDescription: string;
+  consoleSettingsWelcomeLabel: string;
+  consoleSettingsWelcomeDescription: string;
+  consoleSettingsCursorLabel: string;
+  consoleSettingsCursorDescription: string;
+  consoleSettingsTextSizeLabel: string;
+  consoleSettingsTextSizeDescription: string;
+  consoleSettingsTextSizes: Record<"small" | "normal" | "large", string>;
   settingsReadingDiffsTitle: string;
   settingsReadingDescription: string;
   readingWrapLabel: string;
@@ -368,6 +379,17 @@ const en: SettingsTranslations = {
   settingsLanguageDescription: "“System” follows your device's language.",
   languageAriaLabel: "Language",
   settingsReadingTitle: "Reading",
+  settingsConsoleTitle: "Console",
+  settingsConsoleDescription: "How the project console looks and helps you type. Shared by every project.",
+  consoleSettingsAutocompleteLabel: "Suggest shortcuts",
+  consoleSettingsAutocompleteDescription: "Complete names in grey as you type and list the ones that match. Tab accepts.",
+  consoleSettingsWelcomeLabel: "Show the welcome",
+  consoleSettingsWelcomeDescription: "Open an empty console with the mascot and a summary of the project.",
+  consoleSettingsCursorLabel: "Blinking cursor",
+  consoleSettingsCursorDescription: "The cursor never blinks while reduced motion is on.",
+  consoleSettingsTextSizeLabel: "Text size",
+  consoleSettingsTextSizeDescription: "The size of the console text and output.",
+  consoleSettingsTextSizes: { small: "Small", normal: "Normal", large: "Large" },
   settingsReadingDiffsTitle: "Diffs",
   settingsReadingDescription: "How file changes are shown.",
   readingWrapLabel: "Wrap long lines",
@@ -560,6 +582,17 @@ const es: SettingsTranslations = {
   settingsLanguageDescription: "«Sistema» sigue el idioma de tu dispositivo.",
   languageAriaLabel: "Idioma",
   settingsReadingTitle: "Lectura",
+  settingsConsoleTitle: "Consola",
+  settingsConsoleDescription: "Cómo se ve la consola del proyecto y cómo te ayuda a escribir. Se comparte entre proyectos.",
+  consoleSettingsAutocompleteLabel: "Sugerir atajos",
+  consoleSettingsAutocompleteDescription: "Completa los nombres en gris mientras escribes y muestra los que coinciden. Tab acepta.",
+  consoleSettingsWelcomeLabel: "Mostrar la bienvenida",
+  consoleSettingsWelcomeDescription: "Abre la consola vacía con la mascota y un resumen del proyecto.",
+  consoleSettingsCursorLabel: "Cursor parpadeante",
+  consoleSettingsCursorDescription: "El cursor nunca parpadea con el movimiento reducido activado.",
+  consoleSettingsTextSizeLabel: "Tamaño del texto",
+  consoleSettingsTextSizeDescription: "El tamaño del texto y la salida de la consola.",
+  consoleSettingsTextSizes: { small: "Pequeño", normal: "Normal", large: "Grande" },
   settingsReadingDiffsTitle: "Cambios",
   settingsReadingDescription: "Cómo se muestran los cambios de los archivos.",
   readingWrapLabel: "Ajustar líneas largas",

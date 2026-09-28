@@ -7,6 +7,10 @@ import {
   type DiffPreferences,
 } from "../features/changes";
 import {
+  normalizeConsolePreferences,
+  type ConsolePreferences,
+} from "../features/console";
+import {
   isRemoteCheckIntervalMinutes,
   type NavigationPreferences,
   type RemoteCheckIntervalMinutes,
@@ -39,6 +43,7 @@ export const REDUCE_MOTION_STORAGE_KEY = "gitodile-reduce-motion";
 export const APP_UPDATE_AUTOMATIC_STORAGE_KEY = "gitodile-app-update-automatic";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodile-diff-preferences";
+export const CONSOLE_PREFERENCES_STORAGE_KEY = "gitodile-console-preferences";
 export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodile-navigation-preferences";
 export const SIDEBAR_HIDDEN_STORAGE_KEY = "gitodile-sidebar-hidden";
 export const FAVOURITE_PROJECTS_STORAGE_KEY = "gitodile-favourite-projects";
@@ -437,6 +442,21 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
   return [preferences, setPreferences];
 }
 
+/** The console's Settings choices as one object, each field validated on its own. */
+export function useStoredConsolePreferences(): [ConsolePreferences, Dispatch<SetStateAction<ConsolePreferences>>] {
+  const [preferences, setPreferences] = useState<ConsolePreferences>(() => {
+    try {
+      return normalizeConsolePreferences(JSON.parse(localStorage.getItem(CONSOLE_PREFERENCES_STORAGE_KEY) ?? "null"));
+    } catch {
+      return normalizeConsolePreferences(null);
+    }
+  });
+
+  usePersistedChoice(CONSOLE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+
+  return [preferences, setPreferences];
+}
+
 /** Rail orders that shipped as defaults before the current one: first with
  * History below Lines, then with History moved up beside Changes. Every
  * session writes the whole snapshot back, so by the time a default changed
@@ -502,6 +522,11 @@ export function useStoredNavigationPreferences(
       const visibleDestinationIds = Array.from(
         new Set(migrateDestinationIds(read.visibleDestinationIds).filter((id) => allowed.has(id))),
       );
+      // A newly registered screen is visible once by default. The stored
+      // order distinguishes that migration from someone hiding it later.
+      if (allowed.has("console") && (!Array.isArray(read.destinationOrderIds) || !read.destinationOrderIds.includes("console"))) {
+        visibleDestinationIds.push("console");
+      }
       const displayMode =
         read.displayMode === "icons-only" || read.displayMode === "icons-and-text"
           ? read.displayMode
@@ -509,7 +534,12 @@ export function useStoredNavigationPreferences(
       const storedOrder: unknown[] = Array.isArray(read.destinationOrderIds) ? read.destinationOrderIds : [];
       // A superseded default is recognised as stored, before migration:
       // it is the old ids that name it.
-      const destinationOrderIds = isSupersededOrder(storedOrder.filter((id): id is string => typeof id === "string"))
+      const previousDefaultOrder = defaultDestinationIds.filter((destination) => destination !== "console");
+      const isPreviousDefaultOrder = storedOrder.length === previousDefaultOrder.length &&
+        storedOrder.every((id, index) => id === previousDefaultOrder[index]);
+      const isNewlyAppendedOrder = storedOrder.length === defaultDestinationIds.length &&
+        storedOrder.every((id, index) => id === [...previousDefaultOrder, "console"][index]);
+      const destinationOrderIds = isSupersededOrder(storedOrder.filter((id): id is string => typeof id === "string")) || isPreviousDefaultOrder || isNewlyAppendedOrder
         ? [...defaultDestinationIds]
         : Array.from(
             new Set([

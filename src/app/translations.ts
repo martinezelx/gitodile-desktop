@@ -61,6 +61,8 @@ export interface AppTranslations {
   navWorkTitle: string;
   navVersionLines: string;
   navVersionLinesTitle: string;
+  navConsole: string;
+  navConsoleTitle: string;
   navRecovery: string;
   navRecoveryTitle: string;
   navSettings: string;
@@ -77,6 +79,7 @@ export interface AppTranslations {
   commandGoOverview: string;
   commandGoHome: string;
   commandGoVersionLines: string;
+  commandGoConsole: string;
   commandGoWork: string;
   commandGoChanges: string;
   commandGoHistory: string;
@@ -280,6 +283,8 @@ const en: AppTranslations = {
   navWorkTitle: "Work — open a project first",
   navVersionLines: "Lines",
   navVersionLinesTitle: "Lines — open a project first",
+  navConsole: "Console",
+  navConsoleTitle: "Console — open a project first",
   navRecovery: "Recovery",
   navRecoveryTitle: "Recovery — coming soon",
   navSettings: "Settings",
@@ -295,6 +300,7 @@ const en: AppTranslations = {
   commandGoOverview: "Go to Overview",
   commandGoHome: "Go to Projects",
   commandGoVersionLines: "Go to Lines",
+  commandGoConsole: "Go to Console",
   commandGoWork: "Go to Work",
   commandGoChanges: "Go to Changes",
   commandGoHistory: "Go to History",
@@ -486,6 +492,8 @@ const es: AppTranslations = {
   navWorkTitle: "Trabajo — abre antes un proyecto",
   navVersionLines: "Líneas",
   navVersionLinesTitle: "Líneas — abre antes un proyecto",
+  navConsole: "Consola",
+  navConsoleTitle: "Consola — abre antes un proyecto",
   navRecovery: "Rescate",
   navRecoveryTitle: "Rescate — próximamente",
   navSettings: "Ajustes",
@@ -501,6 +509,7 @@ const es: AppTranslations = {
   commandGoOverview: "Ir a Resumen",
   commandGoHome: "Ir a Proyectos",
   commandGoVersionLines: "Ir a Líneas",
+  commandGoConsole: "Ir a Consola",
   commandGoWork: "Ir a Trabajo",
   commandGoChanges: "Ir a Cambios",
   commandGoHistory: "Ir a Historial",

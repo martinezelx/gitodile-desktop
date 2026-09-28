@@ -17,6 +17,7 @@ import {
   PanelLeft,
   Palette,
   Settings,
+  SquareTerminal,
   TriangleAlert,
   WrapText,
 } from "lucide-react";
@@ -59,6 +60,7 @@ import {
   type DiffPreferences,
   type DiffTabWidth,
 } from "../changes";
+import { CONSOLE_TEXT_SIZES, DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "../console";
 import {
   DEFAULT_BRANCH_FALLBACK,
   DEFAULT_BRANCH_SUGGESTIONS,
@@ -147,6 +149,7 @@ const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   appearance: <Palette />,
   navigation: <PanelLeft />,
   reading: <WrapText />,
+  console: <SquareTerminal />,
   git: <GitBranch />,
   "line-endings": <CornerDownLeft />,
   updates: <CloudDownload />,
@@ -360,6 +363,8 @@ export function SettingsPanel({
   setNavigationPreferences,
   diffPreferences,
   setDiffPreferences,
+  consolePreferences = DEFAULT_CONSOLE_PREFERENCES,
+  setConsolePreferences = () => undefined,
   identity,
   defaultBranch,
   lineEndingsState,
@@ -404,6 +409,8 @@ export function SettingsPanel({
   ) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
+  consolePreferences?: ConsolePreferences;
+  setConsolePreferences?: (update: (previous: ConsolePreferences) => ConsolePreferences) => void;
   /** Both reads live above the dialog, which the shell unmounts on close, so
    * the values survive a closing instead of being fetched again. The panel
    * still owns the draft, the notices and the close guard: those are the parts
@@ -1700,6 +1707,78 @@ export function SettingsPanel({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeSection === "console" && (
+          <div className="settings-groups">
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsConsoleTitle}</h3>
+                <p>{t.settingsConsoleDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.consoleSettingsAutocompleteLabel}</strong>
+                    <p>{t.consoleSettingsAutocompleteDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.consoleSettingsAutocompleteLabel}
+                    checked={consolePreferences.autocomplete}
+                    onChange={(autocomplete) => setConsolePreferences((previous) => ({ ...previous, autocomplete }))}
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.consoleSettingsWelcomeLabel}</strong>
+                    <p>{t.consoleSettingsWelcomeDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.consoleSettingsWelcomeLabel}
+                    checked={consolePreferences.welcome}
+                    onChange={(welcome) => setConsolePreferences((previous) => ({ ...previous, welcome }))}
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.consoleSettingsCursorLabel}</strong>
+                    <p>{t.consoleSettingsCursorDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.consoleSettingsCursorLabel}
+                    checked={consolePreferences.cursorBlink}
+                    onChange={(cursorBlink) => setConsolePreferences((previous) => ({ ...previous, cursorBlink }))}
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.consoleSettingsTextSizeLabel}</strong>
+                    <p>{t.consoleSettingsTextSizeDescription}</p>
+                  </div>
+                  <div
+                    className="segmented-control"
+                    role="radiogroup"
+                    aria-label={t.consoleSettingsTextSizeLabel}
+                    onKeyDown={moveFocusWithinRadioGroup}
+                  >
+                    {CONSOLE_TEXT_SIZES.map((size, index) => (
+                      <button
+                        key={size}
+                        type="button"
+                        role="radio"
+                        aria-checked={consolePreferences.textSize === size}
+                        tabIndex={isRadioTabStop(consolePreferences.textSize === size, true, index) ? 0 : -1}
+                        className={`segmented-control__option${consolePreferences.textSize === size ? " segmented-control__option--active" : ""}`}
+                        onClick={() => setConsolePreferences((previous) => ({ ...previous, textSize: size }))}
+                      >
+                        {t.consoleSettingsTextSizes[size]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </section>

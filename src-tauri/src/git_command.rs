@@ -102,6 +102,28 @@ pub(crate) fn run_git(repo_path: &str, args: &[&str]) -> Result<Output, AppError
     run_git_with_env(repo_path, args, &[])
 }
 
+/// Preserve both truncation flags for the console's intentionally small output
+/// budget. The caller supplies only fixed, reviewed argument templates.
+pub(crate) fn run_git_bounded_with_env(
+    repo_path: &str,
+    args: &[&str],
+    envs: &[(&str, &str)],
+) -> Result<git::BoundedOutput, AppError> {
+    let policy = require_policy()?;
+    let cancellation = application::current_cancellation();
+    let subcommand = diagnostics::safe_git_subcommand(args.first().map(OsStr::new));
+    let started = Instant::now();
+    let result = git::run_with_env(
+        Some(Path::new(repo_path)),
+        args,
+        envs,
+        policy,
+        cancellation.as_ref(),
+    );
+    record_result(policy, subcommand, started, &result);
+    result
+}
+
 pub(crate) fn run_git_with_env<I, S>(
     repo_path: &str,
     args: I,

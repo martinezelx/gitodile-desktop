@@ -127,6 +127,28 @@ describe("application-shell preferences", () => {
       .toEqual(["version-lines", "overview", "workbench", "recovery"]);
   });
 
+  it("shows a newly registered Console before Recovery without moving a custom rail", () => {
+    const current = ["overview", "workbench", "version-lines", "console", "recovery"];
+    localStorage.setItem("gitodile-navigation-preferences", JSON.stringify({
+      visibleDestinationIds: ["overview", "workbench", "version-lines", "recovery"],
+      destinationOrderIds: ["overview", "workbench", "version-lines", "recovery"],
+      displayMode: "icons-and-text",
+    }));
+    const oldDefault = renderHook(() => useStoredNavigationPreferences(current));
+    expect(oldDefault.result.current[0].destinationOrderIds).toEqual(current);
+    expect(oldDefault.result.current[0].visibleDestinationIds).toContain("console");
+    oldDefault.unmount();
+
+    localStorage.setItem("gitodile-navigation-preferences", JSON.stringify({
+      visibleDestinationIds: ["overview", "version-lines", "recovery"],
+      destinationOrderIds: ["version-lines", "overview", "workbench", "recovery"],
+      displayMode: "icons-and-text",
+    }));
+    const custom = renderHook(() => useStoredNavigationPreferences(current));
+    expect(custom.result.current[0].destinationOrderIds).toEqual(["version-lines", "overview", "workbench", "recovery", "console"]);
+    expect(custom.result.current[0].visibleDestinationIds).toContain("console");
+  });
+
   // Changes and History became the two tabs of Work (task 126). An
   // arrangement made by hand keeps its shape: Work takes the place Changes
   // held, History drops out, and a hidden Changes stays hidden as Work.

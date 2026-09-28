@@ -320,7 +320,7 @@ where
             let _ = stdout_reader.join();
             let _ = stderr_reader.join();
             return Err(AppError::new(
-                AppErrorCode::GitCommandFailed,
+                AppErrorCode::OperationCancelled,
                 "The Git operation was cancelled.",
             ));
         }
@@ -329,7 +329,7 @@ where
             let _ = stdout_reader.join();
             let _ = stderr_reader.join();
             return Err(AppError::new(
-                AppErrorCode::GitCommandFailed,
+                AppErrorCode::GitTimeout,
                 "Git took too long and was stopped.",
             )
             .with_remediation("Check the project and try again."));
@@ -495,7 +495,9 @@ mod tests {
             Some(&token),
         );
         assert!(result.is_err());
-        assert!(result.unwrap_err().message.contains("cancelled"));
+        let error = result.unwrap_err();
+        assert_eq!(error.code, AppErrorCode::OperationCancelled);
+        assert!(error.message.contains("cancelled"));
     }
 
     #[test]
@@ -504,6 +506,8 @@ mod tests {
         policy.timeout = Duration::ZERO;
         let result = run(None, ["--version"], policy, None);
         assert!(result.is_err());
-        assert!(result.unwrap_err().message.contains("too long"));
+        let error = result.unwrap_err();
+        assert_eq!(error.code, AppErrorCode::GitTimeout);
+        assert!(error.message.contains("too long"));
     }
 }

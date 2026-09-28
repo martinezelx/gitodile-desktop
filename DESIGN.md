@@ -784,6 +784,66 @@ empty clear button away, since those controls already keep the text off the
 border. The row's
 accessible description reads the author and the states out in words.
 
+**Console is a terminal across the workspace, not a panel with a terminal in
+it.** It is the one screen without a card: the monospace transcript sits on
+the window's own `--surface-app`, with no border or panel around it and no
+screen header (the heading stays for assistive technology). A status line at
+the foot, drawn as a multiplexer draws one, takes the app status bar's exact
+place — 34px, the workspace insets, flush with the window's foot — so nothing
+below moves on the way in. Unlike the bar it has no fade above it: the
+transcript simply ends against it, and the suggestions under the prompt are
+never veiled. It stands in for
+the app status bar, which is hidden on this screen alone: read-only state, unsaved files with
+their added and removed lines, versions to publish, newer versions available
+and the Git version on the left, the keyboard hint and an icon for the shortcut
+editor on the right. The line is left out because every prompt already shows
+it, and clearing has `clear` and Ctrl+L rather than a button. It shows the same facts the
+bar does, read-only; switching lines, publishing and project settings stay one
+rail click away. The prompt takes focus whenever the screen is shown. Each query repeats the prompt it ran at, as Starship
+prints one: a context line of coloured text — the project in the accent, "on",
+and the line it was on in the keyword colour — and below it a bare `❯`, the
+name typed, then a ✓/✗/! and the elapsed time, so every command starts at the
+left edge however long the line's name is, with copy and run-again appearing on hover or focus. The exact
+fixed Git command follows in the secondary colour, then the output. Output
+stays inert text; tones only colour runs by the fixed query's known shape and
+fall back to plain text past 400 runs; the whole transcript also shares one
+budget of 400 coloured runs, spent newest first, so older output that no
+longer fits is shown plain and the screen stays inside its element budget. The transcript follows its end after every command, as a
+terminal does, so the next prompt is always in view. The prompt is the
+transcript's last line, with a blinking block cursor (still under reduced motion), inline ghost
+completion, and a listbox of matching names below it drawn like the shortcut
+pane's rows — terminal type, dashed rules, the chosen name marked `❯` on a soft
+wash, no card or shadow; there is no send
+button. An empty transcript shows a fetch-style welcome: the small head mark
+drawn as square character-sized pixels generated from the icon source (vector cells, as terminals render
+block glyphs, in the mark's own lime and ink under the GitOdile themes and the
+accent fill elsewhere) beside a summary drawn as Omarchy's fastfetch draws one: two framed groups,
+each titled in its frame and drawn in its own theme colour — "project" in the
+accent (name, line, unsaved changes with added and removed lines, versions to
+publish and newer ones available) and "environment" in the keyword colour
+(GitOdile version, Git version, the theme actually drawn and the read-only
+mode) — with a Lucide icon on every row, then a row of round dots in the
+theme's accent, status and syntax colours, as a terminal's welcome shows its
+ANSI palette. The frames are borders rather than box-drawing glyphs, so no font
+leaves gaps in them. The smile in that grid starts a little later
+along the icon's curve, because at one pixel per character its first stretch
+meets the glasses. The transcript scrolls with the app's shared auto-hiding scrollbar (thin, no
+arrows), never the platform's default one, and as terminals do it shows only
+while the output is scrolled or the pointer moves over it, fading 1.2s after
+and at once when the pointer leaves — the always-focused prompt does not keep
+it lit. The shortcut editor
+is a pane split off the terminal's foot, as a multiplexer splits one: full
+width above the status line with a rule over it, the transcript giving up the
+height it takes, with the transcript kept scrolled to the prompt as the pane
+opens or closes. It uses the full width, in the terminal's own type: a single
+header line with the title, the note, "restore defaults" and `esc`, then the
+rows in as many columns as fit (name, query, quiet actions, dashed rules), the row being renamed marked `~`, and a prompt-shaped line
+(`+ name → ‹ query › ↵`) to add or rename, where the query is a terminal-style
+picker stepped with the arrow keys or its arrows — a spinbutton that announces
+the query's name — rather than the platform's select menu; Esc cancels a rename, then closes and
+returns focus to whatever opened it — the status line's icon or the prompt. No
+second dashboard or persistent transcript is added.
+
 **Lines has no page row either; the list panel's header is the screen's name.**
 It follows the Work screen's shape: the list panel opens with a header at
 `--strip-height` — the rail's Lines glyph in the accent and the word in the
@@ -1339,7 +1399,8 @@ glow, highlight or shadow; macOS adds its own. The Windows installer's side
 panel uses the same emerald behind the mascot.
 
 `scripts/icons/mascot.mjs` is the single source for the drawing: it writes
-both SVGs, the element tree the in-app mark renders (`src/shared/ui/mascotArtwork.ts`)
+both SVGs, the element tree the in-app mark renders (`src/shared/ui/mascotArtwork.ts`),
+the head's pixel grid for the console welcome (`src/features/console/mascotPixels.ts`)
 and the icon sources, and `pnpm icons` regenerates every
 packaged icon from it (see "Application icon and Windows shortcuts" in
 `docs/ARCHITECTURE.md`). Never edit a generated SVG or PNG by hand.

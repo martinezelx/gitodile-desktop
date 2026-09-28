@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
 import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
+import { DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "../console";
 import { SettingsPanel } from "./SettingsPanel";
 import { useDefaultBranch, useGitIdentity, useLineEndings } from "./useGitConfig";
 import type { SettingsPort } from "./port";
@@ -61,6 +62,7 @@ type PanelOverrides = Partial<{
   ) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
+  setConsolePreferences: (update: (previous: ConsolePreferences) => ConsolePreferences) => void;
   runGitHooks: boolean;
   setRunGitHooks: (value: boolean) => void;
   project: { path: string; sessionEpoch: string } | null;
@@ -127,6 +129,7 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
       setNavigationPreferences={overrides.setNavigationPreferences ?? vi.fn()}
       diffPreferences={overrides.diffPreferences ?? DEFAULT_DIFF_PREFERENCES}
       setDiffPreferences={overrides.setDiffPreferences ?? vi.fn()}
+      setConsolePreferences={overrides.setConsolePreferences ?? vi.fn()}
       identity={identity}
       defaultBranch={defaultBranch}
       lineEndingsState={lineEndings}
@@ -144,6 +147,18 @@ function renderPanel(port: SettingsPort, overrides: PanelOverrides = {}) {
     </LanguageProvider>,
   );
 }
+
+describe("Settings panel console section", () => {
+  it("changes the console preferences it shows", async () => {
+    const user = userEvent.setup();
+    const setConsolePreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "console", setConsolePreferences });
+    await user.click(screen.getByRole("switch", { name: "Suggest shortcuts" }));
+    expect(setConsolePreferences.mock.calls[0][0](DEFAULT_CONSOLE_PREFERENCES)).toEqual({ ...DEFAULT_CONSOLE_PREFERENCES, autocomplete: false });
+    await user.click(screen.getByRole("radio", { name: "Large" }));
+    expect(setConsolePreferences.mock.calls[1][0](DEFAULT_CONSOLE_PREFERENCES)).toEqual({ ...DEFAULT_CONSOLE_PREFERENCES, textSize: "large" });
+  });
+});
 
 describe("Settings panel native boundary", () => {
   it("reads and saves the Git identity through its port instead of calling Tauri", async () => {

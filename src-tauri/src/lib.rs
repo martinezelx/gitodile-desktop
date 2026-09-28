@@ -13,6 +13,7 @@ mod diagnostics;
 mod error;
 mod git;
 mod git_command;
+mod git_console;
 mod history;
 mod index;
 mod initialize;
@@ -100,6 +101,7 @@ pub fn run() {
             ipc::initialize_project,
             ipc::cleanup_initialize_project,
             ipc::read_working_tree_status,
+            ipc::run_console_query,
             ipc::read_file_diff,
             ipc::read_file_image_preview,
             ipc::read_file_lines,

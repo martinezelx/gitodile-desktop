@@ -121,6 +121,7 @@ import {
   useStoredFavouriteProjects,
   useStoredProjectAvatarStyle,
   useStoredProjectIconChoices,
+  useStoredConsolePreferences,
   useStoredDiffPreferences,
   useStoredNavigationPreferences,
   useStoredRemoteCheckInterval,
@@ -163,8 +164,10 @@ import {
 import { ProjectAvatar } from "../shared/ui/projectAvatarView";
 import { isTechnologyId } from "../shared/ui/projectIdentity";
 import { useProjectTechnologies } from "./projectTechnologies";
+import { consoleProjectStatus } from "./consoleProjectStatus";
 import {
   ChangesPanel,
+  ConsoleScreen,
   HistoryScreen,
   HomeScreen,
   KeepAliveScreens,
@@ -382,6 +385,10 @@ export function App(): React.JSX.Element {
   const pendingVersions = activeSession?.pendingVersions ?? EMPTY_PENDING_VERSIONS;
   const pendingVersionsError = activeSession?.pendingVersionsError ?? null;
   const teamSync = activeSession?.teamSync ?? EMPTY_TEAM_SYNC_STATE;
+  const consoleStatus = useMemo(
+    () => consoleProjectStatus(workingTree, isCheckingChanges, workingTreeError, teamSync),
+    [workingTree, isCheckingChanges, workingTreeError, teamSync],
+  );
   const mapStatusError = useMemo<StatusErrorMapper>(
     () => (error, area) =>
       localizeAppError(
@@ -681,6 +688,7 @@ export function App(): React.JSX.Element {
     });
   };
   const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
+  const [consolePreferences, setConsolePreferences] = useStoredConsolePreferences();
   const [reducedMotion, setReducedMotion] = useReducedMotionPreference();
   const [navigationPreferences, setNavigationPreferences] =
     useStoredNavigationPreferences(DEFAULT_NAVIGATION_PREFERENCES.visibleDestinationIds);
@@ -2209,7 +2217,7 @@ export function App(): React.JSX.Element {
       </header>
 
       <main
-        className={`app-shell${view === "workbench" || view === "version-lines" ? " app-shell--internal-scroll" : ""}`}
+        className={`app-shell${view === "workbench" || view === "version-lines" || view === "console" ? " app-shell--internal-scroll" : ""}`}
       >
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}
@@ -2290,7 +2298,7 @@ export function App(): React.JSX.Element {
 
         <section
           {...autoHideScrollbarProps<HTMLElement>()}
-          className={`workspace auto-hide-scrollbar${view === "workbench" ? " workspace--workbench" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}`}
+          className={`workspace auto-hide-scrollbar${view === "workbench" ? " workspace--workbench" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}${view === "console" ? " workspace--console" : ""}`}
         >
           <div className="compact-nav-row">
             <ProjectSwitcherCompact
@@ -2565,17 +2573,33 @@ export function App(): React.JSX.Element {
                         />
                       </Suspense>
                     ),
+                    console: (
+                      <Suspense fallback={<ViewLoadingFallback />}>
+                        <ConsoleScreen
+                          projectPath={project.path}
+                          projectName={project.name}
+                          branch={project.branch}
+                          sessionEpoch={activeSession?.epoch ?? ""}
+                          gitVersion={readGitVersion(gitTooling.diagnostics)}
+                          projectStatus={consoleStatus}
+                          preferences={consolePreferences}
+                          theme={theme}
+                        />
+                      </Suspense>
+                    ),
                   }
                 : {}),
             }}
           />
         </section>
 
-        {/* On every screen, Overview included: a strip that came and went
-            would make the window resize under the pointer on each navigation,
-            and the one place state is always visible is worth more than the
-            small duplication with Overview's own cards. */}
-        <StatusBar
+        {/* On every screen but Console, Overview included: a strip that came
+            and went would make the window resize under the pointer on each
+            navigation, and the one place state is always visible is worth more
+            than the small duplication with Overview's own cards. Console is
+            the exception: it is a terminal across the workspace, and its own
+            status line carries the same project facts, read-only. */}
+        {view !== "console" && <StatusBar
           project={project}
           workingTree={workingTree}
           workingTreeError={workingTreeError}
@@ -2604,7 +2628,7 @@ export function App(): React.JSX.Element {
           onPrefetchProjectSettings={() => prefetchProjectSettings()}
           onPublish={() => openPublishDialog()}
           onOpenChangelog={() => setIsChangelogOpen(true)}
-        />
+        />}
       </main>
 
       {/* Feedback about a gesture in progress, not app chrome: it exists only
@@ -2874,6 +2898,8 @@ export function App(): React.JSX.Element {
           setNavigationPreferences,
           diffPreferences,
           setDiffPreferences,
+          consolePreferences,
+          setConsolePreferences,
           identity: gitIdentity,
           defaultBranch,
           lineEndings,

@@ -3,6 +3,7 @@ import { LifeBuoy } from "lucide-react";
 import { homeScreenModule, HomeScreen } from "../features/home";
 
 import { ChangesPanel } from "../features/changes";
+import { consoleScreenModule, ConsoleScreen } from "../features/console";
 import { overviewScreenModule, OverviewPanel } from "../features/overview";
 import { HistoryScreen } from "../features/history";
 import { settingsOverlayModule } from "../features/settings";
@@ -60,7 +61,7 @@ export type NavDestination = {
   overlay?: "settings";
 };
 
-export { ChangesPanel, HistoryScreen, HomeScreen, OverviewPanel, VersionLinesScreen, WorkbenchScreen };
+export { ChangesPanel, ConsoleScreen, HistoryScreen, HomeScreen, OverviewPanel, VersionLinesScreen, WorkbenchScreen };
 
 /** The single place a screen is registered. Nav (expanded and compact), the
  * command palette, idle prefetching, the "leave if the project closed" guard,
@@ -79,6 +80,7 @@ export const SCREEN_MODULES = defineScreenModules([
   overviewScreenModule,
   workbenchScreenModule,
   versionLinesScreenModule,
+  consoleScreenModule,
   {
     kind: "placeholder",
     id: "recovery",

@@ -751,6 +751,9 @@
    gap. */
 .workspace--workbench,
 .workspace--version-lines { padding-bottom: var(--space-2); }
+/* Console hides the status bar and draws its own status line in the same
+   place, flush with the window's foot, so it keeps no bottom inset. */
+.workspace--console { padding-top: var(--space-3); padding-bottom: 0; }
 .screen-slot { display: contents; }
 .screen-slot[hidden] { display: none; }
 .compact-nav { display: none; }

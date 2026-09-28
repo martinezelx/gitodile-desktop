@@ -39,6 +39,7 @@ export interface SharedTranslations {
   errorGitMissing: string;
   errorGitUnusable: string;
   errorGitCommandFailed: string;
+  errorGitTimeout: string;
   errorInvalidIdentity: string;
   errorGitConfigWriteFailed: string;
   errorPathInvalid: string;
@@ -161,6 +162,7 @@ const en: SharedTranslations = {
   errorGitMissing: "Git wasn't found. Install Git, then reopen GitOdile.",
   errorGitUnusable: "Git is installed but couldn't start. Check the installation.",
   errorGitCommandFailed: "Git couldn't read this project. Check that its files are readable.",
+  errorGitTimeout: "Git took too long, so the operation was stopped. Check the project and try again.",
   errorInvalidIdentity: "Enter both a name and an email.",
   errorGitConfigWriteFailed: "Git couldn't save that identity. Check your global Git settings.",
   errorPathInvalid: "That file path isn't valid. Choose the file again from the list.",
@@ -283,6 +285,7 @@ const es: SharedTranslations = {
   errorGitMissing: "No se encontró Git. Instálalo y vuelve a abrir GitOdile.",
   errorGitUnusable: "Git está instalado, pero no se pudo iniciar. Revisa la instalación.",
   errorGitCommandFailed: "Git no pudo leer este proyecto. Comprueba que sus archivos se pueden leer.",
+  errorGitTimeout: "Git tardó demasiado y se detuvo la operación. Comprueba el proyecto e inténtalo de nuevo.",
   errorInvalidIdentity: "Escribe un nombre y un correo.",
   errorGitConfigWriteFailed: "Git no pudo guardar esa identidad. Revisa tu configuración global de Git.",
   errorPathInvalid: "Esa ruta no es válida. Vuelve a elegir el archivo en la lista.",

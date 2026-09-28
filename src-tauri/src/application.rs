@@ -86,6 +86,15 @@ const fn read(command: &'static str) -> ExecutionPolicy {
     ExecutionPolicy::repository_read(command)
 }
 
+const fn console_read() -> ExecutionPolicy {
+    ExecutionPolicy {
+        stdout_cap: 64 * 1024,
+        stderr_cap: 8 * 1024,
+        timeout: Duration::from_secs(15),
+        ..read("run_console_query")
+    }
+}
+
 pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     control("app_status"),
     control("show_main_window"),
@@ -111,6 +120,7 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     global_process("initialize_project", OperationClass::LocalMutation, 120),
     no_process_with_class("cleanup_initialize_project", OperationClass::Destructive),
     read("read_working_tree_status"),
+    console_read(),
     read("read_file_diff"),
     read("read_file_image_preview"),
     read("read_file_lines"),
@@ -703,6 +713,7 @@ mod tests {
         "initialize_project",
         "cleanup_initialize_project",
         "read_working_tree_status",
+        "run_console_query",
         "read_file_diff",
         "read_file_image_preview",
         "read_file_lines",
