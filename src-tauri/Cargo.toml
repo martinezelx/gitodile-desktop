@@ -42,7 +42,7 @@ notify = { version = "8.2.0", default-features = false, features = ["macos_fseve
 # hive, not the directory, says whether an installation is per-user. Already in
 # the tree through the updater plugin's HTTP client on Windows.
 [target.'cfg(windows)'.dependencies]
-windows-registry = "0.6"
+windows-registry = "0.100"
 
 [dev-dependencies]
 # Repository-owned module-direction guard from ADR 0003. Development-only;
