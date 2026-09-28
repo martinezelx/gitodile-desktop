@@ -116,7 +116,9 @@ export function ChangedFilesSection({
            band says a step is done — the light "done" tile — and it arrives:
            the tile pops in and the tick draws itself, once, when the card
            reaches this state. A drawn check is the oldest "all done" there is,
-           and it is over in half a second. */
+           and it is over in half a second. It sits at the top of a card that
+           shrinks to fit it, with one line on what the card is for, rather
+           than centred in a card stretched to History's height. */
         <div className="changed-files__state changed-files__state--empty">
           <span className="changed-files__done" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
@@ -127,6 +129,7 @@ export function ChangedFilesSection({
             <strong>{t.statusCleanTitle}</strong>
             <p>{t.statusCleanMessage}</p>
           </div>
+          <p className="changed-files__tip">{t.overviewChangedFilesCleanTip}</p>
         </div>
       ) : (
         <>

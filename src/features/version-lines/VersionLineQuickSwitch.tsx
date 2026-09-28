@@ -30,6 +30,11 @@ export type VersionLineQuickSwitchProps = {
    * than displaying a value whose meaning the reader has to infer. Purely
    * visual: the trigger's own accessible name already says what it changes. */
   contextLabel?: string;
+  /** A caption *inside* the trigger, above the value, with the line glyph in a
+   * neutral circle before both — the label-and-value shape of Overview's band
+   * tiles, for a page header that has to say what the name is. Purely visual,
+   * like `contextLabel`. */
+  label?: string;
   canSwitch: boolean;
   variant?: "control" | "status";
   /** Whether the control variant draws its round "new line" button beside
@@ -57,6 +62,7 @@ export function VersionLineQuickSwitch({
   isLoadingSnapshot,
   currentValue,
   contextLabel,
+  label,
   canSwitch,
   variant = "control",
   showCreateControl = true,
@@ -129,6 +135,22 @@ export function VersionLineQuickSwitch({
     "first-control",
   );
   const Chevron = variant === "status" ? ChevronUp : ChevronDown;
+  const face = label ? (
+    <>
+      <span className="version-line-selector__tile" aria-hidden="true">
+        <GitBranch className="version-line-selector__icon" />
+      </span>
+      <span className="version-line-selector__copy">
+        <span className="version-line-selector__label" aria-hidden="true">{label}</span>
+        <span className="version-line-selector__value">{currentValue}</span>
+      </span>
+    </>
+  ) : (
+    <>
+      <GitBranch aria-hidden="true" className="version-line-selector__icon" />
+      <span className="version-line-selector__value">{currentValue}</span>
+    </>
+  );
 
   const toggleOpen = (): void => {
     if (isOpen) {
@@ -160,14 +182,12 @@ export function VersionLineQuickSwitch({
           title={currentValue}
           onClick={toggleOpen}
         >
-          <GitBranch aria-hidden="true" className="version-line-selector__icon" />
-          <span className="version-line-selector__value">{currentValue}</span>
+          {face}
           <Chevron aria-hidden="true" className="version-line-selector__chevron" />
         </button>
       ) : (
         <span className="version-line-selector version-line-selector--static" title={currentValue}>
-          <GitBranch aria-hidden="true" className="version-line-selector__icon" />
-          <span className="version-line-selector__value">{currentValue}</span>
+          {face}
         </span>
       )}
 

@@ -44,6 +44,16 @@ export type Journey = {
     behind: number;
     /** `origin/main`, when the line has a remote line to compare against. */
     remoteLine: string | null;
+    /** The same line in its two parts, `origin` and `main`, for the tile that
+     * says them apart ("to origin · main") rather than as one ref. */
+    remote: string | null;
+    destinationBranch: string | null;
+    /** The line the project is on, so the tile can leave the destination
+     * unnamed when it is the same name — the header already says it. */
+    localBranch: string | null;
+    /** When the remote was last actually asked. A cached status was read from
+     * this computer's own tracking refs, so its time is not a remote check:
+     * only this session's last successful check counts for it. */
     checkedAt: number | null;
     /** A check is running now — with or without an earlier result to keep
      * showing underneath it. */
@@ -116,7 +126,12 @@ export function deriveJourney({
     pending: pendingVersionsCount,
     behind: status?.behind ?? 0,
     remoteLine,
-    checkedAt: status?.checkedAt ?? teamSync.lastSuccessfulCheckAt,
+    remote: remoteLine ? (status?.upstreamRemote ?? null) : null,
+    destinationBranch: remoteLine ? (status?.destinationBranch ?? null) : null,
+    localBranch: status?.localBranch ?? null,
+    checkedAt: status?.knowledge === "cached"
+      ? teamSync.lastSuccessfulCheckAt
+      : (status?.checkedAt ?? teamSync.lastSuccessfulCheckAt),
     isChecking: teamSync.isCheckingRemote,
     isStale: teamSync.isStale,
     isCached: status?.knowledge === "cached",

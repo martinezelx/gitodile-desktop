@@ -1,4 +1,4 @@
-import React, { useId, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowRight,
@@ -19,6 +19,7 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { useActiveScreenEffect } from "../../runtime/screen/module";
 import { formatRelativeCheckTime } from "../../shared/i18n";
+import { formatHistoryDate, useActiveHistoryState, type HistoryController } from "../history";
 import { CHANGE_CATEGORY_ICONS, type ChangeCategory } from "../status";
 import type { Journey, JourneyStepId } from "./journey";
 
@@ -138,6 +139,9 @@ export function JourneySection({
   onReviewAndGetTeamChanges,
   onOpenProjectSettings,
   onOpenHistory,
+  historyController,
+  projectPath,
+  sessionEpoch,
 }: {
   journey: Journey;
   breakdown: { category: ChangeCategory; count: number }[];
@@ -150,6 +154,11 @@ export function JourneySection({
   onReviewAndGetTeamChanges: () => void;
   onOpenProjectSettings: () => void;
   onOpenHistory: () => void;
+  /** The project-scoped History cache, read for when the version the project
+   * stands on was saved. Subscribed only while visible; never read from here. */
+  historyController: HistoryController;
+  projectPath: string;
+  sessionEpoch: string;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
   const headingId = useId();
@@ -162,6 +171,17 @@ export function JourneySection({
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // The Save tile says when the project was last saved: the one thing it can
+  // add once everything is saved that its neighbours do not already say.
+  // Recent history below reads the same cached page, so this starts no read.
+  const historyQuery = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
+  const historyState = useActiveHistoryState(historyController, historyQuery);
+  const headCommit = historyState.snapshot?.headCommit ?? null;
+  const headVersion = headCommit ? historyState.versions.find((version) => version.commit === headCommit) : undefined;
+  const lastSaved = headVersion
+    ? (formatHistoryDate(headVersion.committedAt ?? headVersion.authoredAt, formats, now)?.relative ?? null)
+    : null;
 
   // ---- Changes ----
   // The same glyphs, in the same colours, as the rows in Changed files
@@ -234,7 +254,7 @@ export function JourneySection({
     case "done":
       saveStep = (
         <JourneyStep id="save" tone="done" icon={<Check />} label={t.overviewJourneySave}
-          value={t.statusCleanTitle} hint={t.overviewJourneySaveDoneHint}
+          value={t.statusCleanTitle} hint={lastSaved ? t.overviewJourneyLastSaved(lastSaved) : t.overviewJourneySaveDoneHint}
           onSelect={onOpenHistory} selectLabel={t.overviewHistoryViewAll} />
       );
       break;
@@ -252,22 +272,28 @@ export function JourneySection({
   const checkedRelative = publish.checkedAt === null
     ? null
     : formatRelativeCheckTime(publish.checkedAt, now, formats.language, t.statusBarJustNow);
+  // When the remote was last asked. It is said once, beside the one refresh
+  // at the end of the sentence under the band — the control it describes —
+  // rather than stacked over the line inside the tile, where it cost the tile
+  // a second line and, as "Local snapshot", a word nobody reads as a time.
   const freshness = publish.isStale
     ? t.statusBarMayBeOutdated
-    : publish.isCached
-      ? t.statusBarLocalSnapshot
-      : checkedRelative
-        ? t.statusBarLastChecked(checkedRelative)
-        : null;
-  // When first, then which line — and the line gives way before the time
-  // does: "origin/feature/…" is recognisable cut short, "checked 5 min ago"
-  // is not.
-  const remoteHint = (
-    <span className="journey-step__remote">
-      {freshness && <span className="journey-step__remote-when">{freshness}</span>}
-      {publish.remoteLine && <span className="journey-step__mono">{publish.remoteLine}</span>}
+    : checkedRelative
+      ? t.statusBarLastChecked(checkedRelative)
+      : null;
+  // Where publishing goes, on one line: "to origin". The line is named only
+  // when it differs from the one the project is on — the header names that
+  // one, and "origin · main" under "main" said it twice. When named, remote
+  // and line are said apart: "origin/release/0.2" reads as one path.
+  const namesDestination = publish.destinationBranch !== null && publish.destinationBranch !== publish.localBranch;
+  const remoteHint = publish.remote && publish.destinationBranch ? (
+    <span className="journey-step__remote" title={publish.remoteLine ?? undefined}>
+      {t.overviewJourneyPublishTo}{" "}
+      <span className="journey-step__mono">
+        {namesDestination ? `${publish.remote} · ${publish.destinationBranch}` : publish.remote}
+      </span>
     </span>
-  );
+  ) : null;
   const isPublishActive = activeStep === "publish";
   const spinning = <LoaderCircle className="icon--spinning" />;
   let publishStep: React.JSX.Element;
@@ -361,7 +387,7 @@ export function JourneySection({
   } else if (activeStep === "save") {
     note = t.overviewJourneyNoteSave;
   } else if (activeStep === "publish" && publish.state === "ahead") {
-    note = t.syncAheadMessage;
+    note = t.overviewJourneyNoteAhead;
     if (!canPublish) noteAction = { label: t.overviewHistoryViewAll, onClick: onOpenHistory };
   } else if (activeStep === "publish" && publish.state === "behind") {
     note = t.syncBehindMessage;
@@ -392,10 +418,15 @@ export function JourneySection({
     note = t.overviewJourneyNoteIdle;
   }
 
+  // The current step takes the wide column: it is the tile with the verb and
+  // the reason in it, and the one the eye is sent to. With nothing waiting the
+  // three are equal.
+  const stepsClassName = `journey__steps${activeStep ? ` journey__steps--wide-${activeStep}` : ""}`;
+
   return (
     <section className="journey" aria-labelledby={headingId}>
       <h2 id={headingId} className="visually-hidden">{t.overviewJourneyTitle}</h2>
-      <ol className="journey__steps" aria-label={t.overviewJourneyTitle}>
+      <ol className={stepsClassName} aria-label={t.overviewJourneyTitle}>
         <li>{changesStep}</li>
         <li aria-hidden="true"><Connector isDone={changes.state === "clean" || changes.state === "dirty"} /></li>
         <li>{saveStep}</li>
@@ -411,6 +442,7 @@ export function JourneySection({
             <ArrowRight aria-hidden="true" />
           </button>
         )}
+        {freshness && <span className="journey__when">{freshness}</span>}
         {publish.state !== "checking" && publish.state !== "detached" && publish.state !== "unborn" && (
           <button
             className="journey__refresh"

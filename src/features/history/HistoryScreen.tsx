@@ -21,6 +21,7 @@ export function HistoryScreen({
   onCreateLineFromVersion,
   onPublish,
   onOpenSettings,
+  selfEmail = null,
 }: {
   /** The Work screen's tab pair; see `HistoryPanel`. */
   tabs: React.ReactNode;
@@ -48,6 +49,8 @@ export function HistoryScreen({
   onCreateLineFromVersion?: HistoryLineActions["onCreateLineFromVersion"];
   onPublish?: () => void;
   onOpenSettings: () => void;
+  /** The user's own Git email; see `HistoryPanel`. */
+  selfEmail?: string | null;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
@@ -87,6 +90,7 @@ export function HistoryScreen({
       state={state}
       watcherState={watcherState}
       actions={actions}
+      selfEmail={selfEmail}
       onOpenSettings={onOpenSettings}
       error={state.error ? localizeAppError(state.error, t, t.historyErrorLoading) : null}
     />

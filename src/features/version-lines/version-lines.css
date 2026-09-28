@@ -31,6 +31,26 @@
   transition: transform var(--duration-fast);
 }
 .version-line-selector[aria-expanded="true"] .version-line-selector__chevron { transform: rotate(180deg); }
+/* The labelled face (`label`): the line glyph in a neutral circle, then a
+   caption over the value — the label-and-value shape of a band tile. */
+.version-line-selector__tile {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+}
+.version-line-selector__tile .version-line-selector__icon { width: 17px; height: 17px; }
+.version-line-selector__copy { min-width: 0; flex: 1 1 auto; display: grid; text-align: left; }
+.version-line-selector__label {
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+}
 
 .version-lines-banner {
   display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2);

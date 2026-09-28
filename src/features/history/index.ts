@@ -1,3 +1,4 @@
+export { isSelfAuthor } from "./author";
 export { createHistoryController, type HistoryController } from "./controller";
 export type * from "./domain";
 export { formatHistoryDate } from "./formatHistoryDate";

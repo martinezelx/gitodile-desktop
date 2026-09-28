@@ -55,6 +55,22 @@ describe("deriveJourney", () => {
     expect(journey.publish.remoteLine).toBe("origin/main");
   });
 
+  it("never dates a cached status as a remote check", () => {
+    const cached = deriveJourney({
+      ...base,
+      workingTree: tree({ total: 0 }),
+      teamSync: sync({ knowledge: "cached", checkedAt: 5_000 }),
+    });
+    expect(cached.publish.checkedAt).toBeNull();
+
+    const checkedThisSession = deriveJourney({
+      ...base,
+      workingTree: tree({ total: 0 }),
+      teamSync: sync({ knowledge: "cached", checkedAt: 5_000 }, { lastSuccessfulCheckAt: 2_000 }),
+    });
+    expect(checkedThisSession.publish.checkedAt).toBe(2_000);
+  });
+
   it("puts overlaps first and blocks saving behind them", () => {
     const journey = deriveJourney({ ...base, workingTree: tree({ conflicted: 2, changed: 1, total: 3 }), teamSync: sync() });
 

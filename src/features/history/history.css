@@ -473,6 +473,13 @@
   color: color-mix(in srgb, var(--author-color) 65%, var(--text-primary-color));
   font-size: var(--text-micro); font-weight: var(--weight-medium); line-height: var(--leading-none);
 }
+/* The user's own versions: a person glyph on the neutral tint, not the
+   initials on a colour of their own. */
+.history-row__avatar--self {
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+}
+.history-row__avatar--self svg { width: 11px; height: 11px; }
 /* The Conventional Commits prefix, one tone quieter than the words after it,
    and a merge's whole title the same: both are there, neither leads. */
 .history-title-prefix,

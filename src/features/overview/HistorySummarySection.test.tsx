@@ -69,6 +69,7 @@ function renderSection(
   controller: ReturnType<typeof createHistoryController>,
   onOpenHistory = vi.fn(),
   isRefreshing = false,
+  selfEmail: string | null = null,
 ) {
   const lifecycle = createScreenLifecycleController("active");
   return {
@@ -82,6 +83,7 @@ function renderSection(
             sessionEpoch={query.sessionEpoch}
             isRefreshing={isRefreshing}
             onOpenHistory={onOpenHistory}
+            selfEmail={selfEmail}
           />
         </ScreenLifecycleProvider>
       </LanguageProvider>,
@@ -102,7 +104,10 @@ describe("HistorySummarySection", () => {
 
     expect(screen.getByRole("heading", { name: "Recent history" })).toBeInTheDocument();
     expect(screen.getByText("Saved version 2")).toBeInTheDocument();
-    expect(screen.queryByText("Published")).not.toBeInTheDocument();
+    // The unpublished run is labelled once, and the label under it marks
+    // where the published versions begin.
+    expect(screen.getByText("Only on this computer")).toBeInTheDocument();
+    expect(screen.getByText("Published")).toBeInTheDocument();
     expect(screen.queryByText(version(2).shortCommit)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View all" })).toBeInTheDocument();
     expect(readPage).not.toHaveBeenCalled();
@@ -127,7 +132,9 @@ describe("HistorySummarySection", () => {
 
     const rows = container.querySelectorAll<HTMLButtonElement>(".overview-history__row");
     const badge = rows[0].querySelector(".history-ref-badge");
-    expect(badge).toHaveTextContent("main");
+    // The line being stood on is called "current": the header names it.
+    expect(badge).toHaveTextContent("current");
+    expect(badge).toHaveAttribute("title", expect.stringContaining("refs/heads/main"));
     expect(badge).toHaveClass("history-ref-badge--current");
     // Version 2 is still only on this computer, and the label says so last.
     expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in History — Version line main — Not published");
@@ -138,8 +145,7 @@ describe("HistorySummarySection", () => {
     const order = (row: HTMLElement): string[] =>
       [...row.querySelectorAll<HTMLElement>(".overview-history__meta > *")].map((element) => element.className.split(" ")[0]);
     expect(order(rows[0])).toEqual([
-      "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__local",
-      "history-meta-dot", "overview-history__date",
+      "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__date",
     ]);
     expect(order(rows[1])).toEqual(["overview-history__author", "history-meta-dot", "overview-history__date"]);
   });
@@ -164,9 +170,10 @@ describe("HistorySummarySection", () => {
       </LanguageProvider>,
     );
 
-    // Only the local-only row carries the mark and the action; the published
-    // one below it has neither.
-    expect(screen.getAllByText("Not published")).toHaveLength(1);
+    // The local-only run is labelled once and only its row carries the
+    // action; the published one below it has neither.
+    expect(screen.getAllByText("Only on this computer")).toHaveLength(1);
+    expect(screen.queryByText("Not published")).toBeNull();
     const publish = screen.getByRole("button", { name: "Publish up to here: Saved version 2" });
     await userEvent.click(publish);
     expect(onPublishUpTo).toHaveBeenCalledWith(version(2).commit);
@@ -178,8 +185,29 @@ describe("HistorySummarySection", () => {
     await controller.refresh(query);
     renderSection(controller);
 
-    expect(screen.getByText("Not published")).toBeInTheDocument();
+    expect(screen.getByText("Only on this computer")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Publish up to here/ })).toBeNull();
+  });
+
+  it("says You for versions saved under the user's own identity, keeping the name one hover away", async () => {
+    const theirs: SavedVersionSummary = { ...version(1), author: { name: "Ada", email: "ada@example.com" } };
+    const controller = createHistoryController(port(vi.fn(async () => page([version(2), theirs]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller, vi.fn(), false, "Author@Example.com");
+
+    const authors = container.querySelectorAll<HTMLElement>(".overview-history__author");
+    expect(authors[0]).toHaveTextContent("You");
+    expect(authors[0]).toHaveAttribute("title", "Lin");
+    expect(authors[1]).toHaveTextContent("Ada");
+  });
+
+  it("labels nothing when every recent version is published", async () => {
+    const published = (index: number): SavedVersionSummary => ({ ...version(index), publication: "published" });
+    const controller = createHistoryController(port(vi.fn(async () => page([published(2), published(1)]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    expect(container.querySelector(".overview-history__group")).toBeNull();
   });
 
   it("shows a truthful empty state after history has loaded", async () => {

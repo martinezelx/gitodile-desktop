@@ -3,11 +3,11 @@ import {
   Check,
   CloudDownload,
   Copy,
-  FolderGit2,
   FolderInput,
   FolderPlus,
   GitBranch,
   LoaderCircle,
+  Pencil,
   Settings,
   Star,
   X,
@@ -20,6 +20,7 @@ import {
   ProjectAvatar,
   type ProjectAvatarStyle,
   type ProjectIconChoice,
+  TECHNOLOGY_LABELS,
   type TechnologyId,
 } from "../../shared/ui";
 import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
@@ -313,15 +314,29 @@ function WelcomeAction({
   );
 }
 
+/** How the project shows itself everywhere else — the rail, the switcher, the
+ * recents — so the header can wear the same icon. */
+export type OverviewProjectIdentity = {
+  iconChoice: ProjectIconChoice;
+  technology: TechnologyId | null;
+  avatarStyle: ProjectAvatarStyle;
+};
+
 /**
  * Who this screen is about, as a page header rather than a card: the name,
  * where it lives, the line you are on and its settings. It sits directly on
  * the workspace because it is the one thing on the screen that does not
  * change while you work — the cards below are for what does — and a card
  * around three facts was a card that was mostly air.
+ *
+ * Its tile is the project's own icon — the chosen emoji, the detected
+ * technology or the initials — at the header's size, the same chip the rail
+ * shows for it, so the project is recognised here the way it is recognised
+ * there. Pressing it opens the icon section of project settings.
  */
 function OverviewHeader({
   project,
+  identity,
   overview,
   versionValue,
   versionLines,
@@ -333,9 +348,11 @@ function OverviewHeader({
   onGoToVersionLines,
   onCopyPathError,
   onOpenProjectSettings,
+  onChangeProjectIcon,
   onPrefetchProjectSettings,
 }: {
   project: RepositoryInfo;
+  identity: OverviewProjectIdentity;
   overview: ReturnType<typeof getRepositoryOverviewState>;
   versionValue: string;
   versionLines: VersionLinesSnapshot | null;
@@ -349,6 +366,8 @@ function OverviewHeader({
   /** The same panel the project switcher's gear opens, for the project this
    * header is already about. */
   onOpenProjectSettings: () => void;
+  /** The same panel, opened at the project's icon. */
+  onChangeProjectIcon: () => void;
   /** Warms that panel's first read on hover; see the switcher's own gear. */
   onPrefetchProjectSettings?: () => void;
 }): React.JSX.Element {
@@ -357,12 +376,37 @@ function OverviewHeader({
   return (
     <header className="overview-header" aria-labelledby="project-summary-heading">
       <div className="overview-header__identity">
-        <span className="overview-header__glyph" aria-hidden="true">
-          <FolderGit2 />
-        </span>
+        <button
+          className="overview-header__icon"
+          type="button"
+          aria-label={t.overviewChangeProjectIcon}
+          data-tooltip={t.overviewChangeProjectIcon}
+          onPointerEnter={() => onPrefetchProjectSettings?.()}
+          onFocus={() => onPrefetchProjectSettings?.()}
+          onClick={onChangeProjectIcon}
+        >
+          <ProjectAvatar
+            id={project.path}
+            name={project.name}
+            className="overview-header__avatar"
+            iconChoice={identity.iconChoice}
+            technology={identity.technology}
+            style={identity.avatarStyle}
+          />
+          <span className="overview-header__icon-edit" aria-hidden="true">
+            <Pencil />
+          </span>
+        </button>
         <div className="overview-header__copy">
           <h1 id="project-summary-heading" title={project.name}>{project.name}</h1>
-          <ProjectPath path={project.path} onCopyError={onCopyPathError} />
+          <div className="overview-header__subline">
+            {/* First, so the path's copy control — invisible until the path
+                is pointed at — never opens a gap between the two. */}
+            {identity.technology && (
+              <span className="overview-header__technology">{TECHNOLOGY_LABELS[identity.technology]}</span>
+            )}
+            <ProjectPath path={project.path} onCopyError={onCopyPathError} />
+          </div>
         </div>
       </div>
       <div className="overview-header__actions">
@@ -378,6 +422,7 @@ function OverviewHeader({
               snapshot={versionLines}
               isLoadingSnapshot={isLoadingVersionLines}
               currentValue={versionValue}
+              label={t.overviewVersionLineLabel}
               canSwitch={!overview.isDetached}
               favouriteLines={favouriteVersionLines}
               onToggleFavourite={onToggleFavouriteVersionLine}
@@ -388,6 +433,7 @@ function OverviewHeader({
             />
           )}
         </div>
+        <span className="overview-header__divider" aria-hidden="true" />
         {/* The same gear the project switcher shows for the same panel. */}
         <button
           className="overview-header__settings"
@@ -440,7 +486,10 @@ export function OverviewPanel({
   historyController,
   onOpenHistory,
   onOpenProjectSettings,
+  onChangeProjectIcon,
   onPrefetchProjectSettings,
+  projectIdentity,
+  selfEmail = null,
 }: {
   project: RepositoryInfo | null;
   /** Only ever drives the *empty*-state's own loading affordance below —
@@ -491,8 +540,15 @@ export function OverviewPanel({
   /** Opens this project's own settings — the remote it publishes to, the files
    * it ignores, and the identity it saves as. */
   onOpenProjectSettings: () => void;
+  /** Opens the same panel at the project's icon, from the header's tile. */
+  onChangeProjectIcon: () => void;
   /** Warms that panel's first read on hover, so opening it is not a wait. */
   onPrefetchProjectSettings?: () => void;
+  /** The open project's icon, as the rail resolves it. */
+  projectIdentity: OverviewProjectIdentity;
+  /** The user's own Git email, so Recent history can say "You" for their
+   * versions. `null` until it has been read, or when none is set. */
+  selfEmail?: string | null;
   /** Opens the save-version flow. Overview has no file-selection UI of its
    * own to drive `SaveVersionDialog`'s exclusion checkboxes, so — like
    * `VersionLinesPanel` and `SwitchVersionLineDialog`'s own `onSaveVersion`
@@ -536,6 +592,7 @@ export function OverviewPanel({
       <div className="project-overview" aria-busy={isRefreshing}>
         <OverviewHeader
           project={project}
+          identity={projectIdentity}
           overview={overview}
           versionValue={versionValue}
           versionLines={versionLines}
@@ -547,6 +604,7 @@ export function OverviewPanel({
           onGoToVersionLines={onGoToVersionLines}
           onCopyPathError={onCopyPathError}
           onOpenProjectSettings={onOpenProjectSettings}
+          onChangeProjectIcon={onChangeProjectIcon}
           onPrefetchProjectSettings={onPrefetchProjectSettings}
         />
 
@@ -562,11 +620,16 @@ export function OverviewPanel({
           onReviewAndGetTeamChanges={onReviewAndGetTeamChanges}
           onOpenProjectSettings={onOpenProjectSettings}
           onOpenHistory={onOpenHistory}
+          historyController={historyController}
+          projectPath={project.path}
+          sessionEpoch={project.sessionEpoch}
         />
 
         {/* The two things that change while you work, side by side and the
-            same height: which files, and which saved versions. */}
-        <div className="overview-columns">
+            same height: which files, and which saved versions. With nothing
+            to list, the files card shrinks to its own content and history
+            takes the room it leaves. */}
+        <div className={`overview-columns${workingTree?.isClean ? " overview-columns--clean" : ""}`}>
           <ChangedFilesSection
             workingTree={workingTree}
             workingTreeError={workingTreeError}
@@ -590,6 +653,7 @@ export function OverviewPanel({
               canPublish={canPublish}
               onOpenHistory={onOpenHistory}
               onPublishUpTo={onPublishUpTo}
+              selfEmail={selfEmail}
             />
           </Suspense>
         </div>

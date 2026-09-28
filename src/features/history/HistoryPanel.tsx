@@ -16,6 +16,7 @@ import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
 import type { HistoryDecoration, HistoryFileChange, HistoryState, PublicationState, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import { formatHistoryDate } from "./formatHistoryDate";
 import { HistoryMetaDot, HistoryRefBadge, localLineFor } from "./HistoryRefBadge";
+import { isSelfAuthor } from "./author";
 import {
   ALL_LINES_SCOPE,
   countActiveFilters,
@@ -207,9 +208,21 @@ function versionGlyphs(version: SavedVersionSummary, t: Translations): VersionGl
 /** Who saved a version, at a row's size: their initials on a colour that is
  * theirs across the whole timeline — keyed on the email when there is one,
  * so two people who share initials still read apart. The name is on the
- * tooltip and in the row's description; the detail strip spells it out. */
-function AuthorAvatar({ version, t }: { version: SavedVersionSummary; t: Translations }): React.JSX.Element {
+ * tooltip and in the row's description; the detail strip spells it out.
+ *
+ * The user's own versions wear a person glyph instead of their initials, in
+ * a neutral tint rather than their colour: "you" is the one author the
+ * reader never needs to tell apart by colour, and the glyph says it without
+ * a word the row has no room for. Overview says the same thing in text. */
+function AuthorAvatar({ version, isSelf, t }: { version: SavedVersionSummary; isSelf: boolean; t: Translations }): React.JSX.Element {
   const name = version.author?.name.trim() || t.historyAuthorUnknown;
+  if (isSelf) {
+    return (
+      <span className="history-row__avatar history-row__avatar--self" data-tooltip={t.historyAuthorYouNamed(name)} aria-hidden="true">
+        <UserRound />
+      </span>
+    );
+  }
   const identity = version.author?.email?.trim().toLocaleLowerCase() || name;
   return (
     <span className="history-row__avatar" style={{ "--author-color": avatarColorVar(identity) } as React.CSSProperties} data-tooltip={name} aria-hidden="true">
@@ -224,13 +237,15 @@ function AuthorAvatar({ version, t }: { version: SavedVersionSummary; t: Transla
  * draws that is not either structure or the selection itself. */
 type RailFill = "filled" | "half" | null;
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, search, arrival, onSelect, onMove, onOpenDetail, onContextMenu }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; search: string; arrival?: number; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
+const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, search, arrival, selfEmail, onSelect, onMove, onOpenDetail, onContextMenu }: {
+  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; search: string; arrival?: number; selfEmail: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
   const date = formatHistoryDate(version.authoredAt, formats);
-  const author = version.author?.name.trim() || t.historyAuthorUnknown;
+  const isSelf = isSelfAuthor(version.author, selfEmail);
+  const name = version.author?.name.trim() || t.historyAuthorUnknown;
+  const author = isSelf ? t.historyAuthorYouNamed(name) : name;
   const glyphs = versionGlyphs(version, t);
   const match = hiddenMatch(version, title, search, t);
   /* What the avatar and the glyphs say, in words: a description, because the
@@ -255,7 +270,7 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
   return (
     <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}${version.isMerge ? " history-row--merge" : ""}${arrivalStyle ? " row-in" : ""}`} style={arrivalStyle} type="button" role="option" aria-selected={selected} aria-label={label} aria-description={description} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown} onContextMenu={onContextMenu ? (event) => { onSelect(version.commit); onContextMenu(event, version); } : undefined}>
       <span className="history-row__node" aria-hidden="true" />
-      <span className="history-row__body"><span className="history-row__title" title={title}><VersionTitleText version={version} title={title} search={search} /></span><span className="history-row__meta"><AuthorAvatar version={version} t={t} />{(glyphs.length > 0 || match) && <StateGlyphs>{glyphs.map((glyph) => <StateGlyph key={glyph.key} tone={glyph.tone} icon={glyph.icon} text={glyph.text} tooltip={glyph.tooltip} />)}{match && <StateGlyph tone="accent" icon={<Search />} text={match} tooltip={t.historyMatchLabel(match)} />}</StateGlyphs>}{date && <span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}</span></span>
+      <span className="history-row__body"><span className="history-row__title" title={title}><VersionTitleText version={version} title={title} search={search} /></span><span className="history-row__meta"><AuthorAvatar version={version} isSelf={isSelf} t={t} />{(glyphs.length > 0 || match) && <StateGlyphs>{glyphs.map((glyph) => <StateGlyph key={glyph.key} tone={glyph.tone} icon={glyph.icon} text={glyph.text} tooltip={glyph.tooltip} />)}{match && <StateGlyph tone="accent" icon={<Search />} text={match} tooltip={t.historyMatchLabel(match)} />}</StateGlyphs>}{date && <span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}</span></span>
     </button>
   );
 });
@@ -263,8 +278,8 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
 const ROW_HEIGHT = 64;
 const BOUNDARY_HEIGHT = 26;
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, selectedCommit, publishedTo, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  tabs: React.ReactNode; versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
+const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, selectedCommit, publishedTo, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  tabs: React.ReactNode; versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
   onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onScope: (scope: HistoryScope) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -406,7 +421,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, se
      sits on: it lives inside the listbox, where only options belong, and
      Publish in the toolbar is the same action for a keyboard. */
   ? <button className="history-boundary__side history-boundary__publish" type="button" tabIndex={-1} data-tooltip={t.historyBoundaryPublishHint} onMouseDown={(event) => event.preventDefault()} onClick={() => actions.onPublish?.()}><ArrowUp />{t.historyBoundaryUnpublished(formatNumber(unpublishedAbove, formats))}<Upload className="history-boundary__publish-icon" /></button>
-  : <span className="history-boundary__side"><ArrowUp />{t.historyBoundaryUnpublished(formatNumber(unpublishedAbove, formats))}</span>}<span className="history-boundary__rule" /><span className="history-boundary__side">{t.historyBoundaryPublished}<ArrowDown /></span></div>}<TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} search={searchQuery} arrival={arrivals.get(version.commit)} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
+  : <span className="history-boundary__side"><ArrowUp />{t.historyBoundaryUnpublished(formatNumber(unpublishedAbove, formats))}</span>}<span className="history-boundary__rule" /><span className="history-boundary__side">{t.historyBoundaryPublished}<ArrowDown /></span></div>}<TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} search={searchQuery} arrival={arrivals.get(version.commit)} selfEmail={selfEmail} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
         </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
@@ -473,10 +488,12 @@ function ChangedFiles({ rows, inFolders, selectedPath, formats, onSelect, onTogg
 const NO_COLLAPSED_FOLDERS: ReadonlySet<string> = new Set();
 const filePath = (file: HistoryFileChange): string => file.path;
 
-function HistoryDetailStrip({ detail, currentBranch, actions, detailsOpen, onToggleDetails }: {
+function HistoryDetailStrip({ detail, currentBranch, selfEmail, actions, detailsOpen, onToggleDetails }: {
   detail: SavedVersionDetail;
   /** `HEAD`'s own line, so a line action can say where the project already is. */
   currentBranch: string | null;
+  /** The user's own Git email: their versions say "You", the name on hover. */
+  selfEmail: string | null;
   actions: HistoryLineActions;
   detailsOpen: boolean;
   onToggleDetails: () => void;
@@ -506,8 +523,12 @@ function HistoryDetailStrip({ detail, currentBranch, actions, detailsOpen, onTog
             it. The time, the hash, the publication state and the file count all
             move behind `Details`, where there is room to read them. */}
         <p className="history-detail__strip-facts">
-          <strong>{version.author?.name || t.historyAuthorUnknown}</strong>
-          <HistoryRefBadge version={version} currentBranch={currentBranch} />
+          {isSelfAuthor(version.author, selfEmail)
+            ? <strong title={version.author?.name}>{t.historyAuthorYou}</strong>
+            : <strong>{version.author?.name || t.historyAuthorUnknown}</strong>}
+          {/* The line being stood on is "current": the status bar under this
+              screen already names it ("Working on …"). */}
+          <HistoryRefBadge version={version} currentBranch={currentBranch} currentLabel={t.historyRefCurrent} />
           {/* Whether this has left the machine, at a glance: the glyph the
               timeline row wears, explained on its tooltip and named to a
               screen reader here, where it is not folded into a row's
@@ -1184,8 +1205,8 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSugg
   </FilterPanel>;
 }
 
-function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, onRetryDiff, onBack, readImagePreview, sourceKey }: {
-  state: HistoryState; formats: LocaleFormats; actions: HistoryLineActions; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void; readImagePreview: ImagePreviewLoader; sourceKey: string;
+function HistoryDetail({ state, formats, selfEmail, actions, onSelectFile, onRetryDetail, onRetryDiff, onBack, readImagePreview, sourceKey }: {
+  state: HistoryState; formats: LocaleFormats; selfEmail: string | null; actions: HistoryLineActions; onSelectFile: (path: string) => void; onRetryDetail: () => void; onRetryDiff: () => void; onBack: () => void; readImagePreview: ImagePreviewLoader; sourceKey: string;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -1295,6 +1316,7 @@ function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, o
       <HistoryDetailStrip
         detail={detail}
         currentBranch={state.snapshot?.branch ?? null}
+        selfEmail={selfEmail}
         actions={actions}
         detailsOpen={detailsOpen}
         onToggleDetails={() => setDetailsOpen((open) => !open)}
@@ -1337,12 +1359,15 @@ function HistoryDetail({ state, formats, actions, onSelectFile, onRetryDetail, o
   </section>;
 }
 
-export function HistoryPanel({ tabs, controller, query, state, watcherState, actions = {}, onOpenSettings, error }: {
+export function HistoryPanel({ tabs, controller, query, state, watcherState, actions = {}, selfEmail = null, onOpenSettings, error }: {
   /** The Work screen's tab pair, drawn as the timeline panel's header in every
    * state this panel has (task 126): it is what names the column now, and the
    * way back to Changes has to stay reachable while History loads or fails. */
   tabs: React.ReactNode;
-  controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; actions?: HistoryLineActions; onOpenSettings: () => void; error: string | null;
+  controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; actions?: HistoryLineActions;
+  /** The user's own Git email, so their versions read as theirs. */
+  selfEmail?: string | null;
+  onOpenSettings: () => void; error: string | null;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
   const [showNarrowDetail, setShowNarrowDetail] = useState(false);
@@ -1485,8 +1510,8 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
         timeline panel's own header and the version strip heads the card, so no
         page row sits above either. */}
     <div className="history-layout">
-      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} tabs={tabs} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
-      <HistoryDetail state={state} formats={formats} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
+      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} tabs={tabs} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
+      <HistoryDetail state={state} formats={formats} selfEmail={selfEmail} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
     </div>
   </div>;
 }

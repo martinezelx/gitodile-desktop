@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   ChevronRight,
   CircleAlert,
   GitCommitHorizontal,
   CloudUpload,
   LoaderCircle,
+  Monitor,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
@@ -14,6 +15,7 @@ import {
   formatHistoryDate,
   HistoryMetaDot,
   HistoryRefBadge,
+  isSelfAuthor,
   primaryDecoration,
   useActiveHistoryState,
   type HistoryController,
@@ -34,6 +36,7 @@ export function HistorySummarySection({
   canPublish = false,
   onOpenHistory,
   onPublishUpTo,
+  selfEmail = null,
 }: {
   controller: HistoryController;
   projectPath: string;
@@ -47,6 +50,9 @@ export function HistorySummarySection({
    * previewed publish flow. Only offered on rows the inventory says are not
    * yet published, and only when `canPublish`. */
   onPublishUpTo?: (commit: string) => void;
+  /** The user's own Git email: their versions say "You" rather than their
+   * full name, which was the first thing the row's meta cut short. */
+  selfEmail?: string | null;
 }): React.JSX.Element {
   const { formats, t } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
@@ -54,6 +60,19 @@ export function HistorySummarySection({
   const versions = state.versions.slice(0, HISTORY_PREVIEW_LIMIT);
   const currentBranch = state.snapshot?.branch ?? null;
   const error = state.error ? localizeAppError(state.error, t, t.overviewHistoryError) : null;
+
+  // Unpublished versions are said once, as a label over their run, rather
+  // than "Not published" on every row; a "Published" label marks where the
+  // published ones begin. Only when something is unpublished — otherwise
+  // nothing needs saying — and never over an "unknown" run (no upstream to
+  // compare with), which is neither.
+  const hasLocalRun = versions.some((version) => version.publication === "local-only");
+  const groupLabelFor = (publication: SavedVersionSummary["publication"]): string | null =>
+    publication === "local-only"
+      ? t.overviewHistoryLocalGroup
+      : publication === "published"
+        ? t.overviewHistoryPublishedGroup
+        : null;
 
   const openVersion = (commit: string): void => {
     controller.selectVersion(query, commit);
@@ -108,7 +127,9 @@ export function HistorySummarySection({
         <ol className="overview-history__list" aria-label={t.overviewHistoryListLabel}>
           {versions.map((version, index) => {
             const title = versionTitle(version, t.overviewHistoryUntitled);
-            const author = version.author?.name.trim() || t.overviewHistoryUnknownAuthor;
+            const fullAuthor = version.author?.name.trim() || t.overviewHistoryUnknownAuthor;
+            const isSelf = isSelfAuthor(version.author, selfEmail);
+            const author = isSelf ? t.overviewHistoryYou : fullAuthor;
             const date = formatHistoryDate(version.authoredAt, formats);
             // The row's `aria-label` replaces its subtree, so the badge only
             // reaches assistive tech by being folded into the label.
@@ -121,9 +142,22 @@ export function HistorySummarySection({
             if (decoration) labelParts.push(decorationLabel(decoration, t));
             if (isLocalOnly) labelParts.push(t.overviewHistoryLocalOnly);
             const canPublishUpTo = isLocalOnly && canPublish && Boolean(onPublishUpTo);
+            const startsGroup = index === 0 || version.publication !== versions[index - 1].publication;
+            const groupLabel = hasLocalRun && startsGroup ? groupLabelFor(version.publication) : null;
             return (
+              <React.Fragment key={version.commit}>
+              {/* Decorative for assistive tech: every row's own label already
+                  says whether it is published. */}
+              {groupLabel && (
+                <li
+                  className={`overview-history__group${isLocalOnly ? " overview-history__group--local" : ""}`}
+                  aria-hidden="true"
+                >
+                  {isLocalOnly && <Monitor />}
+                  {groupLabel}
+                </li>
+              )}
               <li
-                key={version.commit}
                 className={`row-in${isLocalOnly ? " overview-history__item--local" : ""}${canPublishUpTo ? " overview-history__item--publishable" : ""}`}
                 style={{ "--row-index": index } as React.CSSProperties}
               >
@@ -137,24 +171,19 @@ export function HistorySummarySection({
                   <span className="overview-history__body">
                     <span className="overview-history__subject" title={title}>{title}</span>
                     <span className="overview-history__meta">
-                      <span className="overview-history__author" title={author}>{author}</span>
-                      <HistoryRefBadge version={version} currentBranch={currentBranch} />
-                      {isLocalOnly && (
-                        <>
-                          <HistoryMetaDot />
-                          <span className="overview-history__local">{t.overviewHistoryLocalOnly}</span>
-                        </>
-                      )}
+                      <span className="overview-history__author" title={fullAuthor}>{author}</span>
+                      <HistoryRefBadge version={version} currentBranch={currentBranch} currentLabel={t.overviewHistoryCurrentLine} />
                       {date && <><HistoryMetaDot /><span className="overview-history__date" title={date.absolute}>{date.relative}</span></>}
                     </span>
                   </span>
                   <ChevronRight className="overview-history__chevron" aria-hidden="true" />
                 </button>
-                {/* The action is the node itself: the timeline's dot, grown to
-                    a pressable size and filled solid in the accent — the same
-                    "do this" mark as the band's current step — sitting over
-                    the row's own node, since it cannot live inside the row's
-                    button. The tooltip carries the words. */}
+                {/* The action is the node itself: under the pointer or focus
+                    the timeline's dot grows to a pressable size, filled solid
+                    in the accent, sitting over the row's own node since it
+                    cannot live inside the row's button. At rest it is hidden
+                    so the band's current step stays the one solid accent on
+                    the page. The tooltip carries the words. */}
                 {canPublishUpTo && (
                   <button
                     className="overview-history__publish"
@@ -167,6 +196,7 @@ export function HistorySummarySection({
                   </button>
                 )}
               </li>
+              </React.Fragment>
             );
           })}
         </ol>

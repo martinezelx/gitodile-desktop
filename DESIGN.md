@@ -400,11 +400,21 @@ The main desktop window should broadly support:
    and columns, with the stat row replaced by the stepper. Its parts, top to
    bottom:
 
-   - **A page header, not a card** (Linear, Vercel): glyph tile, name, path,
-     the one selector that belongs to the whole project, its settings. It is
-     the only thing on the page that does not change while you work, so it
-     sits on the workspace itself; the accent is spent once here, on the
-     project's own tile.
+   - **A page header, not a card** (Linear, Vercel): the project's own icon,
+     name, path, the one selector that belongs to the whole project, its
+     settings. It is the only thing on the page that does not change while you
+     work, so it sits on the workspace itself. The icon is the identity chip
+     the rail shows for the project — chosen emoji, detected technology, or
+     initials — so the project is recognised here the way it is recognised
+     there, and it spends no accent: the band's current step is the page's one
+     accent fill. The line selector reads as one of the band's facts, not as a
+     form control — a neutral glyph circle, the caption "Version line" over
+     the name, no border and no fill until it is pointed at — and the settings
+     gear beside it is a bare round glyph. The header holds no bordered
+     control at rest. The line's name is said there and nowhere else on the
+     page: the Publish tile says "to origin" unless the destination has a
+     different name, and Recent history marks the version stood on as
+     "current".
    - **The band**: one card holding the steps of the model as equal tiles
      joined by connectors that turn solid as each step is reached. Every tile
      is a fact (label, value, one line) and a button in its entirety, leading
@@ -421,10 +431,11 @@ The main desktop window should broadly support:
      same card shape with the same header shape (neutral glyph tile, title,
      one line, the trailing action in the same corner and the same words).
    - Nothing gets a card of its own for sometimes existing. Versions saved
-     but not yet published are rows of Recent history that say so — the node
-     in the accent, "Not published" in the meta, and "Publish up to here"
-     under the pointer — not a fourth card repeating the band's count with
-     a second Publish button.
+     but not yet published are rows of Recent history that say so — the run
+     labelled once, "Only on this computer", its nodes ringed in the accent,
+     and "Publish up to here" appearing on a node under the pointer or focus —
+     not a fourth card repeating the band's count with a second Publish
+     button, and not a solid accent node on every row.
 
    Three rules hold it together: one accent-filled thing per page (the
    current step's glyph, or nothing when nothing is waiting), one vocabulary
@@ -717,8 +728,13 @@ chip on the row as well was the same word twice on one line of the screen.
 has the first line; under it, from the start, who saved it as initials on
 their own colour, tinted rather than filled so a solo project's column stays
 quiet (`.history-row__avatar`, keyed on the email so two people
-with the same initials still read apart, the full name on its tooltip), then
-the states as glyphs, and the date at the trailing end. The author was spelled
+with the same initials still read apart, the full name on its tooltip). The
+user's own versions wear a person glyph on the neutral tint instead of their
+initials — "you" is the one author never told apart by colour — with "You
+(name)" on the tooltip; the detail strip says "You" with the name on hover,
+as Overview's Recent history does, and names the line stood on "current",
+since the status bar's "Working on" already names it. Then
+come the states as glyphs, and the date at the trailing end. The author was spelled
 out there before — the longest and most repetitive fact down the column — and
 the states the row could not say at all. The glyphs are Lines': where you are
 is the ringed dot in the accent, saved locally is the laptop, and a tag and a
@@ -1935,9 +1951,10 @@ control cannot be reached by keyboard at all.
 Primary workspace): it answers one question — where is my work on the way
 from an edited file to a published version — and then shows the two lists
 that question is about. It is a page, not a stack of cards. The
-header sits on the workspace like a Linear or Vercel project page: glyph,
-name, path, the line selector and its settings, the one accent tile on the
-screen because this is the project. Under it, one card holds the band: three
+header sits on the workspace like a Linear or Vercel project page: the
+project's own icon (the rail's identity chip, which opens its icon picker),
+name, path with the detected technology beside it, the line selector (a
+labelled fact, borderless at rest) and its settings. Under it, one card holds the band: three
 tiles — Changes, Save, Publish — joined by connectors that turn solid as each
 step is reached. The band is the app's model of Git drawn once rather than
 explained. All three tiles are buttons in their entirety that lead to the
@@ -1955,13 +1972,18 @@ state the old status cards described in prose is a state of one of the three
 tiles instead — loading, failed, conflicts (which take the first tile, in
 warning, and block the second), unsaved, saved, versions ready to publish,
 newer versions available, diverged, no remote — and one sentence under the
-band says what the active tile means, with the one remote refresh at its end.
+band says what the active tile means, with when the remote was last checked
+and the one remote refresh at its end. The current tile takes the band's wide
+column; with nothing waiting the three are equal. Facts are not repeated
+across tiles: with everything saved, Changes says what will appear there and
+Save says when the last version was saved.
 It is a stepper in the shape of Headspace's or Fitness's home, not a wizard:
 nothing is gated, and a reader who already knows Git reads it as a status row.
 The last row pairs Changed files (one column of rows in the Changes screen's
 own shape, sampled one category at a time so "7 edited, 1 new" shows the new
 one, with the same "View all" in the same corner handing off) with Recent
-history, at one height. The two cards share one header shape — a neutral
+history, at one height while there are files to list; with none, the files
+card shrinks to its tick and one tip and History takes the width it leaves. The two cards share one header shape — a neutral
 40px glyph tile, a title, one line, the trailing action — and every glyph tile
 on the screen is that same filled circle, no rings and no borders; the band's
 connectors draw themselves when a step is reached, a one-beat transition and

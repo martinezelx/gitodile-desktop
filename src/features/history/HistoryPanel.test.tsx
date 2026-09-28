@@ -103,6 +103,7 @@ function renderPanel(
   error: string | null = null,
   watcherState: "starting" | "watching" | "off" | "unavailable" = "watching",
   actions: HistoryLineActions = {},
+  selfEmail: string | null = null,
 ) {
   const historyController = controller();
   const select = vi.spyOn(historyController, "selectVersion");
@@ -117,6 +118,7 @@ function renderPanel(
         state={historyState}
         watcherState={watcherState}
         actions={actions}
+        selfEmail={selfEmail}
         onOpenSettings={() => {}}
         error={error}
       />
@@ -422,6 +424,49 @@ describe("HistoryPanel", () => {
     expect(avatar).toHaveTextContent("AL");
     expect(avatar).toHaveAttribute("data-tooltip", "Ada Lovelace");
     expect(within(rows[1]).queryByText("Ada Lovelace")).not.toBeInTheDocument();
+  });
+
+  it("marks the user's own versions with a person glyph and says You, keeping the name one hover away", () => {
+    const base = state(2);
+    const selected = base.versions[0];
+    const onMain: SavedVersionSummary = {
+      ...selected,
+      decorations: [
+        { kind: "head", name: "HEAD", fullRef: "HEAD" },
+        { kind: "localBranch", name: "main", fullRef: "refs/heads/main" },
+      ],
+    };
+    const detail: SavedVersionDetail = {
+      version: onMain,
+      comparisonBase: "empty",
+      comparisonIsEmptyTree: true,
+      comparisonIsFirstParent: false,
+      files: [],
+      fileCounts: { changed: 0, new: 0, deleted: 0, renamed: 0, total: 0 },
+      filesTruncated: false,
+      countsAreMinimum: false,
+    };
+    const { container } = renderPanel(
+      { ...base, versions: [onMain, base.versions[1]], snapshot: { ...base.snapshot!, branch: "main" }, detail: { detail, isLoading: false, error: null } },
+      null,
+      "watching",
+      {},
+      " ADA@example.test ",
+    );
+
+    const avatar = container.querySelector(".history-row .history-row__avatar");
+    expect(avatar).toHaveClass("history-row__avatar--self");
+    expect(avatar).not.toHaveTextContent("AL");
+    expect(avatar?.querySelector("svg")).not.toBeNull();
+    expect(avatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
+    expect(container.querySelector(".history-row")).toHaveAttribute("aria-description", expect.stringContaining("You (Ada Lovelace)"));
+
+    const strip = container.querySelector(".history-detail__strip-facts");
+    expect(within(strip as HTMLElement).getByText("You")).toHaveAttribute("title", "Ada Lovelace");
+    // The line the project stands on is "current"; its name is on the title.
+    const badge = strip?.querySelector(".history-ref-badge");
+    expect(badge).toHaveTextContent("current");
+    expect(badge).toHaveAttribute("title", expect.stringContaining("refs/heads/main"));
   });
 
   it("draws where the published versions begin, once, and nothing when every version is on one side", () => {

@@ -2449,7 +2449,14 @@ export function App(): React.JSX.Element {
                   }}
                   versionLineCreate={versionLineCreate}
                   onOpenProjectSettings={() => openProjectSettings()}
+                  onChangeProjectIcon={() => openProjectSettings(undefined, "icon")}
                   onPrefetchProjectSettings={() => prefetchProjectSettings()}
+                  projectIdentity={{
+                    iconChoice: project ? (projectIconChoices.get(project.path) ?? null) : null,
+                    technology: project ? (projectTechnologies.get(project.path) ?? null) : null,
+                    avatarStyle: projectAvatarStyle,
+                  }}
+                  selfEmail={gitIdentity.identity.email || null}
                   onGoToVersionLines={() => navigateToView("version-lines")}
                   onCopyPathError={() =>
                     showErrorDialog(t.overviewCopyPathFailedTitle, t.overviewCopyPathFailedMessage)
@@ -2539,6 +2546,7 @@ export function App(): React.JSX.Element {
                               onCreateLineFromVersion={createVersionLineFromVersion}
                               onPublish={() => openPublishDialog()}
                               onOpenSettings={() => openSettings("general")}
+                              selfEmail={gitIdentity.identity.email || null}
                             />
                           )}
                         />

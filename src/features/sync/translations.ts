@@ -7,7 +7,6 @@ export interface SyncTranslations {
   syncUpToDateTitle: string;
   syncUpToDateMessage: string;
   syncAheadTitle: (count: number) => string;
-  syncAheadMessage: string;
   syncBehindTitle: (count: number) => string;
   syncBehindMessage: string;
   syncDivergedTitle: string;
@@ -87,7 +86,6 @@ const en: SyncTranslations = {
   syncUpToDateTitle: "You're up to date",
   syncUpToDateMessage: "Nothing to publish or get.",
   syncAheadTitle: (count) => `${count} saved ${count === 1 ? "version is" : "versions are"} ready to publish`,
-  syncAheadMessage: "They're only on this computer.",
   syncBehindTitle: (count) => `${count} newer ${count === 1 ? "version is" : "versions are"} available`,
   syncBehindMessage: "Review what will change before getting them.",
   syncDivergedTitle: "Both sides have changed",
@@ -167,7 +165,6 @@ const es: SyncTranslations = {
   syncUpToDateTitle: "Todo al día",
   syncUpToDateMessage: "No hay nada que publicar ni traer.",
   syncAheadTitle: (count) => `${count} ${count === 1 ? "versión guardada lista" : "versiones guardadas listas"} para publicar`,
-  syncAheadMessage: "Solo están en este ordenador.",
   syncBehindTitle: (count) => `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"}`,
   syncBehindMessage: "Revisa qué cambiará antes de traerlas.",
   syncDivergedTitle: "Ambos lados han cambiado",

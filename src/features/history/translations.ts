@@ -99,6 +99,13 @@ export interface HistoryTranslations {
   historyMessagePageLimit: string;
   historyMessageMalformed: string;
   historyAuthorUnknown: string;
+  /** A version saved under the user's own identity: the word, and the
+   * tooltip that still gives the name it stands for. */
+  historyAuthorYou: string;
+  historyAuthorYouNamed: (name: string) => string;
+  /** The line badge on the version the project stands on, in place of the
+   * line's name, which the screen already says. */
+  historyRefCurrent: string;
   historyPublished: string;
   historyLocalOnly: string;
   historyCurrentLabel: string;
@@ -256,6 +263,9 @@ const en: HistoryTranslations = {
   historyMessagePageLimit: "Message left out to keep this page fast",
   historyMessageMalformed: "Couldn't read this message",
   historyAuthorUnknown: "Unknown author",
+  historyAuthorYou: "You",
+  historyAuthorYouNamed: (name) => `You (${name})`,
+  historyRefCurrent: "current",
   historyPublished: "Published",
   historyLocalOnly: "Saved locally",
   historyCurrentLabel: "Where you are",
@@ -413,6 +423,9 @@ const es: HistoryTranslations = {
   historyMessagePageLimit: "Mensaje omitido para que esta página vaya fluida",
   historyMessageMalformed: "No se pudo leer este mensaje",
   historyAuthorUnknown: "Autor desconocido",
+  historyAuthorYou: "Tú",
+  historyAuthorYouNamed: (name) => `Tú (${name})`,
+  historyRefCurrent: "actual",
   historyPublished: "Publicada",
   historyLocalOnly: "Guardada en local",
   historyCurrentLabel: "Aquí estás",

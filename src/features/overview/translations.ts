@@ -7,6 +7,8 @@ export interface OverviewTranslations {
   overviewDetachedReady: string;
   overviewOpenAnotherProject: string;
   overviewCurrentVersionLine: string;
+  /** The caption over the line name in the header's selector. */
+  overviewVersionLineLabel: string;
   overviewSpecificSavedVersion: string;
   overviewNoSavedVersions: string;
   overviewVersionLineDescription: string;
@@ -20,6 +22,9 @@ export interface OverviewTranslations {
   overviewSelectedFolder: string;
   overviewGitDirectory: string;
   overviewCommonGitDirectory: string;
+  /** The header's project icon is a button into project settings' icon
+   * section. */
+  overviewChangeProjectIcon: string;
   overviewCopyPath: string;
   overviewPathCopied: string;
   overviewCopyPathFailedTitle: string;
@@ -34,6 +39,9 @@ export interface OverviewTranslations {
    * the files are counted from. */
   overviewChangedFilesTitle: string;
   overviewChangedFilesSince: string;
+  /** Under the clean card's tick: what the card will hold once there is
+   * something to hold. */
+  overviewChangedFilesCleanTip: string;
   overviewChangesPreviewLabel: string;
   overviewChangesPreviewOpenFile: (path: string) => string;
   /** The band across the top: change, save, publish. One label per step,
@@ -51,14 +59,20 @@ export interface OverviewTranslations {
   overviewJourneySaveBlocked: string;
   overviewJourneySaveBlockedHint: string;
   overviewJourneySaveDoneHint: string;
+  /** The Save tile's hint once saved, when the last saved version's time is
+   * known — the one thing that tile can add that the others do not say. */
+  overviewJourneyLastSaved: (relative: string) => string;
   overviewJourneySaveActive: string;
   overviewJourneyCheckHint: string;
   overviewJourneyReadyToPublish: (count: number) => string;
   overviewJourneyNewerAvailable: (count: number) => string;
+  /** Before the remote line on the Publish tile: "to origin · main". */
+  overviewJourneyPublishTo: string;
   overviewJourneyNoRemote: string;
   overviewJourneyNoRemoteHint: string;
   overviewJourneyNoUpstream: string;
   overviewJourneyNoteSave: string;
+  overviewJourneyNoteAhead: string;
   overviewJourneyNoteNoRemote: string;
   overviewJourneyNoteAllDone: string;
   overviewJourneyNoteIdle: string;
@@ -77,6 +91,16 @@ export interface OverviewTranslations {
   overviewHistoryUnknownAuthor: string;
   overviewHistoryPublished: string;
   overviewHistoryLocalOnly: string;
+  /** The label over Recent history's run of unpublished versions, which
+   * replaced a "Not published" on every row of it. */
+  overviewHistoryLocalGroup: string;
+  /** The label where the published versions begin, under that run. */
+  overviewHistoryPublishedGroup: string;
+  /** A version saved under the user's own Git identity. */
+  overviewHistoryYou: string;
+  /** The badge on the version the project stands on, in place of the line's
+   * name, which the header already says. */
+  overviewHistoryCurrentLine: string;
   overviewHistoryPublicationUnknown: string;
   overviewHistoryOpenVersion: (title: string) => string;
   overviewHistoryRefreshFailed: string;
@@ -123,6 +147,7 @@ const en: OverviewTranslations = {
   overviewDetachedReady: "A specific saved version is open",
   overviewOpenAnotherProject: "Open another project",
   overviewCurrentVersionLine: "Current version line",
+  overviewVersionLineLabel: "Version line",
   overviewSpecificSavedVersion: "Specific saved version",
   overviewNoSavedVersions: "No saved versions yet",
   overviewVersionLineDescription: "New work goes on this line.",
@@ -136,6 +161,7 @@ const en: OverviewTranslations = {
   overviewSelectedFolder: "Folder you selected",
   overviewGitDirectory: "Git directory",
   overviewCommonGitDirectory: "Shared Git directory",
+  overviewChangeProjectIcon: "Change project icon",
   overviewCopyPath: "Copy project path",
   overviewPathCopied: "Path copied",
   overviewCopyPathFailedTitle: "Couldn't copy the path",
@@ -148,6 +174,7 @@ const en: OverviewTranslations = {
   overviewCheckLocalAgain: "Check local changes again",
   overviewChangedFilesTitle: "Changed files",
   overviewChangedFilesSince: "Since your last saved version.",
+  overviewChangedFilesCleanTip: "Files you edit, add or delete show up here, ready to review before you save a version.",
   overviewChangesPreviewLabel: "Changed files",
   overviewChangesPreviewOpenFile: (path) => `Review ${path}`,
   overviewJourneyTitle: "Where your work is",
@@ -155,24 +182,27 @@ const en: OverviewTranslations = {
   overviewJourneySave: "Save",
   overviewJourneyPublish: "Publish",
   overviewJourneyNextStep: "next step",
-  overviewJourneyNoChanges: "No unsaved changes",
-  overviewJourneyNothingChanged: "Nothing changed since your last saved version.",
+  overviewJourneyNoChanges: "Nothing to save",
+  overviewJourneyNothingChanged: "Edit a file and it shows up here.",
   overviewJourneyResolve: "Resolve overlaps",
   overviewJourneySaveWaiting: "Waiting for the check",
   overviewJourneySaveWaitingHint: "You can save once your files are checked.",
   overviewJourneySaveBlocked: "Resolve the overlaps first",
   overviewJourneySaveBlockedHint: "Files with overlapping changes can't be saved yet.",
   overviewJourneySaveDoneHint: "Every change is in a saved version.",
+  overviewJourneyLastSaved: (relative) => `Last saved ${relative}`,
   overviewJourneySaveActive: "Keep your work safe",
   overviewJourneyCheckHint: "Check the remote for the latest changes.",
   overviewJourneyReadyToPublish: (count) =>
     count === 1 ? "1 version ready to publish" : `${count} versions ready to publish`,
   overviewJourneyNewerAvailable: (count) =>
     count === 1 ? "1 newer version available" : `${count} newer versions available`,
+  overviewJourneyPublishTo: "to",
   overviewJourneyNoRemote: "No remote yet",
   overviewJourneyNoRemoteHint: "Add one in project settings to share your work.",
   overviewJourneyNoUpstream: "No publish destination yet",
   overviewJourneyNoteSave: "Saving keeps a point to come back to, and nothing leaves this computer until you publish.",
+  overviewJourneyNoteAhead: "Your saved versions are only on this computer until you publish them.",
   overviewJourneyNoteNoRemote: "Everything is saved on this computer, so add a remote whenever you want to share it.",
   overviewJourneyNoteAllDone: "Everything is saved and published.",
   overviewJourneyNoteIdle: "Checking your project…",
@@ -191,6 +221,10 @@ const en: OverviewTranslations = {
   overviewHistoryUnknownAuthor: "Unknown author",
   overviewHistoryPublished: "Published",
   overviewHistoryLocalOnly: "Not published",
+  overviewHistoryLocalGroup: "Only on this computer",
+  overviewHistoryPublishedGroup: "Published",
+  overviewHistoryYou: "You",
+  overviewHistoryCurrentLine: "current",
   overviewHistoryPublicationUnknown: "Publish status unknown",
   overviewHistoryOpenVersion: (title) => `Open “${title}” in History`,
   overviewHistoryRefreshFailed: "Recent history may be out of date.",
@@ -228,6 +262,7 @@ const es: OverviewTranslations = {
   overviewDetachedReady: "Tienes abierta una versión guardada concreta",
   overviewOpenAnotherProject: "Abrir otro proyecto",
   overviewCurrentVersionLine: "Línea de versión actual",
+  overviewVersionLineLabel: "Línea de versión",
   overviewSpecificSavedVersion: "Versión guardada concreta",
   overviewNoSavedVersions: "Aún no hay versiones guardadas",
   overviewVersionLineDescription: "El trabajo nuevo va a esta línea.",
@@ -241,6 +276,7 @@ const es: OverviewTranslations = {
   overviewSelectedFolder: "Carpeta que elegiste",
   overviewGitDirectory: "Directorio de Git",
   overviewCommonGitDirectory: "Directorio de Git compartido",
+  overviewChangeProjectIcon: "Cambiar el icono del proyecto",
   overviewCopyPath: "Copiar la ruta del proyecto",
   overviewPathCopied: "Ruta copiada",
   overviewCopyPathFailedTitle: "No se pudo copiar la ruta",
@@ -253,6 +289,7 @@ const es: OverviewTranslations = {
   overviewCheckLocalAgain: "Volver a comprobar los cambios locales",
   overviewChangedFilesTitle: "Archivos modificados",
   overviewChangedFilesSince: "Desde tu última versión guardada.",
+  overviewChangedFilesCleanTip: "Los archivos que edites, añadas o borres aparecerán aquí, listos para revisar antes de guardar una versión.",
   overviewChangesPreviewLabel: "Archivos modificados",
   overviewChangesPreviewOpenFile: (path) => `Revisar ${path}`,
   overviewJourneyTitle: "Dónde está tu trabajo",
@@ -260,24 +297,27 @@ const es: OverviewTranslations = {
   overviewJourneySave: "Guardar",
   overviewJourneyPublish: "Publicar",
   overviewJourneyNextStep: "siguiente paso",
-  overviewJourneyNoChanges: "Nada sin guardar",
-  overviewJourneyNothingChanged: "Nada ha cambiado desde tu última versión guardada.",
+  overviewJourneyNoChanges: "Nada que guardar",
+  overviewJourneyNothingChanged: "Edita un archivo y aparecerá aquí.",
   overviewJourneyResolve: "Resolver solapamientos",
   overviewJourneySaveWaiting: "Esperando la comprobación",
   overviewJourneySaveWaitingHint: "Podrás guardar cuando se revisen tus archivos.",
   overviewJourneySaveBlocked: "Resuelve antes los solapamientos",
   overviewJourneySaveBlockedHint: "Los archivos con cambios superpuestos aún no se pueden guardar.",
   overviewJourneySaveDoneHint: "Todos los cambios están en una versión guardada.",
+  overviewJourneyLastSaved: (relative) => `Guardada por última vez ${relative}`,
   overviewJourneySaveActive: "Pon tu trabajo a salvo",
   overviewJourneyCheckHint: "Comprueba el remoto para ver lo último.",
   overviewJourneyReadyToPublish: (count) =>
     count === 1 ? "1 versión lista para publicar" : `${count} versiones listas para publicar`,
   overviewJourneyNewerAvailable: (count) =>
     count === 1 ? "1 versión nueva disponible" : `${count} versiones nuevas disponibles`,
+  overviewJourneyPublishTo: "a",
   overviewJourneyNoRemote: "Aún sin remoto",
   overviewJourneyNoRemoteHint: "Añade uno en los ajustes del proyecto para compartir tu trabajo.",
   overviewJourneyNoUpstream: "Aún sin destino de publicación",
   overviewJourneyNoteSave: "Guardar crea un punto al que volver y nada sale de este ordenador hasta que publiques.",
+  overviewJourneyNoteAhead: "Tus versiones guardadas solo están en este ordenador hasta que las publiques.",
   overviewJourneyNoteNoRemote: "Todo está guardado en este ordenador, así que añade un remoto cuando quieras compartirlo.",
   overviewJourneyNoteAllDone: "Todo está guardado y publicado.",
   overviewJourneyNoteIdle: "Revisando tu proyecto…",
@@ -296,6 +336,10 @@ const es: OverviewTranslations = {
   overviewHistoryUnknownAuthor: "Autor desconocido",
   overviewHistoryPublished: "Publicada",
   overviewHistoryLocalOnly: "Sin publicar",
+  overviewHistoryLocalGroup: "Solo en este ordenador",
+  overviewHistoryPublishedGroup: "Publicadas",
+  overviewHistoryYou: "Tú",
+  overviewHistoryCurrentLine: "actual",
   overviewHistoryPublicationUnknown: "Publicación desconocida",
   overviewHistoryOpenVersion: (title) => `Abrir «${title}» en Historial`,
   overviewHistoryRefreshFailed: "El historial reciente puede estar desactualizado.",

@@ -96,8 +96,12 @@ export function HistoryMetaDot(): React.JSX.Element {
   return <span className="history-meta-dot" aria-hidden="true">·</span>;
 }
 
-export function HistoryRefBadge({ version, currentBranch }: {
+export function HistoryRefBadge({ version, currentBranch, currentLabel }: {
   version: SavedVersionSummary; currentBranch: string | null;
+  /** Shown in place of the checked-out line's name, where the screen already
+   * names that line elsewhere — Overview's header, the status bar beside
+   * History. The name stays in the title, and in the row's own label. */
+  currentLabel?: string;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const decoration = primaryDecoration(version, currentBranch);
@@ -123,7 +127,7 @@ export function HistoryRefBadge({ version, currentBranch }: {
         {isTag ? <Tag aria-hidden="true" /> : <GitBranch aria-hidden="true" />}
         {/* A bare text node would be an anonymous flex item, which `ellipsis`
             cannot address; a long line name has to truncate, not clip. */}
-        <span className="history-ref-badge__name">{decoration.name}</span>
+        <span className="history-ref-badge__name">{isCurrent && currentLabel ? currentLabel : decoration.name}</span>
       </span>
     </>
   );
