@@ -387,6 +387,11 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
   border-radius: var(--radius-surface);
   background: var(--surface-panel);
 }
+/* The first read's shape under the list panel's real header, and a card of
+   lines beside it where the selected line's detail will be. */
+.version-lines-placeholder { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.version-lines-detail__placeholder { display: grid; align-content: start; gap: var(--space-3); padding: 20px 22px; }
+.version-lines-detail__placeholder p { margin: 0; font-size: var(--text-body); }
 .version-lines-detail--empty {
   align-items: center;
   justify-content: center;
@@ -673,14 +678,13 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
   font-size: var(--text-label);
   line-height: var(--leading-normal);
 }
-/* The sentence's own line, holding the shared loading thread while the read
-   is out, so the sentence lands where the thread was. */
+/* The sentence's own line, holding its placeholder while the read is out, so
+   the sentence lands where the placeholder was. */
 .version-lines-route__sentence--pending {
   min-height: calc(var(--text-label) * var(--leading-normal));
   display: flex;
   align-items: center;
 }
-.version-lines-route__sentence--pending .loading-state { flex: 1; gap: 0; }
 
 /* The arrival, when the section was waiting for it: this line leaves the main
    one — the curve draws itself out from the parting — its versions appear

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLanguage, type Translations } from "../../i18n";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { LoadingBar } from "../../shared/ui";
+import { LoadingPlaceholder, TextPlaceholder } from "../../shared/ui";
 import type { VersionLine, VersionLineRoute as Route, VersionLineVersion } from "./domain";
 
 /** At most this many dots per lane — the versions `get_version_line_history`
@@ -452,9 +452,12 @@ export function VersionLineRoute({
           {sentenceOf(current, t, formats)}
         </p>
       ) : (
-        <div className="version-lines-route__sentence version-lines-route__sentence--pending">
-          <LoadingBar label={t.versionLinesRouteLoading} />
-        </div>
+        <LoadingPlaceholder
+          label={t.versionLinesRouteLoading}
+          className="version-lines-route__sentence version-lines-route__sentence--pending"
+        >
+          <TextPlaceholder width="72%" />
+        </LoadingPlaceholder>
       )}
     </div>
   );

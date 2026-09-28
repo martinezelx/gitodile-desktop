@@ -822,7 +822,6 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
 .overview-history__publish:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .overview-history__item--publishable .overview-history__publish:active { transform: translateY(-50%) scale(1); }
 
-.overview-history__loading,
 .overview-history__state {
   min-height: 84px;
   display: flex;
@@ -833,7 +832,6 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   font-size: var(--text-body);
   text-align: left;
 }
-.overview-history__loading svg,
 .overview-history__state > svg { width: 20px; height: 20px; flex-shrink: 0; }
 .overview-history__state strong { display: block; margin-bottom: 3px; color: var(--text-primary-color); }
 .overview-history__state p { margin: 0; line-height: var(--leading-normal); }

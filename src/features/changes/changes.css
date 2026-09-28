@@ -311,8 +311,11 @@
   flex: 0 0 auto; height: var(--strip-height);
   border-bottom: 1px solid var(--border-subtle);
 }
-/* The state row under the tabs, drawn only when there is no list: the
-   loading thread while the first check is out, or "Everything is saved". At
+/* The first check's placeholder takes the listing's own column: the search
+   strip, then rows at the scroll area's inset. */
+.changes-file-list__placeholder { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* The state row under the tabs, drawn only when there is nothing to list:
+   "Everything is saved". At
    the inner strip's height, with the line starting where a row's file name
    starts. The listing state has no such row — the include-everything
    checkbox heads the search strip instead, and the counts it used to sit
@@ -323,8 +326,7 @@
   padding: 0 var(--space-3) 0 calc(var(--space-2) + var(--space-3));
   border-bottom: 1px solid var(--border-subtle);
 }
-.changes-file-list__state > .changes-view__summary,
-.changes-file-list__state > .loading-state { flex: 1; }
+.changes-file-list__state > .changes-view__summary { flex: 1; }
 /* With nothing to review the diff panel holds the empty block (task 126):
    the list panel keeps the tabs at the list column's width, and the block
    sits where the reading surface would be. Centred in the panel, not at its

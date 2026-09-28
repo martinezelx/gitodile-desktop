@@ -17,6 +17,8 @@ export interface PublishTranslations {
   publishRemainingNote: (count: number) => string;
   publishTeammatesNote: string;
   publishConfirm: string;
+  /** The held-back primary action while the fresh plan's remote check runs. */
+  publishCheckingRemote: string;
   publishPublishing: string;
   publishVerifying: string;
   publishCannotCloseNote: string;
@@ -49,6 +51,7 @@ const en: PublishTranslations = {
       : `${count} more versions stay unpublished for now.`,
   publishTeammatesNote: "Anyone with access to the remote project will see them.",
   publishConfirm: "Publish changes",
+  publishCheckingRemote: "Checking the remote…",
   publishPublishing: "Publishing…",
   publishVerifying: "Checking the result…",
   publishCannotCloseNote: "Keep this window open until it finishes.",
@@ -84,6 +87,7 @@ const es: PublishTranslations = {
       : `${count} versiones más se quedan sin publicar por ahora.`,
   publishTeammatesNote: "Cualquiera con acceso al proyecto remoto podrá verlas.",
   publishConfirm: "Publicar cambios",
+  publishCheckingRemote: "Comprobando el remoto…",
   publishPublishing: "Publicando…",
   publishVerifying: "Comprobando el resultado…",
   publishCannotCloseNote: "No cierres esta ventana hasta que termine.",

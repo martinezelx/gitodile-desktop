@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
+import { LoadingPlaceholder, TextPlaceholder } from "../../shared/ui";
 import { splitPath, type ChangeCategory, type WorkingTreeStatus } from "../status";
 import { CHANGES_PREVIEW_LIMIT, sampleChangesPreview } from "./changesPreview";
 
@@ -46,6 +47,13 @@ const FileTypeIcon = lazy(async () => {
   };
 });
 
+/** Name and folder lengths for the first check's rows. */
+const CHANGES_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ["96px", "64px"],
+  ["72px", "88px"],
+  ["112px", "48px"],
+];
+
 /**
  * A read-only sample of the working tree: one row per file, its category
  * marked the way the Changes screen marks it — by the icon at the end of the
@@ -78,7 +86,9 @@ export function ChangedFilesSection({
       <header className="changed-files__header">
         <div className="changed-files__heading">
           <span className="changed-files__icon" aria-hidden="true">
-            {isCheckingChanges ? <LoaderCircle className="icon--spinning" /> : <FileDiff />}
+            {/* The icon turns only for a refresh of a list already shown; the
+                first check draws the list's shape below instead. */}
+            {isCheckingChanges && !isLoading ? <LoaderCircle className="icon--spinning" /> : <FileDiff />}
           </span>
           <div>
             <h2 id={headingId}>{t.overviewChangedFilesTitle}</h2>
@@ -96,10 +106,19 @@ export function ChangedFilesSection({
       </header>
 
       {isLoading ? (
-        <div className="changed-files__state" role="status">
-          <LoaderCircle aria-hidden="true" className="icon--spinning" />
-          <span>{t.statusCheckingTitle}</span>
-        </div>
+        <LoadingPlaceholder label={t.statusCheckingTitle}>
+          <ul className="changes-preview__list">
+            {CHANGES_PLACEHOLDER_WIDTHS.map(([name, dir]) => (
+              <li key={name}>
+                <span className="changes-preview__item">
+                  <span className="changes-preview__icon"><TextPlaceholder className="text-placeholder--glyph" /></span>
+                  <span className="changes-preview__name"><TextPlaceholder width={name} /></span>
+                  <span className="changes-preview__dir"><TextPlaceholder width={dir} /></span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </LoadingPlaceholder>
       ) : !workingTree ? (
         <div className="changed-files__state changed-files__state--error" role="alert">
           <CircleAlert aria-hidden="true" />

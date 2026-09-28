@@ -1,4 +1,5 @@
 use crate::application;
+use crate::application::in_parallel;
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{
     checked_git_stdout, git_stdout, run_git, run_git_capped, run_git_with_input_capped,
@@ -1550,30 +1551,6 @@ pub(crate) fn parse_line_changes(numstat: &[u8], statuses: &[u8], limit: usize) 
     files.truncate(limit);
     changes.files = files;
     changes
-}
-
-/// Runs `second` on a scoped worker thread while `first` runs here, and
-/// returns both. The worker carries the running command's policy frame
-/// (`application::inherit_command`), so its Git processes run under the same
-/// policy and cancellation; it joins before this returns, so the frame never
-/// outlives the command. Read-only questions only — nothing that mutates may
-/// race another process.
-fn in_parallel<A, B>(first: impl FnOnce() -> A, second: impl FnOnce() -> B + Send) -> (A, B)
-where
-    B: Send,
-{
-    let inherited = application::inherit_command();
-    std::thread::scope(|scope| {
-        let worker = scope.spawn(move || {
-            let _frame = inherited.map(application::InheritedCommand::enter);
-            second()
-        });
-        let first = first();
-        let second = worker
-            .join()
-            .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
-        (first, second)
-    })
 }
 
 /// A command that prints one commit id, or `None` when it fails or prints

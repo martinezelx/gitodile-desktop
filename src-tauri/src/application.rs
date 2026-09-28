@@ -476,6 +476,33 @@ impl Drop for InheritedCommandGuard {
     }
 }
 
+/// Runs `second` on a scoped worker thread while `first` runs here, and
+/// returns both. The worker carries the running command's policy frame
+/// (`inherit_command`), so its Git processes run under the same
+/// policy and cancellation; it joins before this returns, so the frame never
+/// outlives the command. Read-only questions only — nothing that mutates may
+/// race another process.
+pub(crate) fn in_parallel<A, B>(
+    first: impl FnOnce() -> A,
+    second: impl FnOnce() -> B + Send,
+) -> (A, B)
+where
+    B: Send,
+{
+    let inherited = inherit_command();
+    std::thread::scope(|scope| {
+        let worker = scope.spawn(move || {
+            let _frame = inherited.map(InheritedCommand::enter);
+            second()
+        });
+        let first = first();
+        let second = worker
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+        (first, second)
+    })
+}
+
 fn cancellations() -> &'static Mutex<HashMap<(String, &'static str), CancellationToken>> {
     static CANCELLATIONS: OnceLock<Mutex<HashMap<(String, &'static str), CancellationToken>>> =
         OnceLock::new();

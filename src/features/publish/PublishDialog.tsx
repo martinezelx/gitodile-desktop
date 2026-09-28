@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, CircleAlert, CloudUpload, Info, Laptop, LoaderCircle, Users } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
-import { Dialog, DialogBanner, DialogFacts, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
+import { Dialog, DialogBanner, DialogFacts, LoadingPlaceholder, TextPlaceholder, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
 import { CHANGE_CATEGORY_ICONS } from "../status";
 import { getFileTypeIcon } from "../../shared/file-icons";
-import type { CommitFileChange, PublishPlan, PublishResult, RemoteInfo } from "./domain";
+import type { CommitFileChange, PublishPlan, PublishPreview, PublishResult, RemoteInfo } from "./domain";
 import type { PublishController } from "./controller";
 import { createPublishController } from "./controller";
 import { publishPort } from "./tauriAdapter";
@@ -78,7 +78,7 @@ function PublishSummary({
   sessionEpoch,
   t,
 }: {
-  plan: PublishPlan;
+  plan: PublishPreview;
   controller?: PublishController;
   projectPath: string;
   sessionEpoch: string;
@@ -142,6 +142,37 @@ function PublishSummary({
   );
 }
 
+/** Stands in for `PublishSummary` while the plan is read, in the same
+ * places: the plan's line, a short list, and the one fact every plan states.
+ * The dialog opens in its final shape with Cancel and Publish already there,
+ * so the answer fills a space that was waiting for it rather than swapping a
+ * loading dialog for a different one. Only the shape is drawn — no number or
+ * name is guessed before Git has answered. */
+function PublishSummaryPlaceholder({ t }: { t: Translations }): React.JSX.Element {
+  return (
+    <>
+      <LoadingPlaceholder label={t.publishLoadingTitle} className="publish-placeholder">
+        <p className="app-dialog__summary">
+          <TextPlaceholder width="64%" />
+        </p>
+        <ul className="publish-commit-list">
+          {PLACEHOLDER_ROW_WIDTHS.map((width) => (
+            <li key={width} className="publish-commit-list__item">
+              <div className="publish-commit-list__summary">
+                <TextPlaceholder width={width} />
+                <TextPlaceholder className="text-placeholder--chip" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </LoadingPlaceholder>
+      <DialogFacts facts={[{ icon: <Users />, text: t.publishTeammatesNote }]} />
+    </>
+  );
+}
+
+const PLACEHOLDER_ROW_WIDTHS = ["58%", "42%"];
+
 function FailureDetail({ error, t }: { error: unknown; t: Translations }): React.JSX.Element | null {
   const [expanded, setExpanded] = useState(false);
   if (!isAppError(error) || !error.detail) {
@@ -173,6 +204,7 @@ export function PublishDialog({
   projectPath,
   sessionEpoch,
   upTo,
+  preview = null,
   runHooks,
   onClose,
   onPublished,
@@ -186,6 +218,11 @@ export function PublishDialog({
    * pending saved versions unpublished for now. `undefined` publishes
    * everything pending, same as before this existed. */
   upTo?: string;
+  /** A first answer from what the session already holds, drawn while the
+   * fresh plan's fetch is out (`previewFromPendingVersions`). Publish stays
+   * held back until the fresh plan replaces it; without one, placeholders
+   * stand in. */
+  preview?: PublishPreview | null;
   /** The Settings switch, passed in rather than read here: this feature owns
    * the publish request, not the app's preferences. */
   runHooks: boolean;
@@ -270,6 +307,13 @@ export function PublishDialog({
   }
 
   const plan = "plan" in state ? state.plan : null;
+  const isLoading = state.status === "loading";
+  // One summary slot for the preview and the fresh plan, so what the reader
+  // opened in the preview stays open when the plan replaces it. The preview is
+  // the tracked remote's; once the reader has picked a remote it may be
+  // another one, and only the fresh plan can speak for it.
+  const summary: PublishPreview | null =
+    plan ?? (isLoading && selectedRemote === null ? preview : null);
   const isFirstPublish = plan?.willCreateUpstream ?? false;
   const isUncertain =
     state.status === "publish-error" &&
@@ -350,13 +394,6 @@ export function PublishDialog({
       className="publish-dialog auto-hide-scrollbar"
       bodyProps={autoHideScrollbarProps<HTMLDivElement>()}
     >
-      {state.status === "loading" && (
-        <p className="app-dialog__note" role="status">
-          <LoaderCircle aria-hidden="true" className="icon--spinning" />
-          {t.publishLoadingTitle}
-        </p>
-      )}
-
       {state.status === "remote-selection" && (
         <>
           <div className="choice-list" role="list" aria-label={t.publishChooseRemoteTitle}>
@@ -405,15 +442,24 @@ export function PublishDialog({
         </>
       )}
 
-      {plan && state.status !== "success" && (
+      {(isLoading || (plan && state.status !== "success")) && (
         <>
-          <PublishSummary
-            plan={plan}
-            controller={controller}
-            projectPath={projectPath}
-            sessionEpoch={sessionEpoch}
-            t={t}
-          />
+          {isLoading && summary && (
+            <span className="visually-hidden" role="status">
+              {t.publishCheckingRemote}
+            </span>
+          )}
+          {summary ? (
+            <PublishSummary
+              plan={summary}
+              controller={controller}
+              projectPath={projectPath}
+              sessionEpoch={sessionEpoch}
+              t={t}
+            />
+          ) : (
+            <PublishSummaryPlaceholder t={t} />
+          )}
 
           {state.status === "publish-error" && (
             <DialogBanner tone="danger" icon={<CircleAlert />}>
@@ -442,12 +488,16 @@ export function PublishDialog({
                 className="primary-button"
                 type="button"
                 onClick={isStalePlan || isUncertain ? handleReplan : handleConfirm}
-                disabled={isBusy}
+                disabled={isBusy || !plan}
               >
-                {isBusy ? (
+                {isBusy || isLoading ? (
                   <>
                     <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                    {state.status === "verifying" ? t.publishVerifying : t.publishPublishing}
+                    {isLoading
+                      ? t.publishCheckingRemote
+                      : state.status === "verifying"
+                        ? t.publishVerifying
+                        : t.publishPublishing}
                   </>
                 ) : (
                   <>

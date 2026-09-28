@@ -77,9 +77,8 @@
 }
 /* The state row under the search strip — the row the Changes list gives its
    breakdown — at the inner strip's height. It holds the scope chip while the
-   timeline is not the current line's, and the loading thread while the first
-   page is out; the rest of the time it is not drawn, so the rows keep their
-   first pixel. */
+   timeline is not the current line's; the rest of the time it is not drawn,
+   so the rows keep their first pixel. */
 .history-timeline__state {
   flex: 0 0 auto;
   height: var(--strip-height-inner);
@@ -89,7 +88,6 @@
   padding: 0 var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
-.history-timeline__state > .loading-state { flex: 1; }
 /* The scope, as a chip: which history is being read, removable where it is
    stated. It has a row of its own rather than a place among the filter chips,
    because it is not a filter — clearing the filters must not change the line. */
@@ -352,6 +350,9 @@
 .history-boundary__publish-icon { opacity: 0; transition: opacity var(--duration-fast); }
 .history-boundary__publish:hover .history-boundary__publish-icon { opacity: 1; }
 .history-boundary svg { width: 12px; height: 12px; }
+/* The first page's rows, at the virtual rows' height and inset. */
+.history-timeline__placeholder { flex: 1; min-height: 0; overflow: hidden; }
+.history-timeline__placeholder-row { height: 64px; padding: 0 5px; }
 .history-timeline__footer { min-height: 48px; display: grid; place-items: center; padding: 8px; }
 .history-timeline__loading-more { width: min(220px, 100%); padding: 4px 0; }
 .history-timeline__loading-more .loading-state { gap: 7px; }
@@ -548,8 +549,11 @@
 .history-detail--state h2, .history-detail--state p { margin: 0 0 10px; }
 .history-detail__loading-title { padding: 20px 22px; border-bottom: 1px solid var(--border-subtle); }
 .history-detail__loading-title h2 { margin: 0; }
-.history-detail__loading { flex: 1; display: grid; place-items: center; align-content: center; gap: 12px; padding: 28px; color: var(--text-secondary-color); }
-.history-detail__loading p { margin: 0; }
+/* The detail's first read: the meta line, then the changed files, where the
+   loaded detail puts them. */
+.history-detail__placeholder { flex: 1; display: grid; align-content: start; gap: 12px; padding: 18px 22px; }
+.history-detail__placeholder-meta { margin: 0 0 4px; font-size: var(--text-label); }
+.history-detail__placeholder-file { display: flex; align-items: center; gap: 10px; min-height: 22px; font-size: var(--text-body); }
 .history-detail__back { display: none; align-self: flex-start; }
 
 /* The version strip: the compact identity of the open saved version, at the

@@ -10,6 +10,7 @@ import {
 
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
+import { LoadingPlaceholder, TextPlaceholder } from "../../shared/ui";
 import {
   decorationLabel,
   formatHistoryDate,
@@ -27,6 +28,15 @@ const HISTORY_PREVIEW_LIMIT = 4;
 function versionTitle(version: SavedVersionSummary, fallback: string): string {
   return version.subject.trim() || fallback;
 }
+
+/** Subject and author/date lengths for the first read's rows, one per
+ * previewed version (`HISTORY_PREVIEW_LIMIT`). */
+const HISTORY_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ["62%", "34%"],
+  ["48%", "28%"],
+  ["70%", "38%"],
+  ["54%", "30%"],
+];
 
 export function HistorySummarySection({
   controller,
@@ -84,7 +94,9 @@ export function HistorySummarySection({
       <header className="overview-history__header">
         <div className="overview-history__heading">
           <span className="overview-history__icon" aria-hidden="true">
-            {state.isLoading || isRefreshing ? <LoaderCircle className="icon--spinning" /> : <GitCommitHorizontal />}
+            {/* Turns only for a refresh of a list already shown; the first
+                read draws the list's shape below instead. */}
+            {(state.isLoading || isRefreshing) && state.snapshot ? <LoaderCircle className="icon--spinning" /> : <GitCommitHorizontal />}
           </span>
           <div>
             <h2 id="overview-history-title">{t.overviewHistoryTitle}</h2>
@@ -100,10 +112,21 @@ export function HistorySummarySection({
       </header>
 
       {!state.snapshot && !error ? (
-        <div className="overview-history__loading" role="status">
-          <LoaderCircle aria-hidden="true" className="icon--spinning" />
-          <span>{t.overviewHistoryLoading}</span>
-        </div>
+        <LoadingPlaceholder label={t.overviewHistoryLoading}>
+          <ol className="overview-history__list">
+            {HISTORY_PLACEHOLDER_WIDTHS.map(([subject, meta]) => (
+              <li key={subject}>
+                <span className="overview-history__row">
+                  <span className="overview-history__node" />
+                  <span className="overview-history__body">
+                    <span className="overview-history__subject"><TextPlaceholder width={subject} /></span>
+                    <span className="overview-history__meta"><TextPlaceholder width={meta} /></span>
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </LoadingPlaceholder>
       ) : !state.snapshot && error ? (
         <div className="overview-history__state overview-history__state--error" role="alert">
           <CircleAlert aria-hidden="true" />

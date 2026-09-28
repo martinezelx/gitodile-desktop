@@ -70,6 +70,73 @@ describe("PublishDialog", () => {
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 
+  it("opens in its final shape while the plan is read, with Publish held back", async () => {
+    let resolvePlan: ((value: ReturnType<typeof plan>) => void) | undefined;
+    mockedInvoke.mockImplementationOnce(() => new Promise((resolve) => { resolvePlan = resolve; }));
+    const { onClose } = renderDialog();
+
+    expect(screen.getByText("Checking what's ready to publish…").closest("[role='status']")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("button", { name: "Checking the remote…" })).toBeDisabled();
+    expect(screen.getByText("Anyone with access to the remote project will see them.")).toBeInTheDocument();
+
+    resolvePlan?.(plan());
+    expect(await screen.findByText(PLAN_LINE)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publish changes" })).toBeEnabled();
+    expect(screen.queryByText("Checking what's ready to publish…")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("shows the cached preview while the remote is checked, then lets the fresh plan decide", async () => {
+    let resolvePlan: ((value: ReturnType<typeof plan>) => void) | undefined;
+    mockedInvoke.mockImplementationOnce(() => new Promise((resolve) => { resolvePlan = resolve; }));
+    const preview = plan({ commitCount: 2, commitSummary: [
+      ...plan().commitSummary,
+      { ...plan().commitSummary[0]!, commit: "def456", shortCommit: "def456", title: "an older one" },
+    ] });
+    renderDialog({ preview });
+
+    expect(screen.getByText("2 versions will be published to “main” on “origin”.")).toBeInTheDocument();
+    expect(screen.getByText("an older one")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Checking the remote…" })).toBeDisabled();
+
+    // The remote already had the older one: the fresh plan corrects the count.
+    resolvePlan?.(plan());
+    expect(await screen.findByText(PLAN_LINE)).toBeInTheDocument();
+    expect(screen.queryByText("an older one")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publish changes" })).toBeEnabled();
+  });
+
+  it("drops the tracked remote's preview once the reader picks another remote", async () => {
+    mockedInvoke.mockRejectedValueOnce({ code: "remote_selection_required", message: "x", remediation: null });
+    mockedInvoke.mockResolvedValueOnce({
+      remotes: [
+        { name: "origin", url: "https://example.com/a.git" },
+        { name: "upstream", url: "https://example.com/b.git" },
+      ],
+      branch: "main",
+      upstream: null,
+    } satisfies RemoteDiscovery);
+    renderDialog({ preview: plan() });
+
+    const choice = await screen.findByText("upstream");
+    mockedInvoke.mockImplementationOnce(() => new Promise(() => undefined));
+    await userEvent.click(choice);
+
+    expect(screen.queryByText(PLAN_LINE)).not.toBeInTheDocument();
+    expect(screen.getByText("Checking what's ready to publish…")).toBeInTheDocument();
+  });
+
+  it("replaces the preview with the block when the remote has moved on", async () => {
+    mockedInvoke.mockRejectedValueOnce({ code: "behind_remote", message: "x", remediation: null });
+    renderDialog({ preview: plan() });
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByText(PLAN_LINE)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Publish changes" })).not.toBeInTheDocument();
+  });
+
   it("shows the plan summary once it loads", async () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     renderDialog();

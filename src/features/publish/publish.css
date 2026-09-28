@@ -75,3 +75,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .publish-commit-list__file-path { overflow-wrap: anywhere; }
 .publish-commit-list__file-category { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
 
+
+/* One status region around the placeholder lines, spaced as the dialog body
+   spaces the real ones, so nothing moves when the plan replaces them. */
+.publish-placeholder { display: flex; flex-direction: column; gap: inherit; }

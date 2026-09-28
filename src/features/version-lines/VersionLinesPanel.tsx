@@ -20,21 +20,7 @@ import {
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { formatDate, formatNumber, formatRelativeTime, type LocaleFormats } from "../../shared/i18n";
-import {
-  AutomaticUpdatesNotice,
-  contextMenuAnchorFrom,
-  FilterCapsule,
-  FilterCapsules,
-  FilterGroup,
-  FilterPanel,
-  FilterSwitch,
-  LoadingBar,
-  SearchBox,
-  StateGlyph,
-  StateGlyphs,
-  autoHideScrollbarProps,
-  type StateGlyphTone,
-} from "../../shared/ui";
+import { AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
 import type { VersionLine, VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, versionLineActions } from "./lineActions";
 import { VersionLineContextMenu, type VersionLineContextMenuState } from "./VersionLineContextMenu";
@@ -263,6 +249,14 @@ function rowGlyphs(line: VersionLine, t: Translations, formats: LocaleFormats): 
   }
   return glyphs;
 }
+
+/** Name and state lengths for the first read's rows. */
+const LINE_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ["34%", "22%"],
+  ["62%", "30%"],
+  ["48%", "18%"],
+  ["56%", "26%"],
+];
 
 /** One line in the list column: the sibling of a History timeline row and of a
  * Changes file row, at the same tier — a name, the states worth flagging as
@@ -1492,10 +1486,38 @@ export function VersionLinesPanel({
     return (
       <div className="version-lines-screen">
         {notices}
-        <div className="empty-state" aria-busy="true">
-          <LoadingBar label={t.versionLinesLoading} />
-          <h1>{t.versionLinesTitle}</h1>
-          <p>{t.versionLinesLoading}</p>
+        {/* The screen's own shape, headed by its real name: the list panel
+            with rows where the lines will be, and the detail card beside it. */}
+        <div className="version-lines-layout">
+          <section className="version-lines-list-panel" aria-label={t.versionLinesListAriaLabel}>
+            <header className="version-lines-list-panel__header">
+              <GitBranch aria-hidden="true" />
+              <h1>{t.versionLinesTitle}</h1>
+            </header>
+            <LoadingPlaceholder label={t.versionLinesLoading} className="version-lines-placeholder">
+              <div className="version-lines-list-panel__toolbar"><TextPlaceholder width="100%" /></div>
+              <div className="version-lines-list">
+                {LINE_PLACEHOLDER_WIDTHS.map(([name, meta]) => (
+                  <span key={name} className="version-line-row">
+                    <span className="version-line-row__name-row">
+                      <span className="version-line-row__name"><TextPlaceholder width={name} /></span>
+                    </span>
+                    <span className="version-line-row__meta">
+                      <TextPlaceholder width={meta} />
+                      <span className="version-line-row__date"><TextPlaceholder width="44px" /></span>
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </LoadingPlaceholder>
+          </section>
+          <section className="version-lines-detail">
+            <LoadingPlaceholder className="version-lines-detail__card version-lines-detail__placeholder">
+              <p><TextPlaceholder width="38%" /></p>
+              <p><TextPlaceholder width="62%" /></p>
+              <p><TextPlaceholder width="54%" /></p>
+            </LoadingPlaceholder>
+          </section>
         </div>
         {dialogs}
       </div>

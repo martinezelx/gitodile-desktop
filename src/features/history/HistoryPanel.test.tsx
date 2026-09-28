@@ -146,7 +146,9 @@ describe("HistoryPanel", () => {
 
     const loading = state(0, { snapshot: null, isLoading: true });
     const second = renderPanel(loading);
-    expect(screen.getAllByText("Reading saved versions…")).toHaveLength(2);
+    // Said once, by the timeline's placeholder; the detail's shape beside it
+    // is the same read and stays silent.
+    expect(screen.getByText("Reading saved versions…").closest("[role='status']")).toHaveAttribute("aria-busy", "true");
     second.unmount();
 
     renderPanel(state(1, { error: new Error("failed") }), "Last successful result is still shown.");
@@ -304,7 +306,7 @@ describe("HistoryPanel", () => {
     const historyState = state(2, { detail: { detail: null, isLoading: true, error: null } });
     renderPanel(historyState);
     expect(screen.getAllByText(historyState.versions[0].subject)).toHaveLength(2);
-    expect(screen.getAllByText("Reading this saved version…")).toHaveLength(2);
+    expect(screen.getByText("Reading this saved version…").closest("[role='status']")).toHaveAttribute("aria-busy", "true");
   });
 
   it("keeps timeline rows compact and moves technical metadata into the selected detail", () => {

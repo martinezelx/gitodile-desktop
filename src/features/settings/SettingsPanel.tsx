@@ -36,7 +36,9 @@ import {
 } from "../../shared/i18n";
 import {
   autoHideScrollbarProps,
+  LoadingPlaceholder,
   moveFocusWithinRadioGroup,
+  TextPlaceholder,
   ToggleSwitch,
   DEFAULT_PROJECT_AVATAR_STYLE,
   ProjectAvatar,
@@ -2075,10 +2077,16 @@ export function SettingsPanel({
               </header>
               <div className="settings-group__body">
                 {lineEndings === null ? (
-                  <p className="settings-row__hint">
-                    <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                    <span>{t.settingsGeneralChecking}</span>
-                  </p>
+                  /* The choices' own list, one option per choice, with the
+                     label and its sentence as placeholders until Git answers. */
+                  <LoadingPlaceholder label={t.settingsGeneralChecking} className="choice-list">
+                    {LINE_ENDING_CHOICES.map((choice, index) => (
+                      <span key={choice} className="choice-list__option">
+                        <span className="choice-list__label"><TextPlaceholder width={["38%", "46%", "32%"][index % 3]} /></span>
+                        <span className="choice-list__description"><TextPlaceholder width={["82%", "70%", "76%"][index % 3]} /></span>
+                      </span>
+                    ))}
+                  </LoadingPlaceholder>
                 ) : (
                   <>
                     {/* Each option is a full sentence about what happens to

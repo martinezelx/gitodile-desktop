@@ -5,7 +5,6 @@ import {
   Cloud,
   EyeOff,
   Info,
-  LoaderCircle,
   Palette,
   TriangleAlert,
   UserRound,
@@ -16,6 +15,7 @@ import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
 import {
   autoHideScrollbarProps,
+  LoadingPlaceholder,
   moveFocusWithinRadioGroup,
   ProjectAvatar,
   DEFAULT_PROJECT_AVATAR_STYLE,
@@ -23,6 +23,7 @@ import {
   PROJECT_ICON_INITIALS,
   sanitizeEmoji,
   TECHNOLOGY_LABELS,
+  TextPlaceholder,
   type ProjectAvatarStyle,
   type ProjectIconChoice,
   type TechnologyId,
@@ -262,12 +263,21 @@ function SectionState({
   onRetry: () => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
+  // Two settings rows in the section's own shape: a label and its line on the
+  // left, the value on the right, where the read will put them.
   if (isLoading) {
     return (
-      <p className="settings-row__hint" role="status">
-        <LoaderCircle aria-hidden="true" className="icon--spinning" />
-        <span>{t.projectSettingsLoading}</span>
-      </p>
+      <LoadingPlaceholder label={t.projectSettingsLoading} className="project-settings-body">
+        {[["96px", "210px", "128px"], ["120px", "170px", "96px"]].map(([label, line, value]) => (
+          <div key={label} className="settings-row">
+            <div>
+              <strong><TextPlaceholder width={label} /></strong>
+              <p><TextPlaceholder width={line} /></p>
+            </div>
+            <TextPlaceholder width={value} />
+          </div>
+        ))}
+      </LoadingPlaceholder>
     );
   }
   if (error) {

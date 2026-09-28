@@ -180,6 +180,7 @@ import {
   screenRequiresProject,
   type ScreenId,
 } from "./screens";
+import { previewFromPendingVersions } from "../features/publish/domain";
 import "../styles.css";
 
 // Lazily loaded: none of these are needed for Home's first paint, and
@@ -188,7 +189,11 @@ import "../styles.css";
 // bundle — and therefore first-paint time — small. The two screen panels live
 // in `screens.tsx` next to their registry entries; these are the dialogs,
 // which are not screens.
-const PublishDialog = lazy(() => import("../features/publish/PublishDialog").then((m) => ({ default: m.PublishDialog })));
+//
+// Publish is also warmed with the screen chunks after first paint (below): it
+// opens from a click, with no navigation to hide its first chunk load behind.
+const loadPublishDialog = () => import("../features/publish/PublishDialog");
+const PublishDialog = lazy(() => loadPublishDialog().then((m) => ({ default: m.PublishDialog })));
 const CreateVersionLineDialog = lazy(() =>
   import("../features/version-lines/VersionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
 );
@@ -1321,7 +1326,14 @@ export function App(): React.JSX.Element {
   // Module-level idle work outlived jsdom test environments and left lazy
   // imports running after teardown. Owning it here gives React a real cleanup
   // point while preserving the same after-first-paint scheduling in the app.
-  useEffect(() => scheduleIdleTask(prefetchScreenChunks), []);
+  useEffect(
+    () =>
+      scheduleIdleTask(() => {
+        prefetchScreenChunks();
+        void loadPublishDialog();
+      }),
+    [],
+  );
 
   // Every open worktree is registered after startup restore. Rust coalesces
   // shared common-Git-dir signals and fans them to related worktrees exactly
@@ -2694,6 +2706,15 @@ export function App(): React.JSX.Element {
             projectPath={publishDialogSession.project.path}
             sessionEpoch={publishDialogSession.epoch}
             upTo={publishUpTo ?? undefined}
+            preview={previewFromPendingVersions({
+              pending: publishDialogSession.pendingVersions,
+              pendingError: publishDialogSession.pendingVersionsError,
+              upstream: publishDialogSession.workingTree?.upstream.upstream ?? null,
+              hasUnsavedFiles: publishDialogSession.workingTree
+                ? !publishDialogSession.workingTree.isClean
+                : false,
+              upTo: publishUpTo ?? undefined,
+            })}
             runHooks={runGitHooks}
             onClose={() => {
               finishSessionOperation(publishDialogSession.id);

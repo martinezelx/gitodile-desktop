@@ -944,8 +944,8 @@ not depend on one another are asked side by side, because on Windows the
 reader waits on process launches more than on the walks; and a row the pointer
 rests on for a moment starts its line's read, so the press usually finds it
 answered. While the read is out, a line that will have a route keeps the
-section's whole place with the main lane already drawn and named, and the
-shared loading thread where the sentence will be — the answer grows into a
+section's whole place with the main lane already drawn and named, and a
+text placeholder where the sentence will be — the answer grows into a
 space that was waiting for it rather than pushing the versions down when it
 lands. It arrives with the one motion the drawing has: the line draws itself
 out of the parting, its versions appear along it left to right, the sentence
@@ -1802,6 +1802,20 @@ A block that only the reader can lift offers the action that lifts it
 ("Save your changes" → `Save version`). `Try again` is for failures that a
 retry may actually pass.
 
+**A plan that is still being read opens in its final shape.** The dialog
+appears at once with its title, `Cancel` and its primary action — held back
+until the plan is in — and faint text placeholders (`.text-placeholder`) where
+the plan's sentences and rows will be (see "A first load draws the shape" under § Core screens); a fact that holds for every
+plan, such as who will see a publish, is shown for real. A separate
+"Checking…" dialog that another dialog later replaced read as two events for
+one click, and moved every control once it landed. **What the project already
+knows may stand in for the placeholders.**
+Publish opens on the session's cached pending list — the remote as of the last
+check — with its primary held back as "Checking the remote…" until the fresh
+plan arrives and decides: a different count replaces the preview's, and a
+block replaces the whole plan. Without a tracked branch there is nothing
+trustworthy to preview, and the placeholders stay.
+
 **Progress is three steps at most.** The native side may report six phases;
 the dialog maps them onto the few the reader can follow ("Downloading",
 "Checking", "Opening") in `.app-dialog__steps`, the active one spinning and the
@@ -1888,7 +1902,33 @@ technical message behind a `Technical details` disclosure — while the rail,
 the status bar, the other screens and the Work tab pair keep working. Outside
 every screen, the window's own notice offers `Reload window`.
 
-Reuse one visual pattern for all of these across screens rather than each screen inventing its own: a centered block with a small icon in a bordered/shadowed circle (`--radius-round`, like every glyph tile), one short headline, one line of supporting copy, and 1–2 actions — see `.empty-state` in `src/shared/ui/primitives.css`, first built for the "no project open" Overview state. A loading state is the same layout with a spinner/skeleton instead of the icon; an error state swaps in `--status-danger`. Do not build a bespoke illustration or a different card shape per screen — that's how a "no repository" panel and a "no results" panel end up looking like they belong to two different apps.
+Reuse one visual pattern for all of these across screens rather than each screen inventing its own: a centered block with a small icon in a bordered/shadowed circle (`--radius-round`, like every glyph tile), one short headline, one line of supporting copy, and 1–2 actions — see `.empty-state` in `src/shared/ui/primitives.css`, first built for the "no project open" Overview state. An error state swaps in `--status-danger`. Loading is not this block: it draws the content's own shape, below. Do not build a bespoke illustration or a different card shape per screen — that's how a "no repository" panel and a "no results" panel end up looking like they belong to two different apps.
+
+**A first load draws the shape of what is coming, where it will be.** A list,
+a sentence or a form whose shape is known before Git answers — the Overview's
+changed files and recent history, the Changes file list, the History timeline
+and a version's detail, the version lines and a line's route, project
+settings, line endings, the Publish plan — renders its real layout with
+`LoadingPlaceholder`: the same row classes as the loaded content, real
+structure (a timeline's rail and nodes, a panel's own header) drawn as it will
+be, and a faint `TextPlaceholder` for each run of words. The answer then lands
+in a space that was waiting for it and nothing moves. The placeholders draw
+only the shape: no count, name or state is guessed before Git has answered.
+
+**Nothing shows for the first 320ms.** Most local reads answer inside that,
+and a placeholder that flashes for a frame before the content is a flicker,
+not progress. The delay holds under reduced motion; only the fade and the
+pulse go.
+
+**Content whose shape can't be guessed keeps the loading bar** (`LoadingBar`):
+a diff, a screen whose code is still loading, an older page being appended.
+**A refresh keeps what is on screen** and says so where it is — the card's
+icon turns, a bar runs over the list, the status bar's item spins — and never
+swaps back to placeholders. **A control doing work carries a spinner** beside
+its verb ("Publishing…"), at the control's own size.
+
+The Overview used to spin a spinner in each card while Changes drew the bar
+over the same wait; one wait now looks the same wherever it is.
 
 **The welcome screen is the one documented departure, and it departs in one
 direction only.** Screen 1 is a front door, not a "nothing here" report: it has

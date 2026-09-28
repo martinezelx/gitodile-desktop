@@ -22,7 +22,7 @@ import { localizeAppError, type LocaleFormats } from "../../shared/i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import {
   AutomaticUpdatesNotice, autoHideScrollbarProps, FilterCapsule, FilterCapsules, FilterChips,
-  FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, SearchBox,
+  FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, LoadingPlaceholder, SearchBox, TextPlaceholder,
   useAnchoredPopup, useRowArrival, type FilterChip,
 } from "../../shared/ui";
 import { QuickCommitBox, type QuickCommitBoxHandle } from "./QuickCommitBox";
@@ -920,6 +920,47 @@ function FileListItem({
   );
 }
 
+/** Name and folder lengths for the first load's rows: varied, so the shape
+ * reads as a list of files rather than a striped block. */
+const FILE_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ["58%", "34%"],
+  ["44%", "52%"],
+  ["66%", "28%"],
+  ["38%", "46%"],
+  ["52%", "38%"],
+];
+
+/** The file list's first load: the search strip and a few rows in the places
+ * the real ones take (`LoadingPlaceholder`). */
+function FileListPlaceholder({ label }: { label: string }): React.JSX.Element {
+  return (
+    <LoadingPlaceholder label={label} className="changes-file-list__placeholder">
+      <div className="changes-file-list__toolbar">
+        <TextPlaceholder className="text-placeholder--glyph changes-file-row__checkbox" />
+        <TextPlaceholder width="100%" />
+      </div>
+      <div className="changes-file-list__scroll">
+        <ul>
+          {FILE_PLACEHOLDER_WIDTHS.map(([name, dir]) => (
+            <li key={name} className="changes-file-row">
+              <TextPlaceholder className="text-placeholder--glyph changes-file-row__checkbox" />
+              <div className="changes-file-item">
+                <span className="changes-file-item__icon">
+                  <TextPlaceholder className="text-placeholder--glyph" />
+                </span>
+                <span className="changes-file-item__details">
+                  <span className="changes-file-item__name"><TextPlaceholder width={name} /></span>
+                  <span className="changes-file-item__dir"><TextPlaceholder width={dir} /></span>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </LoadingPlaceholder>
+  );
+}
+
 /** A folder in the Changes tree: its include box, then the folder itself.
  * The box answers for everything under it — ticked when all of it goes into
  * the version, clear when none does, and indeterminate in between — so a
@@ -1541,9 +1582,7 @@ export function ChangesPanel({
         <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
           <header className="changes-file-list__header">{tabs}</header>
           {isLoadingList ? (
-            <div className="changes-file-list__state">
-              <LoadingBar label={t.commonLoading} />
-            </div>
+            <FileListPlaceholder label={t.statusCheckingTitle} />
           ) : !workingTree ? null : workingTree.isClean ? (
             <div className="changes-file-list__state">
               <p className="changes-view__summary">

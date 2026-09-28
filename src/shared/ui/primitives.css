@@ -685,6 +685,46 @@
   from { transform: translateX(-100%); }
   to { transform: translateX(250%); }
 }
+/* ---- Loading placeholder ----
+   The first-load state of a list, a sentence or a form (`LoadingPlaceholder`,
+   loadingPlaceholder.tsx): the content's own shape with faint runs of text
+   where the words will be. It waits 320ms before it appears, so a read that
+   answers quickly never shows it at all; the delay stays under reduced motion,
+   only the fade and the pulse go. Content whose shape can't be guessed keeps
+   the loading bar above. */
+.loading-placeholder { animation: loading-placeholder-appear 180ms ease-out 320ms both; }
+/* Hover styles borrowed from the real rows must not light up an empty one. */
+.loading-placeholder * { pointer-events: none; }
+@keyframes loading-placeholder-appear {
+  from { opacity: 0; }
+}
+.text-placeholder {
+  display: inline-block;
+  height: 0.8em;
+  /* Takes the line it stands for, so a flex parent — which has no line box of
+     its own — keeps the height the text will have. */
+  margin-block: calc((1lh - 0.8em) / 2);
+  max-width: 100%;
+  border-radius: var(--radius-pill);
+  /* Drawn from the text colour it stands for, so it reads as faint text in
+     either theme rather than as a surface. */
+  background: color-mix(in srgb, var(--text-secondary-color) 18%, transparent);
+  vertical-align: middle;
+  animation: text-placeholder-pulse 1100ms ease-in-out infinite alternate;
+}
+.text-placeholder--chip { flex-shrink: 0; width: 56px; margin-left: auto; }
+/* A glyph's place: an icon, a node, a category mark. */
+.text-placeholder--glyph { width: 14px; height: 14px; margin-block: 0; border-radius: var(--radius-round); flex-shrink: 0; }
+@keyframes text-placeholder-pulse {
+  from { opacity: 1; }
+  to { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .text-placeholder { animation: none; }
+  .loading-placeholder { animation-duration: 1ms; }
+}
+:root[data-reduced-motion="true"] .text-placeholder { animation: none; }
+:root[data-reduced-motion="true"] .loading-placeholder { animation-duration: 1ms; }
 .loading-state__message {
   margin: 0;
   padding: 0 var(--space-4);

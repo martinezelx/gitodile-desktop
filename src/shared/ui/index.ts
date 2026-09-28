@@ -24,6 +24,10 @@ export { Mascot, type MascotMotion, type MascotProps } from "./mascot";
 export { useRowArrival } from "./rowArrival";
 export { useModalFocus } from "./modalFocus";
 export { LoadingBar } from "./loadingBar";
+/* ADR 0003's two-consumer bar, passed many times over: every list, sentence
+   and form that waits on a first Git read — Overview, Changes, History, the
+   version lines, Publish, project settings — draws its shape with these. */
+export { LoadingPlaceholder, TextPlaceholder } from "./loadingPlaceholder";
 export { SearchBox } from "./searchBox";
 export { RefreshIconButton } from "./refreshIconButton";
 export { DialogCloseButton } from "./dialogCloseButton";

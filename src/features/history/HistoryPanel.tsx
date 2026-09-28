@@ -9,7 +9,7 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, avatarColorVar, avatarInitials, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, SearchBox, StateGlyph, StateGlyphs, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, avatarColorVar, avatarInitials, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
 import { ChangesContextMenu, DiffFind, DiffResultView, DiffStepNav, DiffViewSelector, FileTreeFolderButton, FileViewToggle, flatFileRows, flattenFileTree, isGroupedFileRow, PictureDiffControls, treeIndentStyle, useCollapsedFolders, useFileListView, usePictureDiff, type FileTreeRow, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -236,6 +236,55 @@ function AuthorAvatar({ version, isSelf, t }: { version: SavedVersionSummary; is
  * none. A fact about where the selection sits, and the only thing the timeline
  * draws that is not either structure or the selection itself. */
 type RailFill = "filled" | "half" | null;
+
+/** Subject and meta lengths for the first page's rows. */
+const TIMELINE_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ["64%", "38%"],
+  ["48%", "30%"],
+  ["72%", "42%"],
+  ["56%", "34%"],
+  ["40%", "28%"],
+  ["60%", "36%"],
+];
+
+/** The timeline's first page: the search strip, then rows on the rail at the
+ * real rows' height, the nodes drawn as they will be and the words as
+ * placeholders. */
+function TimelinePlaceholder({ label }: { label: string }): React.JSX.Element {
+  const last = TIMELINE_PLACEHOLDER_WIDTHS.length - 1;
+  return (
+    <LoadingPlaceholder label={label} className="history-timeline__placeholder">
+      <div className="history-timeline__toolbar"><TextPlaceholder width="100%" /></div>
+      {TIMELINE_PLACEHOLDER_WIDTHS.map(([title, meta], index) => (
+        <div key={title} className="history-timeline__placeholder-row">
+          <span className="history-row" data-first={index === 0 || undefined} data-last={index === last || undefined}>
+            <span className="history-row__node" />
+            <span className="history-row__body">
+              <span className="history-row__title"><TextPlaceholder width={title} /></span>
+              <span className="history-row__meta"><TextPlaceholder width={meta} /></span>
+            </span>
+          </span>
+        </div>
+      ))}
+    </LoadingPlaceholder>
+  );
+}
+
+/** A version's detail while it is read: the line under the title, then its
+ * changed files. The title itself is real whenever the version is known. */
+function DetailPlaceholder({ label }: { label?: string }): React.JSX.Element {
+  return (
+    <LoadingPlaceholder label={label} className="history-detail__placeholder">
+      <p className="history-detail__placeholder-meta"><TextPlaceholder width="34%" /></p>
+      {["46%", "58%", "38%", "52%"].map((width) => (
+        <div key={width} className="history-detail__placeholder-file">
+          <TextPlaceholder className="text-placeholder--glyph" />
+          <TextPlaceholder width={width} />
+        </div>
+      ))}
+    </LoadingPlaceholder>
+  );
+}
 
 const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, search, arrival, selfEmail, onSelect, onMove, onOpenDetail, onContextMenu }: {
   version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; search: string; arrival?: number; selfEmail: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
@@ -1233,7 +1282,7 @@ function HistoryDetail({ state, formats, selfEmail, actions, onSelectFile, onRet
   const inFolders = fileView === "tree";
   const { collapsed: collapsedFolders, toggle: toggleFolder, reveal: revealFile } = useCollapsedFolders();
 
-  if (state.detail.isLoading) return <section className="history-detail history-detail--loading" aria-labelledby="history-detail-title" aria-busy="true">{selectedVersion && <div className="history-detail__loading-title"><h2 id="history-detail-title">{versionTitle(selectedVersion, t)}</h2></div>}<div className="history-detail__loading"><LoadingBar label={t.historyDetailLoading} /><p>{t.historyDetailLoading}</p></div></section>;
+  if (state.detail.isLoading) return <section className="history-detail history-detail--loading" aria-labelledby={selectedVersion ? "history-detail-title" : undefined} aria-busy="true">{selectedVersion && <div className="history-detail__loading-title"><h2 id="history-detail-title">{versionTitle(selectedVersion, t)}</h2></div>}<DetailPlaceholder label={t.historyDetailLoading} /></section>;
   if (state.detail.error) return <section className="history-detail history-detail--state" role="alert"><CircleAlert /><h2>{t.historyDetailError}</h2><button className="secondary-button" type="button" onClick={onRetryDetail}>{t.historyRetry}</button></section>;
   const detail = state.detail.detail;
   if (!detail) return <section className="history-detail history-detail--state"><p>{t.historySelectFilePrompt}</p></section>;
@@ -1461,9 +1510,21 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
       </div>
     </div>
   );
-  if (!state.snapshot && state.isLoading) return statePanel(
-    <div className="history-timeline__state" aria-busy="true"><LoadingBar label={t.historyLoading} /></div>,
-    <div className="empty-state" aria-busy="true"><p>{t.historyLoading}</p></div>,
+  // The first page draws the timeline's and the detail's shapes in their own
+  // places, so the versions land in a column that was waiting for them.
+  if (!state.snapshot && state.isLoading) return (
+    <div className="history-screen">
+      <div className="history-layout">
+        <section className="history-timeline" aria-label={t.historyTimelineAriaLabel}>
+          <header className="history-timeline__header">{tabs}</header>
+          <TimelinePlaceholder label={t.historyLoading} />
+        </section>
+        <section className="history-detail history-detail--loading">
+          <div className="history-detail__loading-title"><h2><TextPlaceholder width="52%" /></h2></div>
+          <DetailPlaceholder />
+        </section>
+      </div>
+    </div>
   );
   if (!state.snapshot && error) return statePanel(
     null,
