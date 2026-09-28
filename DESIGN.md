@@ -159,7 +159,9 @@ The main desktop window should broadly support:
      accent-tinted selected surface. Accent fill and green iconography remain
      reserved for the active destination or selected control;
    - a faint tray separates the destinations from everything below: one pill
-     of `--surface-hover` behind the project chip and the utilities, at about a
+     of `--surface-hover` behind the project chip and the utilities — rounded
+     at `--radius-surface` instead while the square project chip leads it, so
+     the chip's corners sit as far in as its sides — at about a
      third of its strength at rest and full strength while the pointer rests
      on it, focus is inside it or one of its menus is open. It is the only
      fill the rail carries that is not a control's own, and it marks a

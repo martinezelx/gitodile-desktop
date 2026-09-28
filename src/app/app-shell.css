@@ -847,6 +847,15 @@
   pointer-events: none;
   transition: opacity var(--duration-normal) ease;
 }
+/* Led by the project chip, the tray follows the chip's shape instead: a
+   pill's 24px cap nests circles, but it pinched the chip's square corners to
+   ~3px from the edge and left its status badge well past the curve. The
+   surface radius keeps the chip's corners about the same 6px in as its sides
+   (its ~10px corner plus the inset), the badge overhangs the tray by no more
+   than it overhangs the chip, and the round utilities below sit
+   comfortably inside it. Not mixed with the pill at the foot: a 999px corner
+   beside an 18px one makes the browser scale every corner down together. */
+.sidebar-tray:has(.sidebar-project)::before { border-radius: var(--radius-surface); }
 .sidebar-tray:hover::before,
 .sidebar-tray:focus-within::before,
 .sidebar-tray:has([aria-expanded="true"])::before { opacity: 1; }
