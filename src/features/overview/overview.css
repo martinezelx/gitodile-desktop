@@ -665,7 +665,7 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   list-style: none;
 }
 .overview-history__list li { position: relative; min-width: 0; }
-.overview-history__list li:not(:last-child):not(.overview-history__group)::after {
+.overview-history__list li:not(:last-child)::after {
   content: "";
   position: absolute;
   z-index: 0;
@@ -751,32 +751,12 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
 /* The separator is a real element rendered beside the badge rather than a
    `::before` on whatever follows: the badge is an `inline-flex` capsule, and a
    pseudo-element on it lands inside its border. `HistoryMetaDot` owns it. */
+/* The laptop glyph is the row's one publish signal, so a long author or line
+   name gives way before it does. */
+.overview-history__meta > .state-glyph { flex-shrink: 0; overflow: visible; }
 .overview-history__author { flex: 0 1 auto; }
 .overview-history__date { flex: 0 0 auto; }
 .overview-history__chevron { width: 15px; height: 15px; color: var(--text-secondary-color); }
-/* The run of versions still only on this computer is labelled once, above
-   it, and a quieter label marks where the published ones begin. The label is
-   the list's own caption tier, in the accent for the local run. */
-.overview-history__group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: var(--space-1) 0 2px var(--space-1);
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-strong);
-  letter-spacing: var(--tracking-wide);
-}
-.overview-history__group:first-child { margin-top: 0; }
-.overview-history__group::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border-divider);
-}
-.overview-history__group svg { width: 13px; height: 13px; flex-shrink: 0; }
-.overview-history__group--local { color: var(--accent-primary); }
-.overview-history__group--local::after { background: color-mix(in srgb, var(--accent-primary) 30%, transparent); }
 /* A version still only on this computer: its node is ringed in the accent.
    Where it can be published, the node *is* the action — but only under the
    pointer or focus: it grows from 12px to a pressable 22px, filled solid in

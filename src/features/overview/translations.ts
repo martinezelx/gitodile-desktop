@@ -91,11 +91,6 @@ export interface OverviewTranslations {
   overviewHistoryUnknownAuthor: string;
   overviewHistoryPublished: string;
   overviewHistoryLocalOnly: string;
-  /** The label over Recent history's run of unpublished versions, which
-   * replaced a "Not published" on every row of it. */
-  overviewHistoryLocalGroup: string;
-  /** The label where the published versions begin, under that run. */
-  overviewHistoryPublishedGroup: string;
   /** A version saved under the user's own Git identity. */
   overviewHistoryYou: string;
   /** The badge on the version the project stands on, in place of the line's
@@ -221,8 +216,6 @@ const en: OverviewTranslations = {
   overviewHistoryUnknownAuthor: "Unknown author",
   overviewHistoryPublished: "Published",
   overviewHistoryLocalOnly: "Not published",
-  overviewHistoryLocalGroup: "Only on this computer",
-  overviewHistoryPublishedGroup: "Published",
   overviewHistoryYou: "You",
   overviewHistoryCurrentLine: "current",
   overviewHistoryPublicationUnknown: "Publish status unknown",
@@ -336,8 +329,6 @@ const es: OverviewTranslations = {
   overviewHistoryUnknownAuthor: "Autor desconocido",
   overviewHistoryPublished: "Publicada",
   overviewHistoryLocalOnly: "Sin publicar",
-  overviewHistoryLocalGroup: "Solo en este ordenador",
-  overviewHistoryPublishedGroup: "Publicadas",
   overviewHistoryYou: "Tú",
   overviewHistoryCurrentLine: "actual",
   overviewHistoryPublicationUnknown: "Publicación desconocida",

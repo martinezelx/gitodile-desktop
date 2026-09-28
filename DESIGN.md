@@ -431,8 +431,11 @@ The main desktop window should broadly support:
      same card shape with the same header shape (neutral glyph tile, title,
      one line, the trailing action in the same corner and the same words).
    - Nothing gets a card of its own for sometimes existing. Versions saved
-     but not yet published are rows of Recent history that say so — the run
-     labelled once, "Only on this computer", its nodes ringed in the accent,
+     but not yet published are rows of Recent history that say so — each
+     leading its meta with History's laptop glyph and tooltip, its node
+     ringed in the accent, with no label row splitting the list and no badge
+     on the current line's own remote copy (the glyphs already show where it
+     sits),
      and "Publish up to here" appearing on a node under the pointer or focus —
      not a fourth card repeating the band's count with a second Publish
      button, and not a solid accent node on every row.

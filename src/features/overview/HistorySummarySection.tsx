@@ -4,13 +4,13 @@ import {
   CircleAlert,
   GitCommitHorizontal,
   CloudUpload,
+  Laptop,
   LoaderCircle,
-  Monitor,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
-import { LoadingPlaceholder, TextPlaceholder } from "../../shared/ui";
+import { LoadingPlaceholder, StateGlyph, TextPlaceholder } from "../../shared/ui";
 import {
   decorationLabel,
   formatHistoryDate,
@@ -69,20 +69,8 @@ export function HistorySummarySection({
   const state = useActiveHistoryState(controller, query);
   const versions = state.versions.slice(0, HISTORY_PREVIEW_LIMIT);
   const currentBranch = state.snapshot?.branch ?? null;
+  const upstreamRef = state.snapshot?.upstream?.trackingRef ?? null;
   const error = state.error ? localizeAppError(state.error, t, t.overviewHistoryError) : null;
-
-  // Unpublished versions are said once, as a label over their run, rather
-  // than "Not published" on every row; a "Published" label marks where the
-  // published ones begin. Only when something is unpublished — otherwise
-  // nothing needs saying — and never over an "unknown" run (no upstream to
-  // compare with), which is neither.
-  const hasLocalRun = versions.some((version) => version.publication === "local-only");
-  const groupLabelFor = (publication: SavedVersionSummary["publication"]): string | null =>
-    publication === "local-only"
-      ? t.overviewHistoryLocalGroup
-      : publication === "published"
-        ? t.overviewHistoryPublishedGroup
-        : null;
 
   const openVersion = (commit: string): void => {
     controller.selectVersion(query, commit);
@@ -155,8 +143,12 @@ export function HistorySummarySection({
             const author = isSelf ? t.overviewHistoryYou : fullAuthor;
             const date = formatHistoryDate(version.authoredAt, formats);
             // The row's `aria-label` replaces its subtree, so the badge only
-            // reaches assistive tech by being folded into the label.
-            const decoration = primaryDecoration(version, currentBranch);
+            // reaches assistive tech by being folded into the label. The
+            // current line's own copy on the remote is not badged: it is the
+            // same line as "current", and where it sits is already told by
+            // which rows wear the laptop glyph.
+            const primary = primaryDecoration(version, currentBranch);
+            const decoration = primary && primary.fullRef === upstreamRef ? null : primary;
             // A version still only on this computer is marked as such, and its
             // row offers to publish it (and everything older) under the
             // pointer — the one place partial publishing lives on this screen.
@@ -165,22 +157,9 @@ export function HistorySummarySection({
             if (decoration) labelParts.push(decorationLabel(decoration, t));
             if (isLocalOnly) labelParts.push(t.overviewHistoryLocalOnly);
             const canPublishUpTo = isLocalOnly && canPublish && Boolean(onPublishUpTo);
-            const startsGroup = index === 0 || version.publication !== versions[index - 1].publication;
-            const groupLabel = hasLocalRun && startsGroup ? groupLabelFor(version.publication) : null;
             return (
-              <React.Fragment key={version.commit}>
-              {/* Decorative for assistive tech: every row's own label already
-                  says whether it is published. */}
-              {groupLabel && (
-                <li
-                  className={`overview-history__group${isLocalOnly ? " overview-history__group--local" : ""}`}
-                  aria-hidden="true"
-                >
-                  {isLocalOnly && <Monitor />}
-                  {groupLabel}
-                </li>
-              )}
               <li
+                key={version.commit}
                 className={`row-in${isLocalOnly ? " overview-history__item--local" : ""}${canPublishUpTo ? " overview-history__item--publishable" : ""}`}
                 style={{ "--row-index": index } as React.CSSProperties}
               >
@@ -194,8 +173,13 @@ export function HistorySummarySection({
                   <span className="overview-history__body">
                     <span className="overview-history__subject" title={title}>{title}</span>
                     <span className="overview-history__meta">
+                      {/* History's own mark for a version that has not left
+                          this computer, with its tooltip: leading, so the
+                          unpublished rows read as a column at a glance.
+                          Published draws nothing, as on History's rows. */}
+                      {isLocalOnly && <StateGlyph tone="neutral" icon={<Laptop />} tooltip={t.historyGlyphLocalOnly} />}
                       <span className="overview-history__author" title={fullAuthor}>{author}</span>
-                      <HistoryRefBadge version={version} currentBranch={currentBranch} currentLabel={t.overviewHistoryCurrentLine} />
+                      {decoration && <HistoryRefBadge version={version} currentBranch={currentBranch} currentLabel={t.overviewHistoryCurrentLine} />}
                       {date && <><HistoryMetaDot /><span className="overview-history__date" title={date.absolute}>{date.relative}</span></>}
                     </span>
                   </span>
@@ -219,7 +203,6 @@ export function HistorySummarySection({
                   </button>
                 )}
               </li>
-              </React.Fragment>
             );
           })}
         </ol>
