@@ -28,3 +28,57 @@
 .save-version-title__guidance { color: var(--text-secondary-color); font-size: var(--text-label); }
 .save-version-title__error { color: var(--status-danger); font-size: var(--text-label); }
 
+/* The summary: the count is the headline and the breakdown reads after it as
+   text, one voice rather than three kinds of mark. The categories keep their
+   colours as ink, the way the status chips do. */
+.save-version-summary { display: grid; gap: var(--space-1); }
+.save-version-summary__head {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); row-gap: 2px;
+  font-size: var(--text-lead);
+}
+.save-version-summary__head > strong { font-weight: var(--weight-strong); }
+.save-version-breakdown {
+  display: inline-flex; flex-wrap: wrap; margin: 0; padding: 0; list-style: none;
+  color: var(--text-secondary-color); font-size: var(--text-body);
+}
+.save-version-breakdown__item { white-space: nowrap; }
+.save-version-breakdown__item + .save-version-breakdown__item::before { content: "·"; margin-inline: 6px; color: var(--text-secondary-color); }
+.save-version-breakdown__item--new { color: var(--status-success); }
+.save-version-breakdown__item--deleted { color: var(--status-danger); }
+.save-version-breakdown__item--renamed { color: var(--status-renamed); }
+.save-version-breakdown__item--conflicted { color: var(--status-warning); }
+.save-version-summary__toggle {
+  display: inline-flex; align-items: center; gap: 4px; margin-inline-start: auto; font-size: var(--text-label);
+}
+.save-version-summary__toggle svg { width: 14px; height: 14px; transition: transform var(--duration-fast); }
+.save-version-summary__toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* The line a version lands on: quieter than the count, and it gives way
+   (ellipsis) rather than push anything when the name runs long. */
+.save-version-branch {
+  display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0;
+  color: var(--text-secondary-color); font-size: var(--text-label);
+}
+.save-version-branch svg { flex: none; width: 14px; height: 14px; }
+.save-version-branch > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Dense, so a solid surface (DESIGN.md: dense areas are never translucent). */
+.save-version-files {
+  max-height: 176px; overflow-y: auto; margin-top: var(--space-1); padding: 6px 12px;
+  border-radius: var(--radius-surface); background: var(--surface-hover);
+}
+.save-version-files > ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.save-version-files li { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; font-size: var(--text-label); }
+.save-version-files__kind { flex: none; min-width: 5.5em; color: var(--text-secondary-color); }
+.save-version-files__kind--new { color: var(--status-success); }
+.save-version-files__kind--deleted { color: var(--status-danger); }
+.save-version-files__kind--renamed { color: var(--status-renamed); }
+.save-version-files__kind--conflicted { color: var(--status-warning); }
+.save-version-files__path {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-primary-color); font-family: var(--font-mono);
+}
+.save-version-files__more { margin: 6px 0 2px; color: var(--text-secondary-color); font-size: var(--text-label); }
+
+.save-version-add-details { display: inline-flex; align-items: center; gap: 4px; justify-self: start; font-size: var(--text-body); }
+.save-version-add-details svg { width: 14px; height: 14px; }

@@ -112,6 +112,7 @@ function makeSavePort(): SaveVersionPort {
       isPartial: false,
       hasPreparedChanges: false,
       counts: { changed: 0, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 1 },
+      files: [{ path: "readme.md", originalPath: null, category: "new" }],
     })),
     save: vi.fn(async () => ({
       commit: "a".repeat(40),

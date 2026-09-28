@@ -47,7 +47,12 @@ import {
   useNotificationCenter,
   type AppNotification,
 } from "../features/notifications";
-import { createSaveVersionController, SaveVersionDialog, saveVersionPort } from "../features/save-version";
+import {
+  createSaveVersionController,
+  previewFromWorkingTree,
+  SaveVersionDialog,
+  saveVersionPort,
+} from "../features/save-version";
 import {
   createRepositoryController,
   createRepositoryReadCoordinator,
@@ -2860,6 +2865,11 @@ export function App(): React.JSX.Element {
           projectPath={project.path}
           sessionEpoch={activeSession.epoch}
           selectedPaths={null}
+          preview={previewFromWorkingTree({
+            workingTree: activeSession.workingTree,
+            headState: activeSession.project.headState,
+            selectedPaths: null,
+          })}
           runHooks={runGitHooks}
           onClose={closeSaveDialog}
           onSaved={() => void handleMutationSucceeded(project.path)}

@@ -370,6 +370,22 @@ pub(crate) fn find_status_entry(
 }
 
 pub(crate) fn read_working_tree_status(path: String) -> Result<WorkingTreeStatus, AppError> {
+    read_status_snapshot(path, true)
+}
+
+/// The same snapshot without its line totals. A caller that needs the counts
+/// and the file list but not the diff's `+`/`-` numbers (a save plan) skips
+/// `git diff --numstat` and the read of every new file that the totals cost.
+pub(crate) fn read_working_tree_status_without_line_totals(
+    path: String,
+) -> Result<WorkingTreeStatus, AppError> {
+    read_status_snapshot(path, false)
+}
+
+fn read_status_snapshot(
+    path: String,
+    with_line_totals: bool,
+) -> Result<WorkingTreeStatus, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "read_working_tree_status", None).map_err(
             |error| match error.code {
@@ -424,8 +440,11 @@ pub(crate) fn read_working_tree_status(path: String) -> Result<WorkingTreeStatus
     // here rather than fetched separately; a failure to compute them only
     // hides the numbers, it never fails the status. Counting lines is diff
     // work, so the implementation lives in the changes module.
-    let line_totals =
-        crate::changes::working_tree_line_totals(&path, &records.entries).unwrap_or(None);
+    let line_totals = if with_line_totals {
+        crate::changes::working_tree_line_totals(&path, &records.entries).unwrap_or(None)
+    } else {
+        None
+    };
     let mut status = status_from_records(records);
     status.line_totals = line_totals;
     Ok(status)

@@ -23,6 +23,7 @@ function plan(overrides: Partial<SaveVersionPlan> = {}): SaveVersionPlan {
     isPartial: false,
     hasPreparedChanges: false,
     counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+    files: [],
     ...overrides,
   };
 }

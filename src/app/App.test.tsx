@@ -1555,6 +1555,7 @@ describe("App project restoration", () => {
           isPartial: false,
           hasPreparedChanges: false,
           counts: dirtyStatus.counts,
+          files: [],
         });
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));

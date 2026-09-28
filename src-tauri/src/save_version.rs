@@ -1,4 +1,4 @@
-use crate::application;
+use crate::application::{self, in_parallel};
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{checked_git_stdout, git_stdout, run_git, run_git_with_env};
 #[cfg(test)]
@@ -6,11 +6,12 @@ use crate::index::selection_index_path;
 use crate::index::{index_unavailable_error, prepare_index, PreparedIndex};
 use crate::operation::{truncate_detail, OperationKind};
 use crate::repository::{
-    display_path, git_operation_in_progress, normalized_path, resolve_head_state, HeadState,
+    classify_head, display_path, git_operation_in_progress, normalized_path, read_head_commit,
+    HeadState,
 };
 use crate::status::{
-    read_working_tree_status, ChangeCategory, WorkingTreeCounts, WorkingTreeEntry,
-    WorkingTreeStatus,
+    read_working_tree_status_without_line_totals, ChangeCategory, WorkingTreeCounts,
+    WorkingTreeEntry, WorkingTreeStatus,
 };
 use std::{
     fs::{File, OpenOptions},
@@ -47,7 +48,26 @@ pub(crate) struct SaveVersionPlan {
     pub(crate) is_partial: bool,
     pub(crate) has_prepared_changes: bool,
     pub(crate) counts: WorkingTreeCounts,
+    /// The files this version takes, for the dialog's "Show files": the first
+    /// `SAVE_PLAN_FILE_LIMIT` of them, in the order Changes lists them. The
+    /// count above is always the whole of it; the dialog says how many more
+    /// there are rather than carry an unbounded list across the bridge.
+    pub(crate) files: Vec<SaveVersionFile>,
 }
+
+/// One file of a plan: where it is, where it came from if it was renamed, and
+/// what happened to it. The index details stay behind in `WorkingTreeEntry`.
+#[derive(serde::Serialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SaveVersionFile {
+    pub(crate) path: String,
+    pub(crate) original_path: Option<String>,
+    pub(crate) category: ChangeCategory,
+}
+
+/// A dialog's list, not the Changes screen: enough to recognise the change,
+/// small enough to draw without virtualising.
+pub(crate) const SAVE_PLAN_FILE_LIMIT: usize = 50;
 
 /// Same env-override pattern as `write_global_git_config`: production always
 /// passes `None` (the user's real global config); tests point `GIT_CONFIG_GLOBAL`
@@ -209,6 +229,7 @@ struct ValidatedSave {
     remaining_files: usize,
     is_partial: bool,
     has_prepared_changes: bool,
+    files: Vec<SaveVersionFile>,
     state_token: String,
     prepared: PreparedIndex,
 }
@@ -218,12 +239,30 @@ fn validate_and_prepare_save(
     selected_paths: Option<Vec<String>>,
     identity_override: Option<&str>,
 ) -> Result<ValidatedSave, AppError> {
-    // Reuses task 007's status command for path/repository validation and for
-    // the same categorized counts the Changes screen already shows, so both
-    // surfaces can never disagree about what "current changes" means.
-    let status = read_working_tree_status(path.to_string())?;
+    // Four questions that don't depend on one another, asked side by side: on
+    // Windows the wait is the process launches, not the reads. Their answers
+    // are still checked in the order they always were, so the error a project
+    // gets doesn't depend on which process finished first. The status is the
+    // one task 007's Changes screen reads, minus the diff's line totals (a
+    // plan needs the counts and the files, not the `+`/`-` numbers), so both
+    // surfaces still agree about what "current changes" means.
+    let (status, (operation, (head, identity))) = in_parallel(
+        || read_working_tree_status_without_line_totals(path.to_string()),
+        || {
+            in_parallel(
+                || git_operation_in_progress(path),
+                || {
+                    in_parallel(
+                        || read_head_commit(path),
+                        || identity_configured(path, identity_override),
+                    )
+                },
+            )
+        },
+    );
+    let status = status?;
 
-    if let Some(operation) = git_operation_in_progress(path)? {
+    if let Some(operation) = operation? {
         return Err(AppError::new(
             AppErrorCode::GitOperationInProgress,
             format!("A Git {operation} is already in progress in this project."),
@@ -234,7 +273,8 @@ fn validate_and_prepare_save(
     }
 
     let branch = status.upstream.branch.clone();
-    let (head_state, head) = resolve_head_state(path, branch.clone())?;
+    let head = head?;
+    let head_state = classify_head(branch.is_some(), head.is_some());
     if head_state == HeadState::Detached {
         return Err(AppError::new(
             AppErrorCode::DetachedHead,
@@ -259,7 +299,7 @@ fn validate_and_prepare_save(
         .with_remediation("Make some changes, then come back to save a version."));
     }
 
-    if !identity_configured(path, identity_override)? {
+    if !identity? {
         return Err(AppError::new(
             AppErrorCode::MissingIdentity,
             "GitOdile doesn't know who is saving this version yet.",
@@ -296,6 +336,17 @@ fn validate_and_prepare_save(
         .as_deref()
         .map(|entries| entries.iter().any(|entry| entry.is_prepared))
         .unwrap_or(status.has_prepared_changes);
+    let files = selected_entries
+        .as_deref()
+        .unwrap_or(&status.entries)
+        .iter()
+        .take(SAVE_PLAN_FILE_LIMIT)
+        .map(|entry| SaveVersionFile {
+            path: entry.path.clone(),
+            original_path: entry.original_path.clone(),
+            category: entry.category,
+        })
+        .collect();
 
     Ok(ValidatedSave {
         branch,
@@ -304,6 +355,7 @@ fn validate_and_prepare_save(
         remaining_files,
         is_partial,
         has_prepared_changes,
+        files,
         state_token,
         prepared,
     })
@@ -369,6 +421,7 @@ pub(crate) fn plan_save_version_selection_with_identity_override(
         is_partial,
         has_prepared_changes: validated.has_prepared_changes,
         counts: validated.selected_counts,
+        files: validated.files,
     })
     // `validated.prepared`'s temporary index is dropped (and its backing
     // file removed) here — the plan only ever needed its tree hash, already

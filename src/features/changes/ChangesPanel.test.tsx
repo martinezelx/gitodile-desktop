@@ -192,6 +192,7 @@ describe("ChangesPanel save selection", () => {
           isPartial: true,
           hasPreparedChanges: false,
           counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 },
+          files: [],
         });
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -259,6 +260,7 @@ describe("ChangesPanel save selection", () => {
           isPartial: false,
           hasPreparedChanges: false,
           counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+          files: [],
         });
       }
       if (command === "save_version") {

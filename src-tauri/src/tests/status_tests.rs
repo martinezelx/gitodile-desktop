@@ -52,6 +52,28 @@ fn read_working_tree_status_counts_added_and_removed_lines() {
 }
 
 #[test]
+fn the_status_without_line_totals_reports_the_same_changes() {
+    let path = unique_temp_dir("status-without-line-totals");
+    git_init(&path);
+    write_file(&path, "tracked.txt", "one\ntwo\nthree\n");
+    git_add_all(&path);
+    git_commit(&path, "first");
+    write_file(&path, "tracked.txt", "one\nTWO\nthree\n");
+    write_file(&path, "new.txt", "alpha\nbeta\n");
+
+    let full = read_working_tree_status(path.clone()).expect("a repository should report");
+    let lean = crate::status::read_working_tree_status_without_line_totals(path.clone())
+        .expect("a repository should report");
+    assert!(full.line_totals.is_some());
+    assert!(lean.line_totals.is_none());
+    assert_eq!(lean.counts, full.counts);
+    assert_eq!(lean.entries, full.entries);
+    assert_eq!(lean.upstream, full.upstream);
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
 fn read_working_tree_status_has_no_line_totals_when_nothing_changed() {
     let path = unique_temp_dir("status-line-totals-clean");
     git_init(&path);

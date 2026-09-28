@@ -1,5 +1,5 @@
 import type { Translations } from "../../i18n";
-import type { SaveVersionPlan } from "./domain";
+import type { SaveVersionPreview } from "./domain";
 
 /** What a plan says beyond its counts, and only when it applies: files the
  * selection leaves behind, changes already prepared in Git's index, a first
@@ -14,7 +14,7 @@ import type { SaveVersionPlan } from "./domain";
  * `countStated` is for a frame whose plan line already reads "3 of 7 files":
  * the files left behind are that line's to say, and nothing is counted twice. */
 export function getSaveVersionNotes(
-  plan: SaveVersionPlan,
+  plan: SaveVersionPreview,
   t: Translations,
   { countStated = false }: { countStated?: boolean } = {},
 ): string[] {
