@@ -112,6 +112,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The name and the gear that configures it: the settings belong to the
+   project, not to the version line on the right. The name truncates; the gear
+   never does. */
+.overview-header__title { min-width: 0; margin-bottom: 2px; display: flex; align-items: center; gap: var(--space-1); }
+.overview-header__title h1 { min-width: 0; margin-bottom: 0; }
 .overview-header__copy .project-path { margin-bottom: 0; }
 .overview-header__copy .project-path__value { color: var(--text-secondary-color); font-size: var(--text-label); }
 .overview-header__copy .project-path__copy {
@@ -176,15 +181,6 @@
   line-height: var(--leading-snug);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-/* A hairline between the line and the settings: two things about the
-   project, side by side, that are not one control. */
-.overview-header__divider {
-  flex-shrink: 0;
-  align-self: center;
-  width: 1px;
-  height: 28px;
-  background: var(--border-divider);
 }
 /* A bare round glyph, like the band's refresh: no border and no fill until it
    is pointed at, so the header holds no form-control chrome at rest. */

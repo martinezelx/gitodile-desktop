@@ -398,7 +398,22 @@ function OverviewHeader({
           </span>
         </button>
         <div className="overview-header__copy">
-          <h1 id="project-summary-heading" title={project.name}>{project.name}</h1>
+          <div className="overview-header__title">
+            <h1 id="project-summary-heading" title={project.name}>{project.name}</h1>
+            {/* The same gear the project switcher shows for the same panel,
+                beside the name it configures. */}
+            <button
+              className="overview-header__settings"
+              type="button"
+              aria-label={t.projectSettingsOpenFor(project.name)}
+              data-tooltip={t.projectSettingsOpen}
+              onPointerEnter={() => onPrefetchProjectSettings?.()}
+              onFocus={() => onPrefetchProjectSettings?.()}
+              onClick={onOpenProjectSettings}
+            >
+              <Settings aria-hidden="true" />
+            </button>
+          </div>
           <div className="overview-header__subline">
             {/* First, so the path's copy control — invisible until the path
                 is pointed at — never opens a gap between the two. */}
@@ -433,19 +448,6 @@ function OverviewHeader({
             />
           )}
         </div>
-        <span className="overview-header__divider" aria-hidden="true" />
-        {/* The same gear the project switcher shows for the same panel. */}
-        <button
-          className="overview-header__settings"
-          type="button"
-          aria-label={t.projectSettingsOpenFor(project.name)}
-          data-tooltip={t.projectSettingsOpen}
-          onPointerEnter={() => onPrefetchProjectSettings?.()}
-          onFocus={() => onPrefetchProjectSettings?.()}
-          onClick={onOpenProjectSettings}
-        >
-          <Settings aria-hidden="true" />
-        </button>
       </div>
     </header>
   );
