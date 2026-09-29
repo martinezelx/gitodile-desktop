@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Sparkles,
   Tag,
+  Terminal,
 } from "lucide-react";
 
 /** The glyph catalogue. The release scripts validate every highlights file
@@ -27,6 +28,7 @@ export const HIGHLIGHT_ICONS = [
   "shield-check",
   "sparkles",
   "tag",
+  "terminal",
 ] as const;
 export type HighlightIcon = (typeof HIGHLIGHT_ICONS)[number];
 
@@ -55,6 +57,7 @@ const HIGHLIGHT_ICON_COMPONENTS: Record<HighlightIcon, React.ComponentType<{ "ar
   "shield-check": ShieldCheck,
   sparkles: Sparkles,
   tag: Tag,
+  terminal: Terminal,
 };
 
 function glyphFor(icon: string): React.ComponentType<{ "aria-hidden": true }> {
